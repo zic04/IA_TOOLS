@@ -1,0 +1,75 @@
+{
+  "title": "Acme Orders documentation",
+  "tagline": "The demo documentation of the kit: two sections, a sub-page, two annotated screens, a diagram, a glossary and a reading path.",
+  "sections": [
+    {
+      "id": "use",
+      "title": "Using Acme Orders",
+      "shortTitle": "Use",
+      "icon": "screen",
+      "subtitle": "Day-to-day work: the orders list and the profile settings.",
+      "highlights": ["The annotated orders list", "Settings, step by step"],
+      "groups": [
+        {
+          "title": "Getting started",
+          "pages": [
+            {
+              "id": "use/orders",
+              "title": "The orders list",
+              "menuTitle": "Orders",
+              "summary": "Filters, order summary and the New order button.",
+              "template": "screen",
+              "routes": ["/orders"],
+              "permissions": ["orders:read"]
+            },
+            {
+              "id": "use/orders/detail",
+              "title": "Order details",
+              "menuTitle": "Details",
+              "level": 2,
+              "summary": "What changes once an order has been created."
+            },
+            {
+              "id": "use/settings",
+              "title": "Profile settings",
+              "menuTitle": "Settings",
+              "summary": "Change your profile and save it.",
+              "routes": ["/settings"],
+              "permissions": ["settings:write"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "maintain",
+      "title": "Maintaining Acme Orders",
+      "shortTitle": "Maintain",
+      "icon": "code",
+      "featured": true,
+      "subtitle": "For the team that takes over the project: architecture and data flow.",
+      "highlights": ["Three-block architecture"],
+      "groups": [
+        {
+          "title": "Technical",
+          "pages": [
+            {
+              "id": "maintain/architecture",
+              "title": "Architecture of Acme Orders",
+              "menuTitle": "Architecture",
+              "summary": "The three blocks of Acme Orders and how they talk."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "Discover Acme Orders",
+      "description": "The three pages to read first.",
+      "steps": ["use/orders", "use/settings", "maintain/architecture"]
+    }
+  ],
+  "suggestions": ["use/orders", "use/settings", "maintain/architecture"]
+}

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="{{GENERATOR}}">
+<meta name="description" content="{{t:template.description}}">
+<title>{{TITLE}}</title>
+<link rel="icon" href="{{FAVICON}}">
+<script>
+  // Theme applied BEFORE the first paint (no flash): remembered choice, otherwise the system preference.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("{{THEME_KEY}}"); } catch (e) {}
+    if (t !== "dark" && t !== "light") {
+      t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<style>
+{{TOKENS}}
+{{STYLE}}
+</style>
+</head>
+<body>
+<a class="sr-only" href="#contenu-principal">{{t:template.skipToContent}}</a>
+
+<header class="topbar">
+  <button class="icone-bouton" id="menu-mobile" aria-label="{{t:template.menu}}">{{ICON:menu}}</button>
+  <a class="marque" href="#/">
+    <span class="marque-logo">{{LOGO}}</span>
+    <span>{{PRODUCT}}<small>{{t:template.documentation}}</small></span>
+  </a>
+  <span class="version-puce">v{{VERSION}}</span>
+  <nav class="topnav" id="topnav" aria-label="{{t:template.sections}}"></nav>
+  <button class="recherche-bouton" id="ouvrir-recherche" aria-label="{{t:template.search}}">
+    {{ICON:search}}<span>{{t:template.searchEllipsis}}</span><kbd>{{t:template.searchShortcut}}</kbd>
+  </button>
+  <button class="icone-bouton" id="bouton-theme" aria-label="{{t:template.changeTheme}}"></button>
+  <button class="icone-bouton" id="bouton-imprimer" aria-label="{{t:template.print}}" title="{{t:template.printTitle}}">{{ICON:print}}</button>
+</header>
+
+<div class="coque" id="coque">
+  <nav class="lateral" id="lateral" aria-label="{{t:template.contents}}"></nav>
+  <main class="principal" id="contenu-principal" tabindex="-1"></main>
+  <aside class="toc" id="toc" aria-label="{{t:template.onThisPage}}"></aside>
+</div>
+<div id="impression"></div>
+
+<div class="bulle" id="bulle" role="tooltip"></div>
+
+<div class="visionneuse" id="visionneuse" role="dialog" aria-modal="true" aria-label="{{t:template.viewer}}">
+  <div class="vis-barre">
+    <span class="titre" id="vis-titre"></span>
+    <button class="bouton" id="vis-visite">{{ICON:play}}<span>{{t:template.guidedTour}}</span></button>
+    <button class="bouton" id="vis-fermer">{{ICON:close}}<span>{{t:template.close}}</span></button>
+  </div>
+  <div class="vis-scene" id="vis-scene"></div>
+</div>
+
+<div class="recherche-fond" id="recherche" role="dialog" aria-modal="true" aria-label="{{t:template.searchDialog}}">
+  <div class="recherche-boite">
+    <div class="recherche-champ">
+      {{ICON:search}}
+      <input id="recherche-champ" type="search" autocomplete="off" spellcheck="false" placeholder="{{t:template.searchPlaceholder}}">
+    </div>
+    <div class="recherche-resultats" id="recherche-resultats"></div>
+    <div class="sr-only" id="recherche-statut" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="recherche-aide"><span><kbd>↑</kbd> <kbd>↓</kbd> {{t:template.helpNavigate}}</span><span><kbd>{{t:template.keyEnter}}</kbd> {{t:template.helpOpen}}</span><span><kbd>{{t:template.keyEscape}}</kbd> {{t:template.helpClose}}</span></div>
+  </div>
+</div>
+
+<script type="application/json" id="donnees">{{DATA}}</script>
+{{IMAGES}}
+<script>
+{{APP}}
+</script>
+</body>
+</html>

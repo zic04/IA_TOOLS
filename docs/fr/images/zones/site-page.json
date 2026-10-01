@@ -1,0 +1,76 @@
+{
+  "file": "site-page.webp",
+  "title": "doc-kit › une page du site généré",
+  "route": "/#/examples/screen~l-ecran",
+  "width": 1440,
+  "height": 900,
+  "version": "0.1.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 15.68,
+      "y": 0.66,
+      "w": 53.06,
+      "h": 5.01,
+      "label": "Sections"
+    },
+    {
+      "n": 2,
+      "x": 72.78,
+      "y": 0.72,
+      "w": 18.61,
+      "h": 4.89,
+      "label": "Recherche"
+    },
+    {
+      "n": 3,
+      "x": 92.08,
+      "y": 0.72,
+      "w": 3.06,
+      "h": 4.89,
+      "label": "Thème"
+    },
+    {
+      "n": 4,
+      "x": 95.83,
+      "y": 0.72,
+      "w": 3.06,
+      "h": 4.89,
+      "label": "Imprimer"
+    },
+    {
+      "n": 5,
+      "x": 0,
+      "y": 6.67,
+      "w": 20.14,
+      "h": 93.33,
+      "side": "corner",
+      "label": "Menu"
+    },
+    {
+      "n": 6,
+      "x": 59.08,
+      "y": 14.76,
+      "w": 13.36,
+      "h": 4.44,
+      "label": "Visite guidée"
+    },
+    {
+      "n": 7,
+      "x": 23.4,
+      "y": 19.65,
+      "w": 57.36,
+      "h": 42.04,
+      "label": "Écran annoté"
+    },
+    {
+      "n": 8,
+      "x": 84.03,
+      "y": 6.67,
+      "w": 15.97,
+      "h": 93.33,
+      "label": "Sur cette page"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Les vérifications du mode guidé, dans l'ordre, et la commande proposée à chaque manque">
+  <defs>
+    <marker id="gm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+  <rect class="d-box" x="10" y="30" width="130" height="64" rx="8"/>
+  <text class="d-title" x="75" y="56" text-anchor="middle">Un projet ?</text>
+  <text class="d-small" x="75" y="78" text-anchor="middle">doc.config.mjs</text>
+  <rect class="d-box" x="160" y="30" width="130" height="64" rx="8"/>
+  <text class="d-title" x="225" y="56" text-anchor="middle">Installé ?</text>
+  <text class="d-small" x="225" y="78" text-anchor="middle">node_modules</text>
+  <rect class="d-box" x="310" y="30" width="130" height="64" rx="8"/>
+  <text class="d-title" x="375" y="56" text-anchor="middle">Valide ?</text>
+  <text class="d-small" x="375" y="78" text-anchor="middle">configuration</text>
+  <rect class="d-box" x="460" y="30" width="130" height="64" rx="8"/>
+  <text class="d-title" x="525" y="56" text-anchor="middle">Une session ?</text>
+  <text class="d-small" x="525" y="78" text-anchor="middle">sauf auth : none</text>
+  <rect class="d-box" x="610" y="30" width="130" height="64" rx="8"/>
+  <text class="d-title" x="675" y="56" text-anchor="middle">Une capture ?</text>
+  <text class="d-small" x="675" y="78" text-anchor="middle">images/zones</text>
+  <rect class="d-solid" x="760" y="30" width="130" height="64" rx="8"/>
+  <text class="d-white" x="825" y="58" text-anchor="middle">En place</text>
+  <text class="d-white" x="825" y="78" text-anchor="middle">menu</text>
+  <path class="d-line" d="M140 62H156" marker-end="url(#gm-arrow)"/>
+  <path class="d-line" d="M290 62H306" marker-end="url(#gm-arrow)"/>
+  <path class="d-line" d="M440 62H456" marker-end="url(#gm-arrow)"/>
+  <path class="d-line" d="M590 62H606" marker-end="url(#gm-arrow)"/>
+  <path class="d-line" d="M740 62H756" marker-end="url(#gm-arrow)"/>
+
+  <path class="d-dashed" d="M75 94V128"/>
+  <path class="d-dashed" d="M225 94V128"/>
+  <path class="d-dashed" d="M375 94V128"/>
+  <path class="d-dashed" d="M525 94V128"/>
+  <path class="d-dashed" d="M675 94V128"/>
+  <path class="d-dashed" d="M825 94V128"/>
+  <rect class="d-warn" x="10" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="75" y="159" text-anchor="middle">init</text>
+  <rect class="d-warn" x="160" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="225" y="159" text-anchor="middle">npm install</text>
+  <rect class="d-warn" x="310" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="375" y="159" text-anchor="middle">doctor</text>
+  <rect class="d-warn" x="460" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="525" y="159" text-anchor="middle">connect</text>
+  <rect class="d-warn" x="610" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="675" y="159" text-anchor="middle">capture</text>
+  <rect class="d-brand" x="760" y="132" width="130" height="44" rx="8"/>
+  <text class="d-text" x="825" y="152" text-anchor="middle">dev · audit</text>
+  <text class="d-text" x="825" y="168" text-anchor="middle">build · doctor</text>
+  <text class="d-small" x="10" y="16">Vérifié de gauche à droite ; le premier « non » décide de la commande proposée (pointillés : quand la vérification échoue).</text>
+</svg>

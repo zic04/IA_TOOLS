@@ -1,0 +1,257 @@
+# Exemples de configuration
+
+Deux `doc.config.mjs` complets, conformes au §3 du contrat (`ARCHITECTURE.md`). Les deux applications sont fictives :
+- **Acme Orders** : une application web de gestion de commandes, construite avec Next.js (App Router), dont les utilisateurs se connectent par un fournisseur d'identité. Sa documentation est capturée **en production, en lecture seule**.
+- **Acme Deliveries** : une application de planification de livraisons, avec un front React Router, une API Python et une carte. Sa documentation est capturée sur une **démo locale préparée**, complétée de quelques captures de production en lecture seule.
+
+Les deux exemples sont ceux de sites en français : `language: "fr"`. Les clés de configuration sont toujours en anglais.
+
+Rappels :
+- La validation est **stricte** : une clé inconnue est une erreur (code de sortie 2), indiquée avec son chemin, par exemple `capture.storgae`.
+- Priorité, de la plus forte à la plus faible : option de la CLI > variable `DOC_KIT_*` > variable `<PREFIXE>_*` > fichier de configuration > valeur par défaut.
+- Les valeurs par défaut sont **neutres** : aucun cookie, aucun sélecteur de cadre CSS, aucune couleur de marque et aucune géolocalisation ne sont appliqués si la configuration ne les demande pas. Une clé omise prend sa valeur par défaut.
+- Les chemins sont relatifs au dossier du projet de documentation.
+
+## Acme Orders — production en lecture seule, Next.js, connexion manuelle
+
+```js
+// doc.config.mjs — documentation d'Acme Orders, dans <app>/docs/manual/
+import { defineConfig } from "doc-kit/config";
+
+export default defineConfig({
+  kit: "^0.1.0", // versions du kit acceptées ; hors de cette plage, chaque commande s'arrête avec le code 3
+  product: { name: "Acme Orders", slug: "acme-orders" },
+  language: "fr", // langue du site et des messages de la CLI
+  output: "dist/Acme-Orders-Documentation.html",
+  paths: { content: "content", images: "images", diagrams: "diagrams" }, // les défauts, montrés pour la clarté
+
+  // Version affichée dans le bandeau du site : lue dans le code de l'application. Le repli sert quand le
+  // fichier est introuvable (par exemple, une copie de ce dossier hors du dépôt).
+  version: {
+    file: "../../package.json",
+    pattern: "\"version\"\\s*:\\s*\"([^\"]+)\"",
+    fallback: "2.4.0",
+  },
+
+  // Lit aussi ACME_URL, ACME_SESSION, ACME_PLANS, ACME_READONLY et ACME_VERSION (la version de repli).
+  env: { prefix: "ACME" },
+
+  // L'application capturée est la PRODUCTION. Les captures ne s'y font qu'avec une session, en lecture seule.
+  app: { url: "https://orders.acme.example" },
+
+  // « manual » : `doc-kit connect` ouvre l'application, la personne se connecte par le fournisseur d'identité
+  // (SSO, MFA), puis appuie sur Entrée dans le terminal. Avant chaque capture, la session est valide si
+  // l'application ne redirige pas vers une page dont l'URL correspond à loginPattern. Acme Orders a sa propre
+  // route /login et le fournisseur d'identité utilise des URL /oauth2/ et /authorize.
+  auth: {
+    adapter: "manual",
+    loginPattern: "/login|/oauth2/|/authorize|/signin",
+  },
+
+  capture: {
+    // Acme Orders range ses plans de production à part, au cas où une démo s'ajouterait un jour.
+    plans: "captures/plans-prod",
+    setup: null, // pas de démo : tout est capturé en production
+    locale: "fr-FR",
+    timezone: "Europe/Paris",
+    viewports: { desktop: { width: 1600, height: 1000 }, mobile: { width: 390, height: 844 } },
+    webpQuality: 0.82,
+    geolocation: null, // l'application n'utilise pas la position
+    storage: { theme: "light", density: "comfortable" }, // localStorage posé avant chaque capture
+    cookies: [{ name: "NEXT_LOCALE", value: "fr" }], // la langue de l'interface est un cookie (i18n Next.js)
+    selectors: { block: "section.card", frame: null }, // utilisé par la cible { block }
+    map: null,
+    // Routes à ne jamais ouvrir : la fiche d'une commande sans circuit de validation en crée un au rendu
+    // (app/(app)/orders/[id]/page.tsx:88-92, ensureApprovalChain) et notifie le valideur. Seules restent
+    // ouvrables les trois fiches déjà ouvertes pendant la campagne du 1er octobre 2026, dont le circuit existe.
+    forbidden: [
+      "^/orders/(?!(ord_7f3a21|ord_91bc04|ord_c2d9e8)(/|$))[^/]+",
+    ],
+    readOnly: "auto", // actif dès qu'une session est utilisée
+  },
+
+  // Masquage automatique : GUID, et valeurs du .env local de l'application dont le nom évoque une URL,
+  // un tenant, un client, un compte, un hôte, une adresse e-mail ou un utilisateur. Plus les noms d'hôtes internes.
+  masking: {
+    env: ["../../.env.local"],
+    exclude: "localhost|127\\.0\\.0\\.1",
+    guid: true,
+    patterns: ["[a-z0-9-]+\\.internal\\.acme\\.example"],
+  },
+
+  // Chaque route app/**/page.tsx doit être citée (« routes » de toc.json ou texte d'une page) : 61 routes.
+  coverage: [{ adapter: "next-app-router", app: "../../app" }],
+
+  theme: {
+    key: "acme-orders-doc-theme", // clé localStorage du thème clair / sombre du site
+    logo: "theme/logo.svg",
+    colors: {}, // jetons de couleur du thème clair ; vide : la palette neutre du kit
+    dark: {},
+    icons: {},
+  },
+
+  statuses: {}, // [[statut …]] : pastilles neutres ; Acme Orders affiche ses statuts en simples libellés
+  texts: {},
+  feedback: { label: "Signaler une erreur dans cette documentation", url: "https://support.acme.example/docs" },
+  extra: {},
+});
+```
+
+Une campagne de captures :
+
+```bash
+doc-kit connect --url https://orders.acme.example   # la personne se connecte (SSO + MFA), puis appuie sur Entrée
+doc-kit capture "prod-cf-*" --preview                # lecture seule, petits lots
+doc-kit connect --forget                             # supprime la session
+```
+
+## Acme Deliveries — démo locale, React Router + API Python, une carte
+
+```js
+// doc.config.mjs — documentation d'Acme Deliveries, dans <app>/docs/manual/
+import { defineConfig } from "doc-kit/config";
+
+export default defineConfig({
+  kit: "^0.1.0",
+  product: { name: "Acme Deliveries", slug: "acme-deliveries" },
+  language: "fr",
+  output: "dist/Acme-Deliveries-Documentation.html",
+
+  version: {
+    file: "../../frontend/src/lib/version.ts",
+    pattern: "APP_VERSION\\s*=\\s*\"([^\"]+)\"",
+    fallback: "0.9.3",
+  },
+
+  // Lit aussi DELIVERIES_URL, DELIVERIES_SESSION, DELIVERIES_PLANS, DELIVERIES_READONLY et DELIVERIES_VERSION.
+  // Captures de production : DELIVERIES_URL=https://deliveries.acme.example DELIVERIES_PLANS=captures/plans-prod, avec une session.
+  env: { prefix: "DELIVERIES" },
+
+  // Par défaut, l'application lancée en LOCAL (serveur de développement du front) avec les données de démo.
+  app: { url: "http://localhost:5173" },
+
+  // « api-me » : la session est valide quand le point « me » de l'API répond avec l'utilisateur connecté (le
+  // serveur de développement du front relaie /api vers l'API Python). Les options de l'adaptateur se placent à
+  // côté de « adapter » : `url` (défaut « /api/me »), `proof` (champ qui prouve la connexion, défaut « id »),
+  // `who` (champ affiché par connect, défaut « name »).
+  auth: { adapter: "api-me", url: "/api/v1/me", proof: "id", who: "name" },
+
+  capture: {
+    plans: "captures/plans",
+    // Remplit la base de développement ; idempotent, donc relançable avant chaque campagne.
+    // Deux dépôts, 40 livraisons dans chaque statut, des livreurs et des clients fictifs. Lancé par `doc-kit demo`.
+    setup: "captures/setup-demo.mjs",
+    locale: null, // déduite de language : fr-FR
+    timezone: "Europe/Paris",
+    viewports: { desktop: { width: 1600, height: 1000 }, mobile: { width: 390, height: 844 } },
+    webpQuality: 0.82,
+    // La position du livreur dans le contexte mobile, au milieu des livraisons de démo.
+    geolocation: { latitude: 51.5072, longitude: -0.1276 },
+    // Le dépôt mémorisé par l'application, la langue de l'interface, et l'avis « Nouveautés » marqué comme vu
+    // pour la version courante (« {version} » est remplacé par la version de l'application).
+    storage: { theme: "light", lang: "fr", depot: "north", "whats-new-seen": "{version}" },
+    cookies: [], // la langue de l'interface est dans le localStorage (« lang »), pas dans un cookie
+    selectors: { block: "div.panel", frame: null },
+    // Cadrage déterministe d'une capture de carte : la vue { lon, lat, zoom } du plan est écrite dans ces
+    // paramètres d'URL de l'application (x et y en mètres Web Mercator, EPSG:3857).
+    map: { x: "mx", y: "my", z: "mz" },
+    forbidden: [],
+    readOnly: "auto",
+  },
+
+  masking: {
+    env: ["../../.env"],
+    exclude: "localhost|127\\.0\\.0\\.1|^db$|\\.local$",
+    guid: true,
+    patterns: [],
+  },
+
+  // 74 éléments : 22 routes de App.tsx, 12 couches de carte, 25 widgets de tableau de bord, 15 outils de barre.
+  // Le titre français de chaque couche, widget et outil (lu dans fr.json) doit apparaître dans la documentation.
+  // Une entrée i18n-registry par registre : `source` contient les ids, `block` (facultatif) délimite la partie
+  // de la source à lire, `pattern` extrait les ids (par défaut : chaque chaîne entre guillemets), `key` trouve
+  // chaque libellé dans `messages`. Toutes les options : en-tête de adapters/coverage/i18n-registry.mjs.
+  coverage: [
+    { adapter: "react-router", file: "../../frontend/src/App.tsx" },
+    {
+      adapter: "i18n-registry",
+      family: "Couches de la carte",
+      source: "../../frontend/src/lib/layers.ts",
+      block: "LAYER_IDS\\s*=\\s*\\[([^\\]]+)\\]",
+      messages: "../../frontend/src/i18n/locales/fr.json",
+      key: "map.layer.{id}.title",
+      aliases: { base_map: "base" }, // base_map n'a pas de libellé propre : il prend celui de « base »
+      exclude: ["debug"],
+    },
+    {
+      adapter: "i18n-registry",
+      family: "Widgets des tableaux de bord",
+      source: "../../frontend/src/features/dashboard/registry.ts",
+      pattern: "^\\s*[a-z0-9_]+: \\{ id: \"(?<id>[a-z0-9_]+)\"",
+      messages: "../../frontend/src/i18n/locales/fr.json",
+      key: "dashboard.widget.{id}.title",
+    },
+    {
+      adapter: "i18n-registry",
+      family: "Outils de la barre",
+      source: "../../frontend/src/features/map/toolbar.ts",
+      block: "TOOL_IDS\\s*=\\s*\\[([^\\]]+)\\]",
+      messages: "../../frontend/src/i18n/locales/fr.json",
+      key: "map.tool.{id}",
+    },
+  ],
+
+  theme: { key: "acme-deliveries-doc-theme", logo: "theme/logo.svg", colors: {}, dark: {}, icons: {} },
+
+  // [[statut 2]] : la pastille colorée d'un statut de livraison, comme l'application l'affiche sur la carte.
+  statuses: {
+    "0": ["st-0", "0 · livrée"],
+    "1": ["st-1", "1 · en cours de livraison"],
+    "2": ["st-2", "2 · en retard"],
+    "3": ["st-3", "3 · tentative échouée"],
+    "4": ["st-4", "4 · retournée au dépôt"],
+  },
+
+  texts: { "home.primaryAction": "Découvrir les éditeurs" },
+  feedback: null,
+
+  // Libre : transmis aux scripts du projet (setup-demo.mjs, plans de captures).
+  extra: {
+    api: "http://localhost:8000/api/v1",
+    demo: { depot: "north", day: "2026-09-30" },
+  },
+});
+```
+
+Campagnes de captures :
+
+```bash
+doc-kit demo                                     # prépare la démo (idempotent), application lancée en local
+doc-kit capture "carte-couche-*" --preview       # captures de démo
+
+# Configuration de production, en lecture seule, plans séparés (préfixe prod-)
+doc-kit connect --url https://deliveries.acme.example
+DELIVERIES_URL=https://deliveries.acme.example DELIVERIES_PLANS=captures/plans-prod doc-kit capture "prod-*" --preview
+doc-kit connect --forget
+```
+
+Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "https://deliveries.acme.example"`.
+
+## Ce qui distingue les deux
+
+| Clé | Acme Orders | Acme Deliveries | Pourquoi |
+|---|---|---|---|
+| `app.url` | Production | Local | L'un capture la production ; l'autre une démo préparée |
+| `auth.adapter` | `manual` + `loginPattern` | `api-me` | Une redirection vers une page de connexion, contre une API qui dit qui est connecté |
+| `capture.plans` | `captures/plans-prod` | `captures/plans` | Acme Orders n'a que des plans de production |
+| `capture.setup` | `null` | `captures/setup-demo.mjs` | Une démo idempotente |
+| `capture.cookies` | `NEXT_LOCALE=fr` | — | Langue de l'interface : un cookie, contre le `localStorage` (`lang`) |
+| `capture.geolocation` | `null` | Une position | Seul Acme Deliveries a un contexte mobile qui utilise la position |
+| `capture.map` | `null` | `mx`, `my`, `mz` | Seul Acme Deliveries a une carte |
+| `capture.forbidden` | Fiches commande | — | Une écriture du serveur au rendu (`ensureApprovalChain`) |
+| `coverage` | Routes `app/**/page.tsx` | Routes + registres i18n | Ce qui doit être documenté dépend du produit |
+| `statuses` | — | 5 statuts colorés | Statuts codés en couleur dans l'application |
+
+## Les projets plus anciens
+
+Un projet écrit avant doc-kit, avec des noms de dossiers en français, continue de fonctionner : déclarez ses dossiers dans `paths`, par exemple `paths: { content: "contenu", diagrams: "schemas" }`. Ses fichiers JSON à clés françaises sont lus tels quels ; `doc-kit migrate` les réécrit au format actuel.

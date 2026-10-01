@@ -1,0 +1,12 @@
+[
+  {
+    "term": "Role",
+    "pattern": "roles?",
+    "def": "A set of permissions given to a user: it decides which screens they see and which actions they can take."
+  },
+  {
+    "term": "Finding",
+    "pattern": "findings?",
+    "def": "A gap, risk or debt found at takeover, checked in the code and numbered (C, I, M, P or N) on the findings page."
+  }
+]

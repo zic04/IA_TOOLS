@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "doc-kit/schemas/zones.schema.json",
+  "title": "images/zones/<id>.json",
+  "description": "Metadata of a screenshot (ARCHITECTURE.md §6.2): size and annotated zones, as percentages of the image. `version` and `captured` are written by `capture` and optional when reading. Tolerant reader: unknown fields are accepted. Legacy files (fichier, titre, largeur, hauteur, l, libelle, cote) are normalised before validation.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["file", "width", "height"],
+  "properties": {
+    "file": { "type": "string", "pattern": "^[^/\\\\]+\\.(webp|png|jpe?g)$" },
+    "title": { "type": "string" },
+    "route": { "type": ["string", "null"] },
+    "width": { "type": "integer", "minimum": 1 },
+    "height": { "type": "integer", "minimum": 1 },
+    "version": { "type": "string" },
+    "captured": { "type": "string" },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["n", "x", "y", "w", "h"],
+        "properties": {
+          "n": { "type": "integer", "minimum": 1 },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "w": { "type": "number" },
+          "h": { "type": "number" },
+          "label": { "type": "string" },
+          "side": { "enum": ["corner", "right", "bottom", "bottom-right"] }
+        }
+      }
+    }
+  }
+}

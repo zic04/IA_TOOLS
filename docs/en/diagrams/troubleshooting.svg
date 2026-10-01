@@ -1,0 +1,35 @@
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From the exit code to the first check and the sub-page">
+  <defs>
+    <marker id="tr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+  <rect class="d-solid" x="20" y="95" width="170" height="60" rx="10"/>
+  <text class="d-white" x="105" y="122" text-anchor="middle">A command</text>
+  <text class="d-white" x="105" y="142" text-anchor="middle">failed</text>
+
+  <rect class="d-warn" x="260" y="20" width="250" height="62" rx="8"/>
+  <text class="d-title" x="385" y="45" text-anchor="middle">Exit code 1: content</text>
+  <text class="d-small" x="385" y="66" text-anchor="middle">a page, a link, a legend, a capture</text>
+  <rect class="d-info" x="260" y="94" width="250" height="62" rx="8"/>
+  <text class="d-title" x="385" y="119" text-anchor="middle">Exit code 2: usage</text>
+  <text class="d-small" x="385" y="140" text-anchor="middle">an option, a key, a plan</text>
+  <rect class="d-danger" x="260" y="168" width="250" height="62" rx="8"/>
+  <text class="d-title" x="385" y="193" text-anchor="middle">Exit code 3: environment</text>
+  <text class="d-small" x="385" y="214" text-anchor="middle">kit, browser, application, session</text>
+
+  <rect class="d-box" x="580" y="20" width="300" height="62" rx="8"/>
+  <text class="d-title" x="730" y="45" text-anchor="middle">doc-kit build --draft</text>
+  <text class="d-small" x="730" y="66" text-anchor="middle">then: Build and writing problems</text>
+  <rect class="d-box" x="580" y="94" width="300" height="62" rx="8"/>
+  <text class="d-title" x="730" y="119" text-anchor="middle">the → line of the message</text>
+  <text class="d-small" x="730" y="140" text-anchor="middle">then: Configuration, Command line</text>
+  <rect class="d-box" x="580" y="168" width="300" height="62" rx="8"/>
+  <text class="d-title" x="730" y="193" text-anchor="middle">doc-kit doctor</text>
+  <text class="d-small" x="730" y="214" text-anchor="middle">then: Capture and session problems</text>
+
+  <path class="d-line" d="M190 115L256 51" marker-end="url(#tr-arrow)"/>
+  <path class="d-line" d="M190 125H256" marker-end="url(#tr-arrow)"/>
+  <path class="d-line" d="M190 135L256 199" marker-end="url(#tr-arrow)"/>
+  <path class="d-line" d="M510 51H576" marker-end="url(#tr-arrow)"/>
+  <path class="d-line" d="M510 125H576" marker-end="url(#tr-arrow)"/>
+  <path class="d-line" d="M510 199H576" marker-end="url(#tr-arrow)"/>
+</svg>

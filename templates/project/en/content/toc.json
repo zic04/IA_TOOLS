@@ -1,0 +1,171 @@
+{
+  "title": "{{name}} documentation",
+  "tagline": "The reference guide to {{name}}: every screen, every setting and how they really work, explained and illustrated on the application.",
+  "sections": [
+    {
+      "id": "use",
+      "title": "Using {{name}}",
+      "shortTitle": "Use",
+      "icon": "screen",
+      "subtitle": "The user's daily work: every screen, annotated, and what it really does.",
+      "highlights": [
+        "Signing in and finding your way",
+        "Every screen explained item by item",
+        "The pitfalls to know"
+      ],
+      "groups": [
+        {
+          "title": "Getting started",
+          "pages": [
+            {
+              "id": "use/getting-started",
+              "title": "Getting started",
+              "menuTitle": "Getting started",
+              "summary": "Sign in, find your way around the interface and reach any screen.",
+              "template": "screen",
+              "routes": ["/"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "configure",
+      "title": "Configure — the editors",
+      "shortTitle": "Configure",
+      "icon": "sliders",
+      "featured": true,
+      "subtitle": "Every editor and every setting, with the real mechanism it drives.",
+      "highlights": [
+        "The mechanism behind each setting",
+        "The complete settings reference",
+        "End-to-end recipes"
+      ],
+      "groups": [
+        {
+          "title": "Editors",
+          "pages": [
+            {
+              "id": "configure/sample-editor",
+              "title": "An editor (sample to replace)",
+              "menuTitle": "Sample editor",
+              "summary": "Model of an editor page: rename it after the first editor of the application.",
+              "template": "editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "administer",
+      "title": "Administer the platform",
+      "shortTitle": "Administer",
+      "icon": "shield",
+      "subtitle": "Access, reference data and system settings.",
+      "highlights": [
+        "Accounts and permissions",
+        "Reference data",
+        "System settings"
+      ],
+      "groups": [
+        {
+          "title": "Access",
+          "pages": [
+            {
+              "id": "administer/users",
+              "title": "Users",
+              "menuTitle": "Users",
+              "summary": "The register of accounts: who has access, with which role, and how to handle someone who leaves.",
+              "template": "screen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "title": "Take the project over",
+      "shortTitle": "Take over",
+      "icon": "code",
+      "subtitle": "What you need to know to run and evolve the application: architecture, production setup, troubleshooting, findings.",
+      "highlights": [
+        "The architecture and the production setup",
+        "Troubleshooting by symptom",
+        "The numbered findings"
+      ],
+      "groups": [
+        {
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "take-over/architecture",
+              "title": "Architecture overview",
+              "menuTitle": "Architecture",
+              "summary": "The big picture, the technical stack, the principles and the main flows.",
+              "template": "technical"
+            },
+            {
+              "id": "take-over/technical-architecture",
+              "title": "Technical architecture document",
+              "menuTitle": "Production setup",
+              "summary": "The production setup: what runs and where, the numbered flows, what remains to be confirmed and who manages what.",
+              "template": "architecture"
+            }
+          ]
+        },
+        {
+          "title": "Operate and evolve",
+          "pages": [
+            {
+              "id": "take-over/troubleshooting",
+              "title": "Troubleshooting by symptom",
+              "menuTitle": "Troubleshooting",
+              "summary": "From the symptom to the likely cause, the check and the fix.",
+              "template": "troubleshooting"
+            },
+            {
+              "id": "take-over/troubleshooting/access",
+              "title": "Troubleshooting: access, permissions and visibility",
+              "menuTitle": "Access and permissions",
+              "summary": "Sign-in refused, empty menu, missing screen or button, invisible data.",
+              "level": 2,
+              "template": "troubleshooting-area"
+            },
+            {
+              "id": "take-over/findings",
+              "title": "Findings at takeover",
+              "menuTitle": "Findings",
+              "summary": "The gaps, risks and debts found, re-checked in the code, numbered and ranked by severity.",
+              "template": "findings"
+            },
+            {
+              "id": "take-over/maintaining-docs",
+              "title": "Maintaining this documentation",
+              "menuTitle": "Maintaining the docs",
+              "summary": "How the site is built, retaking captures, writing a page, the checks and the transfer.",
+              "template": "technical"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "I take the project over",
+      "description": "What you need to know to run and evolve the application, in five pages.",
+      "steps": [
+        "take-over/architecture",
+        "take-over/technical-architecture",
+        "take-over/findings",
+        "take-over/troubleshooting",
+        "take-over/maintaining-docs"
+      ]
+    }
+  ],
+  "suggestions": [
+    "use/getting-started",
+    "take-over/architecture",
+    "take-over/troubleshooting"
+  ]
+}

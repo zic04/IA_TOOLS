@@ -1,0 +1,131 @@
+# Azure Pipelines for doc-kit. Create a pipeline from this file (Pipelines › New pipeline › Existing YAML file).
+#
+# (a) The kit's own CI (below): unit, snapshot and end-to-end tests on Linux, Windows and macOS.
+# (b) An example for a DOCUMENTATION PROJECT (commented, at the end of the file): build, check and audit the site,
+#     then publish it as a pipeline artifact. It never captures: captures need a person who signs in, and a session
+#     is a secret that does not belong in a pipeline. The images are committed with the content.
+
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: [main]
+
+strategy:
+  matrix:
+    linux_node20:
+      imageName: ubuntu-latest
+      nodeVersion: 20.x
+    linux_node22:
+      imageName: ubuntu-latest
+      nodeVersion: 22.x
+    windows_node20:
+      imageName: windows-latest
+      nodeVersion: 20.x
+    macos_node20:
+      imageName: macOS-latest
+      nodeVersion: 20.x
+
+pool:
+  vmImage: $(imageName)
+
+steps:
+  - task: NodeTool@0
+    displayName: Node $(nodeVersion)
+    inputs:
+      versionSpec: $(nodeVersion)
+
+  - script: npm ci
+    displayName: Install the kit's dependencies
+
+  - script: npx playwright install --with-deps chromium
+    displayName: Install Chromium for Playwright
+
+  - script: npm test
+    displayName: Unit and snapshot tests
+    env:
+      # Optional: the private list of terms that must never appear in the kit (alternatives separated by |), kept
+      # in a secret pipeline variable. Without it, the neutrality test is skipped.
+      DOC_KIT_FORBIDDEN_TERMS: $(DOC_KIT_FORBIDDEN_TERMS)
+
+  - script: npm run test:e2e
+    displayName: End-to-end tests (headless Chromium, demo app on a free port)
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# (b) Example for a documentation project — a pipeline of the APPLICATION's repository, which holds the
+#     documentation in docs/manual/ (created by `doc-kit init`).
+#
+# The project depends on the kit through "doc-kit": "file:<path>" in docs/manual/package.json. With two checkouts,
+# Azure Pipelines puts each repository in its own folder under $(Build.SourcesDirectory): the application in
+# `<application repository name>/`, the kit in `doc-kit/`. docs/manual/package.json must then say
+# "file:../../../doc-kit".
+#
+# trigger:
+#   branches:
+#     include: [main]
+#   paths:
+#     include: [docs/manual]
+#
+# resources:
+#   repositories:
+#     - repository: kit
+#       type: git                      # or github, with an endpoint
+#       name: <project>/doc-kit        # the kit's repository
+#       ref: refs/tags/v0.1.0          # the version the project's `kit` range accepts
+#
+# variables:
+#   docs: $(Build.SourcesDirectory)/$(Build.Repository.Name)/docs/manual
+#   kit: $(Build.SourcesDirectory)/doc-kit
+#
+# pool:
+#   vmImage: ubuntu-latest
+#
+# steps:
+#   - checkout: self
+#   - checkout: kit
+#
+#   - task: NodeTool@0
+#     inputs:
+#       versionSpec: 20.x
+#
+#   - script: npm ci && npx playwright install --with-deps chromium
+#     displayName: Install the kit and Chromium (for `check tables` and the audit's table widths)
+#     workingDirectory: $(kit)
+#
+#   - script: npm install
+#     displayName: Link the documentation project to the kit
+#     workingDirectory: $(docs)
+#
+#   - script: npx doc-kit build
+#     displayName: Strict build (fails on any missing page, capture, link or required section)
+#     workingDirectory: $(docs)
+#
+#   - script: npx doc-kit check all
+#     displayName: Checks (coverage, links, tables, images, secrets)
+#     workingDirectory: $(docs)
+#
+#   - script: npx doc-kit audit
+#     displayName: Maturity audit (informative; writes .doc-kit/audit.md)
+#     workingDirectory: $(docs)
+#
+#   # To require a level, fail the job yourself:
+#   # - script: npx doc-kit audit --json > audit.json && node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
+#   #   workingDirectory: $(docs)
+#
+#   - task: PublishPipelineArtifact@1
+#     displayName: Publish the site
+#     condition: succeededOrFailed()
+#     inputs:
+#       targetPath: $(docs)/dist
+#       artifact: documentation
+#
+#   - task: PublishPipelineArtifact@1
+#     displayName: Publish the audit report
+#     condition: succeededOrFailed()
+#     inputs:
+#       targetPath: $(docs)/.doc-kit/audit.md
+#       artifact: documentation-audit
+#
+#   # Never here: doc-kit connect, doc-kit capture, doc-kit demo. No session, no application credentials.

@@ -1,0 +1,29 @@
+{
+  "name": "doc-kit",
+  "version": "0.1.0",
+  "description": "Product documentation as one self-contained HTML file: extended Markdown, annotated screenshots, guided tours, search, light and dark themes.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "doc-kit": "cli/doc-kit.mjs"
+  },
+  "exports": {
+    ".": "./engine/build/build.mjs",
+    "./targets": "./engine/capture/targets.mjs",
+    "./config": "./engine/project/defaults.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node test/run.mjs unit snapshot",
+    "test:unit": "node test/run.mjs unit",
+    "test:snapshot": "node test/run.mjs snapshot",
+    "test:e2e": "node test/run.mjs e2e"
+  },
+  "dependencies": {
+    "marked": "18.0.14",
+    "playwright": "1.60.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

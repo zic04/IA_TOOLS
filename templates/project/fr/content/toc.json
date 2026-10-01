@@ -1,0 +1,171 @@
+{
+  "title": "Documentation {{name}}",
+  "tagline": "Le guide de référence de {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués et illustrés sur l'application.",
+  "sections": [
+    {
+      "id": "utiliser",
+      "title": "Utiliser {{name}}",
+      "shortTitle": "Utiliser",
+      "icon": "screen",
+      "subtitle": "Le quotidien de l'utilisateur : chaque écran, annoté, et ce qu'il fait réellement.",
+      "highlights": [
+        "Se connecter et se repérer",
+        "Chaque écran expliqué élément par élément",
+        "Les pièges à connaître"
+      ],
+      "groups": [
+        {
+          "title": "Prise en main",
+          "pages": [
+            {
+              "id": "utiliser/prise-en-main",
+              "title": "Prise en main",
+              "menuTitle": "Prise en main",
+              "summary": "Se connecter, se repérer dans l'interface et retrouver n'importe quel écran.",
+              "template": "screen",
+              "routes": ["/"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "configurer",
+      "title": "Configurer — les éditeurs",
+      "shortTitle": "Configurer",
+      "icon": "sliders",
+      "featured": true,
+      "subtitle": "Chaque éditeur et chaque réglage, avec le mécanisme réel qu'il pilote.",
+      "highlights": [
+        "Le mécanisme de chaque réglage",
+        "La référence complète des réglages",
+        "Des recettes de bout en bout"
+      ],
+      "groups": [
+        {
+          "title": "Les éditeurs",
+          "pages": [
+            {
+              "id": "configurer/editeur-exemple",
+              "title": "Un éditeur (exemple à remplacer)",
+              "menuTitle": "Éditeur exemple",
+              "summary": "Modèle de page d'éditeur : renommez-la d'après le premier éditeur de l'application.",
+              "template": "editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "administrer",
+      "title": "Administrer la plateforme",
+      "shortTitle": "Administrer",
+      "icon": "shield",
+      "subtitle": "Accès, données de référence et réglages système.",
+      "highlights": [
+        "Les comptes et les droits",
+        "Les données de référence",
+        "Les réglages système"
+      ],
+      "groups": [
+        {
+          "title": "Accès",
+          "pages": [
+            {
+              "id": "administrer/utilisateurs",
+              "title": "Les utilisateurs",
+              "menuTitle": "Utilisateurs",
+              "summary": "Le registre des comptes : qui a accès, avec quel rôle, et comment gérer un départ.",
+              "template": "screen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reprendre",
+      "title": "Reprendre le projet",
+      "shortTitle": "Reprendre",
+      "icon": "code",
+      "subtitle": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application : architecture, DAT, diagnostic, points d'attention.",
+      "highlights": [
+        "L'architecture et le DAT",
+        "Le diagnostic par symptôme",
+        "Les points d'attention numérotés"
+      ],
+      "groups": [
+        {
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "reprendre/architecture",
+              "title": "Architecture d'ensemble",
+              "menuTitle": "Architecture",
+              "summary": "Le grand schéma, la pile technique, les principes et les flux principaux.",
+              "template": "technical"
+            },
+            {
+              "id": "reprendre/dat",
+              "title": "Dossier d'architecture technique (DAT)",
+              "menuTitle": "DAT",
+              "summary": "L'implantation en production : ce qui tourne et où, les flux numérotés, ce qui reste à confirmer et qui gère quoi.",
+              "template": "architecture"
+            }
+          ]
+        },
+        {
+          "title": "Exploiter et faire évoluer",
+          "pages": [
+            {
+              "id": "reprendre/diagnostic",
+              "title": "Diagnostic par symptôme",
+              "menuTitle": "Diagnostic",
+              "summary": "Du symptôme à la cause probable, à la vérification et à la correction.",
+              "template": "troubleshooting"
+            },
+            {
+              "id": "reprendre/diagnostic/acces",
+              "title": "Diagnostic : accès, droits et visibilité",
+              "menuTitle": "Accès et droits",
+              "summary": "Connexion refusée, menu vide, écran ou bouton absent, données invisibles.",
+              "level": 2,
+              "template": "troubleshooting-area"
+            },
+            {
+              "id": "reprendre/points-attention",
+              "title": "Points d'attention à la reprise",
+              "menuTitle": "Points d'attention",
+              "summary": "Les écarts, risques et dettes constatés, revérifiés dans le code, numérotés et classés par gravité.",
+              "template": "findings"
+            },
+            {
+              "id": "reprendre/maintenir-doc",
+              "title": "Maintenir cette documentation",
+              "menuTitle": "Maintenir la doc",
+              "summary": "Comment le site est fabriqué, refaire des captures, écrire une page, contrôler et transférer.",
+              "template": "technical"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "Je reprends le projet",
+      "description": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application, en cinq pages.",
+      "steps": [
+        "reprendre/architecture",
+        "reprendre/dat",
+        "reprendre/points-attention",
+        "reprendre/diagnostic",
+        "reprendre/maintenir-doc"
+      ]
+    }
+  ],
+  "suggestions": [
+    "utiliser/prise-en-main",
+    "reprendre/architecture",
+    "reprendre/diagnostic"
+  ]
+}

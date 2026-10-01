@@ -1,0 +1,43 @@
+{
+  "file": "orders-list.webp",
+  "title": "Acme Orders › Commandes",
+  "route": "/orders",
+  "width": 1280,
+  "height": 583,
+  "version": "0.1.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 2.89,
+      "y": 21.1,
+      "w": 19.84,
+      "h": 37.06,
+      "label": "Filtres"
+    },
+    {
+      "n": 2,
+      "x": 25,
+      "y": 12.14,
+      "w": 73.44,
+      "h": 23.43,
+      "label": "Aujourd'hui"
+    },
+    {
+      "n": 3,
+      "x": 25,
+      "y": 36.95,
+      "w": 8.43,
+      "h": 8.19,
+      "label": "Nouvelle commande"
+    },
+    {
+      "n": 4,
+      "x": 25,
+      "y": 46.51,
+      "w": 73.44,
+      "h": 49.97,
+      "label": "Commandes"
+    }
+  ]
+}

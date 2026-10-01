@@ -1,0 +1,82 @@
+[
+  {
+    "term": "Order",
+    "def": "Order: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Customer",
+    "def": "Customer: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Approval",
+    "def": "Approval: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Approval chain",
+    "def": "Approval chain: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Invoice",
+    "def": "Invoice: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Back order",
+    "def": "Back order: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Delegate",
+    "def": "Delegate: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Scope",
+    "def": "Scope: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Status",
+    "def": "Status: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Line",
+    "def": "Line: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Product",
+    "def": "Product: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Catalogue",
+    "def": "Catalogue: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Discount",
+    "def": "Discount: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Credit note",
+    "def": "Credit note: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Quote",
+    "def": "Quote: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Shipment",
+    "def": "Shipment: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Carrier",
+    "def": "Carrier: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Warehouse",
+    "def": "Warehouse: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Return",
+    "def": "Return: a notion of the fictional Acme Orders product."
+  },
+  {
+    "term": "Payment term",
+    "def": "Payment term: a notion of the fictional Acme Orders product."
+  }
+]

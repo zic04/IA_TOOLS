@@ -1,0 +1,39 @@
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Les quatre acteurs de la recette de validation en deux temps, dans l'ordre : administrateur d'identité, administrateur d'Acme Orders, valideurs, commercial de test">
+  <defs>
+    <marker id="era-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <text class="d-small" x="112" y="24" text-anchor="middle">Hors de l'application</text>
+  <text class="d-small" x="562" y="24" text-anchor="middle">Dans Acme Orders</text>
+  <path class="d-dashed" d="M225 10V164"/>
+
+  <rect class="d-violet" x="15" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="112" y="64" text-anchor="middle">Admin. d'identité</text>
+  <text class="d-text" x="112" y="88" text-anchor="middle">Étapes 1 à 3</text>
+  <text class="d-small" x="112" y="114" text-anchor="middle">crée le groupe,</text>
+  <text class="d-small" x="112" y="130" text-anchor="middle">l'envoie dans le jeton</text>
+
+  <rect class="d-brand" x="240" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="337" y="64" text-anchor="middle">Admin. Acme Orders</text>
+  <text class="d-text" x="337" y="88" text-anchor="middle">Étapes 4 à 6</text>
+  <text class="d-small" x="337" y="114" text-anchor="middle">associe groupe et rôle,</text>
+  <text class="d-small" x="337" y="130" text-anchor="middle">ajoute l'étape Finance</text>
+
+  <rect class="d-box" x="465" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="562" y="64" text-anchor="middle">Valideurs</text>
+  <text class="d-text" x="562" y="88" text-anchor="middle">Étape 7</text>
+  <text class="d-small" x="562" y="114" text-anchor="middle">se reconnectent</text>
+  <text class="d-small" x="562" y="130" text-anchor="middle">pour le nouveau rôle</text>
+
+  <rect class="d-box" x="690" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="787" y="64" text-anchor="middle">Commercial de test</text>
+  <text class="d-text" x="787" y="88" text-anchor="middle">Étape 8</text>
+  <text class="d-small" x="787" y="114" text-anchor="middle">soumet 12 000</text>
+  <text class="d-small" x="787" y="130" text-anchor="middle">hors taxes</text>
+
+  <path class="d-line-brand" d="M210 96H237" marker-end="url(#era-arrow)"/>
+  <path class="d-line-brand" d="M435 96H462" marker-end="url(#era-arrow)"/>
+  <path class="d-line-brand" d="M660 96H687" marker-end="url(#era-arrow)"/>
+
+  <text class="d-small" x="15" y="188">Chaque acteur passe la main au suivant : l'identifiant du groupe, puis le circuit actif, puis le nouveau rôle.</text>
+</svg>

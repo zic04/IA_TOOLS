@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.doc-kit/
+*.log
+# Private list of terms that must never appear in the kit (see test/unit/site.test.mjs).
+test/.forbidden-terms

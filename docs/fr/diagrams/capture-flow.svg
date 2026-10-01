@@ -1,0 +1,53 @@
+<svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ce que fait doc-kit capture : avant la campagne, puis pour chaque capture des plans">
+  <defs>
+    <marker id="cf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+  <text class="d-title" x="20" y="24">Avant la campagne</text>
+  <rect class="d-box" x="20" y="38" width="200" height="66" rx="8"/>
+  <text class="d-title" x="120" y="64" text-anchor="middle">Lire les plans</text>
+  <text class="d-small" x="120" y="86" text-anchor="middle">validés, ids uniques</text>
+  <rect class="d-danger" x="250" y="38" width="200" height="66" rx="8"/>
+  <text class="d-title" x="350" y="64" text-anchor="middle">Routes interdites ?</text>
+  <text class="d-small" x="350" y="86" text-anchor="middle">refusées : code de sortie 1</text>
+  <rect class="d-warn" x="480" y="38" width="200" height="66" rx="8"/>
+  <text class="d-title" x="580" y="64" text-anchor="middle">Vérifier la session</text>
+  <text class="d-small" x="580" y="86" text-anchor="middle">expirée : code de sortie 3</text>
+  <rect class="d-brand" x="710" y="38" width="170" height="66" rx="8"/>
+  <text class="d-title" x="795" y="64" text-anchor="middle">Lecture seule</text>
+  <text class="d-small" x="795" y="86" text-anchor="middle">écritures annulées</text>
+  <path class="d-line" d="M220 71H246" marker-end="url(#cf-arrow)"/>
+  <path class="d-line" d="M450 71H476" marker-end="url(#cf-arrow)"/>
+  <path class="d-line" d="M680 71H706" marker-end="url(#cf-arrow)"/>
+
+  <text class="d-title" x="20" y="146">Pour chaque capture, dans l'ordre du plan</text>
+  <rect class="d-box-2" x="20" y="160" width="160" height="66" rx="8"/>
+  <text class="d-title" x="100" y="186" text-anchor="middle">localStorage</text>
+  <text class="d-small" x="100" y="208" text-anchor="middle">session, config, entrée</text>
+  <rect class="d-box-2" x="200" y="160" width="160" height="66" rx="8"/>
+  <text class="d-title" x="280" y="186" text-anchor="middle">Ouvrir la route</text>
+  <text class="d-small" x="280" y="208" text-anchor="middle">puis attendre delay</text>
+  <rect class="d-box-2" x="380" y="160" width="160" height="66" rx="8"/>
+  <text class="d-title" x="460" y="186" text-anchor="middle">Jouer les actions</text>
+  <text class="d-small" x="460" y="208" text-anchor="middle">puis attendre settle</text>
+  <rect class="d-box-2" x="560" y="160" width="160" height="66" rx="8"/>
+  <text class="d-title" x="640" y="186" text-anchor="middle">Masquer</text>
+  <text class="d-small" x="640" y="208" text-anchor="middle">GUID, .env, masks</text>
+  <rect class="d-box-2" x="740" y="160" width="140" height="66" rx="8"/>
+  <text class="d-title" x="810" y="186" text-anchor="middle">Mesurer</text>
+  <text class="d-small" x="810" y="208" text-anchor="middle">cadre et zones</text>
+  <path class="d-line" d="M180 193H196" marker-end="url(#cf-arrow)"/>
+  <path class="d-line" d="M360 193H376" marker-end="url(#cf-arrow)"/>
+  <path class="d-line" d="M540 193H556" marker-end="url(#cf-arrow)"/>
+  <path class="d-line" d="M720 193H736" marker-end="url(#cf-arrow)"/>
+
+  <rect class="d-info" x="380" y="256" width="250" height="56" rx="8"/>
+  <text class="d-title" x="505" y="280" text-anchor="middle">images/&lt;id&gt;.webp</text>
+  <text class="d-small" x="505" y="300" text-anchor="middle">capture du cadre, en WebP</text>
+  <rect class="d-info" x="650" y="256" width="230" height="56" rx="8"/>
+  <text class="d-title" x="765" y="280" text-anchor="middle">images/zones/&lt;id&gt;.json</text>
+  <text class="d-small" x="765" y="300" text-anchor="middle">taille, zones en %, version</text>
+  <path class="d-line" d="M810 226V252" marker-end="url(#cf-arrow)"/>
+  <path class="d-dashed" d="M795 104V150"/>
+  <text class="d-small" x="20" y="282">Une redirection vers une page de connexion</text>
+  <text class="d-small" x="20" y="300">arrête la campagne (code de sortie 3).</text>
+</svg>

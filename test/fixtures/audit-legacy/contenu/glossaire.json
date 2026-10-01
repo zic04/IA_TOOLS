@@ -1,0 +1,11 @@
+[
+  {
+    "terme": "Commande",
+    "motif": "commandes?",
+    "def": "Une demande d'un client."
+  },
+  {
+    "terme": "Validation",
+    "def": "L'accord donné à une commande."
+  }
+]

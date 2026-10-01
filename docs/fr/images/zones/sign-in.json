@@ -1,0 +1,35 @@
+{
+  "file": "sign-in.webp",
+  "title": "Acme Orders › Connexion",
+  "route": "/login",
+  "width": 380,
+  "height": 341,
+  "version": "0.1.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 12.37,
+      "y": 36.51,
+      "w": 75.26,
+      "h": 20.12,
+      "label": "E-mail"
+    },
+    {
+      "n": 2,
+      "x": 12.37,
+      "y": 57.79,
+      "w": 75.26,
+      "h": 20.12,
+      "label": "Mot de passe"
+    },
+    {
+      "n": 3,
+      "x": 12.37,
+      "y": 79.08,
+      "w": 21.88,
+      "h": 14,
+      "label": "Connexion"
+    }
+  ]
+}

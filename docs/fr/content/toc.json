@@ -1,0 +1,264 @@
+{
+  "title": "Documentation de doc-kit",
+  "tagline": "Faites d'une application web un site de documentation en un seul fichier HTML : captures annotées, visites guidées, recherche, thèmes clair et sombre, impression. Ce site est lui-même construit avec doc-kit.",
+  "sections": [
+    {
+      "id": "start",
+      "title": "Démarrer avec doc-kit",
+      "shortTitle": "Démarrer",
+      "icon": "play",
+      "featured": true,
+      "subtitle": "Installez le kit, documentez l'application de démonstration en cinq minutes, et voyez ce que vous obtenez.",
+      "highlights": ["Installer avec Node et Chromium", "Les cinq premières minutes, sur l'application de démo", "Le mode guidé propose l'étape suivante"],
+      "groups": [
+        {
+          "title": "Prise en main",
+          "pages": [
+            { "id": "start/install", "title": "Installer doc-kit", "menuTitle": "Installer", "summary": "Node 20, les deux dépendances du kit, Chromium, et la commande doc-kit dans votre chemin.", "template": "recipe" },
+            { "id": "start/first-five-minutes", "title": "Les cinq premières minutes", "menuTitle": "Cinq premières minutes", "summary": "D'un dossier d'application à un site de documentation avec un écran annoté, sur l'application de démo.", "template": "recipe" },
+            { "id": "start/guided-mode", "title": "Le mode guidé", "menuTitle": "Mode guidé", "summary": "Lancez doc-kit sans commande : il regarde où vous en êtes et propose l'étape suivante.", "template": "technical" },
+            { "id": "start/generated-site", "title": "Le site généré", "menuTitle": "Le site généré", "summary": "Ce que reçoit un lecteur : un fichier HTML avec menus, recherche, écrans annotés, visites guidées, thèmes et impression.", "template": "screen" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "write",
+      "title": "Rédiger les pages",
+      "shortTitle": "Rédiger",
+      "icon": "book",
+      "subtitle": "Du Markdown avec quelques extensions, des gabarits de page, le sommaire, le glossaire et les schémas.",
+      "highlights": ["Chaque directive du Markdown étendu", "Treize gabarits de page", "Des schémas qui suivent le thème"],
+      "groups": [
+        {
+          "title": "Les pages",
+          "pages": [
+            { "id": "write/markdown", "title": "Le Markdown étendu", "menuTitle": "Markdown étendu", "summary": "Écrans annotés, étapes, captures, schémas, avant et après, encadrés et pastilles, en orthographe anglaise ou française.", "template": "technical" },
+            { "id": "write/page-templates", "title": "Les gabarits de page", "menuTitle": "Gabarits de page", "summary": "Les 13 types de page, leurs sections obligatoires, doc-kit new et les commentaires de consigne.", "template": "technical" },
+            { "id": "write/table-of-contents", "title": "Sommaire, sous-pages et parcours", "menuTitle": "Sommaire", "summary": "content/toc.json : sections, groupes, pages, sous-pages, parcours de la page d'accueil et suggestions.", "template": "technical" }
+          ]
+        },
+        {
+          "title": "Autour des pages",
+          "pages": [
+            { "id": "write/glossary", "title": "Le glossaire", "menuTitle": "Glossaire", "summary": "Des termes expliqués par une infobulle à leur première apparition dans chaque page.", "template": "technical" },
+            { "id": "write/diagrams", "title": "Les schémas", "menuTitle": "Schémas", "summary": "Des schémas SVG dessinés avec les classes d-* du site, pour suivre les thèmes clair et sombre.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "capture",
+      "title": "Capturer les écrans",
+      "shortTitle": "Capturer",
+      "icon": "screen",
+      "subtitle": "Plans de capture, cibles, zones, sessions, et les règles de sécurité qui laissent la production intacte.",
+      "highlights": ["Des plans en petits fichiers JavaScript", "Des zones mesurées sur la vraie page", "Lecture seule, routes interdites, masquage"],
+      "groups": [
+        {
+          "title": "Les plans de capture",
+          "pages": [
+            { "id": "capture/plans", "title": "Les plans de capture", "menuTitle": "Plans de capture", "summary": "Les entrées de CAPTURES : id, route, contexte, fenêtre, stockage, délais, actions, cadre, zones et masques.", "template": "technical" },
+            { "id": "capture/targets-actions", "title": "Cibles et actions", "menuTitle": "Cibles et actions", "summary": "Comment un plan désigne un élément, et les actions jouées avant la capture.", "template": "technical" },
+            { "id": "capture/zones", "title": "Zones, union et légendes", "menuTitle": "Zones et union", "summary": "Les zones annotées, un repère sur plusieurs champs avec union, et la légende qui les explique.", "template": "technical" }
+          ]
+        },
+        {
+          "title": "Sécurité",
+          "pages": [
+            { "id": "capture/sessions", "title": "Connexion et sessions", "menuTitle": "Connexion et sessions", "summary": "doc-kit connect, le fichier de session, son expiration, et pourquoi c'est un secret.", "template": "technical" },
+            { "id": "capture/safety", "title": "Démo ou production : capturer sans risque", "menuTitle": "Démo ou production", "summary": "Captures en lecture seule, routes interdites, et pourquoi le navigateur ne peut pas bloquer toutes les écritures.", "template": "technical" },
+            { "id": "capture/masking", "title": "Le masquage", "menuTitle": "Masquage", "summary": "GUID, valeurs du .env local, motifs et masques remplacés par des points avant la capture.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "publish",
+      "title": "Vérifier et publier",
+      "shortTitle": "Publier",
+      "icon": "shield",
+      "subtitle": "Le build strict, les contrôles, l'audit de maturité, l'export et l'intégration continue.",
+      "highlights": ["Le build strict bloque à la moindre incohérence", "Quatre niveaux de maturité, mesurés", "Une CI sans captures"],
+      "groups": [
+        {
+          "title": "Construire et contrôler",
+          "pages": [
+            { "id": "publish/build", "title": "Construire le site", "menuTitle": "Construire", "summary": "doc-kit build, strict ou brouillon, le serveur à rechargement automatique et la capture d'une page.", "template": "technical" },
+            { "id": "publish/checks", "title": "Les contrôles", "menuTitle": "Contrôles", "summary": "doc-kit check : couverture, liens, tableaux, images et secrets.", "template": "technical" },
+            { "id": "publish/audit", "title": "L'audit et les niveaux de maturité", "menuTitle": "Audit", "summary": "doc-kit audit : les indicateurs, les quatre niveaux et les prochaines actions.", "template": "technical" }
+          ]
+        },
+        {
+          "title": "Livrer",
+          "pages": [
+            { "id": "publish/export", "title": "Exporter et transmettre", "menuTitle": "Exporter", "summary": "Une copie autonome du projet, moteur compris, et la liste de contrôle de la passation.", "template": "recipe" },
+            { "id": "publish/ci", "title": "L'intégration continue", "menuTitle": "Intégration continue", "summary": "Construire, contrôler et auditer un projet de documentation dans un pipeline, et publier le site comme artefact.", "template": "recipe" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Référence",
+      "shortTitle": "Référence",
+      "icon": "sliders",
+      "subtitle": "Chaque clé de configuration, commande, option, variable, adaptateur, texte et couleur.",
+      "highlights": ["doc.config.mjs, clé par clé", "Chaque commande et ses codes de sortie", "Adaptateurs, textes et thème"],
+      "groups": [
+        {
+          "title": "Configuration",
+          "pages": [
+            { "id": "reference/configuration", "title": "La configuration", "menuTitle": "Configuration", "summary": "doc.config.mjs : validation stricte, valeurs par défaut, priorités, et la carte des clés.", "template": "technical" },
+            { "id": "reference/configuration/project", "title": "Clés du projet, de la version et de la connexion", "menuTitle": "Clés du projet", "level": 2, "summary": "kit, product, language, output, paths, version, env, app, auth et extra.", "template": "technical-sub" },
+            { "id": "reference/configuration/capture", "title": "Clés de capture et de masquage", "menuTitle": "Clés de capture", "level": 2, "summary": "capture.* et masking.*, avec leurs types, valeurs par défaut et exemples.", "template": "technical-sub" },
+            { "id": "reference/configuration/site", "title": "Clés de couverture, de thème et de textes", "menuTitle": "Clés du site", "level": 2, "summary": "coverage, theme, statuses, texts et feedback.", "template": "technical-sub" },
+            { "id": "reference/environment", "title": "Les variables d'environnement", "menuTitle": "Variables d'environnement", "summary": "Les variables DOC_KIT_* et <PREFIXE>_*, et celles qui changent le comportement du kit.", "template": "variables" }
+          ]
+        },
+        {
+          "title": "Ligne de commande",
+          "pages": [
+            { "id": "reference/cli", "title": "La ligne de commande", "menuTitle": "Ligne de commande", "summary": "Options globales, codes de sortie, forme des messages, et la liste des commandes.", "template": "technical" },
+            { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, demo, capture et inventory.", "template": "technical-sub" },
+            { "id": "reference/cli/write-check", "title": "Commandes : rédiger et vérifier", "menuTitle": "Rédiger et vérifier", "level": 2, "summary": "dev, new, build, view, open, check, audit et optimize.", "template": "technical-sub" },
+            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, upgrade, migrate et skill install.", "template": "technical-sub" }
+          ]
+        },
+        {
+          "title": "Étendre",
+          "pages": [
+            { "id": "reference/adapters", "title": "Les adaptateurs", "menuTitle": "Adaptateurs", "summary": "Adaptateurs de couverture et de connexion : ceux du kit, leurs options, et comment écrire le vôtre.", "template": "technical" },
+            { "id": "reference/i18n", "title": "Langues et textes", "menuTitle": "Langues et textes", "summary": "Les deux langues, les espaces de noms i18n, et les textes qu'un projet peut remplacer.", "template": "technical" },
+            { "id": "reference/theme", "title": "Thème, couleurs et logo", "menuTitle": "Thème et logo", "summary": "Les couleurs des deux thèmes, le contrôle des contrastes, les icônes, le logo et les pastilles de statut.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "method",
+      "title": "Méthode et standard",
+      "shortTitle": "Méthode",
+      "icon": "recipe",
+      "subtitle": "Le standard de qualité derrière le kit : ce qu'un site doit contenir, comment l'écrire, quand il est prêt.",
+      "highlights": ["Quatre lecteurs, quatre sections", "Rien d'inventé : des preuves fichier:ligne", "Une liste de contrôle de passation"],
+      "groups": [
+        {
+          "title": "Le standard",
+          "pages": [
+            { "id": "method/standard", "title": "Le standard de documentation", "menuTitle": "Le standard", "summary": "Les règles du standard en bref, et où lire chacune d'elles.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skill",
+      "title": "Le skill Claude Code",
+      "shortTitle": "Skill",
+      "icon": "gear",
+      "subtitle": "Un skill qui mène Claude Code à travers toute la méthode, avec des agents en parallèle et la ligne de commande.",
+      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Des modèles de consignes pour les agents"],
+      "groups": [
+        {
+          "title": "Le skill",
+          "pages": [
+            { "id": "skill/install", "title": "Installer le skill", "menuTitle": "Installer", "summary": "doc-kit skill install, son dossier cible, et comment doctor signale une copie périmée.", "template": "recipe" },
+            { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "migrate",
+      "title": "Migrer et mettre à jour",
+      "shortTitle": "Migrer",
+      "icon": "arrow",
+      "subtitle": "Amener un ancien projet à clés françaises au format courant, et un projet vers un kit plus récent.",
+      "highlights": ["Les anciennes clés lues telles quelles", "doc-kit migrate réécrit les fichiers JSON", "Contrôle d'équivalence avant et après"],
+      "groups": [
+        {
+          "title": "Migrer",
+          "pages": [
+            { "id": "migrate/legacy-project", "title": "Migrer un projet ancien", "menuTitle": "Projet ancien", "summary": "paths, anciennes clés, doc-kit migrate et le contrôle d'équivalence des deux builds.", "template": "recipe" },
+            { "id": "migrate/upgrade", "title": "Passer à un kit plus récent", "menuTitle": "Mettre à jour le kit", "summary": "doc-kit upgrade : le journal des modifications depuis votre version, les migrations, une simulation puis --apply.", "template": "recipe" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "title": "FAQ et pièges",
+      "shortTitle": "FAQ",
+      "icon": "info",
+      "subtitle": "Des réponses courtes aux questions fréquentes, et le diagnostic du symptôme à la correction.",
+      "highlights": ["Les questions fréquentes", "Le diagnostic par symptôme", "Les messages exacts, avec leur correction"],
+      "groups": [
+        {
+          "title": "Aide",
+          "pages": [
+            { "id": "faq/questions", "title": "Questions fréquentes", "menuTitle": "Questions", "summary": "Poids, usage hors ligne, autres langues, frameworks, applications privées, versions.", "template": "technical" },
+            { "id": "faq/troubleshooting", "title": "Diagnostic par symptôme", "menuTitle": "Diagnostic", "summary": "Trois réflexes, les premières vérifications, et où regarder quand quelque chose ne va pas.", "template": "troubleshooting" },
+            { "id": "faq/troubleshooting/build", "title": "Problèmes de build et de rédaction", "menuTitle": "Build et rédaction", "level": 2, "summary": "Le site n'est pas généré, un lien ou une légende est refusé, une section manque.", "template": "troubleshooting-area" },
+            { "id": "faq/troubleshooting/capture", "title": "Problèmes de capture et de session", "menuTitle": "Capture et session", "level": 2, "summary": "Pas de session, une session expirée, une zone introuvable, une route interdite, un navigateur absent.", "template": "troubleshooting-area" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "title": "Exemples de pages",
+      "shortTitle": "Exemples",
+      "icon": "tip",
+      "subtitle": "Une page complète de chacun des 13 types, écrite pour Acme Orders, le produit fictif du kit.",
+      "highlights": ["Écrans, éditeurs et recettes", "Parcours et diagnostic", "Points d'attention, DAT, variables, ressources"],
+      "groups": [
+        {
+          "title": "Utiliser et configurer",
+          "pages": [
+            { "id": "examples/screen", "title": "Exemple · Page d'écran : la liste des commandes", "menuTitle": "screen", "summary": "Un écran et ses actions, chaque zone expliquée : la liste des commandes d'Acme Orders.", "template": "screen", "routes": ["/orders"], "permissions": ["orders:read"] },
+            { "id": "examples/editor", "title": "Exemple · Page d'éditeur : les réglages du profil", "menuTitle": "editor", "summary": "Un éditeur et le mécanisme qu'il pilote : les réglages du profil d'Acme Orders.", "template": "editor", "routes": ["/settings"], "permissions": ["settings:write"] },
+            { "id": "examples/recipe", "title": "Exemple · Recette de configuration : valider les grosses commandes en deux temps", "menuTitle": "recipe", "summary": "Un objectif atteint en enchaînant plusieurs éditeurs, dans l'application et en dehors.", "template": "recipe" }
+          ]
+        },
+        {
+          "title": "Reprendre",
+          "pages": [
+            { "id": "examples/technical", "title": "Exemple · Page technique : la sécurité", "menuTitle": "technical", "summary": "Un sujet technique de la section Reprendre, découpé en sous-pages.", "template": "technical" },
+            { "id": "examples/technical-sub", "title": "Exemple · Sous-page technique : la connexion", "menuTitle": "technical-sub", "level": 2, "summary": "Le détail d'un mécanisme technique, dans l'ordre d'exécution.", "template": "technical-sub" },
+            { "id": "examples/journey", "title": "Exemple · Parcours de bout en bout : une commande", "menuTitle": "journey", "summary": "Ce qui arrive vraiment à une commande, de sa création à son archivage.", "template": "journey" },
+            { "id": "examples/journey-step", "title": "Exemple · Étape d'un parcours : la validation", "menuTitle": "journey-step", "level": 2, "summary": "Une étape du parcours, au niveau du code : ce qui s'exécute, ce qui est écrit, ce qui casse.", "template": "journey-step", "routes": ["/orders/[id]"] },
+            { "id": "examples/troubleshooting", "title": "Exemple · Diagnostic par symptôme", "menuTitle": "troubleshooting", "summary": "Le point d'entrée « ça ne marche pas » : réflexes, premières vérifications, où regarder.", "template": "troubleshooting" },
+            { "id": "examples/troubleshooting-area", "title": "Exemple · Domaine de diagnostic : les accès", "menuTitle": "troubleshooting-area", "level": 2, "summary": "Les symptômes d'un domaine, chacun avec ses causes, sa vérification, sa correction et son explication.", "template": "troubleshooting-area" },
+            { "id": "examples/findings", "title": "Exemple · Points d'attention", "menuTitle": "findings", "summary": "Les points d'attention numérotés d'une reprise : écarts, risques et dettes, classés.", "template": "findings" },
+            { "id": "examples/architecture", "title": "Exemple · Dossier d'architecture technique (DAT)", "menuTitle": "architecture", "summary": "Le montage de production : schéma, flux numérotés, inconnues et responsabilités.", "template": "architecture" },
+            { "id": "examples/variables", "title": "Exemple · Variables d'environnement", "menuTitle": "variables", "summary": "Les variables du service de production, comparées au code ; les valeurs ne sont jamais copiées.", "template": "variables" },
+            { "id": "examples/resources", "title": "Exemple · Ressources du déploiement", "menuTitle": "resources", "summary": "Les ressources du déploiement, par famille, et ce qui utilise vraiment chacune.", "template": "resources" }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "Essayer en cinq minutes",
+      "description": "Installer le kit, documenter l'application de démo, et voir le site obtenu.",
+      "steps": ["start/install", "start/first-five-minutes", "start/generated-site", "write/markdown", "publish/build"]
+    },
+    {
+      "title": "Documenter une application",
+      "description": "Planifier les pages, capturer les écrans sans risque, écrire selon le standard, et contrôler.",
+      "steps": ["method/standard", "write/page-templates", "capture/plans", "capture/zones", "capture/safety", "publish/checks", "publish/audit"]
+    },
+    {
+      "title": "Écrire une page selon le standard",
+      "description": "Les gabarits, puis un exemple complet des types les plus fréquents.",
+      "steps": ["write/page-templates", "examples/screen", "examples/editor", "examples/recipe", "examples/journey", "examples/troubleshooting"]
+    },
+    {
+      "title": "Reprendre un site existant",
+      "description": "Migrer un projet ancien, mettre à jour le kit, mesurer, et transmettre.",
+      "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+    }
+  ],
+  "suggestions": ["start/first-five-minutes", "write/markdown", "capture/plans", "reference/configuration", "reference/cli", "faq/troubleshooting"]
+}

@@ -1,0 +1,39 @@
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The four actors of the two-step approval recipe, in order: identity administrator, Acme Orders administrator, approvers, test sales rep">
+  <defs>
+    <marker id="era-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <text class="d-small" x="112" y="24" text-anchor="middle">Outside the application</text>
+  <text class="d-small" x="562" y="24" text-anchor="middle">In Acme Orders</text>
+  <path class="d-dashed" d="M225 10V164"/>
+
+  <rect class="d-violet" x="15" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="112" y="64" text-anchor="middle">Identity admin</text>
+  <text class="d-text" x="112" y="88" text-anchor="middle">Steps 1 to 3</text>
+  <text class="d-small" x="112" y="114" text-anchor="middle">creates the group,</text>
+  <text class="d-small" x="112" y="130" text-anchor="middle">sends it in the token</text>
+
+  <rect class="d-brand" x="240" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="337" y="64" text-anchor="middle">Acme Orders admin</text>
+  <text class="d-text" x="337" y="88" text-anchor="middle">Steps 4 to 6</text>
+  <text class="d-small" x="337" y="114" text-anchor="middle">maps group to role,</text>
+  <text class="d-small" x="337" y="130" text-anchor="middle">adds the Finance step</text>
+
+  <rect class="d-box" x="465" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="562" y="64" text-anchor="middle">Approvers</text>
+  <text class="d-text" x="562" y="88" text-anchor="middle">Step 7</text>
+  <text class="d-small" x="562" y="114" text-anchor="middle">sign in again</text>
+  <text class="d-small" x="562" y="130" text-anchor="middle">to get the new role</text>
+
+  <rect class="d-box" x="690" y="36" width="195" height="120" rx="10"/>
+  <text class="d-title" x="787" y="64" text-anchor="middle">Test sales rep</text>
+  <text class="d-text" x="787" y="88" text-anchor="middle">Step 8</text>
+  <text class="d-small" x="787" y="114" text-anchor="middle">submits 12,000</text>
+  <text class="d-small" x="787" y="130" text-anchor="middle">before tax</text>
+
+  <path class="d-line-brand" d="M210 96H237" marker-end="url(#era-arrow)"/>
+  <path class="d-line-brand" d="M435 96H462" marker-end="url(#era-arrow)"/>
+  <path class="d-line-brand" d="M660 96H687" marker-end="url(#era-arrow)"/>
+
+  <text class="d-small" x="15" y="188">Each actor hands over to the next: the group identifier, then the active chain, then the new role.</text>
+</svg>

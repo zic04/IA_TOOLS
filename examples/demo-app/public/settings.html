@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Settings · Acme Orders</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="settings">
+    <header class="top">
+      <a class="brand" href="/orders">Acme Orders</a>
+      <nav><a href="/orders">Orders</a><a href="/settings" aria-current="page">Settings</a></nav>
+      <span class="user" id="user"></span><a href="/logout">Sign out</a>
+    </header>
+    <main class="settings">
+      <h1>Settings</h1>
+      <section class="panel" aria-label="Profile">
+        <h2>Profile</h2>
+        <label class="field"><span>Name</span><input id="name" /></label>
+        <label class="field"><span>Language</span>
+          <select id="language"><option>English</option><option>Français</option></select>
+        </label>
+        <label class="field"><span>Theme</span>
+          <select id="theme"><option>Light</option><option>Dark</option><option>System</option></select>
+        </label>
+      </section>
+      <section class="panel" aria-label="Workspace">
+        <h2>Workspace</h2>
+        <dl>
+          <dt>Workspace ID</dt><dd id="workspace"></dd>
+          <dt>Integration</dt><dd id="integration"></dd>
+        </dl>
+      </section>
+      <div class="actions">
+        <button type="button" class="primary" id="save">Save</button>
+        <span class="note" id="saved" hidden>Saved.</span>
+      </div>
+    </main>
+  </body>
+</html>

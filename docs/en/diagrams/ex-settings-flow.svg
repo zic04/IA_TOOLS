@@ -1,0 +1,51 @@
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="What happens when you click Save in Settings: server action, validation, one transaction, cookies, then the layout is rendered again">
+  <defs>
+    <marker id="esf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="esf-arrow-brand" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="d-box" x="10" y="30" width="156" height="60" rx="10"/>
+  <text class="d-title" x="88" y="56" text-anchor="middle">Settings form</text>
+  <text class="d-small" x="88" y="76" text-anchor="middle">browser, Save</text>
+
+  <rect class="d-brand" x="191" y="30" width="156" height="60" rx="10"/>
+  <text class="d-title" x="269" y="56" text-anchor="middle">saveProfile</text>
+  <text class="d-small" x="269" y="76" text-anchor="middle">server action</text>
+
+  <rect class="d-brand" x="372" y="30" width="156" height="60" rx="10"/>
+  <text class="d-title" x="450" y="56" text-anchor="middle">profileSchema</text>
+  <text class="d-small" x="450" y="76" text-anchor="middle">1 to 80 characters</text>
+
+  <rect class="d-info" x="553" y="30" width="156" height="60" rx="10"/>
+  <text class="d-title" x="631" y="56" text-anchor="middle">Transaction</text>
+  <text class="d-small" x="631" y="76" text-anchor="middle">preferences, audit</text>
+
+  <rect class="d-box-2" x="734" y="30" width="156" height="60" rx="10"/>
+  <text class="d-title" x="812" y="56" text-anchor="middle">Cookies</text>
+  <text class="d-small" x="812" y="76" text-anchor="middle">locale and theme</text>
+
+  <path class="d-line-brand" d="M166 60H188" marker-end="url(#esf-arrow-brand)"/>
+  <path class="d-line-brand" d="M347 60H369" marker-end="url(#esf-arrow-brand)"/>
+  <path class="d-line-brand" d="M528 60H550" marker-end="url(#esf-arrow-brand)"/>
+  <path class="d-line-brand" d="M709 60H731" marker-end="url(#esf-arrow-brand)"/>
+
+  <!-- Invalid input -->
+  <rect class="d-warn" x="372" y="160" width="156" height="60" rx="10"/>
+  <text class="d-title" x="450" y="186" text-anchor="middle">Refused</text>
+  <text class="d-small" x="450" y="206" text-anchor="middle">error under the field</text>
+  <path class="d-line" d="M450 90V157" marker-end="url(#esf-arrow)"/>
+  <text class="d-small" x="460" y="128">invalid</text>
+
+  <!-- After the write -->
+  <rect class="d-brand" x="734" y="160" width="156" height="60" rx="10"/>
+  <text class="d-title" x="812" y="186" text-anchor="middle">Layout rendered</text>
+  <text class="d-small" x="812" y="206" text-anchor="middle">revalidatePath</text>
+  <path class="d-line-brand" d="M812 90V157" marker-end="url(#esf-arrow-brand)"/>
+
+  <rect class="d-box" x="553" y="160" width="156" height="60" rx="10"/>
+  <text class="d-title" x="631" y="186" text-anchor="middle">The user sees</text>
+  <text class="d-small" x="631" y="206" text-anchor="middle">name, language, theme</text>
+  <path class="d-line-brand" d="M734 190H712" marker-end="url(#esf-arrow-brand)"/>
+
+  <text class="d-small" x="10" y="244">Name and language are read by the server; the theme is applied by a script before the first paint.</text>
+</svg>

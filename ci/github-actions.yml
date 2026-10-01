@@ -1,0 +1,125 @@
+# GitHub Actions for doc-kit. Copy this file to .github/workflows/ to use it.
+#
+# (a) The kit's own CI (below): unit, snapshot and end-to-end tests on Linux, Windows and macOS.
+# (b) An example for a DOCUMENTATION PROJECT (commented, at the end of the file): build, check and audit the site,
+#     then publish it as an artifact. It never captures: captures need a person who signs in, and a session is a
+#     secret that does not belong in a pipeline. The images are committed with the content.
+
+name: doc-kit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install the kit's dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Unit and snapshot tests
+        run: npm test
+        env:
+          # Optional: the private list of terms that must never appear in the kit (one regular expression per
+          # alternative, separated by |). Without it, the neutrality test is skipped.
+          DOC_KIT_FORBIDDEN_TERMS: ${{ secrets.DOC_KIT_FORBIDDEN_TERMS }}
+
+      - name: End-to-end tests (headless Chromium, demo app on a free port)
+        run: npm run test:e2e
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# (b) Example for a documentation project — save as .github/workflows/documentation.yml in the APPLICATION's
+#     repository, which holds the documentation in docs/manual/ (created by `doc-kit init`).
+#
+# The project depends on the kit through "doc-kit": "file:<path>" in docs/manual/package.json. The job checks the
+# kit out at that path, relative to docs/manual. Below, the kit sits in the workspace's `doc-kit/` folder, and the
+# application in `app/`: docs/manual/package.json must then say "file:../../../doc-kit".
+#
+# name: documentation
+#
+# on:
+#   push:
+#     branches: [main]
+#     paths: ["docs/manual/**"]
+#   pull_request:
+#     paths: ["docs/manual/**"]
+#
+# permissions:
+#   contents: read
+#
+# jobs:
+#   docs:
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: app/docs/manual
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           path: app
+#
+#       - uses: actions/checkout@v4
+#         with:
+#           repository: <owner>/doc-kit          # the kit's repository
+#           ref: v0.1.0                           # a tag: the version the project's `kit` range accepts
+#           path: doc-kit
+#
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: 20
+#
+#       - name: Install the kit
+#         working-directory: doc-kit
+#         run: npm ci
+#
+#       - name: Chromium (for `check tables` and the audit's table widths)
+#         working-directory: doc-kit
+#         run: npx playwright install --with-deps chromium
+#
+#       - name: Link the documentation project to the kit
+#         run: npm install
+#
+#       - name: Strict build (fails on any missing page, capture, link or required section)
+#         run: npx doc-kit build
+#
+#       - name: Checks (coverage, links, tables, images, secrets)
+#         run: npx doc-kit check all
+#
+#       - name: Maturity audit (informative; writes .doc-kit/audit.md)
+#         run: npx doc-kit audit
+#
+#       # To require a level, fail the job yourself:
+#       # - run: npx doc-kit audit --json > audit.json && node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
+#
+#       - name: Publish the site and the audit report
+#         if: always()
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: documentation
+#           path: |
+#             app/docs/manual/dist/
+#             app/docs/manual/.doc-kit/audit.md
+#           if-no-files-found: warn
+#
+#       # Never here: doc-kit connect, doc-kit capture, doc-kit demo. No session, no application credentials.

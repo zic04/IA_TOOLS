@@ -1,0 +1,59 @@
+# The 13 page templates (summary)
+
+The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations) and
+`{{KIT_PATH}}/standard/templates.json` (sections, required sections, maximum length, model, example). Page models live
+in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one down.
+
+The template is declared in the toc (`template` field of the page). The build then checks that each required section
+is present: a `##` heading that **starts with** its label or an alias (case and accents ignored). A warning with
+`--draft`, an error in strict mode. Each type sets a maximum length (`maxWords`, table below; 2,000 words for an
+untyped page); beyond it, a page is split into sub-pages.
+
+The sections below are the English labels of `templates.json` (a heading may go on after the label: "First of all: the
+checks…"); French models have the same sections in the same order. The list of required sections is in
+`templates.json` (`required`). Examples are ids of the fictional Acme Orders site.
+
+| Type | For | Sections, in order | Example |
+|---|---|---|---|
+| `screen` | a usage or administration screen | What it is for · How it works · The screen · Each action · Settings reference · Step by step · Common use cases · Pitfalls and limits · In production · Required permissions | `administer/access/users` |
+| `editor` | an editor (Configure section) | What it is for (+ NOTE "Where this setting lives") · How it works (HOW callout, diagram) · The screen · What it changes · Settings reference · Step by step · Pitfalls and limits · Required permissions | `configure/approvals/chains` |
+| `recipe` | short step-by-steps for a precise result | The goal · Who does what · Step 1… (`:::steps`, result, WARNING) · How to check it works · Common errors and fixes · Pitfalls and limits · Required permissions | `configure/recipes/two-level-approval` |
+| `technical` | a parent page of the Take over section | In short · In this part · The diagram · thematic sections (text, tables, code, diagrams; almost no captures) · Pitfalls and observed gaps · Further reading | `take-over/security` |
+| `technical-sub` | the detail of a technical topic | thematic sections, `file:line` proofs · Further reading | `take-over/security/sign-in` |
+| `journey` | what really happens to an object end to end (parent, 1,200 to 1,600 words) | In short · The diagram · In this part · The states · What happens on its own, and what waits for someone · Surprises to know about · Further reading | `take-over/order-journey` |
+| `journey-step` | one step of the journey (1,200 to 1,800 words) | In short · What happens, step by step (`:::steps` with `file:line`) · What is read and written · The states · What the user sees · When things go wrong · Further reading | `take-over/order-journey/approval` |
+| `troubleshooting` | the entry point of troubleshooting | In short · The diagram (where to start) · First of all (the checks that explain half the symptoms) · Where to look (screens, audit log, server logs, queries) · In this part · Further reading | `take-over/troubleshooting` |
+| `troubleshooting-area` | the symptoms of one area | In short · one section per family, one `### "exact message"` sub-section per symptom: Probable causes, Check, Fix, Understand · Further reading | `take-over/troubleshooting/access` |
+| `findings` | the numbered findings | How to read this page (severities, definitions, counts, series) · The essentials in one minute · In this part · Findings already fixed · What could not be checked · Existing documentation to stop following | `take-over/findings` (sub-pages: `## C1 — Title` with Finding, Impact, Recommendation; or tables `No. · Point · Where · Finding`) |
+| `architecture` | the technical architecture document of production | In short (+ NOTE "How to read this document": provenance) · In this part · The diagram · Numbered flows · Components · What this document does not show · Who manages what | `take-over/technical-architecture` |
+| `variables` | production environment variables | In short · The variables, one by one (one `###` per family; each variable: value or "(masked)", use `file:line`, default, effect) · Missing or ineffective · To check | `take-over/deployment/production-variables` |
+| `resources` | production resources | In short · Compute · Data · Secrets · Network · Monitoring · Backup · Comparison with the documentation · What the application uses outside this group | `take-over/deployment/resources` |
+
+**Required sections** (checked by the build) **and maximum length** (`maxWords`, checked by `audit`):
+
+| Type | Required sections | maxWords |
+|---|---|---|
+| `screen` | What it is for · How it works · The screen · Pitfalls and limits · Required permissions | 2,500 |
+| `editor` | What it is for · How it works · The screen · Settings reference · Pitfalls and limits · Required permissions | 3,000 |
+| `recipe` | The goal · Step 1 · How to check it works · Pitfalls and limits · Required permissions | 3,500 |
+| `technical` | In short | 2,000 |
+| `technical-sub` | — | 2,000 |
+| `journey` | In short · The diagram · In this part · Surprises to know about · Further reading | 2,000 |
+| `journey-step` | In short · What happens, step by step · What the user sees · When things go wrong · Further reading | 2,200 |
+| `troubleshooting` | In short · First of all · Where to look · In this part · Further reading | 2,000 |
+| `troubleshooting-area` | In short · Further reading | 2,000 |
+| `findings` | How to read this page · The essentials in one minute | 2,000 |
+| `architecture` | In short · The diagram · Numbered flows · What this document does not show · Who manages what | 2,000 |
+| `variables` | In short · To check | 2,200 |
+| `resources` | In short · Compute · Data · Secrets · Monitoring · Backup · What the application uses outside this group | 2,200 |
+
+## Common rules
+
+- The page title comes from the toc: no `#` heading in the page; `##` and `###` feed "On this page" and the search.
+- A screen or editor page ends with the `PERMISSIONS` callout (view, save, special actions).
+- Gaps between code, screen and existing documentation: a `NOTE` callout "Observed gaps", described, never fixed.
+- A capture with zones is inserted with `:::screen` and a list of exactly as many items as zones.
+- Template guidance left in a page (`<!-- guidance:` in English, `<!-- consigne :` in French) is reported by `audit`
+  and as a warning by the build: write the section and remove the guidance.
+- Full syntax (callouts, chips `[[perm …]]`, `[[menu …]]`, `[[status …]]`, `[[route …]]`, diagrams, before/after; English
+  and French spellings both accepted): the project's `WRITING-GUIDE.md` and `{{KIT_PATH}}/standard/writing.md`.

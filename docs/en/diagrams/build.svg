@@ -1,0 +1,37 @@
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="What doc-kit build reads and what it writes">
+  <defs>
+    <marker id="bd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="bd-arrow-brand" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+  <text class="d-title" x="20" y="22">The project</text>
+  <rect class="d-box" x="20" y="34" width="250" height="34" rx="6"/>
+  <text class="d-text" x="34" y="56">content/ · toc, glossary, pages</text>
+  <rect class="d-box" x="20" y="76" width="250" height="34" rx="6"/>
+  <text class="d-text" x="34" y="98">images/ · WebP and zone files</text>
+  <rect class="d-box" x="20" y="118" width="250" height="34" rx="6"/>
+  <text class="d-text" x="34" y="140">diagrams/ · SVG</text>
+  <rect class="d-box" x="20" y="160" width="250" height="34" rx="6"/>
+  <text class="d-text" x="34" y="182">theme/ · logo · doc.config.mjs</text>
+
+  <text class="d-title" x="330" y="22">The kit</text>
+  <rect class="d-box-2" x="330" y="34" width="230" height="160" rx="8"/>
+  <text class="d-text" x="345" y="62">site template, style, script</text>
+  <text class="d-text" x="345" y="88">texts of the language (i18n)</text>
+  <text class="d-text" x="345" y="114">standard/templates.json</text>
+  <text class="d-text" x="345" y="140">Markdown extensions</text>
+  <text class="d-text" x="345" y="166">colour tokens, icons</text>
+
+  <rect class="d-solid" x="620" y="60" width="260" height="70" rx="10"/>
+  <text class="d-white" x="750" y="91" text-anchor="middle">doc-kit build</text>
+  <text class="d-white" x="750" y="113" text-anchor="middle">checks, then assembles</text>
+  <path class="d-line" d="M270 114H300V95H616" marker-end="url(#bd-arrow)"/>
+  <path class="d-line" d="M560 95H616" marker-end="url(#bd-arrow)"/>
+
+  <rect class="d-brand" x="620" y="160" width="260" height="52" rx="8"/>
+  <text class="d-title" x="750" y="183" text-anchor="middle">dist/&lt;Product&gt;-Documentation.html</text>
+  <text class="d-small" x="750" y="202" text-anchor="middle">one file: pages, images, search, script</text>
+  <path class="d-line-brand" d="M750 130V156" marker-end="url(#bd-arrow-brand)"/>
+  <rect class="d-danger" x="330" y="210" width="230" height="34" rx="6"/>
+  <text class="d-text" x="445" y="232" text-anchor="middle">an error: nothing written (exit 1)</text>
+  <path class="d-dashed" d="M680 130L560 222"/>
+</svg>

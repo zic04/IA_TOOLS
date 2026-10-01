@@ -1,0 +1,46 @@
+<svg viewBox="0 0 900 370" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Le parcours de connexion d'Acme Orders en huit messages entre le navigateur, le serveur d'Acme Orders, le fournisseur d'identité et la base de données">
+  <defs>
+    <marker id="esi-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="esi-arrow-brand" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <!-- Couloirs -->
+  <rect class="d-box" x="30" y="10" width="140" height="40" rx="8"/>
+  <text class="d-title" x="100" y="35" text-anchor="middle">Navigateur</text>
+  <rect class="d-brand" x="250" y="10" width="180" height="40" rx="8"/>
+  <text class="d-title" x="340" y="35" text-anchor="middle">Acme Orders</text>
+  <rect class="d-box" x="495" y="10" width="210" height="40" rx="8"/>
+  <text class="d-title" x="600" y="35" text-anchor="middle">Fournisseur d'identité</text>
+  <rect class="d-info" x="745" y="10" width="150" height="40" rx="8"/>
+  <text class="d-title" x="820" y="35" text-anchor="middle">Base de données</text>
+
+  <path class="d-dashed" d="M100 50V362"/>
+  <path class="d-dashed" d="M340 50V362"/>
+  <path class="d-dashed" d="M600 50V362"/>
+  <path class="d-dashed" d="M820 50V362"/>
+
+  <!-- Messages -->
+  <text class="d-small" x="220" y="78" text-anchor="middle">1 · GET /orders, sans session</text>
+  <path class="d-line" d="M100 86H337" marker-end="url(#esi-arrow)"/>
+
+  <text class="d-small" x="220" y="114" text-anchor="middle">2 · redirection vers le fournisseur</text>
+  <path class="d-line" d="M340 122H103" marker-end="url(#esi-arrow)"/>
+
+  <text class="d-small" x="350" y="150" text-anchor="middle">3 · connexion chez le fournisseur (PKCE, state)</text>
+  <path class="d-line" d="M100 158H597" marker-end="url(#esi-arrow)"/>
+
+  <text class="d-small" x="350" y="186" text-anchor="middle">4 · retour vers /api/auth/callback avec un code</text>
+  <path class="d-line" d="M600 194H103" marker-end="url(#esi-arrow)"/>
+
+  <text class="d-small" x="220" y="222" text-anchor="middle">5 · GET de l'adresse de retour</text>
+  <path class="d-line" d="M100 230H337" marker-end="url(#esi-arrow)"/>
+
+  <text class="d-small" x="470" y="258" text-anchor="middle">6 · code échangé contre l'ID token</text>
+  <path class="d-line-brand" d="M340 266H597" marker-end="url(#esi-arrow-brand)"/>
+
+  <text class="d-small" x="580" y="294" text-anchor="middle">7 · utilisateur créé ou mis à jour, rôle tiré des groupes</text>
+  <path class="d-line-brand" d="M340 302H817" marker-end="url(#esi-arrow-brand)"/>
+
+  <text class="d-small" x="220" y="330" text-anchor="middle">8 · cookie posé, retour à /orders</text>
+  <path class="d-line-brand" d="M340 338H103" marker-end="url(#esi-arrow-brand)"/>
+</svg>

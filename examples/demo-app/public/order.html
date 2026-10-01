@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Order · Acme Orders</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="order">
+    <header class="top">
+      <a class="brand" href="/orders">Acme Orders</a>
+      <nav><a href="/orders" aria-current="page">Orders</a><a href="/settings">Settings</a></nav>
+      <span class="user" id="user"></span><a href="/logout">Sign out</a>
+    </header>
+    <main class="settings">
+      <h1 id="title">Order</h1>
+      <section class="panel" aria-label="Order details">
+        <h2>Details</h2>
+        <dl id="details"></dl>
+      </section>
+      <div class="actions">
+        <a id="approval" href="#" data-prefetch>Approval chain</a>
+        <span class="note">Opening the approval chain creates it on the server when the order has none.</span>
+      </div>
+    </main>
+  </body>
+</html>

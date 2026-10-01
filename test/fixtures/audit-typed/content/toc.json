@@ -1,0 +1,190 @@
+{
+  "title": "Acme Orders documentation",
+  "sections": [
+    {
+      "id": "use",
+      "title": "Using Acme Orders",
+      "shortTitle": "Use",
+      "groups": [
+        {
+          "title": "Orders",
+          "pages": [
+            {
+              "id": "use/orders",
+              "title": "The orders list",
+              "menuTitle": "The orders list",
+              "summary": "The orders list: what it is for.",
+              "template": "screen"
+            },
+            {
+              "id": "use/orders/detail",
+              "title": "Order details",
+              "menuTitle": "Order details",
+              "level": 2,
+              "summary": "Order details: what it is for."
+            },
+            {
+              "id": "use/customers",
+              "title": "Customers",
+              "menuTitle": "Customers",
+              "summary": "Customers: what it is for.",
+              "template": "screen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "configure",
+      "title": "Configuring Acme Orders",
+      "shortTitle": "Configure",
+      "groups": [
+        {
+          "title": "Approvals",
+          "pages": [
+            {
+              "id": "configure/approval-chains",
+              "title": "Approval chains",
+              "menuTitle": "Approval chains",
+              "summary": "Approval chains: what it is for.",
+              "template": "editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "title": "Taking over Acme Orders",
+      "shortTitle": "Take over",
+      "groups": [
+        {
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "take-over/architecture",
+              "title": "Architecture overview",
+              "menuTitle": "Architecture overview",
+              "summary": "Architecture overview: what it is for.",
+              "template": "technical"
+            },
+            {
+              "id": "take-over/technical-architecture",
+              "title": "Technical architecture document",
+              "menuTitle": "Technical architecture document",
+              "summary": "Technical architecture document: what it is for.",
+              "template": "architecture"
+            }
+          ]
+        },
+        {
+          "title": "Journeys",
+          "pages": [
+            {
+              "id": "take-over/journey-order",
+              "title": "An order from end to end",
+              "menuTitle": "An order from end to end",
+              "summary": "An order from end to end: what it is for.",
+              "template": "journey"
+            },
+            {
+              "id": "take-over/journey-order/entry",
+              "title": "Entering the order",
+              "menuTitle": "Entering the order",
+              "level": 2,
+              "summary": "Entering the order: what it is for.",
+              "template": "journey-step"
+            },
+            {
+              "id": "take-over/journey-order/approval",
+              "title": "Approving the order",
+              "menuTitle": "Approving the order",
+              "level": 2,
+              "summary": "Approving the order: what it is for.",
+              "template": "journey-step"
+            },
+            {
+              "id": "take-over/journey-order/invoice",
+              "title": "Invoicing the order",
+              "menuTitle": "Invoicing the order",
+              "level": 2,
+              "summary": "Invoicing the order: what it is for.",
+              "template": "journey-step"
+            }
+          ]
+        },
+        {
+          "title": "Operate",
+          "pages": [
+            {
+              "id": "take-over/operations",
+              "title": "Operations",
+              "menuTitle": "Operations",
+              "summary": "Operations: what it is for.",
+              "template": "technical"
+            },
+            {
+              "id": "take-over/troubleshooting",
+              "title": "Troubleshooting",
+              "menuTitle": "Troubleshooting",
+              "summary": "Troubleshooting: what it is for.",
+              "template": "troubleshooting"
+            },
+            {
+              "id": "take-over/troubleshooting/access",
+              "title": "Access problems",
+              "menuTitle": "Access problems",
+              "level": 2,
+              "summary": "Access problems: what it is for.",
+              "template": "troubleshooting-area"
+            },
+            {
+              "id": "take-over/troubleshooting/approvals",
+              "title": "Approval problems",
+              "menuTitle": "Approval problems",
+              "level": 2,
+              "summary": "Approval problems: what it is for.",
+              "template": "troubleshooting-area"
+            },
+            {
+              "id": "take-over/findings",
+              "title": "Findings",
+              "menuTitle": "Findings",
+              "summary": "Findings: what it is for.",
+              "template": "findings"
+            },
+            {
+              "id": "take-over/maintaining-docs",
+              "title": "Maintaining the docs",
+              "menuTitle": "Maintaining the docs",
+              "summary": "Maintaining the docs: what it is for.",
+              "template": "technical"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "I discover Acme Orders",
+      "steps": [
+        "use/orders",
+        "use/customers"
+      ]
+    },
+    {
+      "title": "I configure approvals",
+      "steps": [
+        "configure/approval-chains"
+      ]
+    },
+    {
+      "title": "I take the project over",
+      "steps": [
+        "take-over/architecture",
+        "take-over/journey-order"
+      ]
+    }
+  ]
+}

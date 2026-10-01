@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "name": "Robin Demo",
+    "email": "robin@example.org",
+    "language": "English",
+    "theme": "Light",
+    "workspace": "7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f",
+    "integration": "https://orders.example.org/api/v1"
+  },
+  "orders": [
+    { "id": 1041, "customer": "Northwind Bistro", "status": "Open", "amount": 1250.0, "date": "2026-01-15", "lines": 4 },
+    { "id": 1042, "customer": "Blue Harbor Café", "status": "Open", "amount": 380.5, "date": "2026-01-15", "lines": 2 },
+    { "id": 1043, "customer": "Granite Supplies", "status": "Shipped", "amount": 2990.0, "date": "2026-01-14", "lines": 7 },
+    { "id": 1044, "customer": "Maple Street Bakery", "status": "Cancelled", "amount": 145.2, "date": "2026-01-14", "lines": 1 },
+    { "id": 1045, "customer": "Northwind Bistro", "status": "Shipped", "amount": 610.0, "date": "2026-01-13", "lines": 3 },
+    { "id": 1046, "customer": "Lakeside Clinic", "status": "Open", "amount": 875.75, "date": "2026-01-13", "lines": 5 }
+  ]
+}

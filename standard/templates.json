@@ -1,0 +1,157 @@
+{
+  "aliases": {
+    "en": {
+      "What it is for": ["What it's for", "What this screen is for", "What this editor is for"],
+      "Pitfalls and limits": ["Pitfalls", "Known limits"]
+    },
+    "fr": {
+      "À quoi ça sert": ["À quoi sert"],
+      "Pièges et limites à connaître": ["Pièges et limites", "Pièges"]
+    }
+  },
+  "types": {
+    "screen": {
+      "title": { "en": "Screen page", "fr": "Page d'écran" },
+      "sections": {
+        "en": ["What it is for", "How it works", "The screen", "Each action", "Settings reference", "Step by step", "Common use cases", "Pitfalls and limits", "In production", "Required permissions"],
+        "fr": ["À quoi ça sert", "Comment ça marche", "L'écran", "Chaque action", "Référence de chaque réglage", "Pas à pas", "Cas d'usage courants", "Pièges et limites à connaître", "En production", "Droits requis"]
+      },
+      "required": [0, 1, 2, 7, 9],
+      "maxWords": 2500,
+      "template": "templates/pages/{language}/screen.md",
+      "example": "docs/{language}/content/examples/screen.md"
+    },
+    "editor": {
+      "title": { "en": "Editor page", "fr": "Page d'éditeur" },
+      "sections": {
+        "en": ["What it is for", "How it works", "The screen", "What it changes", "Settings reference", "Step by step", "Pitfalls and limits", "Required permissions"],
+        "fr": ["À quoi ça sert", "Comment ça marche", "L'écran", "Ce que ça change", "Référence de chaque réglage", "Pas à pas", "Pièges et limites à connaître", "Droits requis"]
+      },
+      "required": [0, 1, 2, 4, 6, 7],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/editor.md",
+      "example": "docs/{language}/content/examples/editor.md"
+    },
+    "recipe": {
+      "title": { "en": "Configuration recipe", "fr": "Recette de configuration" },
+      "sections": {
+        "en": ["The goal", "Who does what", "Step 1", "How to check it works", "Common errors and fixes", "Pitfalls and limits", "Required permissions"],
+        "fr": ["L'objectif", "Qui fait quoi", "Étape 1", "Comment savoir que ça marche", "Erreurs fréquentes et remèdes", "Pièges et limites à connaître", "Droits requis"]
+      },
+      "required": [0, 2, 3, 5, 6],
+      "maxWords": 3500,
+      "template": "templates/pages/{language}/recipe.md",
+      "example": "docs/{language}/content/examples/recipe.md"
+    },
+    "technical": {
+      "title": { "en": "Technical page", "fr": "Page technique" },
+      "sections": {
+        "en": ["In short", "In this part", "The diagram", "Pitfalls and observed gaps", "Further reading"],
+        "fr": ["En bref", "Dans cette partie", "Le schéma", "Pièges et écarts constatés", "Pour aller plus loin"]
+      },
+      "required": [0],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/technical.md",
+      "example": "docs/{language}/content/examples/technical.md"
+    },
+    "technical-sub": {
+      "title": { "en": "Technical sub-page", "fr": "Sous-page technique" },
+      "sections": {
+        "en": ["Further reading"],
+        "fr": ["Pour aller plus loin"]
+      },
+      "required": [],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/technical-sub.md",
+      "example": "docs/{language}/content/examples/technical-sub.md"
+    },
+    "journey": {
+      "title": { "en": "End-to-end journey", "fr": "Parcours de bout en bout" },
+      "sections": {
+        "en": ["In short", "The diagram", "In this part", "The states", "What happens on its own, and what waits for someone", "Surprises to know about", "Further reading"],
+        "fr": ["En bref", "Le schéma", "Dans cette partie", "Les états", "Ce qui se fait tout seul, et ce qui attend quelqu'un", "Les surprises à connaître", "Pour aller plus loin"]
+      },
+      "required": [0, 1, 2, 5, 6],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/journey.md",
+      "example": "docs/{language}/content/examples/journey.md"
+    },
+    "journey-step": {
+      "title": { "en": "Journey step", "fr": "Étape d'un parcours" },
+      "sections": {
+        "en": ["In short", "What happens, step by step", "What is read and written", "The states", "What the user sees", "When things go wrong", "Further reading"],
+        "fr": ["En bref", "Ce qui se passe, pas à pas", "Ce qui est lu et écrit", "Les états", "Ce que voit l'utilisateur", "Quand ça se passe mal", "Pour aller plus loin"]
+      },
+      "required": [0, 1, 4, 5, 6],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/journey-step.md",
+      "example": "docs/{language}/content/examples/journey-step.md"
+    },
+    "troubleshooting": {
+      "title": { "en": "Troubleshooting by symptom", "fr": "Diagnostic par symptôme" },
+      "sections": {
+        "en": ["In short", "The diagram", "First of all", "Where to look", "In this part", "Further reading"],
+        "fr": ["En bref", "Le schéma", "Avant tout", "Où regarder", "Dans cette partie", "Pour aller plus loin"]
+      },
+      "required": [0, 2, 3, 4, 5],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/troubleshooting.md",
+      "example": "docs/{language}/content/examples/troubleshooting.md"
+    },
+    "troubleshooting-area": {
+      "title": { "en": "Troubleshooting area", "fr": "Domaine de diagnostic" },
+      "sections": {
+        "en": ["In short", "Further reading"],
+        "fr": ["En bref", "Pour aller plus loin"]
+      },
+      "required": [0, 1],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/troubleshooting-area.md",
+      "example": "docs/{language}/content/examples/troubleshooting-area.md"
+    },
+    "findings": {
+      "title": { "en": "Findings", "fr": "Points d'attention" },
+      "sections": {
+        "en": ["How to read this page", "The essentials in one minute", "In this part", "Findings already fixed", "What could not be checked", "Existing documentation to stop following"],
+        "fr": ["Comment lire cette page", "L'essentiel en une minute", "Dans cette partie", "Les points déjà corrigés", "Ce qui n'a pas pu être vérifié", "La documentation existante à ne plus suivre"]
+      },
+      "required": [0, 1],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/findings.md",
+      "example": "docs/{language}/content/examples/findings.md"
+    },
+    "architecture": {
+      "title": { "en": "Technical architecture document", "fr": "Dossier d'architecture technique (DAT)" },
+      "sections": {
+        "en": ["In short", "In this part", "The diagram", "Numbered flows", "Components", "What this document does not show", "Who manages what"],
+        "fr": ["En bref", "Dans cette partie", "Le schéma", "Les flux numérotés", "Les composants", "Ce que le DAT ne montre pas", "Qui gère quoi"]
+      },
+      "required": [0, 2, 3, 5, 6],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/architecture.md",
+      "example": "docs/{language}/content/examples/architecture.md"
+    },
+    "variables": {
+      "title": { "en": "Environment variables", "fr": "Variables d'environnement" },
+      "sections": {
+        "en": ["In short", "The variables, one by one", "Missing or ineffective", "To check"],
+        "fr": ["En bref", "Les variables, une par une", "Absentes ou sans effet", "À vérifier"]
+      },
+      "required": [0, 3],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/variables.md",
+      "example": "docs/{language}/content/examples/variables.md"
+    },
+    "resources": {
+      "title": { "en": "Deployment resources", "fr": "Ressources du déploiement" },
+      "sections": {
+        "en": ["In short", "Compute", "Data", "Secrets", "Network", "Monitoring", "Backup", "Comparison with the documentation", "What the application uses outside this group"],
+        "fr": ["En bref", "Calcul", "Données", "Secrets", "Réseau", "Supervision", "Sauvegarde", "Comparaison avec la documentation", "Ce que l'application utilise hors de ce groupe"]
+      },
+      "required": [0, 1, 2, 3, 5, 6, 8],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/resources.md",
+      "example": "docs/{language}/content/examples/resources.md"
+    }
+  }
+}

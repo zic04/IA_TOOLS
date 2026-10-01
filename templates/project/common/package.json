@@ -1,0 +1,23 @@
+{
+  "name": "{{slug}}-documentation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "{{name}} documentation: a single self-contained HTML site, built with doc-kit.",
+  "type": "module",
+  "scripts": {
+    "site": "doc-kit build",
+    "dev": "doc-kit dev",
+    "captures": "doc-kit capture",
+    "coverage": "doc-kit check coverage",
+    "tables": "doc-kit check tables",
+    "optimize": "doc-kit optimize",
+    "audit": "doc-kit audit",
+    "all": "doc-kit capture && doc-kit optimize && doc-kit build && doc-kit check all && doc-kit audit"
+  },
+  "dependencies": {
+    "doc-kit": "file:{{kitPath}}"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

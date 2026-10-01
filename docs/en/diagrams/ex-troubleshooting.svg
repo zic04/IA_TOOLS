@@ -1,0 +1,53 @@
+<svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Where to start troubleshooting Acme Orders: three preliminary questions, then four families of symptoms">
+  <defs>
+    <marker id="etr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="d-solid" x="330" y="10" width="240" height="44" rx="22"/>
+  <text class="d-white" x="450" y="37" text-anchor="middle">It does not work</text>
+
+  <!-- Preliminary questions -->
+  <rect class="d-box" x="20" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="155" y="112" text-anchor="middle">1. Right role, fresh session?</text>
+  <text class="d-small" x="155" y="132" text-anchor="middle">sign out and in again (I3)</text>
+
+  <rect class="d-box" x="315" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="450" y="112" text-anchor="middle">2. In your scope?</text>
+  <text class="d-small" x="450" y="132" text-anchor="middle">"not found" may mean "not yours"</text>
+
+  <rect class="d-box" x="610" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="745" y="112" text-anchor="middle">3. Has the job run?</text>
+  <text class="d-small" x="745" y="132" text-anchor="middle">reminders never run (C1)</text>
+
+  <path class="d-line" d="M450 54L155 86" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M450 54V85" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M450 54L745 86" marker-end="url(#etr-arrow)"/>
+
+  <!-- Bus to the families -->
+  <path class="d-line" d="M155 148V172M450 148V172M745 148V172M120 172H780"/>
+  <path class="d-line" d="M120 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M340 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M560 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M780 172V195" marker-end="url(#etr-arrow)"/>
+
+  <!-- Families of symptoms -->
+  <rect class="d-brand" x="20" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="120" y="222" text-anchor="middle">1. Access</text>
+  <text class="d-small" x="120" y="242" text-anchor="middle">no role, not found,</text>
+  <text class="d-small" x="120" y="257" text-anchor="middle">missing button</text>
+
+  <rect class="d-box" x="240" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="340" y="222" text-anchor="middle">2. Approvals</text>
+  <text class="d-small" x="340" y="242" text-anchor="middle">no approver, stuck,</text>
+  <text class="d-small" x="340" y="257" text-anchor="middle">wrong chain</text>
+
+  <rect class="d-box" x="460" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="560" y="222" text-anchor="middle">3. Invoices</text>
+  <text class="d-small" x="560" y="242" text-anchor="middle">shipped, no invoice,</text>
+  <text class="d-small" x="560" y="257" text-anchor="middle">failed job</text>
+
+  <rect class="d-box" x="680" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="780" y="222" text-anchor="middle">4. E-mails</text>
+  <text class="d-small" x="780" y="242" text-anchor="middle">no e-mail, wrong link,</text>
+  <text class="d-small" x="780" y="257" text-anchor="middle">always in English</text>
+</svg>

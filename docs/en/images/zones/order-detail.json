@@ -1,0 +1,38 @@
+{
+  "file": "order-detail.webp",
+  "title": "Acme Orders › Order #1041",
+  "route": "/orders/1041",
+  "width": 640,
+  "height": 363,
+  "version": "0.1.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 3.13,
+      "y": 5.51,
+      "w": 93.75,
+      "h": 11.79,
+      "side": "corner",
+      "label": "Order number"
+    },
+    {
+      "n": 2,
+      "x": 3.13,
+      "y": 23.91,
+      "w": 93.75,
+      "h": 60.04,
+      "side": "corner",
+      "label": "Details"
+    },
+    {
+      "n": 3,
+      "x": 3.13,
+      "y": 86.15,
+      "w": 16.73,
+      "h": 8.2,
+      "side": "corner",
+      "label": "Approval chain"
+    }
+  ]
+}

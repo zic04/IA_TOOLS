@@ -1,0 +1,28 @@
+{
+  "file": "settings-profile.webp",
+  "title": "Acme Orders › Settings",
+  "route": "/settings",
+  "width": 708,
+  "height": 595,
+  "version": "1.4.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 7.63,
+      "y": 14.59,
+      "w": 84.75,
+      "h": 49.66,
+      "label": "Profile"
+    },
+    {
+      "n": 2,
+      "x": 7.63,
+      "y": 88.56,
+      "w": 9.7,
+      "h": 8.03,
+      "side": "right",
+      "label": "Save"
+    }
+  ]
+}

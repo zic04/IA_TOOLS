@@ -1,0 +1,12 @@
+[
+  {
+    "term": "Rôle",
+    "pattern": "rôles?",
+    "def": "Ensemble de permissions attribué à un utilisateur : il décide des écrans qu'il voit et des actions qu'il peut faire."
+  },
+  {
+    "term": "Constat",
+    "pattern": "constats?",
+    "def": "Écart, risque ou dette relevé à la reprise, vérifié dans le code et numéroté (C, I, M, P ou R) dans les points d'attention."
+  }
+]

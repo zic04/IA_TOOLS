@@ -1,0 +1,50 @@
+/* Acme Orders (fictional demo app). Plain CSS, no framework. */
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --line: #d5d9e0;
+  --text: #1d2330;
+  --muted: #5d6676;
+  --accent: #3b5bdb;
+  --accent-text: #ffffff;
+  --ok: #2b8a3e;
+  --warn: #b25e09;
+  --off: #868e96;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); }
+.top { display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 56px; background: var(--text); color: var(--accent-text); }
+.top a { color: inherit; text-decoration: none; opacity: 0.85; }
+.top a[aria-current="page"], .top a:hover { opacity: 1; text-decoration: underline; }
+.brand { font-weight: 700; opacity: 1 !important; }
+.top nav { display: flex; gap: 18px; flex: 1; }
+.user { opacity: 0.85; }
+main { padding: 24px; max-width: 1280px; margin: 0 auto; }
+h1 { margin: 0 0 16px; font-size: 24px; }
+h2 { margin: 0 0 12px; font-size: 16px; }
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+.content { display: grid; gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.field { display: grid; gap: 4px; margin-bottom: 12px; }
+.field span { font-size: 13px; color: var(--muted); }
+input, select { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.kpis b { display: block; font-size: 26px; }
+.kpis span { color: var(--muted); font-size: 13px; }
+.actions { display: flex; gap: 10px; }
+button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 13px; color: var(--muted); font-weight: 600; }
+td a { color: var(--accent); }
+.status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.status.Open { color: var(--warn); }
+.status.Shipped { color: var(--ok); }
+.status.Cancelled { color: var(--off); }
+.settings { max-width: 640px; display: grid; gap: 16px; }
+dl { display: grid; grid-template-columns: 160px 1fr; gap: 8px 12px; margin: 0; }
+dt { color: var(--muted); }
+dd { margin: 0; }
+.login { max-width: 360px; margin: 10vh auto; }
+.note { color: var(--muted); font-size: 13px; }

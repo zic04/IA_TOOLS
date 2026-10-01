@@ -1,0 +1,140 @@
+{
+  "titre": "Documentation d'Acme Orders",
+  "accroche": "Le site d'essai de l'audit.",
+  "sections": [
+    {
+      "id": "utiliser",
+      "titre": "Utiliser Acme Orders",
+      "titre_court": "Utiliser",
+      "groupes": [
+        {
+          "titre": "Commandes",
+          "pages": [
+            {
+              "id": "utiliser/commandes",
+              "titre": "La liste des commandes",
+              "titre_menu": "La liste des commandes",
+              "resume": "La liste des commandes : à quoi sert la page."
+            },
+            {
+              "id": "utiliser/commandes/detail",
+              "titre": "Le détail d'une commande",
+              "titre_menu": "Le détail d'une commande",
+              "niveau": 2,
+              "resume": "Le détail d'une commande : à quoi sert la page."
+            },
+            {
+              "id": "utiliser/reglages",
+              "titre": "Les réglages",
+              "titre_menu": "Les réglages",
+              "resume": "Les réglages : à quoi sert la page."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reprendre",
+      "titre": "Reprendre Acme Orders",
+      "titre_court": "Reprendre",
+      "groupes": [
+        {
+          "titre": "Architecture",
+          "pages": [
+            {
+              "id": "reprendre/architecture",
+              "titre": "Vue d'ensemble",
+              "titre_menu": "Vue d'ensemble",
+              "resume": "Vue d'ensemble : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/dat",
+              "titre": "Dossier d'architecture technique",
+              "titre_menu": "Dossier d'architecture technique",
+              "resume": "Dossier d'architecture technique : à quoi sert la page."
+            }
+          ]
+        },
+        {
+          "titre": "Parcours",
+          "pages": [
+            {
+              "id": "reprendre/parcours-commande",
+              "titre": "Une commande de bout en bout",
+              "titre_menu": "Une commande de bout en bout",
+              "resume": "Une commande de bout en bout : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/parcours-commande/saisie",
+              "titre": "La saisie",
+              "titre_menu": "La saisie",
+              "niveau": 2,
+              "resume": "La saisie : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/parcours-commande/validation",
+              "titre": "La validation",
+              "titre_menu": "La validation",
+              "niveau": 2,
+              "resume": "La validation : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/parcours-commande/facture",
+              "titre": "La facture",
+              "titre_menu": "La facture",
+              "niveau": 2,
+              "resume": "La facture : à quoi sert la page."
+            }
+          ]
+        },
+        {
+          "titre": "Exploiter",
+          "pages": [
+            {
+              "id": "reprendre/exploitation",
+              "titre": "Exploitation",
+              "titre_menu": "Exploitation",
+              "resume": "Exploitation : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/diagnostic",
+              "titre": "Diagnostic",
+              "titre_menu": "Diagnostic",
+              "resume": "Diagnostic : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/diagnostic/acces",
+              "titre": "Accès",
+              "titre_menu": "Accès",
+              "niveau": 2,
+              "resume": "Accès : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/diagnostic/validation",
+              "titre": "Validation",
+              "titre_menu": "Validation",
+              "niveau": 2,
+              "resume": "Validation : à quoi sert la page."
+            },
+            {
+              "id": "reprendre/points-attention",
+              "titre": "Points d'attention",
+              "titre_menu": "Points d'attention",
+              "resume": "Points d'attention : à quoi sert la page."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "parcours": [
+    {
+      "titre": "Je découvre Acme Orders",
+      "desc": "Trois pages.",
+      "etapes": [
+        "utiliser/commandes",
+        "reprendre/architecture"
+      ]
+    }
+  ]
+}

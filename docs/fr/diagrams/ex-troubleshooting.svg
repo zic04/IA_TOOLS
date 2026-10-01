@@ -1,0 +1,53 @@
+<svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Par où commencer le diagnostic d'Acme Orders : trois questions préalables, puis quatre familles de symptômes">
+  <defs>
+    <marker id="etr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="d-solid" x="330" y="10" width="240" height="44" rx="22"/>
+  <text class="d-white" x="450" y="37" text-anchor="middle">Ça ne marche pas</text>
+
+  <!-- Questions préalables -->
+  <rect class="d-box" x="20" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="155" y="112" text-anchor="middle">1. Bon rôle, session neuve ?</text>
+  <text class="d-small" x="155" y="132" text-anchor="middle">se déconnecter, se reconnecter (I3)</text>
+
+  <rect class="d-box" x="315" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="450" y="112" text-anchor="middle">2. Dans votre périmètre ?</text>
+  <text class="d-small" x="450" y="132" text-anchor="middle">« introuvable » : hors périmètre ?</text>
+
+  <rect class="d-box" x="610" y="88" width="270" height="60" rx="10"/>
+  <text class="d-title" x="745" y="112" text-anchor="middle">3. La tâche a-t-elle tourné ?</text>
+  <text class="d-small" x="745" y="132" text-anchor="middle">les relances ne tournent jamais (C1)</text>
+
+  <path class="d-line" d="M450 54L155 86" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M450 54V85" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M450 54L745 86" marker-end="url(#etr-arrow)"/>
+
+  <!-- Bus vers les familles -->
+  <path class="d-line" d="M155 148V172M450 148V172M745 148V172M120 172H780"/>
+  <path class="d-line" d="M120 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M340 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M560 172V195" marker-end="url(#etr-arrow)"/>
+  <path class="d-line" d="M780 172V195" marker-end="url(#etr-arrow)"/>
+
+  <!-- Familles de symptômes -->
+  <rect class="d-brand" x="20" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="120" y="222" text-anchor="middle">1. Accès</text>
+  <text class="d-small" x="120" y="242" text-anchor="middle">pas de rôle, introuvable,</text>
+  <text class="d-small" x="120" y="257" text-anchor="middle">bouton absent</text>
+
+  <rect class="d-box" x="240" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="340" y="222" text-anchor="middle">2. Validations</text>
+  <text class="d-small" x="340" y="242" text-anchor="middle">pas de valideur, bloquée,</text>
+  <text class="d-small" x="340" y="257" text-anchor="middle">mauvais circuit</text>
+
+  <rect class="d-box" x="460" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="560" y="222" text-anchor="middle">3. Factures</text>
+  <text class="d-small" x="560" y="242" text-anchor="middle">expédiée, sans facture,</text>
+  <text class="d-small" x="560" y="257" text-anchor="middle">tâche en échec</text>
+
+  <rect class="d-box" x="680" y="198" width="200" height="70" rx="10"/>
+  <text class="d-title" x="780" y="222" text-anchor="middle">4. E-mails</text>
+  <text class="d-small" x="780" y="242" text-anchor="middle">pas d'e-mail, mauvais lien,</text>
+  <text class="d-small" x="780" y="257" text-anchor="middle">toujours en anglais</text>
+</svg>

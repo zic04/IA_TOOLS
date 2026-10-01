@@ -1,0 +1,84 @@
+<svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Les six étapes d'une commande dans Acme Orders, ce qui s'enchaîne tout seul, ce qui attend une personne, et les tâches planifiées">
+  <defs>
+    <marker id="ejo-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <!-- Les six étapes -->
+  <rect class="d-box" x="5" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="70" y="72" text-anchor="middle">1. Création</text>
+  <text class="d-text" x="70" y="96" text-anchor="middle">commercial</text>
+  <text class="d-small" x="70" y="118" text-anchor="middle">DRAFT</text>
+
+  <rect class="d-box" x="157" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="222" y="72" text-anchor="middle">2. Soumission</text>
+  <text class="d-text" x="222" y="96" text-anchor="middle">commercial</text>
+  <text class="d-small" x="222" y="118" text-anchor="middle">PENDING_APPROVAL</text>
+
+  <rect class="d-brand" x="309" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="374" y="72" text-anchor="middle">3. Validation</text>
+  <text class="d-text" x="374" y="96" text-anchor="middle">valideurs</text>
+  <text class="d-small" x="374" y="118" text-anchor="middle">APPROVED</text>
+
+  <rect class="d-warn" x="461" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="526" y="72" text-anchor="middle">4. Facturation</text>
+  <text class="d-text" x="526" y="96" text-anchor="middle">tâche planifiée</text>
+  <text class="d-small" x="526" y="118" text-anchor="middle">SHIPPED, ISSUED</text>
+
+  <rect class="d-box" x="613" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="678" y="72" text-anchor="middle">5. Paiement</text>
+  <text class="d-text" x="678" y="96" text-anchor="middle">finance, banque</text>
+  <text class="d-small" x="678" y="118" text-anchor="middle">PAID ou OVERDUE</text>
+
+  <rect class="d-warn" x="765" y="40" width="130" height="96" rx="10"/>
+  <text class="d-title" x="830" y="72" text-anchor="middle">6. Archivage</text>
+  <text class="d-text" x="830" y="96" text-anchor="middle">tâche planifiée</text>
+  <text class="d-small" x="830" y="118" text-anchor="middle">archived_at</text>
+
+  <!-- Entre les étapes : pointillé = attend une personne, trait plein = enchaîné -->
+  <path class="d-dashed" d="M135 88H154" marker-end="url(#ejo-arrow)"/>
+  <path class="d-line" d="M287 88H306" marker-end="url(#ejo-arrow)"/>
+  <path class="d-dashed" d="M439 88H458" marker-end="url(#ejo-arrow)"/>
+  <path class="d-dashed" d="M591 88H610" marker-end="url(#ejo-arrow)"/>
+  <path class="d-line" d="M743 88H762" marker-end="url(#ejo-arrow)"/>
+
+  <!-- Ce que chaque étape appelle, et les tâches planifiées -->
+  <rect class="d-info" x="157" y="180" width="130" height="64" rx="8"/>
+  <text class="d-title" x="222" y="204" text-anchor="middle">E-mail</text>
+  <text class="d-small" x="222" y="222" text-anchor="middle">premiers valideurs</text>
+  <text class="d-small" x="222" y="236" text-anchor="middle">même requête</text>
+  <path class="d-line" d="M222 136V177" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-danger" x="309" y="180" width="130" height="64" rx="8"/>
+  <text class="d-title" x="374" y="204" text-anchor="middle">Relance</text>
+  <text class="d-small" x="374" y="222" text-anchor="middle">jamais déclenchée</text>
+  <text class="d-small" x="374" y="236" text-anchor="middle">(C1)</text>
+  <path class="d-line" d="M374 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="461" y="180" width="130" height="64" rx="8"/>
+  <text class="d-title" x="526" y="204" text-anchor="middle">Facturation</text>
+  <text class="d-small" x="526" y="222" text-anchor="middle">chaque nuit</text>
+  <text class="d-small" x="526" y="236" text-anchor="middle">2 h UTC</text>
+  <path class="d-line" d="M526 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="613" y="180" width="130" height="64" rx="8"/>
+  <text class="d-title" x="678" y="204" text-anchor="middle">Retards</text>
+  <text class="d-small" x="678" y="222" text-anchor="middle">chaque nuit</text>
+  <text class="d-small" x="678" y="236" text-anchor="middle">après 30 jours</text>
+  <path class="d-line" d="M678 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="765" y="180" width="130" height="64" rx="8"/>
+  <text class="d-title" x="830" y="204" text-anchor="middle">Archivage</text>
+  <text class="d-small" x="830" y="222" text-anchor="middle">chaque nuit</text>
+  <text class="d-small" x="830" y="236" text-anchor="middle">après 90 jours</text>
+  <path class="d-line" d="M830 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <!-- Légende -->
+  <path class="d-line" d="M10 296H48" marker-end="url(#ejo-arrow)"/>
+  <text class="d-small" x="58" y="300">enchaîné, sans personne</text>
+  <path class="d-dashed" d="M230 296H268" marker-end="url(#ejo-arrow)"/>
+  <text class="d-small" x="278" y="300">attend une personne</text>
+  <rect class="d-warn" x="440" y="288" width="22" height="16" rx="3"/>
+  <text class="d-small" x="470" y="300">tâche planifiée</text>
+  <rect class="d-danger" x="600" y="288" width="22" height="16" rx="3"/>
+  <text class="d-small" x="630" y="300">tâche planifiée qui ne tourne jamais</text>
+</svg>

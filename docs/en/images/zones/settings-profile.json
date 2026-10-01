@@ -1,0 +1,38 @@
+{
+  "file": "settings-profile.webp",
+  "title": "Acme Orders › Settings",
+  "route": "/settings",
+  "width": 640,
+  "height": 595,
+  "version": "0.1.0",
+  "captured": "2026-10-01",
+  "zones": [
+    {
+      "n": 1,
+      "x": 3.13,
+      "y": 14.59,
+      "w": 93.75,
+      "h": 49.66,
+      "side": "corner",
+      "label": "Profile"
+    },
+    {
+      "n": 2,
+      "x": 3.13,
+      "y": 65.59,
+      "w": 93.75,
+      "h": 21.63,
+      "side": "corner",
+      "label": "Workspace"
+    },
+    {
+      "n": 3,
+      "x": 3.13,
+      "y": 88.56,
+      "w": 10.73,
+      "h": 8.03,
+      "side": "right",
+      "label": "Save"
+    }
+  ]
+}

@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "doc-kit/schemas/config.schema.json",
+  "title": "doc.config.mjs",
+  "description": "Configuration of a documentation project (ARCHITECTURE.md §3). Neutral defaults: no cookie, no CSS framework selector, no brand colour, no geolocation unless asked for. Strict validation: an unknown key is an error (exit code 2).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["product"],
+  "$defs": {
+    "colour": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 200 },
+        "height": { "type": "integer", "minimum": 200 }
+      }
+    },
+    "adapter": {
+      "type": "string",
+      "pattern": "^([a-z0-9-]+|local:.+)$"
+    },
+    "folder": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^<>:\"|?*]+$"
+    },
+    "text": {
+      "anyOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["other"],
+          "properties": {
+            "zero": { "type": "string" },
+            "one": { "type": "string" },
+            "two": { "type": "string" },
+            "few": { "type": "string" },
+            "many": { "type": "string" },
+            "other": { "type": "string" }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "kit": {
+      "type": "string",
+      "default": "*",
+      "description": "Accepted kit version range (^1.0.0, ~0.1.0, >=0.1.0, *). Outside the range: exit code 3."
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      }
+    },
+    "language": { "enum": ["en", "fr"], "default": "en" },
+    "output": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Generated file, relative to the project. Default: dist/<name>-Documentation.html."
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Folder names, relative to the project (older projects: { content: \"contenu\", diagrams: \"schemas\" }).",
+      "properties": {
+        "content": { "$ref": "#/$defs/folder", "default": "content" },
+        "images": { "$ref": "#/$defs/folder", "default": "images" },
+        "diagrams": { "$ref": "#/$defs/folder", "default": "diagrams" }
+      }
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "file": { "type": ["string", "null"], "default": null },
+        "pattern": { "type": "string", "minLength": 1, "default": "\"version\"\\s*:\\s*\"([^\"]+)\"" },
+        "fallback": { "type": "string", "minLength": 1, "default": "0.0.0" }
+      }
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "prefix": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+      }
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "url": { "type": ["string", "null"], "default": null }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {},
+      "properties": {
+        "adapter": { "$ref": "#/$defs/adapter", "default": "manual" }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "plans": { "type": "string", "minLength": 1, "default": "captures/plans" },
+        "setup": { "type": ["string", "null"], "default": null },
+        "locale": { "type": ["string", "null"], "default": null },
+        "timezone": { "type": "string", "minLength": 1, "default": "UTC" },
+        "viewports": {
+          "type": "object",
+          "default": { "desktop": { "width": 1600, "height": 1000 }, "mobile": { "width": 390, "height": 844 } },
+          "additionalProperties": { "$ref": "#/$defs/viewport" }
+        },
+        "webpQuality": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.82 },
+        "geolocation": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["latitude", "longitude"],
+              "properties": {
+                "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+              }
+            }
+          ],
+          "default": null
+        },
+        "storage": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": { "type": "string" }
+        },
+        "cookies": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["name", "value"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        "selectors": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "block": { "type": ["string", "null"], "default": null },
+            "frame": { "type": ["string", "null"], "default": null }
+          }
+        },
+        "map": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y", "z"],
+              "properties": {
+                "x": { "type": "string", "minLength": 1 },
+                "y": { "type": "string", "minLength": 1 },
+                "z": { "type": "string", "minLength": 1 }
+              }
+            }
+          ],
+          "default": null
+        },
+        "forbidden": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "readOnly": { "enum": ["auto", true, false], "default": "auto" }
+      }
+    },
+    "masking": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "env": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "exclude": { "type": ["string", "null"], "default": "localhost|127\\.0\\.0\\.1" },
+        "guid": { "type": "boolean", "default": true },
+        "patterns": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "allow": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [] }
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["adapter"],
+        "properties": {
+          "adapter": { "$ref": "#/$defs/adapter" }
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "key": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9_.-]+$", "default": null },
+        "logo": { "type": ["string", "null"], "default": null },
+        "colors": { "type": "object", "default": {}, "additionalProperties": { "$ref": "#/$defs/colour" } },
+        "dark": { "type": "object", "default": {}, "additionalProperties": { "$ref": "#/$defs/colour" } },
+        "icons": { "type": "object", "default": {}, "additionalProperties": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "statuses": {
+      "type": "object",
+      "default": {},
+      "description": "{ \"0\": [\"st-0\", \"0 · paid\"] }: [colour (token name or #hex), label].",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "texts": {
+      "type": "object",
+      "default": {},
+      "description": "i18n overrides: { \"home.primaryAction\": \"Explore the editors\" }.",
+      "additionalProperties": { "$ref": "#/$defs/text" }
+    },
+    "feedback": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "pattern": "^(https?:|mailto:)" }
+          }
+        }
+      ],
+      "default": null
+    },
+    "extra": { "type": "object", "default": {} }
+  }
+}

@@ -1,0 +1,84 @@
+<svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The six steps of an order in Acme Orders, what chains on its own, what waits for a person, and the scheduled tasks">
+  <defs>
+    <marker id="ejo-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <!-- The six steps -->
+  <rect class="d-box" x="10" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="70" y="72" text-anchor="middle">1. Creation</text>
+  <text class="d-text" x="70" y="96" text-anchor="middle">sales rep</text>
+  <text class="d-small" x="70" y="118" text-anchor="middle">DRAFT</text>
+
+  <rect class="d-box" x="162" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="222" y="72" text-anchor="middle">2. Submission</text>
+  <text class="d-text" x="222" y="96" text-anchor="middle">sales rep</text>
+  <text class="d-small" x="222" y="118" text-anchor="middle">PENDING_APPROVAL</text>
+
+  <rect class="d-brand" x="314" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="374" y="72" text-anchor="middle">3. Approval</text>
+  <text class="d-text" x="374" y="96" text-anchor="middle">approvers</text>
+  <text class="d-small" x="374" y="118" text-anchor="middle">APPROVED</text>
+
+  <rect class="d-warn" x="466" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="526" y="72" text-anchor="middle">4. Invoicing</text>
+  <text class="d-text" x="526" y="96" text-anchor="middle">invoice job</text>
+  <text class="d-small" x="526" y="118" text-anchor="middle">SHIPPED, ISSUED</text>
+
+  <rect class="d-box" x="618" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="678" y="72" text-anchor="middle">5. Payment</text>
+  <text class="d-text" x="678" y="96" text-anchor="middle">finance, bank</text>
+  <text class="d-small" x="678" y="118" text-anchor="middle">PAID or OVERDUE</text>
+
+  <rect class="d-warn" x="770" y="40" width="120" height="96" rx="10"/>
+  <text class="d-title" x="830" y="72" text-anchor="middle">6. Archiving</text>
+  <text class="d-text" x="830" y="96" text-anchor="middle">archive job</text>
+  <text class="d-small" x="830" y="118" text-anchor="middle">archived_at</text>
+
+  <!-- Between the steps: dotted = waits for a person, solid = chained -->
+  <path class="d-dashed" d="M130 88H159" marker-end="url(#ejo-arrow)"/>
+  <path class="d-line" d="M282 88H311" marker-end="url(#ejo-arrow)"/>
+  <path class="d-dashed" d="M434 88H463" marker-end="url(#ejo-arrow)"/>
+  <path class="d-dashed" d="M586 88H615" marker-end="url(#ejo-arrow)"/>
+  <path class="d-line" d="M738 88H767" marker-end="url(#ejo-arrow)"/>
+
+  <!-- What each step calls, and the scheduled tasks -->
+  <rect class="d-info" x="162" y="180" width="120" height="64" rx="8"/>
+  <text class="d-title" x="222" y="204" text-anchor="middle">E-mail</text>
+  <text class="d-small" x="222" y="222" text-anchor="middle">first approvers</text>
+  <text class="d-small" x="222" y="236" text-anchor="middle">same request</text>
+  <path class="d-line" d="M222 136V177" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-danger" x="314" y="180" width="120" height="64" rx="8"/>
+  <text class="d-title" x="374" y="204" text-anchor="middle">Reminder job</text>
+  <text class="d-small" x="374" y="222" text-anchor="middle">never triggered</text>
+  <text class="d-small" x="374" y="236" text-anchor="middle">(C1)</text>
+  <path class="d-line" d="M374 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="466" y="180" width="120" height="64" rx="8"/>
+  <text class="d-title" x="526" y="204" text-anchor="middle">Invoice job</text>
+  <text class="d-small" x="526" y="222" text-anchor="middle">every night</text>
+  <text class="d-small" x="526" y="236" text-anchor="middle">02:00 UTC</text>
+  <path class="d-line" d="M526 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="618" y="180" width="120" height="64" rx="8"/>
+  <text class="d-title" x="678" y="204" text-anchor="middle">Overdue job</text>
+  <text class="d-small" x="678" y="222" text-anchor="middle">every night</text>
+  <text class="d-small" x="678" y="236" text-anchor="middle">after 30 days</text>
+  <path class="d-line" d="M678 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <rect class="d-warn" x="770" y="180" width="120" height="64" rx="8"/>
+  <text class="d-title" x="830" y="204" text-anchor="middle">Archive job</text>
+  <text class="d-small" x="830" y="222" text-anchor="middle">every night</text>
+  <text class="d-small" x="830" y="236" text-anchor="middle">after 90 days</text>
+  <path class="d-line" d="M830 180V139" marker-end="url(#ejo-arrow)"/>
+
+  <!-- Legend -->
+  <path class="d-line" d="M10 296H48" marker-end="url(#ejo-arrow)"/>
+  <text class="d-small" x="58" y="300">chained, nobody needed</text>
+  <path class="d-dashed" d="M230 296H268" marker-end="url(#ejo-arrow)"/>
+  <text class="d-small" x="278" y="300">waits for a person</text>
+  <rect class="d-warn" x="440" y="288" width="22" height="16" rx="3"/>
+  <text class="d-small" x="470" y="300">scheduled task</text>
+  <rect class="d-danger" x="600" y="288" width="22" height="16" rx="3"/>
+  <text class="d-small" x="630" y="300">scheduled task that never runs</text>
+</svg>

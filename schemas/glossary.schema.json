@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "doc-kit/schemas/glossary.schema.json",
+  "title": "content/glossary.json",
+  "description": "Glossary terms: the first occurrence of each term in a page gets a tooltip. `pattern` is a regular expression (flags i and u are added); default: the escaped term. Legacy files (glossaire.json: terme, motif, def) are normalised before validation.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["term", "def"],
+    "properties": {
+      "term": { "type": "string", "minLength": 1 },
+      "pattern": { "type": "string", "minLength": 1 },
+      "def": { "type": "string", "minLength": 1 }
+    }
+  }
+}

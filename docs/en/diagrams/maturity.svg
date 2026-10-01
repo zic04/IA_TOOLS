@@ -1,0 +1,20 @@
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The four maturity levels, each built on the one below">
+  <rect class="d-box-2" x="20" y="170" width="200" height="60" rx="8"/>
+  <text class="d-title" x="120" y="196" text-anchor="middle">1 · Skeleton</text>
+  <text class="d-small" x="120" y="216" text-anchor="middle">builds; each section started</text>
+  <rect class="d-box" x="240" y="125" width="200" height="105" rx="8"/>
+  <text class="d-title" x="340" y="151" text-anchor="middle">2 · User</text>
+  <text class="d-small" x="340" y="171" text-anchor="middle">every screen found,</text>
+  <text class="d-small" x="340" y="188" text-anchor="middle">annotated</text>
+  <rect class="d-brand" x="460" y="80" width="200" height="150" rx="8"/>
+  <text class="d-title" x="560" y="106" text-anchor="middle">3 · Complete</text>
+  <text class="d-small" x="560" y="126" text-anchor="middle">written, covered, typed,</text>
+  <text class="d-small" x="560" y="143" text-anchor="middle">conformant; strict build</text>
+  <rect class="d-solid" x="680" y="35" width="200" height="195" rx="8"/>
+  <text class="d-white" x="780" y="61" text-anchor="middle">4 · Takeover</text>
+  <text class="d-white" x="780" y="83" text-anchor="middle">architecture, journeys,</text>
+  <text class="d-white" x="780" y="103" text-anchor="middle">troubleshooting,</text>
+  <text class="d-white" x="780" y="123" text-anchor="middle">findings, proofs</text>
+  <text class="d-small" x="20" y="30">A level is reached when its criteria</text>
+  <text class="d-small" x="20" y="48">and those of every level below are met.</text>
+</svg>

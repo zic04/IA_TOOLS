@@ -1,0 +1,42 @@
+<svg viewBox="0 0 900 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The classes of the diagrams: boxes, solid fills, lines, arrowheads and text">
+  <defs>
+    <marker id="cl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="cl-arrow-brand" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow-brand" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+  <text class="d-title" x="20" y="24">Boxes</text>
+  <rect class="d-box" x="20" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="75" y="69" text-anchor="middle">d-box</text>
+  <rect class="d-box-2" x="145" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="200" y="69" text-anchor="middle">d-box-2</text>
+  <rect class="d-brand" x="270" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="325" y="69" text-anchor="middle">d-brand</text>
+  <rect class="d-warn" x="395" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="450" y="69" text-anchor="middle">d-warn</text>
+  <rect class="d-danger" x="520" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="575" y="69" text-anchor="middle">d-danger</text>
+  <rect class="d-info" x="645" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="700" y="69" text-anchor="middle">d-info</text>
+  <rect class="d-violet" x="770" y="38" width="110" height="52" rx="8"/>
+  <text class="d-text" x="825" y="69" text-anchor="middle">d-violet</text>
+
+  <text class="d-title" x="20" y="132">Solid fills</text>
+  <rect class="d-solid" x="20" y="146" width="180" height="52" rx="8"/>
+  <text class="d-white" x="110" y="177" text-anchor="middle">d-solid + d-white</text>
+  <rect class="d-chrome" x="215" y="146" width="180" height="52" rx="8"/>
+  <rect class="d-box" x="236" y="160" width="138" height="24" rx="5"/>
+  <text class="d-small" x="305" y="176" text-anchor="middle">d-chrome</text>
+
+  <text class="d-title" x="440" y="132">Lines and arrowheads</text>
+  <path class="d-line" d="M440 158H640" marker-end="url(#cl-arrow)"/>
+  <text class="d-small" x="660" y="162">d-line + d-arrow</text>
+  <path class="d-line-brand" d="M440 182H640" marker-end="url(#cl-arrow-brand)"/>
+  <text class="d-small" x="660" y="186">d-line-brand + d-arrow-brand</text>
+  <path class="d-dashed" d="M440 206H640" marker-end="url(#cl-arrow)"/>
+  <text class="d-small" x="660" y="210">d-dashed: waits for a person</text>
+
+  <text class="d-title" x="20" y="250">Text</text>
+  <text class="d-title" x="20" y="282">d-title: a box title, 14 px bold</text>
+  <text class="d-text" x="330" y="282">d-text: a description, 12.5 px</text>
+  <text class="d-small" x="600" y="282">d-small: a detail, 11 px</text>
+  <text class="d-small" x="20" y="314">No colour is written in the file: each class takes its colour from the theme, light or dark.</text>
+</svg>
