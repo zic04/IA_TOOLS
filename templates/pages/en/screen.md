@@ -3,7 +3,7 @@
 <!-- guidance: the business need in 2 to 4 sentences, with the exact name of the screen in bold, then the "Where to find this screen" box. Example: "**Orders** is the entry point to the sales activity: the list of every order you are allowed to see." -->
 
 > [!NOTE] Where to find this screen
-> [[menu Area › Screen]] ([[route /path]]).
+> [[menu Area › Screen]] ([[route /example/screen]]).
 
 ## How it works
 
@@ -16,6 +16,7 @@
 
 ## The screen
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: one interactive capture per panel (### subheadings if there are several). The list has EXACTLY as many items as the capture has zones (3 to 12), in reading order. Each item: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
 
 :::screen{capture="capture-id" title="Area › Screen"}
@@ -23,6 +24,15 @@
 2. **Exact label**. Role, values, default, effect.
 3. **Exact label**. Role, values, default, effect.
 :::
+<!-- doc-kit:capture=none -->
+<!-- guidance: no screenshot in this project (capture.mode "none"): one table per panel or dialog (### subheadings if there are several), one row per element in reading order, from top to bottom, then from left to right. Each row: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
+
+| Element | What it shows |
+|---|---|
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+<!-- doc-kit:end -->
 
 ## Each action
 

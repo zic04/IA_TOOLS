@@ -6,6 +6,50 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+Fixes for the frictions found by a pilot run on a real application with a separate front end and no screenshots.
+
+### Added
+
+- **Help of a command**: `doc-kit <command> --help` and `doc-kit help <command>` print the usage and every option of
+  that command, in the language of the messages (`cli.help.*`, fragment `i18n/<language>/help.json`).
+- **No-screenshot mode**: `capture.mode: "app" | "none"` (default `"app"`) and `doc-kit init --capture none` (also asked
+  in interactive mode). With `"none"`: no example capture plan and no capture script in the skeleton, starter pages
+  and `doc-kit new` describe "The screen" with a table `| Element | What it shows |`, the home page has no
+  "interactive screens" callout, `capture` and `connect` explain the mode and stop with exit code 2 (`connect --forget`
+  still runs), `doctor` expects neither a session nor a plans folder, the guided mode never offers `connect` or
+  `capture`, the skill's briefs tell the writers to write tables, and `audit` counts `annotated` as `n/a`, so level 2
+  is reachable.
+- **Capture variants in templates**: `<!-- doc-kit:capture=app -->`, `<!-- doc-kit:capture=none -->` and
+  `<!-- doc-kit:end -->` markers; `init` and `new` keep the variant of the project (`captureVariant` in
+  `engine/build/page-templates.mjs`). The `screen` and `editor` templates hold a "The screen" without screenshot.
+- **`app.dir`**: the application root, written by `init`; given to the agents as `{{appDir}}` by the skill's
+  `brief.mjs`, checked by `doctor`.
+- **`init` recap**, printed before anything is written, also with `--yes`: folder, product name and where it was found,
+  slug, language, URL, version and its file, capture mode, sign-in, coverage, masked `.env` files, application folder,
+  and where to rename the product afterwards.
+- `doctor` warns "version never incremented?" (⚠, no longer ✔) when the documented version is `0.0.0` or `1.0.0` while
+  a `version.txt`, `VERSION` or `CHANGELOG.md` of the application gives another one; it checks `app.dir`.
+- `brief.mjs --list` prints the available languages and the templates of each.
+
+### Changed
+
+- **Product name** detected by `init`: the `metadata.title` of the Next.js root layout first, then `package.json`
+  without its `-frontend`, `-front`, `-web`, `-ui`, `-client` or `-app` suffix (a generic name gives way to the root
+  `package.json`, then to the folder name).
+- **Version source** detected by `init`: `version.txt` or `VERSION` at the application root, then the root
+  `package.json`, then the front end's, then `pyproject.toml`.
+- **Masking files** detected by `init`: the `.env` and `.env.local` files that exist at the application root and in the
+  front-end folder (never `*.example`); `masking.env` is empty when there is none.
+- The comments of the generated `doc.config.mjs` are in the language of the project (`templates/project/<language>/`).
+- The French templates and briefs avoid elision traps with the product name ("du produit …", "l'application …").
+- The example routes of the skeleton and of the page templates are fictional (`/example/…`, `/exemple/…`).
+- **Coverage** no longer counts a page that still holds template guidance: neither its text nor its entry in the
+  table of contents (titles, `routes`, journeys, suggestions).
+- The guided mode shows the folder in full ("No documentation project (doc.config.mjs) for this folder: …").
+- `brief.mjs` speaks the project's language; `{{appDir}}` comes from `app.dir`, else the documentation folder's
+  parent or grandparent that holds `.git`, else its grandparent, with a warning when it was guessed and when the
+  coverage source sits in a separate front end.
+
 ## [0.1.0] - 2026-10-01
 
 First public release.

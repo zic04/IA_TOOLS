@@ -1,6 +1,6 @@
 ## À quoi ça sert
 
-<!-- consigne : en 2 à 4 phrases, ce que l'utilisateur trouve en arrivant dans {{name}} et comment il s'y repère. Exemple : « Après la connexion, {{name}} ouvre sur le tableau de bord : le menu latéral mène à chaque pôle, la barre du haut à la recherche et au compte. » -->
+<!-- consigne : en 2 à 4 phrases, ce que l'utilisateur trouve en arrivant dans l'application {{name}} et comment il s'y repère. Exemple : « Après la connexion, l'application {{name}} s'ouvre sur le tableau de bord : le menu latéral mène à chaque pôle, la barre du haut à la recherche et au compte. » -->
 
 > [!NOTE] Où se trouve cet écran
 > L'écran d'accueil, juste après la connexion ([[route /]]).
@@ -16,6 +16,7 @@
 
 ## L'écran
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : la capture « home » est déclarée dans captures/plans/example.mjs avec 3 zones (barre du haut, menu, contenu) : la légende a 3 éléments. Modifiez les zones et la légende ensemble, puis capturez avec l'option d'aperçu (voir « Maintenir cette documentation »). -->
 
 :::ecran{capture="home" titre="{{name}} › écran d'accueil"}
@@ -23,6 +24,15 @@
 2. **Menu**. Les pôles de l'application, selon les droits de l'utilisateur.
 3. **Contenu de l'écran**. Ce que l'utilisateur voit en premier, et d'où viennent les chiffres.
 :::
+<!-- doc-kit:capture=none -->
+<!-- consigne : pas de capture dans ce projet (capture.mode "none") : un tableau par panneau ou par fenêtre (sous-titres ### s'il y en a plusieurs), une ligne par élément dans l'ordre de lecture, de haut en bas puis de gauche à droite. Chaque ligne : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases. -->
+
+| Élément | Ce qu'il montre |
+|---|---|
+| **Barre du haut** | Recherche, langue, thème et menu du compte : rôle, valeurs, effet. |
+| **Menu** | Les pôles de l'application, selon les droits de l'utilisateur. |
+| **Contenu de l'écran** | Ce que l'utilisateur voit en premier, et d'où viennent les chiffres. |
+<!-- doc-kit:end -->
 
 ## Chaque action
 

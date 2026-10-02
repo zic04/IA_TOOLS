@@ -2,7 +2,11 @@
 
 <!-- consigne : complétez les lignes marquées « à compléter » : où vit ce dossier, d'où viennent les captures (production en lecture seule ou démo), la version documentée et la date de la dernière campagne de captures. -->
 
+<!-- doc-kit:capture=app -->
 Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en Markdown, les captures sont prises automatiquement sur l'application, et le kit assemble le tout en **un seul fichier HTML** autonome, lisible hors ligne, avec recherche, thème clair et sombre, visites guidées et impression.
+<!-- doc-kit:capture=none -->
+Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en Markdown, sans capture (`capture.mode: "none"`) : chaque écran est décrit par un tableau de ses éléments. Le kit assemble le tout en **un seul fichier HTML** autonome, lisible hors ligne, avec recherche, thème clair et sombre, visites guidées et impression.
+<!-- doc-kit:end -->
 
 | Besoin | Commande (dans ce dossier) | Application nécessaire ? |
 |---|---|---|
@@ -13,17 +17,25 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 | Vérifier que chaque écran est documenté | `npm run coverage` | Le code de l'application |
 | Tous les contrôles | `doc-kit check all` | Le code de l'application |
 | Mesurer la qualité et le niveau de maturité | `npm run audit` | Non |
+<!-- doc-kit:capture=app -->
 | Se connecter à l'application | `doc-kit connect` | **Oui** (une personne se connecte) |
 | Refaire des captures | `doc-kit capture "<motif>" --preview` | **Oui** |
+<!-- doc-kit:end -->
 
 - **Version documentée** : à compléter.
+<!-- doc-kit:capture=app -->
 - **Dernière campagne de captures** : à compléter (date, production ou démo).
+<!-- doc-kit:end -->
 
 ## Comment le site est fabriqué
 
 <!-- consigne : facultatif. Un schéma des trois temps (captures, rédaction, génération et contrôles) si l'équipe en a besoin. -->
 
+<!-- doc-kit:capture=app -->
 1. **Les captures** : `captures/plans/*.mjs` décrit chaque écran à capturer ; `doc-kit capture` produit `images/<id>.webp` et `images/zones/<id>.json`.
+<!-- doc-kit:capture=none -->
+1. **Les écrans** : décrits dans les pages elles-mêmes, un tableau des éléments par écran ; aucune capture n'est prise.
+<!-- doc-kit:end -->
 2. **La rédaction** : `content/toc.json` déclare chaque page ; `content/<id>.md` la contient, selon le gabarit déclaré.
 3. **La génération** : `doc-kit build` assemble pages, captures et schémas dans `dist/`, après ses contrôles.
 
@@ -43,6 +55,7 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 | `dist/` | **Le livrable**, ignoré par git | Généré |
 | `.doc-kit/` | Session, aperçus des zones, fichiers de travail ; ignoré par git | Local |
 
+<!-- doc-kit:capture=app -->
 ## Refaire des captures
 
 <!-- consigne : précisez si les captures se font en production (décision écrite du propriétaire) ou sur une démo, et listez ici les pages dont le rendu écrit côté serveur (capture.forbidden dans doc.config.mjs), ainsi que les fiches déjà ouvertes qui restent permises. -->
@@ -58,6 +71,13 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 5. **Lire la dernière ligne** : « Lecture seule : N requête(s) d'écriture bloquée(s) ».
 6. **Supprimer la session** : `doc-kit connect --forget`. Si elle expire en cours de route, arrêtez-vous et reconnectez-vous.
 :::
+<!-- doc-kit:capture=none -->
+## Captures
+
+<!-- consigne : dites qui a décidé que cette documentation ne prend aucune capture, et pourquoi (pas d'accès à l'application, données sensibles…). -->
+
+Cette documentation ne prend aucune capture (`capture.mode: "none"` dans `doc.config.mjs`) : chaque écran est décrit par un tableau de ses éléments, dans l'ordre de lecture, avec leurs libellés exacts. Pour ajouter des captures plus tard, mettez `capture.mode: "app"`, connectez-vous avec `doc-kit connect`, déclarez les captures dans `captures/plans/` et lancez `doc-kit capture --preview`, en suivant les règles de capture du standard du kit.
+<!-- doc-kit:end -->
 
 ## Écrire ou modifier une page
 

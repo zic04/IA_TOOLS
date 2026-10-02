@@ -46,7 +46,8 @@ masking: {
 | SECRET, PASSWORD, PASSWD, PWD, TOKEN, KEY, DSN, CONNECTION | `CLIENT_SECRET`, `API_KEY`, `SENTRY_DSN` |
 
 L'analyseur de `.env` comprend `KEY=value`, `export KEY=value`, les valeurs entre guillemets et les commentaires.
-`doc-kit doctor` signale un fichier de `masking.env` qui n'existe pas.
+`doc-kit init` liste les fichiers `.env` et `.env.local` qu'il trouve à la racine de l'application et dans le dossier
+de son front-end (jamais les `*.example`), et `doc-kit doctor` signale un fichier de `masking.env` qui n'existe pas.
 
 ## Valeurs connues pour être publiques
 

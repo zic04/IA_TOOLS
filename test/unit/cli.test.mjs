@@ -3,8 +3,9 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { runCli } from "../../cli/doc-kit.mjs";
-import { DEMO, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
+import { pathToFileURL } from "node:url";
+import { runCli, COMMANDS } from "../../cli/doc-kit.mjs";
+import { KIT_ROOT, DEMO, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 
 /** Runs the CLI and captures its output. */
 async function cli(args, env = {}) {
@@ -29,6 +30,31 @@ describe("dispatching", () => {
     const guided = await cli([]);
     assert.equal(guided.code, 0);
     assert.match(guided.out, /guided mode/);
+  });
+
+  test("help of a command: <command> --help and help <command>, every option of the command, in the message language", async () => {
+    const init = await cli(["init", "--help"]);
+    assert.equal(init.code, 0);
+    assert.match(init.out, /^Usage: doc-kit init \[app-dir\] \[options\]\n/);
+    assert.match(init.out, /\n {2}--lang en\|fr +language of the site/, "--lang is an option of init: it sets the site's language");
+    assert.match(init.out, /\n {2}--capture app\|none /);
+    assert.match(init.out, /\nGlobal options: --project <dir>/);
+    assert.equal((await cli(["help", "init"])).out, init.out);
+    assert.match((await cli(["help", "capture", "--lang", "fr"])).out, /^Usage : doc-kit capture \[motifs…\]/);
+    assert.ok((await cli(["help"])).out.startsWith("Usage: doc-kit [<command>]"), "help alone: the commands");
+    // Every command has its help in both languages, and it lists every option of its module.
+    for (const language of ["en", "fr"])
+      for (const command of COMMANDS) {
+        const r = await cli([command, "--help", "--lang", language]);
+        assert.equal(r.code, 0, `${language} ${command}`);
+        assert.match(r.out, new RegExp(`^Usage ?: doc-kit ${command}\\b`), `${language} ${command}`);
+        const module = await import(pathToFileURL(path.join(KIT_ROOT, "cli", "commands", `${command}.mjs`)).href);
+        for (const option of Object.keys(module.options || {})) assert.ok(r.out.includes(`--${option}`), `${language} ${command} --${option}`);
+        assert.doesNotMatch(r.out, /\{\w+\}/, `${language} ${command}: no variable left`);
+      }
+    const unknown = await cli(["help", "nope"]);
+    assert.equal(unknown.code, 2);
+    assert.match(unknown.err, /^✖ unknown command: nope\n {2}→ available commands: .* \(doc-kit help <command>\)/);
   });
 
   test("unknown command, invalid option, option of another command → exit code 2", async () => {

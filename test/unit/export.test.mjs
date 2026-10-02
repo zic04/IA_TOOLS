@@ -83,7 +83,7 @@ describe("export", () => {
       for (const f of ["content/toc.json", "images/orders-list.webp", "images/zones/orders-list.json", "diagrams/flow.svg", "theme/logo.svg", ".gitignore"]) assert.ok(fs.existsSync(path.join(target, f)), f);
       // The vendored engine: what builds, nothing else.
       const vendor = path.join(target, ...VENDOR.split("/"));
-      for (const f of ["engine/build/build.mjs", "cli/doc-kit.mjs", "i18n/en.json", "schemas/config.schema.json", "templates/project/common/doc.config.mjs", "standard/templates.json", "LICENSE"]) assert.ok(fs.existsSync(path.join(vendor, f)), f);
+      for (const f of ["engine/build/build.mjs", "cli/doc-kit.mjs", "i18n/en.json", "schemas/config.schema.json", "templates/project/en/doc.config.mjs", "templates/project/fr/doc.config.mjs", "standard/templates.json", "LICENSE"]) assert.ok(fs.existsSync(path.join(vendor, f)), f);
       for (const f of ["test", "examples", "skill", "docs", "ci", "node_modules"]) assert.ok(!fs.existsSync(path.join(vendor, f)), f);
       const vendored = JSON.parse(fs.readFileSync(path.join(vendor, "package.json"), "utf8"));
       assert.equal(vendored.version, BRAND.version);

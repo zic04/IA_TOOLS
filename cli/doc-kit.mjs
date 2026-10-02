@@ -7,11 +7,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
-import { createContext, printKitError, prompterOf, shownPath } from "./common.mjs";
+import { createContext, printKitError, prompterOf, shownPath, absolutePath } from "./common.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { findProject } from "../engine/project/find.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environment.mjs";
+import { WORK_DIR } from "./commands/audit.mjs";
+import { SKILL_NAME } from "./commands/skill.mjs";
 
 const FOLDER = path.dirname(fileURLToPath(import.meta.url));
 
@@ -64,15 +66,25 @@ export async function runCli(argv, io = {}) {
   }
   // Every command speaks the project's language (config.language) unless --lang is given, from its first
   // message, whether or not it loads the whole project (doctor checks it piece by piece). `init` creates a project
-  // somewhere else: it keeps --lang, DOC_KIT_LANG or English.
-  if (positionals[0] !== "init") await ctx.useProjectLanguage();
+  // somewhere else: it keeps --lang, DOC_KIT_LANG or English (its help too).
+  if ((positionals[0] === "help" ? positionals[1] : positionals[0]) !== "init") await ctx.useProjectLanguage();
   if (values.version) {
     ctx.print(ctx.t("cli.version", { name: BRAND.name, version: BRAND.version }));
     return EXIT.OK;
   }
   const [name, ...rest] = positionals;
-  if (values.help) {
-    ctx.print(ctx.t("cli.usage"));
+  // Help: `--help` or `help` alone → the commands; `<command> --help` or `help <command>` → that command.
+  if (values.help || name === "help") {
+    const topic = name === "help" ? rest[0] : name;
+    if (!topic) {
+      ctx.print(ctx.t("cli.usage"));
+      return EXIT.OK;
+    }
+    if (!modules[topic]) {
+      ctx.error("command.unknown", { name: topic, available: COMMANDS.join(", ") });
+      return EXIT.USAGE;
+    }
+    ctx.print(`${ctx.t(`cli.help.${topic}`, { work: WORK_DIR, skill: SKILL_NAME })}\n\n${ctx.t("cli.help.globals")}`);
     return EXIT.OK;
   }
   if (!name) return runSafely(ctx, () => guided({ ctx, modules, values }));
@@ -141,6 +153,8 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
     if (!(e instanceof KitError)) throw e;
     return { step: e.key === "project.depsMissing" ? "install" : "doctor", folder: root, root, error: e };
   }
+  // A documentation without screenshots (capture.mode "none") needs neither a session nor a capture.
+  if (config.capture.mode === "none") return { step: "menu", folder: root, root, config };
   const session = sessionInfo({ root, config, env });
   if (session.needed && !session.exists) return { step: "connect", folder: root, root, config, session };
   if (captureCount(root, config) === 0) return { step: "capture", folder: root, root, config };
@@ -160,8 +174,10 @@ async function guided({ ctx, modules, values }) {
   }
   const p = ctx.paint;
   ctx.print(p.bold(ctx.t("cli.guided.title", { name: BRAND.name, version: BRAND.version })));
-  const vars = { folder: shownPath(s.folder), command: BRAND.command, product: s.config?.product.name ?? "" };
+  // The folder in full ("No documentation project in ." was ambiguous), quoted when it holds a space.
+  const vars = { folder: absolutePath(s.folder), command: BRAND.command, product: s.config?.product.name ?? "" };
   ctx.print(ctx.t(`cli.guided.situation.${s.step}`, vars));
+  if (s.config?.capture.mode === "none") ctx.print(p.dim(ctx.t("cli.guided.noCapture")));
   if (s.error) printKitError(ctx, s.error);
 
   if (!ctx.interactive) {

@@ -51,10 +51,17 @@ Decisions to make with the owner, **before any code**:
 
 ## 1 · Set up the project
 
-- `doc-kit init <app-dir>` creates `<app-dir>/docs/manual/` (`--dir` to change it). It detects the framework and asks
-  for the product name, language, application URL and sign-in method (`--name`, `--lang`, `--url`, `--auth`,
-  `--framework` answer in advance; `--yes` asks nothing). Running `doc-kit` with no command starts the **guided mode**,
-  which detects the current state and proposes the next step.
+- `doc-kit init <app-dir>` creates `<app-dir>/docs/manual/` (`--dir` to change it). `<app-dir>` is the application
+  **root**, even when the front end sits in `frontend/` or `web/`. It detects the framework, the product name (Next.js
+  `metadata.title`, else `package.json` without its `-frontend`/`-web` suffix), the version file (`version.txt` or
+  `VERSION` at the root first) and the `.env` files to mask, then asks for the product name, language, application
+  URL, capture mode and sign-in method (`--name`, `--lang`, `--url`, `--capture`, `--auth`, `--framework` answer in
+  advance; `--yes` asks nothing). Its **recap** is printed before anything is written, even with `--yes`: read it
+  (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `doc-kit` with no command
+  starts the **guided mode**, which detects the current state and proposes the next step.
+- `app.dir` (written by `init`) is the application root given to the agents as `appDir`. With a **separate front
+  end**, the coverage adapter only sees the front's routes: `brief.mjs` warns about it, and the inventory brief must
+  also read the back end (API routes, permissions, writes while rendering).
 - Complete `doc.config.mjs` (commented, fictional examples: `{{KIT_PATH}}/standard/config.md`):
   - `version`: file and pattern that give the application version (`{ file: "../../package.json", pattern, fallback }`);
   - `env.prefix`: also reads `<PREFIX>_URL`, `<PREFIX>_SESSION`, `<PREFIX>_PLANS`, `<PREFIX>_READONLY`;
@@ -68,6 +75,17 @@ Decisions to make with the owner, **before any code**:
   rewrites its JSON files in the current format.
 - `doc-kit doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
   starts until it has no ✖ (exit code 3 environment, 2 configuration, 1 project).
+
+### No-screenshot mode
+
+When the scoping decides "capture mode: none" (no access to the application, sensitive data, a first quick pass):
+`doc-kit init --capture none` (or `capture.mode: "none"` in `doc.config.mjs`). The skeleton then has no example
+capture plan and no "interactive screens" callout; its pages, like those of `doc-kit new`, describe "The screen" with
+a table `| Element | What it shows |`, one row per element in reading order, exact labels in bold. Skip phase 4;
+`capture` and `connect` refuse to run, `doctor` and the guided mode stop asking for a session, the briefs tell the
+writers to write tables (`screenshots=none`), and `audit` counts `annotated` as n/a, so level 2 stays reachable.
+To add screenshots later: `capture.mode: "app"`, then phase 4, replacing each table with a `:::screen` whose legend
+keeps the same items.
 
 ## 2 · Code inventory
 

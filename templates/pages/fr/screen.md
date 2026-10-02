@@ -3,7 +3,7 @@
 <!-- consigne : le besoin métier en 2 à 4 phrases, avec le nom exact de l'écran en gras, puis l'encadré « Où se trouve cet écran ». Exemple : « **Commandes** est le point d'entrée de l'activité commerciale : la liste de toutes les commandes que vous avez le droit de voir. » -->
 
 > [!NOTE] Où se trouve cet écran
-> [[menu Pôle › Écran]] ([[route /chemin]]).
+> [[menu Pôle › Écran]] ([[route /exemple/ecran]]).
 
 ## Comment ça marche
 
@@ -16,6 +16,7 @@
 
 ## L'écran
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : une capture interactive par panneau (sous-titres ### s'il y en a plusieurs). La liste a EXACTEMENT autant d'éléments que la capture a de zones (3 à 12), dans l'ordre de lecture. Chaque élément : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases. -->
 
 :::ecran{capture="id-de-la-capture" titre="Pôle › Écran"}
@@ -23,6 +24,15 @@
 2. **Libellé exact**. Rôle, valeurs, défaut, effet.
 3. **Libellé exact**. Rôle, valeurs, défaut, effet.
 :::
+<!-- doc-kit:capture=none -->
+<!-- consigne : pas de capture dans ce projet (capture.mode "none") : un tableau par panneau ou par fenêtre (sous-titres ### s'il y en a plusieurs), une ligne par élément dans l'ordre de lecture, de haut en bas puis de gauche à droite. Chaque ligne : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases. -->
+
+| Élément | Ce qu'il montre |
+|---|---|
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+<!-- doc-kit:end -->
 
 ## Chaque action
 

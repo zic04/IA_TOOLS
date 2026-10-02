@@ -1,6 +1,6 @@
 # Brief — diagnostic par symptôme ({{product}}, code {{code}})
 
-Tu rédiges, en {{languageName}}, le **diagnostic par symptôme** du site de documentation de **{{product}}**{{#if description}} ({{description}}){{/if}}.
+Tu rédiges, en {{languageName}}, le **diagnostic par symptôme** du site de documentation du produit **{{product}}**{{#if description}} ({{description}}){{/if}}.
 Une personne d'exploitation ou de support part d'un message ou d'un comportement observé ; elle doit trouver les causes
 probables, ce qu'il faut vérifier, comment corriger, et où comprendre le mécanisme.
 

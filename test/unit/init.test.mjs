@@ -7,7 +7,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { detectApp, humanize, scriptPort, coverageLiteral } from "../../cli/commands/init.mjs";
+import { detectApp, humanize, scriptPort, coverageLiteral, metadataTitle, productBase, VERSION_TEXT_PATTERN } from "../../cli/commands/init.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
@@ -135,7 +135,9 @@ describe("init", () => {
       const config = fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8");
       assert.match(config, /coverage: \[\{ adapter: "next-app-router", app: "\.\.\/\.\.\/src\/app" \}\]/);
       assert.match(config, /file: "\.\.\/\.\.\/package\.json"/);
-      assert.match(config, /env: \["\.\.\/\.\.\/\.env"\]/);
+      assert.match(config, /env: \[\]/, "no .env file in the application: nothing to mask");
+      assert.match(config, /mode: "app"/);
+      assert.match(config, /app: \{ url: "http:\/\/localhost:3100", dir: "\.\.\/\.\." \}/);
       const range = /kit: "([^"]+)"/.exec(config)[1];
       assert.ok(satisfies(BRAND.version, range), `range ${range} accepts kit ${BRAND.version}`);
       const pkg = JSON.parse(fs.readFileSync(path.join(docs, "package.json"), "utf8"));
@@ -158,7 +160,7 @@ describe("init", () => {
   test("questions: name, language, URL, sign-in, confirmation (French project)", async () => {
     const app = nextApp();
     try {
-      const r = await cli(["init", app, "--dir", "documentation"], { input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "3", "o"] });
+      const r = await cli(["init", app, "--dir", "documentation"], { input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "1", "3", "o"] });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /\? Product name \(Acme Orders\) › Acme "Q" Orders/);
       assert.match(r.out, /\? Language of the documentation\n {2}1\) English\n {2}2\) French/);
@@ -215,6 +217,178 @@ describe("init", () => {
       assert.equal(c.coverage.length, 0);
       const b = build({ project: { root: docs }, config: c, options: { draft: true } });
       assert.equal(b.data.meta.version, "3.1.4");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("refusals: --capture other than app or none (2)", async () => {
+    const app = nextApp();
+    try {
+      const r = await cli(["init", app, "--yes", "--capture", "some"]);
+      assert.equal(r.code, 2);
+      assert.match(r.err, /--capture: invalid value “some”\n {2}→ expected: app \| none/);
+      assert.ok(!fs.existsSync(path.join(app, "docs")), "nothing written");
+    } finally {
+      remove(app);
+    }
+  });
+});
+
+/**
+ * The layout of the pilot application: a root with version.txt and .env (no package.json), a separate Next.js
+ * front end whose package is named "<x>-frontend" (version frozen at 1.0.0) with the product name in the root
+ * layout's metadata, its own .env.local, and a Python API next to it.
+ */
+const separateFrontApp = () =>
+  fakeApp({
+    "version.txt": "1.0.152\n",
+    ".env": "SERVICE_ACCOUNT_SECRET=0123456789abcdef\n",
+    ".env.example": "SERVICE_ACCOUNT_SECRET=\n",
+    "frontend/package.json": { name: "order-tracker-frontend", version: "1.0.0", scripts: { dev: "next dev" }, dependencies: { next: "15.0.0" } },
+    "frontend/.env.local": "NEXT_PUBLIC_API_URL=http://api.acme.example\n",
+    "frontend/src/app/layout.tsx":
+      'import type { Metadata } from "next";\n\nexport const metadata: Metadata = {\n  openGraph: { title: "Not this one" },\n  title: "Acme Orders",\n  description: "Orders, approvals, invoices",\n};\n\nexport default function RootLayout({ children }) {\n  return children;\n}\n',
+    "frontend/src/app/page.tsx": "export default function Page() { return null; }",
+    "frontend/src/app/orders/page.tsx": "export default function Page() { return null; }",
+    "api/requirements.txt": "fastapi\n",
+    "api/main.py": "app = None\n",
+  });
+
+describe("init on an application with a separate front end (pilot layout)", () => {
+  test("detection: the name from the layout's metadata, the version from version.txt, the .env files at the root and in the front end", () => {
+    const app = separateFrontApp();
+    try {
+      const d = detectApp(app);
+      assert.equal(d.packageDir, path.join(app, "frontend"));
+      assert.equal(d.framework, "next-app-router");
+      assert.equal(d.name, "Acme Orders");
+      assert.deepEqual(d.nameSource, { kind: "layout", file: "frontend/src/app/layout.tsx" });
+      assert.deepEqual(d.version, { file: "version.txt", pattern: VERSION_TEXT_PATTERN, value: "1.0.152" });
+      assert.deepEqual(d.envFiles, [".env", "frontend/.env.local"], "existing files only, never *.example");
+      assert.equal(d.python, "api/requirements.txt");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("name and version helpers: metadata.title forms, front-end suffixes, version sources in order", () => {
+    assert.equal(metadataTitle('export const metadata = { title: "Acme Orders" };'), "Acme Orders");
+    assert.equal(metadataTitle("export const metadata: Metadata = {\n  title: { default: 'Acme Orders', template: '%s · Acme' },\n};"), "Acme Orders");
+    assert.equal(metadataTitle('export const metadata = { openGraph: { title: "Nested" }, title: `Acme ${env}` };'), null, "a computed title is not a name");
+    assert.equal(metadataTitle('export const metadata = { description: "x" };\nconst other = { title: "Elsewhere" };'), null, "only the metadata object");
+    assert.equal(metadataTitle("export async function generateMetadata() { return { title: 'X' }; }"), null);
+    for (const [raw, base] of [["order-tracker-frontend", "order-tracker"], ["@acme/orders-web", "orders"], ["acme_ui", "acme"], ["acme-client", "acme"], ["acme-app", "acme"], ["frontend", "frontend"]]) assert.equal(productBase(raw), base, raw);
+    // A generic front-end name gives way to the root package.json, then to the folder name.
+    const app = fakeApp({ "package.json": { name: "acme-orders", version: "3.0.1", private: true }, "web/package.json": { name: "web", version: "0.0.0", dependencies: { vite: "6.0.0" } } });
+    try {
+      const d = detectApp(app);
+      assert.equal(d.packageDir, path.join(app, "web"));
+      assert.deepEqual([d.name, d.nameSource.file], ["Acme Orders", "package.json"]);
+      assert.deepEqual([d.version.file, d.version.value], ["package.json", "3.0.1"], "the root package.json before the front end's");
+      fs.writeFileSync(path.join(app, "VERSION"), "v4.2.0\n");
+      assert.deepEqual([detectApp(app).version.file, detectApp(app).version.value], ["VERSION", "4.2.0"], "VERSION at the root first");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("--yes --capture none --lang fr: the recap before writing, the no-screenshot skeleton, French comments, a draft build", async () => {
+    const app = separateFrontApp();
+    try {
+      const r = await cli(["init", app, "--yes", "--capture", "none", "--lang", "fr"]);
+      assert.equal(r.code, 0, r.err);
+      const docs = path.join(app, "docs", "manual");
+      // The recap comes first, with every value and where it was found.
+      const recap = r.out.split("Récapitulatif\n")[1].split("\n✔")[0];
+      assert.match(recap, /Nom du produit +Acme Orders \(metadata\.title de frontend\/src\/app\/layout\.tsx\)/);
+      assert.match(recap, /Identifiant +acme-orders/);
+      assert.match(recap, /Langue +fr — français/);
+      assert.match(recap, /Version +1\.0\.152 \(lue dans version\.txt\)/);
+      assert.match(recap, /Captures +none — aucune capture/);
+      assert.match(recap, /Couverture +next-app-router: frontend\/src\/app/);
+      assert.match(recap, /\.env masqués +\.env, frontend\/\.env\.local/);
+      assert.match(recap, /Application +.*\(app\.dir: \.\.\/\.\.\)/);
+      assert.match(recap, /Pour renommer le produit ensuite : product\.name dans doc\.config\.mjs, puis le titre/);
+      assert.ok(r.out.indexOf("Récapitulatif") < r.out.indexOf("fichiers écrits"), "the recap is printed before the files are written");
+      // Next steps: no connect, no capture.
+      const next = r.out.split("Étapes suivantes :\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim());
+      assert.deepEqual(next.slice(1), ["npm install", "doc-kit dev"]);
+
+      const config = fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8");
+      assert.match(config, /^\/\/ Configuration du site de documentation du produit Acme Orders/, "comments in the project's language");
+      assert.doesNotMatch(config, /Precedence, from strongest/);
+      assert.match(config, /mode: "none"/);
+      assert.match(config, /file: "\.\.\/\.\.\/version\.txt"/);
+      assert.match(config, /env: \["\.\.\/\.\.\/\.env", "\.\.\/\.\.\/frontend\/\.env\.local"\]/);
+      assert.match(config, /app: \{ url: "http:\/\/localhost:3000", dir: "\.\.\/\.\." \}/);
+      assert.match(config, /coverage: \[\{ adapter: "next-app-router", app: "\.\.\/\.\.\/frontend\/src\/app" \}\]/);
+
+      // No example plan, no screenshot block, no "interactive screens" callout, no variant marker left.
+      assert.ok(!fs.existsSync(path.join(docs, "captures", "plans", "example.mjs")));
+      for (const f of allFiles(docs).filter((x) => x.endsWith(".md"))) {
+        const text = fs.readFileSync(path.join(docs, f), "utf8");
+        assert.doesNotMatch(text, /^\s*:::(?:ecran|screen)\{|^\s*::(?:avant-apres|before-after)\{|doc-kit:(?:capture|end)/m, f);
+      }
+      const home = fs.readFileSync(path.join(docs, "content", "home.md"), "utf8");
+      assert.doesNotMatch(home, /Écrans interactifs|pastilles/);
+      assert.match(home, /Écrans décrits élément par élément/);
+      assert.match(fs.readFileSync(path.join(docs, "content", "utiliser", "prise-en-main.md"), "utf8"), /\| Élément \| Ce qu'il montre \|\n\|---\|---\|\n\| \*\*Barre du haut\*\* \|/);
+      // French: no elision trap around the product name, fictional example routes only.
+      const all = allFiles(docs).map((f) => fs.readFileSync(path.join(docs, f), "utf8")).join("\n");
+      assert.doesNotMatch(all, /\bde Acme Orders|\bde \*\*Acme Orders|(?<!application )Acme Orders est construite/);
+      // No script calls `doc-kit capture` in a project without screenshots.
+      const pkg = JSON.parse(fs.readFileSync(path.join(docs, "package.json"), "utf8"));
+      assert.equal(pkg.scripts.captures, undefined);
+      assert.doesNotMatch(pkg.scripts.all, /capture/);
+      assert.doesNotMatch(all, /\[\[route \/admin/);
+
+      linkKit(docs);
+      const c = await loadConfig(docs);
+      assert.equal(c.capture.mode, "none");
+      assert.equal(c.app.dir, "../..");
+      const b = build({ project: { root: docs }, config: c, options: { draft: true, date: "2026-01-01" } });
+      assert.deepEqual(b.errors, []);
+      assert.equal(b.data.meta.version, "1.0.152");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("an English project keeps the English comments and the screenshot variant; --json gives the recap's values", async () => {
+    const app = separateFrontApp();
+    try {
+      const r = await cli(["init", app, "--yes", "--lang", "en", "--json"]);
+      assert.equal(r.code, 0, r.err);
+      const j = JSON.parse(r.out);
+      assert.equal(j.name, "Acme Orders");
+      assert.deepEqual(j.nameSource, { kind: "layout", file: "frontend/src/app/layout.tsx" });
+      assert.deepEqual(j.version, { file: "../../version.txt", value: "1.0.152" });
+      assert.deepEqual(j.masking, ["../../.env", "../../frontend/.env.local"]);
+      assert.equal(j.appDir, "../..");
+      assert.equal(j.capture, "app");
+      assert.deepEqual(j.next.slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+      const docs = j.folder;
+      assert.match(fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8"), /^\/\/ Configuration of the Acme Orders documentation site/);
+      assert.ok(fs.existsSync(path.join(docs, "captures", "plans", "example.mjs")));
+      assert.match(fs.readFileSync(path.join(docs, "content", "use", "getting-started.md"), "utf8"), /:::screen\{capture="home"/);
+      assert.match(fs.readFileSync(path.join(docs, "content", "home.md"), "utf8"), /\[!TIP\] Interactive screens/);
+      assert.match(fs.readFileSync(path.join(docs, "content", "administer", "users.md"), "utf8"), /\[\[route \/example\/users\]\]/);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("interactive: the capture-mode question; with none, the sign-in question is skipped", async () => {
+    const app = separateFrontApp();
+    try {
+      const r = await cli(["init", app], { input: ["", "1", "", "2", "y"] });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /\? Will the documentation show screenshots of the application\?\n {2}1\) yes — /);
+      assert.doesNotMatch(r.out, /How do people sign in/);
+      assert.match(r.out, /Summary\n {2}Folder/);
+      assert.match(r.out, /Sign-in +manual \(not used without screenshots\)/);
+      assert.match(fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"), /mode: "none"/);
     } finally {
       remove(app);
     }

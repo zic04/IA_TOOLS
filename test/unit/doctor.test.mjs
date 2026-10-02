@@ -84,6 +84,40 @@ describe("doctor", () => {
     }
   });
 
+  test("a version 0.0.0 or 1.0.0 contradicted by version.txt, VERSION or CHANGELOG.md → ⚠ “version never incremented?”", async () => {
+    const dir = project({ ...base, version: { file: "app/package.json" }, app: { dir: "app" } });
+    try {
+      fs.mkdirSync(path.join(dir, "app"));
+      fs.writeFileSync(path.join(dir, "app", "package.json"), JSON.stringify({ name: "acme-orders-frontend", version: "1.0.0" }));
+      fs.writeFileSync(path.join(dir, "app", "version.txt"), "1.0.152\n");
+      let r = await cli(["doctor", "--project", dir]);
+      assert.equal(r.code, 0, "a warning, not a failure");
+      assert.match(r.out, /^⚠ documented version 1\.0\.0 \(read in app\/package\.json\), but app\/version\.txt says 1\.0\.152: version never incremented\?\n {2}→ point version\.file/m);
+      assert.match(r.out, /^✔ application folder \(app\.dir\): app$/m);
+      fs.rmSync(path.join(dir, "app", "version.txt"));
+      fs.writeFileSync(path.join(dir, "app", "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n\n## [2.3.0] - 2026-09-01\n\n## [2.2.0] - 2026-08-01\n");
+      r = await cli(["doctor", "--project", dir, "--lang", "fr"]);
+      assert.match(r.out, /^⚠ version documentée 1\.0\.0 \(lue dans app\/package\.json\), mais app\/CHANGELOG\.md indique 2\.3\.0 : version jamais incrémentée \?/m);
+      fs.writeFileSync(path.join(dir, "app", "CHANGELOG.md"), "# Changelog\n\n## [1.0.0] - 2026-01-01\n");
+      assert.match((await cli(["doctor", "--project", dir])).out, /^✔ documented version 1\.0\.0 \(read in app\/package\.json\)$/m, "nothing contradicts it");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("capture.mode none: no session warning, no plans folder expected; app.dir not found → ⚠", async () => {
+    const dir = project({ ...base, app: { dir: "../nowhere" }, capture: { mode: "none", plans: "no-plans" } });
+    try {
+      const r = await cli(["doctor", "--project", dir]);
+      assert.equal(r.code, 0, r.out);
+      assert.match(r.out, /^✔ no session needed \(capture\.mode: none, no screenshot\)$/m);
+      assert.doesNotMatch(r.out, /no session yet|capture plans folder not found/);
+      assert.match(r.out, /^⚠ application folder not found \(app\.dir\): \.\.\/nowhere\n {2}→ fix app\.dir/m);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("messages in the project's language (config.language), even with an invalid configuration; --lang wins", async () => {
     const fr = project({ ...base, language: "fr" });
     const broken = project({ ...base, language: "fr", capture: { storgae: {} } });

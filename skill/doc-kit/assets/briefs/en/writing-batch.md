@@ -62,10 +62,14 @@ change{{#if dataPolicy}}; data: {{dataPolicy}}{{/if}}.
   clicks, opening a block or a dialog, and read-only test buttons are allowed.
 - If the demo lacks some data, do not create it by hand: ask for it in your report (it will be added to the setup
   script, `capture.setup`).
-{{/if}}{{#if captureMode=none}}**NO NEW SCREENSHOT.** Reuse at most 1 or 2 EXISTING screenshots per page (`{{imagesDir}}/*.webp`; look at them
+{{/if}}{{#if captureMode=none}}{{#if screenshots=none}}**NO SCREENSHOT AT ALL** (`capture.mode: "none"` in `doc.config.mjs`): never run `doc-kit capture` or
+`doc-kit connect`, never write a `:::screen`. In "The screen", one table per panel or dialog, `| Element | What it shows |`,
+one row per element in reading order (top to bottom, then left to right): the exact label in bold, then its role,
+values, default and effect, in 1 to 3 sentences, read in the code (components, translation files).
+{{/if}}{{#if screenshots!=none}}**NO NEW SCREENSHOT.** Reuse at most 1 or 2 EXISTING screenshots per page (`{{imagesDir}}/*.webp`; look at them
 with Read first). A screenshot with zones (`{{imagesDir}}/zones/<id>.json`) is inserted with
 `:::screen{capture="<id>" title="…"}` and a list of EXACTLY as many items as zones; `::capture` is refused for it.
-{{/if}}{{#if captureMode!=none}}
+{{/if}}{{/if}}{{#if captureMode!=none}}
 - LOOK at every zones preview (`<id>.zones.png`, written under `.doc-kit/` by `--preview`, with the Read tool) and fix
   the targets until each zone frames exactly the right element: 3 to 12 zones per screen, in reading order; `up` or
   `within` to frame a whole row; `viewport: { height: 2200 }` and `frame` for long panels; the `main` target helper for

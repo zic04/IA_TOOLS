@@ -19,10 +19,10 @@ Le skill répond dans la langue de l'utilisateur ; le site est écrit dans la la
 | Phase | But | Commandes et agents | Terminée quand |
 |---|---|---|---|
 | 0 · Cadrage | Public, langue, sections, mode de capture, données réelles ou non, routes à ne jamais ouvrir, qui se connecte | — | Décisions écrites ; la décision du propriétaire sur les données réelles |
-| 1 · Mise en place | Créer et configurer le projet | `doc-kit init`, `doc-kit doctor` | `doctor` sans erreur ; `build --draft` passe |
+| 1 · Mise en place | Créer et configurer le projet, depuis la racine de l'application ; relire le récapitulatif d'`init` | `doc-kit init`, `doc-kit doctor` | `doctor` sans erreur ; `build --draft` passe |
 | 2 · Inventaire | La navigation réelle, les routes et les permissions, les pages qui écrivent pendant leur rendu | `doc-kit inventory --json` ; 1 agent en lecture seule, brief `inventory` | Inventaire enregistré ; documentation périmée signalée |
 | 3 · Plan | Sommaire avec types, guide de rédaction, une page de référence | `doc-kit new`, `doc-kit check coverage` | Couverture de 100 % ; lots définis |
-| 4 · Captures | Données de démo ou session de production ; un essai avec aperçus | `doc-kit demo` ou `doc-kit connect` ; `doc-kit capture --preview` | Zones justes, aucun secret, lecture seule constatée |
+| 4 · Captures | Données de démo ou session de production ; un essai avec aperçus. Sautée sans captures (`capture.mode: "none"`) | `doc-kit demo` ou `doc-kit connect` ; `doc-kit capture --preview` | Zones justes, aucun secret, lecture seule constatée |
 | 5 · Rédaction | Un agent par lot, par vagues parallèles | Brief `writing-batch` | Chaque rapport : pages, captures, constats candidats |
 | 6 · Consolidation | Dédupliquer et numéroter les constats, corriger les pages | `scripts/consolidation.mjs` ; briefs `findings-verification`, `page-corrections` | Build strict au vert |
 | 7 · Parcours | Parcours de bout en bout et diagnostic, en réutilisant les captures | Briefs `journey`, `troubleshooting` | Parcours guidés de l'accueil ajoutés |
@@ -69,6 +69,17 @@ le script avec le code de sortie 1.
 > [!ATTENTION] Des fichiers centraux modifiés par deux agents
 > Deux agents qui modifient `toc.json` ou `glossary.json` en même temps perdent le travail de l'un d'eux. Tout passe
 > par leurs rapports, et c'est l'orchestrateur qui modifie les fichiers centraux.
+
+> [!ATTENTION] Un front-end séparé
+> Quand le front-end est dans `frontend/` ou `web/`, l'adaptateur de couverture n'inventorie que ses routes. Lancez
+> `doc-kit init` sur la racine de l'application, pour que `app.dir` (l'`appDir` des briefs) contienne aussi le
+> back-end : l'API, les droits et les écritures faites au rendu. `brief.mjs` prévient quand `appDir` a été deviné, et
+> quand le front-end est séparé.
+
+> [!NOTE] Mode sans captures
+> Avec `capture.mode: "none"` (`doc-kit init --capture none`), la phase 4 est sautée : les pages décrivent chaque
+> écran par un tableau `| Élément | Ce qu'il montre |`, les briefs le disent aux rédacteurs, et l'audit compte
+> `annotated` comme n/a.
 
 > [!NOTE] Des pages trop longues
 > Au-delà d'environ 2 000 mots, découpez en sous-pages pendant la rédaction, pas après : les ancres et les liens sont

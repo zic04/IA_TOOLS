@@ -20,15 +20,18 @@ suivante. Vous n'avez jamais à retenir l'ordre des commandes.
 
 | Situation | Ce qu'il affiche | Commande proposée |
 |---|---|---|
-| Aucun `doc.config.mjs` ici ni au-dessus | « Aucun projet de documentation dans … » | `doc-kit init <dossier>` |
+| Aucun `doc.config.mjs` ici ni au-dessus | « Aucun projet de documentation (doc.config.mjs) pour ce dossier : » et le dossier en entier | `doc-kit init <dossier>` |
 | Les dépendances du projet manquent | « … mais ses dépendances ne sont pas installées. » | `npm install` |
 | La configuration est inutilisable | « … mais il n'est pas utilisable en l'état : » et les erreurs | `doc-kit doctor` |
-| Pas de session, et `auth.adapter` n'est pas `none` | « le projet est prêt, mais il n'y a pas encore de session… » | `doc-kit connect` |
-| Pas encore de capture | « aucune capture pour l'instant. » | `doc-kit capture` |
+| Pas de session, `auth.adapter` n'est pas `none`, et des captures sont prévues | « le projet est prêt, mais il n'y a pas encore de session… » | `doc-kit connect` |
+| Pas encore de capture, et des captures sont prévues | « aucune capture pour l'instant. » | `doc-kit capture` |
 | Tout est en place | « le projet est en place. » | Un menu : `dev`, `audit`, `build`, `doctor` |
 
-Quand vous acceptez `init`, le mode guidé enchaîne sur les questions d'`init` (nom, langue, adresse, connexion) dans le
-même terminal. Pour toute autre étape, il passe la main à la commande : `connect` lit votre touche Entrée, `dev` tourne
+Avec `capture.mode: "none"` (une documentation sans captures), `connect` et `capture` ne sont jamais proposés : le
+mode guidé passe directement au menu, et dit pourquoi.
+
+Quand vous acceptez `init`, le mode guidé enchaîne sur les questions d'`init` (nom, langue, adresse, mode de capture,
+connexion) dans le même terminal. Pour toute autre étape, il passe la main à la commande : `connect` lit votre touche Entrée, `dev` tourne
 jusqu'à [[touche Ctrl+C]].
 
 ## Dans un script

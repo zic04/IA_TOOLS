@@ -1,29 +1,44 @@
 ## doc-kit init
 
 ```text
-doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--yes]
+doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--capture app|none] [--yes]
 ```
 
 Creates the documentation project of the application in `app-dir` (default: the current folder), in
-`<app-dir>/docs/manual/`.
+`<app-dir>/docs/manual/`. `app-dir` is the **root** of the application, even when its front end sits in a sub-folder
+(`frontend/`, `web/`…): it becomes `app.dir`, the code the writers read.
 
 | Option | Default | Effect |
 |---|---|---|
 | `--dir <folder>` | `docs/manual` | The project folder, relative to the application |
-| `--name "…"` | detected | Product name; detected from `package.json` (`productName`, `displayName`, `name`) or the folder name |
+| `--name "…"` | detected | Product name: the `title` of the `metadata` of the Next.js root layout, else `package.json` (`productName`, `displayName`, `name` without its scope and its `-frontend`, `-front`, `-web`, `-ui`, `-client` or `-app` suffix), else the folder name |
+| `--lang en\|fr` | asked, or the system's | Language of the site, and of the messages of the command; with `--yes`, it is the only way to choose it |
 | `--url <url>` | detected | Application URL; the port comes from the `dev`, `start` or `serve` script, Vite's configuration, or the framework |
 | `--framework <name>` | detected | `next` (App Router), `react-router` or `none`: the coverage adapter written in the configuration |
 | `--auth <adapter>` | `manual` | `manual`, `none`, `nextauth`, `api-me` or `local:<file>` |
+| `--capture app\|none` | `app` | `app`: screenshots of the running application; `none`: no screenshot at all (`capture.mode: "none"`), each screen described by a table |
 | `--yes`, `-y` | | No question: the detected values and the options as they are |
 
 - **Detection**: `package.json` in the folder or in `frontend`, `front`, `web`, `client`, `ui`, `app`, `apps/web`;
   Next.js with `app/` or `src/app/`, React Router, Vite, NextAuth; a Python back end (`pyproject.toml`,
-  `requirements.txt`), whose version is then read in `pyproject.toml`.
-- **Questions** (without `--yes`): name, language, URL, sign-in method, then a summary to confirm. Without a terminal
-  and without `--yes`, it stops with exit code 2.
+  `requirements.txt`).
+- **Version** (`version.file`): `version.txt` or `VERSION` at the root of the application, else the root
+  `package.json` when it has a `version`, else the front end's, else the `pyproject.toml` of a Python-only application.
+- **Masking** (`masking.env`): `.env` and `.env.local` at the root and in the front-end folder, only the files that
+  exist; never `*.example`.
+- **Questions** (without `--yes`): name, language, URL, capture mode, sign-in method (only with screenshots).
+  Without a terminal and without `--yes`, it stops with exit code 2.
+- **Recap**: before writing anything, even with `--yes`, the folder, the name and where it was found, the slug, the
+  language, the URL, the version and its file, the capture mode, the sign-in, the coverage source, the masked `.env`
+  files and the application folder. To rename the product afterwards: `product.name` in `doc.config.mjs`, then the
+  title, tagline and section titles of `content/toc.json`.
 - **Writes** the skeleton of `templates/project/common` and `templates/project/<language>`: configuration,
   `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, a table of contents with sample pages in four
-  sections (Use, Configure, Administer, Take over), a glossary, an example capture plan, a logo. 22 files.
+  sections (Use, Configure, Administer, Take over), a glossary, an example capture plan, a logo. 22 files. The
+  comments of `doc.config.mjs` are in the language of the project; the example routes are fictional (`/example/…`).
+- **Without screenshots** (`--capture none`): no example plan (21 files), sample pages that describe each screen with a
+  table `| Element | What it shows |`, a home page without the "interactive screens" box, and next steps without
+  `connect` and `capture`.
 - **Refuses** a folder that exists and is not empty (exit code 1).
 
 ## doc-kit doctor
@@ -37,7 +52,7 @@ One line per check, `✔` OK, `⚠` to look at, `✖` to fix, each problem follo
 | Group | Checks |
 |---|---|
 | Environment | Node version; kit dependencies; Chromium; the project's dependency on the kit; the installed Claude Code skill; the kit's version against the project's `kit` range |
-| Project | Configuration; table of contents; version file; coverage sources; masking files; capture plans folder; `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts |
+| Project | Configuration; table of contents; version file (⚠ "version never incremented?" when it says `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application says otherwise); application folder (`app.dir`); coverage sources; masking files; capture plans folder; `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts. With `capture.mode: "none"`, neither the session nor the plans folder is expected |
 | `--network` | The application answers at `app.url` |
 
 Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails, 0
@@ -58,7 +73,8 @@ session). The session is saved in `.doc-kit/session.json` (or `<PREFIX>_SESSION`
 | `--forget` | Deletes the session file |
 
 Exit code 3 when the application cannot be reached, after 15 minutes without a sign-in, or when the window is
-closed; 2 without a terminal (with the `manual` adapter). With `auth.adapter: "none"`, there is nothing to do.
+closed; 2 without a terminal (with the `manual` adapter). With `auth.adapter: "none"`, there is nothing to do. With
+`capture.mode: "none"`, it explains the mode and stops with exit code 2; `--forget` still deletes a session.
 [Connect and sessions](#/capture/sessions) explains the rest.
 
 ## doc-kit demo
@@ -77,6 +93,7 @@ doc-kit capture [patterns…] [--plans <folder>] [--preview] [--no-session]
 ```
 
 Takes the captures of the plans in a headless Chromium and writes `images/<id>.webp` and `images/zones/<id>.json`.
+With `capture.mode: "none"`, it explains the mode and stops with exit code 2.
 
 | Option | Effect |
 |---|---|
@@ -98,7 +115,8 @@ doc-kit inventory [--json]
 
 Lists what the coverage adapters see in the application, family by family, with `✔` for the elements already cited
 in the documentation and `·` for the others. `doc-kit inventory --json > .doc-kit/inventory.json` is a good start
-for a table of contents. Exit code 2 when `coverage` is empty.
+for a table of contents. A page that still holds template guidance cites nothing yet: neither its text nor its
+entry in the table of contents count. Exit code 2 when `coverage` is empty.
 
 ## Further reading
 

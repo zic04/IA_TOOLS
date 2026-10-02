@@ -6,6 +6,8 @@ doc-kit [<commande>] [options]
 
 Sans commande, `doc-kit` lance le [mode guidé](#/start/guided-mode). `doc-kit --help` liste les commandes,
 `doc-kit --help --lang fr` les liste en français, et `doc-kit --version` affiche la version du kit.
+`doc-kit <commande> --help`, ou `doc-kit help <commande>`, affiche l'usage d'une commande et chacune de ses options,
+dans la langue des messages : `doc-kit init --help` montre `--lang` et `--capture` parmi les autres.
 
 1. **Le projet** est le dossier donné par `--project`, sinon le dossier le plus proche qui contient un
    `doc.config.mjs`, en remontant depuis le dossier courant.
@@ -30,7 +32,7 @@ Sans commande, `doc-kit` lance le [mode guidé](#/start/guided-mode). `doc-kit -
 | `--json` | Affiche le résultat en JSON sur la sortie standard (pour les commandes qui ont un résultat) |
 | `--verbose` | Affiche aussi la correction de chaque avertissement, et la pile d'une erreur interne |
 | `--lang en\|fr` | Langue des messages pour cette exécution |
-| `--help`, `-h` | La liste des commandes |
+| `--help`, `-h` | La liste des commandes ; après une commande (ou `doc-kit help <commande>`), son usage et ses options |
 | `--version`, `-v` | La version du kit |
 
 Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrête avec

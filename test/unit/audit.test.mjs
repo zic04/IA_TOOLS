@@ -168,6 +168,32 @@ describe("measures that may be unavailable", () => {
     assert.deepEqual(action(r, "coverage").items, [{ id: "/reports" }]);
   });
 
+  test("capture.mode none: annotated is n/a, so a site whose screens are tables is not held at level 1", () =>
+    withCopy(
+      TYPED,
+      (dir) => {
+        // Every screen described by a table of its elements instead of an annotated screenshot.
+        for (const f of fs.readdirSync(path.join(dir, "content"), { recursive: true }).map(String).filter((x) => x.endsWith(".md")))
+          edit(path.join(dir, "content", f), (s) =>
+            s.replace(/^:::(?:screen|ecran)\{[^\n]*\}\n([\s\S]*?)^:::[ \t]*$/gm, (m, items) => "| Element | What it shows |\n|---|---|\n" + items.trim().split("\n").map((l) => `| ${l.replace(/^\d+\.\s*/, "")} | |`).join("\n"))
+          );
+      },
+      async (dir) => {
+        const { project, config } = await loadProject({ project: dir, env: {} });
+        const app = await runAudit({ project, config, measure: MEASURE, now: NOW, env: {} });
+        assert.deepEqual([app.indicators.annotated.n, app.indicators.annotated.total], [0, 3]);
+        assert.ok(failed(app).includes("annotated2"), "with screenshots expected, the tables do not count");
+        const none = await runAudit({ project, config: { ...config, capture: { ...config.capture, mode: "none" } }, measure: MEASURE, now: NOW, env: {} });
+        assert.equal(none.indicators.annotated.value, null);
+        assert.deepEqual(failed(none).filter((id) => id.startsWith("annotated")), []);
+        assert.equal(none.criteria.find((c) => c.id === "annotated2").na, true);
+        assert.ok(none.level >= 2 && none.level > app.level, `level ${none.level} > ${app.level}`);
+        assert.match(renderMarkdown(none, i18n("en")), /\| `annotated` \| n\/a \|/);
+        assert.match(renderMarkdown(none, i18n("fr")), /\| `annotated` \| n\/a \|/);
+        assertTranslated(none);
+      }
+    ));
+
   test("readCoverage: the shapes of a coverage result", () => {
     assert.deepEqual(readCoverage({ adapters: [{ available: false, families: [] }], total: 0, covered: 0, missing: 0 }), { measured: false, reason: "noAdapter" });
     assert.deepEqual(readCoverage({ total: 4, covered: 3, missing: 1 }), { measured: true, n: 3, total: 4, missing: [] });

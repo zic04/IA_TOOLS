@@ -214,7 +214,8 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     typed: ratio(typed.length, total),
     conformant: ratio(typed.filter((p) => p.analysis?.conformant).length, typed.length),
     completeness: { kind: "average", measured: true, total: typed.length, value: typed.length ? completenessOf.reduce((a, b) => a + b, 0) / typed.length : null },
-    annotated: ratio(screenPages.filter((p) => p.screen).length, screenPages.length),
+    // A documentation declared without screenshots (capture.mode "none") has nothing to annotate: n/a.
+    annotated: config.capture?.mode === "none" ? { ...ratio(0, 0), mode: "none" } : ratio(screenPages.filter((p) => p.screen).length, screenPages.length),
     coverage: coverage.measured ? ratio(coverage.n, coverage.total) : notMeasured("ratio", coverage.reason, coverage.error),
     proofs: ratio(takeoverPages.filter((p) => p.proof).length, takeoverPages.length),
     takeover: { kind: "ratio", measured: true, n: takeover.filter((t) => t.ok).length, total: TAKEOVER_ITEMS.length, value: takeover.filter((t) => t.ok).length / TAKEOVER_ITEMS.length },

@@ -1,6 +1,6 @@
 # Brief — vérification et intégration des constats ({{product}})
 
-Tu es le SEUL à écrire dans les points d'attention du site de documentation de **{{product}}** :
+Tu es le SEUL à écrire dans les points d'attention du site de documentation du produit **{{product}}** :
 `{{contentDir}}/{{findingsPage}}.md` et ses sous-pages. Un autre agent corrige EN MÊME TEMPS les autres pages et le
 glossaire : ne touche à aucun autre fichier.
 

@@ -38,6 +38,9 @@ par `/orders/[id]`, `/orders/:id`, `/orders/{id}` ou son préfixe statique `/ord
 
 Un adaptateur qui ne trouve pas sa source (l'application n'est pas à côté de la documentation) est **ignoré**, pas en
 échec. Sans aucun adaptateur, `check all` ignore la couverture et `check coverage` s'arrête avec le code de sortie 2.
+Une page qui contient encore des consignes de gabarit n'est pas encore écrite : ni son texte ni son entrée dans le
+sommaire (titre, `routes`) ne comptent, si bien que les exemples d'un squelette neuf ne couvrent jamais une route de
+l'application.
 `doc-kit inventory` liste ce que voient les adaptateurs, couvert ou non ; `doc-kit inventory --json` est un bon point
 de départ pour un sommaire. Ce site contrôle sa propre couverture : chaque clé de configuration, option de la ligne
 de commande, adaptateur intégré et commande est cité ([Les adaptateurs](#/reference/adapters~ecrire-un-adaptateur)).

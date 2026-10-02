@@ -36,7 +36,9 @@ table of contents included), ignoring case and spaces. A route `/orders/[id]` is
 ```
 
 An adapter that cannot find its source (the application is not next to the documentation) is **skipped**, not
-failed. Without any adapter, `check all` skips coverage and `check coverage` stops with exit code 2.
+failed. Without any adapter, `check all` skips coverage and `check coverage` stops with exit code 2. A page that
+still holds template guidance is not written yet: neither its text nor its entry in the table of contents (title,
+`routes`) count, so the examples of a fresh skeleton never cover a route of the application.
 `doc-kit inventory` lists what the adapters see, covered or not; `doc-kit inventory --json` is a good start for a
 table of contents. This site checks its own coverage: every configuration key, CLI option, built-in adapter and
 command is cited ([Adapters](#/reference/adapters~writing-an-adapter)).

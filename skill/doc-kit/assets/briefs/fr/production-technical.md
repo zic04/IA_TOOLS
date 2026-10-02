@@ -1,6 +1,6 @@
 # Brief — technique de production : dossier d'architecture, ressources, variables ({{product}}, code {{code}})
 
-Tu rédiges, en {{languageName}}, le volet « production » du site de documentation de **{{product}}**{{#if description}} ({{description}}){{/if}} :
+Tu rédiges, en {{languageName}}, le volet « production » du site de documentation du produit **{{product}}**{{#if description}} ({{description}}){{/if}} :
 le dossier d'architecture technique, les ressources et les variables d'environnement de production, et leurs écarts
 avec le code. Un repreneur doit y trouver ce qui tourne, où, comment on y accède, vers quoi l'application communique,
 et ce qui manque.

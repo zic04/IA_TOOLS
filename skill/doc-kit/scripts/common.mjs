@@ -1,5 +1,6 @@
 // Shared helpers for brief.mjs and consolidation.mjs (Node >= 20, no dependency).
 // Find the documentation project, load doc.config.mjs, compute the brief placeholders, fill a template.
+// Messages: English by default; setMessageLanguage("fr") switches them (brief.mjs speaks the project's language).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -9,6 +10,70 @@ export const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SKILL_ROOT = path.resolve(HERE, "..");
 export const WORK_DIR = ".doc-kit";
 export const LANGUAGES = ["en", "fr"];
+
+// ─── Messages (en, fr) ───────────────────────────────────────────────────────
+const MESSAGES = {
+  en: {
+    noConfigIn: "doc.config.mjs not found in {dir}",
+    noConfigIn_todo: "pass the documentation folder (the one that holds doc.config.mjs) with --project <docDir>",
+    noConfigUp: "no doc.config.mjs found from the current folder upwards",
+    noConfigUp_todo: "run the command in the documentation folder, or add --project <docDir>",
+    configUnreadable: "doc.config.mjs cannot be read: {error}",
+    configUnreadable_todo: "fix the file (doc-kit doctor checks it)",
+    configUnreadableDeps_todo: "run npm install in the documentation folder, or fix the file",
+    configNoExport: "doc.config.mjs has no default export object",
+    configNoExport_todo: "write export default { product: { name, slug }, language, app: { url } }",
+    varMalformed: 'malformed --var "{raw}"',
+    varMalformed_todo: "write --var key=value",
+    varName: 'invalid placeholder name: "{key}"',
+    varName_todo: "letters, digits, dot, dash or underscore",
+    varFile: "value file not found: {file}",
+    varFile_todo: "give a path from the current folder or from the documentation folder",
+    language: 'unknown language: "{value}"',
+    language_todo: "{label} en or {label} fr",
+    unexpected: "unexpected error: {error}",
+  },
+  fr: {
+    noConfigIn: "doc.config.mjs introuvable dans {dir}",
+    noConfigIn_todo: "indiquez le dossier de la documentation (celui qui contient doc.config.mjs) avec --project <dossierDoc>",
+    noConfigUp: "aucun doc.config.mjs trouvé depuis le dossier courant en remontant",
+    noConfigUp_todo: "lancez la commande dans le dossier de la documentation, ou ajoutez --project <dossierDoc>",
+    configUnreadable: "doc.config.mjs illisible : {error}",
+    configUnreadable_todo: "corrigez le fichier (doc-kit doctor le vérifie)",
+    configUnreadableDeps_todo: "lancez npm install dans le dossier de la documentation, ou corrigez le fichier",
+    configNoExport: "doc.config.mjs n'exporte pas d'objet par défaut",
+    configNoExport_todo: "écrivez export default { product: { name, slug }, language, app: { url } }",
+    varMalformed: "--var mal formé : « {raw} »",
+    varMalformed_todo: "écrivez --var clé=valeur",
+    varName: "nom de paramètre invalide : « {key} »",
+    varName_todo: "lettres, chiffres, point, tiret ou tiret bas",
+    varFile: "fichier de valeur introuvable : {file}",
+    varFile_todo: "donnez un chemin depuis le dossier courant ou depuis le dossier de la documentation",
+    language: "langue inconnue : « {value} »",
+    language_todo: "{label} en ou {label} fr",
+    unexpected: "erreur inattendue : {error}",
+  },
+};
+let messageLanguage = "en";
+const extraMessages = { en: {}, fr: {} };
+
+/** Language of the messages of the scripts (en by default). */
+export function setMessageLanguage(language) {
+  if (LANGUAGES.includes(language)) messageLanguage = language;
+  return messageLanguage;
+}
+export const getMessageLanguage = () => messageLanguage;
+
+/** Adds the messages of a script (same keys in en and fr). */
+export function addMessages(table) {
+  for (const l of LANGUAGES) Object.assign(extraMessages[l], table[l] || {});
+}
+
+/** A message in the current language, with its {variables}; the English text when the key is missing. */
+export function t(key, vars = {}) {
+  const text = extraMessages[messageLanguage][key] ?? MESSAGES[messageLanguage][key] ?? extraMessages.en[key] ?? MESSAGES.en[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
+}
 
 // Replaced by `doc-kit skill install` with the kit's location. In the kit's own source tree the token stays
 // as is, and the kit is found relative to this file (skill/doc-kit/scripts → kit root).
@@ -66,7 +131,7 @@ export function findProject(option) {
   if (option) {
     const dir = path.resolve(option);
     if (!fs.existsSync(path.join(dir, "doc.config.mjs"))) {
-      throw new ExitError(2, `doc.config.mjs not found in ${dir}`, "pass the documentation folder (the one that holds doc.config.mjs) with --project <docDir>");
+      throw new ExitError(2, t("noConfigIn", { dir }), t("noConfigIn_todo"));
     }
     return dir;
   }
@@ -77,7 +142,7 @@ export function findProject(option) {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new ExitError(2, "no doc.config.mjs found from the current folder upwards", "run the command in the documentation folder, or add --project <docDir>");
+  throw new ExitError(2, t("noConfigUp"), t("noConfigUp_todo"));
 }
 
 const isBareSpecifier = (s) => !/^(\.{1,2}\/|\/|[A-Za-z]:[\\/]|node:|file:|data:)/.test(s);
@@ -95,7 +160,7 @@ export async function loadConfig(docDir) {
   } catch (e) {
     const notFound = e?.code === "ERR_MODULE_NOT_FOUND" || /Cannot find (package|module)/.test(String(e?.message));
     if (!notFound) {
-      throw new ExitError(2, `doc.config.mjs cannot be read: ${String(e?.message).split("\n")[0]}`, "fix the file (doc-kit doctor checks it)");
+      throw new ExitError(2, t("configUnreadable", { error: String(e?.message).split("\n")[0] }), t("configUnreadable_todo"));
     }
     const source = fs.readFileSync(file, "utf8").replace(
       /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?/g,
@@ -114,14 +179,14 @@ export async function loadConfig(docDir) {
     try {
       mod = await import(pathToFileURL(tmp).href);
     } catch (e2) {
-      throw new ExitError(2, `doc.config.mjs cannot be read: ${String(e2?.message).split("\n")[0]}`, "run npm install in the documentation folder, or fix the file");
+      throw new ExitError(2, t("configUnreadable", { error: String(e2?.message).split("\n")[0] }), t("configUnreadableDeps_todo"));
     } finally {
       fs.rmSync(tmp, { force: true });
     }
   }
   const config = typeof mod.default === "function" ? mod.default() : mod.default;
   if (!config || typeof config !== "object") {
-    throw new ExitError(2, "doc.config.mjs has no default export object", 'write export default { product: { name, slug }, language, app: { url } }');
+    throw new ExitError(2, t("configNoExport"), t("configNoExport_todo"));
   }
   return config;
 }
@@ -185,25 +250,44 @@ function coverageSource(config) {
   return "";
 }
 
+/** Is `p` strictly inside `dir`? */
+const isInside = (dir, p) => {
+  const r = path.relative(dir, p);
+  return Boolean(r) && !r.startsWith("..") && !path.isAbsolute(r);
+};
+
 /**
- * Root of the application: walk up from the coverage source (or from the documentation folder's parent) to the
- * first folder with package.json or .git.
+ * The application folder given to the agents ({{appDir}}), and how it was found:
+ *   config   app.dir of doc.config.mjs (written by `doc-kit init`: the application root);
+ *   git      the documentation folder's parent or grandparent that holds .git;
+ *   parent   the documentation folder's grandparent (`<app>/docs/manual` → `<app>`).
+ * `given` (a --var or extra.briefs value) wins over all of them.
+ * `front`: the folder with its own package.json that holds the coverage source, when it is a sub-folder of the
+ * application (a separate front end: the inventory of routes does not see the back end); "" otherwise.
+ * @returns {{ dir: string, from: "given"|"config"|"git"|"parent", exists: boolean, front: string, source: string }}
  */
-function findAppDir(docDir, config) {
-  const app = coverageSource(config);
-  const starts = [];
-  if (app) starts.push(path.resolve(docDir, app));
-  starts.push(path.dirname(docDir));
-  for (const start of starts) {
-    let dir = start;
-    for (let i = 0; i < 4 && fs.existsSync(dir); i++) {
-      if (dir !== docDir && (fs.existsSync(path.join(dir, "package.json")) || fs.existsSync(path.join(dir, ".git")))) return dir;
-      const parent = path.dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
+export function appDirInfo(docDir, config, given = "") {
+  const configured = typeof config.app?.dir === "string" && config.app.dir.trim() ? path.resolve(docDir, config.app.dir) : "";
+  let dir = given ? path.resolve(docDir, given) : configured;
+  let from = given ? "given" : "config";
+  if (!dir) {
+    const parent = path.dirname(docDir);
+    const grandparent = path.dirname(parent);
+    const git = [parent, grandparent].find((d) => fs.existsSync(path.join(d, ".git")));
+    dir = git || grandparent;
+    from = git ? "git" : "parent";
+  }
+  const source = coverageSource(config);
+  let front = "";
+  if (source) {
+    for (let d = path.resolve(docDir, source); isInside(dir, d); d = path.dirname(d)) {
+      if (fs.existsSync(path.join(d, "package.json"))) {
+        front = d;
+        break;
+      }
     }
   }
-  return "";
+  return { dir, from, exists: fs.existsSync(dir), front, source };
 }
 
 /** Slug of a product name, as the kit derives product.slug when it is not given ("Acme Orders" → "acme-orders"). */
@@ -229,7 +313,7 @@ function envValue(name, prefix, env = process.env) {
 export function baseVariables(docDir, config, briefLanguage, env = process.env) {
   const language = typeof config.language === "string" ? config.language : briefLanguage;
   const contentDir = slash(config.paths?.content ?? "content");
-  const appDir = findAppDir(docDir, config);
+  const appDir = appDirInfo(docDir, config).dir;
   const slug = config.product?.slug ?? slugOf(config.product?.name);
   // Same defaults as the kit: env.prefix is the slug in upper case; the URL may come from DOC_KIT_URL or <PREFIX>_URL.
   const envPrefix = config.env?.prefix ?? slug.toUpperCase().replace(/-/g, "_");
@@ -256,7 +340,10 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     findingsPage: FINDINGS_PAGE[language] ?? FINDINGS_PAGE.en,
     consolidationFile: `${WORK_DIR}/consolidation.md`,
   };
-  if (config.capture?.setup) vars.captureMode = "demo";
+  // Screenshots of the project: "none" when doc.config.mjs declares capture.mode "none" (no screenshot at all).
+  vars.screenshots = config.capture?.mode === "none" ? "none" : "app";
+  if (vars.screenshots === "none") vars.captureMode = "none";
+  else if (config.capture?.setup) vars.captureMode = "demo";
   const extra = config.extra?.briefs;
   if (extra && typeof extra === "object") {
     for (const [k, val] of Object.entries(extra)) vars[k] = Array.isArray(val) ? val.join(", ") : String(val);
@@ -269,14 +356,14 @@ export function readVars(list, docDir) {
   const vars = {};
   for (const raw of list ?? []) {
     const i = raw.indexOf("=");
-    if (i < 1) throw new ExitError(2, `malformed --var "${raw}"`, "write --var key=value");
+    if (i < 1) throw new ExitError(2, t("varMalformed", { raw }), t("varMalformed_todo"));
     const key = raw.slice(0, i).trim();
     let value = raw.slice(i + 1);
-    if (!/^[\w.-]+$/.test(key)) throw new ExitError(2, `invalid placeholder name: "${key}"`, "letters, digits, dot, dash or underscore");
+    if (!/^[\w.-]+$/.test(key)) throw new ExitError(2, t("varName", { key }), t("varName_todo"));
     if (value.startsWith("@")) {
       const candidates = [path.resolve(value.slice(1)), path.resolve(docDir, value.slice(1))];
       const found = candidates.find((f) => fs.existsSync(f));
-      if (!found) throw new ExitError(2, `value file not found: ${value.slice(1)}`, "give a path from the current folder or from the documentation folder");
+      if (!found) throw new ExitError(2, t("varFile", { file: value.slice(1) }), t("varFile_todo"));
       value = fs.readFileSync(found, "utf8").replace(/\s+$/, "");
     }
     vars[key] = value;
@@ -346,7 +433,7 @@ export function parseOptions(options, usage) {
 
 /** Checks a language option. */
 export function checkLanguage(value, label = "--lang") {
-  if (value != null && !LANGUAGES.includes(value)) throw new ExitError(2, `unknown language: "${value}"`, `${label} en or ${label} fr`);
+  if (value != null && !LANGUAGES.includes(value)) throw new ExitError(2, t("language", { value }), t("language_todo", { label }));
   return value;
 }
 
@@ -359,7 +446,7 @@ export async function run(main) {
       error(e.message, e.todo);
       process.exitCode = e.code;
     } else {
-      error(`unexpected error: ${e?.stack ?? e}`);
+      error(t("unexpected", { error: e?.stack ?? e }));
       process.exitCode = 2;
     }
   }

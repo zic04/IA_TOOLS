@@ -9,6 +9,7 @@ export default defineConfig({
   // Accepted kit versions (semver range). Outside the range, every command stops with exit code 3.
   kit: "^1.0.0",
 
+  // Renaming the product: change name here, then the title, tagline and section titles of content/toc.json.
   product: { name: "{{name}}", slug: "{{slug}}" },
   language: "{{language}}", // "en" | "fr": language of the site and of the CLI messages
   // output: "dist/{{slug}}-documentation.html", // default: dist/<product name>-Documentation.html
@@ -19,8 +20,8 @@ export default defineConfig({
   // Version shown in the site's banner, read in the application's code. The fallback is used when the file
   // cannot be found (for example, a copy of this folder outside the repository).
   version: {
-    file: "{{appDir}}/package.json",
-    pattern: "\"version\"\\s*:\\s*\"([^\"]+)\"",
+    file: {{versionFile}},
+    pattern: {{versionPattern}},
     fallback: "0.0.0",
   },
 
@@ -28,8 +29,9 @@ export default defineConfig({
   // Example: { prefix: "ACME" } reads ACME_URL…
   env: {},
 
-  // The captured application. On production, captures only run read-only (see capture.readOnly).
-  app: { url: "{{appUrl}}" },
+  // The application: its address (captures) and its root folder, the code the writers read (dir).
+  // On production, captures only run read-only (see capture.readOnly).
+  app: { url: "{{appUrl}}", dir: "{{appRoot}}" },
 
   // How a session is recognised after `doc-kit connect`:
   //   manual  (default) the person signs in, then presses Enter; the session is valid while the app does not
@@ -43,6 +45,10 @@ export default defineConfig({
   auth: { adapter: "{{auth}}" },
 
   capture: {
+    // "app": the screens are captured on the running application; "none": no screenshot at all, each screen is
+    // described by a table of its elements (capture and connect refuse to run, the audit does not count
+    // annotated screens).
+    mode: "{{captureMode}}",
     plans: "captures/plans", // one .mjs file per batch of pages, each exporting CAPTURES
     setup: null, // idempotent script that prepares demo data (`doc-kit demo`), e.g. "captures/setup-demo.mjs"
     locale: null, // default: derived from language (en-US, fr-FR)
@@ -65,10 +71,10 @@ export default defineConfig({
     readOnly: "auto", // blocks every request other than GET/HEAD/OPTIONS as soon as a session is used
   },
 
-  // Automatic masking in the images: GUIDs, values of the application's local .env, patterns.
+  // Automatic masking in the images: GUIDs, values of the application's local .env files, patterns.
   // It does not know the production values: review every image.
   masking: {
-    env: ["{{appDir}}/.env"],
+    env: {{maskingEnv}},
     exclude: "localhost|127\\.0\\.0\\.1",
     guid: true,
     patterns: [],
@@ -95,6 +101,6 @@ export default defineConfig({
   // "Report a problem" link: { label, url }, or null.
   feedback: null,
 
-  // Free: passed to the project's own scripts (demo setup, capture plans).
+  // Free: passed to the project's own scripts (demo setup, capture plans) and to the skill's briefs (extra.briefs).
   extra: {},
 });

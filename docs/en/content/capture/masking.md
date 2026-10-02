@@ -42,8 +42,9 @@ masking: {
 | EMAIL, MAIL, USER, LOGIN | `SUPPORT_EMAIL`, `DB_USER` |
 | SECRET, PASSWORD, PASSWD, PWD, TOKEN, KEY, DSN, CONNECTION | `CLIENT_SECRET`, `API_KEY`, `SENTRY_DSN` |
 
-The `.env` parser understands `KEY=value`, `export KEY=value`, quoted values and comments. `doc-kit doctor`
-reports a `masking.env` file that does not exist.
+The `.env` parser understands `KEY=value`, `export KEY=value`, quoted values and comments. `doc-kit init` lists the
+`.env` and `.env.local` files it finds at the root of the application and in its front-end folder (never the
+`*.example` ones), and `doc-kit doctor` reports a `masking.env` file that does not exist.
 
 ## Values known to be public
 

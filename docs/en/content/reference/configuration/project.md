@@ -44,6 +44,7 @@ in the copy. For a Python application: `file: "../../pyproject.toml"` and a patt
 | `env.prefix` | `[A-Z][A-Z0-9_]*` · the slug in capitals | Prefix of the project's variables: `<PREFIX>_URL`, `_SESSION`, `_PLANS`, `_READONLY`, `_VERSION` | `"ACME"` |
 | `app` | object · `{}` | The documented application | |
 | `app.url` | URL or `null` · `null` | Address used by `connect`, `capture`, `demo` and `doctor --network`, without a trailing path | `"http://localhost:3000"` |
+| `app.dir` | path or `null` · `null` | The application root (its code), relative to the project; written by `init`. The skill's briefs give it to the agents (`appDir`), and `doctor` checks that it exists and looks there for a version that contradicts the documented one | `"../.."` |
 
 ## Sign-in
 

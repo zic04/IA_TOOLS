@@ -5,7 +5,7 @@
 <!-- guidance: the business need in 2 to 4 sentences: what the editor lets you define, and what happens with no setting at all. Example: "With no approval chain, every order follows the built-in rule: a single approval by the manager of the sales rep." -->
 
 > [!NOTE] Where to find this setting
-> [[menu Administration › Editor]] ([[route /admin/path]]). Related pages: the one that runs what is set here.
+> [[menu Administration › Editor]] ([[route /example/editor]]). Related pages: the one that runs what is set here.
 
 ## How it works
 
@@ -20,6 +20,7 @@
 
 ## The screen
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: one interactive capture per panel or dialog (### subheadings if there are several). The list has EXACTLY as many items as the capture has zones (3 to 12), in reading order. Each item: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
 
 :::screen{capture="cf-sample-editor" title="Administration › Editor"}
@@ -27,12 +28,25 @@
 2. **Exact label**. Role, values, default, effect.
 3. **Exact label**. Role, values, default, effect.
 :::
+<!-- doc-kit:capture=none -->
+<!-- guidance: no screenshot in this project (capture.mode "none"): one table per panel or dialog (### subheadings if there are several), one row per element in reading order, from top to bottom, then from left to right. Each row: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
+
+| Element | What it shows |
+|---|---|
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+<!-- doc-kit:end -->
 
 ## What it changes
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: optional. The effect the end user sees: a before / after slider, or the capture of the screen it affects. On a production captured read-only, the "after" cannot be produced: describe the effect from the code. -->
 
 ::before-after{before="before-id" after="after-id" before-label="Before" after-label="After" title="What the user sees change."}
+<!-- doc-kit:capture=none -->
+<!-- guidance: optional. The effect the end user sees, described from the code: what changes, on which screen, for whom and from when. Example: "Same order, two chains: the approval inbox shows one approver, then two in sequence." Delete the section when nothing visible changes. -->
+<!-- doc-kit:end -->
 
 ## Settings reference
 

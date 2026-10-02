@@ -22,7 +22,11 @@ When this guide and the standard disagree, this guide wins for this project. Com
 4. **Explain how it works**, not only the screen: who computes what, in which order, with which limits.
 5. **Observed gaps** described in a `> [!NOTE] Observed gaps (vX.Y.Z)` box, never fixed in the application from this folder.
 6. **Permissions**: every screen page ends with a `> [!PERMISSIONS]` box.
+<!-- doc-kit:capture=app -->
 7. **Data shown in the captures**: see §3.
+<!-- doc-kit:capture=none -->
+7. **No screenshot**: each screen is described by a table of its elements (§3).
+<!-- doc-kit:end -->
 
 ## 2. Sources of truth
 
@@ -36,6 +40,7 @@ When this guide and the standard disagree, this guide wins for this project. Com
 
 The repository's existing documentation helps find where to look; it is never proof.
 
+<!-- doc-kit:capture=app -->
 ## 3. Captures
 
 - **Data**: to complete. Either "production read-only, real data in clear by written decision of <owner> on <date>", or "demo prepared by `captures/setup-demo.mjs`, fictional names".
@@ -43,6 +48,13 @@ The repository's existing documentation helps find where to look; it is never pr
 - **Routes never to open** (a write on the server while rendering): to complete, and to declare in `capture.forbidden` of `doc.config.mjs`.
 - **Forbidden during a capture**: every button that writes and every input that saves. Only navigation is allowed.
 - **Session**: deleted at the end of every capture run (`doc-kit connect --forget`).
+<!-- doc-kit:capture=none -->
+## 3. Screens without screenshots
+
+- **Mode**: this documentation takes no screenshot (`capture.mode: "none"` in `doc.config.mjs`), by decision of: to complete.
+- **"The screen"**: one table per panel or dialog, `| Element | What it shows |`, one row per element in reading order (top to bottom, then left to right), the exact label in bold.
+- **Adding screenshots later**: `capture.mode: "app"`, then the capture rules of the kit's standard (`captures.md`).
+<!-- doc-kit:end -->
 
 ## 4. Diagrams
 

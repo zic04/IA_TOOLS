@@ -61,6 +61,10 @@ English labels do not count there.
   untyped page), `doc-kit audit` counts the page as too long: split it into sub-pages.
 - **Completeness**: the share of the template's sections present, averaged over the typed pages, is an indicator of
   level 4.
+- **Without screenshots** (`capture.mode: "none"`): `doc-kit new` writes "The screen" of the `screen` and `editor`
+  templates as a table `| Element | What it shows |`, one row per element in reading order (top to bottom, then left
+  to right), the exact label in bold. The templates hold both variants between `<!-- doc-kit:capture=app -->`,
+  `<!-- doc-kit:capture=none -->` and `<!-- doc-kit:end -->` markers; `new` keeps the one of the project.
 
 ## Creating a page: `doc-kit new`
 

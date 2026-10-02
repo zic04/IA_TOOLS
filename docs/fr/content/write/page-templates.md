@@ -63,6 +63,11 @@ libellés français n'y comptent pas.
   sous-pages.
 - **Complétude** : la part des sections du gabarit présentes, en moyenne sur les pages typées, est un indicateur du
   niveau 4.
+- **Sans captures** (`capture.mode: "none"`) : `doc-kit new` écrit « L'écran » des gabarits `screen` et `editor` sous
+  forme de tableau `| Élément | Ce qu'il montre |`, une ligne par élément dans l'ordre de lecture (de haut en bas, puis
+  de gauche à droite), le libellé exact en gras. Les gabarits contiennent les deux variantes entre des marqueurs
+  `<!-- doc-kit:capture=app -->`, `<!-- doc-kit:capture=none -->` et `<!-- doc-kit:end -->` ; `new` garde celle du
+  projet.
 
 ## Créer une page : `doc-kit new`
 

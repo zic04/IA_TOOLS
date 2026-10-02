@@ -1,6 +1,6 @@
 # Brief — correction des pages et du glossaire ({{product}})
 
-Tu corriges les erreurs signalées par les rédacteurs dans les pages du site de documentation de **{{product}}**, et tu
+Tu corriges les erreurs signalées par les rédacteurs dans les pages du site de documentation du produit **{{product}}**, et tu
 ajoutes les termes de glossaire proposés. Un autre agent intègre EN MÊME TEMPS les constats dans
 `{{contentDir}}/{{findingsPage}}.md` et ses sous-pages : ne touche pas à ces fichiers.
 

@@ -1,6 +1,7 @@
 // new <page-id> --template <type> [--title "…"] [--parent <id>]
-// Creates <content>/<page-id>.md from templates/pages/<language>/<type>.md (never overwrites: exit code 1) and
-// declares the page in the table of contents:
+// Creates <content>/<page-id>.md from templates/pages/<language>/<type>.md (never overwrites: exit code 1), in the
+// variant of the project's capture mode (capture.mode "none": tables instead of screenshots), and declares the page
+// in the table of contents:
 //   --parent <id>   right after the parent and its sub-pages, with level 2;
 //   otherwise       at the end of the group whose pages share the longest id prefix, or of the last group of
 //                   the section named by the first segment of the id.
@@ -15,7 +16,7 @@ import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
-import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
+import { loadPageTemplates, captureVariant } from "../../engine/build/page-templates.mjs";
 
 export const options = {
   template: { type: "string" },
@@ -245,7 +246,8 @@ export function createPage({ root, config, id, template, title, parent, summary 
   const source = path.join(KIT_ROOT, table.types[template].template.replace("{language}", config.language));
   if (!fs.existsSync(source)) throw new KitError(EXIT.ENVIRONMENT, "new.templateFileMissing", { file: path.relative(KIT_ROOT, source) });
   fs.mkdirSync(path.dirname(fileAbs), { recursive: true });
-  fs.writeFileSync(fileAbs, fs.readFileSync(source, "utf8"));
+  // The variant of the project's capture mode (ARCHITECTURE.md §6.4): "The screen" is a table without screenshots.
+  fs.writeFileSync(fileAbs, captureVariant(fs.readFileSync(source, "utf8"), config.capture?.mode || "app"));
   if (newText !== text) fs.writeFileSync(tocAbs, newText);
   return { file: fileRel, toc: tocRel, template, entry, placement };
 }

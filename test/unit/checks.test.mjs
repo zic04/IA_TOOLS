@@ -77,6 +77,28 @@ describe("check coverage and inventory", () => {
     assert.match(r.err, /✖ no coverage adapter configured\n {2}→ add for example coverage:/);
     assert.equal((await cli(["inventory", "--project", DEMO])).code, 2);
   });
+
+  test("a page that still holds template guidance covers nothing: neither its text nor the routes of its entry", async () => {
+    const dir = await project((c) => ({ ...c, coverage: [{ adapter: "next-app-router", app: "app" }] }));
+    try {
+      for (const p of ["app/reports/page.tsx", "app/exports/page.tsx"]) write(dir, p, "x");
+      // A new page declared with routes, still a template; another page cites a route in a guidance-filled page.
+      const tocFile = path.join(dir, "content", "toc.json");
+      const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
+      toc.sections[0].groups[0].pages.push({ id: "use/reports", title: "Reports", template: "screen", routes: ["/reports"] });
+      fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
+      write(dir, "content/use/reports.md", "## What it is for\n\n<!-- guidance: the business need. -->\n\nThe exports are in [[route /exports]].\n");
+      const covered = async () => {
+        const j = JSON.parse((await cli(["inventory", "--project", dir, "--json"])).out);
+        return Object.fromEntries(j.adapters[0].families[0].items.map((i) => [i.id, i.covered]));
+      };
+      assert.deepEqual(await covered(), { "/exports": false, "/reports": false }, "the template's examples cover nothing");
+      write(dir, "content/use/reports.md", "## What it is for\n\nThe exports are in [[route /exports]].\n");
+      assert.deepEqual(await covered(), { "/exports": true, "/reports": true }, "once written, its text and its routes count");
+    } finally {
+      rm(dir);
+    }
+  });
 });
 
 describe("check images", () => {
@@ -280,6 +302,25 @@ describe("commands that stop before opening a browser", () => {
       assert.match(r.out, /needs no sign-in/);
     } finally {
       rm(pub);
+    }
+  });
+
+  test("capture.mode none: capture and connect explain the mode and stop (2); connect --forget still deletes a session", async () => {
+    const dir = await project((c) => ({ ...c, app: { url: "http://127.0.0.1:9" }, capture: { mode: "none" } }));
+    try {
+      write(dir, "captures/plans/a.mjs", 'export const CAPTURES = [{ id: "a-orders", route: "/orders" }];');
+      let r = await cli(["capture", "--project", dir]);
+      assert.equal(r.code, 2);
+      assert.match(r.err, /^✖ this documentation takes no screenshot \(capture\.mode: "none" in doc\.config\.mjs\): each screen is described by a table of its elements\n {2}→ to capture the application, set capture\.mode: "app" in doc\.config\.mjs, then doc-kit connect and doc-kit capture\n$/);
+      r = await cli(["connect", "--project", dir, "--lang", "fr"]);
+      assert.equal(r.code, 2);
+      assert.match(r.err, /^✖ cette documentation ne prend aucune capture \(capture\.mode : "none" dans doc\.config\.mjs\) : pas de session à ouvrir\n/);
+      write(dir, ".doc-kit/session.json", "{}");
+      r = await cli(["connect", "--forget", "--project", dir]);
+      assert.equal(r.code, 0);
+      assert.ok(!fs.existsSync(path.join(dir, ".doc-kit/session.json")), "an old session is still deleted");
+    } finally {
+      rm(dir);
     }
   });
 

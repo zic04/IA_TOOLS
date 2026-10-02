@@ -45,6 +45,7 @@ des nouvelles captures ; `doc-kit check images` et `doc-kit audit` la comparent 
 | `env.prefix` | `[A-Z][A-Z0-9_]*` · le slug en majuscules | Préfixe des variables du projet : `<PREFIXE>_URL`, `_SESSION`, `_PLANS`, `_READONLY`, `_VERSION` | `"ACME"` |
 | `app` | objet · `{}` | L'application documentée | |
 | `app.url` | URL ou `null` · `null` | Adresse utilisée par `connect`, `capture`, `demo` et `doctor --network`, sans chemin final | `"http://localhost:3000"` |
+| `app.dir` | chemin ou `null` · `null` | La racine de l'application (son code), relative au projet ; écrite par `init`. Les briefs du skill la donnent aux agents (`appDir`), et `doctor` vérifie qu'elle existe et y cherche une version qui contredit la version documentée | `"../.."` |
 
 ## La connexion
 

@@ -1,6 +1,6 @@
 {
   "title": "Documentation {{name}}",
-  "tagline": "Le guide de référence de {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués et illustrés sur l'application.",
+  "tagline": "Le guide de référence de l'application {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués et illustrés sur l'application.",
   "sections": [
     {
       "id": "utiliser",

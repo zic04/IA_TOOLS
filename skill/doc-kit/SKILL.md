@@ -57,8 +57,12 @@ Each phase closes on its checks. Details of every phase: `references/method.md`.
 - **Exit**: written decisions (the "real data" decision is written by the owner, then repeated in `WRITING-GUIDE.md`).
 
 ### 1 · Set up the project
-- **Commands**: `doc-kit init <app-dir>` (creates `<app-dir>/docs/manual/`), then complete `doc.config.mjs`
-  (`product`, `app.url`, `auth`, `env.prefix`, `version`, `coverage`, `masking`, `capture.forbidden`); `doc-kit doctor`.
+- **Commands**: `doc-kit init <app-dir>` (`<app-dir>` = the application ROOT, even with a separate front end; creates
+  `<app-dir>/docs/manual/`; `--capture none` without screenshots). Read its recap (name, version and its file, `.env`
+  files, `app.dir`) and fix what is wrong in `doc.config.mjs` (`product`, `app`, `auth`, `env.prefix`, `version`,
+  `coverage`, `masking`, `capture.forbidden`); `doc-kit doctor`.
+- **Separate front end** (`frontend/`, `web/`…): coverage only inventories the front's routes. Check that `app.dir`
+  is the root, so that the briefs' `appDir` shows the back end too (API, permissions, writes while rendering).
 - **Exit**: `doctor` without error; `doc-kit build --draft` passes on the skeleton; `.doc-kit/` and `dist/` git-ignored.
 
 ### 2 · Code inventory
@@ -77,6 +81,9 @@ Each phase closes on its checks. Details of every phase: `references/method.md`.
 - **Read**: `references/templates.md`, `references/agent-orchestration.md` §1-2.
 
 ### 4 · Captures
+- **No-screenshot mode** (`capture.mode: "none"`): skip this phase. `capture` and `connect` refuse to run, the
+  starter pages and `doc-kit new` describe each screen with a table (`| Element | What it shows |`, reading order),
+  briefs say so, and the audit counts `annotated` as n/a.
 - **Demo**: `doc-kit demo` (runs `capture.setup`, idempotent). **Production**: `doc-kit connect` (the person signs in;
   session in `.doc-kit/`), `capture.forbidden` filled after reading the code of detail pages.
 - **Trial**: `doc-kit capture "<prefix>-*" --preview` on the reference page; look at each `.doc-kit/<id>.zones.png`

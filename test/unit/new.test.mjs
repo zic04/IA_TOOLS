@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createPage, locateJson, insertEntry, addProperty, PAGE_ID } from "../../cli/commands/new.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
+import { captureVariant } from "../../engine/build/page-templates.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir } from "../tools/helpers.mjs";
@@ -82,13 +83,14 @@ describe("locating and editing JSON as text", () => {
 });
 
 describe("creating a page", () => {
-  test("--parent: right after the parent and its sub-pages, level 2; the template is copied as is", () =>
+  test("--parent: right after the parent and its sub-pages, level 2; the template is copied in the variant of the capture mode", () =>
     withDir(demoCopy, async (dir) => {
       const before = read(dir, "content/toc.json");
       const r = createPage({ root: dir, config: await config(dir), id: "use/orders/export", template: "screen", title: "Exporting orders", parent: "use/orders", summary: SUMMARY });
       assert.deepEqual(r.placement, { kind: "after", after: "use/orders/detail" });
       assert.deepEqual(r.entry, { id: "use/orders/export", title: "Exporting orders", menuTitle: "Exporting orders", level: 2, summary: SUMMARY, template: "screen" });
-      assert.equal(read(dir, "content/use/orders/export.md"), fs.readFileSync(path.join(KIT_ROOT, "templates/pages/en/screen.md"), "utf8"));
+      assert.equal(read(dir, "content/use/orders/export.md"), captureVariant(fs.readFileSync(path.join(KIT_ROOT, "templates/pages/en/screen.md"), "utf8"), "app"));
+      assert.doesNotMatch(read(dir, "content/use/orders/export.md"), /doc-kit:capture|doc-kit:end/, "no variant marker left");
       const after = read(dir, "content/toc.json");
       assertOnlyAdded(before, after);
       assert.match(after, /"highlights": \["The annotated orders list", "Settings, step by step"\]/, "inline arrays are kept");
@@ -108,6 +110,21 @@ describe("creating a page", () => {
       assert.ok(b.html);
       assert.deepEqual(b.errors, []);
       assert.ok(b.warnings.some((w) => w.key === "template.guidance" && w.vars.page === "maintain/deployment"));
+    }));
+
+  test("capture.mode none: the screen and editor pages describe the screen with a table, never a :::screen", () =>
+    withDir(demoCopy, async (dir) => {
+      const cfg = await config(dir);
+      const none = { ...cfg, capture: { ...cfg.capture, mode: "none" } };
+      createPage({ root: dir, config: none, id: "use/reports", template: "screen", summary: SUMMARY });
+      createPage({ root: dir, config: none, id: "use/report-builder", template: "editor", summary: SUMMARY });
+      for (const f of ["content/use/reports.md", "content/use/report-builder.md"]) {
+        const text = read(dir, f);
+        assert.doesNotMatch(text, /^:::screen\{|^::before-after\{|doc-kit:(?:capture|end)/m, f);
+        assert.match(text, /## The screen\n\n<!-- guidance: no screenshot in this project[^\n]*-->\n\n\| Element \| What it shows \|\n\|---\|---\|\n/, f);
+      }
+      const b = build({ project: { root: dir }, config: none, options: { draft: true } });
+      assert.deepEqual(b.errors, []);
     }));
 
   test("refuses to overwrite (exit code 1) and leaves the table of contents unchanged", () =>

@@ -1,30 +1,45 @@
 ## doc-kit init
 
 ```text
-doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--yes]
+doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--capture app|none] [--yes]
 ```
 
 Crée le projet de documentation de l'application située dans `dossier-app` (défaut : le dossier courant), dans
-`<dossier-app>/docs/manual/`.
+`<dossier-app>/docs/manual/`. `dossier-app` est la **racine** de l'application, même quand son front-end est dans un
+sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent les rédacteurs.
 
 | Option | Défaut | Effet |
 |---|---|---|
 | `--dir <dossier>` | `docs/manual` | Le dossier du projet, relatif à l'application |
-| `--name "…"` | détecté | Nom du produit ; détecté dans `package.json` (`productName`, `displayName`, `name`) ou d'après le nom du dossier |
+| `--name "…"` | détecté | Nom du produit : le `title` du `metadata` du layout racine Next.js, sinon `package.json` (`productName`, `displayName`, `name` sans sa portée ni son suffixe `-frontend`, `-front`, `-web`, `-ui`, `-client` ou `-app`), sinon le nom du dossier |
+| `--lang en\|fr` | demandée, ou celle du système | Langue du site, et des messages de la commande ; avec `--yes`, c'est le seul moyen de la choisir |
 | `--url <url>` | détectée | URL de l'application ; le port vient du script `dev`, `start` ou `serve`, de la configuration de Vite, ou du framework |
 | `--framework <nom>` | détecté | `next` (App Router), `react-router` ou `none` : l'adaptateur de couverture écrit dans la configuration |
 | `--auth <adaptateur>` | `manual` | `manual`, `none`, `nextauth`, `api-me` ou `local:<fichier>` |
+| `--capture app\|none` | `app` | `app` : captures de l'application en marche ; `none` : aucune capture (`capture.mode: "none"`), chaque écran décrit par un tableau |
 | `--yes`, `-y` | | Aucune question : les valeurs détectées et les options telles quelles |
 
 - **Détection** : `package.json` dans le dossier ou dans `frontend`, `front`, `web`, `client`, `ui`, `app`,
   `apps/web` ; Next.js avec `app/` ou `src/app/`, React Router, Vite, NextAuth ; un back-end Python
-  (`pyproject.toml`, `requirements.txt`), dont la version est alors lue dans `pyproject.toml`.
-- **Questions** (sans `--yes`) : nom, langue, URL, mode de connexion, puis un récapitulatif à confirmer. Sans
-  terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
+  (`pyproject.toml`, `requirements.txt`).
+- **Version** (`version.file`) : `version.txt` ou `VERSION` à la racine de l'application, sinon le `package.json` racine
+  s'il porte une `version`, sinon celui du front-end, sinon le `pyproject.toml` d'une application seulement Python.
+- **Masquage** (`masking.env`) : `.env` et `.env.local` à la racine et dans le dossier du front-end, seulement les
+  fichiers qui existent ; jamais `*.example`.
+- **Questions** (sans `--yes`) : nom, langue, URL, mode de capture, mode de connexion (seulement avec des captures).
+  Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
+- **Récapitulatif** : avant d'écrire quoi que ce soit, même avec `--yes`, le dossier, le nom et sa provenance,
+  l'identifiant, la langue, l'URL, la version et son fichier, le mode de capture, la connexion, la source de la
+  couverture, les fichiers `.env` masqués et le dossier de l'application. Pour renommer le produit ensuite :
+  `product.name` dans `doc.config.mjs`, puis le titre, l'accroche et les titres de section de `content/toc.json`.
 - **Écrit** le squelette de `templates/project/common` et de `templates/project/<langue>` : configuration,
   `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, un sommaire avec des pages d'exemple réparties en
   quatre sections (Utiliser, Configurer, Administrer, Reprendre), un glossaire, un exemple de plan de capture, un
-  logo. 22 fichiers.
+  logo. 22 fichiers. Les commentaires de `doc.config.mjs` sont dans la langue du projet ; les routes d'exemple sont
+  fictives (`/exemple/…`).
+- **Sans captures** (`--capture none`) : pas de plan d'exemple (21 fichiers), des pages d'exemple qui décrivent chaque
+  écran par un tableau `| Élément | Ce qu'il montre |`, un accueil sans l'encadré « écrans interactifs », et des
+  étapes suivantes sans `connect` ni `capture`.
 - **Refuse** un dossier qui existe et n'est pas vide (code de sortie 1).
 
 ## doc-kit doctor
@@ -38,7 +53,7 @@ Une ligne par vérification, `✔` correct, `⚠` à regarder, `✖` à corriger
 | Groupe | Vérifications |
 |---|---|
 | Environnement | Version de Node ; dépendances du kit ; Chromium ; la dépendance du projet au kit ; le skill Claude Code installé ; la version du kit face à la plage `kit` du projet |
-| Projet | Configuration ; sommaire ; fichier de version ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème |
+| Projet | Configuration ; sommaire ; fichier de version (⚠ « version jamais incrémentée ? » quand il dit `0.0.0` ou `1.0.0` alors qu'un `version.txt`, `VERSION` ou `CHANGELOG.md` de l'application dit autre chose) ; dossier de l'application (`app.dir`) ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème. Avec `capture.mode: "none"`, ni la session ni le dossier des plans ne sont attendus |
 | `--network` | L'application répond à `app.url` |
 
 Code de sortie : 3 quand l'environnement échoue, 2 quand la configuration est invalide, 1 quand une vérification du
@@ -59,7 +74,9 @@ l'adaptateur détecte la session). La session est enregistrée dans `.doc-kit/se
 | `--forget` | Supprime le fichier de session |
 
 Code de sortie 3 quand l'application est injoignable, après 15 minutes sans connexion, ou quand la fenêtre est
-fermée ; 2 sans terminal (avec l'adaptateur `manual`). Avec `auth.adapter: "none"`, il n'y a rien à faire.
+fermée ; 2 sans terminal (avec l'adaptateur `manual`). Avec `auth.adapter: "none"`, il n'y a rien à faire. Avec
+`capture.mode: "none"`, la commande explique le mode et s'arrête avec le code de sortie 2 ; `--forget` supprime
+toujours une session.
 [Connexion et sessions](#/capture/sessions) explique le reste.
 
 ## doc-kit demo
@@ -78,6 +95,7 @@ doc-kit capture [motifs…] [--plans <dossier>] [--preview] [--no-session]
 ```
 
 Prend les captures des plans dans un Chromium sans fenêtre et écrit `images/<id>.webp` et `images/zones/<id>.json`.
+Avec `capture.mode: "none"`, la commande explique le mode et s'arrête avec le code de sortie 2.
 
 | Option | Effet |
 |---|---|
@@ -100,7 +118,8 @@ doc-kit inventory [--json]
 
 Liste ce que les adaptateurs de couverture voient dans l'application, famille par famille, avec `✔` pour les éléments
 déjà cités dans la documentation et `·` pour les autres. `doc-kit inventory --json > .doc-kit/inventory.json` est un
-bon point de départ pour un sommaire. Code de sortie 2 quand `coverage` est vide.
+bon point de départ pour un sommaire. Une page qui contient encore des consignes de gabarit ne cite encore rien : ni
+son texte ni son entrée dans le sommaire ne comptent. Code de sortie 2 quand `coverage` est vide.
 
 ## Pour aller plus loin
 

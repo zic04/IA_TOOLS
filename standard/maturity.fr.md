@@ -19,7 +19,7 @@ Quatre niveaux, chacun défini par des critères que `doc-kit audit` **mesure**.
 | `typed` | Pages qui déclarent un `template` ÷ pages déclarées |
 | `conformant` | Pages typées qui ont toutes leurs sections obligatoires ÷ pages typées |
 | `completeness` | Moyenne, sur les pages typées, de (sections du gabarit présentes ÷ sections du gabarit) |
-| `annotated` | Pages `screen` et `editor` qui contiennent au moins un `:::screen` (ou `:::ecran`) ÷ pages `screen` et `editor`. Tant qu'aucune page n'est typée : les pages de toutes les sections autres que Reprendre |
+| `annotated` | Pages `screen` et `editor` qui contiennent au moins un `:::screen` (ou `:::ecran`) ÷ pages `screen` et `editor`. Tant qu'aucune page n'est typée : les pages de toutes les sections autres que Reprendre. `n/a` quand `capture.mode` vaut `"none"` : une documentation déclarée sans captures décrit ses écrans par des tableaux, et n'a rien à annoter |
 | `coverage` | Éléments cités ÷ éléments inventoriés par `doc-kit check coverage` ; non mesuré quand aucun adaptateur ne peut inventorier l'application |
 | `proofs` | Pages de Reprendre qui contiennent au moins une preuve `fichier:ligne` (un nom de fichier avec son extension, puis `:` et un numéro, entre accents graves : `lib/commandes.ts:42`) ÷ pages de Reprendre |
 | `takeover` | Nombre des 7 pages obligatoires de Reprendre qui sont présentes (voir ci-dessous) |
@@ -50,8 +50,8 @@ La section **Reprendre** est la section dont l'id est `take-over` (ou `reprendre
 | Niveau | Critères |
 |---|---|
 | **1 Squelette** | `doc.config.mjs` est valide · `doc-kit build --draft` réussit · chaque section a au moins 1 page écrite · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
-| **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % · `coverage` ≥ 80 % (ou `n/a`) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou `n/a`) · `coverage` ≥ 80 % (ou `n/a`) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
+| **3 Complet** | `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) |
 
 Les seuils viennent des sites les plus aboutis construits avec cette méthode : on peut les atteindre sans exploit, et un site qui en manque un a une lacune qu'un lecteur remarquera.
@@ -60,7 +60,7 @@ Les seuils viennent des sites les plus aboutis construits avec cette méthode : 
 
 - **Niveau 0** : le niveau 1 n'est pas atteint (le sommaire ne peut pas être lu, ou un critère du niveau 1 échoue).
 - **Non mesuré** (aucun adaptateur de couverture ne peut inventorier l'application, pas de navigateur pour la largeur des tableaux) : le critère est ignoré, jamais en échec, et le rapport dit comment le mesurer.
-- **n/a** (rien à mesurer, par exemple `conformant` tant qu'aucune page n'est typée) : le critère est rempli.
+- **n/a** (rien à mesurer, par exemple `conformant` tant qu'aucune page n'est typée) : le critère est rempli. Avec `capture.mode: "none"`, `annotated` vaut `n/a` : une documentation sans captures atteint donc le niveau 2 avec des pages écrites et couvertes.
 - `doc-kit audit` construit le site en mémoire en mode strict, puis écrit `.doc-kit/audit.md` (le rapport, dans la langue du projet) et `.doc-kit/audit.json`, et affiche un résumé. Son code de sortie vaut 0 : il informe, il ne bloque pas (code 2 quand la configuration ne peut pas être lue).
 - **Les actions** sont listées niveau par niveau, à partir du suivant ; dans un niveau, les plus rapides d'abord (renommer un titre, déclarer un type, retirer une consigne), les plus longues ensuite (écrire des pages, ajouter des preuves). Chaque action nomme les pages concernées.
 - **Pages non typées.** L'audit nomme les pages qui suivent déjà un gabarit, d'après leurs titres : toutes les sections obligatoires du type sont là. Il préfère les types habituels de la section (`screen` dans Utiliser et Administrer, `editor` et `recipe` dans Configurer), et ne propose jamais de type pour une sous-page d'une page `screen`, `editor` ou des points d'attention, qui restent non typées (voir [templates.fr.md](templates.fr.md#pages-sans-type)). Pour les autres pages, il donne le type le plus proche et les sections obligatoires qui manquent encore.

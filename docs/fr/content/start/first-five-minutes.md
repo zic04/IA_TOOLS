@@ -46,12 +46,18 @@ doc-kit init acme-orders --url http://127.0.0.1:4173
 `init` examine le dossier de l'application (framework, routes, port, nom du produit), puis demande le **nom du
 produit** (`Acme Orders`, d'après le nom du dossier), la **langue de la documentation** (`en` ou `fr`) et la **méthode
 de connexion** (`manual` : vous vous connectez, puis vous appuyez sur Entrée) ; il demande aussi l'**adresse de
-l'application** quand `--url` n'est pas donné. Appuyez sur Entrée pour accepter chaque proposition, puis confirmez. Il
-écrit 22 fichiers dans `acme-orders/docs/manual/` et affiche les commandes suivantes.
+l'application** quand `--url` n'est pas donné. Appuyez sur Entrée pour accepter chaque proposition. Avant d'écrire quoi
+que ce soit, il affiche un **récapitulatif** : le nom du produit et sa provenance, l'identifiant, la langue, l'URL, la
+version et le fichier où elle est lue, la connexion, la couverture, les fichiers `.env` masqués et le dossier de
+l'application. Vérifiez-le, puis confirmez. Il écrit 22 fichiers dans `acme-orders/docs/manual/` et affiche les
+commandes suivantes. Pour renommer le produit ensuite, changez `product.name` dans `doc.config.mjs` et les titres de
+`content/toc.json`.
 
 > [!ASTUCE] Sans questions
 > `doc-kit init acme-orders --url http://127.0.0.1:4173 --name "Acme Orders" --auth manual --yes` prend les valeurs
-> détectées et les options telles quelles. La langue du site est alors celle de `--lang`, ou celle de votre système.
+> détectées et les options telles quelles, et affiche le même récapitulatif. La langue du site est alors celle de
+> `--lang`, ou celle de votre système. Ajoutez `--capture none` pour une documentation sans aucune capture : les
+> étapes 4 et 5 ne s'appliquent plus, et chaque écran est décrit par un tableau de ses éléments.
 
 ## Étape 3 — Relier le projet au kit
 

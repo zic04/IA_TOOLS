@@ -1,6 +1,6 @@
 # Brief — lot {{code}} : rédaction et captures ({{product}})
 
-Tu rédiges une partie du site de documentation de **{{product}}**{{#if description}} ({{description}}){{/if}}, en
+Tu rédiges une partie du site de documentation du produit **{{product}}**{{#if description}} ({{description}}){{/if}}, en
 {{languageName}}. D'autres agents rédigent les autres lots EN MÊME TEMPS{{#if otherWriters}} ({{otherWriters}}){{/if}}.
 
 - Dossier de la doc : `{{docDir}}` ; lance toutes les commandes depuis ce dossier.
@@ -65,11 +65,16 @@ Tu rédiges une partie du site de documentation de **{{product}}**{{#if descript
   permis les clics de navigation, l'ouverture d'un bloc ou d'une fenêtre, et les boutons de test en lecture seule.
 - S'il manque une donnée à la démo, ne la crée pas à la main : demande-la dans ton rapport (elle sera ajoutée au
   script de préparation, `capture.setup`).
-{{/if}}{{#if captureMode=none}}**AUCUNE NOUVELLE CAPTURE.** Réutilise au plus 1 ou 2 captures EXISTANTES par page (`{{imagesDir}}/*.webp` ; regarde-les
+{{/if}}{{#if captureMode=none}}{{#if screenshots=none}}**AUCUNE CAPTURE DU TOUT** (`capture.mode: "none"` dans `doc.config.mjs`) : ne lance jamais `doc-kit capture` ni
+`doc-kit connect`, n'écris jamais de `:::ecran`. Dans « L'écran », un tableau par panneau ou par fenêtre,
+`| Élément | Ce qu'il montre |`, une ligne par élément dans l'ordre de lecture (de haut en bas, puis de gauche à
+droite) : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases, lus dans le
+code (composants, fichiers de traduction).
+{{/if}}{{#if screenshots!=none}}**AUCUNE NOUVELLE CAPTURE.** Réutilise au plus 1 ou 2 captures EXISTANTES par page (`{{imagesDir}}/*.webp` ; regarde-les
 avec Read avant). Une capture qui a des zones (`{{imagesDir}}/zones/<id>.json`) s'insère avec
 `:::ecran{capture="<id>" titre="…"}` et une liste d'EXACTEMENT autant d'éléments que de zones ; `::capture` est refusé
 sur elle.
-{{/if}}{{#if captureMode!=none}}
+{{/if}}{{/if}}{{#if captureMode!=none}}
 - REGARDE chaque aperçu de zones (`<id>.zones.png`, écrit sous `.doc-kit/` par `--preview`, avec l'outil Read) et
   corrige les cibles jusqu'à ce que chaque zone encadre exactement le bon élément : 3 à 12 zones par écran, dans
   l'ordre de lecture ; `up` ou `within` pour encadrer une rangée entière ; `viewport: { height: 2200 }` et `frame` pour

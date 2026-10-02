@@ -3,6 +3,7 @@
 | Key | Type · default | Role | Example |
 |---|---|---|---|
 | `capture` | object · `{}` | Everything about the captures | |
+| `capture.mode` | `"app"` or `"none"` · `"app"` | `"none"` declares a documentation without screenshots: `capture` and `connect` explain it and stop (exit code 2), `doctor` and the guided mode stop asking for a session, `doc-kit new` and `doc-kit init` describe each screen with a table, and `annotated` is `n/a` in the audit | `"none"` |
 | `capture.plans` | path · `"captures/plans"` | Folder of the capture plans; `--plans` and `<PREFIX>_PLANS` win over it | `"captures/plans-prod"` |
 | `capture.setup` | path or `null` · `null` | Idempotent script that prepares the demo data, run by `doc-kit demo` | `"captures/setup-demo.mjs"` |
 
@@ -52,7 +53,7 @@ See [Demo or production](#/capture/safety) for why both exist.
 | Key | Type · default | Role | Example |
 |---|---|---|---|
 | `masking` | object · `{}` | Values replaced by dots in the captures, and searched by `check secrets` | |
-| `masking.env` | list of paths · `[]` | The application's local `.env` files | `["../../.env"]` |
+| `masking.env` | list of paths · `[]` | The application's local `.env` files; `init` lists the `.env` and `.env.local` it finds at the root and in the front-end folder | `["../../.env"]` |
 | `masking.exclude` | regular expression or `null` · `"localhost\|127\\.0\\.0\\.1"` | Values never masked | `"localhost\|example\\.org"` |
 | `masking.guid` | boolean · `true` | Masks GUIDs | `false` |
 | `masking.patterns` | list of regular expressions · `[]` | More values to mask | `["ACME-\\d{6}"]` |

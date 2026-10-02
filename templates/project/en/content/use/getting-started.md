@@ -16,6 +16,7 @@
 
 ## The screen
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: the "home" capture is declared in captures/plans/example.mjs with 3 zones (top bar, menu, content): the legend has 3 items. Change the zones and the legend together, then capture with the preview option (see "Maintaining this documentation"). -->
 
 :::screen{capture="home" title="{{name}} › home screen"}
@@ -23,6 +24,15 @@
 2. **Menu**. The areas of the application, depending on the user's permissions.
 3. **Content of the screen**. What the user sees first, and where the figures come from.
 :::
+<!-- doc-kit:capture=none -->
+<!-- guidance: no screenshot in this project (capture.mode "none"): one table per panel or dialog (### subheadings if there are several), one row per element in reading order, from top to bottom, then from left to right. Each row: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
+
+| Element | What it shows |
+|---|---|
+| **Top bar** | Search, language, theme and account menu: role, values, effect. |
+| **Menu** | The areas of the application, depending on the user's permissions. |
+| **Content of the screen** | What the user sees first, and where the figures come from. |
+<!-- doc-kit:end -->
 
 ## Each action
 

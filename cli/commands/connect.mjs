@@ -2,7 +2,8 @@
 // Opens the application in a VISIBLE browser window; the person signs in (SSO and MFA work: it is a real
 // browser), then presses Enter here — or the authentication adapter detects the session by itself (nextauth,
 // api-me). The session (cookies + localStorage) is saved in .doc-kit/session.json (<PREFIX>_SESSION to change
-// it): a secret, ignored by git. `connect --forget` deletes it.
+// it): a secret, ignored by git. `connect --forget` deletes it. With capture.mode "none", only --forget runs
+// (exit code 2 otherwise: there is nothing to capture).
 import path from "node:path";
 import readline from "node:readline";
 import { loadAuth, connect, sessionFile, forgetSession, authBrowser } from "../../engine/capture/session.mjs";
@@ -58,6 +59,8 @@ export async function run({ ctx, values }) {
     return 0;
   }
 
+  // A documentation declared without screenshots needs no session (--forget above still deletes an old one).
+  if (config.capture.mode === "none") throw new KitError(EXIT.USAGE, "connect.modeNone", { file: "doc.config.mjs" });
   const auth = await loadAuth(project.root, config);
   if (auth.adapter.none) {
     if (ctx.json) ctx.print(JSON.stringify({ session: null }));

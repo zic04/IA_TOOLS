@@ -20,15 +20,18 @@ step. You never need to remember the order of the commands.
 
 | Situation | What it prints | Command offered |
 |---|---|---|
-| No `doc.config.mjs` here or above | "No documentation project in …" | `doc-kit init <folder>` |
+| No `doc.config.mjs` here or above | "No documentation project (doc.config.mjs) for this folder:" and the folder in full | `doc-kit init <folder>` |
 | The project's dependencies are missing | "… but its dependencies are not installed." | `npm install` |
 | The configuration cannot be used | "… but it cannot be used as it is:" and the errors | `doc-kit doctor` |
-| No session, and `auth.adapter` is not `none` | "the project is ready, but there is no session…" | `doc-kit connect` |
-| No capture yet | "no screenshot yet." | `doc-kit capture` |
+| No session, `auth.adapter` is not `none`, and screenshots are expected | "the project is ready, but there is no session…" | `doc-kit connect` |
+| No capture yet, and screenshots are expected | "no screenshot yet." | `doc-kit capture` |
 | Everything is in place | "the project is in place." | A menu: `dev`, `audit`, `build`, `doctor` |
 
-When you accept `init`, the guided mode goes on with the questions of `init` (name, language, URL, sign-in) in the
-same terminal. For any other step, it hands the terminal over to the command: `connect` reads your Enter key,
+With `capture.mode: "none"` (a documentation without screenshots), `connect` and `capture` are never offered: the
+guided mode goes straight to the menu, and says why.
+
+When you accept `init`, the guided mode goes on with the questions of `init` (name, language, URL, capture mode,
+sign-in) in the same terminal. For any other step, it hands the terminal over to the command: `connect` reads your Enter key,
 `dev` runs until [[key Ctrl+C]].
 
 ## In a script

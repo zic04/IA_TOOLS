@@ -3,6 +3,7 @@
 | Clé | Type · défaut | Rôle | Exemple |
 |---|---|---|---|
 | `capture` | objet · `{}` | Tout ce qui concerne les captures | |
+| `capture.mode` | `"app"` ou `"none"` · `"app"` | `"none"` déclare une documentation sans captures : `capture` et `connect` l'expliquent et s'arrêtent (code de sortie 2), `doctor` et le mode guidé ne demandent plus de session, `doc-kit new` et `doc-kit init` décrivent chaque écran par un tableau, et `annotated` vaut `n/a` dans l'audit | `"none"` |
 | `capture.plans` | chemin · `"captures/plans"` | Dossier des plans de capture ; `--plans` et `<PREFIXE>_PLANS` l'emportent sur lui | `"captures/plans-prod"` |
 | `capture.setup` | chemin ou `null` · `null` | Script idempotent qui prépare les données de démo, lancé par `doc-kit demo` | `"captures/setup-demo.mjs"` |
 
@@ -53,7 +54,7 @@ Voir [Démo ou production](#/capture/safety) pour comprendre pourquoi les deux e
 | Clé | Type · défaut | Rôle | Exemple |
 |---|---|---|---|
 | `masking` | objet · `{}` | Valeurs remplacées par des points dans les captures, et recherchées par `check secrets` | |
-| `masking.env` | liste de chemins · `[]` | Les fichiers `.env` locaux de l'application | `["../../.env"]` |
+| `masking.env` | liste de chemins · `[]` | Les fichiers `.env` locaux de l'application ; `init` liste les `.env` et `.env.local` qu'il trouve à la racine et dans le dossier du front-end | `["../../.env"]` |
 | `masking.exclude` | expression régulière ou `null` · `"localhost\|127\\.0\\.0\\.1"` | Valeurs jamais masquées | `"localhost\|example\\.org"` |
 | `masking.guid` | booléen · `true` | Masque les GUID | `false` |
 | `masking.patterns` | liste d'expressions régulières · `[]` | D'autres valeurs à masquer | `["ACME-\\d{6}"]` |

@@ -22,7 +22,11 @@ En cas de désaccord, ce guide l'emporte pour ce projet. Complétez chaque ligne
 4. **Expliquer le fonctionnement**, pas seulement l'écran : qui calcule quoi, dans quel ordre, avec quelles limites.
 5. **Écarts constatés** décrits dans un encadré `> [!NOTE] Écarts constatés (vX.Y.Z)`, jamais corrigés dans l'application depuis ce dossier.
 6. **Droits** : chaque page d'écran se termine par un encadré `> [!DROITS]`.
+<!-- doc-kit:capture=app -->
 7. **Données des captures** : voir §3.
+<!-- doc-kit:capture=none -->
+7. **Aucune capture** : chaque écran est décrit par un tableau de ses éléments (§3).
+<!-- doc-kit:end -->
 
 ## 2. Sources de vérité
 
@@ -36,6 +40,7 @@ En cas de désaccord, ce guide l'emporte pour ce projet. Complétez chaque ligne
 
 La documentation existante du dépôt sert à trouver où chercher, jamais de preuve.
 
+<!-- doc-kit:capture=app -->
 ## 3. Captures
 
 - **Données** : à compléter. Soit « production en lecture seule, données réelles en clair par décision écrite de <propriétaire> du <date> », soit « démo préparée par `captures/setup-demo.mjs`, noms fictifs ».
@@ -43,6 +48,13 @@ La documentation existante du dépôt sert à trouver où chercher, jamais de pr
 - **Routes à ne jamais ouvrir** (écriture côté serveur au rendu) : à compléter, et à déclarer dans `capture.forbidden` de `doc.config.mjs`.
 - **Interdit pendant une capture** : tout bouton qui écrit et toute saisie qui enregistre. Seule la navigation est permise.
 - **Session** : supprimée à la fin de chaque campagne (`doc-kit connect --forget`).
+<!-- doc-kit:capture=none -->
+## 3. Écrans sans capture
+
+- **Mode** : cette documentation ne prend aucune capture (`capture.mode: "none"` dans `doc.config.mjs`), par décision de : à compléter.
+- **« L'écran »** : un tableau par panneau ou par fenêtre, `| Élément | Ce qu'il montre |`, une ligne par élément dans l'ordre de lecture (de haut en bas, puis de gauche à droite), le libellé exact en gras.
+- **Ajouter des captures plus tard** : `capture.mode: "app"`, puis les règles de capture du standard du kit (`captures.fr.md`).
+<!-- doc-kit:end -->
 
 ## 4. Schémas
 

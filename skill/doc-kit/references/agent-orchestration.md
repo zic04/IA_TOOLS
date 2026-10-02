@@ -90,7 +90,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `appUrl` | `DOC_KIT_URL` or `<PREFIX>_URL` when set (same precedence as the CLI), else `app.url` | http://localhost:3000 |
 | `envPrefix` | `env.prefix` (else the slug in upper case, as the kit does) | ACME |
 | `docDir` | documentation folder (absolute) | …/acme-orders/docs/manual |
-| `appDir` | `extra.briefs.appDir`, else the first folder with `package.json` or `.git` above the coverage source (`app`, `file`, `source` or `base` of `coverage[]`), else above the documentation folder | …/acme-orders |
+| `appDir` | `extra.briefs.appDir`, else `app.dir` (written by `doc-kit init`: the application root), else the documentation folder's parent or grandparent that holds `.git`, else its grandparent. `brief.mjs` warns when it was derived, and when the coverage source sits in a separate front end (`frontend/` with its own `package.json`): the routes inventory then misses the back end | …/acme-orders |
 | `plansDir` | `capture.plans` | captures/plans |
 | `kitPath` | the kit's location | (set at install) |
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
@@ -98,7 +98,8 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `tocFile`, `glossaryFile`, `targetsFile`, `guideFile` | the existing file (legacy names detected) | content/toc.json |
 | `findingsPage` | `extra.briefs.findingsPage`, default by language | take-over/findings |
 | `consolidationFile` | `.doc-kit/consolidation.md` | |
-| `captureMode` | `demo` when `capture.setup` is set, else to give | production · demo · none |
+| `captureMode` | `none` when `capture.mode` is `"none"`, `demo` when `capture.setup` is set, else to give | production · demo · none |
+| `screenshots` | `capture.mode` (`app` or `none`): with `none`, "The screen" is a table of elements, never a `:::screen` | app · none |
 | `code`, `prefix` | `--var` (`prefix` defaults to `code`) | u1 |
 | `pages`, `reads`, `topic`, `diagram` | `--var` | page ids, pages to read, "the journey of an order", t-order-journey |
 | `portalCaptures`, `infraDir` | `--var` (`production-technical` brief) | folder of screenshots, infrastructure code |

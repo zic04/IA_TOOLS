@@ -1,13 +1,14 @@
 // Coverage (ARCHITECTURE.md §5): every element inventoried by the coverage adapters (routes, registry entries,
 // files…) must be cited in the documentation. The adapters only list the elements; the kit searches the
-// normalised text of <content>/**/*.md|json (pages and table of contents, `routes` included), makes the report
-// and gives the exit code.
+// normalised text of <content>/**/*.md|json (pages and table of contents, `routes` included; not the pages that
+// still hold template guidance), makes the report and gives the exit code.
 //   config.coverage: [{ adapter: "next-app-router", app: "../../app" }, { adapter: "local:adapters/x.mjs", … }]
 // An adapter that cannot find what it inventories (the application is not next to the documentation) answers
 // { available: false, reason }: its check is skipped, not failed.
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
+import { countGuidance } from "../build/page-templates.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
@@ -102,14 +103,51 @@ export function routeMatches(route) {
   return [...forms];
 }
 
-/** All the text of the documentation (content/**\/*.md|json), normalised. */
+/** Table of contents files (current and legacy names), at the root of the content folder. */
+const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
+
+/**
+ * The table of contents without the pages not written yet (`unwritten`: their files, relative to the content):
+ * neither their entry (id, title, `routes`) nor their id in the journeys and suggestions.
+ */
+function tocText(text, unwritten) {
+  let toc;
+  try {
+    toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+  } catch {
+    return text; // reported by the build
+  }
+  const ids = new Set();
+  const isUnwritten = (p) => p && typeof p === "object" && unwritten.has(String(p.file || p.fichier || `${p.id}.md`));
+  for (const s of Array.isArray(toc?.sections) ? toc.sections : [])
+    for (const g of [...(s?.groups || []), ...(s?.groupes || [])])
+      if (Array.isArray(g?.pages))
+        g.pages = g.pages.filter((p) => {
+          if (!isUnwritten(p)) return true;
+          ids.add(p.id);
+          return false;
+        });
+  const keep = (list) => (Array.isArray(list) ? list.filter((id) => !ids.has(id)) : list);
+  for (const j of [...(Array.isArray(toc?.journeys) ? toc.journeys : []), ...(Array.isArray(toc?.parcours) ? toc.parcours : [])])
+    if (j && typeof j === "object") for (const k of ["steps", "etapes"]) if (k in j) j[k] = keep(j[k]);
+  if (toc && typeof toc === "object") toc.suggestions = keep(toc.suggestions);
+  return JSON.stringify(toc);
+}
+
+/**
+ * All the text of the documentation (content/**\/*.md|json), normalised. A page that still holds template guidance
+ * (`<!-- guidance:` / `<!-- consigne :`) is not written yet: neither its text nor its entry in the table of contents
+ * count (ARCHITECTURE.md §5), so that the examples of a skeleton never cover a route.
+ */
 export function documentationText(root, content) {
   const tools = adapterTools(root);
+  const files = tools.walk(content).filter((f) => /\.(md|json)$/i.test(f));
+  const texts = new Map(files.map((f) => [f, tools.read(path.join(content, f))]));
+  const unwritten = new Set(files.filter((f) => /\.md$/i.test(f) && countGuidance(texts.get(f)) > 0));
   return normalize(
-    tools
-      .walk(content)
-      .filter((f) => /\.(md|json)$/i.test(f))
-      .map((f) => tools.read(path.join(content, f)))
+    files
+      .filter((f) => !unwritten.has(f))
+      .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), unwritten) : texts.get(f)))
       .join("\n")
   );
 }

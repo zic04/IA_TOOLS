@@ -43,11 +43,17 @@ doc-kit init acme-orders --url http://127.0.0.1:4173
 `init` looks at the application folder (framework, routes, port, product name), then asks the **product name**
 (`Acme Orders`, from the folder name), the **language** of the site (`en` or `fr`) and the **sign-in method**
 (`manual`: you sign in, then press Enter); it asks the **application URL** too when `--url` is not given. Press Enter
-to accept each proposal, then confirm. It writes 22 files in `acme-orders/docs/manual/` and prints the next commands.
+to accept each proposal. Before writing anything, it prints a **recap**: the product name and where it was found, the
+slug, the language, the URL, the version and the file it is read in, the sign-in, the coverage, the masked `.env` files
+and the application folder. Check it, then confirm. It writes 22 files in `acme-orders/docs/manual/` and prints the
+next commands. To rename the product afterwards, change `product.name` in `doc.config.mjs` and the titles of
+`content/toc.json`.
 
 > [!TIP] Without questions
 > `doc-kit init acme-orders --url http://127.0.0.1:4173 --name "Acme Orders" --auth manual --yes` takes the detected
-> values and the options as they are. The language of the site is then `--lang`, or the language of your system.
+> values and the options as they are, and prints the same recap. The language of the site is then `--lang`, or the
+> language of your system. Add `--capture none` for a documentation without any screenshot: steps 4 and 5 then do not
+> apply, and each screen is described by a table of its elements.
 
 ## Step 3 — Link the project to the kit
 

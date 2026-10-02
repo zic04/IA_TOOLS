@@ -11,6 +11,7 @@ Les identifiants de type sont en anglais dans tous les projets : `screen`, `edit
 - Une section obligatoire absente est une **erreur bloquante** du build strict. Les autres sections du gabarit sont recommandées : `doc-kit audit` mesure combien sont présentes.
 - `maxWords` est un **avertissement** de `doc-kit audit` : au-delà, découpez la page en sous-pages.
 - `doc-kit new <page-id> --template <type>` crée la page depuis le gabarit, dans la langue du projet.
+- **Variantes de capture.** Les gabarits `screen` et `editor` contiennent deux variantes de « L'écran » (et de « Ce que ça change »), entre des marqueurs `<!-- doc-kit:capture=app -->`, `<!-- doc-kit:capture=none -->` et `<!-- doc-kit:end -->`. `doc-kit new` et `doc-kit init` gardent la variante de `capture.mode` et retirent les marqueurs. Avec `capture.mode: "none"`, « L'écran » est un tableau `| Élément | Ce qu'il montre |` : une ligne par élément dans l'ordre de lecture (de haut en bas, puis de gauche à droite), le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet.
 - Les consignes laissées dans une page (`<!-- consigne : … -->` en français, `<!-- guidance: … -->` en anglais) sont signalées par `doc-kit audit` et par le build strict. Écrivez la section, puis retirez sa consigne.
 - Les listes de libellés `en` et `fr` ont la même longueur et le même ordre. `required` contient des positions dans ces listes : il est donc le même dans les deux langues.
 
@@ -46,7 +47,7 @@ Un écran de l'application, vu par celui qui s'en sert : à quoi il sert, commen
 |---|---|---|
 | À quoi ça sert | ✱ | Le besoin métier en 2 à 4 phrases ; un encadré NOTE « Où se trouve cet écran » (`[[menu …]]`, `[[route …]]`) |
 | Comment ça marche | ✱ | Le mécanisme réel : serveur ou navigateur, ordre, limites ; un encadré MECANISME ; un tableau quand il y a plusieurs cas |
-| L'écran | ✱ | Une capture `:::ecran` par panneau ; la légende a un élément par zone, de 1 à 3 phrases chacun |
+| L'écran | ✱ | Une capture `:::ecran` par panneau ; la légende a un élément par zone, de 1 à 3 phrases chacun. Sans captures (`capture.mode: "none"`) : un tableau `\| Élément \| Ce qu'il montre \|` par panneau, dans l'ordre de lecture |
 | Chaque action | | Une `###` par action qui demande plus qu'une légende (fenêtre de dialogue, contrôle du serveur, entrée au journal d'audit) |
 | Référence de chaque réglage | | `\| Réglage \| Contrôle \| Valeurs · défaut \| Effet \|` |
 | Pas à pas | | `:::etapes`, la tâche la plus fréquente, titre « Pas à pas : <tâche> » |
@@ -71,8 +72,8 @@ Un écran de configuration et, surtout, le mécanisme qu'il pilote : quand le r�
 |---|---|---|
 | À quoi ça sert | ✱ | Le besoin, et ce qui se passe **sans aucun réglage** ; un encadré NOTE « Où se trouve ce réglage » |
 | Comment ça marche | ✱ | Un schéma SVG, un encadré MECANISME numéroté, des tableaux comparatifs (par exemple « Validation séquentielle ou parallèle ») |
-| L'écran | ✱ | Une capture `:::ecran` par panneau ou par fenêtre de dialogue |
-| Ce que ça change | | `::avant-apres`, ou une capture de l'écran utilisateur concerné |
+| L'écran | ✱ | Une capture `:::ecran` par panneau ou par fenêtre de dialogue ; sans captures, un tableau `\| Élément \| Ce qu'il montre \|` chacun |
+| Ce que ça change | | `::avant-apres`, ou une capture de l'écran utilisateur concerné ; sans captures, l'effet décrit d'après le code |
 | Référence de chaque réglage | ✱ | Un tableau par groupe de réglages (`###`) ; bornes et défauts lus dans le code |
 | Pas à pas | | La configuration la plus courante, jusqu'à la vérification qu'elle marche |
 | Pièges et limites à connaître | ✱ | Des encadrés ATTENTION, puis un encadré NOTE « Écarts constatés » |

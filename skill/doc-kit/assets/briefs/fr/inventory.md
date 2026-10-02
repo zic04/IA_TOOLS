@@ -1,6 +1,6 @@
-# Brief — inventaire de {{product}} (agent Explore, lecture seule)
+# Brief — inventaire du produit {{product}} (agent Explore, lecture seule)
 
-Tu prépares la documentation de **{{product}}**{{#if description}} ({{description}}){{/if}}. Tu ne modifies AUCUN fichier :
+Tu prépares la documentation du produit **{{product}}**{{#if description}} ({{description}}){{/if}}. Tu ne modifies AUCUN fichier :
 tu lis le code et tu rends un inventaire complet dans ton rapport final, que l'orchestrateur enregistrera tel quel dans
 `{{docDir}}/.doc-kit/inventory-{{slug}}.md`. Tous les rédacteurs s'en serviront : il doit être exact et sourcé.
 

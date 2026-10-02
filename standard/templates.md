@@ -10,7 +10,8 @@ The type ids are English in every project: `screen`, `editor`, `recipe`, `techni
 - The build then checks its **required sections**. A section is found when a `##` heading of the page **starts with** its label, or with one of its aliases, ignoring case and accents. "Step by step: approve an order" matches "Step by step".
 - A missing required section is a **blocking error** of the strict build. The other sections of the template are recommended: `doc-kit audit` measures how many are present.
 - `maxWords` is a `doc-kit audit` **warning**: beyond it, split the page into sub-pages.
-- `doc-kit new <page-id> --template <type>` creates the page from the template, in the language of the project.
+- `doc-kit new <page-id> --template <type>` creates the page from the template, in the language of the project and in the variant of its capture mode.
+- **Capture variants.** The `screen` and `editor` templates hold two variants of "The screen" (and of "What it changes"), between `<!-- doc-kit:capture=app -->`, `<!-- doc-kit:capture=none -->` and `<!-- doc-kit:end -->` markers. `doc-kit new` and `doc-kit init` keep the variant of `capture.mode` and remove the markers. With `capture.mode: "none"`, "The screen" is a table `| Element | What it shows |`: one row per element in reading order (top to bottom, then left to right), the exact label in bold, then its role, values, default and effect.
 - The guidance left in a page (`<!-- guidance: … -->` in English, `<!-- consigne : … -->` in French) is reported by `doc-kit audit` and by the strict build. Write the section, then remove its guidance.
 - The `en` and `fr` label lists have the same length and the same order. `required` holds positions in these lists, so it is the same in both languages.
 
@@ -46,7 +47,7 @@ A screen of the application, seen by the person who uses it: what it is for, how
 |---|---|---|
 | What it is for | ✱ | The business need in 2 to 4 sentences; a NOTE box "Where to find this screen" (`[[menu …]]`, `[[route …]]`) |
 | How it works | ✱ | The real mechanism: server or browser, order, limits; a HOW box; a table when there are several cases |
-| The screen | ✱ | One `:::screen` capture per panel; the legend has one item per zone, 1 to 3 sentences each |
+| The screen | ✱ | One `:::screen` capture per panel; the legend has one item per zone, 1 to 3 sentences each. Without screenshots (`capture.mode: "none"`): one table `\| Element \| What it shows \|` per panel, in reading order |
 | Each action | | One `###` per action that needs more than a legend (dialog, server check, audit entry) |
 | Settings reference | | `\| Setting \| Control \| Values · default \| Effect \|` |
 | Step by step | | `:::steps`, the most frequent task, heading "Step by step: <task>" |
@@ -71,8 +72,8 @@ A configuration screen and, above all, the mechanism it drives: when the setting
 |---|---|---|
 | What it is for | ✱ | The need, and what happens **with no setting at all**; a NOTE box "Where to find this setting" |
 | How it works | ✱ | An SVG diagram, a numbered HOW box, comparison tables (for example "Sequential or parallel approval") |
-| The screen | ✱ | One `:::screen` capture per panel or dialog |
-| What it changes | | `::before-after`, or a capture of the user screen it affects |
+| The screen | ✱ | One `:::screen` capture per panel or dialog; without screenshots, one table `\| Element \| What it shows \|` each |
+| What it changes | | `::before-after`, or a capture of the user screen it affects; without screenshots, the effect described from the code |
 | Settings reference | ✱ | One table per group of settings (`###`); bounds and defaults read in the code |
 | Step by step | | The most common configuration, up to the check that it works |
 | Pitfalls and limits | ✱ | WARNING boxes, then a NOTE box "Observed gaps" |

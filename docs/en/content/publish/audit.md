@@ -40,7 +40,7 @@ Next: level 3 · Complete — 4 criteria to meet
 | `typed` | Pages that declare a `template` |
 | `conformant` | Typed pages that have all their required sections |
 | `completeness` | Share of the template's sections present, averaged over the typed pages |
-| `annotated` | `screen` and `editor` pages with a `:::screen` (while no page is typed: the pages outside Take over) |
+| `annotated` | `screen` and `editor` pages with a `:::screen` (while no page is typed: the pages outside Take over); `n/a` with `capture.mode: "none"` |
 | `coverage` | Elements cited ÷ elements inventoried by the coverage adapters |
 | `proofs` | Take over pages with at least one `file:line` proof (`lib/orders.ts:42`, in backticks) |
 | `takeover` | The 7 required Take over pages that are present |
@@ -56,7 +56,7 @@ Next: level 3 · Complete — 4 criteria to meet
 | Level | Criteria |
 |---|---|
 | **1 Skeleton** | The configuration is valid · `doc-kit build --draft` succeeds · each section has a written page · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
-| **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % · `coverage` ≥ 80 % (or not measured) · no broken link and no legend that differs from its zones, even in draft mode |
+| **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or n/a) · `coverage` ≥ 80 % (or not measured) · no broken link and no legend that differs from its zones, even in draft mode |
 | **3 Complete** | `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or n/a) |
 

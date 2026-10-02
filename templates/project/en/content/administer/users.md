@@ -3,7 +3,7 @@
 <!-- guidance: in 2 to 4 sentences: the register of accounts, what you see there (role, scope, activity) and what you do there (deactivate, hand over the work of someone who leaves, delete). Example: "It shows who has access to the application, with which role and which scope." -->
 
 > [!NOTE] Where to find this screen
-> [[menu Administration › Users]] ([[route /admin/users]]).
+> [[menu Administration › Users]] ([[route /example/users]]).
 
 ## How it works
 
@@ -16,6 +16,7 @@
 
 ## The screen
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: one capture per view (list, delete dialog, hand-over dialog); as many items as captured zones, in reading order. Declare the "admin-users" capture in a plan of captures/plans/. -->
 
 :::screen{capture="admin-users" title="Administration › Users"}
@@ -23,6 +24,15 @@
 2. **Exact label**. Role, values, default, effect.
 3. **Exact label**. Role, values, default, effect.
 :::
+<!-- doc-kit:capture=none -->
+<!-- guidance: no screenshot in this project (capture.mode "none"): one table per panel or dialog (### subheadings if there are several), one row per element in reading order, from top to bottom, then from left to right. Each row: the exact label in bold, then its role, values, default and effect, in 1 to 3 sentences. -->
+
+| Element | What it shows |
+|---|---|
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+| **Exact label** | Role, values, default, effect. |
+<!-- doc-kit:end -->
 
 ## Each action
 

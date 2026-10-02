@@ -3,7 +3,7 @@
 <!-- consigne : en 2 à 4 phrases : le registre des comptes, ce qu'on y voit (rôle, périmètre, activité) et ce qu'on y fait (désactiver, transférer le travail d'une personne qui part, supprimer). Exemple : « On y voit qui a accès à l'application, avec quel rôle et quel périmètre. » -->
 
 > [!NOTE] Où se trouve cet écran
-> [[menu Administration › Utilisateurs]] ([[route /admin/users]]).
+> [[menu Administration › Utilisateurs]] ([[route /exemple/utilisateurs]]).
 
 ## Comment ça marche
 
@@ -16,6 +16,7 @@
 
 ## L'écran
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : une capture par vue (liste, fenêtre de suppression, fenêtre de transfert) ; autant d'éléments que de zones capturées, dans l'ordre de lecture. Déclarez la capture « admin-utilisateurs » dans un plan de captures/plans/. -->
 
 :::ecran{capture="admin-utilisateurs" titre="Administration › Utilisateurs"}
@@ -23,6 +24,15 @@
 2. **Libellé exact**. Rôle, valeurs, défaut, effet.
 3. **Libellé exact**. Rôle, valeurs, défaut, effet.
 :::
+<!-- doc-kit:capture=none -->
+<!-- consigne : pas de capture dans ce projet (capture.mode "none") : un tableau par panneau ou par fenêtre (sous-titres ### s'il y en a plusieurs), une ligne par élément dans l'ordre de lecture, de haut en bas puis de gauche à droite. Chaque ligne : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases. -->
+
+| Élément | Ce qu'il montre |
+|---|---|
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+| **Libellé exact** | Rôle, valeurs, défaut, effet. |
+<!-- doc-kit:end -->
 
 ## Chaque action
 

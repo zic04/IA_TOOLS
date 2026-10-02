@@ -1,6 +1,6 @@
 ## En bref
 
-<!-- consigne : en 5 à 10 lignes, comment {{name}} est construite : le nombre de conteneurs, la pile (langages, cadres, base, stockage, identité, services externes), les couches du code et leur sens d'appel, et la version vérifiée. Exemple : « Un seul conteneur porte les écrans, l'API, les actions serveur et les migrations de la base. » -->
+<!-- consigne : en 5 à 10 lignes, comment l'application {{name}} est construite : le nombre de conteneurs, la pile (langages, cadres, base, stockage, identité, services externes), les couches du code et leur sens d'appel, et la version vérifiée. Exemple : « Un seul conteneur porte les écrans, l'API, les actions serveur et les migrations de la base. » -->
 
 1. **Ce qui tourne** : les applications et leur image.
 2. **La pile** : langages, cadres et versions (`package.json`).

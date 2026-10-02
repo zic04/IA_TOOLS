@@ -34,7 +34,7 @@ du site entier. Vous écrivez du Markdown, vous décrivez les captures dans de p
 
 ```bash
 npm install -g <dossier du kit>   # ou : npm link dans le dossier du kit (voir Installation)
-doc-kit init ../mon-app           # détecte le framework, demande le nom du produit, la langue, l'URL et la connexion
+doc-kit init ../mon-app           # détecte le framework, demande le nom du produit, la langue, l'URL, le mode de capture et la connexion ; affiche un récapitulatif
 doc-kit connect                   # ouvre Chromium sur l'application : vous vous connectez (SSO et MFA marchent), puis Entrée
 doc-kit capture                   # prend la capture d'exemple, en lecture seule
 doc-kit dev                       # ouvre le site avec rechargement automatique

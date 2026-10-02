@@ -83,6 +83,29 @@ export function presentSections({ table, type, headings, language = "en" }) {
 /** Number of guidance comments left in a page. */
 export const countGuidance = (source) => (String(source ?? "").match(GUIDANCE) || []).length;
 
+/** Capture modes of `capture.mode` (ARCHITECTURE.md §3). */
+export const CAPTURE_MODES = ["app", "none"];
+const VARIANT_START = /^\s*<!--\s*doc-kit:capture=([\w-]+)\s*-->\s*$/;
+const VARIANT_END = /^\s*<!--\s*doc-kit:end\s*-->\s*$/;
+
+/**
+ * Keeps the variant of a template that matches the capture mode (ARCHITECTURE.md §6.4): the lines between
+ * `<!-- doc-kit:capture=<mode> -->` and the next marker are kept when <mode> is `mode`, dropped otherwise; the
+ * markers themselves are removed, and `<!-- doc-kit:end -->` closes the passage. Text outside the markers is common.
+ */
+export function captureVariant(text, mode = "app") {
+  const eol = String(text).includes("\r\n") ? "\r\n" : "\n";
+  const out = [];
+  let current = null;
+  for (const line of String(text).split(/\r?\n/)) {
+    const start = VARIANT_START.exec(line);
+    if (start) current = start[1];
+    else if (VARIANT_END.test(line)) current = null;
+    else if (current === null || current === mode) out.push(line);
+  }
+  return out.join(eol);
+}
+
 /** Words of a Markdown page: prose, headings, tables and legends; not code, comments, URLs or markup. */
 export function countWords(source) {
   const text = String(source ?? "")

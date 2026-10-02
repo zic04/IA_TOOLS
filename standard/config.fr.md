@@ -127,8 +127,10 @@ export default defineConfig({
   // Captures de production : DELIVERIES_URL=https://deliveries.acme.example DELIVERIES_PLANS=captures/plans-prod, avec une session.
   env: { prefix: "DELIVERIES" },
 
-  // Par défaut, l'application lancée en LOCAL (serveur de développement du front) avec les données de démo.
-  app: { url: "http://localhost:5173" },
+  // Par défaut, l'application lancée en LOCAL (serveur de développement du front) avec les données de démo. `dir`
+  // est la racine de l'application, écrite par `doc-kit init` : le front est dans frontend/ et l'API Python dans
+  // api/, et les rédacteurs (comme les briefs du skill) lisent les deux depuis là.
+  app: { url: "http://localhost:5173", dir: "../.." },
 
   // « api-me » : la session est valide quand le point « me » de l'API répond avec l'utilisateur connecté (le
   // serveur de développement du front relaie /api vers l'API Python). Les options de l'adaptateur se placent à
@@ -251,6 +253,16 @@ Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "h
 | `capture.forbidden` | Fiches commande | — | Une écriture du serveur au rendu (`ensureApprovalChain`) |
 | `coverage` | Routes `app/**/page.tsx` | Routes + registres i18n | Ce qui doit être documenté dépend du produit |
 | `statuses` | — | 5 statuts colorés | Statuts codés en couleur dans l'application |
+
+## Sans captures
+
+Quand la documentation doit s'écrire sans aucun accès à l'application, déclarez-le : `doc-kit init --capture none` l'écrit pour vous.
+
+```js
+  capture: { mode: "none" }, // aucune capture : chaque écran est décrit par un tableau de ses éléments
+```
+
+`capture` et `connect` expliquent alors le mode et s'arrêtent (code de sortie 2), `doctor` et le mode guidé ne demandent plus de session, `doc-kit new` écrit « L'écran » sous forme de tableau `| Élément | Ce qu'il montre |`, et `doc-kit audit` compte `annotated` comme `n/a` ([maturity.fr.md](maturity.fr.md)).
 
 ## Les projets plus anciens
 

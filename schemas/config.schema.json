@@ -103,7 +103,8 @@
       "additionalProperties": false,
       "default": {},
       "properties": {
-        "url": { "type": ["string", "null"], "default": null }
+        "url": { "type": ["string", "null"], "default": null },
+        "dir": { "type": ["string", "null"], "default": null, "description": "Application root (its code), relative to the project; written by init, read by the skill's briefs and by doctor." }
       }
     },
     "auth": {
@@ -119,6 +120,7 @@
       "additionalProperties": false,
       "default": {},
       "properties": {
+        "mode": { "enum": ["app", "none"], "default": "app", "description": "\"app\": the screens are captured; \"none\": no screenshot (capture and connect refuse, annotated is n/a)." },
         "plans": { "type": "string", "minLength": 1, "default": "captures/plans" },
         "setup": { "type": ["string", "null"], "default": null },
         "locale": { "type": ["string", "null"], "default": null },

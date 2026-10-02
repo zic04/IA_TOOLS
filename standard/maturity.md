@@ -19,7 +19,7 @@ Four levels, each defined by criteria that `doc-kit audit` **measures**. A level
 | `typed` | Pages that declare a `template` ÷ declared pages |
 | `conformant` | Typed pages that have all their required sections ÷ typed pages |
 | `completeness` | Average, over the typed pages, of (sections of the template present ÷ sections of the template) |
-| `annotated` | `screen` and `editor` pages that contain at least one `:::screen` (or `:::ecran`) ÷ `screen` and `editor` pages. While no page is typed: the pages of every section other than Take over |
+| `annotated` | `screen` and `editor` pages that contain at least one `:::screen` (or `:::ecran`) ÷ `screen` and `editor` pages. While no page is typed: the pages of every section other than Take over. `n/a` when `capture.mode` is `"none"`: a documentation declared without screenshots describes its screens with tables, and has nothing to annotate |
 | `coverage` | Elements cited ÷ elements inventoried by `doc-kit check coverage`; not measured when no adapter can inventory the application |
 | `proofs` | Take over pages that contain at least one `file:line` proof (a file name with its extension, then `:` and a number, in backticks: `lib/orders.ts:42`) ÷ Take over pages |
 | `takeover` | Number of the 7 required Take over pages that are present (see below) |
@@ -50,8 +50,8 @@ The **Take over** section is the section whose id is `take-over` (or `reprendre`
 | Level | Criteria |
 |---|---|
 | **1 Skeleton** | `doc.config.mjs` is valid · `doc-kit build --draft` succeeds · each section has at least 1 written page · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
-| **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % · `coverage` ≥ 80 % (or `n/a`) · no broken link and no legend that differs from its zones, even in draft mode |
-| **3 Complete** | `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or `n/a`) · `coverage` ≥ 80 % (or `n/a`) · no broken link and no legend that differs from its zones, even in draft mode |
+| **3 Complete** | `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) |
 
 The thresholds come from the most complete sites built with this method: they can be reached without heroics, and a site that misses one of them has a gap a reader will notice.
@@ -60,7 +60,7 @@ The thresholds come from the most complete sites built with this method: they ca
 
 - **Level 0** means that level 1 is not reached: the plan cannot be read, or a level-1 criterion fails.
 - **Not measured** (no coverage adapter can inventory the application, no browser for the table widths): the criterion is skipped, never failed, and the report says how to measure it.
-- **n/a** (nothing to measure, for example `conformant` while no page is typed): the criterion is met.
+- **n/a** (nothing to measure, for example `conformant` while no page is typed, or `annotated` with `capture.mode: "none"`): the criterion is met. A documentation without screenshots therefore reaches level 2 on its written, covered pages.
 - `doc-kit audit` builds the site in memory in strict mode, then writes `.doc-kit/audit.md` (the report, in the language of the project) and `.doc-kit/audit.json`, and prints a summary. Its exit code is 0: it informs, it does not block (exit code 2 when the configuration cannot be read).
 - **The actions** are listed level by level, from the next one; inside a level, the quickest first (rename a heading, declare a type, remove guidance) and the longest last (write pages, add proofs). Each action names the pages concerned.
 - **Untyped pages.** The audit names the pages that already follow a template, judged by their headings: all the required sections of the type are there. It prefers the usual types of the section (`screen` in Use and Administer, `editor` and `recipe` in Configure), and never suggests a type for a sub-page of a `screen`, an `editor` or the findings, which stay untyped (see [templates.md](templates.md#untyped-pages)). For the other pages, it gives the closest type and the required sections still missing.

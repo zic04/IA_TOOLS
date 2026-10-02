@@ -251,6 +251,12 @@ export function prompterOf(ctx) {
   return ctx.prompter;
 }
 
+/** An absolute path for the terminal, quoted when it contains spaces. */
+export function absolutePath(p) {
+  const abs = path.resolve(p);
+  return /\s/.test(abs) ? `"${abs}"` : abs;
+}
+
 /** A path for the terminal: relative to the current folder when shorter, quoted when it contains spaces. */
 export function shownPath(p, from = process.cwd()) {
   const rel = path.relative(from, p);

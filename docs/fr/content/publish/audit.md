@@ -42,7 +42,7 @@ Prochain : niveau 3 · Complet — 4 critères à remplir
 | `typed` | Les pages qui déclarent un `template` |
 | `conformant` | Les pages typées qui ont toutes leurs sections obligatoires |
 | `completeness` | La part des sections du gabarit présentes, en moyenne sur les pages typées |
-| `annotated` | Les pages `screen` et `editor` qui ont un `:::ecran` (tant qu'aucune page n'est typée : les pages hors Reprendre) |
+| `annotated` | Les pages `screen` et `editor` qui ont un `:::ecran` (tant qu'aucune page n'est typée : les pages hors Reprendre) ; `n/a` avec `capture.mode: "none"` |
 | `coverage` | Éléments cités ÷ éléments inventoriés par les adaptateurs de couverture |
 | `proofs` | Les pages de Reprendre qui ont au moins une preuve `fichier:ligne` (`lib/orders.ts:42`, entre accents graves) |
 | `takeover` | Les 7 pages obligatoires de Reprendre qui sont présentes |
@@ -58,7 +58,7 @@ Prochain : niveau 3 · Complet — 4 critères à remplir
 | Niveau | Critères |
 |---|---|
 | **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page écrite · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
-| **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
+| **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou n/a) · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
 | **3 Complet** | `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) |
 

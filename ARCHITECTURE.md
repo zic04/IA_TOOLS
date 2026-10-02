@@ -73,10 +73,17 @@ doc-kit/
 
 ### 2.1 What `init` creates
 
-`doc-kit init <app-dir>` creates `<app-dir>/docs/manual/`. The folder name can be changed with `--dir`.
-- It detects the framework (`next` with `app/` or `src/app/` → `next-app-router`; `react-router`), a Python back end, the dev script's port and the name, then asks for the product name, the language, the application URL and the sign-in method, and confirms.
-- `--name`, `--lang`, `--url`, `--framework next|react-router|none` and `--auth` answer in advance; `--yes` takes the detected values and the options without any question (required without a terminal).
-- It writes `templates/project/common/` then `templates/project/<language>/`, variables filled. The skeleton's `kit` range is set to accept the installed kit. A non-empty target folder is refused (exit code 1).
+`doc-kit init <app-dir>` creates `<app-dir>/docs/manual/`. The folder name can be changed with `--dir`. `<app-dir>` (default: the current folder) is the **application root**; the front end may sit in a sub-folder (`frontend`, `front`, `web`, `client`, `ui`, `app`, `apps/web`).
+- It detects the framework (`next` with `app/` or `src/app/` → `next-app-router`; `react-router`), a Python back end, the dev script's port, the product name, the version file and the `.env` files, then asks for the product name, the language, the application URL, the capture mode and the sign-in method, shows the recap and confirms.
+- `--name`, `--lang`, `--url`, `--framework next|react-router|none`, `--auth` and `--capture app|none` answer in advance; `--yes` takes the detected values and the options without any question (required without a terminal). With `--yes`, the site language is `--lang`, else the system language (`LC_ALL`, `LC_MESSAGES`, `LANG`), else English.
+- **Product name**: `--name`; else the `title` of the `metadata` exported by the Next.js root layout of the front end (`app/layout.*` or `src/app/layout.*`, a string or `{ default }`); else `productName`, `displayName` or `name` of the front end's `package.json`, without its scope and without a `-frontend`, `-front`, `-web`, `-ui`, `-client` or `-app` suffix; a generic name (`frontend`, `web`, `app`…) gives way to the root `package.json`, then to the folder name. Renaming afterwards: `product.name` in `doc.config.mjs` (the slug and the output follow unless they are set) and the `title`, `tagline` and section titles of `content/toc.json`.
+- **Version** (`version.file`, `version.pattern`): `version.txt` or `VERSION` at the application root, else the root `package.json` when it has a `version`, else the front end's `package.json`, else the `pyproject.toml` of a Python-only application.
+- **Masking files** (`masking.env`): `.env` and `.env.local` at the application root and in the front-end folder, only the files that exist (never `*.example`).
+- **Application folder** (`app.dir`): the application root, relative to the documentation project.
+- **Recap.** Before writing anything, with or without `--yes`, `init` prints what it is about to write: folder, product name (and where it was found), slug, language, URL, version (and the file it is read in), sign-in, capture mode, coverage adapter and source, masking files, application folder, and where to rename the product afterwards. Without `--yes`, a confirmation follows.
+- It writes `templates/project/common/` then `templates/project/<language>/`, variables filled; every `.md` file goes through the capture variants (§6.4), and `captures/plans/example.mjs` is only written in capture mode `app`. The skeleton's `kit` range is set to accept the installed kit. A non-empty target folder is refused (exit code 1).
+- **Capture mode `none`** (`--capture none`, or the answer to the question): `capture.mode: "none"` in the configuration, no example capture plan, starter pages that describe each screen with a table (`| Element | What it shows |`) instead of a `:::screen`, a home page without the "interactive screens" callout, `package.json` scripts without `doc-kit capture`, no sign-in question, and next steps without `connect` and `capture`.
+- The example routes of the skeleton are fictional (`/example/…`, `/exemple/…`), so that they never match a route of the application.
 
 ```
 doc.config.mjs · package.json · .gitignore · README.md · WRITING-GUIDE.md
@@ -120,9 +127,10 @@ export default defineConfig({
   version: { file: "../../package.json", pattern: "\"version\"\\s*:\\s*\"([^\"]+)\"", fallback: "0.0.0" },
   env: { prefix: "ACME" },                          // also reads ACME_URL, ACME_SESSION, ACME_PLANS, ACME_READONLY, ACME_VERSION
                                                     // default prefix: the slug in upper case (ACME_ORDERS)
-  app: { url: "http://localhost:3000" },
+  app: { url: "http://localhost:3000", dir: "../.." },   // dir: the application root (code), relative to the project
   auth: { adapter: "manual" },                      // manual | none | nextauth | api-me | local:adapters/x.mjs (+ adapter options)
   capture: {
+    mode: "app",                                    // "app": the screens are captured · "none": no screenshot at all
     plans: "captures/plans",
     setup: null,                                    // demo data preparation script (doc-kit demo)
     locale: null,                                   // default: derived from language (en-US, fr-FR)
@@ -148,6 +156,12 @@ export default defineConfig({
 ```
 
 - **Neutral defaults.** No cookie, no CSS framework selector, no brand colour and no geolocation are applied unless the configuration asks for them.
+- **`app.dir`** (default `null`): the application root, the folder given to `init`, which writes it. The skill's `brief.mjs` gives it to the agents as `{{appDir}}` (§8), and `doctor` looks there for a `version.txt`, `VERSION` or `CHANGELOG.md` that contradicts the documented version.
+- **`capture.mode`** (default `"app"`): `"none"` declares a documentation without screenshots.
+  - `capture` and `connect` explain the mode and stop with exit code 2 (`connect --forget` still deletes a session);
+  - `doctor` checks neither the session nor the capture plans folder; the guided mode never offers `connect` or `capture`;
+  - `audit` counts `annotated` as `n/a` (`standard/maturity.md`): level 2 is reachable;
+  - `init` and `new` write the `none` variant of the templates (§6.4).
 - **Strict validation.** An unknown key is an error, reported with its path (for example `capture.storgae`), and the command exits with code 2. A key whose value is `undefined` counts as absent (a JavaScript helper passing an optional argument through), here and in the capture plans.
 - **`masking`** says what is secret, for the screenshots (`engine/capture/masking.mjs`) and for `check secrets` (`engine/check/secrets.mjs`):
   - `env`: the application's `.env` files; the values of the keys whose name suggests a URL, host, tenant, client, account, e-mail, user or secret, longer than 6 characters, are masked and reported, except those matching `exclude`;
@@ -168,18 +182,21 @@ export default defineConfig({
 
 ## 4. CLI
 
-`doc-kit <command> [options]`. Global options: `--project <dir>`, `--json`, `--verbose`, `--lang en|fr` (message language; by default, the project's language).
+`doc-kit <command> [options]`. Global options: `--project <dir>`, `--json`, `--verbose`, `--lang en|fr` (message language; by default, the project's language), `--help`, `--version`.
+
+**Help.** `doc-kit --help` (or `doc-kit help`) prints the list of the commands. `doc-kit <command> --help` and `doc-kit help <command>` print the usage of that command and every one of its options, in the message language, then the global options (`cli.help.<command>` and `cli.help.globals`); exit code 0, nothing runs. An unknown command after `help` is a usage error (exit code 2). `help` is not a command module: the dispatcher handles it.
 
 **Message language.** Unless `--lang` is given, every command speaks the project's language (`language` of `doc.config.mjs`, English when it is absent) from its first message: before running the command, the dispatcher locates the project (`--project`, or from the current folder upwards) and reads only that key (`ctx.useProjectLanguage()` in `cli/common.mjs`), so that `doctor`, which checks the configuration piece by piece, and the errors raised before the project is loaded are translated too. A configuration that cannot be imported, or an invalid language, leaves the language as it is (`DOC_KIT_LANG`, else English); the command reports the problem. `init` creates a project elsewhere: the project around it does not choose its language. The guided mode does the same.
 
 | Command | Main options | What it does |
 |---|---|---|
 | *(none)* | | guided mode (§4.1) |
-| `init [app-dir]` | `--dir --name --url --framework next\|react-router\|none --auth --yes` (+ global `--lang`) | creates the documentation project (§2.1) |
-| `doctor` | `--network` | checks the environment and the project, one line per check with its fix |
-| `connect` | `--url --forget` | visible browser: the person signs in, the session is saved (§5); `--forget` deletes it |
+| `help [command]` | | the list of the commands, or the usage and options of one command |
+| `init [app-dir]` | `--dir --name --lang --url --framework next\|react-router\|none --auth --capture app\|none --yes` | creates the documentation project (§2.1); `--lang` (global) is also the site language |
+| `doctor` | `--network` | checks the environment and the project, one line per check with its fix; ⚠ "version never incremented?" when the documented version is `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application (`app.dir`, or the folder of `version.file`) gives another one |
+| `connect` | `--url --forget` | visible browser: the person signs in, the session is saved (§5); `--forget` deletes it; refused (2) when `capture.mode` is `none`, except `--forget` |
 | `demo` | | runs `capture.setup` in its own Node process (variables `DOC_KIT_PROJECT`, `DOC_KIT_URL`, `DOC_KIT_CONFIG`) |
-| `capture [patterns…]` | `--plans --preview --no-session` | headless captures (§6.3); `--preview` also writes `.doc-kit/<id>.zones.png`, the zones drawn in red |
+| `capture [patterns…]` | `--plans --preview --no-session` | headless captures (§6.3); `--preview` also writes `.doc-kit/<id>.zones.png`, the zones drawn in red; refused (2) when `capture.mode` is `none` |
 | `build` | `--draft --date YYYY-MM-DD --output` | the site; strict by default (exit code 1, nothing written), `--draft` turns the problems into warnings |
 | `dev` | `--port` (default: first free port from 4400) | draft build served on `127.0.0.1`, rebuilt and reloaded on every change |
 | `new <page-id>` | `--template <type> --title --parent` | page from a template, declared in the table of contents |
@@ -211,7 +228,7 @@ export default defineConfig({
 | `DOC_KIT_NO_OPEN=1` | `dev` and `open` print the address without opening a browser (tests, remote machines) |
 | `CLAUDE_CONFIG_DIR` | `skill install` and `doctor` use `$CLAUDE_CONFIG_DIR/skills` instead of `~/.claude/skills` |
 
-**Adding a command.** Create `cli/commands/<name>.mjs`. It exports `options`, in `node:util` `parseArgs` format, and `run({ ctx, values, positionals })`, which returns an exit code. The dispatcher discovers commands from the files in that folder. The options of all commands are merged into a single parser, so an option name used by two commands must have the same type in both; an option that belongs to another command is a usage error. `LATER` (in `cli/doc-kit.mjs`) lists commands announced but not delivered yet; it is empty, every command exists.
+**Adding a command.** Create `cli/commands/<name>.mjs`. It exports `options`, in `node:util` `parseArgs` format, and `run({ ctx, values, positionals })`, which returns an exit code, and add its `cli.help.<name>` text (usage, then every option) in both languages. The dispatcher discovers commands from the files in that folder. The options of all commands are merged into a single parser, so an option name used by two commands must have the same type in both; an option that belongs to another command is a usage error. `LATER` (in `cli/doc-kit.mjs`) lists commands announced but not delivered yet; it is empty, every command exists.
 
 **Messages.** Every error has the form `✖ <what is wrong>`, followed by `  → <what to do>`. All messages come from `cli.*` i18n keys.
 
@@ -224,10 +241,11 @@ export default defineConfig({
 | `init` | no documentation project here |
 | `install` | the project's dependencies are missing (`npm install`) |
 | `doctor` | the configuration cannot be used |
-| `connect` | no session, while the authentication adapter needs one |
-| `capture` | no screenshot yet |
+| `connect` | no session, while the authentication adapter needs one (never with `capture.mode: "none"`) |
+| `capture` | no screenshot yet (never with `capture.mode: "none"`) |
 | menu | everything is in place: `dev`, `audit`, `build`, `doctor` |
 
+- The folder is shown as an absolute path, quoted when it contains a space.
 - With a terminal, it asks for confirmation (or a choice in the menu) and runs the step; `init` keeps asking through the same prompts.
 - Without a terminal (CI, pipes), it prints the next step and exits with code 0, running nothing. `--json` prints `{ step, folder, next }`.
 
@@ -255,6 +273,7 @@ export default {
 - **Options.** `options` maps each option to a schema (validator of §3; `required: true` marks a mandatory option); the configuration entry is validated against it, defaults applied, and an error is reported with its path (`coverage[0].ap`, `auth.loginPatern`), exit code 2.
 - **Coverage.** The kit does the search in the content (normalised text of `content/**/*.md|json`), the report and the exit code.
   - An item is `{ id, label?, match: [texts] }`; it is covered when one of its `match` texts appears (case and white space ignored).
+  - A page that still contains template guidance (§6.4) is not written yet: neither its text nor its entry in the table of contents (id, titles, `routes`, its id in `journeys` and `suggestions`) count. A skeleton never covers a route by its examples.
   - `{ available: false, reason, vars }`: the check of that adapter is skipped (not failed); `reason` is translated through `cli.adapter.reason.<reason>` (`notFound`, `blockNotFound`, `error`), else shown as is.
   - The adapters receive `tools`: `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey`; paths are relative to the documentation project.
   - Built-in: `next-app-router` (`app`, `family`, `exclude`), `react-router` (`file`, `pattern`, `prefix`, `family`, `exclude`), `i18n-registry` (`source`, `block`, `pattern`, `flags`, `messages`, `key`, `aliases`, `fallback`, `exclude`, `family`), `glob` (`base`, `pattern`, `match`, `family`, `exclude`). Routes are covered as is, with `:id`, `{id}` or `[id]`, or by their static prefix (`/orders/` for `/orders/[id]`).
@@ -349,6 +368,17 @@ Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is document
 - **Matching a section.** A required section is found when a `##` heading of the page **starts with** its label or with one of its aliases. Case and accents are ignored.
 - **`required`.** It holds indexes into `sections`, so it is language-neutral. The `en` and `fr` section lists have the same length and the same order.
 - **Template guidance.** Guidance left in a page is marked `<!-- guidance:` (en) or `<!-- consigne :` (fr). `audit` reports it, and the build warns about it (a missing required section is an error in a strict build, a warning with `--draft`).
+- **Capture variants.** A template (page templates and the `.md` files of the project skeleton) may hold the two variants of a passage, one per capture mode (§3, `capture.mode`), each on its own lines:
+
+  ```
+  <!-- doc-kit:capture=app -->
+  …with a :::screen block or a screenshot callout…
+  <!-- doc-kit:capture=none -->
+  …the same passage without screenshot: a table | Element | What it shows |, in reading order…
+  <!-- doc-kit:end -->
+  ```
+
+  `init` and `new` keep the lines of the project's mode and remove the markers (`captureVariant(text, mode)` in `engine/build/page-templates.mjs`); text outside the markers is common to both modes. The `screen` and `editor` templates use them for "The screen" (and "What it changes").
 
 ### 6.5 i18n
 
@@ -367,7 +397,8 @@ Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is document
 - **Fragments:** a feature can keep its keys in `i18n/<language>/<feature>.json`, so that features can be written independently. Fragments are merged with `i18n/<language>.json` (in file name order), and a key defined twice is an error. Current fragments, in `en/` and `fr/`:
   - `capture.json`: `cli.capture.*`, `cli.connect.*`, `cli.demo.*`, `cli.adapter.*`, `cli.check.*`, `cli.inventory.*`;
   - `audit.json`: `cli.audit.*`, `cli.new.*`;
-  - `ux.json`: `cli.init.*`, `cli.doctor.*`, `cli.dev.*`, `cli.export.*`, `cli.upgrade.*`, `cli.skill.*`, `cli.guided.*`, `cli.prompt.*`, and a few `ui.*` keys (footer, zones, search).
+  - `ux.json`: `cli.init.*`, `cli.doctor.*`, `cli.dev.*`, `cli.export.*`, `cli.upgrade.*`, `cli.skill.*`, `cli.guided.*`, `cli.prompt.*`, and a few `ui.*` keys (footer, zones, search);
+  - `help.json`: `cli.help.*`, the help of each command (`cli.help.<command>`) and of the global options (`cli.help.globals`).
 - **Plurals:** `{ "one": "…", "other": "…" }`, resolved with `Intl.PluralRules`.
 - **Variables:** `{n}`, `{name}`…
 - **Parity:** both files have the same keys and the same variables. A test checks this.
@@ -452,7 +483,7 @@ Diagrams (`diagrams/*.svg`) use only the site's classes, so they follow the ligh
 - `writing`: writing rules;
 - `captures`: capture safety;
 - `quality`: blocking gates and warnings;
-- `maturity`: levels 1 to 4, each measurable by `audit`;
+- `maturity`: levels 1 to 4, each measurable by `audit` (`annotated` is `n/a` with `capture.mode: "none"`);
 - `delivery`: handover checklist;
 - `config`: commented configuration examples, all fictional.
 
@@ -461,10 +492,12 @@ The 13 page types are `screen`, `editor`, `recipe`, `technical`, `technical-sub`
 ## 8. Skill
 
 The source lives in `skill/doc-kit/`:
-- `SKILL.md`: front matter `name: doc-kit` and `description`, about 160 lines, in English. It tells Claude to answer in the user's language.
+- `SKILL.md`: front matter `name: doc-kit` and `description`, about 170 lines, in English. It tells Claude to answer in the user's language.
 - `references/*.md`, in English.
 - `assets/briefs/{en,fr}/*.md`: brief templates with parameters such as `{{product}}`, `{{docDir}}`, `{{code}}`…, filled by `scripts/brief.mjs` from `doc.config.mjs` and `--var` values.
 - `scripts/*.mjs`: `brief.mjs`, `consolidation.mjs` and their shared `common.mjs` (Node ≥ 20, no dependency).
+  - `{{appDir}}`, the application code given to the agents: `--var appDir`, else `extra.briefs.appDir`, else `app.dir` (§3), else the nearest of the documentation folder's parent and grandparent that holds `.git`, else its grandparent (`docs/manual` → the application). `brief.mjs` warns when `appDir` was not configured, and when the coverage source sits in a sub-folder with its own `package.json` (a separate front end: the inventory of routes does not see the back end).
+  - `brief.mjs` speaks the project's language (`language` of `doc.config.mjs`; without a project, `--lang`, else English); `--list` prints the available languages and the templates of each.
 
 `doc-kit skill install [--target <skills folder>] [--force]` copies the skill to `<skills folder>/doc-kit/`:
 - the skills folder is `--target`, else `$CLAUDE_CONFIG_DIR/skills`, else `~/.claude/skills`; nothing but its `doc-kit/` folder is written;

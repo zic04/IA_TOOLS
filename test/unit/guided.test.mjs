@@ -63,6 +63,23 @@ describe("situation", () => {
   });
 });
 
+describe("no-screenshot mode (capture.mode none)", () => {
+  test("neither connect nor capture is ever offered: the menu, with a line that says why", async () => {
+    const dir = demoCopy();
+    try {
+      fs.rmSync(path.join(dir, "images", "zones"), { recursive: true });
+      const config = path.join(dir, "doc.config.mjs");
+      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/capture: \{/, 'capture: {\n    mode: "none",'));
+      assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "no session and no screenshot, yet nothing to capture");
+      const r = await cli(["--project", dir]);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /Acme Orders: the project is in place\.\nCapture mode “none”: no screenshot, so neither connect nor capture is offered\.\n\nNext step: doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("guided mode", () => {
   test("without a terminal: prints the next step, runs nothing, exit code 0; --json", async () => {
     const dir = demoCopy();
@@ -104,9 +121,10 @@ describe("guided mode", () => {
     try {
       fs.writeFileSync(path.join(app, "package.json"), JSON.stringify({ name: "acme-orders", dependencies: { next: "15.0.0" } }));
       fs.mkdirSync(path.join(app, "app"));
-      const r = await cli(["--project", app], { input: ["y", "", "1", "", "2", "y"] });
+      const r = await cli(["--project", app], { input: ["y", "", "1", "", "1", "2", "y"] });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /No documentation project in .*\.\n\? Run doc-kit init .* now\? \(Y\/n\) › y\n/);
+      assert.match(r.out, /No documentation project \(doc\.config\.mjs\) for this folder: .*\n\? Run doc-kit init .* now\? \(Y\/n\) › y\n/);
+      assert.ok(r.out.includes(path.resolve(app)), "the folder is shown in full, never as “.”");
       assert.match(r.out, /\? Product name \(Acme Orders\) › \n/);
       assert.match(r.out, /✔ \d+ files written in /);
       const config = fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8");

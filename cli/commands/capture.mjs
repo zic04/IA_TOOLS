@@ -8,7 +8,8 @@
 //   capture --no-session         without the saved session (public pages)
 // With a session (doc-kit connect), the session is checked first (exit code 3 when it has expired) and the run is
 // read-only (capture.readOnly "auto"): every request other than GET/HEAD/OPTIONS is blocked in the browser and
-// counted on the last line. Routes matching capture.forbidden are refused (exit code 1); during the run, a request
+// counted on the last line. With capture.mode "none" (no screenshot), it explains the mode and stops (exit code 2).
+// Routes matching capture.forbidden are refused (exit code 1); during the run, a request
 // that only prefetches one of them is aborted and counted, and a navigation to one stops that capture.
 import fs from "node:fs";
 import path from "node:path";
@@ -26,6 +27,8 @@ export const options = {
 
 export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
+  // A documentation declared without screenshots: say so rather than look for plans or a session.
+  if (config.capture.mode === "none") throw new KitError(EXIT.USAGE, "capture.modeNone", { file: "doc.config.mjs" });
   const root = project.root;
   const plans = values.plans || config.capture.plans;
   const folder = path.resolve(root, plans);

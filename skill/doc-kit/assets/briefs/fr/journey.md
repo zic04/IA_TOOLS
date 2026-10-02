@@ -1,6 +1,6 @@
 # Brief — parcours de bout en bout : {{topic}} ({{product}}, code {{code}})
 
-Tu rédiges, en {{languageName}}, une partie du site de documentation de **{{product}}**{{#if description}} ({{description}}){{/if}}{{#if stack}} ; {{stack}}{{/if}}.
+Tu rédiges, en {{languageName}}, une partie du site de documentation du produit **{{product}}**{{#if description}} ({{description}}){{/if}}{{#if stack}} ; {{stack}}{{/if}}.
 Un **parcours de bout en bout** raconte ce qui se passe réellement, étape par étape, dans le code et les données, pour
 le sujet suivant : **{{topic}}**. Ce qui est automatique, ce qui attend quelqu'un, ce qui est écrit où, ce qui casse.
 

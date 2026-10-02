@@ -2,8 +2,10 @@
 // Checks the environment and the project, one line per check: ✔ OK · ⚠ to look at · ✖ to fix (with → the fix).
 //   environment  Node version, kit version against the project's `kit` range, kit dependencies, Chromium,
 //                the project's dependency on the kit (npm install), the installed Claude Code skill
-//   project      configuration, paths (table of contents, version file, coverage sources, masking files,
-//                capture plans), .gitignore (.doc-kit/ and dist/), session (present, age, not tracked by git),
+//   project      configuration, paths (table of contents, version file — ⚠ a version 0.0.0 or 1.0.0 that a
+//                version.txt, VERSION or CHANGELOG.md of the application contradicts —, application folder,
+//                coverage sources, masking files, capture plans), .gitignore (.doc-kit/ and dist/), session
+//                (present, age, not tracked by git; neither the session nor the plans with capture.mode "none"),
 //                theme contrasts (WCAG)
 //   --network    the application URL answers
 // Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails,
@@ -30,6 +32,7 @@ import {
   shownFolder,
 } from "../../engine/dev/environment.mjs";
 import { skillStatus } from "./skill.mjs";
+import { VERSION_FILES, VERSION_TEXT_PATTERN } from "./init.mjs";
 
 export const options = {
   network: { type: "boolean" },
@@ -48,6 +51,30 @@ function pathOptions(value, at = "") {
   if (Array.isArray(value)) return value.flatMap((v, i) => pathOptions(v, `${at}[${i}]`));
   if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => (NOT_PATHS.has(k) ? [] : pathOptions(v, at ? `${at}.${k}` : k)));
   return [];
+}
+
+/** Versions that a project which never bumps its version keeps: a documented one is suspicious. */
+const FROZEN_VERSIONS = new Set(["0.0.0", "1.0.0"]);
+/** First released version of a changelog (a heading "## [1.2.3]", "## v1.2.3 - date"; "Unreleased" skipped). */
+const CHANGELOG_VERSION = /^#{1,3}\s*\[?v?(\d+\.\d+\.\d+[\w.+-]*)/m;
+
+/**
+ * Another version of the application than `documented`: a version.txt, VERSION or CHANGELOG.md in the application
+ * folder (app.dir) or next to the version file. Null when none says otherwise.
+ * @returns {{ file: string, version: string }|null}  file relative to the project root
+ */
+export function otherVersion(root, config, documented) {
+  const versionFile = config.version.file ? path.resolve(root, config.version.file) : null;
+  const folders = [config.app.dir ? path.resolve(root, config.app.dir) : null, versionFile ? path.dirname(versionFile) : null].filter(Boolean);
+  for (const folder of [...new Set(folders)]) {
+    for (const [name, pattern] of [...VERSION_FILES.map((f) => [f, new RegExp(VERSION_TEXT_PATTERN)]), ["CHANGELOG.md", CHANGELOG_VERSION]]) {
+      const file = path.join(folder, name);
+      if (file === versionFile || !fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+      const version = pattern.exec(fs.readFileSync(file, "utf8"))?.[1];
+      if (version && version !== documented) return { file: slash(path.relative(root, file)), version };
+    }
+  }
+  return null;
 }
 
 /**
@@ -167,9 +194,18 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     if (!fs.existsSync(f)) add("version", "warn", "project", "cli.doctor.version.missing", { file: config.version.file, fallback: config.version.fallback });
     else {
       const m = new RegExp(config.version.pattern).exec(fs.readFileSync(f, "utf8"));
-      if (m && m[1]) add("version", "ok", "project", "cli.doctor.version.ok", { file: config.version.file, version: m[1] });
+      // A version never incremented (0.0.0, 1.0.0) while the application says otherwise elsewhere: ⚠, not ✔.
+      const other = m && m[1] && FROZEN_VERSIONS.has(m[1]) ? otherVersion(root, config, m[1]) : null;
+      if (other) add("version", "warn", "project", "cli.doctor.version.frozen", { file: config.version.file, version: m[1], source: other.file, other: other.version });
+      else if (m && m[1]) add("version", "ok", "project", "cli.doctor.version.ok", { file: config.version.file, version: m[1] });
       else add("version", "warn", "project", "cli.doctor.version.noMatch", { file: config.version.file, fallback: config.version.fallback });
     }
+  }
+
+  // Application folder (app.dir): the code read by the writers and the skill's briefs.
+  if (config.app.dir) {
+    const ok = fs.existsSync(path.resolve(root, config.app.dir));
+    add("appDir", ok ? "ok" : "warn", "project", ok ? "cli.doctor.appDir.ok" : "cli.doctor.appDir.missing", { path: config.app.dir, folder: path.resolve(root, config.app.dir) });
   }
 
   // Coverage sources.
@@ -186,9 +222,10 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     add(`masking.${file}`, ok ? "ok" : "warn", "project", ok ? "cli.doctor.masking.ok" : "cli.doctor.masking.missing", { file });
   });
 
-  // Capture plans.
+  // Capture plans (none to expect without screenshots).
+  const noCapture = config.capture.mode === "none";
   const plans = path.resolve(root, config.capture.plans);
-  if (!fs.existsSync(plans)) add("plans", "warn", "project", "cli.doctor.plans.missing", { folder: config.capture.plans });
+  if (!noCapture && !fs.existsSync(plans)) add("plans", "warn", "project", "cli.doctor.plans.missing", { folder: config.capture.plans });
 
   // .gitignore: the work folder (session!) and the built site.
   const work = isIgnored(root, ".doc-kit/session.json");
@@ -202,7 +239,11 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   // Session.
   const session = sessionInfo({ root, config, env: ctx.env });
   const shown = inside(session.file) ? rel(session.file) : session.file;
-  if (!session.needed) add("session", "ok", "project", "cli.doctor.session.notNeeded", {});
+  if (noCapture) {
+    add("session", "ok", "project", "cli.doctor.session.noCapture", {});
+    // An old session left behind still holds sign-in cookies.
+    if (session.exists && isTracked(root, session.file)) add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
+  } else if (!session.needed) add("session", "ok", "project", "cli.doctor.session.notNeeded", {});
   else if (!session.exists) add("session", "warn", "project", "cli.doctor.session.missing", { file: shown, command: BRAND.command });
   else {
     const age = session.ageHours < 1 ? ctx.t("cli.doctor.minutes", { n: Math.max(1, Math.round(session.ageHours * 60)) }) : session.ageHours < 48 ? ctx.t("cli.doctor.hours", { n: Math.round(session.ageHours) }) : ctx.t("cli.doctor.days", { n: Math.round(session.ageHours / 24) });

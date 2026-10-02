@@ -18,6 +18,8 @@ import {
   closestTemplate,
   maxWordsOf,
   DEFAULT_MAX_WORDS,
+  captureVariant,
+  CAPTURE_MODES,
 } from "../../engine/build/page-templates.mjs";
 import { loadDictionary } from "../../engine/i18n.mjs";
 import { KIT_ROOT, buildDemo, demoCopy } from "../tools/helpers.mjs";
@@ -51,6 +53,46 @@ describe("standard/templates.json and the page templates", () => {
         assert.doesNotMatch(source, language === "en" ? /<!--\s*consigne\s*:/ : /<!--\s*guidance\s*:/, `${type}/${language}: guidance of the other language`);
         assert.ok(a.words < def.maxWords, `${type}/${language}: words`);
       }
+  });
+});
+
+describe("capture variants (capture.mode)", () => {
+  test("captureVariant keeps the lines of the mode, drops the other's and every marker; common text stays", () => {
+    const text = ["a", "<!-- doc-kit:capture=app -->", "shot", "<!-- doc-kit:capture=none -->", "table", "<!-- doc-kit:end -->", "b"].join("\r\n");
+    assert.equal(captureVariant(text, "app"), "a\r\nshot\r\nb");
+    assert.equal(captureVariant(text, "none"), "a\r\ntable\r\nb");
+    assert.equal(captureVariant("plain\ntext", "none"), "plain\ntext");
+    assert.deepEqual(CAPTURE_MODES, ["app", "none"]);
+  });
+
+  test("both variants of every template follow their type; without screenshots, a table in reading order and never a :::screen", () => {
+    for (const [type, def] of Object.entries(table.types))
+      for (const language of ["en", "fr"]) {
+        const raw = fs.readFileSync(path.join(KIT_ROOT, def.template.replace("{language}", language)), "utf8");
+        for (const mode of CAPTURE_MODES) {
+          const source = captureVariant(raw, mode);
+          const a = analysePage({ table, type, headings: headingsOf(source), source, language });
+          assert.equal(a.present.length, a.sections, `${type}/${language}/${mode}: every section of the type`);
+          assert.doesNotMatch(source, /doc-kit:(?:capture|end)/, `${type}/${language}/${mode}: marker left`);
+          if (mode === "none") assert.doesNotMatch(source, /^\s*:::(?:screen|ecran)\{|^\s*::(?:before-after|avant-apres)\{/m, `${type}/${language}: screenshot without screenshots`);
+        }
+        if (["screen", "editor"].includes(type)) {
+          const none = captureVariant(raw, "none");
+          assert.match(none, language === "en" ? /\n\| Element \| What it shows \|\n\|---\|---\|\n\| \*\*Exact label\*\* \|/ : /\n\| Élément \| Ce qu'il montre \|\n\|---\|---\|\n\| \*\*Libellé exact\*\* \|/, `${type}/${language}`);
+          assert.match(none, language === "en" ? /<!-- guidance: no screenshot in this project/ : /<!-- consigne : pas de capture dans ce projet/);
+          assert.match(captureVariant(raw, "app"), /^:::(?:screen|ecran)\{/m, `${type}/${language}: the screenshot variant`);
+        }
+      }
+  });
+
+  test("the example routes of the templates and of the skeleton are fictional", () => {
+    const files = [
+      ...["en", "fr"].flatMap((l) => fs.readdirSync(path.join(KIT_ROOT, "templates", "pages", l)).map((f) => path.join(KIT_ROOT, "templates", "pages", l, f))),
+      ...["en", "fr"].flatMap((l) => fs.readdirSync(path.join(KIT_ROOT, "templates", "project", l, "content"), { recursive: true }).map((f) => path.join(KIT_ROOT, "templates", "project", l, "content", String(f)))),
+    ].filter((f) => f.endsWith(".md"));
+    for (const f of files)
+      for (const m of fs.readFileSync(f, "utf8").matchAll(/\[\[route ([^\]]+)\]\]/g))
+        assert.match(m[1], /^\/(?:$|example\/|exemple\/)/, `${path.relative(KIT_ROOT, f)}: ${m[1]}`);
   });
 });
 

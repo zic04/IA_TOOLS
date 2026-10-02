@@ -125,8 +125,10 @@ export default defineConfig({
   // Production captures: DELIVERIES_URL=https://deliveries.acme.example DELIVERIES_PLANS=captures/plans-prod, with a session.
   env: { prefix: "DELIVERIES" },
 
-  // By default, the application running LOCALLY (front-end dev server) with the demo data.
-  app: { url: "http://localhost:5173" },
+  // By default, the application running LOCALLY (front-end dev server) with the demo data. `dir` is the
+  // application root, written by `doc-kit init`: the front end sits in frontend/ and the Python API in api/, and
+  // the writers (and the skill's briefs) read both from there.
+  app: { url: "http://localhost:5173", dir: "../.." },
 
   // "api-me": the session is valid when the API's "me" endpoint answers with the signed-in user (the front-end
   // dev server forwards /api to the Python API). The adapter's options go next to "adapter": `url` (default
@@ -248,6 +250,16 @@ On Windows PowerShell, set the variables first: `$env:DELIVERIES_URL = "https://
 | `capture.forbidden` | Order records | — | A write by the server while rendering (`ensureApprovalChain`) |
 | `coverage` | Routes `app/**/page.tsx` | Routes + i18n registries | What must be documented depends on the product |
 | `statuses` | — | 5 coloured statuses | Statuses colour-coded in the application |
+
+## Without screenshots
+
+When the documentation must be written without any access to the application, declare it: `doc-kit init --capture none` writes it for you.
+
+```js
+  capture: { mode: "none" }, // no screenshot: each screen is described by a table of its elements
+```
+
+`capture` and `connect` then explain the mode and stop (exit code 2), `doctor` and the guided mode stop asking for a session, `doc-kit new` writes "The screen" as a table `| Element | What it shows |`, and `doc-kit audit` counts `annotated` as `n/a` ([maturity.md](maturity.md)).
 
 ## Older projects
 
