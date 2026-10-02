@@ -168,6 +168,7 @@ export function build({ project, config, options = {} }) {
   const index = [];
   const links = {};
   const sections = [];
+  const unwritten = new Set();
 
   for (const sec of toc.sections) {
     if (sec.icon && !(iconKey(sec.icon) in ICONS)) warnings.push({ kind: "toc", key: "toc.icon", vars: { section: sec.id, icon: sec.icon } });
@@ -176,9 +177,13 @@ export function build({ project, config, options = {} }) {
       const ids = g.pages.map((p) => {
         const file = `${content}/${p.file || p.id + ".md"}`;
         let source;
-        if (exists(file)) source = read(file);
+        const missing = !exists(file);
+        if (!missing) source = read(file);
         else {
-          report(true, { kind: "page", key: "page.missing", vars: { file } });
+          // One problem per page not written yet: neither the sections of its template nor the anchors that point
+          // into it are checked before its file exists (ARCHITECTURE.md §6.4).
+          unwritten.add(p.id);
+          report(true, { kind: "page", key: "page.missing", vars: { page: p.id, file } });
           source = `> [!NOTE] ${t("render.draftPage.title")}\n> ${t("render.draftPage.text")}\n`;
         }
         if (pages[p.id]) warnings.push({ kind: "toc", key: "toc.duplicate", vars: { page: p.id } });
@@ -202,8 +207,9 @@ export function build({ project, config, options = {} }) {
         indexPage(index, p.id, p.title, r.html);
         // Page template (page-templates.mjs): required sections of a typed page (strict), guidance left (warning).
         const headings = r.toc.filter((x) => x.niveau === 2).map((x) => x.titre);
-        for (const { strict, ...problem } of checkPage({ pageId: p.id, template: p.template, headings, source, templates, language: config.language }))
-          report(strict, { kind: "template", ...problem });
+        if (!missing)
+          for (const { strict, ...problem } of checkPage({ pageId: p.id, template: p.template, headings, source, templates, language: config.language }))
+            report(strict, { kind: "template", ...problem });
         return p.id;
       });
       groups.push({ titre: g.title || "", pages: ids });
@@ -226,7 +232,7 @@ export function build({ project, config, options = {} }) {
   const homeHtml = homeFile ? engine.render(read(homeFile), "accueil").html : "";
 
   // Internal links: target page and anchor exist; journey steps exist.
-  for (const problem of checkLinks({ pages, links, sections: toc.sections.map((s) => s.id), journeys: toc.journeys || [] })) report(true, problem);
+  for (const problem of checkLinks({ pages, links, sections: toc.sections.map((s) => s.id), journeys: toc.journeys || [], unwritten })) report(true, problem);
   if (legacyFiles.length) warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: legacyFiles.join(", ") } });
 
   // ─── Embedded images (once each) ───────────────────────────────────────────

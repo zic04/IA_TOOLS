@@ -18,7 +18,7 @@ Le skill répond dans la langue de l'utilisateur ; le site est écrit dans la la
 
 | Phase | But | Commandes et agents | Terminée quand |
 |---|---|---|---|
-| 0 · Cadrage | Public, langue, sections, mode de capture, données réelles ou non, routes à ne jamais ouvrir, qui se connecte | — | Décisions écrites ; la décision du propriétaire sur les données réelles |
+| 0 · Cadrage | Public, langue, sections, mode de capture, données réelles ou non, routes à ne jamais ouvrir, qui se connecte ; Claude demande si les captures se font sur la production (en lecture seule) et s'il faut ouvrir le navigateur maintenant | `doc-kit init --target …`, `doc-kit connect` | Décisions écrites ; la décision du propriétaire sur les données réelles |
 | 1 · Mise en place | Créer et configurer le projet, depuis la racine de l'application ; relire le récapitulatif d'`init` | `doc-kit init`, `doc-kit doctor` | `doctor` sans erreur ; `build --draft` passe |
 | 2 · Inventaire | La navigation réelle, les routes et les permissions, les pages qui écrivent pendant leur rendu | `doc-kit inventory --json` ; 1 agent en lecture seule, brief `inventory` | Inventaire enregistré ; documentation périmée signalée |
 | 3 · Plan | Sommaire avec types, guide de rédaction, une page de référence | `doc-kit new`, `doc-kit check coverage` | Couverture de 100 % ; lots définis |

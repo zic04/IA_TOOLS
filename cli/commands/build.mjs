@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { build } from "../../engine/build/build.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 import { checkDate } from "../common.mjs";
 
 export const options = {
@@ -31,9 +32,20 @@ export async function run({ ctx, values }) {
     ctx.error("build.failed", { n: r.errors.length });
     return 1;
   }
-  const mb = (r.stats.bytes / 1024 / 1024).toFixed(1);
-  ctx.print(ctx.t("cli.build.ok", { output: relative, mb, ...r.stats }) + (r.warnings.length ? ctx.t("cli.build.warnings", { n: r.warnings.length }) : ""));
+  ctx.print(summary(ctx, r, config, relative) + (r.warnings.length ? numbers(ctx.i18n).count("cli.build.warnings", r.warnings.length) : ""));
   return 0;
+}
+
+/**
+ * "✔ <output> — 0,3 Mo · 81 pages · 1 schéma": sizes and counts in the language of the messages, each noun in the
+ * plural form of its number. Without screenshots (capture.mode "none"), the screenshots are not counted.
+ */
+export function summary(ctx, r, config, output = r.output) {
+  const { number, count } = numbers(ctx.i18n);
+  const parts = [ctx.t("cli.build.size", { size: number(r.stats.bytes / 1024 / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }), count("cli.build.count.pages", r.stats.pages)];
+  if (config.capture?.mode !== "none" || r.stats.captures) parts.push(count("cli.build.count.captures", r.stats.captures), count("cli.build.count.zones", r.stats.zones));
+  parts.push(count("cli.build.count.diagrams", r.stats.diagrams));
+  return ctx.t("cli.build.ok", { output, details: parts.join(" · ") });
 }
 
 function write(r) {

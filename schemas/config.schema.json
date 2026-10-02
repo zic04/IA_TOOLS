@@ -121,6 +121,7 @@
       "default": {},
       "properties": {
         "mode": { "enum": ["app", "none"], "default": "app", "description": "\"app\": the screens are captured; \"none\": no screenshot (capture and connect refuse, annotated is n/a)." },
+        "target": { "enum": ["local", "demo", "production"], "default": "local", "description": "Where the screenshots are taken (mode \"app\"): \"local\" the application on this machine, \"demo\" a demo copy, \"production\" the real application: read-only always (readOnly false is refused), a banner and a confirmation before each capture run, demo refused." },
         "plans": { "type": "string", "minLength": 1, "default": "captures/plans" },
         "setup": { "type": ["string", "null"], "default": null },
         "locale": { "type": ["string", "null"], "default": null },

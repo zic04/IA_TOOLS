@@ -342,8 +342,11 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
   };
   // Screenshots of the project: "none" when doc.config.mjs declares capture.mode "none" (no screenshot at all).
   vars.screenshots = config.capture?.mode === "none" ? "none" : "app";
+  // The capture mode of the briefs: none, production (capture.target "production"), demo (capture.target "demo", or a
+  // demo setup script); --var captureMode=… still wins.
   if (vars.screenshots === "none") vars.captureMode = "none";
-  else if (config.capture?.setup) vars.captureMode = "demo";
+  else if (config.capture?.target === "production") vars.captureMode = "production";
+  else if (config.capture?.target === "demo" || config.capture?.setup) vars.captureMode = "demo";
   const extra = config.extra?.briefs;
   if (extra && typeof extra === "object") {
     for (const [k, val] of Object.entries(extra)) vars[k] = Array.isArray(val) ? val.join(", ") : String(val);

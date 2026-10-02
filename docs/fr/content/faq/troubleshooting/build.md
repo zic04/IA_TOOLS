@@ -14,7 +14,7 @@
 ### « N erreurs — site NON généré. »
 
 - **Causes probables**
-  1. Une page déclarée n'a pas encore de fichier (`page absente : content/…`).
+  1. Une page déclarée n'a pas encore de fichier (`page pas encore écrite : <id> (content/…)`) : une ligne par page, jamais une par section de son gabarit.
   2. Une capture est citée mais pas encore prise, ou son image manque.
   3. Une page typée n'a pas l'une de ses sections obligatoires.
 - **Vérifier** : les lignes au-dessus, une par erreur, chacune avec l'id de la page entre crochets.

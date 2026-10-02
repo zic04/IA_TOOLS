@@ -16,13 +16,21 @@ Node.js 20 ou plus, puis :
 npm ci
 ```
 
+<!-- doc-kit:capture=app -->
 Si le navigateur de capture manque : `npx playwright install chromium`.
+<!-- doc-kit:capture=none -->
+Si le navigateur de `doc-kit view`, `doc-kit check tables` et `doc-kit audit` manque : `npx playwright install chromium`.
+<!-- doc-kit:end -->
 
 ## Commandes
 
 | Script | Commande doc-kit | Rôle |
 |---|---|---|
+<!-- doc-kit:capture=app -->
 | `npm run site` | `doc-kit build` | Produit `dist/` ; strict : s'arrête sur une page, une capture ou un lien manquant |
+<!-- doc-kit:capture=none -->
+| `npm run site` | `doc-kit build` | Produit `dist/` ; strict : s'arrête sur une page ou un lien manquant |
+<!-- doc-kit:end -->
 | `npm run dev` | `doc-kit dev` | Serveur local qui reconstruit et recharge à chaque modification |
 <!-- doc-kit:capture=app -->
 | `npm run captures` | `doc-kit capture` | Refait les captures déclarées dans `captures/plans/` |
@@ -37,7 +45,11 @@ Si le navigateur de capture manque : `npx playwright install chromium`.
 | `npm run all` | Optimisation, site, tous les contrôles, audit | La chaîne complète |
 <!-- doc-kit:end -->
 
+<!-- doc-kit:capture=app -->
 Pendant la rédaction, `doc-kit build --draft` tolère les pages et captures manquantes et les signale (encadré « Capture à produire »).
+<!-- doc-kit:capture=none -->
+Pendant la rédaction, `doc-kit build --draft` tolère les pages pas encore écrites et les signale (« page pas encore écrite »).
+<!-- doc-kit:end -->
 
 ## Le flux de travail
 
@@ -73,5 +85,9 @@ Mettez `capture.mode: "app"` dans `doc.config.mjs`, puis suivez la phase de capt
 ## Pour aller plus loin
 
 - `WRITING-GUIDE.md` : les règles propres à ce projet.
+<!-- doc-kit:capture=app -->
 - Le standard du kit, `node_modules/doc-kit/standard/` : structure, gabarits, rédaction, captures, qualité, maturité, remise.
+<!-- doc-kit:capture=none -->
+- Le standard du kit, `node_modules/doc-kit/standard/` : structure, gabarits, rédaction, qualité, maturité, remise.
+<!-- doc-kit:end -->
 - La page « Maintenir cette documentation » du site : le même contenu, pour celui qui reprend le projet.

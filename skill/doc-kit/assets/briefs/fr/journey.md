@@ -83,7 +83,7 @@ page de référence.{{/if}}
 
 ## Contrôles (depuis `{{docDir}}`)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ concernant TES pages (les « page absente » des autres rédacteurs sont
+- `npx doc-kit build --draft` : aucun ✖ ni ⚠ concernant TES pages (les « page pas encore écrite » des autres rédacteurs sont
   normales).
 - `npx doc-kit check tables` : aucun débordement sur tes pages.
 - Relecture : `npx doc-kit view "<id-parent>~le-schema" --theme light --height 1100 --output .doc-kit/{{code}}-clair.png`,

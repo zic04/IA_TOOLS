@@ -5,21 +5,29 @@ Read in full before any capture of a real application. These rules come from two
 
 ## 1. Before the campaign
 
+- **Ask where the screenshots are taken** (AskUserQuestion when available): local or demo application, production
+  read-only, or none. Production is declared in the configuration, `capture.target: "production"` (`doc-kit init
+  --target production --url <address>`): read-only is then mandatory (`readOnly: false` and `<PREFIX>_READONLY=0` are
+  refused), `doc-kit demo` is refused, and every `doc-kit capture` prints "PRODUCTION — read-only · N screenshots ·
+  <url>" and asks (default No; `--yes` without a terminal, only for a batch the user approved).
 - **A written decision by the owner**: capture production, and with which data (real in clear, masked). Example of a
   decision: "every capture on production, without any change, real data in clear". Another: "customer table cells
   masked, users and groups screens in clear". Without a written decision: a demo, or nothing.
-- **An authorised person signs in themselves**: `doc-kit connect` opens a visible browser; they go through SSO and MFA,
-  then press Enter; the session is written in `.doc-kit/` (ignored by git). An agent never types credentials.
+- **An authorised person signs in themselves**: ask them whether to open the browser now; `doc-kit connect` opens a
+  visible browser; they go through SSO and MFA, then press Enter; the session is written in `.doc-kit/` (ignored by
+  git). An agent never types credentials.
 - **The session never leaves `.doc-kit/`**: never copied, displayed, quoted in a report, or committed.
   `doc-kit doctor` checks the `.gitignore` and the session's age.
 - **Forbidden routes**: read the code of detail pages (see §3) and fill `capture.forbidden` before launching writers.
+  `doc-kit doctor` warns while a production target has none.
 
 ## 2. The read-only lock
 
-- With a session, `doc-kit capture` runs read-only (`capture.readOnly: "auto"`): in the browser, every request other
+- With a session, or always with `capture.target: "production"`, `doc-kit capture` runs read-only: in the browser, every request other
   than `GET`, `HEAD` or `OPTIONS` is aborted and counted. The last line of the run gives the count of blocked write
   requests. Blocking presence pings or data-loading server actions is normal.
-- **No session, no lock**: never capture a production with `--no-session` or `readOnly: false`.
+- **No session, no lock** on a local or demo target: never capture a production that is not declared as such
+  (`capture.target: "production"` keeps the lock on even with `--no-session`).
 - The lock is no licence to click. **Navigation only**: pages, tabs, menus, opening a dialog or an assistant then
   Escape, hover. **Never**: Save, Create, Approve, Delete, Sign, Send, Import, Synchronise, Reindex, Sign out, nor typing
   in a field that saves on its own (editors that auto-save every setting).

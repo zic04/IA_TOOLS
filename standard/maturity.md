@@ -13,27 +13,37 @@ Four levels, each defined by criteria that `doc-kit audit` **measures**. A level
 
 `doc-kit audit` computes the indicators below. They appear under these names in `.doc-kit/audit.json` and with `--json`.
 
+**A written page** is a declared page whose file exists and holds no template guidance (`<!-- guidance:` or `<!-- consigne :`). A declared page is in exactly one state:
+
+| State | What it means | Counted by |
+|---|---|---|
+| Missing | Declared in `toc.json`, no file yet | `written` only |
+| Draft | Its file still holds template guidance (a skeleton of `init` or `doc-kit new`) | `written` only |
+| Written | File present, no guidance left | every page indicator |
+
+**Who counts what.** `written` owns the pages not written yet: the other page indicators are measured on the written pages only, and a page not written yet is never counted twice. Its sections, the examples of its template (a sample finding `C1`, a sample proof, a sample `:::screen`) and its build errors wait until it is written. The audit summary says how many pages remain to write: "Pages: 1 written of 81 — 80 to write (72 without a file, 8 still in template guidance)".
+
 | Indicator | Formula |
 |---|---|
-| `written` | Declared pages that have their file ÷ declared pages |
-| `typed` | Pages that declare a `template` ÷ declared pages |
-| `conformant` | Typed pages that have all their required sections ÷ typed pages |
-| `completeness` | Average, over the typed pages, of (sections of the template present ÷ sections of the template) |
-| `annotated` | `screen` and `editor` pages that contain at least one `:::screen` (or `:::ecran`) ÷ `screen` and `editor` pages. While no page is typed: the pages of every section other than Take over. `n/a` when `capture.mode` is `"none"`: a documentation declared without screenshots describes its screens with tables, and has nothing to annotate |
-| `coverage` | Elements cited ÷ elements inventoried by `doc-kit check coverage`; not measured when no adapter can inventory the application |
-| `proofs` | Take over pages that contain at least one `file:line` proof (a file name with its extension, then `:` and a number, in backticks: `lib/orders.ts:42`) ÷ Take over pages |
-| `takeover` | Number of the 7 required Take over pages that are present (see below) |
-| `tooLong` | Pages beyond their `maxWords` (2,000 when untyped) ÷ pages. Words are counted in the Markdown, without code blocks, comments, URLs and markup |
-| `guidance` | Number of pages that still contain template guidance (`<!-- guidance:` or `<!-- consigne :`), or whose summary is still the placeholder written by `doc-kit new` |
+| `written` | Written pages ÷ declared pages. The report adds the pages without a file and the drafts |
+| `typed` | Pages that declare a `template` ÷ declared pages (a declaration of the plan: written or not) |
+| `conformant` | Written typed pages that have all their required sections ÷ written typed pages |
+| `completeness` | Average, over the written typed pages, of (sections of the template present ÷ sections of the template) |
+| `annotated` | Written `screen` and `editor` pages that contain at least one `:::screen` (or `:::ecran`) ÷ written `screen` and `editor` pages. While no page is typed: the written pages of every section other than Take over. `n/a` when `capture.mode` is `"none"`: a documentation declared without screenshots describes its screens with tables, and has nothing to annotate |
+| `coverage` | Elements cited by the written pages ÷ elements inventoried by `doc-kit check coverage`; not measured when no adapter can inventory the application. The entry of a page not written yet (its `routes`) covers nothing: the report shows apart the coverage of the plan, "with the pages not written yet" |
+| `proofs` | Written Take over pages that contain at least one `file:line` proof (a file name with its extension, then `:` and a number, in backticks: `lib/orders.ts:42`), outside comments ÷ written Take over pages |
+| `takeover` | Number of the 7 required Take over pages that are written (see below) |
+| `tooLong` | Written pages beyond their `maxWords` (2,000 when untyped) ÷ written pages. Words are counted in the Markdown, without code blocks, comments, URLs and markup |
+| `guidance` | Template text left outside the page bodies: written pages whose summary is still the placeholder of `doc-kit new`, plus the home page and the section introductions (`<section>/index.md`) that still hold guidance |
 | `upToDateCaptures` | Zone files whose `version` is the current version of the application ÷ zone files that carry a `version`; `n/a` when none does |
 | `glossary` | Number of glossary terms |
 | `tours` | Number of home-page guided tours (`journeys` in `toc.json`) |
-| `blocking` | Strict build errors + elements not cited (when `coverage` is measured) + secrets found by `doc-kit check secrets` (see [quality.md](quality.md)) |
+| `blocking` | Strict build errors outside the pages not written yet + elements cited by no page, not even by the entry of a page not written yet (when `coverage` is measured) + secrets found by `doc-kit check secrets` (see [quality.md](quality.md)). The errors of the pages not written yet (`page.missing`, the errors of a draft) are shown next to it, counted by `written` |
 | `wideTables` | Tables that overflow at 1,440 px (every page is opened in the browser); not measured without a browser, or with `DOC_KIT_NO_BROWSER=1` |
 
 The **Take over** section is the section whose id is `take-over` (or `reprendre`); otherwise, the last section of the plan, when the plan has at least two.
 
-**The 7 required Take over pages**, counted by `takeover` among the written pages of the Take over section (a sub-page is a `"level": 2` page that follows its parent in the same group):
+**The 7 required Take over pages**, counted by `takeover` among the written pages of the Take over section, never a draft or a page without its file, which the report names as the page to write (a sub-page is a `"level": 2` page that follows its parent in the same group):
 
 | # | Page | Measured criterion |
 |---|---|---|
@@ -49,9 +59,9 @@ The **Take over** section is the section whose id is `take-over` (or `reprendre`
 
 | Level | Criteria |
 |---|---|
-| **1 Skeleton** | `doc.config.mjs` is valid · `doc-kit build --draft` succeeds · each section has at least 1 written page · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
+| **1 Skeleton** | `doc.config.mjs` is valid · `doc-kit build --draft` succeeds · each section has at least 1 page with its file (a draft counts: this is the skeleton) · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or `n/a`) · `coverage` ≥ 80 % (or `n/a`) · no broken link and no legend that differs from its zones, even in draft mode |
-| **3 Complete** | `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **3 Complete** | `written` = 100 % · `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) |
 
 The thresholds come from the most complete sites built with this method: they can be reached without heroics, and a site that misses one of them has a gap a reader will notice.

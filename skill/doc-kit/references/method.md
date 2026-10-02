@@ -36,7 +36,7 @@ Decisions to make with the owner, **before any code**:
 |---|---|---|
 | Audience | users, administrators, technical successors | the 4 sections: Use / Configure / Administer / Take over |
 | Language | `en` or `fr` | `language` in `doc.config.mjs`, briefs `assets/briefs/<lang>/` |
-| Capture mode | prepared demo · read-only production · none | phase 4, safety, `capture.setup` |
+| Capture mode | prepared demo · read-only production · none | `capture.target` (`init --target`), phase 4, safety, `capture.setup` |
 | Visible data | real in clear · masked · fictitious | **written** decision of the owner; `masking.patterns` |
 | Routes never to open | pages that write when rendered, customer data exports | `capture.forbidden` |
 | Deliverable | HTML only · self-contained export of the folder | phase 10, `doc-kit export` |
@@ -49,14 +49,26 @@ Decisions to make with the owner, **before any code**:
   customer cells and infrastructure hosts.
 - Never a "do your best" on production: without a written decision, capture a demo or capture nothing.
 
+**Ask the user** (AskUserQuestion when the tool is available) two questions, and act on the answers:
+
+| Question | Answers | What follows |
+|---|---|---|
+| Where will the screenshots be taken? | local or demo application · production, read-only · no screenshots | `doc-kit init --target local\|demo` · `--target production --url <production address>` · `--capture none` |
+| Open the browser now to sign in? (only with screenshots and a sign-in) | yes · later | `doc-kit connect`: the user signs in in the visible window and presses Enter · the command written in the decisions |
+
+`--target production` writes `capture.readOnly: true`; the kit then refuses `readOnly: false`, refuses `doc-kit demo`,
+prints a PRODUCTION banner before every `doc-kit capture` and asks for a confirmation (default No; `--yes` without a
+terminal, once the user agreed). `doctor` shows the target and warns while `capture.forbidden` is empty.
+
 ## 1 · Set up the project
 
 - `doc-kit init <app-dir>` creates `<app-dir>/docs/manual/` (`--dir` to change it). `<app-dir>` is the application
   **root**, even when the front end sits in `frontend/` or `web/`. It detects the framework, the product name (Next.js
   `metadata.title`, else `package.json` without its `-frontend`/`-web` suffix), the version file (`version.txt` or
   `VERSION` at the root first) and the `.env` files to mask, then asks for the product name, language, application
-  URL, capture mode and sign-in method (`--name`, `--lang`, `--url`, `--capture`, `--auth`, `--framework` answer in
-  advance; `--yes` asks nothing). Its **recap** is printed before anything is written, even with `--yes`: read it
+  URL, where the screenshots are taken (`capture.target`) and sign-in method (`--name`, `--lang`, `--url`, `--capture`,
+  `--target`, `--auth`, `--framework` answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
+  then offers to open the browser (`connect`) and a first test screenshot (`capture --preview`). Its **recap** is printed before anything is written, even with `--yes`: read it
   (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `doc-kit` with no command
   starts the **guided mode**, which detects the current state and proposes the next step.
 - `app.dir` (written by `init`) is the application root given to the agents as `appDir`. With a **separate front
@@ -125,8 +137,9 @@ keeps the same items.
 Common preparation:
 - **Demo**: an idempotent setup script (`capture.setup`, run by `doc-kit demo`). Site B: accounts, logs and
   notifications inserted, two reference data sets, the AI assistant pointed at a fake provider.
-- **Production**: `doc-kit connect` opens a visible browser, the person signs in (SSO, MFA), presses Enter, and the
-  session is written in `.doc-kit/`. Read `capture-safety.md` in full first.
+- **Production** (`capture.target: "production"`): `doc-kit connect` opens a visible browser, the person signs in
+  (SSO, MFA), presses Enter, and the session is written in `.doc-kit/`. Read `capture-safety.md` in full first. Each
+  `doc-kit capture` shows the PRODUCTION banner and asks; an agent passes `--yes` only for a batch the user approved.
 - Trial on the reference page: `doc-kit capture "<prefix>-*" --preview`, then look at each `<id>.zones.png`.
 
 Two organisations worked:

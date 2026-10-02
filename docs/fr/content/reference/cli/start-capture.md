@@ -1,7 +1,7 @@
 ## doc-kit init
 
 ```text
-doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--capture app|none] [--yes]
+doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--capture app|none] [--target local|demo|production] [--yes]
 ```
 
 Crée le projet de documentation de l'application située dans `dossier-app` (défaut : le dossier courant), dans
@@ -17,6 +17,7 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
 | `--framework <nom>` | détecté | `next` (App Router), `react-router` ou `none` : l'adaptateur de couverture écrit dans la configuration |
 | `--auth <adaptateur>` | `manual` | `manual`, `none`, `nextauth`, `api-me` ou `local:<fichier>` |
 | `--capture app\|none` | `app` | `app` : captures de l'application en marche ; `none` : aucune capture (`capture.mode: "none"`), chaque écran décrit par un tableau |
+| `--target <où>` | `local`, ou `demo` pour une URL qui n'est pas locale | `local`, `demo` ou `production` (`capture.target`) ; `production` écrit `capture.readOnly: true` et, avec `--yes`, demande `--url` ; refusé avec `--capture none` |
 | `--yes`, `-y` | | Aucune question : les valeurs détectées et les options telles quelles |
 
 - **Détection** : `package.json` dans le dossier ou dans `frontend`, `front`, `web`, `client`, `ui`, `app`,
@@ -26,10 +27,23 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
   s'il porte une `version`, sinon celui du front-end, sinon le `pyproject.toml` d'une application seulement Python.
 - **Masquage** (`masking.env`) : `.env` et `.env.local` à la racine et dans le dossier du front-end, seulement les
   fichiers qui existent ; jamais `*.example`.
-- **Questions** (sans `--yes`) : nom, langue, URL, mode de capture, mode de connexion (seulement avec des captures).
-  Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
+- **Questions** (sans `--yes`) : nom, langue, URL, où prendre les captures, mode de connexion (seulement avec des
+  captures). Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
+- **Où prendre les captures** : « 1) application locale ou de démo, 2) production, en lecture seule, 3) aucune
+  capture ». Le choix 1 écrit `capture.target: "local"` pour une URL `localhost` ou `127.x`, `"demo"` sinon. Le
+  choix 2 demande l'**adresse de la production** (jamais l'adresse locale déduite du script de développement), puis
+  affiche trois rappels de sécurité : la lecture seule bloque les écritures du navigateur, **pas** une écriture faite
+  par le serveur pendant qu'il affiche une page (listez ces routes dans `capture.forbidden`) ; le fichier de session
+  est un secret ; les captures montrent des données réelles, ce qui relève d'une décision écrite du propriétaire. Il
+  écrit `capture.target: "production"` et `capture.readOnly: true`.
+- **Ensuite**, dans un terminal et avec des captures : « Ouvrir le navigateur maintenant pour vous connecter ?
+  (O/n) » lance `npm install` dans le nouveau projet si besoin, puis
+  `doc-kit connect` ; « Prendre une première capture de test avec
+  --preview ? (O/n) » lance `doc-kit capture --preview --yes` sur le plan d'exemple. Avec `--yes`, rien ne s'ouvre :
+  les étapes suivantes sont affichées. Une étape qui échoue s'arrête là avec son code de sortie ; le projet reste
+  écrit.
 - **Récapitulatif** : avant d'écrire quoi que ce soit, même avec `--yes`, le dossier, le nom et sa provenance,
-  l'identifiant, la langue, l'URL, la version et son fichier, le mode de capture, la connexion, la source de la
+  l'identifiant, la langue, l'URL, la version et son fichier, le mode et la cible des captures, la connexion, la source de la
   couverture, les fichiers `.env` masqués et le dossier de l'application. Pour renommer le produit ensuite :
   `product.name` dans `doc.config.mjs`, puis le titre, l'accroche et les titres de section de `content/toc.json`.
 - **Écrit** le squelette de `templates/project/common` et de `templates/project/<langue>` : configuration,
@@ -53,7 +67,7 @@ Une ligne par vérification, `✔` correct, `⚠` à regarder, `✖` à corriger
 | Groupe | Vérifications |
 |---|---|
 | Environnement | Version de Node ; dépendances du kit ; Chromium ; la dépendance du projet au kit ; le skill Claude Code installé ; la version du kit face à la plage `kit` du projet |
-| Projet | Configuration ; sommaire ; fichier de version (⚠ « version jamais incrémentée ? » quand il dit `0.0.0` ou `1.0.0` alors qu'un `version.txt`, `VERSION` ou `CHANGELOG.md` de l'application dit autre chose) ; dossier de l'application (`app.dir`) ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème. Avec `capture.mode: "none"`, ni la session ni le dossier des plans ne sont attendus |
+| Projet | Configuration ; sommaire ; fichier de version (⚠ « version jamais incrémentée ? » quand il dit `0.0.0` ou `1.0.0` alors qu'un `version.txt`, `VERSION` ou `CHANGELOG.md` de l'application dit autre chose) ; dossier de l'application (`app.dir`) ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; la cible des captures (⚠ « aucune route interdite déclarée » pour une production dont `capture.forbidden` est vide) ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème. Avec `capture.mode: "none"`, ni la session, ni le dossier des plans, ni la cible ne sont vérifiés |
 | `--network` | L'application répond à `app.url` |
 
 Code de sortie : 3 quand l'environnement échoue, 2 quand la configuration est invalide, 1 quand une vérification du
@@ -76,7 +90,8 @@ l'adaptateur détecte la session). La session est enregistrée dans `.doc-kit/se
 Code de sortie 3 quand l'application est injoignable, après 15 minutes sans connexion, ou quand la fenêtre est
 fermée ; 2 sans terminal (avec l'adaptateur `manual`). Avec `auth.adapter: "none"`, il n'y a rien à faire. Avec
 `capture.mode: "none"`, la commande explique le mode et s'arrête avec le code de sortie 2 ; `--forget` supprime
-toujours une session.
+toujours une session. Avec `capture.target: "production"`, une première ligne le dit : connectez-vous avec votre
+propre compte, la session donne accès à la production.
 [Connexion et sessions](#/capture/sessions) explique le reste.
 
 ## doc-kit demo
@@ -86,12 +101,13 @@ doc-kit demo
 ```
 
 Lance le script de `capture.setup` dans son propre processus Node, depuis le dossier du projet. Un export par défaut
-est appelé avec `{ config, root, url }`. Code de sortie 0 quand le script réussit, 1 sinon, 2 sans `capture.setup`.
+est appelé avec `{ config, root, url }`. Code de sortie 0 quand le script réussit, 1 sinon, 2 sans `capture.setup`,
+et 2 avec `capture.target: "production"` : un script de données de démo ne tourne jamais sur la production.
 
 ## doc-kit capture
 
 ```text
-doc-kit capture [motifs…] [--plans <dossier>] [--preview] [--no-session]
+doc-kit capture [motifs…] [--plans <dossier>] [--preview] [--no-session] [--yes]
 ```
 
 Prend les captures des plans dans un Chromium sans fenêtre et écrit `images/<id>.webp` et `images/zones/<id>.json`.
@@ -103,6 +119,19 @@ Avec `capture.mode: "none"`, la commande explique le mode et s'arrête avec le c
 | `--plans <dossier>` | Un autre dossier de plans, relatif au projet |
 | `--preview` | Écrit aussi `.doc-kit/<id>.zones.png`, les zones dessinées en rouge |
 | `--no-session` | Sans la session enregistrée |
+| `--yes`, `-y` | Confirme d'avance une capture sur la production ; obligatoire sans terminal |
+
+Avec `capture.target: "production"`, l'exécution est toujours en lecture seule, même sans session, et commence par
+un bandeau, puis une question dont la réponse par défaut est **non** : un Entrée machinal ne lance jamais une
+campagne sur la production.
+
+```text
+PRODUCTION — lecture seule · 2 captures · https://orders.acme.example
+? Capturer 2 écrans sur la production maintenant ? (o/N) ›
+```
+
+Sans terminal, ou avec `--json`, `--yes` est obligatoire : sinon « capture sur la production non confirmée », code de
+sortie 2. Répondre non ne capture rien (code de sortie 0).
 
 Avec une session, la session est d'abord vérifiée et l'exécution se fait en lecture seule
 (`capture.readOnly: "auto"`). Code de sortie 1 quand une route est interdite ou qu'une capture a échoué, 3 quand

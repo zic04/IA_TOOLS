@@ -140,7 +140,7 @@ describe("capture", () => {
   test("the captured project builds and passes every check", async () => {
     const r = await cli(["check", "all", "--project", dir]);
     assert.equal(r.code, 0, r.out + r.err);
-    assert.match(r.out, /2 images checked \(2 cited\) — 0 error\(s\), 0 warning\(s\)\./);
+    assert.match(r.out, /2 images checked \(2 cited\) — 0 errors, 0 warnings\./);
     assert.match(r.out, /✔ No secret found/);
     assert.match(r.out, /Coverage: skipped/);
   });

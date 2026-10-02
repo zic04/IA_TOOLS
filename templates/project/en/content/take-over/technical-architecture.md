@@ -23,7 +23,11 @@
 
 ## The diagram
 
+<!-- doc-kit:capture=app -->
 <!-- guidance: the architecture diagram, as an SVG of the site, or as an annotated image (:::screen) when the architecture team supplies its own. The markers point to the table of flows; missing or broken flows are dotted (d-dashed). Only the site's d-* classes, no hard-coded colour. -->
+<!-- doc-kit:capture=none -->
+<!-- guidance: the architecture diagram, as an SVG of the site. The markers of the diagram point to the table of flows; missing or broken flows are dotted (d-dashed). Only the site's d-* classes, no hard-coded colour. -->
+<!-- doc-kit:end -->
 
 ::diagram{id="r-architecture" title="The application in production: what runs, the data reached through private endpoints, the outbound traffic. The markers point to the table of flows; dotted: a flow that is missing or does not work."}
 

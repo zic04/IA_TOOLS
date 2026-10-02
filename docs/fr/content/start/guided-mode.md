@@ -30,8 +30,11 @@ suivante. Vous n'avez jamais à retenir l'ordre des commandes.
 Avec `capture.mode: "none"` (une documentation sans captures), `connect` et `capture` ne sont jamais proposés : le
 mode guidé passe directement au menu, et dit pourquoi.
 
-Quand vous acceptez `init`, le mode guidé enchaîne sur les questions d'`init` (nom, langue, adresse, mode de capture,
-connexion) dans le même terminal. Pour toute autre étape, il passe la main à la commande : `connect` lit votre touche Entrée, `dev` tourne
+Quand vous acceptez `init`, le mode guidé enchaîne sur les questions d'`init` (nom, langue, adresse, où prendre les
+captures, connexion) dans le même terminal. La question de `connect` dit ce qui va se passer : « Une fenêtre de
+navigateur s'ouvre : connectez-vous dedans, puis appuyez sur Entrée ici. » Avec `capture.target: "production"`, le
+bandeau `PRODUCTION — lecture seule · <url>` précède les étapes `connect` et `capture` ; une `capture` confirmée là
+ne redemande rien. Pour toute autre étape, il passe la main à la commande : `connect` lit votre touche Entrée, `dev` tourne
 jusqu'à [[touche Ctrl+C]].
 
 ## Dans un script

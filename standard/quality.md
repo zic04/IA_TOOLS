@@ -10,14 +10,14 @@ Each check below proved its worth on real sites: it catches a mistake that a rea
 
 | Check | Command | What blocks | Fix |
 |---|---|---|---|
-| **Strict build** | `doc-kit build` | A declared page without its file; a cited capture that cannot be found, or whose image is missing; a diagram that cannot be found; a home-page tour that points to an unknown page | Write the page, take the capture, or remove the reference. While writing: `doc-kit build --draft` (tolerates and reports) |
+| **Strict build** | `doc-kit build` | A declared page without its file (one error per page: the sections of its template and the anchors that point into it are checked once it exists); a cited capture that cannot be found, or whose image is missing; a diagram that cannot be found; a home-page tour that points to an unknown page | Write the page, take the capture, or remove the reference. While writing: `doc-kit build --draft` (tolerates and reports) |
 | **Links and anchors** | `doc-kit build`, `doc-kit check links` | A link to an id that is not in the plan; a `~…` anchor that is not in the target page | Fix the id or the anchor (heading in lower case, without accents, with hyphens) |
 | **Legend = zones** | `doc-kit build` | A `:::screen` whose list does not have as many items as the capture has zones; a `::capture` used on a capture that has zones | Adjust the list, or adjust the zones of the plan and capture again |
-| **Coverage** | `doc-kit check coverage` | An element inventoried by an adapter (route, block, widget, tool…) is cited neither in the plan (`routes`) nor in a page | Document the element. The check is skipped when the application cannot be found |
+| **Coverage** | `doc-kit check coverage` | An element inventoried by an adapter (route, block, widget, tool…) is cited by no written page, neither in its entry of the plan (`routes`) nor in its text. The entry of a page not written yet, or of a page that still holds guidance, covers nothing: the check shows apart what the plan will cover once written | Document the element, or write the page that plans it. The check is skipped when the application cannot be found |
 | **Required sections** | `doc-kit build` | A page that declares a `template` lacks one of its required sections (a `##` heading that starts with the label or with an alias) | Add the section, rename the heading, or remove `template` from a page that is not of that type |
 | **Secrets** | `doc-kit check secrets` | A secret in the text sources (pages, glossary, zone files, plans, diagrams): key, password, token, connection string, value from the local `.env`; a session file outside `.doc-kit/`, or tracked by git | Remove the value, mask it and capture again; delete the session |
 
-The strict build is the main gate: **the site is not produced** while an error remains ("N error(s) — site NOT built").
+The strict build is the main gate: **the site is not produced** while an error remains ("N errors — site NOT generated.").
 
 ## Warnings
 
@@ -27,7 +27,7 @@ The strict build is the main gate: **the site is not produced** while an error r
 | **Heavy images** | `doc-kit check images` | An image above 200 KB | `doc-kit optimize`: recompresses above the threshold and keeps the new version when it saves at least 20 % |
 | **Pages too long** | `doc-kit audit` | More words than the `maxWords` of the template (2,000 for an untyped page) | Split into sub-pages (see [structure.md](structure.md#sub-pages)) |
 | **Captures of an earlier version** | `doc-kit check images`, `doc-kit audit` | The `version` field of the zone file differs from the current version of the application | Capture again, or say on the page which version the screen shows |
-| **Guidance left in a page** | `doc-kit audit`, `doc-kit build` | A `<!-- guidance:` comment (or `<!-- consigne :` in French) left by a template; the strict build reports it too | Write the section and remove the guidance, or delete the optional section |
+| **Guidance left in a page** | `doc-kit audit`, `doc-kit build` | A `<!-- guidance:` comment (or `<!-- consigne :` in French) left by a template; the strict build reports it too, and `doc-kit audit` counts the page as a draft, not written yet (`written`) | Write the section and remove the guidance, or delete the optional section |
 | **Unknown box type** | `doc-kit build` | A `> [!TYPE]` box outside the list of boxes | Fix the type (see [writing.md](writing.md#7-the-extended-syntax)) |
 
 ## What is not checked automatically

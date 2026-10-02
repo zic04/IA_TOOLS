@@ -99,13 +99,35 @@ describe("check coverage and inventory", () => {
       rm(dir);
     }
   });
+
+  test("a page declared without its file covers nothing: the plan is reported apart (plannedBy, planned)", async () => {
+    const dir = await project((c) => ({ ...c, coverage: [{ adapter: "next-app-router", app: "app" }] }));
+    try {
+      write(dir, "app/reports/page.tsx", "x");
+      const tocFile = path.join(dir, "content", "toc.json");
+      const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
+      toc.sections[0].groups[0].pages.push({ id: "use/reports", title: "Reports", template: "screen", routes: ["/reports"] });
+      fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
+      const j = JSON.parse((await cli(["inventory", "--project", dir, "--json"])).out);
+      assert.deepEqual(j.adapters[0].families[0].items.find((i) => i.id === "/reports"), { id: "/reports", match: ["/reports"], covered: false, plannedBy: "use/reports" });
+      assert.deepEqual([j.covered, j.planned, j.total], [0, 1, 1]);
+      const r = await cli(["check", "coverage", "--project", dir, "--lang", "fr"]);
+      assert.equal(r.code, 1);
+      assert.match(r.out, / {4}manque : \/reports — prévu dans use\/reports, pas encore écrite\n/);
+      assert.match(r.out, /0\/1 élément couvert\.\n {2}1 élément de plus n'est cité que par l'entrée d'une page pas encore écrite \(1\/1 une fois écrite\)\n/);
+    } finally {
+      rm(dir);
+    }
+  });
 });
 
 describe("check images", () => {
   test("the demo passes", async () => {
     const r = await cli(["check", "images", "--project", DEMO]);
     assert.equal(r.code, 0, r.err);
-    assert.match(r.out, /^2 images checked \(2 cited\) — 0 error\(s\), 0 warning\(s\)\.\n$/);
+    assert.match(r.out, /^2 images checked \(2 cited\) — 0 errors, 0 warnings\.\n$/);
+    const fr = await cli(["check", "images", "--project", DEMO, "--lang", "fr"]);
+    assert.match(fr.out, /^2 images contrôlées \(2 citées\) — 0 erreur, 0 avertissement\.\n$/);
   });
 
   test("orphan image, zone file without image, missing capture, heavy image, outdated capture", async () => {
@@ -124,7 +146,7 @@ describe("check images", () => {
       assert.match(r.err, /✖ \[use\/orders\/detail\] screenshot not found: “nowhere”/);
       assert.match(r.err, /⚠ heavy image: images\/orders-list\.webp \(\d+ KB, threshold 0\.001 KB\)/);
       assert.match(r.err, /⚠ images\/zones\/orders-list\.json: captured on version 1\.3\.0, the application is at version 1\.4\.0/);
-      assert.match(r.err, /3 images checked \(2 cited\) — 3 error\(s\), 4 warning\(s\)\./);
+      assert.match(r.err, /3 images checked \(2 cited\) — 3 errors, 4 warnings\./);
       assert.equal((await cli(["check", "images", "--project", dir, "--threshold", "0"])).code, 2);
     } finally {
       rm(dir);
@@ -143,6 +165,7 @@ describe("check secrets", () => {
     const r = await cli(["check", "secrets", "--project", DEMO]);
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /^✔ No secret found \(\d+ source files, \d+ places of the site\)\.\n$/);
+    assert.match((await cli(["check", "secrets", "--project", DEMO, "--lang", "fr"])).out, /^✔ Aucun secret trouvé \(\d+ fichiers sources, \d+ emplacements du site\)\.\n$/);
   });
 
   test(".env values, GUIDs, patterns, tokens in the sources and the site; the value itself is never printed", async () => {

@@ -23,7 +23,11 @@
 
 ## Le schéma
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : le schéma d'architecture, en SVG du site, ou en image annotée (:::ecran) si l'équipe d'architecture fournit le sien. Les pastilles renvoient au tableau des flux ; les flux absents ou inopérants sont en pointillé (d-dashed). Seulement les classes d-* du site, aucune couleur en dur. -->
+<!-- doc-kit:capture=none -->
+<!-- consigne : le schéma d'architecture, en SVG du site. Les pastilles du schéma renvoient au tableau des flux ; les flux absents ou inopérants sont en pointillé (d-dashed). Seulement les classes d-* du site, aucune couleur en dur. -->
+<!-- doc-kit:end -->
 
 ::schema{id="r-dat" titre="L'application en production : ce qui tourne, les données jointes par des points d'accès privés, les sorties. Les pastilles renvoient au tableau des flux ; pointillé : flux absent ou inopérant."}
 

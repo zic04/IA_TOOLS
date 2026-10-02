@@ -7,21 +7,22 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { detectApp, humanize, scriptPort, coverageLiteral, metadataTitle, productBase, VERSION_TEXT_PATTERN } from "../../cli/commands/init.mjs";
+import { detectApp, humanize, scriptPort, coverageLiteral, metadataTitle, productBase, VERSION_TEXT_PATTERN, isLoopback, localOrDemo } from "../../cli/commands/init.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
-/** Runs the CLI; `input`: lines typed at the questions (then the input ends). */
-async function cli(args, { input, env = {} } = {}) {
+/** Runs the CLI; `input`: lines typed at the questions (then the input ends); `steps`: follow-up steps of init. */
+async function cli(args, { input, env = {}, steps } = {}) {
   let out = "";
   let err = "";
   const code = await runCli(args, {
     stdout: { write: (s) => (out += s) },
     stderr: { write: (s) => (err += s) },
     env,
+    steps,
     ...(input ? { stdin: Readable.from([input.map((l) => l + "\n").join("")]), interactive: true } : {}),
   });
   return { code, out, err };
@@ -379,18 +380,138 @@ describe("init on an application with a separate front end (pilot layout)", () =
     }
   });
 
-  test("interactive: the capture-mode question; with none, the sign-in question is skipped", async () => {
+  test("interactive: the capture-target question; with “no screenshots”, the sign-in question is skipped", async () => {
     const app = separateFrontApp();
     try {
-      const r = await cli(["init", app], { input: ["", "1", "", "2", "y"] });
+      const r = await cli(["init", app], { input: ["", "1", "", "3", "y"] });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /\? Will the documentation show screenshots of the application\?\n {2}1\) yes — /);
+      assert.match(r.out, /\? Where will the screenshots be taken\?\n {2}1\) local or demo application\n {2}2\) production, read-only\n {2}3\) no screenshots\n/);
       assert.doesNotMatch(r.out, /How do people sign in/);
+      assert.doesNotMatch(r.out, /Open the browser now/, "no follow-up without screenshots");
       assert.match(r.out, /Summary\n {2}Folder/);
       assert.match(r.out, /Sign-in +manual \(not used without screenshots\)/);
+      assert.doesNotMatch(r.out, /Capture target/);
       assert.match(fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"), /mode: "none"/);
     } finally {
       remove(app);
     }
+  });
+});
+
+/** Follow-up steps of init that only record their calls: no npm, no browser (`steps` of createContext). */
+function stubSteps(codes = {}) {
+  const calls = [];
+  const step = (name) => async (ctx, folder, values) => {
+    calls.push(values ? `${name} ${JSON.stringify(values)}` : name);
+    return codes[name] ?? 0;
+  };
+  return { calls, steps: { install: step("install"), connect: step("connect"), capture: step("capture") } };
+}
+
+describe("capture target (local, demo, production) and the follow-up of init", () => {
+  test("interactive, French: production → its URL, the safety reminders, readOnly true; then the browser, then a test screenshot", async () => {
+    const app = nextApp();
+    try {
+      const { calls, steps } = stubSteps();
+      const r = await cli(["init", app], { input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "o", "o"], steps });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /\? Où prendre les captures \?\n {2}1\) application locale ou de démo\n {2}2\) production, en lecture seule\n {2}3\) aucune capture\n/);
+      // The local address detected from the dev script is never offered as the production's.
+      assert.match(r.out, /\? Adresse de la production › https:\/\/commandes\.acme\.example\/\n/);
+      assert.match(r.out, /⚠ Production, en lecture seule — avant la première capture :\n {2}· la lecture seule bloque .*PAS une écriture faite par le serveur.*capture\.forbidden ;\n {2}· le fichier de session \(\.doc-kit\/session\.json\) .*doc-kit connect --forget\) ;\n {2}· les captures montrent des données réelles/);
+      assert.match(r.out, /Cible des captures +production — lecture seule/);
+      assert.match(r.out, /\? Ouvrir le navigateur maintenant pour vous connecter \? \(O\/n\) › o\n/);
+      assert.match(r.out, /\? Prendre une première capture de test avec --preview, sur la production, en lecture seule \(https:\/\/commandes\.acme\.example\) \? \(O\/n\) › o\n/);
+      assert.deepEqual(calls, ["install", "connect", 'capture {"preview":true,"yes":true}']);
+      // Done steps leave the list of the next ones.
+      const next = r.out.split("Étapes suivantes :\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim());
+      assert.deepEqual(next.slice(1), ["doc-kit dev"]);
+      const docs = path.join(app, "docs", "manual");
+      linkKit(docs);
+      const c = await loadConfig(docs);
+      assert.deepEqual([c.app.url, c.capture.mode, c.capture.target, c.capture.readOnly], ["https://commandes.acme.example", "app", "production", true]);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("interactive, local: declining the browser asks nothing more; a failed connect stops the follow-up with its exit code", async () => {
+    const app = nextApp();
+    try {
+      let { calls, steps } = stubSteps();
+      let r = await cli(["init", app, "--lang", "en"], { input: ["", "", "1", "1", "y", "n"], steps });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /Capture target +local — the application on this machine/);
+      assert.doesNotMatch(r.out, /Production, read-only — before/);
+      assert.match(r.out, /\? Open the browser now to sign in\? \(Y\/n\) › n\n/);
+      assert.doesNotMatch(r.out, /test screenshot/);
+      assert.deepEqual(calls, []);
+      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+      assert.match(fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"), /target: "local",[\s\S]*readOnly: "auto",/);
+
+      ({ calls, steps } = stubSteps({ connect: 3 }));
+      r = await cli(["init", app, "--lang", "en", "--dir", "second"], { input: ["", "", "1", "1", "y", ""], steps });
+      assert.equal(r.code, 3, "the follow-up's exit code");
+      assert.deepEqual(calls, ["install", "connect"], "no screenshot after a failed sign-in");
+      assert.match(r.out, /The project is written: go on with the steps below/);
+      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("interactive, auth none on a demo URL: target demo, no browser question, a test screenshot; input closed → no", async () => {
+    const app = nextApp();
+    try {
+      const { calls, steps } = stubSteps();
+      const r = await cli(["init", app, "--lang", "en", "--auth", "none"], { input: ["", "https://demo.acme.example", "1", "y"], steps });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /Capture target +demo — a demo copy/);
+      assert.doesNotMatch(r.out, /Open the browser/);
+      assert.match(r.out, /\? Take a first test screenshot with --preview\? \(Y\/n\) › \n/, "the input ends: no");
+      assert.deepEqual(calls, []);
+      assert.match(fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"), /target: "demo",/);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("--target and --yes: production needs --url, never opens a browser, prints the reminders; refusals (2)", async () => {
+    const app = nextApp();
+    try {
+      const { calls, steps } = stubSteps();
+      assert.equal((await cli(["init", app, "--yes", "--target", "production"], { steps })).code, 2);
+      const noUrl = await cli(["init", app, "--yes", "--target", "production"]);
+      assert.match(noUrl.err, /--target production needs the address of the production\n {2}→ add --url https:\/\//);
+      const bad = await cli(["init", app, "--yes", "--target", "staging"]);
+      assert.equal(bad.code, 2);
+      assert.match(bad.err, /--target: invalid value “staging”\n {2}→ expected: local \| demo \| production/);
+      const both = await cli(["init", app, "--yes", "--target", "demo", "--capture", "none"]);
+      assert.equal(both.code, 2);
+      assert.match(both.err, /--capture none takes none/);
+      assert.ok(!fs.existsSync(path.join(app, "docs")), "nothing written");
+
+      const r = await cli(["init", app, "--yes", "--lang", "en", "--target", "production", "--url", "https://orders.acme.example"], { steps, input: ["y", "y", "y"] });
+      assert.equal(r.code, 0, r.err);
+      assert.deepEqual(calls, [], "--yes never runs a follow-up step, even with a terminal");
+      assert.doesNotMatch(r.out, /\?/, "no question");
+      assert.match(r.out, /Capture target +production — read-only/);
+      assert.match(r.out, /⚠ Production, read-only — before the first screenshot:/);
+      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+      const config = fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8");
+      assert.match(config, /target: "production",[\s\S]*readOnly: true,/);
+
+      const j = JSON.parse((await cli(["init", app, "--yes", "--json", "--dir", "local", "--target", "local"])).out);
+      assert.equal(j.target, "local");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("helpers: loopback addresses, local or demo", () => {
+    for (const u of ["http://localhost:3000", "http://app.localhost", "http://127.0.0.1:4173", "http://[::1]:8080"]) assert.equal(isLoopback(u), true, u);
+    for (const u of ["https://orders.acme.example", "http://10.0.0.5", "not a url"]) assert.equal(isLoopback(u), false, u);
+    assert.equal(localOrDemo("http://localhost:3000"), "local");
+    assert.equal(localOrDemo("https://demo.acme.example"), "demo");
   });
 });

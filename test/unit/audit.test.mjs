@@ -86,24 +86,86 @@ describe("a complete typed site", () => {
       assertTranslated(r);
     }));
 
-  test("guidance left and the summary placeholder of `new`: guidance = 2, level 2", () =>
+  test("guidance left in a page makes it a draft (counted by written only); the summary placeholder and the home guidance are guidance", () =>
     withCopy(
       TYPED,
       (d) => {
         edit(path.join(d, "content/configure/approval-chains.md"), (s) => s + "\n<!-- guidance: write this -->\n");
         const placeholder = i18n("fr").t("cli.new.summaryPlaceholder");
         edit(path.join(d, "content/toc.json"), (s) => s.replace('"summary": "Customers: what it is for."', `"summary": ${JSON.stringify(placeholder)}`));
+        edit(path.join(d, "content/home.md"), (s) => s + "\n<!-- guidance: keep the callout -->\n");
       },
       async (d) => {
         const r = await audit(d);
-        assert.equal(r.indicators.guidance.n, 2);
-        assert.equal(r.level, 2);
-        assert.deepEqual(failed(r), ["guidance3"]);
+        const W = r.indicators.written;
+        assert.deepEqual([W.n, W.total, W.missing, W.drafts, W.outsideTakeover.n, W.outsideTakeover.total], [15, 16, 0, 1, 3, 4]);
+        assert.equal(r.indicators.guidance.n, 2, "the placeholder of a written page and the home page; not the draft");
+        assert.deepEqual([r.indicators.conformant.n, r.indicators.conformant.total], [14, 14], "the draft is not measured by conformant");
+        assert.equal(r.level, 1, "3 of 4 pages written outside Take over: < 90 %");
+        assert.deepEqual(failed(r), ["written2", "written3", "guidance3"]);
+        assert.deepEqual(action(r, "written").items, [{ id: "configure/approval-chains", key: "finishDraft", vars: { n: 1 } }]);
+        assert.equal(action(r, "writtenAll"), undefined, "an unwritten page is listed once");
+        assert.equal(action(r, "writtenRest"), undefined);
         assert.deepEqual(action(r, "guidance").items, [
           { id: "use/customers", key: "placeholder", vars: { n: 0 } },
-          { id: "configure/approval-chains", key: "guidanceLeft", vars: { n: 1 } },
+          { id: "content/home.md", key: "guidanceLeft", vars: { n: 1 } },
         ]);
         assert.ok(r.warnings.some((w) => w.key === "template.guidance"), "the build reports it too");
+        assertTranslated(r);
+        assert.match(renderSummary(r, i18n("en")), /\n {2}Pages: 15 written of 16 — 1 to write \(0 without a file, 1 still in template guidance\)\n/);
+        assert.match(renderMarkdown(r, i18n("fr")), /1\. Écrivez la page pas encore écrite hors Reprendre \(0 sans fichier, 1 encore en consignes\)\n {3}- `configure\/approval-chains` → à terminer : 1 consigne de gabarit restante/);
+      }
+    ));
+
+  test("a page declared without its file: one problem, owned by written; no section, no blocking, no conformance counted", () =>
+    withCopy(
+      TYPED,
+      (d) => {
+        fs.rmSync(path.join(d, "content/use/customers.md"));
+        // An anchor into the page not written yet cannot be checked before it exists.
+        edit(path.join(d, "content/use/orders.md"), (s) => s + "\nSee [the permissions](#/use/customers~required-permissions).\n");
+      },
+      async (d) => {
+        const r = await audit(d);
+        assert.deepEqual(r.errors.map((e) => [e.key, e.vars.page]), [["page.missing", "use/customers"]], "neither the template's sections nor the anchor");
+        assert.deepEqual([r.indicators.written.n, r.indicators.written.missing, r.indicators.written.drafts], [15, 1, 0]);
+        assert.deepEqual([r.indicators.blocking.n, r.indicators.blocking.build, r.indicators.blocking.unwritten], [0, 0, 1]);
+        assert.deepEqual([r.indicators.conformant.n, r.indicators.conformant.total], [14, 14]);
+        assert.equal(r.indicators.completeness.value, 1);
+        assert.deepEqual(failed(r), ["written2", "written3"]);
+        assert.deepEqual(action(r, "written").items, [{ id: "use/customers", key: "newPage", vars: { file: "content/use/customers.md", template: "screen" } }]);
+        assert.equal(action(r, "blocking"), undefined, "the missing page is not counted again as a build error");
+        assert.equal(action(r, "conformant"), undefined);
+        assert.match(renderMarkdown(r, i18n("en")), /\| `blocking` \| 0 · \+ 1 error in the pages not written yet \(counted by `written`\) \|/);
+        assertTranslated(r);
+      }
+    ));
+
+  test("a Take over page that keeps its guidance is not present, and the template's example finding does not count", () =>
+    withCopy(
+      TYPED,
+      (d) => {
+        // The findings page back to its template state: guidance, and the example "(C1)" of the template.
+        edit(path.join(d, "content/take-over/findings.md"), (s) => s.replace(/\b[CIMPNR]\d{1,3}\b/g, "X") + "\n<!-- guidance: number the findings -->\n1. **Priority action**: why, and the findings concerned (C1).\n");
+      },
+      async (d) => {
+        const r = await audit(d);
+        const findings = r.takeover.find((t) => t.id === "findings");
+        assert.deepEqual([findings.ok, findings.unwritten], [false, { id: "take-over/findings", state: "draft" }]);
+        assert.deepEqual(action(r, "takeover").items, [{ id: "take-over/findings", key: "takeover.finish", vars: { item: "findings", template: "findings", sub: null, min: 0, page: "take-over/findings" } }]);
+        assert.equal(r.indicators.proofs.total, 11, "a draft is not measured by proofs");
+        assert.match(renderMarkdown(r, i18n("en")), /\| 6 \| Numbered findings \| ✖ \| `take-over\/findings` \(draft\) \|/);
+      }
+    ));
+
+  test("a finding id in an HTML comment of a written page does not count", () =>
+    withCopy(
+      TYPED,
+      (d) => edit(path.join(d, "content/take-over/findings.md"), (s) => s.replace(/\b[CIMPNR]\d{1,3}\b/g, "X") + "\n<!-- note for the writers: C1 -->\n"),
+      async (d) => {
+        const r = await audit(d);
+        assert.equal(r.takeover.find((t) => t.id === "findings").ok, false);
+        assert.deepEqual(action(r, "takeover").items.map((i) => i.key), ["takeover.number"]);
       }
     ));
 
@@ -166,6 +228,22 @@ describe("measures that may be unavailable", () => {
     assert.deepEqual([r.indicators.coverage.n, r.indicators.coverage.total, r.indicators.blocking.coverage], [1, 2, 1]);
     assert.equal(r.level, 1, "coverage 50 % < 80 %: level 2 is not reached");
     assert.deepEqual(action(r, "coverage").items, [{ id: "/reports" }]);
+    // need = n: the sentence says it once ("the element", "the 4 elements"), never "4, at least 4".
+    assert.match(renderMarkdown(r, i18n("en")), /\d\. Document the element that no written page cites\n/);
+  });
+
+  test("coverage: an element cited only by the entry of a page not written yet is planned, counted by coverage, not by blocking", async () => {
+    const items = [{ id: "/orders", covered: true }, { id: "/reports", covered: false, plannedBy: "use/reports" }, { id: "/a", covered: false }, { id: "/b", covered: false }, { id: "/c", covered: false }];
+    const coverage = async () => readCoverage({ adapters: [{ adapter: "x", available: true, families: [{ name: "Routes", items }] }] });
+    const r = await audit(TYPED, { tables: null, coverage });
+    assert.deepEqual([r.indicators.coverage.n, r.indicators.coverage.total, r.indicators.coverage.planned, r.indicators.blocking.coverage], [1, 5, 2, 3]);
+    const a = action(r, "coverage");
+    assert.deepEqual(a.items[0], { id: "/reports", key: "plannedBy", vars: { page: "use/reports" } });
+    assert.deepEqual(a.vars, { n: 4, need: 3 });
+    const md = renderMarkdown(r, i18n("fr"));
+    assert.match(md, /\| `coverage` \| 1 \/ 5 \(20\s%\) · avec les pages pas encore écrites : 2 \/ 5 \|/);
+    assert.match(md, /Documentez les éléments qu'aucune page écrite ne cite : 4, dont au moins 3 ; 1 est prévu par une page pas encore écrite\n {3}- `\/reports` → prévu dans `use\/reports`, pas encore écrite/);
+    assertTranslated(r);
   });
 
   test("capture.mode none: annotated is n/a, so a site whose screens are tables is not held at level 1", () =>

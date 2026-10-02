@@ -18,6 +18,7 @@
   "cli.validate.action.help": "par exemple { click: { text: \"Ouvrir\" } }, { wait: 500 } ou { press: \"Escape\" }",
 
   "cli.connect.open": "Une fenêtre {browser} est ouverte sur {url} : connectez-vous (SSO et MFA fonctionnent).",
+  "cli.connect.production": "PRODUCTION — {url} : connectez-vous avec votre propre compte ; la session enregistrée donne accès à la production.",
   "cli.connect.pressEnter": "Une fois connecté, appuyez sur Entrée ici (15 minutes au plus).",
   "cli.connect.detecting": "La session est détectée dès que vous êtes connecté (15 minutes au plus).",
   "cli.connect.notYet": "pas encore connecté (toujours sur une page de connexion) : terminez la connexion, puis appuyez de nouveau sur Entrée.",
@@ -55,6 +56,11 @@
   "cli.capture.prefetched": { "one": "{n} requête de préchargement vers une route interdite interrompue — {list}", "other": "{n} requêtes de préchargement vers des routes interdites interrompues — {list}" },
   "cli.capture.readOnly": { "one": "Lecture seule : {n} requête d'écriture bloquée{list}", "other": "Lecture seule : {n} requêtes d'écriture bloquées{list}" },
   "cli.capture.readOnlyOff": "Lecture seule : désactivée — les requêtes d'écriture n'ont pas été bloquées.",
+  "cli.capture.production": { "one": "PRODUCTION — lecture seule · {n} capture · {url}", "other": "PRODUCTION — lecture seule · {n} captures · {url}" },
+  "cli.capture.ask.production": { "one": "Capturer {n} écran sur la production maintenant ?", "other": "Capturer {n} écrans sur la production maintenant ?" },
+  "cli.capture.declined": "Rien n'a été capturé.",
+  "cli.capture.productionConfirm": "capture sur la production non confirmée (pas de terminal pour le demander)",
+  "cli.capture.productionConfirm.help": "ajoutez --yes pour confirmer une capture sur la production",
   "cli.capture.forbidden": "{id} : la route {route} est interdite (capture.forbidden : {pattern})",
   "cli.capture.forbidden.help": "une écriture faite par le serveur pendant le rendu d'une page ne peut pas être bloquée par le navigateur : décrivez la page d'après son code, ou réutilisez un enregistrement déjà ouvert et ajustez capture.forbidden",
   "cli.capture.noCaptures": "aucune capture dans {folder}",
@@ -106,6 +112,8 @@
 
   "cli.demo.noSetup": "pas de script de préparation de la démo (capture.setup)",
   "cli.demo.noSetup.help": "renseignez capture.setup dans doc.config.mjs : un script idempotent qui prépare les données de démonstration",
+  "cli.demo.production": "capture.target vaut \"production\" dans {file} : un script de données de démo ne tourne jamais sur la production ({url})",
+  "cli.demo.production.help": "préparez les données de démo sur une copie locale ou de démo de l'application (capture.target : \"local\" ou \"demo\")",
   "cli.demo.missing": "script de préparation introuvable : {file}",
   "cli.demo.missing.help": "corrigez capture.setup (relatif au projet de documentation)",
   "cli.demo.running": "Préparation des données de démonstration : {file}…",
@@ -121,7 +129,9 @@
   "cli.check.coverage.missing": "    manque : {id}",
   "cli.check.coverage.missingLabel": "    manque : {id} (« {label} »)",
   "cli.check.coverage.missingNoLabel": "    manque : {id} (aucun libellé trouvé)",
+  "cli.check.coverage.plannedSuffix": " — prévu dans {page}, pas encore écrite",
   "cli.check.coverage.summary": { "one": "{covered}/{n} élément couvert.", "other": "{covered}/{n} éléments couverts." },
+  "cli.check.coverage.planned": { "one": "  {count} élément de plus n'est cité que par l'entrée d'une page pas encore écrite ({planned}/{total} une fois écrite)", "other": "  {count} éléments de plus ne sont cités que par les entrées de pages pas encore écrites ({planned}/{total} une fois écrites)" },
   "cli.check.coverage.advice": "citez chaque élément manquant dans une page, ou dans les routes du sommaire",
 
   "cli.check.images.orphan": "image orpheline, citée par aucune page : {file}",
@@ -132,7 +142,10 @@
   "cli.check.images.heavy.help": "{command} optimize recompresse les images au-delà du seuil",
   "cli.check.images.outdated": "{file} : capturée en version {captured}, l'application est en version {version}",
   "cli.check.images.outdated.help": "refaites la capture, ou indiquez dans la page la version que montre l'écran",
-  "cli.check.images.summary": { "one": "{n} image contrôlée ({cited} citée(s)) — {errors} erreur(s), {warnings} avertissement(s).", "other": "{n} images contrôlées ({cited} citée(s)) — {errors} erreur(s), {warnings} avertissement(s)." },
+  "cli.check.images.summary": { "one": "{count} image contrôlée ({cited}) — {errors}, {warnings}.", "other": "{count} images contrôlées ({cited}) — {errors}, {warnings}." },
+  "cli.check.count.errors": { "one": "{count} erreur", "other": "{count} erreurs" },
+  "cli.check.count.warnings": { "one": "{count} avertissement", "other": "{count} avertissements" },
+  "cli.check.count.cited": { "one": "{count} citée", "other": "{count} citées" },
 
   "cli.check.secrets.found": "{where} : {kind} ({preview})",
   "cli.check.secrets.found.help": "retirez la valeur de la source ; si elle apparaît dans une capture, masquez-la (masks, masking.patterns) et refaites la capture",
@@ -151,7 +164,9 @@
   "cli.check.secrets.sessionTracked": "le fichier de session est suivi par git : {file}",
   "cli.check.secrets.sessionTracked.help": "retirez-le de git (git rm --cached), vérifiez que .gitignore contient {dir}, puis reconnectez-vous",
   "cli.check.secrets.failed": { "one": "{n} secret trouvé.", "other": "{n} secrets trouvés." },
-  "cli.check.secrets.ok": "✔ Aucun secret trouvé ({files} fichiers sources, {places} emplacements du site).",
+  "cli.check.secrets.ok": "✔ Aucun secret trouvé ({files}, {places}).",
+  "cli.check.count.sourceFiles": { "one": "{count} fichier source", "other": "{count} fichiers sources" },
+  "cli.check.count.places": { "one": "{count} emplacement du site", "other": "{count} emplacements du site" },
 
   "cli.inventory.family": { "one": "{adapter} › {name} : {n} élément, {covered} déjà cité(s)", "other": "{adapter} › {name} : {n} éléments, {covered} déjà cité(s)" },
   "cli.inventory.summary": { "one": "{n} élément inventorié, {covered} cité(s) dans la documentation.", "other": "{n} éléments inventoriés, {covered} cité(s) dans la documentation." }

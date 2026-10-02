@@ -5,7 +5,7 @@
 //
 // Safety:
 //   read-only   every request other than GET/HEAD/OPTIONS is aborted in the browser and counted (on whenever a
-//               session is used, with capture.readOnly "auto");
+//               session is used, with capture.readOnly "auto"; always with capture.target "production");
 //   forbidden   capture.forbidden routes are never requested, whatever the method: a write made by the server
 //               while rendering cannot be blocked by the browser, so the request must never leave it. A request
 //               that only PREFETCHES such a route (fetch, XHR, framework payload, <link rel=prefetch>, iframe,
@@ -25,6 +25,17 @@ import { forbiddenMatch } from "./plans.mjs";
 import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
 
 export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+
+/**
+ * Effective read-only mode of a run (ARCHITECTURE.md §3): always on for a production target, even without a session
+ * (the configuration refuses readOnly false there); otherwise "auto" follows the session.
+ * @param {{ readOnly: "auto"|boolean, target?: "local"|"demo"|"production" }} capture   config.capture
+ * @param {boolean} hasSession
+ */
+export function readOnlyMode(capture, hasSession) {
+  if (capture.target === "production") return true;
+  return capture.readOnly === "auto" ? hasSession : capture.readOnly === true;
+}
 
 /** Raised when the application sends the browser to a sign-in page during the run. */
 export class SessionExpired extends Error {

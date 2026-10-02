@@ -41,7 +41,8 @@ theme: {
 
 `doc-kit doctor` computes the WCAG contrast of these pairs, in both themes: text on `bg`, `surface`; `text-soft` on
 `surface`; `text-faint` on `surface` (3:1); `brand-strong` on `surface` and on `brand-soft`; `on-brand` on `brand`;
-`on-chrome`, `chrome-text` and `brand-on-chrome` on `chrome`; `hero-accent` on `chrome` (3:1); `violet`, `warn`,
+`on-chrome`, `chrome-text` and `brand-on-chrome` on `chrome`; `chrome-text` on `chrome-2` (the search field of the top
+bar and its key); `hero-accent` on `chrome` (3:1); `violet`, `warn`,
 `danger`, `info` and `ok` on their `-soft` background. The threshold is 4.5:1 unless noted.
 
 ```text

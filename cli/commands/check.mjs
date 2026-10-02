@@ -11,6 +11,7 @@ import { checkTables } from "../../engine/check/tables.mjs";
 import { checkImages } from "../../engine/check/images.mjs";
 import { checkSecrets } from "../../engine/check/secrets.mjs";
 import { runCoverage } from "../../engine/check/coverage.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 import { sessionFile } from "../../engine/capture/session.mjs";
 import { builtSite } from "../common.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
@@ -82,7 +83,7 @@ async function checkLinksCommand(ctx) {
   if (!ctx.json) {
     ctx.printProblems({ errors: problems });
     if (problems.length) ctx.printErr(ctx.t("cli.check.links.failed", { n: problems.length }));
-    else ctx.print(ctx.t("cli.check.links.ok", { pages: r.stats.pages }));
+    else ctx.print(ctx.t("cli.check.links.ok", { pages: numbers(ctx.i18n).count("cli.build.count.pages", r.stats.pages) }));
   }
   return { ok: problems.length === 0, pages: r.stats.pages, problems };
 }
@@ -99,7 +100,14 @@ async function checkImagesCommand(ctx, threshold) {
   if (!ctx.json) {
     printFindings(ctx, res.warnings, "⚠");
     printFindings(ctx, res.errors, "✖");
-    const line = ctx.t("cli.check.images.summary", { n: res.images, cited: res.cited, errors: res.errors.length, warnings: res.warnings.length });
+    const { count, number } = numbers(ctx.i18n);
+    const line = ctx.t("cli.check.images.summary", {
+      n: res.images,
+      count: number(res.images),
+      cited: count("cli.check.count.cited", res.cited),
+      errors: count("cli.check.count.errors", res.errors.length),
+      warnings: count("cli.check.count.warnings", res.warnings.length),
+    });
     if (res.errors.length) ctx.printErr(line);
     else ctx.print(line);
   }
@@ -123,7 +131,10 @@ async function checkSecretsCommand(ctx) {
     }
     if (res.findings.some((f) => f.preview)) ctx.printErr(`  → ${ctx.t("cli.check.secrets.found.help")}`);
     if (res.findings.length) ctx.printErr(ctx.t("cli.check.secrets.failed", { n: res.findings.length }));
-    else ctx.print(ctx.t("cli.check.secrets.ok", { files: res.files, places: res.places }));
+    else {
+      const { count } = numbers(ctx.i18n);
+      ctx.print(ctx.t("cli.check.secrets.ok", { files: count("cli.check.count.sourceFiles", res.files), places: count("cli.check.count.places", res.places) }));
+    }
   }
   return { ok: res.findings.length === 0, ...res };
 }
@@ -142,10 +153,18 @@ export async function checkCoverageCommand(ctx) {
         const mark = f.covered === f.total ? "✔" : "✖";
         ctx.print(ctx.t("cli.check.coverage.family", { mark, name: f.name, covered: f.covered, total: f.total }));
         for (const it of f.items.filter((x) => !x.covered))
-          ctx.print(ctx.t(it.label === undefined ? "cli.check.coverage.missing" : it.label === null ? "cli.check.coverage.missingNoLabel" : "cli.check.coverage.missingLabel", { id: it.id, label: it.label }));
+          ctx.print(
+            ctx.t(it.label === undefined ? "cli.check.coverage.missing" : it.label === null ? "cli.check.coverage.missingNoLabel" : "cli.check.coverage.missingLabel", { id: it.id, label: it.label }) +
+              (it.plannedBy ? ctx.t("cli.check.coverage.plannedSuffix", { page: it.plannedBy }) : "")
+          );
       }
     }
     ctx.print(`\n${ctx.t("cli.check.coverage.summary", { covered: res.covered, n: res.total })}`);
+    // Only the written pages cover an element; what the plan promises beyond them is said apart.
+    if (res.planned > res.covered) {
+      const { number } = numbers(ctx.i18n);
+      ctx.print(ctx.t("cli.check.coverage.planned", { n: res.planned - res.covered, count: number(res.planned - res.covered), planned: number(res.planned), total: number(res.total) }));
+    }
     if (res.missing) ctx.printErr(`  → ${ctx.t("cli.check.coverage.advice")}`);
   }
   return res;
@@ -163,7 +182,8 @@ async function checkTablesCommand(ctx, width) {
     const r = await checkTables({ file: site.file, width, topOfPage: ctx.t("cli.check.topOfPage") });
     if (!ctx.json) {
       for (const p of r.problems) ctx.printErr("✖ " + ctx.t("cli.check.tables.problem", p));
-      ctx.print(`\n${ctx.t("cli.check.tables.summary", { pages: r.pages, width, n: r.problems.length })}`);
+      const { count, number } = numbers(ctx.i18n);
+      ctx.print(`\n${ctx.t("cli.check.tables.summary", { pages: count("cli.build.count.pages", r.pages), width: number(width), n: r.problems.length, count: number(r.problems.length) })}`);
     }
     return r;
   } finally {

@@ -1,12 +1,13 @@
 // End-to-end tests of the generated site (Playwright, headless Chromium) on the demo project:
-// routes, Ctrl+K search, theme switch, guided tour, glossary tooltip, print preview, no page error.
+// routes, Ctrl+K search, theme switch, guided tour, glossary tooltip, print preview, no page error; `doc-kit view`.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildDemo, tempDir } from "../tools/helpers.mjs";
+import { buildDemo, tempDir, DEMO } from "../tools/helpers.mjs";
+import { runCli } from "../../cli/doc-kit.mjs";
 
 let browser;
 let dir;
@@ -131,6 +132,21 @@ describe("theme", () => {
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
     await page.context().close();
   });
+
+  test("the Ctrl K key of the top bar is readable in both themes (WCAG ≥ 4.5)", async () => {
+    for (const colorScheme of ["light", "dark"]) {
+      const page = await open("", { colorScheme });
+      const contrast = await page.evaluate(() => {
+        const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+        const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const kbd = getComputedStyle(document.querySelector(".recherche-bouton kbd"));
+        const [a, b] = [lum(rgb(kbd.color)), lum(rgb(kbd.backgroundColor))].sort((x, y) => y - x);
+        return (a + 0.05) / (b + 0.05);
+      });
+      assert.ok(contrast >= 4.5, `${colorScheme}: ${contrast.toFixed(2)}`);
+      await page.context().close();
+    }
+  });
 });
 
 describe("annotated screens", () => {
@@ -199,5 +215,23 @@ describe("languages", () => {
     await page.click("#menu-mobile");
     assert.ok(await page.evaluate(() => document.body.classList.contains("menu-ouvert")));
     await page.context().close();
+  });
+});
+
+describe("doc-kit view", () => {
+  test("--full: the whole page in one image; without it, the window only", async () => {
+    const size = (file) => {
+      const b = fs.readFileSync(file);
+      return [b.readUInt32BE(16), b.readUInt32BE(20)];
+    };
+    const run = (args) => runCli(["view", "use/orders", "--project", DEMO, ...args], { stdout: { write() {} }, stderr: { write() {} }, env: {} });
+    const window = path.join(dir, "window.png");
+    const full = path.join(dir, "full.png");
+    assert.equal(await run(["--output", window]), 0);
+    assert.equal(await run(["--full", "--output", full]), 0);
+    assert.deepEqual(size(window), [1440, 900]);
+    const [width, height] = size(full);
+    assert.equal(width, 1440);
+    assert.ok(height > 900, `full page height ${height}`);
   });
 });

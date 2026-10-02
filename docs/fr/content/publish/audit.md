@@ -16,50 +16,67 @@ niveau suivant, avec les pages concernées.
 
 ## Le résumé
 
-Le résumé du squelette d'un nouveau projet (lignes raccourcies ici) :
+Le résumé du squelette d'un nouveau projet (lignes raccourcies ici) : ses 9 pages sont des brouillons, écrits par
+`init` avec leurs consignes de gabarit, donc aucune n'est encore écrite.
 
 ```text
-◆ Acme Orders — niveau 2 · Utilisateur (9 pages)
-  ✔ written 100 % · ✔ typed 100 % · ✔ conformant 100 % · ✔ completeness 95,6 %
-  ✔ annotated 100 % · – coverage non mesuré · ✔ proofs 66,7 % · ✖ takeover 57,1 %
-  ✔ tooLong 0 % · ✖ guidance 9 · ✔ upToDateCaptures 100 % · ✖ glossary 2
-  ✖ tours 1 · ✖ blocking 8 · ✔ wideTables 0
+◆ Acme Orders — niveau 1 · Squelette (9 pages)
+  Pages : 0 écrite sur 9 — 9 à écrire (0 sans fichier, 9 encore en consignes)
+  ✖ written 0 % · ✔ typed 100 % · – conformant n/a · – completeness n/a
+  – annotated n/a · – coverage non mesuré · – proofs n/a · ✖ takeover 0 %
+  – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · ✖ glossary 2
+  ✖ tours 1 · ✔ blocking 0 · – wideTables non mesuré
 
-Prochain : niveau 3 · Complet — 4 critères à remplir
-  1. Rédigez, puis supprimez, les consignes de gabarit restées dans 9 pages (…)
-  2. Corrigez les 8 erreurs du build strict (doc-kit build) (…)
-  3. Ajoutez des parcours guidés (journeys dans content/toc.json) : 1 aujourd'hui, 3 attendus (2 de plus)
-  4. Ajoutez des termes au glossaire : 2 aujourd'hui, 20 attendus (18 de plus)
+Prochain : niveau 2 · Utilisateur — 1 critère à remplir
+  1. Écrivez les 3 pages pas encore écrites hors Reprendre (0 sans fichier, 3 encore en consignes) (…)
+  + 5 actions pour les niveaux suivants : voir le rapport
 
 → rapport : .doc-kit/audit.md · données : .doc-kit/audit.json
 ```
+
+## Les pages pas encore écrites
+
+Une page **écrite** est une page déclarée dont le fichier existe et ne contient plus aucune consigne de gabarit. Une
+page déclarée dans `toc.json` sans son fichier, ou dont le fichier contient encore des consignes (un brouillon), n'est
+pas encore écrite, et **seul `written` la compte** :
+
+- le build strict signale une seule fois une page sans fichier, `page pas encore écrite : <id>`, et ne contrôle ni
+  les sections de son gabarit ni les ancres qui pointent vers elle (un avertissement avec `--draft`) ;
+- `conformant`, `completeness`, `annotated`, `proofs`, `tooLong` et `takeover` ne mesurent que les pages écrites : les
+  exemples d'un gabarit (un constat `C1` d'exemple, une preuve d'exemple) ne remplissent jamais un critère ;
+- `coverage` compte ce que citent les pages écrites. Les `routes` d'une page pas encore écrite ne couvrent rien : le
+  rapport donne à part la couverture « avec les pages pas encore écrites », et nomme la page qui prévoit chaque
+  élément ;
+- `blocking` laisse de côté les erreurs de build des pages pas encore écrites ; le rapport les affiche à côté.
+
+La ligne « Pages : … à écrire » du résumé dit la distance entre le plan et la documentation écrite.
 
 ## Les indicateurs
 
 | Indicateur | Ce qu'il mesure |
 |---|---|
-| `written` | Les pages déclarées qui ont leur fichier |
+| `written` | Les pages déclarées qui sont écrites : fichier présent, plus aucune consigne de gabarit |
 | `typed` | Les pages qui déclarent un `template` |
-| `conformant` | Les pages typées qui ont toutes leurs sections obligatoires |
-| `completeness` | La part des sections du gabarit présentes, en moyenne sur les pages typées |
-| `annotated` | Les pages `screen` et `editor` qui ont un `:::ecran` (tant qu'aucune page n'est typée : les pages hors Reprendre) ; `n/a` avec `capture.mode: "none"` |
-| `coverage` | Éléments cités ÷ éléments inventoriés par les adaptateurs de couverture |
-| `proofs` | Les pages de Reprendre qui ont au moins une preuve `fichier:ligne` (`lib/orders.ts:42`, entre accents graves) |
-| `takeover` | Les 7 pages obligatoires de Reprendre qui sont présentes |
-| `tooLong` | Les pages au-delà de leur `maxWords` (2 000 sans type) |
-| `guidance` | Les pages qui contiennent encore une consigne de gabarit, ou le résumé provisoire de `doc-kit new` |
+| `conformant` | Les pages typées écrites qui ont toutes leurs sections obligatoires |
+| `completeness` | La part des sections du gabarit présentes, en moyenne sur les pages typées écrites |
+| `annotated` | Les pages `screen` et `editor` écrites qui ont un `:::ecran` (tant qu'aucune page n'est typée : les pages écrites hors Reprendre) ; `n/a` avec `capture.mode: "none"` |
+| `coverage` | Éléments cités par les pages écrites ÷ éléments inventoriés par les adaptateurs de couverture |
+| `proofs` | Les pages de Reprendre écrites qui ont au moins une preuve `fichier:ligne` (`lib/orders.ts:42`, entre accents graves) |
+| `takeover` | Les 7 pages obligatoires de Reprendre qui sont écrites |
+| `tooLong` | Les pages écrites au-delà de leur `maxWords` (2 000 sans type) |
+| `guidance` | Le texte de gabarit resté hors des pages : résumé provisoire de `doc-kit new` d'une page écrite, consigne dans l'accueil ou une introduction de section |
 | `upToDateCaptures` | Les fichiers de zones dont la `version` est la version documentée courante |
 | `glossary` · `tours` | Termes du glossaire · parcours de la page d'accueil |
-| `blocking` | Erreurs du build strict + éléments non couverts + secrets trouvés |
+| `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments qu'aucune page ne cite + secrets trouvés |
 | `wideTables` | Les tableaux qui défilent à 1 440 px (chaque page est ouverte dans Chromium) |
 
 ## Les niveaux et leurs critères
 
 | Niveau | Critères |
 |---|---|
-| **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page écrite · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
+| **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page avec son fichier (un brouillon compte) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou n/a) · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) |
 
 La section **Reprendre** est celle dont l'id est `reprendre` (ou `take-over`) ; sinon, la dernière section du plan

@@ -179,6 +179,9 @@ async function guided({ ctx, modules, values }) {
   ctx.print(ctx.t(`cli.guided.situation.${s.step}`, vars));
   if (s.config?.capture.mode === "none") ctx.print(p.dim(ctx.t("cli.guided.noCapture")));
   if (s.error) printKitError(ctx, s.error);
+  // Production: the banner before anything that opens the application (connect, capture).
+  const production = s.config?.capture.target === "production" && (s.step === "connect" || s.step === "capture");
+  if (production) ctx.print(p.warn(p.bold(ctx.t("cli.guided.production", { url: s.config.app.url || "—" }))));
 
   if (!ctx.interactive) {
     const next = s.step === "menu" ? MENU.map(command).join(" · ") : command(s.step);
@@ -197,7 +200,7 @@ ${ctx.t("cli.guided.next", { command: next })}`);
       "dev"
     );
     if (step === "quit") return EXIT.OK;
-  } else if (!(await prompt.confirm(ctx.t("cli.guided.ask.run", { command: command(s.step) }), true))) {
+  } else if (!(await prompt.confirm(ctx.t(s.step === "connect" ? "cli.guided.ask.connect" : "cli.guided.ask.run", { command: command(s.step) }), true))) {
     ctx.print(ctx.t("cli.guided.later", { command: command(s.step) }));
     return EXIT.OK;
   }
@@ -218,7 +221,9 @@ ${ctx.t("cli.guided.next", { command: next })}`);
     return EXIT.USAGE;
   }
   const globals = Object.fromEntries(Object.entries(values).filter(([k]) => k in GLOBALS));
-  return module.run({ ctx, values: globals, positionals: step === "init" ? [s.folder] : [] });
+  // A production capture was confirmed right after its banner: capture does not ask a second time.
+  const confirmed = production && step === "capture" ? { yes: true } : {};
+  return module.run({ ctx, values: { ...globals, ...confirmed }, positionals: step === "init" ? [s.folder] : [] });
 }
 
 /** Is this file the program being run? Real paths: npm links the kit (symlink, Windows junction) into projects. */

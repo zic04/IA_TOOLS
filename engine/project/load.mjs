@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { findProject, KIT_ROOT, kitVersion, CONFIG_FILE } from "./find.mjs";
 import { validate } from "./validate.mjs";
 import { completeConfig } from "./defaults.mjs";
-import { applyEnv } from "./env.mjs";
+import { applyEnv, readEnv } from "./env.mjs";
 import { satisfies, isValidRange } from "./semver.mjs";
 import { KitError, EXIT } from "./errors.mjs";
 import { checkOverrides } from "../theme/tokens.mjs";
@@ -34,6 +34,8 @@ function extraChecks(config) {
       errors.push({ path: `statuses.${k}[0]`, key: "status", vars: { got: colour } });
   for (const [name, svg] of Object.entries(config.theme.icons))
     if (/<script|\son[a-z]+\s*=|javascript:|<foreignObject|<iframe/i.test(svg)) errors.push({ path: `theme.icons.${name}`, key: "icon", vars: { name } });
+  // Production is only ever captured read-only (ARCHITECTURE.md §3, capture.target).
+  if (config.capture.target === "production" && config.capture.readOnly === false) errors.push({ path: "capture.readOnly", key: "productionReadOnly", vars: {} });
   return errors;
 }
 
@@ -49,6 +51,9 @@ export function prepareConfig(raw, { file = CONFIG_FILE, env = process.env, vers
   if (!satisfies(version, value.kit)) throw new KitError(EXIT.ENVIRONMENT, "config.kitIncompatible", { range: value.kit, version });
   completeConfig(value);
   applyEnv(value, env);
+  // <PREFIX>_READONLY / DOC_KIT_READONLY cannot turn read-only off on production either.
+  if (value.capture.target === "production" && value.capture.readOnly === false)
+    throw new KitError(EXIT.USAGE, "env.productionReadOnly", { variable: readEnv("READONLY", value.env.prefix, env)?.variable ?? "READONLY" });
   return value;
 }
 

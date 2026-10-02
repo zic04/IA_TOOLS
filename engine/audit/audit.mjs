@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { build, readProjectVersion, HOME_FILES } from "../build/build.mjs";
-import { loadPageTemplates, analysePage, guessTemplate, closestTemplate, headingsOf, sectionLabel, sectionCount } from "../build/page-templates.mjs";
+import { loadPageTemplates, analysePage, guessTemplate, closestTemplate, headingsOf, sectionLabel, sectionCount, countGuidance } from "../build/page-templates.mjs";
 import { normalizeToc, normalizeZones, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { createI18n, LANGUAGES } from "../i18n.mjs";
 import { generatorTag } from "../brand.mjs";
@@ -69,7 +69,7 @@ export const TAKEOVER_ITEMS = Object.freeze([
 /** Effort of each kind of action (1 = minutes, 5 = real writing): orders the actions inside a level. */
 const EFFORT = {
   draftBuild: 1, home: 1, guidance: 1, secrets: 2, conformant: 1, typedDeclare: 1, linksLegend: 2, blocking: 2, tours: 2, typedChoose: 3,
-  glossary: 3, wideTables: 3, upToDate: 3, sectionsWritten: 4, annotated: 4, completeness: 4, tooLong: 4, written: 5,
+  glossary: 3, wideTables: 3, upToDate: 3, sectionsWritten: 4, annotated: 4, completeness: 4, tooLong: 4, written: 5, writtenAll: 5, writtenRest: 5,
   coverage: 5, proofs: 5, takeover: 5,
 };
 
@@ -136,11 +136,18 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
         const level = p.level === 2 ? 2 : 1;
         const file = `${content}/${p.file || p.id + ".md"}`;
         const abs = path.join(root, file);
-        const written = fs.existsSync(abs);
-        const source = written ? fs.readFileSync(abs, "utf8") : "";
-        const rendered = data.pages[p.id]?.toc;
+        const hasFile = fs.existsSync(abs);
+        const source = hasFile ? fs.readFileSync(abs, "utf8") : "";
+        const rendered = hasFile ? data.pages[p.id]?.toc : null;
         const headings = rendered ? rendered.filter((x) => x.niveau === 2).map((x) => x.titre) : headingsOf(source);
         const a = analysePage({ table, type: p.template, headings, source, language });
+        // standard/maturity.md: a page is WRITTEN when its file exists and holds no template guidance. A page
+        // without its file is "missing", one that still holds guidance is a "draft": `written` owns both, and no
+        // other indicator counts them (their sections, examples and build errors wait until they are written).
+        const state = !hasFile ? "missing" : a.guidance > 0 ? "draft" : "written";
+        const written = state === "written";
+        // The template's examples live in its guidance comments: they never satisfy a criterion.
+        const body = written ? source.replace(/<!--[\s\S]*?-->/g, " ") : "";
         const page = {
           id: p.id,
           section: sec.id,
@@ -148,6 +155,8 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
           parent: level === 2 && parent ? parent.id : null,
           template: p.template || null,
           file,
+          state,
+          hasFile,
           written,
           headings,
           takeover: sec.id === takeoverId,
@@ -155,14 +164,14 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
           maxWords: a.maxWords,
           guidance: a.guidance,
           placeholder: placeholders.includes(p.summary),
-          screen: SCREEN.test(source),
-          proof: PROOF.test(source),
-          finding: FINDING.test(source),
+          screen: SCREEN.test(body),
+          proof: PROOF.test(body),
+          finding: FINDING.test(body),
           analysis: p.template ? a : null,
           guess: null,
           closest: null,
         };
-        if (!page.template && written) {
+        if (!page.template && hasFile) {
           const parentType = level === 2 && parent ? parent.template || parent.guess?.type : null;
           // standard/templates.md, "Untyped pages": the sub-pages of a screen, an editor or the findings stay untyped.
           if (UNTYPED_UNDER.includes(parentType)) page.untyped = true;
@@ -185,20 +194,30 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   };
 
   // ─── Indicators ────────────────────────────────────────────────────────────
+  // `written` owns the pages not written yet (missing or draft); the other page indicators are measured on the
+  // written pages only, so that an unwritten page is counted once (standard/maturity.md, "Who counts what").
   const total = pages.length;
   const written = pages.filter((p) => p.written);
+  const unwritten = pages.filter((p) => !p.written);
+  const unwrittenIds = new Set(unwritten.map((p) => p.id));
   const outside = pages.filter((p) => !p.takeover);
   const typed = pages.filter((p) => p.template);
+  const typedWritten = typed.filter((p) => p.written);
   const takeoverPages = pages.filter((p) => p.takeover);
+  const takeoverWritten = takeoverPages.filter((p) => p.written);
   // Annotated: the screen and editor pages; while no page is typed, every page outside Take over.
-  const screenPages = typed.length ? pages.filter((p) => ["screen", "editor"].includes(p.template)) : pages.filter((p) => !p.takeover);
-  const completenessOf = typed.map((p) => (p.analysis?.known ? p.analysis.completeness : 0));
-  const tooLong = pages.filter((p) => p.written && p.words > p.maxWords);
-  const unfinished = pages.filter((p) => p.guidance > 0 || p.placeholder);
+  const screenPages = (typed.length ? pages.filter((p) => ["screen", "editor"].includes(p.template)) : outside).filter((p) => p.written);
+  const completenessOf = typedWritten.map((p) => (p.analysis?.known ? p.analysis.completeness : 0));
+  const tooLong = written.filter((p) => p.words > p.maxWords);
+  const unfinished = [...written.filter((p) => p.placeholder).map((p) => ({ id: p.id, key: "placeholder", vars: { n: 0 } })), ...leftoverGuidance(root, content, toc)];
 
   const captures = readCaptures(root, images);
   const versioned = captures.filter((c) => c.version);
-  const linkLegend = built.errors.filter((e) => e.kind === "link" || ["screen.legend", "capture.hasZones"].includes(e.key));
+  // The build errors of the pages not written yet (page.missing, and every error raised in a draft) belong to
+  // `written`; a journey step that names an unknown page stays a link error.
+  const ownedByWritten = (e) => e.key === "page.missing" || (e.key !== "link.journey" && unwrittenIds.has(e.vars?.page));
+  const buildErrors = built.errors.filter((e) => !ownedByWritten(e));
+  const linkLegend = buildErrors.filter((e) => e.kind === "link" || ["screen.legend", "capture.hasZones"].includes(e.key));
 
   const coverageFn = measure.coverage === undefined ? measureCoverage : measure.coverage;
   const coverage = coverageFn ? await coverageFn({ project, config }) : { measured: false, reason: "skipped" };
@@ -207,31 +226,35 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const tables = measure.tables ? await measure.tables(built.html) : { measured: false, reason: measure.tablesReason || "skipped" };
 
   const takeover = evaluateTakeover({ pages: takeoverPages, subPages, takeoverId, table, language });
-  const uncovered = coverage.measured ? coverage.total - coverage.n : 0;
+  const missingCount = unwritten.filter((p) => p.state === "missing").length;
+  // `blocking` counts the elements that no page cites, not even a page not written yet: those that only the entry
+  // of an unwritten page cites are already counted by `written` (that page) and `coverage` (level 2).
+  const uncovered = coverage.measured ? coverage.total - Math.max(coverage.n, coverage.planned ?? 0) : 0;
 
   const indicators = {
-    written: { ...ratio(written.length, total), outsideTakeover: ratio(outside.filter((p) => p.written).length, outside.length) },
+    written: { ...ratio(written.length, total), outsideTakeover: ratio(outside.filter((p) => p.written).length, outside.length), missing: missingCount, drafts: unwritten.length - missingCount },
     typed: ratio(typed.length, total),
-    conformant: ratio(typed.filter((p) => p.analysis?.conformant).length, typed.length),
-    completeness: { kind: "average", measured: true, total: typed.length, value: typed.length ? completenessOf.reduce((a, b) => a + b, 0) / typed.length : null },
+    conformant: ratio(typedWritten.filter((p) => p.analysis?.conformant).length, typedWritten.length),
+    completeness: { kind: "average", measured: true, total: typedWritten.length, value: typedWritten.length ? completenessOf.reduce((a, b) => a + b, 0) / typedWritten.length : null },
     // A documentation declared without screenshots (capture.mode "none") has nothing to annotate: n/a.
     annotated: config.capture?.mode === "none" ? { ...ratio(0, 0), mode: "none" } : ratio(screenPages.filter((p) => p.screen).length, screenPages.length),
-    coverage: coverage.measured ? ratio(coverage.n, coverage.total) : notMeasured("ratio", coverage.reason, coverage.error),
-    proofs: ratio(takeoverPages.filter((p) => p.proof).length, takeoverPages.length),
+    coverage: coverage.measured ? { ...ratio(coverage.n, coverage.total), ...(coverage.planned > coverage.n ? { planned: coverage.planned } : {}) } : notMeasured("ratio", coverage.reason, coverage.error),
+    proofs: ratio(takeoverWritten.filter((p) => p.proof).length, takeoverWritten.length),
     takeover: { kind: "ratio", measured: true, n: takeover.filter((t) => t.ok).length, total: TAKEOVER_ITEMS.length, value: takeover.filter((t) => t.ok).length / TAKEOVER_ITEMS.length },
-    tooLong: ratio(tooLong.length, total),
+    tooLong: ratio(tooLong.length, written.length),
     guidance: count(unfinished.length),
     upToDateCaptures: { ...ratio(versioned.filter((c) => c.version === version).length, versioned.length), current: version },
     glossary: count(data.glossaire.length),
     tours: count(data.parcours.length),
-    blocking: { ...count(built.errors.length + uncovered + (secrets.measured ? secrets.findings.length : 0)), build: built.errors.length, coverage: uncovered, secrets: secrets.measured ? secrets.findings.length : null, ...(secrets.measured ? {} : { secretsReason: secrets.reason, secretsError: secrets.error }) },
+    blocking: { ...count(buildErrors.length + uncovered + (secrets.measured ? secrets.findings.length : 0)), build: buildErrors.length, unwritten: built.errors.length - buildErrors.length, coverage: uncovered, secrets: secrets.measured ? secrets.findings.length : null, ...(secrets.measured ? {} : { secretsReason: secrets.reason, secretsError: secrets.error }) },
     wideTables: tables.measured ? count(tables.problems.length) : notMeasured("count", tables.reason, tables.error),
   };
 
   // ─── Criteria and level ────────────────────────────────────────────────────
   const atLeast = (ind, x) => (!ind.measured ? { ok: true, measured: false } : ind.value === null ? { ok: true, na: true } : { ok: ind.value >= x - 1e-9 });
   const atMost = (ind, x) => (!ind.measured ? { ok: true, measured: false } : ind.value === null ? { ok: true, na: true } : { ok: ind.value <= x + 1e-9 });
-  const emptySections = toc.sections.filter((s) => !pages.some((p) => p.section === s.id && p.written)).map((s) => s.id);
+  // Level 1 (Skeleton): a section has its first page as soon as one of its pages has a file, even a draft.
+  const emptySections = toc.sections.filter((s) => !pages.some((p) => p.section === s.id && p.hasFile)).map((s) => s.id);
   const homeFile = HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
   const T = THRESHOLDS;
   const criteria = [
@@ -245,6 +268,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     { level: 2, id: "annotated2", indicator: "annotated", threshold: T.annotated2, ...atLeast(indicators.annotated, T.annotated2) },
     { level: 2, id: "coverage2", indicator: "coverage", threshold: T.coverage2, ...atLeast(indicators.coverage, T.coverage2) },
     { level: 2, id: "linksLegend", ok: linkLegend.length === 0, n: linkLegend.length },
+    { level: 3, id: "written3", indicator: "written", threshold: 1, ...atLeast(indicators.written, 1) },
     { level: 3, id: "blocking3", indicator: "blocking", threshold: 0, ...atMost(indicators.blocking, 0) },
     { level: 3, id: "typed3", indicator: "typed", threshold: T.typed3, ...atLeast(indicators.typed, T.typed3) },
     { level: 3, id: "conformant3", indicator: "conformant", threshold: T.conformant3, ...atLeast(indicators.conformant, T.conformant3) },
@@ -266,12 +290,21 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   }
 
   // ─── Actions, for every level above the one reached ────────────────────────
-  const ctx = { pages, byId, subPages, indicators, built, linkLegend, coverage, secrets, tables, takeover, takeoverId, total, outside, screenPages, typed, tooLong, unfinished, captures, versioned, version, emptySections, content, tocInfo, table, language, takeoverPages };
+  const ctx = { pages, byId, subPages, indicators, built, buildErrors, linkLegend, coverage, secrets, tables, takeover, takeoverId, total, outside, screenPages, typed, typedWritten, tooLong, unfinished, captures, versioned, version, emptySections, content, tocInfo, table, language, takeoverPages, takeoverWritten, written, unwritten };
   const actions = [];
   for (const c of criteria) {
     if (c.ok || c.level <= level) continue;
     for (const a of actionsFor(c, ctx))
       if (!actions.some((b) => b.key === a.key)) actions.push({ level: c.level, criterion: c.id, effort: EFFORT[a.key] ?? 3, ...a });
+  }
+  // One unwritten page, one item: the pages already listed outside Take over (level 2) are not listed again.
+  const outsideAction = actions.find((a) => a.key === "written");
+  const allAction = actions.find((a) => a.key === "writtenAll");
+  if (outsideAction && allAction) {
+    const listed = new Set(outsideAction.items.map((i) => i.id));
+    const rest = unwritten.filter((p) => !listed.has(p.id));
+    if (rest.length) Object.assign(allAction, { key: "writtenRest", vars: unwrittenVars(rest), items: rest.map(unwrittenItem) });
+    else actions.splice(actions.indexOf(allAction), 1);
   }
   actions.sort((a, b) => a.level - b.level || a.effort - b.effort);
 
@@ -297,14 +330,20 @@ function readCaptures(root, images) {
 
 /** The 7 required Take over pages: present or not, the page that satisfies each, and candidates. */
 function evaluateTakeover({ pages, subPages, takeoverId, table, language }) {
+  // Only the written pages count (standard/maturity.md): a draft, or a page without its file, is named as the page
+  // to write (`unwritten`), never as present.
   const live = pages.filter((p) => p.written);
   const typeOf = (p) => p.template || p.guess?.type || null;
+  const pending = (test) => {
+    const u = pages.find((p) => !p.written && test(p));
+    return u ? { id: u.id, state: u.state } : null;
+  };
   return TAKEOVER_ITEMS.map((item) => {
-    const r = { id: item.id, ok: false, page: null, candidate: null, template: item.template, suggest: item.suggest, sub: item.sub || null, min: item.min || 0 };
+    const r = { id: item.id, ok: false, page: null, candidate: null, unwritten: null, template: item.template, suggest: item.suggest, sub: item.sub || null, min: item.min || 0 };
     if (!takeoverId) return r;
     if (item.match) {
       const p = live.find(item.match);
-      return { ...r, ok: !!p, page: p?.id ?? null };
+      return { ...r, ok: !!p, page: p?.id ?? null, unwritten: p ? null : pending(item.match) };
     }
     for (const p of live.filter((x) => x.template === item.type)) {
       const subs = item.sub ? subPages(p).filter((s) => s.written && s.template === item.sub).length : 0;
@@ -319,7 +358,7 @@ function evaluateTakeover({ pages, subPages, takeoverId, table, language }) {
         const subs = item.sub ? subPages(c).filter((s) => s.written && typeOf(s) === item.sub).length : 0;
         const missing = analysePage({ table, type: item.type, headings: c.headings, language }).missing;
         r.candidate = { id: c.id, follows: typeOf(c) === item.type, subs, missing };
-      }
+      } else r.unwritten = pending((p) => p.level === 1 && (p.template === item.type || item.hint.test(p.id)));
     }
     return r;
   });
@@ -345,21 +384,26 @@ function actionsFor(c, x) {
       return [{ key: "tours", vars: { n: I.tours.n, need: c.threshold - I.tours.n, threshold: c.threshold, file: x.tocInfo.file }, items: [] }];
     case "written2": {
       const missing = x.outside.filter((p) => !p.written);
-      return [{ key: "written", vars: { n: missing.length, need: need(T.written2, x.outside.length, x.outside.length - missing.length) }, items: missing.map((p) => ({ id: p.id, key: p.template ? "newPage" : "writeFile", vars: { file: p.file, template: p.template } })) }];
+      return [{ key: "written", vars: { ...unwrittenVars(missing), need: need(T.written2, x.outside.length, x.outside.length - missing.length) }, items: missing.map(unwrittenItem) }];
     }
+    case "written3":
+      return [{ key: "writtenAll", vars: unwrittenVars(x.unwritten), items: x.unwritten.map(unwrittenItem) }];
     case "annotated2":
     case "annotated3": {
       const missing = x.screenPages.filter((p) => !p.screen);
       return [{ key: "annotated", vars: { n: missing.length, need: need(c.threshold, x.screenPages.length, x.screenPages.length - missing.length), percent: c.threshold }, items: missing.map((p) => ({ id: p.id })) }];
     }
-    case "coverage2":
-      return [{ key: "coverage", vars: { n: x.coverage.total - x.coverage.n, need: need(T.coverage2, x.coverage.total, x.coverage.n) }, items: (x.coverage.missing || []).map((id) => ({ id })) }];
+    case "coverage2": {
+      const items = coverageItems(x.coverage);
+      const planned = items.filter((i) => i.key === "plannedBy").length;
+      return [{ key: "coverage", vars: { n: x.coverage.total - x.coverage.n, need: need(T.coverage2, x.coverage.total, x.coverage.n) }, ...(planned ? { note: { key: "coveragePlanned", vars: { n: planned } } } : {}), items }];
+    }
     case "linksLegend":
       return [{ key: "linksLegend", vars: { n: x.linkLegend.length }, items: x.linkLegend.map(problemItem) }];
     case "blocking3": {
       const out = [];
-      if (x.built.errors.length) out.push({ key: "blocking", vars: { n: x.built.errors.length }, items: x.built.errors.map(problemItem) });
-      if (I.blocking.coverage) out.push({ key: "coverage", vars: { n: I.blocking.coverage, need: I.blocking.coverage }, items: (x.coverage.missing || []).map((id) => ({ id })) });
+      if (x.buildErrors.length) out.push({ key: "blocking", vars: { n: x.buildErrors.length }, items: x.buildErrors.map(problemItem) });
+      if (I.blocking.coverage) out.push({ key: "coverage", vars: { n: I.blocking.coverage, need: I.blocking.coverage }, items: coverageItems(x.coverage).filter((i) => i.key !== "plannedBy") });
       if (I.blocking.secrets) out.push({ key: "secrets", vars: { n: I.blocking.secrets }, items: x.secrets.findings.map((s) => ({ id: s.where, key: "secret", vars: { kind: s.kind } })) });
       return out;
     }
@@ -371,32 +415,32 @@ function actionsFor(c, x) {
       const key = x.tocInfo.legacy ? "gabarit" : "template";
       if (candidates.length)
         out.push({ key: "typedDeclare", vars: { n: candidates.length, need: still, file: x.tocInfo.file, field: key }, items: candidates.map((p) => ({ id: p.id, key: "typeAs", vars: { template: p.guess.type, field: key } })) });
-      if (candidates.length < still) {
-        const others = untyped.filter((p) => !p.guess && !p.untyped && p.written);
+      const others = untyped.filter((p) => !p.guess && !p.untyped && p.hasFile);
+      if (candidates.length < still && others.length) {
         out.push({
           key: "typedChoose",
-          vars: { n: others.length, need: still - candidates.length, field: key, file: x.tocInfo.file },
+          vars: { n: others.length, need: Math.min(others.length, still - candidates.length), field: key, file: x.tocInfo.file },
           items: others.map((p) => (p.closest ? { id: p.id, key: "closest", vars: { template: p.closest.type, missing: p.closest.missing } } : { id: p.id })),
         });
       }
       return out;
     }
     case "conformant3": {
-      const bad = x.typed.filter((p) => !p.analysis?.conformant);
+      const bad = x.typedWritten.filter((p) => !p.analysis?.conformant);
       return [{ key: "conformant", vars: { n: bad.length }, items: bad.map((p) => (p.analysis?.known ? { id: p.id, key: "missingSections", vars: { template: p.template, missing: p.analysis.missing } } : { id: p.id, key: "unknownTemplate", vars: { template: p.template } })) }];
     }
     case "guidance3":
-      return [{ key: "guidance", vars: { n: x.unfinished.length }, items: x.unfinished.map((p) => ({ id: p.id, key: p.guidance ? "guidanceLeft" : "placeholder", vars: { n: p.guidance } })) }];
+      return [{ key: "guidance", vars: { n: x.unfinished.length }, items: x.unfinished }];
     case "wideTables3":
       return [{ key: "wideTables", vars: { n: x.tables.problems.length }, items: x.tables.problems.map((t) => ({ id: t.page, key: "wideTable", vars: t })) }];
     case "takeover4":
       return [{ key: "takeover", vars: { n: TAKEOVER_ITEMS.length - I.takeover.n }, items: x.takeover.filter((t) => !t.ok).map((t) => takeoverItem(t, x)) }];
     case "proofs4": {
-      const missing = x.takeoverPages.filter((p) => !p.proof);
-      return [{ key: "proofs", vars: { n: missing.length, need: need(T.proofs4, x.takeoverPages.length, x.takeoverPages.length - missing.length) }, items: missing.map((p) => ({ id: p.id })) }];
+      const missing = x.takeoverWritten.filter((p) => !p.proof);
+      return [{ key: "proofs", vars: { n: missing.length, need: need(T.proofs4, x.takeoverWritten.length, x.takeoverWritten.length - missing.length) }, items: missing.map((p) => ({ id: p.id })) }];
     }
     case "completeness4": {
-      const low = x.typed
+      const low = x.typedWritten
         .filter((p) => p.analysis?.known && p.analysis.completeness < 1)
         .sort((a, b) => a.analysis.completeness - b.analysis.completeness)
         .slice(0, 20);
@@ -404,7 +448,7 @@ function actionsFor(c, x) {
     }
     case "tooLong4": {
       const sorted = [...x.tooLong].sort((a, b) => b.words / b.maxWords - a.words / a.maxWords);
-      return [{ key: "tooLong", vars: { n: sorted.length, need: Math.max(0, sorted.length - Math.floor(T.tooLong4 * x.total + 1e-9)) }, items: sorted.map((p) => ({ id: p.id, key: "words", vars: { words: p.words, max: p.maxWords } })) }];
+      return [{ key: "tooLong", vars: { n: sorted.length, need: Math.max(0, sorted.length - Math.floor(T.tooLong4 * x.written.length + 1e-9)) }, items: sorted.map((p) => ({ id: p.id, key: "words", vars: { words: p.words, max: p.maxWords } })) }];
     }
     case "upToDate4": {
       const old = x.versioned.filter((c) => c.version !== x.version);
@@ -413,6 +457,38 @@ function actionsFor(c, x) {
     default:
       return [];
   }
+}
+
+/** Counts of a list of pages not written yet: { n, missing (no file), drafts (template guidance left) }. */
+function unwrittenVars(list) {
+  const missing = list.filter((p) => p.state === "missing").length;
+  return { n: list.length, missing, drafts: list.length - missing };
+}
+
+/** What to do for a page not written yet: create it (`new`, or write its file), or finish the draft. */
+function unwrittenItem(p) {
+  if (p.state === "draft") return { id: p.id, key: "finishDraft", vars: { n: p.guidance } };
+  return { id: p.id, key: p.template ? "newPage" : "writeFile", vars: { file: p.file, template: p.template } };
+}
+
+/** Uncovered elements; those that the entry of a page not written yet cites name that page. */
+function coverageItems(coverage) {
+  return (coverage.missing || []).map((id) => (coverage.plannedBy?.[id] ? { id, key: "plannedBy", vars: { page: coverage.plannedBy[id] } } : { id }));
+}
+
+/**
+ * Template guidance left outside the declared pages: the home page and the section introductions
+ * (`<section>/index.md`). The declared pages that hold guidance are drafts, counted by `written`.
+ */
+function leftoverGuidance(root, content, toc) {
+  const files = [HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f))), ...toc.sections.map((s) => `${content}/${s.id}/index.md`)];
+  const out = [];
+  for (const file of files) {
+    if (!file || !fs.existsSync(path.join(root, file))) continue;
+    const n = countGuidance(fs.readFileSync(path.join(root, file), "utf8"));
+    if (n) out.push({ id: file, key: "guidanceLeft", vars: { n } });
+  }
+  return out;
 }
 
 /** Sections of the template that the page does not have (required or not), in its language. */
@@ -428,6 +504,7 @@ function takeoverItem(t, x) {
   const suggested = `${x.takeoverId}/${t.suggest[x.language] || t.suggest.en}`;
   if (t.page && t.sub && (t.subs ?? 0) < t.min) return { id: t.page, key: "takeover.subPages", vars: { ...vars, n: t.subs ?? 0, need: t.min - (t.subs ?? 0) } };
   if (t.page && t.numbered === false) return { id: t.page, key: "takeover.number", vars };
+  if (t.unwritten) return { id: t.unwritten.id, key: t.unwritten.state === "draft" ? "takeover.finish" : "takeover.create", vars: { ...vars, page: t.unwritten.id } };
   if (t.candidate) {
     const c = t.candidate;
     if (c.follows && t.sub) return { id: c.id, key: c.subs >= t.min ? "takeover.typeWithSubs" : "takeover.typeAddSubs", vars: { ...vars, n: c.subs, need: Math.max(0, t.min - c.subs) } };

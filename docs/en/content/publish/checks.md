@@ -21,8 +21,8 @@ doc-kit check coverage
 
 The coverage adapters of `coverage` (configuration) list what the application contains: the routes of a Next.js or
 React Router application, the entries of a registry with their labels, the files of a folder. An element is
-**covered** when one of its texts appears in the documentation (`content/**/*.md` and `*.json`, the `routes` of the
-table of contents included), ignoring case and spaces. A route `/orders/[id]` is covered by `/orders/[id]`,
+**covered** when one of its texts appears in a **written** page (`content/**/*.md` and `*.json`, the `routes` of
+its entry in the table of contents included), ignoring case and spaces. A route `/orders/[id]` is covered by `/orders/[id]`,
 `/orders/:id`, `/orders/{id}` or its static prefix `/orders/`.
 
 ```text
@@ -35,10 +35,22 @@ table of contents included), ignoring case and spaces. A route `/orders/[id]` is
   → cite each missing element in a page, or in the routes of the table of contents
 ```
 
+While pages are still to write, the elements that only their entries cite are reported apart: they are the plan, not
+yet the documentation.
+
+```text
+✖ Routes: 2/14
+    missing: /orders — planned in use/orders, not written yet
+    …
+2/14 elements covered.
+  12 more elements are cited only by the entries of pages not written yet (14/14 once they are written)
+```
+
 An adapter that cannot find its source (the application is not next to the documentation) is **skipped**, not
-failed. Without any adapter, `check all` skips coverage and `check coverage` stops with exit code 2. A page that
-still holds template guidance is not written yet: neither its text nor its entry in the table of contents (title,
-`routes`) count, so the examples of a fresh skeleton never cover a route of the application.
+failed. Without any adapter, `check all` skips coverage and `check coverage` stops with exit code 2. A page
+declared without its file, or that still holds template guidance, is not written yet: neither its text nor its entry
+in the table of contents (title, `routes`) count, so neither the plan alone nor the examples of a fresh skeleton cover
+a route of the application.
 `doc-kit inventory` lists what the adapters see, covered or not; `doc-kit inventory --json` is a good start for a
 table of contents. This site checks its own coverage: every configuration key, CLI option, built-in adapter and
 command is cited ([Adapters](#/reference/adapters~writing-an-adapter)).

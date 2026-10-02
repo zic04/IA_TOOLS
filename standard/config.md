@@ -47,6 +47,9 @@ export default defineConfig({
   },
 
   capture: {
+    // Everything is captured on production: read-only always, a banner and a confirmation before each run,
+    // `doc-kit demo` refused (written by `doc-kit init --target production`).
+    target: "production",
     // Acme Orders keeps its production plans apart, in case a demo is added one day.
     plans: "captures/plans-prod",
     setup: null, // no demo: everything is captured on production
@@ -65,7 +68,7 @@ export default defineConfig({
     forbidden: [
       "^/orders/(?!(ord_7f3a21|ord_91bc04|ord_c2d9e8)(/|$))[^/]+",
     ],
-    readOnly: "auto", // on as soon as a session is used
+    readOnly: true, // always on production ("auto" behaves the same there; false is refused)
   },
 
   // Automatic masking: GUIDs, and the values of the application's local .env whose name suggests a URL,
@@ -136,6 +139,7 @@ export default defineConfig({
   auth: { adapter: "api-me", url: "/api/v1/me", proof: "id", who: "name" },
 
   capture: {
+    target: "local", // the application running on this machine
     plans: "captures/plans",
     // Fills the development database; idempotent, so it can run before every capture run.
     // Two depots, 40 deliveries in every status, fictional drivers and customers. Run by `doc-kit demo`.

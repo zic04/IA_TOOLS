@@ -2,7 +2,8 @@
 // The script runs in its own Node process, from the project folder. When it exports a default function, the
 // function is called with { config, root, url } (config: the validated configuration, as JSON); otherwise the
 // module simply runs. The variables DOC_KIT_PROJECT, DOC_KIT_URL and DOC_KIT_CONFIG (JSON) are set too.
-// Exit code: 0 when the script succeeds, 1 otherwise.
+// Exit code: 0 when the script succeeds, 1 otherwise. Refused (exit code 2) with capture.target "production": a demo
+// data script never runs against production.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -51,6 +52,7 @@ export function runSetup({ root, config, script, env = process.env, line = () =>
 
 export async function run({ ctx }) {
   const { project, config } = await ctx.loadProject();
+  if (config.capture.target === "production") throw new KitError(EXIT.USAGE, "demo.production", { file: "doc.config.mjs", url: config.app.url || "—" });
   if (!config.capture.setup) throw new KitError(EXIT.USAGE, "demo.noSetup");
   const script = path.resolve(project.root, config.capture.setup);
   if (!fs.existsSync(script)) throw new KitError(EXIT.USAGE, "demo.missing", { file: config.capture.setup });

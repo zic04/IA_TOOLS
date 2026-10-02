@@ -8,9 +8,11 @@
  * @param {Record<string, string[]>} p.links   "#/…" links found in each page, by page id
  * @param {string[]} p.sections                section ids
  * @param {Array<{title: string, steps: string[]}>} [p.journeys]
+ * @param {Set<string>} [p.unwritten]           pages declared without their file: the anchors that point into them
+ *   cannot be checked before they are written (the build reports the missing page once, ARCHITECTURE.md §6.4)
  * @returns {Array<{kind: string, key: string, vars: object}>}
  */
-export function checkLinks({ pages, links, sections, journeys = [] }) {
+export function checkLinks({ pages, links, sections, journeys = [], unwritten = new Set() }) {
   const problems = [];
   const sectionIds = new Set(sections);
   for (const p of Object.values(pages)) {
@@ -18,7 +20,7 @@ export function checkLinks({ pages, links, sections, journeys = [] }) {
       const [target, anchor] = link.slice(2).split("~");
       if (!target) continue;
       if (!pages[target] && !sectionIds.has(target)) problems.push({ kind: "link", key: "link.broken", vars: { page: p.id, link } });
-      else if (anchor && pages[target] && !pages[target].toc.some((t) => t.id === anchor))
+      else if (anchor && pages[target] && !unwritten.has(target) && !pages[target].toc.some((t) => t.id === anchor))
         problems.push({ kind: "link", key: "link.anchor", vars: { page: p.id, link } });
     }
   }

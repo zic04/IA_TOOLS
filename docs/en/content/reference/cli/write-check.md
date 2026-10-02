@@ -50,7 +50,7 @@ Exit code 0 when the site is written, 1 when an error remains (nothing is writte
 ## doc-kit view
 
 ```text
-doc-kit view <page[~anchor]> [--theme light|dark] [--height <px>] [--tour N] [--output <file>]
+doc-kit view <page[~anchor]> [--theme light|dark] [--height <px>] [--full] [--tour N] [--output <file>]
 ```
 
 Screenshots a page of the built site (or of a draft build when there is none) in a headless Chromium, 1,440 px wide.
@@ -59,6 +59,7 @@ Screenshots a page of the built site (or of a draft build when there is none) in
 |---|---|---|
 | `--theme` | `light` | `light` or `dark` |
 | `--height` | 900 | Window height, at least 200 |
+| `--full` | | The whole page in one image, from its top: a long page reviewed in a single view |
 | `--tour N` | | Opens the page's first guided tour, at step N |
 | `--output` | `.doc-kit/page.png` | The PNG file |
 

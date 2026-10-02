@@ -32,7 +32,7 @@ site and checks it.
 
 ```bash
 npm install -g <kit folder>       # or: npm link in the kit's folder (see Install)
-doc-kit init ../my-app            # detects the framework, asks the product name, language, URL, capture mode and sign-in; shows a recap
+doc-kit init ../my-app            # detects the framework, asks the product name, language, URL, where to capture (local or demo, production read-only, none) and sign-in; shows a recap, then offers to open the browser
 doc-kit connect                   # opens Chromium on the app: you sign in (SSO and MFA work), then press Enter
 doc-kit capture                   # takes the example capture, read-only
 doc-kit dev                       # opens the site with live reload

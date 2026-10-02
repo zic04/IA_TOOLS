@@ -79,7 +79,7 @@ when relevant.{{#if referenceJourney}} Take the reference page's diagram as a mo
 
 ## Checks (from `{{docDir}}`)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ about YOUR pages ("missing page" messages from other writers are normal).
+- `npx doc-kit build --draft`: no ✖ or ⚠ about YOUR pages ("page not written yet" messages about other writers' pages are normal).
 - `npx doc-kit check tables`: no table overflow on your pages.
 - Review: `npx doc-kit view "<parent-id>~the-diagram" --theme light --height 1100 --output .doc-kit/{{code}}-light.png`,
   the same with `--theme dark`, and one sub-page; Read the pictures; fix; then delete your pictures.

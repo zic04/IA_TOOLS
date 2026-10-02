@@ -10,10 +10,11 @@ Un site entier peut être capturé **en production**, quand son propriétaire le
 
 | Règle | Comment | Contrôle |
 |---|---|---|
-| Toute requête qui n'est pas `GET`, `HEAD` ou `OPTIONS` est **bloquée dans le navigateur** | Actif dès qu'une session est utilisée (`capture.readOnly: "auto"`) ; forçable par `<PREFIXE>_READONLY=1` | Dernière ligne de chaque campagne : « Lecture seule : N requête(s) d'écriture bloquée(s) » |
+| Toute requête qui n'est pas `GET`, `HEAD` ou `OPTIONS` est **bloquée dans le navigateur** | Actif dès qu'une session est utilisée (`capture.readOnly: "auto"`) ; toujours avec `capture.target: "production"`, où il ne peut pas être désactivé ; forçable par `<PREFIXE>_READONLY=1` | Dernière ligne de chaque campagne : « Lecture seule : N requête(s) d'écriture bloquée(s) » |
 | On ne clique **que pour naviguer** | Pages, onglets, menus, ouverture d'une fenêtre ou de l'assistant puis touche Échap, survol | Relecture du plan |
 | Boutons interdits, même bloqués | Enregistrer, Créer, Valider, Supprimer, Signer, Envoyer, Importer, Synchroniser, Réindexer, Se déconnecter ; toute saisie qui déclenche un enregistrement automatique | Relecture du plan |
 | Petits lots | 3 à 8 captures par commande : la production est partagée | — |
+| Production déclarée | `capture.target: "production"` : un bandeau et une confirmation (non par défaut) avant chaque campagne, `doc-kit demo` refusé | `doc-kit doctor` affiche la cible, ⚠ tant que `capture.forbidden` est vide |
 
 Certains blocages sont normaux : un signal de présence (par exemple `POST /api/presence`) et les actions serveur qui chargent une page. Une page qui charge ses données par une action serveur (un `POST`) s'affiche donc **incomplète**. Décrivez-la ; ne contournez pas le blocage.
 

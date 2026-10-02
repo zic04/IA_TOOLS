@@ -35,9 +35,26 @@
   "cli.build.link.broken.help": "vérifiez l'identifiant de la page cible dans le sommaire",
   "cli.build.link.journey": "parcours « {journey} » : page inconnue {page}",
   "cli.build.link.journey.help": "chaque étape d'un parcours est l'identifiant d'une page du sommaire",
-  "cli.build.ok": "✔ {output} — {mb} Mo · {pages} pages · {captures} captures · {zones} éléments annotés · {diagrams} schémas",
-  "cli.build.page.missing": "page absente : {file}",
-  "cli.build.page.missing.help": "rédigez la page ({command} new) ou construisez avec --draft",
+  "cli.build.ok": "✔ {output} — {details}",
+  "cli.build.size": "{size} Mo",
+  "cli.build.count.pages": {
+    "one": "{count} page",
+    "other": "{count} pages"
+  },
+  "cli.build.count.captures": {
+    "one": "{count} capture",
+    "other": "{count} captures"
+  },
+  "cli.build.count.zones": {
+    "one": "{count} élément annoté",
+    "other": "{count} éléments annotés"
+  },
+  "cli.build.count.diagrams": {
+    "one": "{count} schéma",
+    "other": "{count} schémas"
+  },
+  "cli.build.page.missing": "page pas encore écrite : {page} ({file})",
+  "cli.build.page.missing.help": "créez-la depuis son gabarit ({command} new {page}), ou construisez avec --draft pendant la rédaction",
   "cli.build.screen.legend": "[{page}] écran « {id} » : {zones} zone(s) capturée(s) mais {items} élément(s) dans la légende",
   "cli.build.screen.legend.help": "la liste numérotée d'un bloc :::ecran doit avoir exactement un élément par zone",
   "cli.build.template.missingSection": "[{page}] section obligatoire absente pour le gabarit « {template} » : « {section} »",
@@ -69,16 +86,19 @@
   "cli.build.toc.productDeprecated": "sommaire : « product » ({toc}) diffère du nom configuré ({config}), qui l'emporte",
   "cli.build.toc.productDeprecated.help": "retirez « product » du sommaire",
   "cli.build.warnings": {
-    "one": " · {n} avertissement",
-    "other": " · {n} avertissements"
+    "one": " · {count} avertissement",
+    "other": " · {count} avertissements"
   },
   "cli.check.links.failed": {
     "one": "{n} lien en erreur.",
     "other": "{n} liens en erreur."
   },
-  "cli.check.links.ok": "✔ {pages} pages — aucun lien cassé.",
+  "cli.check.links.ok": "✔ {pages} — aucun lien cassé.",
   "cli.check.tables.problem": "{page} › {heading} : {wide} px pour {visible} px",
-  "cli.check.tables.summary": "{pages} pages contrôlées à {width} px — {n} tableau(x) trop large(s).",
+  "cli.check.tables.summary": {
+    "one": "Pages contrôlées à {width} px : {pages} — {count} tableau trop large.",
+    "other": "Pages contrôlées à {width} px : {pages} — {count} tableaux trop larges."
+  },
   "cli.check.topOfPage": "(début de page)",
   "cli.check.unknown": "contrôle inconnu : {name}",
   "cli.check.unknown.help": "contrôles disponibles : {known}",
@@ -101,6 +121,8 @@
   "cli.date.invalid.help": "format attendu : AAAA-MM-JJ (par exemple 2026-01-01)",
   "cli.env.value": "{variable} : valeur « {value} » non reconnue",
   "cli.env.value.help": "valeurs permises : {expected}",
+  "cli.env.productionReadOnly": "{variable} désactive la lecture seule, mais capture.target vaut \"production\"",
+  "cli.env.productionReadOnly.help": "retirez {variable} (ou mettez-la à 1 ou auto) : la production ne se capture qu'en lecture seule",
   "cli.usage": "Usage : {command} [<commande>] [options]\n\nSans commande, {command} lance le mode guidé : il regarde où vous en êtes et propose l’étape suivante.\n\nDémarrer\n  init [dossier-app]       crée le projet de documentation (--dir, --name, --lang, --url, --framework, --auth, --capture, --yes)\n  doctor                   contrôle l’environnement et le projet, avec la correction de chaque problème (--network)\n  connect                  ouvre Chromium sur l’application : connectez-vous, puis Entrée enregistre la session (--url, --forget)\n\nCaptures\n  capture [motifs…]        prend les captures des plans, en lecture seule avec une session (--plans, --preview, --no-session)\n  demo                     lance le script de données de démonstration (capture.setup)\n  inventory                liste ce que voient les adaptateurs de couverture (routes, registres…)\n\nÉcrire et relire\n  dev                      construit, sert et recharge le site pendant la rédaction (--port)\n  new <id-page>            crée une page à partir d’un gabarit et l’ajoute au sommaire (--template, --title, --parent)\n  build                    construit le site (--draft, --date AAAA-MM-JJ, --output <fichier>)\n  view <page[~ancre]>      capture une page du site construit (--theme light|dark, --height, --tour N, --output)\n  open [page]              ouvre le site construit dans le navigateur par défaut\n\nQualité\n  check [coverage|links|tables|images|secrets|all]   lance les contrôles (--width <px>, --threshold <Ko>)\n  audit                    mesure le niveau de maturité et liste ce qu’il reste à faire (rapport dans le dossier de travail)\n  optimize                 recompresse les captures lourdes (--threshold <Ko>, --quality <0..1>)\n\nLivrer et maintenir\n  export <cible>           copie autonome du projet, moteur compris (--with-dist, --zip)\n  upgrade                  affiche les changements depuis la version du kit du projet et applique les migrations (--apply)\n  migrate                  réécrit les fichiers à clés françaises (ancien format) au format courant\n  skill install            installe le skill Claude Code dans ~/.claude/skills (--target, --force)\n\n{command} <commande> --help (ou {command} help <commande>) montre les options d’une commande.\nOptions globales : --project <dossier>, --json, --verbose, --lang en|fr, --help, --version\nCodes de sortie : 0 OK · 1 contrôle en échec · 2 usage ou configuration · 3 environnement",
   "cli.internalError": "erreur inattendue : {error}",
   "cli.internalError.help": "relancez avec --verbose pour la pile d'appels",
@@ -142,6 +164,8 @@
   "cli.validate.minLength.help": "renseignez une valeur",
   "cli.validate.minimum": "{got} est inférieur au minimum ({min})",
   "cli.validate.minimum.help": "choisissez une valeur supérieure ou égale à {min}",
+  "cli.validate.productionReadOnly": "la lecture seule ne peut pas être désactivée sur la production (capture.target : \"production\")",
+  "cli.validate.productionReadOnly.help": "retirez readOnly: false (ou mettez true ou \"auto\") ; pour autoriser les écritures, capturez une copie locale ou de démo (capture.target : \"local\" ou \"demo\")",
   "cli.validate.pattern": "« {got} » ne respecte pas le format attendu",
   "cli.validate.pattern.help": "format : {pattern}",
   "cli.validate.range": "plage de versions illisible : « {got} »",

@@ -10,10 +10,11 @@ A whole site can be captured **on production**, when its owner asks for it, "wit
 
 | Rule | How | Check |
 |---|---|---|
-| Every request that is not `GET`, `HEAD` or `OPTIONS` is **blocked in the browser** | Active as soon as a session is used (`capture.readOnly: "auto"`); can be forced with `<PREFIX>_READONLY=1` | The last line of every run: "Read-only: N write request(s) blocked" |
+| Every request that is not `GET`, `HEAD` or `OPTIONS` is **blocked in the browser** | Active as soon as a session is used (`capture.readOnly: "auto"`); always with `capture.target: "production"`, where it cannot be turned off; can be forced with `<PREFIX>_READONLY=1` | The last line of every run: "Read-only: N write request(s) blocked" |
 | Click **only to navigate** | Pages, tabs, menus, opening a dialog or the assistant then pressing Escape, hovering | Review of the plan |
 | Forbidden buttons, even though they are blocked | Save, Create, Approve, Delete, Sign, Send, Import, Synchronise, Reindex, Sign out; any input that triggers an automatic save | Review of the plan |
 | Small batches | 3 to 8 captures per command: production is shared | — |
+| Production declared | `capture.target: "production"`: a banner and a confirmation (default No) before every capture run, `doc-kit demo` refused | `doc-kit doctor` shows the target, ⚠ while `capture.forbidden` is empty |
 
 Some blocks are normal: a presence heartbeat (for example `POST /api/presence`) and the server actions that load a page. A page that loads its data through a server action (a `POST`) is therefore displayed **incomplete**. Describe it; do not work around the block.
 

@@ -110,7 +110,10 @@ describe("build", () => {
       const out = path.join(dir, "site.html");
       const r = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^✔ .*site\.html — 0\.\d MB · 4 pages · 2 screenshots · 5 annotated elements · 1 diagrams\n$/);
+      assert.match(r.out, /^✔ .*site\.html — 0\.\d MB · 4 pages · 2 screenshots · 5 annotated elements · 1 diagram\n$/);
+      // Sizes with the decimal comma of the language, each noun in the plural form of its number.
+      const fr = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out + "-fr", "--lang", "fr"]);
+      assert.match(fr.out, /^✔ .*site\.html-fr — 0,\d Mo · 4 pages · 2 captures · 5 éléments annotés · 1 schéma\n$/);
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);
       assert.equal(dataOf(html).meta.date, "January 1, 2026");
@@ -157,14 +160,15 @@ describe("build", () => {
       const out = path.join(dir, "out.html");
       const strict = await cli(["build", "--project", dir, "--output", out]);
       assert.equal(strict.code, 1);
-      assert.match(strict.err, /✖ missing page: content\/use\/settings\.md/);
-      assert.match(strict.err, /✖ \[use\/orders\] anchor not found: #\/use\/settings~settings-reference/);
-      assert.match(strict.err, /✖ 2 errors — site NOT generated\./);
+      // One problem per page not written yet: neither its template's sections nor the anchors that point into it.
+      assert.match(strict.err, /✖ page not written yet: use\/settings \(content\/use\/settings\.md\)\n {2}→ create it from its template \(doc-kit new use\/settings\)/);
+      assert.doesNotMatch(strict.err, /anchor not found|required section/);
+      assert.match(strict.err, /✖ 1 error — site NOT generated\./);
       assert.ok(!fs.existsSync(out));
       const draft = await cli(["build", "--project", dir, "--output", out, "--draft"]);
       assert.equal(draft.code, 0);
-      assert.match(draft.err, /⚠ missing page/);
-      assert.match(draft.out, / · 2 warnings\n$/);
+      assert.match(draft.err, /⚠ page not written yet: use\/settings/);
+      assert.match(draft.out, / · 1 warning\n$/);
       assert.match(fs.readFileSync(out, "utf8"), /Page being written/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

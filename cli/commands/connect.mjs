@@ -3,7 +3,8 @@
 // browser), then presses Enter here — or the authentication adapter detects the session by itself (nextauth,
 // api-me). The session (cookies + localStorage) is saved in .doc-kit/session.json (<PREFIX>_SESSION to change
 // it): a secret, ignored by git. `connect --forget` deletes it. With capture.mode "none", only --forget runs
-// (exit code 2 otherwise: there is nothing to capture).
+// (exit code 2 otherwise: there is nothing to capture). With capture.target "production", a production line comes
+// first: the person signs in with their own account, and the session gives access to production.
 import path from "node:path";
 import readline from "node:readline";
 import { loadAuth, connect, sessionFile, forgetSession, authBrowser } from "../../engine/capture/session.mjs";
@@ -72,6 +73,7 @@ export async function run({ ctx, values }) {
   if (!/^https?:\/\//.test(url)) throw new KitError(EXIT.USAGE, "option.value", { option: "url", value: url, expected: "http(s)://…" });
 
   const browser = authBrowser(auth) === "chrome" ? "Chrome" : "Chromium";
+  if (config.capture.target === "production" && !ctx.json) ctx.print(ctx.paint.warn(ctx.paint.bold(ctx.t("cli.connect.production", { url }))));
   ctx.print(ctx.t("cli.connect.open", { browser, url }));
   ctx.print(ctx.t(auth.adapter.detects ? "cli.connect.detecting" : "cli.connect.pressEnter"));
   const enter = enterKey();
@@ -84,6 +86,7 @@ export async function run({ ctx, values }) {
       headless: false,
       locale: config.capture.locale,
       waitForUser: () => enter.wait(),
+      ...(ctx.launch ? { launch: ctx.launch } : {}),
       onStatus: (event) => event === "notYet" && ctx.printErr(`⚠ ${ctx.t("cli.connect.notYet")}`),
     });
   } finally {

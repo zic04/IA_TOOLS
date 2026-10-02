@@ -30,8 +30,11 @@ step. You never need to remember the order of the commands.
 With `capture.mode: "none"` (a documentation without screenshots), `connect` and `capture` are never offered: the
 guided mode goes straight to the menu, and says why.
 
-When you accept `init`, the guided mode goes on with the questions of `init` (name, language, URL, capture mode,
-sign-in) in the same terminal. For any other step, it hands the terminal over to the command: `connect` reads your Enter key,
+When you accept `init`, the guided mode goes on with the questions of `init` (name, language, URL, where the
+screenshots are taken, sign-in) in the same terminal. The `connect` question says what happens: "A browser window
+opens: sign in there, then press Enter here." With `capture.target: "production"`, the banner
+`PRODUCTION — read-only · <url>` comes before the `connect` and `capture` steps; a `capture` confirmed there does not
+ask a second time. For any other step, it hands the terminal over to the command: `connect` reads your Enter key,
 `dev` runs until [[key Ctrl+C]].
 
 ## In a script

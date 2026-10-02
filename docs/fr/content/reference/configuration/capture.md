@@ -4,6 +4,7 @@
 |---|---|---|---|
 | `capture` | objet · `{}` | Tout ce qui concerne les captures | |
 | `capture.mode` | `"app"` ou `"none"` · `"app"` | `"none"` déclare une documentation sans captures : `capture` et `connect` l'expliquent et s'arrêtent (code de sortie 2), `doctor` et le mode guidé ne demandent plus de session, `doc-kit new` et `doc-kit init` décrivent chaque écran par un tableau, et `annotated` vaut `n/a` dans l'audit | `"none"` |
+| `capture.target` | `"local"`, `"demo"` ou `"production"` · `"local"` | Où sont prises les captures (avec `capture.mode: "app"`). `"production"` : toujours en lecture seule, un bandeau et une confirmation avant chaque `capture`, `doc-kit demo` refusé, `readOnly: false` refusé (code de sortie 2) | `"production"` |
 | `capture.plans` | chemin · `"captures/plans"` | Dossier des plans de capture ; `--plans` et `<PREFIXE>_PLANS` l'emportent sur lui | `"captures/plans-prod"` |
 | `capture.setup` | chemin ou `null` · `null` | Script idempotent qui prépare les données de démo, lancé par `doc-kit demo` | `"captures/setup-demo.mjs"` |
 
@@ -45,7 +46,7 @@ Un cookie sans `url` ni `domain` est posé pour `app.url`. Le `storage` propre �
 | Clé | Type · défaut | Rôle | Exemple |
 |---|---|---|---|
 | `capture.forbidden` | liste d'expressions régulières · `[]` | Chemins de routes jamais ouverts : une entrée est refusée, une requête est annulée | `["^/orders/[^/]+/approval$"]` |
-| `capture.readOnly` | `"auto"`, `true` ou `false` · `"auto"` | Annule toute requête autre que `GET`, `HEAD`, `OPTIONS` ; `"auto"` : dès qu'une session est utilisée | `true` |
+| `capture.readOnly` | `"auto"`, `true` ou `false` · `"auto"` | Annule toute requête autre que `GET`, `HEAD`, `OPTIONS` ; `"auto"` : dès qu'une session est utilisée, toujours en production | `true` |
 
 Voir [Démo ou production](#/capture/safety) pour comprendre pourquoi les deux existent.
 

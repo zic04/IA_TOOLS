@@ -20,7 +20,7 @@ default: any inconsistency is an error, and **nothing is written** while an erro
 
 | Error | Example of message |
 |---|---|
-| A declared page without its file | `missing page: content/use/orders.md` |
+| A declared page without its file (one error per page: its sections and the anchors that point into it are checked once it exists) | `page not written yet: use/orders (content/use/orders.md)` |
 | A capture cited but not found, or its image missing | `[use/orders] screenshot not found: “orders-list”` |
 | A legend that does not match its zones | `[use/orders] screen “orders-list”: 4 captured zone(s) but 3 item(s) in the legend` |
 | A capture with zones shown by `::capture` | `[use/orders] “orders-list” has zones: use :::screen with a legend` |
@@ -70,12 +70,14 @@ which keeps the last successful build. Nothing is written to disk. [[key Ctrl+C]
 doc-kit view use/orders                          # .doc-kit/page.png, light theme, 1440 × 900
 doc-kit view "use/orders~the-screen" --theme dark --height 1100
 doc-kit view use/orders --tour 3 --output orders-tour.png
+doc-kit view use/orders --full                   # the whole page, in one image
 ```
 
 | Option | Effect |
 |---|---|
 | `--theme light\|dark` | The theme of the screenshot |
 | `--height <px>` | Height of the window (width 1,440); default 900 |
+| `--full` | The whole page in one image, from its top: an editor page is reviewed in one view instead of several `~anchor` views |
 | `--tour N` | Opens the first guided tour of the page and moves to step N |
 | `--output <file>` | Where to write the PNG; default `.doc-kit/page.png` |
 

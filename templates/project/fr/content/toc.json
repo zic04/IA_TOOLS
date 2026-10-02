@@ -1,13 +1,13 @@
 {
   "title": "Documentation {{name}}",
-  "tagline": "Le guide de référence de l'application {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués et illustrés sur l'application.",
+  "tagline": "Le guide de référence de l'application {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués élément par élément.",
   "sections": [
     {
       "id": "utiliser",
       "title": "Utiliser {{name}}",
       "shortTitle": "Utiliser",
       "icon": "screen",
-      "subtitle": "Le quotidien de l'utilisateur : chaque écran, annoté, et ce qu'il fait réellement.",
+      "subtitle": "Le quotidien de l'utilisateur : chaque écran, élément par élément, et ce qu'il fait réellement.",
       "highlights": [
         "Se connecter et se repérer",
         "Chaque écran expliqué élément par élément",
@@ -142,7 +142,7 @@
               "id": "reprendre/maintenir-doc",
               "title": "Maintenir cette documentation",
               "menuTitle": "Maintenir la doc",
-              "summary": "Comment le site est fabriqué, refaire des captures, écrire une page, contrôler et transférer.",
+              "summary": "Comment le site est fabriqué et contrôlé, écrire une page, transférer le dossier.",
               "template": "technical"
             }
           ]

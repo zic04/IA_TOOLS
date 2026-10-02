@@ -26,6 +26,8 @@ export function formatter(i18n) {
     );
   // `n` stays a number: it selects the plural form.
   const tv = (key, v = {}) => t(key, { ...vars(v), n: v.n });
+  /** A number and its noun, in the plural form of the number: "1 page", "2 pages", "1 400 pages". */
+  const count = (key, n) => t(key, { n, count: nf.format(n) });
 
   /** Value of an indicator: "12 / 20 (60 %)", "74 %", "34", "n/a", "not measured". */
   function value(ind) {
@@ -35,7 +37,7 @@ export function formatter(i18n) {
     if (ind.kind === "average") return percent(ind.value);
     return t("cli.audit.ratio", { n: nf.format(ind.n), total: nf.format(ind.total), percent: percent(ind.value) });
   }
-  return { t, tv, value, percent, quote, nf };
+  return { t, tv, value, percent, quote, nf, count, has: (key) => i18n.has(key) };
 }
 
 /** Text of a build problem (same message as the build). */
@@ -45,8 +47,16 @@ function problemText(f, p) {
   return where + f.tv(prefix + p.key, p.vars);
 }
 
-/** Text of an action. */
-export const actionText = (f, a) => f.tv(`cli.audit.action.${a.key}`, a.vars);
+/**
+ * Text of an action. When every element must be handled (`need` ≥ `n`), the `.all` form of the sentence says so
+ * once ("Document the 4 elements…") instead of "4, at least 4".
+ */
+export function actionText(f, a) {
+  const key = `cli.audit.action.${a.key}`;
+  const all = a.vars?.need !== undefined && a.vars?.n !== undefined && a.vars.need >= a.vars.n && f.has(`${key}.all`);
+  const text = f.tv(all ? `${key}.all` : key, a.vars);
+  return a.note ? text + f.tv(`cli.audit.note.${a.note.key}`, a.note.vars) : text;
+}
 
 /** Text of an item of an action (without its id), or "" when the id says it all. */
 export function itemText(f, item) {
@@ -82,7 +92,7 @@ const thresholdText = (f, c) => (c.threshold === undefined ? "" : RATIOS.has(c.i
 function target(f, result, name) {
   const c = result.criteria.filter((x) => x.indicator === name).at(-1);
   if (!c) return "";
-  const op = ["tooLong", "guidance", "blocking", "wideTables"].includes(name) ? "≤" : ["takeover", "conformant"].includes(name) ? "=" : "≥";
+  const op = ["tooLong", "guidance", "blocking", "wideTables"].includes(name) ? "≤" : ["takeover", "conformant"].includes(name) || (RATIOS.has(name) && c.threshold === 1) ? "=" : "≥";
   return f.t("cli.audit.target", { op, threshold: thresholdText(f, c), level: c.level });
 }
 
@@ -105,7 +115,7 @@ export function renderMarkdown(result, i18n) {
   const out = [];
   const L = result.level;
   out.push(`# ${t("cli.audit.title", { product: result.product })}`, "");
-  out.push(t("cli.audit.generated", { date: result.date.slice(0, 10), version: result.version, pages: result.pages, generator: result.generator }), "");
+  out.push(t("cli.audit.generated", { date: result.date.slice(0, 10), version: result.version, pages: f.count("cli.audit.count.pages", result.pages), generator: result.generator }), "");
   out.push(`**${t("cli.audit.levelReached", { level: L, name: levelName(f, L) })}**${L ? ` — ${t(`cli.audit.levelSentence.${L}`)}` : ""}`, "");
 
   if (result.indicators && Object.keys(result.indicators).length) {
@@ -116,6 +126,9 @@ export function renderMarkdown(result, i18n) {
       if (!ind) continue;
       let v = f.value(ind);
       if (name === "written" && ind.outsideTakeover) v += ` · ${t("cli.audit.outsideTakeover", { value: f.value(ind.outsideTakeover) })}`;
+      if (name === "written" && (ind.missing || ind.drafts)) v += ` · ${t("cli.audit.unwrittenDetail", { missing: f.nf.format(ind.missing ?? 0), drafts: f.nf.format(ind.drafts ?? 0) })}`;
+      if (name === "coverage" && ind.planned !== undefined) v += ` · ${t("cli.audit.coveragePlanned", { planned: f.nf.format(ind.planned), total: f.nf.format(ind.total) })}`;
+      if (name === "blocking" && ind.unwritten) v += ` · ${f.count("cli.audit.blockingUnwritten", ind.unwritten)}`;
       out.push(`| \`${name}\` | ${v} | ${target(f, result, name)} | ${indicatorStatus(result, name)} | ${t(`cli.audit.ind.${name}`)} |`);
     }
     out.push("");
@@ -130,7 +143,8 @@ export function renderMarkdown(result, i18n) {
 
     out.push(`## ${t("cli.audit.takeoverTitle", { section: result.takeoverSection ?? "—" })}`, "");
     out.push(`| # | ${t("cli.audit.col.page")} | | ${t("cli.audit.col.found")} |`, "|---|---|---|---|");
-    result.takeover.forEach((x, i) => out.push(`| ${i + 1} | ${t(`cli.audit.takeover.${x.id}`)} | ${x.ok ? "✔" : "✖"} | ${x.ok && x.page ? `\`${x.page}\`` : x.candidate ? t("cli.audit.candidate", { id: x.candidate.id }) : ""} |`));
+    const found = (x) => (x.ok && x.page ? `\`${x.page}\`` : x.candidate ? t("cli.audit.candidate", { id: x.candidate.id }) : x.unwritten ? t(`cli.audit.unwrittenPage.${x.unwritten.state}`, { id: x.unwritten.id }) : "");
+    result.takeover.forEach((x, i) => out.push(`| ${i + 1} | ${t(`cli.audit.takeover.${x.id}`)} | ${x.ok ? "✔" : "✖"} | ${found(x)} |`));
     out.push("");
   }
 
@@ -169,7 +183,11 @@ export function renderMarkdown(result, i18n) {
 export function renderSummary(result, i18n, { md, json } = {}) {
   const f = formatter(i18n);
   const { t } = f;
-  const lines = [t("cli.audit.summary.level", { level: result.level, name: levelName(f, result.level), pages: result.pages, product: result.product })];
+  const lines = [t("cli.audit.summary.level", { level: result.level, name: levelName(f, result.level), pages: f.count("cli.audit.count.pages", result.pages), product: result.product })];
+  const w = result.indicators?.written;
+  // How many pages remain to write, said once: the plan alone is not written documentation.
+  if (w?.measured && w.n < w.total)
+    lines.push(t("cli.audit.summary.pages", { n: w.n, count: f.nf.format(w.n), total: f.nf.format(w.total), left: f.nf.format(w.total - w.n), missing: f.nf.format(w.missing ?? 0), drafts: f.nf.format(w.drafts ?? 0) }));
   if (result.indicators && Object.keys(result.indicators).length) {
     const parts = INDICATORS.filter((n) => result.indicators[n]).map((n) => {
       const s = indicatorStatus(result, n);

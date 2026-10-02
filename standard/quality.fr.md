@@ -10,14 +10,14 @@ Chaque contrôle ci-dessous a fait ses preuves sur des sites réels : il attrape
 
 | Contrôle | Commande | Ce qui bloque | Remède |
 |---|---|---|---|
-| **Build strict** | `doc-kit build` | Une page déclarée sans son fichier ; une capture citée introuvable, ou dont l'image manque ; un schéma introuvable ; un parcours guidé de l'accueil qui pointe vers une page inconnue | Écrire la page, faire la capture, ou retirer la référence. Pendant la rédaction : `doc-kit build --draft` (tolère et signale) |
+| **Build strict** | `doc-kit build` | Une page déclarée sans son fichier (une erreur par page : les sections de son gabarit et les ancres qui pointent vers elle sont contrôlées dès qu'elle existe) ; une capture citée introuvable, ou dont l'image manque ; un schéma introuvable ; un parcours guidé de l'accueil qui pointe vers une page inconnue | Écrire la page, faire la capture, ou retirer la référence. Pendant la rédaction : `doc-kit build --draft` (tolère et signale) |
 | **Liens et ancres** | `doc-kit build`, `doc-kit check links` | Un lien vers un id absent du sommaire ; une ancre `~…` absente de la page visée | Corriger l'id ou l'ancre (titre en minuscules, sans accents, avec des tirets) |
 | **Légende = zones** | `doc-kit build` | Un `:::screen` dont la liste n'a pas autant d'éléments que la capture a de zones ; un `::capture` utilisé sur une capture qui a des zones | Ajuster la liste, ou ajuster les zones du plan et recapturer |
-| **Couverture** | `doc-kit check coverage` | Un élément inventorié par un adaptateur (route, bloc, widget, outil…) n'est cité ni dans le sommaire (`routes`) ni dans une page | Documenter l'élément. Le contrôle est ignoré quand l'application est introuvable |
+| **Couverture** | `doc-kit check coverage` | Un élément inventorié par un adaptateur (route, bloc, widget, outil…) n'est cité par aucune page écrite, ni dans son entrée du sommaire (`routes`) ni dans son texte. L'entrée d'une page pas encore écrite, ou d'une page qui garde des consignes, ne couvre rien : le contrôle affiche à part ce que le plan couvrira une fois écrit | Documenter l'élément, ou écrire la page qui le prévoit. Le contrôle est ignoré quand l'application est introuvable |
 | **Sections obligatoires** | `doc-kit build` | Une page qui déclare un `template` n'a pas l'une de ses sections obligatoires (un titre `##` qui commence par le libellé ou par un alias) | Ajouter la section, renommer le titre, ou retirer `template` d'une page qui n'est pas de ce type |
 | **Secrets** | `doc-kit check secrets` | Un secret dans les sources textuelles (pages, glossaire, fichiers de zones, plans, schémas) : clé, mot de passe, jeton, chaîne de connexion, valeur du `.env` local ; un fichier de session hors de `.doc-kit/`, ou suivi par git | Retirer la valeur, la masquer et recapturer ; supprimer la session |
 
-Le build strict est la barrière principale : **le site n'est pas produit** tant qu'une erreur subsiste (« N erreur(s) — site NON généré »).
+Le build strict est la barrière principale : **le site n'est pas produit** tant qu'une erreur subsiste (« N erreurs — site NON généré. »).
 
 ## Avertissements
 
@@ -27,7 +27,7 @@ Le build strict est la barrière principale : **le site n'est pas produit** tant
 | **Images lourdes** | `doc-kit check images` | Une image de plus de 200 Ko | `doc-kit optimize` : recompresse au-delà du seuil et garde la nouvelle version quand elle gagne au moins 20 % |
 | **Pages trop longues** | `doc-kit audit` | Plus de mots que le `maxWords` du gabarit (2 000 pour une page sans type) | Découper en sous-pages (voir [structure.fr.md](structure.fr.md#les-sous-pages)) |
 | **Captures d'une version antérieure** | `doc-kit check images`, `doc-kit audit` | Le champ `version` du fichier de zones diffère de la version courante de l'application | Recapturer, ou dire dans la page de quelle version date l'écran |
-| **Consignes restées dans une page** | `doc-kit audit`, `doc-kit build` | Un commentaire `<!-- consigne :` (ou `<!-- guidance:` en anglais) laissé par un gabarit ; le build strict le signale aussi | Écrire la section et retirer la consigne, ou supprimer la section facultative |
+| **Consignes restées dans une page** | `doc-kit audit`, `doc-kit build` | Un commentaire `<!-- consigne :` (ou `<!-- guidance:` en anglais) laissé par un gabarit ; le build strict le signale aussi, et `doc-kit audit` compte la page comme un brouillon, pas encore écrite (`written`) | Écrire la section et retirer la consigne, ou supprimer la section facultative |
 | **Encadré de type inconnu** | `doc-kit build` | Un encadré `> [!TYPE]` hors de la liste des encadrés | Corriger le type (voir [writing.fr.md](writing.fr.md#7-la-syntaxe-étendue)) |
 
 ## Ce qui ne se contrôle pas automatiquement

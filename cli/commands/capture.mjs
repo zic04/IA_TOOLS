@@ -1,4 +1,4 @@
-// capture [patterns…] [--plans <dir>] [--preview] [--no-session]
+// capture [patterns…] [--plans <dir>] [--preview] [--no-session] [--yes]
 // Takes the screenshots of the capture plans (headless browser: no window) and writes images/<id>.webp and
 // images/zones/<id>.json. Syntax of the plans: header of engine/capture/plans.mjs.
 //   capture                      every capture of the plans
@@ -6,24 +6,45 @@
 //   capture --plans captures/plans-prod     another plans folder (relative to the project; or <PREFIX>_PLANS)
 //   capture --preview            also writes .doc-kit/<id>.zones.png, the zones drawn in red, to check them
 //   capture --no-session         without the saved session (public pages)
+//   capture --yes                confirms a production capture in advance (required without a terminal)
 // With a session (doc-kit connect), the session is checked first (exit code 3 when it has expired) and the run is
 // read-only (capture.readOnly "auto"): every request other than GET/HEAD/OPTIONS is blocked in the browser and
 // counted on the last line. With capture.mode "none" (no screenshot), it explains the mode and stops (exit code 2).
 // Routes matching capture.forbidden are refused (exit code 1); during the run, a request
 // that only prefetches one of them is aborted and counted, and a navigation to one stops that capture.
+// With capture.target "production": always read-only, a banner "PRODUCTION — read-only · N screenshots · <url>",
+// then a confirmation in a terminal (default No: a reflexive Enter never starts a production run); without a
+// terminal or with --json, --yes is required (exit code 2 otherwise). Declining captures nothing (exit code 0).
 import fs from "node:fs";
 import path from "node:path";
 import { loadPlans, selectCaptures, forbiddenMatchers, forbiddenMatch } from "../../engine/capture/plans.mjs";
-import { runCaptures, summarizeRequests } from "../../engine/capture/capture.mjs";
+import { runCaptures, summarizeRequests, readOnlyMode } from "../../engine/capture/capture.mjs";
 import { loadAuth, sessionFile } from "../../engine/capture/session.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { shown } from "./connect.mjs";
+import { prompterOf } from "../common.mjs";
 
 export const options = {
   plans: { type: "string" },
   preview: { type: "boolean" },
   "no-session": { type: "boolean" },
+  yes: { type: "boolean", short: "y" },
 };
+
+/** The production banner, in the warning colour: "PRODUCTION — read-only · N screenshots · <url>". */
+export function productionBanner(ctx, { n, url }) {
+  return ctx.paint.warn(ctx.paint.bold(ctx.t("cli.capture.production", { n, url })));
+}
+
+/**
+ * Confirms a production run: --yes, else a question in a terminal (default No); without a terminal or with --json,
+ * exit code 2. @returns {Promise<boolean>} false when the person declines
+ */
+async function confirmProduction(ctx, values, n) {
+  if (values.yes) return true;
+  if (!ctx.interactive || ctx.json) throw new KitError(EXIT.USAGE, "capture.productionConfirm", { n });
+  return prompterOf(ctx).confirm(ctx.t("cli.capture.ask.production", { n }), false);
+}
 
 export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
@@ -61,7 +82,16 @@ export async function run({ ctx, values, positionals }) {
   const useSession = !values["no-session"] && !auth.adapter.none;
   if (useSession && !fs.existsSync(file)) throw new KitError(EXIT.ENVIRONMENT, "capture.noSession", { file: shown(file) });
   const session = useSession ? file : null;
-  const readOnly = config.capture.readOnly === "auto" ? !!session : config.capture.readOnly;
+  const readOnly = readOnlyMode(config.capture, !!session);
+
+  // Production: the banner, then a confirmation (or --yes) before anything opens.
+  if (config.capture.target === "production") {
+    if (!ctx.json) ctx.print(productionBanner(ctx, { n: selected.length, url }));
+    if (!(await confirmProduction(ctx, values, selected.length))) {
+      ctx.print(ctx.t("cli.capture.declined"));
+      return EXIT.OK;
+    }
+  }
 
   if (!ctx.json) {
     ctx.print(
@@ -85,6 +115,7 @@ export async function run({ ctx, values, positionals }) {
     readOnly,
     forbidden,
     preview: !!values.preview,
+    ...(ctx.launch ? { launch: ctx.launch } : {}),
     onEvent: (e) => {
       if (ctx.json) return;
       if (e.type === "ok") ctx.print(ctx.t("cli.capture.ok", { id: e.id, n: e.zones, kb: Math.round(e.bytes / 1024), seconds: (e.ms / 1000).toFixed(1) }));

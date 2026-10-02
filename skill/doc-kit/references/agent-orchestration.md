@@ -98,7 +98,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `tocFile`, `glossaryFile`, `targetsFile`, `guideFile` | the existing file (legacy names detected) | content/toc.json |
 | `findingsPage` | `extra.briefs.findingsPage`, default by language | take-over/findings |
 | `consolidationFile` | `.doc-kit/consolidation.md` | |
-| `captureMode` | `none` when `capture.mode` is `"none"`, `demo` when `capture.setup` is set, else to give | production · demo · none |
+| `captureMode` | `none` when `capture.mode` is `"none"`, `production` when `capture.target` is `"production"`, `demo` when it is `"demo"` or `capture.setup` is set, else to give | production · demo · none |
 | `screenshots` | `capture.mode` (`app` or `none`): with `none`, "The screen" is a table of elements, never a `:::screen` | app · none |
 | `code`, `prefix` | `--var` (`prefix` defaults to `code`) | u1 |
 | `pages`, `reads`, `topic`, `diagram` | `--var` | page ids, pages to read, "the journey of an order", t-order-journey |

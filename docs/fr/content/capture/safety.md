@@ -24,7 +24,7 @@ kit protège la production de trois façons, et la troisième dépend de vous.
 |---|---|
 | `"auto"` (par défaut) | Activée dès qu'une session est utilisée ; désactivée sans session |
 | `true` | Toujours activée, même sans session |
-| `false` | Désactivée : les requêtes d'écriture atteignent l'application. Avec une session, chaque campagne avertit : « la lecture seule est DÉSACTIVÉE alors qu'une session est utilisée » |
+| `false` | Désactivée : les requêtes d'écriture atteignent l'application. Avec une session, chaque campagne avertit : « la lecture seule est DÉSACTIVÉE alors qu'une session est utilisée ». Refusé avec `capture.target: "production"` |
 
 La variable `<PREFIXE>_READONLY` (ou `DOC_KIT_READONLY`) la remplace le temps d'une campagne : `1`, `true`, `yes`,
 `oui` ou `0`, `false`, `no`, `non`, ou `auto`.
@@ -116,6 +116,21 @@ Les service workers sont bloqués pendant les captures : aucune requête n'écha
 | Écritures du serveur pendant le rendu | Un vrai risque : `capture.forbidden` | Sans conséquence |
 | Données personnelles | Seulement avec la décision écrite du propriétaire ; relisez chaque image | Fictives |
 | Préparation | Une connexion (`doc-kit connect`) | Un script idempotent (`capture.setup`, lancé par `doc-kit demo`) |
+
+### Déclarer la production : `capture.target`
+
+`doc-kit init` demande où prendre les captures : « 1) application locale ou de démo, 2) production, en lecture
+seule, 3) aucune capture ». La réponse est `capture.target` (`"local"`, `"demo"` ou `"production"`). Avec
+`"production"` :
+
+| Quoi | Effet |
+|---|---|
+| Lecture seule | Toujours active, même sans session ; `readOnly: false` ou `<PREFIXE>_READONLY=0` est refusé (code de sortie 2) |
+| `doc-kit capture` | Un bandeau `PRODUCTION — lecture seule · N captures · <url>`, puis une question dont la réponse par défaut est **non** ; sans terminal, `--yes` |
+| `doc-kit demo` | Refusé (code de sortie 2) : un script de données de démo ne tourne jamais sur la production |
+| `doc-kit connect` | Une première ligne le dit : vous vous connectez avec votre propre compte |
+| `doc-kit doctor` | Une ligne avec la cible ; ⚠ tant que `capture.forbidden` est vide |
+| Le mode guidé | Le bandeau production avant de proposer `connect` ou `capture` |
 
 Les deux se combinent : documentez les éditeurs sur la démo, et la configuration réelle avec des captures de
 production en lecture seule, rangées dans un autre dossier de plans (`captures/plans-prod`, ids préfixés par

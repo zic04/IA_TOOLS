@@ -56,6 +56,7 @@ puisse quand même les lire.
 | Variable | Situation | Conséquence |
 |---|---|---|
 | `<PREFIXE>_READONLY` | Une valeur hors de la liste (`maybe`) | Code de sortie 2 : `ACME_READONLY : valeur « maybe » non reconnue` |
+| `<PREFIXE>_READONLY` | `0` alors que `capture.target` vaut `"production"` | Code de sortie 2 : la production ne se capture qu'en lecture seule |
 | `<PREFIXE>_URL` | Définie, mais `--url` donné à `connect` | L'option l'emporte |
 | `<PREFIXE>_SESSION` | Désigne un fichier qui n'existe pas | `capture` s'arrête : `pas de session : …` (code de sortie 3) |
 | `DOC_KIT_LANG` | Définie dans un projet | Sans effet : la `language` du projet l'emporte ; utilisez `--lang` |
@@ -68,6 +69,6 @@ puisse quand même les lire.
    contrôle, il ne capture jamais.
 2. **Sur un poste avec plusieurs environnements** : un fichier de session par environnement (`<PREFIXE>_SESSION`), et
    `<PREFIXE>_URL` défini dans le même terminal que la capture.
-3. **Avant une exécution en production** : `<PREFIXE>_READONLY` ne vaut pas `0` ; la première ligne de
-   `doc-kit capture` indique `lecture seule : activée`.
+3. **Avant une exécution en production** : `capture.target` vaut `"production"`, donc `doc-kit capture` affiche le
+   bandeau production et demande avant de commencer ; sa ligne suivante indique `lecture seule : activée`.
 :::

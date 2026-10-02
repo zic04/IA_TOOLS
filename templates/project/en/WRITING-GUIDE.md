@@ -7,7 +7,9 @@ This guide sets the rules **specific to this project**. The rules shared by ever
 | Structure of the site, required "Take over" pages | `structure.md` |
 | The 13 page templates and their sections | `templates.md` |
 | Nothing made up, `file:line` proofs, exact labels, gaps, links, glossary, findings, diagrams | `writing.md` |
+<!-- doc-kit:capture=app -->
 | Capture safety and quality | `captures.md` |
+<!-- doc-kit:end -->
 | Blocking checks and warnings | `quality.md` |
 | Maturity levels | `maturity.md` |
 | Handover checklist | `delivery.md` |
@@ -78,4 +80,8 @@ doc-kit view <page-id> --theme dark
 
 ## 7. Files managed centrally
 
+<!-- doc-kit:capture=app -->
 `doc.config.mjs`, `content/toc.json`, `content/glossary.json`, `content/home.md` and `captures/targets.mjs` are managed centrally: propose your changes (new page, summary, term, capture helper) instead of editing them in parallel.
+<!-- doc-kit:capture=none -->
+`doc.config.mjs`, `content/toc.json`, `content/glossary.json` and `content/home.md` are managed centrally: propose your changes (new page, summary, term) instead of editing them in parallel.
+<!-- doc-kit:end -->

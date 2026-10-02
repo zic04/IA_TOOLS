@@ -1,0 +1,4 @@
+# Dépendances, site construit et dossier de travail (session, aperçus, fichiers de travail) : jamais dans git.
+node_modules/
+dist/
+.doc-kit/

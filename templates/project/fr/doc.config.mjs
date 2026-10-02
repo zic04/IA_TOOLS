@@ -30,7 +30,7 @@ export default defineConfig({
   env: {},
 
   // L'application : son adresse (captures) et son dossier racine, le code que lisent les rédacteurs (dir).
-  // En production, les captures ne tournent qu'en lecture seule (voir capture.readOnly).
+  // En production, les captures ne tournent qu'en lecture seule (voir capture.target).
   app: { url: "{{appUrl}}", dir: "{{appRoot}}" },
 
   // Comment une session est reconnue après `doc-kit connect` :
@@ -50,6 +50,10 @@ export default defineConfig({
     // décrit par un tableau de ses éléments (capture et connect refusent de tourner, l'audit ne compte pas les
     // écrans annotés).
     mode: "{{captureMode}}",
+    // Où sont prises les captures : "local" (l'application sur ce poste), "demo" (une copie de démonstration,
+    // préparée par `setup`) ou "production" (l'application réelle : toujours en lecture seule, un bandeau et une
+    // confirmation avant chaque campagne, `doc-kit demo` refusé).
+    target: "{{captureTarget}}",
     plans: "captures/plans", // un fichier .mjs par lot de pages, chacun exporte CAPTURES
     setup: null, // script idempotent qui prépare les données de démo (`doc-kit demo`), par exemple "captures/setup-demo.mjs"
     locale: null, // par défaut : déduite de language (en-US, fr-FR)
@@ -69,7 +73,9 @@ export default defineConfig({
     // Routes à ne JAMAIS ouvrir (expressions régulières JavaScript sur le chemin) : les pages dont l'affichage
     // écrit sur le serveur. Lisez le code de chaque page de détail avant de la capturer. Voir standard/captures.fr.md.
     forbidden: [],
-    readOnly: "auto", // bloque toute requête autre que GET/HEAD/OPTIONS dès qu'une session est utilisée
+    // Bloque toute requête autre que GET/HEAD/OPTIONS : "auto" dès qu'une session est utilisée ; toujours avec
+    // target "production", où false est refusé.
+    readOnly: {{readOnly}},
   },
 
   // Masquage automatique dans les images : GUID, valeurs des fichiers .env locaux de l'application, motifs.

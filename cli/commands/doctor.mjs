@@ -6,7 +6,8 @@
 //                version.txt, VERSION or CHANGELOG.md of the application contradicts —, application folder,
 //                coverage sources, masking files, capture plans), .gitignore (.doc-kit/ and dist/), session
 //                (present, age, not tracked by git; neither the session nor the plans with capture.mode "none"),
-//                theme contrasts (WCAG)
+//                capture target (capture.target; ⚠ production without any capture.forbidden route), theme contrasts
+//                (WCAG)
 //   --network    the application URL answers
 // Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails,
 // 0 otherwise (warnings do not fail).
@@ -226,6 +227,14 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   const noCapture = config.capture.mode === "none";
   const plans = path.resolve(root, config.capture.plans);
   if (!noCapture && !fs.existsSync(plans)) add("plans", "warn", "project", "cli.doctor.plans.missing", { folder: config.capture.plans });
+
+  // Capture target: where the screenshots are taken; production without any forbidden route deserves a look.
+  if (!noCapture) {
+    const target = config.capture.target;
+    const vars = { url: config.app.url || "—", n: config.capture.forbidden.length };
+    if (target === "production" && !config.capture.forbidden.length) add("target", "warn", "project", "cli.doctor.target.noForbidden", vars);
+    else add("target", "ok", "project", `cli.doctor.target.${target}`, vars);
+  }
 
   // .gitignore: the work folder (session!) and the built site.
   const work = isIgnored(root, ".doc-kit/session.json");

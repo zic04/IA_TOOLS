@@ -92,6 +92,17 @@ describe("theme", () => {
     assert.equal(resolve({ a: "var(--b)", b: "#fff" }).a, "#fff");
   });
 
+  test("the key of the search field (Ctrl K) sits on the chrome in both themes, with a checked contrast", () => {
+    // Without its own background, the generic kbd gave it the page surface: white in the light theme, under a light text.
+    const rule = /\.recherche-bouton kbd \{([^}]*)\}/.exec(css)[1];
+    assert.match(rule, /background: var\(--chrome-2\)/);
+    assert.match(rule, /color: var\(--chrome-text\)/);
+    for (const mode of ["light", "dark"]) {
+      const pair = checkContrasts().find((r) => r.mode === mode && r.text === "chrome-text" && r.background === "chrome-2");
+      assert.ok(pair && pair.ratio >= 4.5, `${mode}: ${pair?.ratio}`);
+    }
+  });
+
   test("logo: sanitised, inlined without xmlns, favicon in the brand colour; unsafe logos rejected", () => {
     const ok = sanitizeLogo('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
     assert.equal(ok.ok, true);

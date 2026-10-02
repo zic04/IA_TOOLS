@@ -96,7 +96,7 @@ with Read first). A screenshot with zones (`{{imagesDir}}/zones/<id>.json`) is i
 
 ## Checks (from `{{docDir}}`)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages ("missing page" messages from other batches are normal).
+- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages ("page not written yet" messages about other batches' pages are normal).
 - `npx doc-kit check tables`: no table overflow on your pages.
 - Visual review of at least 2 pages: `npx doc-kit view <page-id> --output .doc-kit/{{code}}-<name>.png`, then with
   `--tour 2` and with `--theme dark`; Read the pictures; fix; then delete your review pictures.

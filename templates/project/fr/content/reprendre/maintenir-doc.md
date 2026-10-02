@@ -1,11 +1,15 @@
 ## En bref
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : complétez les lignes marquées « à compléter » : où vit ce dossier, d'où viennent les captures (production en lecture seule ou démo), la version documentée et la date de la dernière campagne de captures. -->
+<!-- doc-kit:capture=none -->
+<!-- consigne : complétez les lignes marquées « à compléter » : où vit ce dossier et la version documentée. -->
+<!-- doc-kit:end -->
 
 <!-- doc-kit:capture=app -->
 Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en Markdown, les captures sont prises automatiquement sur l'application, et le kit assemble le tout en **un seul fichier HTML** autonome, lisible hors ligne, avec recherche, thème clair et sombre, visites guidées et impression.
 <!-- doc-kit:capture=none -->
-Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en Markdown, sans capture (`capture.mode: "none"`) : chaque écran est décrit par un tableau de ses éléments. Le kit assemble le tout en **un seul fichier HTML** autonome, lisible hors ligne, avec recherche, thème clair et sombre, visites guidées et impression.
+Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en Markdown, sans capture (`capture.mode: "none"`) : chaque écran est décrit par un tableau de ses éléments. Le kit assemble le tout en **un seul fichier HTML** autonome, lisible hors ligne, avec recherche, thème clair et sombre, parcours guidés et impression.
 <!-- doc-kit:end -->
 
 | Besoin | Commande (dans ce dossier) | Application nécessaire ? |
@@ -29,7 +33,11 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 
 ## Comment le site est fabriqué
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : facultatif. Un schéma des trois temps (captures, rédaction, génération et contrôles) si l'équipe en a besoin. -->
+<!-- doc-kit:capture=none -->
+<!-- consigne : facultatif. Un schéma des étapes (rédaction, génération et contrôles) si l'équipe en a besoin. -->
+<!-- doc-kit:end -->
 
 <!-- doc-kit:capture=app -->
 1. **Les captures** : `captures/plans/*.mjs` décrit chaque écran à capturer ; `doc-kit capture` produit `images/<id>.webp` et `images/zones/<id>.json`.
@@ -37,23 +45,37 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 1. **Les écrans** : décrits dans les pages elles-mêmes, un tableau des éléments par écran ; aucune capture n'est prise.
 <!-- doc-kit:end -->
 2. **La rédaction** : `content/toc.json` déclare chaque page ; `content/<id>.md` la contient, selon le gabarit déclaré.
+<!-- doc-kit:capture=app -->
 3. **La génération** : `doc-kit build` assemble pages, captures et schémas dans `dist/`, après ses contrôles.
+<!-- doc-kit:capture=none -->
+3. **La génération** : `doc-kit build` assemble pages et schémas dans `dist/`, après ses contrôles.
+<!-- doc-kit:end -->
 
 ## L'organisation du dossier
 
 | Chemin | Rôle | Qui le modifie |
 |---|---|---|
+<!-- doc-kit:capture=app -->
 | `doc.config.mjs` | Configuration du projet : produit, application, captures, masquage, couverture, thème | Gestion centrale |
+<!-- doc-kit:capture=none -->
+| `doc.config.mjs` | Configuration du projet : produit, application, masquage, couverture, thème | Gestion centrale |
+<!-- doc-kit:end -->
 | `content/toc.json` | Plan du site : sections, groupes, pages (`template`, `level`), parcours guidés, suggestions | Gestion centrale |
 | `content/<id>.md` | Une page par entrée du sommaire | Rédacteurs |
 | `content/home.md`, `content/glossary.json` | Accueil et glossaire | Gestion centrale |
+<!-- doc-kit:capture=app -->
 | `captures/plans/*.mjs` | Plans de captures, un fichier par lot de pages | Rédacteurs |
 | `captures/targets.mjs` | Aides pour désigner un élément | Gestion centrale |
 | `images/`, `images/zones/` | Captures et positions de leurs zones | Générés |
+<!-- doc-kit:end -->
 | `diagrams/*.svg` | Schémas, avec les classes du site | Rédacteurs |
 | `theme/logo.svg` | Logo du site | Gestion centrale |
 | `dist/` | **Le livrable**, ignoré par git | Généré |
+<!-- doc-kit:capture=app -->
 | `.doc-kit/` | Session, aperçus des zones, fichiers de travail ; ignoré par git | Local |
+<!-- doc-kit:capture=none -->
+| `.doc-kit/` | Rapports d'audit, fichiers de travail ; ignoré par git | Local |
+<!-- doc-kit:end -->
 
 <!-- doc-kit:capture=app -->
 ## Refaire des captures
@@ -95,7 +117,11 @@ Les règles complètes sont dans `WRITING-GUIDE.md` et dans le standard du kit (
 
 | Contrôle | Commande | Bloquant |
 |---|---|---|
+<!-- doc-kit:capture=app -->
 | Pages, captures, schémas, liens, ancres, légendes, sections obligatoires | `doc-kit build` | Oui |
+<!-- doc-kit:capture=none -->
+| Pages, schémas, liens, ancres, sections obligatoires | `doc-kit build` | Oui |
+<!-- doc-kit:end -->
 | Couverture de l'application | `doc-kit check coverage` | Oui |
 | Secrets | `doc-kit check secrets` | Oui |
 | Tableaux trop larges, images lourdes | `doc-kit check tables`, `doc-kit check images` | Non |
@@ -103,16 +129,27 @@ Les règles complètes sont dans `WRITING-GUIDE.md` et dans le standard du kit (
 
 ## Transférer le dossier
 
+<!-- doc-kit:capture=app -->
 `doc-kit export <cible>` produit une copie autonome du projet, sans `node_modules/` ni `.doc-kit/`. Dans la copie : `npm ci`, puis `npm run site` (Node.js 20 ou plus). Le site se régénère sans l'application ; seuls la couverture et les captures en ont besoin.
+<!-- doc-kit:capture=none -->
+`doc-kit export <cible>` produit une copie autonome du projet, sans `node_modules/` ni `.doc-kit/`. Dans la copie : `npm ci`, puis `npm run site` (Node.js 20 ou plus). Le site se régénère sans l'application ; seul le contrôle de couverture a besoin de son code.
+<!-- doc-kit:end -->
 
 ## Pièges et écarts constatés
 
+<!-- doc-kit:capture=app -->
 <!-- consigne : les limites connues de l'outillage pour ce projet (pages chargées par une requête d'écriture, donc incomplètes en lecture seule ; valeurs de production que le masquage ne connaît pas) et les avertissements de doc-kit audit laissés volontairement, avec leur justification. -->
 
 > [!NOTE] Ce que l'outillage ne sait pas faire
 > - Bloquer une écriture faite par le serveur pendant le rendu d'une page.
 > - Afficher entièrement une page qui charge ses données par une requête d'écriture.
 > - Masquer une valeur propre à la production qui ne figure pas dans le `.env` local : seule la relecture de chaque image le garantit.
+<!-- doc-kit:capture=none -->
+<!-- consigne : les limites connues de l'outillage pour ce projet et les avertissements de doc-kit audit laissés volontairement, avec leur justification. -->
+
+> [!NOTE] Ce que l'outillage ne sait pas faire
+> - Dire si le tableau d'un écran correspond encore à l'écran réel : revérifiez les libellés dans le code à chaque version.
+<!-- doc-kit:end -->
 
 ## Pour aller plus loin
 

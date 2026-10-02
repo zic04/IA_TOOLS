@@ -16,7 +16,7 @@ The skill answers in the user's language; the site is written in the project's `
 
 | Phase | Goal | Commands and agents | Done when |
 |---|---|---|---|
-| 0 · Scoping | Audience, language, sections, capture mode, real data or not, routes never to open, who signs in | — | Decisions written; the owner's decision on real data |
+| 0 · Scoping | Audience, language, sections, capture mode, real data or not, routes never to open, who signs in; Claude asks whether the screenshots are taken on production (read-only) and whether to open the browser now | `doc-kit init --target …`, `doc-kit connect` | Decisions written; the owner's decision on real data |
 | 1 · Set up | Create and configure the project, from the application root; read the recap of `init` | `doc-kit init`, `doc-kit doctor` | `doctor` without error; `build --draft` passes |
 | 2 · Inventory | Real navigation, routes and permissions, pages that write when rendered | `doc-kit inventory --json`; 1 read-only agent, brief `inventory` | Inventory saved; outdated docs flagged |
 | 3 · Plan | Table of contents with types, the writing guide, one reference page | `doc-kit new`, `doc-kit check coverage` | Coverage 100 %; batches defined |

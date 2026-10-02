@@ -30,7 +30,7 @@ export default defineConfig({
   env: {},
 
   // The application: its address (captures) and its root folder, the code the writers read (dir).
-  // On production, captures only run read-only (see capture.readOnly).
+  // On production, captures only run read-only (see capture.target).
   app: { url: "{{appUrl}}", dir: "{{appRoot}}" },
 
   // How a session is recognised after `doc-kit connect`:
@@ -49,6 +49,10 @@ export default defineConfig({
     // described by a table of its elements (capture and connect refuse to run, the audit does not count
     // annotated screens).
     mode: "{{captureMode}}",
+    // Where the screenshots are taken: "local" (the application on this machine), "demo" (a demo copy, prepared
+    // by `setup`) or "production" (the real application: always read-only, a banner and a confirmation before each
+    // capture run, `doc-kit demo` refused).
+    target: "{{captureTarget}}",
     plans: "captures/plans", // one .mjs file per batch of pages, each exporting CAPTURES
     setup: null, // idempotent script that prepares demo data (`doc-kit demo`), e.g. "captures/setup-demo.mjs"
     locale: null, // default: derived from language (en-US, fr-FR)
@@ -68,7 +72,9 @@ export default defineConfig({
     // Routes NEVER to open (JavaScript regular expressions on the route path): pages whose rendering writes
     // on the server. Read the code of every detail page before you capture it. See standard/captures.md.
     forbidden: [],
-    readOnly: "auto", // blocks every request other than GET/HEAD/OPTIONS as soon as a session is used
+    // Blocks every request other than GET/HEAD/OPTIONS: "auto" as soon as a session is used; always with
+    // target "production", where false is refused.
+    readOnly: {{readOnly}},
   },
 
   // Automatic masking in the images: GUIDs, values of the application's local .env files, patterns.

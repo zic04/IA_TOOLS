@@ -1,7 +1,8 @@
 // Coverage (ARCHITECTURE.md §5): every element inventoried by the coverage adapters (routes, registry entries,
 // files…) must be cited in the documentation. The adapters only list the elements; the kit searches the
-// normalised text of <content>/**/*.md|json (pages and table of contents, `routes` included; not the pages that
-// still hold template guidance), makes the report and gives the exit code.
+// normalised text of <content>/**/*.md|json (pages and table of contents, `routes` included) of the WRITTEN pages
+// only: not the pages declared without their file, nor those that still hold template guidance, whose entries are
+// reported as the plan (`plannedBy`). It makes the report and gives the exit code.
 //   config.coverage: [{ adapter: "next-app-router", app: "../../app" }, { adapter: "local:adapters/x.mjs", … }]
 // An adapter that cannot find what it inventories (the application is not next to the documentation) answers
 // { available: false, reason }: its check is skipped, not failed.
@@ -107,10 +108,11 @@ export function routeMatches(route) {
 const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
 
 /**
- * The table of contents without the pages not written yet (`unwritten`: their files, relative to the content):
- * neither their entry (id, title, `routes`) nor their id in the journeys and suggestions.
+ * The table of contents without the pages not written yet (`isUnwritten(file)`, file relative to the content):
+ * neither their entry (id, title, `routes`) nor their id in the journeys and suggestions. `planned` receives the
+ * normalised text of each entry set aside, by page id: what the plan promises, not yet what the pages say.
  */
-function tocText(text, unwritten) {
+function tocText(text, isUnwritten, planned) {
   let toc;
   try {
     toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
@@ -118,13 +120,14 @@ function tocText(text, unwritten) {
     return text; // reported by the build
   }
   const ids = new Set();
-  const isUnwritten = (p) => p && typeof p === "object" && unwritten.has(String(p.file || p.fichier || `${p.id}.md`));
+  const unwrittenEntry = (p) => p && typeof p === "object" && isUnwritten(String(p.file || p.fichier || `${p.id}.md`));
   for (const s of Array.isArray(toc?.sections) ? toc.sections : [])
     for (const g of [...(s?.groups || []), ...(s?.groupes || [])])
       if (Array.isArray(g?.pages))
         g.pages = g.pages.filter((p) => {
-          if (!isUnwritten(p)) return true;
+          if (!unwrittenEntry(p)) return true;
           ids.add(p.id);
+          planned.set(String(p.id), normalize(JSON.stringify(p)));
           return false;
         });
   const keep = (list) => (Array.isArray(list) ? list.filter((id) => !ids.has(id)) : list);
@@ -135,22 +138,32 @@ function tocText(text, unwritten) {
 }
 
 /**
- * All the text of the documentation (content/**\/*.md|json), normalised. A page that still holds template guidance
- * (`<!-- guidance:` / `<!-- consigne :`) is not written yet: neither its text nor its entry in the table of contents
- * count (ARCHITECTURE.md §5), so that the examples of a skeleton never cover a route.
+ * The written documentation (content/**\/*.md|json), normalised, and what the plan promises beyond it. A page is
+ * WRITTEN when its file exists and holds no template guidance (`<!-- guidance:` / `<!-- consigne :`): only written
+ * pages cover an element (ARCHITECTURE.md §5). A page declared without its file, or that still holds guidance,
+ * covers nothing: neither its text nor its entry in the table of contents (id, title, `routes`), so that neither
+ * the plan alone nor the examples of a skeleton cover a route.
+ * @returns {{ text: string, planned: Map<string, string> }}  planned: page id → normalised text of the entry of
+ *   each page declared but not written yet
  */
-export function documentationText(root, content) {
+export function documentationTexts(root, content) {
   const tools = adapterTools(root);
   const files = tools.walk(content).filter((f) => /\.(md|json)$/i.test(f));
   const texts = new Map(files.map((f) => [f, tools.read(path.join(content, f))]));
-  const unwritten = new Set(files.filter((f) => /\.md$/i.test(f) && countGuidance(texts.get(f)) > 0));
-  return normalize(
+  const drafts = new Set(files.filter((f) => /\.md$/i.test(f) && countGuidance(texts.get(f)) > 0));
+  const isUnwritten = (f) => drafts.has(f) || !texts.has(f);
+  const planned = new Map();
+  const text = normalize(
     files
-      .filter((f) => !unwritten.has(f))
-      .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), unwritten) : texts.get(f)))
+      .filter((f) => !drafts.has(f))
+      .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
       .join("\n")
   );
+  return { text, planned };
 }
+
+/** The written documentation only, normalised (see documentationTexts). */
+export const documentationText = (root, content) => documentationTexts(root, content).text;
 
 /** Does an item appear in the documentation text? */
 export const isCovered = (item, text) => (item.match || []).some((m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)));
@@ -168,14 +181,16 @@ export function excludeItems(items, exclude = []) {
 }
 
 /**
- * Runs the coverage adapters of the configuration.
- * @param {{ root: string, config: object, withText?: boolean }} p
+ * Runs the coverage adapters of the configuration. An element is covered when a WRITTEN page cites it (see
+ * documentationTexts); an element that only the entry of a page not written yet cites is `plannedBy` that page:
+ * `planned` counts the elements covered once every declared page is written.
+ * @param {{ root: string, config: object }} p
  * @returns {Promise<{ adapters: Array<{ adapter: string, available: boolean, reason?: string, vars?: object,
- *   families: Array<{ name: string, total: number, covered: number, items: Array<{ id, label?, match, covered }> }> }>,
- *   total: number, covered: number, missing: number }>}
+ *   families: Array<{ name: string, total: number, covered: number, items: Array<{ id, label?, match, covered, plannedBy? }> }> }>,
+ *   total: number, covered: number, missing: number, planned: number }>}
  */
 export async function runCoverage({ root, config }) {
-  const text = documentationText(root, config.paths.content);
+  const { text, planned } = documentationTexts(root, config.paths.content);
   const tools = adapterTools(root);
   const adapters = [];
   for (const [i, spec] of config.coverage.entries()) {
@@ -192,7 +207,15 @@ export async function runCoverage({ root, config }) {
     }
     const families = (r.families || []).map((f) => {
       const items = (f.items || []).map((it) => ({ id: String(it.id), ...(it.label !== undefined ? { label: it.label } : {}), match: it.match || [String(it.id)], covered: false }));
-      for (const it of items) it.covered = isCovered(it, text);
+      for (const it of items) {
+        it.covered = isCovered(it, text);
+        if (!it.covered)
+          for (const [page, entry] of planned)
+            if (isCovered(it, entry)) {
+              it.plannedBy = page;
+              break;
+            }
+      }
       return { name: f.name, total: items.length, covered: items.filter((x) => x.covered).length, items };
     });
     adapters.push({ adapter: name, available: true, families });
@@ -200,5 +223,6 @@ export async function runCoverage({ root, config }) {
   const all = adapters.flatMap((a) => a.families);
   const total = all.reduce((n, f) => n + f.total, 0);
   const covered = all.reduce((n, f) => n + f.covered, 0);
-  return { adapters, total, covered, missing: total - covered };
+  const plannedOnly = all.reduce((n, f) => n + f.items.filter((x) => x.plannedBy).length, 0);
+  return { adapters, total, covered, missing: total - covered, planned: covered + plannedOnly };
 }

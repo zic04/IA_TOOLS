@@ -52,6 +52,7 @@ export const PAIRS = [
   ["on-brand", "brand", 4.5],
   ["on-chrome", "chrome", 4.5],
   ["chrome-text", "chrome", 4.5],
+  ["chrome-text", "chrome-2", 4.5], // the search field of the top bar and its key (Ctrl K)
   ["brand-on-chrome", "chrome", 4.5],
   ["hero-accent", "chrome", 3],
   ["violet", "violet-soft", 4.5],

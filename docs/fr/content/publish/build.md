@@ -21,7 +21,7 @@ par défaut : toute incohérence est une erreur, et **rien n'est écrit** tant q
 
 | Erreur | Exemple de message |
 |---|---|
-| Une page déclarée sans son fichier | `page absente : content/utiliser/commandes.md` |
+| Une page déclarée sans son fichier (une erreur par page : ses sections et les ancres qui pointent vers elle sont contrôlées dès qu'elle existe) | `page pas encore écrite : utiliser/commandes (content/utiliser/commandes.md)` |
 | Une capture citée mais introuvable, ou son image absente | `[utiliser/commandes] capture introuvable : « orders-list »` |
 | Une légende qui ne correspond pas à ses zones | `[utiliser/commandes] écran « orders-list » : 4 zone(s) capturée(s) mais 3 élément(s) dans la légende` |
 | Une capture avec zones montrée par `::capture` | `[utiliser/commandes] « orders-list » a des zones : utiliser :::ecran avec une légende` |
@@ -71,12 +71,14 @@ l'arrête. Avec `DOC_KIT_NO_OPEN=1`, le navigateur n'est pas ouvert (une machine
 doc-kit view utiliser/commandes                          # .doc-kit/page.png, thème clair, 1440 × 900
 doc-kit view "utiliser/commandes~l-ecran" --theme dark --height 1100
 doc-kit view utiliser/commandes --tour 3 --output visite-commandes.png
+doc-kit view utiliser/commandes --full                   # la page entière, en une image
 ```
 
 | Option | Effet |
 |---|---|
 | `--theme light\|dark` | Le thème de la capture |
 | `--height <px>` | Hauteur de la fenêtre (largeur 1 440) ; 900 par défaut |
+| `--full` | La page entière en une image, depuis son haut : une page d'éditeur se relit en une vue au lieu de plusieurs vues `~ancre` |
 | `--tour N` | Ouvre la première visite guidée de la page et va à l'étape N |
 | `--output <fichier>` | Où écrire le PNG ; `.doc-kit/page.png` par défaut |
 

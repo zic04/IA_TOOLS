@@ -1,13 +1,13 @@
 {
   "title": "{{name}} documentation",
-  "tagline": "The reference guide to {{name}}: every screen, every setting and how they really work, explained and illustrated on the application.",
+  "tagline": "The reference guide to {{name}}: every screen, every setting and how they really work, explained element by element.",
   "sections": [
     {
       "id": "use",
       "title": "Using {{name}}",
       "shortTitle": "Use",
       "icon": "screen",
-      "subtitle": "The user's daily work: every screen, annotated, and what it really does.",
+      "subtitle": "The user's daily work: every screen, element by element, and what it really does.",
       "highlights": [
         "Signing in and finding your way",
         "Every screen explained item by item",
@@ -142,7 +142,7 @@
               "id": "take-over/maintaining-docs",
               "title": "Maintaining this documentation",
               "menuTitle": "Maintaining the docs",
-              "summary": "How the site is built, retaking captures, writing a page, the checks and the transfer.",
+              "summary": "How the site is built and checked, how to write a page, and how to hand the folder over.",
               "template": "technical"
             }
           ]

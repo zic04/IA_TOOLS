@@ -4,6 +4,7 @@
 |---|---|---|---|
 | `capture` | object · `{}` | Everything about the captures | |
 | `capture.mode` | `"app"` or `"none"` · `"app"` | `"none"` declares a documentation without screenshots: `capture` and `connect` explain it and stop (exit code 2), `doctor` and the guided mode stop asking for a session, `doc-kit new` and `doc-kit init` describe each screen with a table, and `annotated` is `n/a` in the audit | `"none"` |
+| `capture.target` | `"local"`, `"demo"` or `"production"` · `"local"` | Where the screenshots are taken (with `capture.mode: "app"`). `"production"`: always read-only, a banner and a confirmation before each `capture`, `doc-kit demo` refused, `readOnly: false` refused (exit code 2) | `"production"` |
 | `capture.plans` | path · `"captures/plans"` | Folder of the capture plans; `--plans` and `<PREFIX>_PLANS` win over it | `"captures/plans-prod"` |
 | `capture.setup` | path or `null` · `null` | Idempotent script that prepares the demo data, run by `doc-kit demo` | `"captures/setup-demo.mjs"` |
 
@@ -44,7 +45,7 @@ A cookie without `url` or `domain` is set for `app.url`. An entry's own `storage
 | Key | Type · default | Role | Example |
 |---|---|---|---|
 | `capture.forbidden` | list of regular expressions · `[]` | Route paths never opened: an entry is refused, a request is aborted | `["^/orders/[^/]+/approval$"]` |
-| `capture.readOnly` | `"auto"`, `true` or `false` · `"auto"` | Aborts every request other than `GET`, `HEAD`, `OPTIONS`; `"auto"`: whenever a session is used | `true` |
+| `capture.readOnly` | `"auto"`, `true` or `false` · `"auto"` | Aborts every request other than `GET`, `HEAD`, `OPTIONS`; `"auto"`: whenever a session is used, always on production | `true` |
 
 See [Demo or production](#/capture/safety) for why both exist.
 

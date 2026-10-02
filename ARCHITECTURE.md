@@ -74,13 +74,22 @@ doc-kit/
 ### 2.1 What `init` creates
 
 `doc-kit init <app-dir>` creates `<app-dir>/docs/manual/`. The folder name can be changed with `--dir`. `<app-dir>` (default: the current folder) is the **application root**; the front end may sit in a sub-folder (`frontend`, `front`, `web`, `client`, `ui`, `app`, `apps/web`).
-- It detects the framework (`next` with `app/` or `src/app/` → `next-app-router`; `react-router`), a Python back end, the dev script's port, the product name, the version file and the `.env` files, then asks for the product name, the language, the application URL, the capture mode and the sign-in method, shows the recap and confirms.
-- `--name`, `--lang`, `--url`, `--framework next|react-router|none`, `--auth` and `--capture app|none` answer in advance; `--yes` takes the detected values and the options without any question (required without a terminal). With `--yes`, the site language is `--lang`, else the system language (`LC_ALL`, `LC_MESSAGES`, `LANG`), else English.
+- It detects the framework (`next` with `app/` or `src/app/` → `next-app-router`; `react-router`), a Python back end, the dev script's port, the product name, the version file and the `.env` files, then asks for the product name, the language, the application URL, where the screenshots are taken (the capture target) and the sign-in method, shows the recap and confirms.
+- `--name`, `--lang`, `--url`, `--framework next|react-router|none`, `--auth`, `--capture app|none` and `--target local|demo|production` answer in advance; `--yes` takes the detected values and the options without any question (required without a terminal). With `--yes`, the site language is `--lang`, else the system language (`LC_ALL`, `LC_MESSAGES`, `LANG`), else English.
+- **Capture target** (`capture.target`, §3). The question "Where will the screenshots be taken?" offers 1. local or demo application, 2. production, read-only, 3. no screenshots (`capture.mode: "none"`).
+  - Choice 1 writes `local` when the URL is a loopback address (`localhost`, `*.localhost`, `127.x`, `[::1]`), else `demo`. `--capture app` removes choice 3; `--target` or `--capture none` skip the question; `--target` together with `--capture none` is a usage error (exit code 2).
+  - **Production**: the production URL is asked (default: the URL already answered, unless it is a loopback address; with `--target production`, it replaces the URL question), then the safety reminders are printed: read-only blocks the browser's writes but **not** a write made by the server while it renders a page (list such routes in `capture.forbidden`); the session file is a secret; the screenshots show real data (the owner's written decision). `capture.target: "production"` and `capture.readOnly: true` are written.
+  - With `--yes`, `--target production` requires `--url` (exit code 2 otherwise) and the reminders are printed too.
+- **Follow-up**, only in interactive mode with screenshots (never with `--yes`, `--json` or without a terminal): once the files are written,
+  - "Open the browser now to sign in? (Y/n)" (not asked with `auth: none`): `npm install` in the project when the kit is not linked yet, then `connect` (visible browser: the person signs in, then presses Enter);
+  - then "Take a first test screenshot with --preview? (Y/n)" (the question names production when it is the target): `capture --preview --yes` on the example plan;
+  - a step that fails stops the follow-up, its message is printed and its exit code becomes `init`'s; closing the input at these questions counts as "no" (the project is written);
+  - the next steps printed at the end leave out what was done. The tests replace these steps through the context (`steps` of `createContext`, §4): no npm, no browser.
 - **Product name**: `--name`; else the `title` of the `metadata` exported by the Next.js root layout of the front end (`app/layout.*` or `src/app/layout.*`, a string or `{ default }`); else `productName`, `displayName` or `name` of the front end's `package.json`, without its scope and without a `-frontend`, `-front`, `-web`, `-ui`, `-client` or `-app` suffix; a generic name (`frontend`, `web`, `app`…) gives way to the root `package.json`, then to the folder name. Renaming afterwards: `product.name` in `doc.config.mjs` (the slug and the output follow unless they are set) and the `title`, `tagline` and section titles of `content/toc.json`.
 - **Version** (`version.file`, `version.pattern`): `version.txt` or `VERSION` at the application root, else the root `package.json` when it has a `version`, else the front end's `package.json`, else the `pyproject.toml` of a Python-only application.
 - **Masking files** (`masking.env`): `.env` and `.env.local` at the application root and in the front-end folder, only the files that exist (never `*.example`).
 - **Application folder** (`app.dir`): the application root, relative to the documentation project.
-- **Recap.** Before writing anything, with or without `--yes`, `init` prints what it is about to write: folder, product name (and where it was found), slug, language, URL, version (and the file it is read in), sign-in, capture mode, coverage adapter and source, masking files, application folder, and where to rename the product afterwards. Without `--yes`, a confirmation follows.
+- **Recap.** Before writing anything, with or without `--yes`, `init` prints what it is about to write: folder, product name (and where it was found), slug, language, URL, version (and the file it is read in), capture mode, capture target (with screenshots), sign-in, coverage adapter and source, masking files, application folder, and where to rename the product afterwards. Without `--yes`, a confirmation follows.
 - It writes `templates/project/common/` then `templates/project/<language>/`, variables filled; every `.md` file goes through the capture variants (§6.4), and `captures/plans/example.mjs` is only written in capture mode `app`. The skeleton's `kit` range is set to accept the installed kit. A non-empty target folder is refused (exit code 1).
 - **Capture mode `none`** (`--capture none`, or the answer to the question): `capture.mode: "none"` in the configuration, no example capture plan, starter pages that describe each screen with a table (`| Element | What it shows |`) instead of a `:::screen`, a home page without the "interactive screens" callout, `package.json` scripts without `doc-kit capture`, no sign-in question, and next steps without `connect` and `capture`.
 - The example routes of the skeleton are fictional (`/example/…`, `/exemple/…`), so that they never match a route of the application.
@@ -106,7 +115,9 @@ The project is the folder given by `--project <dir>`. Without it, the CLI looks 
 
 ```
 npm install -g <kit folder>     (or: npx --prefix <kit folder> doc-kit)
-doc-kit init ../my-app          detects the framework, asks for the product name, language, app URL and sign-in method
+doc-kit init ../my-app          detects the framework, asks for the product name, language, app URL, where the
+                                screenshots are taken (local or demo, production read-only, none) and the sign-in method;
+                                then offers to open the browser (connect) and to take a first test screenshot
 doc-kit connect                 opens Chromium on the app; you sign in (SSO and MFA work); press Enter to save the session
 doc-kit capture                 takes the example capture, read-only
 doc-kit dev                     opens the site with live reload
@@ -131,6 +142,7 @@ export default defineConfig({
   auth: { adapter: "manual" },                      // manual | none | nextauth | api-me | local:adapters/x.mjs (+ adapter options)
   capture: {
     mode: "app",                                    // "app": the screens are captured · "none": no screenshot at all
+    target: "local",                                // "local" | "demo" | "production" (read-only, confirmed): where (mode "app")
     plans: "captures/plans",
     setup: null,                                    // demo data preparation script (doc-kit demo)
     locale: null,                                   // default: derived from language (en-US, fr-FR)
@@ -162,6 +174,12 @@ export default defineConfig({
   - `doctor` checks neither the session nor the capture plans folder; the guided mode never offers `connect` or `capture`;
   - `audit` counts `annotated` as `n/a` (`standard/maturity.md`): level 2 is reachable;
   - `init` and `new` write the `none` variant of the templates (§6.4).
+- **`capture.target`** (default `"local"`, only meaningful with `capture.mode: "app"`): where the screenshots are taken. `"local"`: the application on this machine; `"demo"`: a demo copy, with prepared data (`capture.setup`); `"production"`: the real application, read-only. With `"production"`:
+  - read-only is mandatory: `capture.readOnly: "auto"` behaves as `true` even without a session (`--no-session`, `auth: none`); `capture.readOnly: false` is a validation error (path `capture.readOnly`, key `productionReadOnly`, exit code 2), and so is `<PREFIX>_READONLY` / `DOC_KIT_READONLY` set to a false value (`env.productionReadOnly`, exit code 2). `readOnlyMode(capture, hasSession)` in `engine/capture/capture.mjs` gives the effective value;
+  - `capture` prints a banner, "PRODUCTION — read-only · N screenshots · <url>", then asks for confirmation in a terminal, **default No**: a reflexive Enter never starts a production run, and one key confirms a run typed on purpose. Without a terminal, or with `--json`, `--yes` is required (exit code 2 otherwise: `capture.productionConfirm`). Declining captures nothing (exit code 0);
+  - `demo` refuses to run (exit code 2, `demo.production`): a demo data script never runs against production;
+  - `connect` prints a production line before opening the browser; `doctor` shows the target, ⚠ when `capture.forbidden` is empty; the guided mode shows a production banner before offering `connect` or `capture` (§4.1);
+  - the skill's `brief.mjs` gives `captureMode=production` to the agents (`demo` for `"demo"` or a `capture.setup`).
 - **Strict validation.** An unknown key is an error, reported with its path (for example `capture.storgae`), and the command exits with code 2. A key whose value is `undefined` counts as absent (a JavaScript helper passing an optional argument through), here and in the capture plans.
 - **`masking`** says what is secret, for the screenshots (`engine/capture/masking.mjs`) and for `check secrets` (`engine/check/secrets.mjs`):
   - `env`: the application's `.env` files; the values of the keys whose name suggests a URL, host, tenant, client, account, e-mail, user or secret, longer than 6 characters, are masked and reported, except those matching `exclude`;
@@ -192,18 +210,18 @@ export default defineConfig({
 |---|---|---|
 | *(none)* | | guided mode (§4.1) |
 | `help [command]` | | the list of the commands, or the usage and options of one command |
-| `init [app-dir]` | `--dir --name --lang --url --framework next\|react-router\|none --auth --capture app\|none --yes` | creates the documentation project (§2.1); `--lang` (global) is also the site language |
-| `doctor` | `--network` | checks the environment and the project, one line per check with its fix; ⚠ "version never incremented?" when the documented version is `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application (`app.dir`, or the folder of `version.file`) gives another one |
-| `connect` | `--url --forget` | visible browser: the person signs in, the session is saved (§5); `--forget` deletes it; refused (2) when `capture.mode` is `none`, except `--forget` |
-| `demo` | | runs `capture.setup` in its own Node process (variables `DOC_KIT_PROJECT`, `DOC_KIT_URL`, `DOC_KIT_CONFIG`) |
-| `capture [patterns…]` | `--plans --preview --no-session` | headless captures (§6.3); `--preview` also writes `.doc-kit/<id>.zones.png`, the zones drawn in red; refused (2) when `capture.mode` is `none` |
+| `init [app-dir]` | `--dir --name --lang --url --framework next\|react-router\|none --auth --capture app\|none --target local\|demo\|production --yes` | creates the documentation project (§2.1); `--lang` (global) is also the site language; in a terminal, then offers `connect` and a test capture |
+| `doctor` | `--network` | checks the environment and the project, one line per check with its fix; ⚠ "version never incremented?" when the documented version is `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application (`app.dir`, or the folder of `version.file`) gives another one; a line with the capture target (mode `app`), ⚠ "no forbidden route declared" for `production` with an empty `capture.forbidden` |
+| `connect` | `--url --forget` | visible browser: the person signs in, the session is saved (§5); `--forget` deletes it; refused (2) when `capture.mode` is `none`, except `--forget`; a production line first with `capture.target: "production"` |
+| `demo` | | runs `capture.setup` in its own Node process (variables `DOC_KIT_PROJECT`, `DOC_KIT_URL`, `DOC_KIT_CONFIG`); refused (2) with `capture.target: "production"` |
+| `capture [patterns…]` | `--plans --preview --no-session --yes` | headless captures (§6.3); `--preview` also writes `.doc-kit/<id>.zones.png`, the zones drawn in red; refused (2) when `capture.mode` is `none`; with `capture.target: "production"`, a banner and a confirmation (default No), `--yes` without a terminal (§3) |
 | `build` | `--draft --date YYYY-MM-DD --output` | the site; strict by default (exit code 1, nothing written), `--draft` turns the problems into warnings |
 | `dev` | `--port` (default: first free port from 4400) | draft build served on `127.0.0.1`, rebuilt and reloaded on every change |
 | `new <page-id>` | `--template <type> --title --parent` | page from a template, declared in the table of contents |
 | `check [coverage\|links\|tables\|images\|secrets\|all]` | `--width` (tables, default 1440 px) `--threshold` (images, default 200 KB) | the checks; `all` by default, coverage skipped when no adapter is configured |
 | `audit` | (global `--json`) | maturity level and actions (standard/maturity.md); writes `.doc-kit/audit.md` and `.doc-kit/audit.json` |
 | `inventory` | (global `--json`) | what the coverage adapters see, and what is already cited |
-| `view <page[~anchor]>` · `open [page]` | `--theme light\|dark --height --tour N --output` | screenshot of a page of the built site · the site in the default browser |
+| `view <page[~anchor]>` · `open [page]` | `--theme light\|dark --height --full --tour N --output` | screenshot of a page of the built site (`--full`: the whole page in one image) · the site in the default browser |
 | `optimize` | `--threshold` (200 KB) `--quality` (0.68) | re-encodes the heavy screenshots, kept when 20 % lighter |
 | `migrate` | | rewrites legacy French-keyed files into the current format (§6.7) |
 | `export <target>` | `--with-dist --zip` | self-contained copy, engine vendored in `vendor/doc-kit/` |
@@ -228,6 +246,8 @@ export default defineConfig({
 | `DOC_KIT_NO_OPEN=1` | `dev` and `open` print the address without opening a browser (tests, remote machines) |
 | `CLAUDE_CONFIG_DIR` | `skill install` and `doctor` use `$CLAUDE_CONFIG_DIR/skills` instead of `~/.claude/skills` |
 
+**Test seams.** `createContext(globals, io)` (`cli/common.mjs`) also accepts `steps` (the follow-up steps of `init`: `install`, `connect`, `capture`) and `launch` (the browser launcher given by `capture` and `connect` to the engine), so that the tests run these paths without npm and without a browser.
+
 **Adding a command.** Create `cli/commands/<name>.mjs`. It exports `options`, in `node:util` `parseArgs` format, and `run({ ctx, values, positionals })`, which returns an exit code, and add its `cli.help.<name>` text (usage, then every option) in both languages. The dispatcher discovers commands from the files in that folder. The options of all commands are merged into a single parser, so an option name used by two commands must have the same type in both; an option that belongs to another command is a usage error. `LATER` (in `cli/doc-kit.mjs`) lists commands announced but not delivered yet; it is empty, every command exists.
 
 **Messages.** Every error has the form `✖ <what is wrong>`, followed by `  → <what to do>`. All messages come from `cli.*` i18n keys.
@@ -247,6 +267,8 @@ export default defineConfig({
 
 - The folder is shown as an absolute path, quoted when it contains a space.
 - With a terminal, it asks for confirmation (or a choice in the menu) and runs the step; `init` keeps asking through the same prompts.
+  - The `connect` question says that a browser window opens, where the person signs in before pressing Enter.
+  - With `capture.target: "production"`, the banner "PRODUCTION — read-only · <url>" comes first, before the question (or the next step, without a terminal) of `connect` and `capture`; the confirmed `capture` runs with `--yes` (one question, asked after the banner).
 - Without a terminal (CI, pipes), it prints the next step and exits with code 0, running nothing. `--json` prints `{ step, folder, next }`.
 
 ## 5. Adapters
@@ -273,7 +295,8 @@ export default {
 - **Options.** `options` maps each option to a schema (validator of §3; `required: true` marks a mandatory option); the configuration entry is validated against it, defaults applied, and an error is reported with its path (`coverage[0].ap`, `auth.loginPatern`), exit code 2.
 - **Coverage.** The kit does the search in the content (normalised text of `content/**/*.md|json`), the report and the exit code.
   - An item is `{ id, label?, match: [texts] }`; it is covered when one of its `match` texts appears (case and white space ignored).
-  - A page that still contains template guidance (§6.4) is not written yet: neither its text nor its entry in the table of contents (id, titles, `routes`, its id in `journeys` and `suggestions`) count. A skeleton never covers a route by its examples.
+  - Only **written** pages cover an item. A page declared without its file, or that still contains template guidance (§6.4), is not written yet: neither its text nor its entry in the table of contents (id, titles, `routes`, its id in `journeys` and `suggestions`) count. Neither the plan alone nor the examples of a skeleton cover a route.
+  - An item that only the entry of a page not written yet cites gets `plannedBy: <page id>`, and the result counts `planned` (covered once every declared page is written): `check coverage` prints it apart, `audit` shows it next to `coverage` and lists the page in the coverage action.
   - `{ available: false, reason, vars }`: the check of that adapter is skipped (not failed); `reason` is translated through `cli.adapter.reason.<reason>` (`notFound`, `blockNotFound`, `error`), else shown as is.
   - The adapters receive `tools`: `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey`; paths are relative to the documentation project.
   - Built-in: `next-app-router` (`app`, `family`, `exclude`), `react-router` (`file`, `pattern`, `prefix`, `family`, `exclude`), `i18n-registry` (`source`, `block`, `pattern`, `flags`, `messages`, `key`, `aliases`, `fallback`, `exclude`, `family`), `glob` (`base`, `pattern`, `match`, `family`, `exclude`). Routes are covered as is, with `:id`, `{id}` or `[id]`, or by their static prefix (`/orders/` for `/orders/[id]`).
@@ -335,7 +358,7 @@ Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is document
 - **Duplicates:** an id that appears in two files is an error.
 - **Validation:** entries are checked against `schemas/capture-plan.schema.json` after the legacy normalisation (§6.7). The schema accepts what the engine executes (`engine/capture/*.mjs`), no more: a negative `margin` / `marginY` tightens a zone or a frame; a negative `nth` counts from the last match; a `viewport` side is any whole number of pixels ≥ 1 (a 150 px strip); `wheel.steps` may be 0; `delay`, `settle` and a numeric `wait` are any number ≥ 0; `wheel.direction` stays `-1` or `1`.
 - **Plan errors:** every entry of every file is checked before anything runs. The errors are listed together under one `capture.planInvalid` (`{ folder, n }`), one line each: `<file> › <id> (CAPTURES[<index>]) › <path>: <what is wrong>` (each detail carries `file`, `entry`, `path`, `key`, `vars`). One invalid entry still stops the command (exit code 2); a duplicate id is reported once the entries are valid.
-- **Safety:** with a session, every request other than `GET`/`HEAD`/`OPTIONS` is aborted and counted (`capture.readOnly: "auto"`). A route matching `capture.forbidden` is refused before the run (exit code 1). During the run, a server renders a page for any `GET` of its route, so every request to a forbidden path is aborted in the browser, whatever its kind (`requestGuard` in `engine/capture/capture.mjs`):
+- **Safety:** with a session, every request other than `GET`/`HEAD`/`OPTIONS` is aborted and counted (`capture.readOnly: "auto"`); with `capture.target: "production"`, always (§3). A route matching `capture.forbidden` is refused before the run (exit code 1). During the run, a server renders a page for any `GET` of its route, so every request to a forbidden path is aborted in the browser, whatever its kind (`requestGuard` in `engine/capture/capture.mjs`):
   - a **prefetch or sub-resource** (fetch, XHR, framework payload such as a React Server Components request, `<link rel=prefetch>`, an iframe…) is aborted silently and counted: the capture goes on, and the last lines say "N prefetch request(s) to forbidden routes aborted — list" (`prefetched` and `prefetchedRequests` in `--json`). Aborting it is exactly what prevents the server-side render;
   - a **navigation of a top-level frame** (the plan's own route, a click on a link, a pop-up, a redirect, or a client-side navigation whose URL ends on a forbidden path) fails the capture (`cli.capture.error.forbiddenHit`, exit code 1) and is listed as refused;
   - service workers are blocked whenever the guard is active, so that no request escapes it.
@@ -367,7 +390,8 @@ Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is document
 - **Source of truth.** The example above shows the `screen` entry. The sections, required indexes and word limits of every type are those of `standard/templates.json`.
 - **Matching a section.** A required section is found when a `##` heading of the page **starts with** its label or with one of its aliases. Case and accents are ignored.
 - **`required`.** It holds indexes into `sections`, so it is language-neutral. The `en` and `fr` section lists have the same length and the same order.
-- **Template guidance.** Guidance left in a page is marked `<!-- guidance:` (en) or `<!-- consigne :` (fr). `audit` reports it, and the build warns about it (a missing required section is an error in a strict build, a warning with `--draft`).
+- **Template guidance.** Guidance left in a page is marked `<!-- guidance:` (en) or `<!-- consigne :` (fr). The build warns about it (a missing required section is an error in a strict build, a warning with `--draft`); for `audit`, the page is a draft, not written yet (`standard/maturity.md`).
+- **A page declared without its file** is one problem, `page.missing` ("page not written yet: <id>"), an error in a strict build and a warning with `--draft`: its template's sections are not checked, nor the anchors that point into it, until its file exists.
 - **Capture variants.** A template (page templates and the `.md` files of the project skeleton) may hold the two variants of a passage, one per capture mode (§3, `capture.mode`), each on its own lines:
 
   ```

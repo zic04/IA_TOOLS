@@ -21,11 +21,12 @@ export function createPaint(enabled) {
 /**
  * Execution context of a command.
  * @param {object} globals  global options (--project, --json, --verbose, --lang)
- * @param {{ stdout?, stderr?, env?, stdin?, interactive?: boolean, signal?: AbortSignal }} [io]
+ * @param {{ stdout?, stderr?, env?, stdin?, interactive?: boolean, signal?: AbortSignal, steps?: object, launch?: Function }} [io]
  *   interactive: questions allowed (default: stdin and stdout are terminals); signal: stops long-running
- *   commands (dev) like Ctrl+C.
+ *   commands (dev) like Ctrl+C. Test seams (ARCHITECTURE.md §4): steps replaces the follow-up steps of `init`
+ *   ({ install, connect, capture }); launch replaces the browser launcher of `capture` and `connect`.
  */
-export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal } = {}) {
+export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch } = {}) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const ctx = {
     globals,
@@ -33,6 +34,8 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     stdin,
     stdout,
     signal,
+    steps: steps ?? null,
+    launch: launch ?? null,
     /** Questions can be asked (a person at a terminal). */
     interactive: interactive ?? !!(stdin?.isTTY && stdout?.isTTY),
     /** Colours of the standard output (no-ops when it is not a terminal). */

@@ -21,7 +21,9 @@ const isFn = (f) => typeof f === "function";
  *   { adapters: [{ available, families: [{ items: [{ id, covered }] }] }] }  → counts and uncovered ids
  *   { covered|cited: number, total: number }                               → counts
  *   no available adapter, or nothing inventoried                           → not measured
- * @returns {Promise<{ measured: boolean, reason?: string, n?: number, total?: number, missing?: string[] }>}
+ *   items may carry `plannedBy` (the page declared but not written yet whose entry cites them)  → `planned`, `plannedBy`
+ * @returns {Promise<{ measured: boolean, reason?: string, n?: number, total?: number, missing?: string[],
+ *   planned?: number, plannedBy?: Record<string, string> }>}
  */
 export async function measureCoverage({ project, config }) {
   if (!config.coverage?.length) return { measured: false, reason: "noAdapter" };
@@ -48,8 +50,12 @@ export function readCoverage(r) {
   const groups = [r, ...(Array.isArray(r.adapters) ? r.adapters : [])].filter((g) => g && g.available !== false);
   const items = groups.flatMap((g) => (Array.isArray(g.families) ? g.families : []).flatMap((f) => f.items || []));
   if (items.length) {
-    const missing = items.filter((i) => !(i.covered ?? i.cited)).map((i) => String(i.id ?? "?"));
-    return counted(items.length - missing.length, items.length, missing);
+    const uncovered = items.filter((i) => !(i.covered ?? i.cited));
+    const out = counted(items.length - uncovered.length, items.length, uncovered.map((i) => String(i.id ?? "?")));
+    // What the plan promises: the elements cited only by the entry of a page declared but not written yet.
+    const planned = uncovered.filter((i) => i.plannedBy).map((i) => [String(i.id ?? "?"), String(i.plannedBy)]);
+    if (out.measured && planned.length) Object.assign(out, { planned: out.n + planned.length, plannedBy: Object.fromEntries(planned) });
+    return out;
   }
   const covered = r.covered ?? r.cited;
   if (typeof covered === "number" && typeof r.total === "number") return counted(covered, r.total, Array.isArray(r.missing) ? r.missing.map(String) : []);

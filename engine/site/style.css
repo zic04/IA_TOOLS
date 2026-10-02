@@ -176,6 +176,8 @@ button {
   border-color: var(--brand);
   color: var(--on-chrome);
 }
+/* The key sits on the chrome in both themes: it must not take the page surface of the generic kbd (white in the
+   light theme, under a light text). chrome-text on chrome-2 is a checked contrast pair (engine/theme/contrast.mjs). */
 .recherche-bouton kbd {
   margin-left: auto;
   font-family: var(--font);
@@ -183,7 +185,11 @@ button {
   padding: 1px 6px;
   border-radius: 5px;
   border: 1px solid var(--chrome-line);
+  background: var(--chrome-2);
   color: var(--chrome-text);
+}
+.recherche-bouton:hover kbd {
+  color: var(--on-chrome);
 }
 .icone-bouton {
   width: 36px;

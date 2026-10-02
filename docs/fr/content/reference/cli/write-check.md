@@ -51,7 +51,7 @@ Code de sortie 0 quand le site est écrit, 1 quand il reste une erreur (rien n'e
 ## doc-kit view
 
 ```text
-doc-kit view <page[~ancre]> [--theme light|dark] [--height <px>] [--tour N] [--output <fichier>]
+doc-kit view <page[~ancre]> [--theme light|dark] [--height <px>] [--full] [--tour N] [--output <fichier>]
 ```
 
 Fait une capture d'une page du site construit (ou d'un build brouillon quand il n'y en a pas) dans un Chromium sans
@@ -61,6 +61,7 @@ fenêtre, de 1 440 px de large.
 |---|---|---|
 | `--theme` | `light` | `light` ou `dark` |
 | `--height` | 900 | Hauteur de la fenêtre, au moins 200 |
+| `--full` | | La page entière en une image, depuis son haut : une longue page relue en une seule vue |
 | `--tour N` | | Ouvre la première visite guidée de la page, à l'étape N |
 | `--output` | `.doc-kit/page.png` | Le fichier PNG |
 

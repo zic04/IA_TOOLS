@@ -7,7 +7,9 @@ Ce guide fixe les règles **propres à ce projet**. Les règles communes à tous
 | Structure du site, pages obligatoires de « Reprendre » | `structure.fr.md` |
 | Les 13 gabarits de page et leurs sections | `templates.fr.md` |
 | Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts, liens, glossaire, constats, schémas | `writing.fr.md` |
+<!-- doc-kit:capture=app -->
 | Sécurité et qualité des captures | `captures.fr.md` |
+<!-- doc-kit:end -->
 | Contrôles bloquants et avertissements | `quality.fr.md` |
 | Niveaux de maturité | `maturity.fr.md` |
 | Checklist de remise | `delivery.fr.md` |
@@ -78,4 +80,8 @@ doc-kit view <id-de-page> --theme dark
 
 ## 7. Fichiers gérés de façon centrale
 
+<!-- doc-kit:capture=app -->
 `doc.config.mjs`, `content/toc.json`, `content/glossary.json`, `content/home.md` et `captures/targets.mjs` sont gérés de façon centrale : proposez vos modifications (nouvelle page, résumé, terme, aide de capture) au lieu de les éditer en parallèle.
+<!-- doc-kit:capture=none -->
+`doc.config.mjs`, `content/toc.json`, `content/glossary.json` et `content/home.md` sont gérés de façon centrale : proposez vos modifications (nouvelle page, résumé, terme) au lieu de les éditer en parallèle.
+<!-- doc-kit:end -->

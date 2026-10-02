@@ -13,27 +13,37 @@ Quatre niveaux, chacun défini par des critères que `doc-kit audit` **mesure**.
 
 `doc-kit audit` calcule les indicateurs ci-dessous. Ils apparaissent sous ces noms dans `.doc-kit/audit.json` et avec `--json`.
 
+**Une page écrite** est une page déclarée dont le fichier existe et ne contient plus aucune consigne de gabarit (`<!-- consigne :` ou `<!-- guidance:`). Une page déclarée est dans un seul de ces états :
+
+| État | Ce que cela veut dire | Compté par |
+|---|---|---|
+| Sans fichier | Déclarée dans `toc.json`, pas encore de fichier | `written` seulement |
+| Brouillon | Son fichier contient encore des consignes de gabarit (squelette d'`init` ou de `doc-kit new`) | `written` seulement |
+| Écrite | Fichier présent, plus aucune consigne | tous les indicateurs de pages |
+
+**Qui compte quoi.** `written` porte les pages pas encore écrites : les autres indicateurs de pages ne mesurent que les pages écrites, et une page pas encore écrite n'est jamais comptée deux fois. Ses sections, les exemples de son gabarit (un constat `C1` d'exemple, une preuve d'exemple, un `:::ecran` d'exemple) et ses erreurs de build attendent qu'elle soit écrite. Le résumé de l'audit dit combien de pages restent à écrire : « Pages : 1 écrite sur 81 — 80 à écrire (72 sans fichier, 8 encore en consignes) ».
+
 | Indicateur | Formule |
 |---|---|
-| `written` | Pages déclarées qui ont leur fichier ÷ pages déclarées |
-| `typed` | Pages qui déclarent un `template` ÷ pages déclarées |
-| `conformant` | Pages typées qui ont toutes leurs sections obligatoires ÷ pages typées |
-| `completeness` | Moyenne, sur les pages typées, de (sections du gabarit présentes ÷ sections du gabarit) |
-| `annotated` | Pages `screen` et `editor` qui contiennent au moins un `:::screen` (ou `:::ecran`) ÷ pages `screen` et `editor`. Tant qu'aucune page n'est typée : les pages de toutes les sections autres que Reprendre. `n/a` quand `capture.mode` vaut `"none"` : une documentation déclarée sans captures décrit ses écrans par des tableaux, et n'a rien à annoter |
-| `coverage` | Éléments cités ÷ éléments inventoriés par `doc-kit check coverage` ; non mesuré quand aucun adaptateur ne peut inventorier l'application |
-| `proofs` | Pages de Reprendre qui contiennent au moins une preuve `fichier:ligne` (un nom de fichier avec son extension, puis `:` et un numéro, entre accents graves : `lib/commandes.ts:42`) ÷ pages de Reprendre |
-| `takeover` | Nombre des 7 pages obligatoires de Reprendre qui sont présentes (voir ci-dessous) |
-| `tooLong` | Pages au-delà de leur `maxWords` (2 000 sans type) ÷ pages. Les mots sont comptés dans le Markdown, sans les blocs de code, les commentaires, les URL et le balisage |
-| `guidance` | Nombre de pages qui contiennent encore une consigne de gabarit (`<!-- consigne :` ou `<!-- guidance:`), ou dont le résumé est encore celui qu'écrit `doc-kit new` |
+| `written` | Pages écrites ÷ pages déclarées. Le rapport ajoute les pages sans fichier et les brouillons |
+| `typed` | Pages qui déclarent un `template` ÷ pages déclarées (une déclaration du sommaire : écrite ou non) |
+| `conformant` | Pages typées écrites qui ont toutes leurs sections obligatoires ÷ pages typées écrites |
+| `completeness` | Moyenne, sur les pages typées écrites, de (sections du gabarit présentes ÷ sections du gabarit) |
+| `annotated` | Pages `screen` et `editor` écrites qui contiennent au moins un `:::screen` (ou `:::ecran`) ÷ pages `screen` et `editor` écrites. Tant qu'aucune page n'est typée : les pages écrites de toutes les sections autres que Reprendre. `n/a` quand `capture.mode` vaut `"none"` : une documentation déclarée sans captures décrit ses écrans par des tableaux, et n'a rien à annoter |
+| `coverage` | Éléments cités par les pages écrites ÷ éléments inventoriés par `doc-kit check coverage` ; non mesuré quand aucun adaptateur ne peut inventorier l'application. L'entrée d'une page pas encore écrite (ses `routes`) ne couvre rien : le rapport donne à part la couverture du plan, « avec les pages pas encore écrites » |
+| `proofs` | Pages de Reprendre écrites qui contiennent au moins une preuve `fichier:ligne` (un nom de fichier avec son extension, puis `:` et un numéro, entre accents graves : `lib/commandes.ts:42`), hors commentaires ÷ pages de Reprendre écrites |
+| `takeover` | Nombre des 7 pages obligatoires de Reprendre qui sont écrites (voir ci-dessous) |
+| `tooLong` | Pages écrites au-delà de leur `maxWords` (2 000 sans type) ÷ pages écrites. Les mots sont comptés dans le Markdown, sans les blocs de code, les commentaires, les URL et le balisage |
+| `guidance` | Texte de gabarit resté hors du corps des pages : pages écrites dont le résumé est encore celui qu'écrit `doc-kit new`, plus l'accueil et les introductions de section (`<section>/index.md`) qui contiennent encore une consigne |
 | `upToDateCaptures` | Fichiers de zones dont la `version` est la version courante de l'application ÷ fichiers de zones qui portent une `version` ; `n/a` quand aucun n'en porte |
 | `glossary` | Nombre de termes du glossaire |
 | `tours` | Nombre de parcours guidés de l'accueil (`journeys` dans `toc.json`) |
-| `blocking` | Erreurs du build strict + éléments non cités (quand `coverage` est mesuré) + secrets trouvés par `doc-kit check secrets` (voir [quality.fr.md](quality.fr.md)) |
+| `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments cités par aucune page, pas même par l'entrée d'une page pas encore écrite (quand `coverage` est mesuré) + secrets trouvés par `doc-kit check secrets` (voir [quality.fr.md](quality.fr.md)). Les erreurs des pages pas encore écrites (`page.missing`, les erreurs d'un brouillon) sont affichées à côté, comptées par `written` |
 | `wideTables` | Tableaux qui débordent à 1 440 px (chaque page est ouverte dans le navigateur) ; non mesuré sans navigateur, ou avec `DOC_KIT_NO_BROWSER=1` |
 
 La section **Reprendre** est la section dont l'id est `take-over` (ou `reprendre`) ; à défaut, la dernière section du sommaire, quand il en compte au moins deux.
 
-**Les 7 pages obligatoires de Reprendre**, comptées par `takeover` parmi les pages écrites de la section Reprendre (une sous-page est une page `"level": 2` qui suit sa parente dans le même groupe) :
+**Les 7 pages obligatoires de Reprendre**, comptées par `takeover` parmi les pages écrites de la section Reprendre, jamais un brouillon ni une page sans fichier, que le rapport nomme comme la page à écrire (une sous-page est une page `"level": 2` qui suit sa parente dans le même groupe) :
 
 | # | Page | Critère mesuré |
 |---|---|---|
@@ -49,9 +59,9 @@ La section **Reprendre** est la section dont l'id est `take-over` (ou `reprendre
 
 | Niveau | Critères |
 |---|---|
-| **1 Squelette** | `doc.config.mjs` est valide · `doc-kit build --draft` réussit · chaque section a au moins 1 page écrite · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
+| **1 Squelette** | `doc.config.mjs` est valide · `doc-kit build --draft` réussit · chaque section a au moins 1 page avec son fichier (un brouillon compte : c'est le squelette) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou `n/a`) · `coverage` ≥ 80 % (ou `n/a`) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **3 Complet** | `written` = 100 % · `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) |
 
 Les seuils viennent des sites les plus aboutis construits avec cette méthode : on peut les atteindre sans exploit, et un site qui en manque un a une lacune qu'un lecteur remarquera.

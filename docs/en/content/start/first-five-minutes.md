@@ -41,13 +41,17 @@ doc-kit init acme-orders --url http://127.0.0.1:4173
 ```
 
 `init` looks at the application folder (framework, routes, port, product name), then asks the **product name**
-(`Acme Orders`, from the folder name), the **language** of the site (`en` or `fr`) and the **sign-in method**
-(`manual`: you sign in, then press Enter); it asks the **application URL** too when `--url` is not given. Press Enter
+(`Acme Orders`, from the folder name), the **language** of the site (`en` or `fr`), **where the screenshots are
+taken** (answer 1, "local or demo application"; 2 is a production, read-only) and the **sign-in method** (`manual`:
+you sign in, then press Enter); it asks the **application URL** too when `--url` is not given. Press Enter
 to accept each proposal. Before writing anything, it prints a **recap**: the product name and where it was found, the
 slug, the language, the URL, the version and the file it is read in, the sign-in, the coverage, the masked `.env` files
 and the application folder. Check it, then confirm. It writes 22 files in `acme-orders/docs/manual/` and prints the
 next commands. To rename the product afterwards, change `product.name` in `doc.config.mjs` and the titles of
 `content/toc.json`.
+
+Once the files are written, `init` offers to go on: "Open the browser now to sign in?" runs steps 3 and 4 for you,
+then "Take a first test screenshot with --preview?" runs step 5. Answer `n` to follow the steps one by one below.
 
 > [!TIP] Without questions
 > `doc-kit init acme-orders --url http://127.0.0.1:4173 --name "Acme Orders" --auth manual --yes` takes the detected

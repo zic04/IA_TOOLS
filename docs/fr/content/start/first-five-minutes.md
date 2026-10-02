@@ -44,7 +44,8 @@ doc-kit init acme-orders --url http://127.0.0.1:4173
 ```
 
 `init` examine le dossier de l'application (framework, routes, port, nom du produit), puis demande le **nom du
-produit** (`Acme Orders`, d'après le nom du dossier), la **langue de la documentation** (`en` ou `fr`) et la **méthode
+produit** (`Acme Orders`, d'après le nom du dossier), la **langue de la documentation** (`en` ou `fr`), **où prendre
+les captures** (réponse 1, « application locale ou de démo » ; 2 est une production, en lecture seule) et la **méthode
 de connexion** (`manual` : vous vous connectez, puis vous appuyez sur Entrée) ; il demande aussi l'**adresse de
 l'application** quand `--url` n'est pas donné. Appuyez sur Entrée pour accepter chaque proposition. Avant d'écrire quoi
 que ce soit, il affiche un **récapitulatif** : le nom du produit et sa provenance, l'identifiant, la langue, l'URL, la
@@ -52,6 +53,10 @@ version et le fichier où elle est lue, la connexion, la couverture, les fichier
 l'application. Vérifiez-le, puis confirmez. Il écrit 22 fichiers dans `acme-orders/docs/manual/` et affiche les
 commandes suivantes. Pour renommer le produit ensuite, changez `product.name` dans `doc.config.mjs` et les titres de
 `content/toc.json`.
+
+Une fois les fichiers écrits, `init` propose de continuer : « Ouvrir le navigateur maintenant pour vous connecter ? »
+fait les étapes 3 et 4 pour vous, puis « Prendre une première capture de test avec --preview ? » fait l'étape 5.
+Répondez `n` pour suivre les étapes une à une ci-dessous.
 
 > [!ASTUCE] Sans questions
 > `doc-kit init acme-orders --url http://127.0.0.1:4173 --name "Acme Orders" --auth manual --yes` prend les valeurs

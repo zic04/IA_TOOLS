@@ -1,7 +1,8 @@
-// view <page[~anchor]> [--theme light|dark] [--height 900] [--tour N] [--output <png>]
+// view <page[~anchor]> [--theme light|dark] [--height 900] [--full] [--tour N] [--output <png>]
 // Screenshots a page of the BUILT site, to review it visually.
 //   view use/orders/list
 //   view "use/orders/list~the-screen" --theme dark --height 1100
+//   view use/orders/list --full          the whole page, from its top, in one image
 //   view use/orders/list --tour 3
 // In Git Bash, do NOT start the id with "/" (automatic path conversion).
 import fs from "node:fs";
@@ -15,6 +16,7 @@ import { builtSite } from "../common.mjs";
 export const options = {
   theme: { type: "string" },
   height: { type: "string" },
+  full: { type: "boolean" },
   tour: { type: "string" },
   output: { type: "string" },
 };
@@ -50,7 +52,16 @@ export async function run({ ctx, values, positionals }) {
       }
       await page.waitForTimeout(500);
     }
-    await page.screenshot({ path: output });
+    // --full: the whole page in one image. The window first takes the height of the page, so that the elements
+    // sized on the window (menu, sticky panels) follow the page instead of stopping after the first screen.
+    if (values.full) {
+      const full = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
+      if (full > height) {
+        await page.setViewportSize({ width: 1440, height: Math.min(full, 32000) });
+        await page.waitForTimeout(300);
+      }
+    }
+    await page.screenshot({ path: output, fullPage: !!values.full });
   } finally {
     await browser.close();
     site.release();

@@ -22,8 +22,8 @@ doc-kit check coverage
 
 Les adaptateurs de couverture de `coverage` (configuration) listent ce que contient l'application : les routes d'une
 application Next.js ou React Router, les entrées d'un registre avec leurs libellés, les fichiers d'un dossier. Un
-élément est **couvert** quand l'un de ses textes apparaît dans la documentation (`content/**/*.md` et `*.json`, les
-`routes` du sommaire comprises), sans tenir compte de la casse ni des espaces. Une route `/orders/[id]` est couverte
+élément est **couvert** quand l'un de ses textes apparaît dans une page **écrite** (`content/**/*.md` et `*.json`,
+les `routes` de son entrée du sommaire comprises), sans tenir compte de la casse ni des espaces. Une route `/orders/[id]` est couverte
 par `/orders/[id]`, `/orders/:id`, `/orders/{id}` ou son préfixe statique `/orders/`.
 
 ```text
@@ -36,11 +36,22 @@ par `/orders/[id]`, `/orders/:id`, `/orders/{id}` ou son préfixe statique `/ord
   → citez chaque élément manquant dans une page, ou dans les routes du sommaire
 ```
 
+Tant que des pages restent à écrire, les éléments que seules leurs entrées citent sont affichés à part : c'est le
+plan, pas encore la documentation.
+
+```text
+✖ Routes : 2/14
+    manque : /commandes — prévu dans utiliser/commandes, pas encore écrite
+    …
+2/14 éléments couverts.
+  12 éléments de plus ne sont cités que par les entrées de pages pas encore écrites (14/14 une fois écrites)
+```
+
 Un adaptateur qui ne trouve pas sa source (l'application n'est pas à côté de la documentation) est **ignoré**, pas en
 échec. Sans aucun adaptateur, `check all` ignore la couverture et `check coverage` s'arrête avec le code de sortie 2.
-Une page qui contient encore des consignes de gabarit n'est pas encore écrite : ni son texte ni son entrée dans le
-sommaire (titre, `routes`) ne comptent, si bien que les exemples d'un squelette neuf ne couvrent jamais une route de
-l'application.
+Une page déclarée sans son fichier, ou qui contient encore des consignes de gabarit, n'est pas encore écrite : ni
+son texte ni son entrée dans le sommaire (titre, `routes`) ne comptent, si bien que ni le plan seul ni les exemples
+d'un squelette neuf ne couvrent une route de l'application.
 `doc-kit inventory` liste ce que voient les adaptateurs, couvert ou non ; `doc-kit inventory --json` est un bon point
 de départ pour un sommaire. Ce site contrôle sa propre couverture : chaque clé de configuration, option de la ligne
 de commande, adaptateur intégré et commande est cité ([Les adaptateurs](#/reference/adapters~ecrire-un-adaptateur)).

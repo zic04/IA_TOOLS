@@ -85,6 +85,20 @@ describe("capture variants (capture.mode)", () => {
       }
   });
 
+  test("the skeleton without screenshots never mentions them, except to state the decision and how to add them later", () => {
+    // Pages, table of contents, README and writing guide, as `init` writes them with capture.mode "none".
+    const ALLOWED = /capture\.mode|aucune capture|sans capture|no screenshot|without screenshots|captures plus tard|screenshots later|^## (?:Captures|Screenshots)\s*$/i;
+    const WORDS = /captur|screenshot|annotated|annoté|illustr|:::screen|:::ecran/i;
+    for (const language of ["en", "fr"]) {
+      const base = path.join(KIT_ROOT, "templates", "project", language);
+      for (const rel of fs.readdirSync(base, { recursive: true }).map(String).filter((f) => /\.(md|json)$/.test(f))) {
+        const raw = fs.readFileSync(path.join(base, rel), "utf8");
+        const text = rel.endsWith(".md") ? captureVariant(raw, "none") : raw;
+        for (const line of text.split(/\r?\n/)) if (WORDS.test(line) && !ALLOWED.test(line)) assert.fail(`${language}/${rel}: ${line.slice(0, 120)}`);
+      }
+    }
+  });
+
   test("the example routes of the templates and of the skeleton are fictional", () => {
     const files = [
       ...["en", "fr"].flatMap((l) => fs.readdirSync(path.join(KIT_ROOT, "templates", "pages", l)).map((f) => path.join(KIT_ROOT, "templates", "pages", l, f))),

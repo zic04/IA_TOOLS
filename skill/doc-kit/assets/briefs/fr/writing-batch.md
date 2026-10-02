@@ -103,7 +103,7 @@ sur elle.
 
 ## Contrôles (depuis `{{docDir}}`)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour tes pages (les « page absente » des autres lots sont normales).
+- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour tes pages (les « page pas encore écrite » des autres lots sont normales).
 - `npx doc-kit check tables` : aucun débordement sur tes pages.
 - Relecture visuelle d'au moins 2 pages : `npx doc-kit view <id-page> --output .doc-kit/{{code}}-<nom>.png`, puis
   avec `--tour 2` et avec `--theme dark` ; Read des images ; corrige ; supprime ensuite tes images de relecture.

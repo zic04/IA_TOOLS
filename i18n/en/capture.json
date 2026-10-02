@@ -18,6 +18,7 @@
   "cli.validate.action.help": "for example { click: { text: \"Open\" } }, { wait: 500 } or { press: \"Escape\" }",
 
   "cli.connect.open": "A {browser} window is open on {url}: sign in there (SSO and MFA work).",
+  "cli.connect.production": "PRODUCTION — {url}: sign in with your own account; the session saved gives access to production.",
   "cli.connect.pressEnter": "Once you are signed in, press Enter here (15 minutes at most).",
   "cli.connect.detecting": "The session is detected as soon as you are signed in (15 minutes at most).",
   "cli.connect.notYet": "not signed in yet (still on a sign-in page): finish signing in, then press Enter again.",
@@ -55,6 +56,11 @@
   "cli.capture.prefetched": { "one": "{n} prefetch request to forbidden routes aborted — {list}", "other": "{n} prefetch requests to forbidden routes aborted — {list}" },
   "cli.capture.readOnly": { "one": "Read-only: {n} write request blocked{list}", "other": "Read-only: {n} write requests blocked{list}" },
   "cli.capture.readOnlyOff": "Read-only: off — write requests were not blocked.",
+  "cli.capture.production": { "one": "PRODUCTION — read-only · {n} screenshot · {url}", "other": "PRODUCTION — read-only · {n} screenshots · {url}" },
+  "cli.capture.ask.production": { "one": "Capture {n} screen on production now?", "other": "Capture {n} screens on production now?" },
+  "cli.capture.declined": "Nothing was captured.",
+  "cli.capture.productionConfirm": "capture on production not confirmed (no terminal to ask)",
+  "cli.capture.productionConfirm.help": "add --yes to confirm a production capture",
   "cli.capture.forbidden": "{id}: the route {route} is forbidden (capture.forbidden: {pattern})",
   "cli.capture.forbidden.help": "a write made by the server while it renders a page cannot be blocked by the browser: describe the page from its code, or reuse a record already opened and adjust capture.forbidden",
   "cli.capture.noCaptures": "no capture in {folder}",
@@ -106,6 +112,8 @@
 
   "cli.demo.noSetup": "no demo setup script (capture.setup)",
   "cli.demo.noSetup.help": "set capture.setup in doc.config.mjs: an idempotent script that prepares the demo data",
+  "cli.demo.production": "capture.target is \"production\" in {file}: a demo data script never runs against production ({url})",
+  "cli.demo.production.help": "prepare the demo data on a local or demo copy of the application (capture.target: \"local\" or \"demo\")",
   "cli.demo.missing": "setup script not found: {file}",
   "cli.demo.missing.help": "fix capture.setup (relative to the documentation project)",
   "cli.demo.running": "Preparing the demo data: {file}…",
@@ -121,7 +129,9 @@
   "cli.check.coverage.missing": "    missing: {id}",
   "cli.check.coverage.missingLabel": "    missing: {id} (“{label}”)",
   "cli.check.coverage.missingNoLabel": "    missing: {id} (no label found)",
+  "cli.check.coverage.plannedSuffix": " — planned in {page}, not written yet",
   "cli.check.coverage.summary": { "one": "{covered}/{n} element covered.", "other": "{covered}/{n} elements covered." },
+  "cli.check.coverage.planned": { "one": "  {count} more element is cited only by the entry of a page not written yet ({planned}/{total} once it is written)", "other": "  {count} more elements are cited only by the entries of pages not written yet ({planned}/{total} once they are written)" },
   "cli.check.coverage.advice": "cite each missing element in a page, or in the routes of the table of contents",
 
   "cli.check.images.orphan": "orphan image, cited by no page: {file}",
@@ -132,7 +142,10 @@
   "cli.check.images.heavy.help": "{command} optimize recompresses the images above the threshold",
   "cli.check.images.outdated": "{file}: captured on version {captured}, the application is at version {version}",
   "cli.check.images.outdated.help": "capture it again, or say on the page which version the screen shows",
-  "cli.check.images.summary": { "one": "{n} image checked ({cited} cited) — {errors} error(s), {warnings} warning(s).", "other": "{n} images checked ({cited} cited) — {errors} error(s), {warnings} warning(s)." },
+  "cli.check.images.summary": { "one": "{count} image checked ({cited}) — {errors}, {warnings}.", "other": "{count} images checked ({cited}) — {errors}, {warnings}." },
+  "cli.check.count.errors": { "one": "{count} error", "other": "{count} errors" },
+  "cli.check.count.warnings": { "one": "{count} warning", "other": "{count} warnings" },
+  "cli.check.count.cited": { "one": "{count} cited", "other": "{count} cited" },
 
   "cli.check.secrets.found": "{where}: {kind} ({preview})",
   "cli.check.secrets.found.help": "remove the value from the source; if it shows in a screenshot, mask it (masks, masking.patterns) and capture again",
@@ -151,7 +164,9 @@
   "cli.check.secrets.sessionTracked": "the session file is tracked by git: {file}",
   "cli.check.secrets.sessionTracked.help": "remove it from git (git rm --cached), make sure .gitignore holds {dir}, then sign in again",
   "cli.check.secrets.failed": { "one": "{n} secret found.", "other": "{n} secrets found." },
-  "cli.check.secrets.ok": "✔ No secret found ({files} source files, {places} places of the site).",
+  "cli.check.secrets.ok": "✔ No secret found ({files}, {places}).",
+  "cli.check.count.sourceFiles": { "one": "{count} source file", "other": "{count} source files" },
+  "cli.check.count.places": { "one": "{count} place of the site", "other": "{count} places of the site" },
 
   "cli.inventory.family": { "one": "{adapter} › {name}: {n} element, {covered} already cited", "other": "{adapter} › {name}: {n} elements, {covered} already cited" },
   "cli.inventory.summary": { "one": "{n} element inventoried, {covered} cited in the documentation.", "other": "{n} elements inventoried, {covered} cited in the documentation." }

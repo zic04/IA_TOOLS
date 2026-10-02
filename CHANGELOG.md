@@ -30,8 +30,35 @@ Fixes for the frictions found by a pilot run on a real application with a separa
 - `doctor` warns "version never incremented?" (⚠, no longer ✔) when the documented version is `0.0.0` or `1.0.0` while
   a `version.txt`, `VERSION` or `CHANGELOG.md` of the application gives another one; it checks `app.dir`.
 - `brief.mjs --list` prints the available languages and the templates of each.
+- **Capture target**: `capture.target: "local" | "demo" | "production"` (default `"local"`), where the screenshots are
+  taken. With `"production"`: read-only always, even without a session (`readOnly: false`, or `<PREFIX>_READONLY=0`,
+  is refused with exit code 2); `doc-kit capture` prints "PRODUCTION — read-only · N screenshots · <url>" and asks for a
+  confirmation whose default is No, or needs the new `--yes` option without a terminal (exit code 2 otherwise);
+  `doc-kit demo` refuses to run (exit code 2); `doc-kit connect` says it is production first; `doctor` shows the target
+  and warns "no forbidden route declared" while `capture.forbidden` is empty; the guided mode shows the production
+  banner before `connect` and `capture`; the skill's `brief.mjs` gives `captureMode=production` (or `demo`).
+- **`init` asks where the screenshots are taken**: "1. local or demo application, 2. production, read-only, 3. no
+  screenshots" (replaces the capture-mode question), and `--target local|demo|production`. Production asks its own URL
+  (never the local one detected), prints the safety reminders (server-side writes on render are not blocked: list
+  them in `capture.forbidden`; the session file is a secret; real data is the owner's decision) and writes
+  `capture.readOnly: true`. The recap shows the target.
+- **`init` goes on in a terminal**: "Open the browser now to sign in? (Y/n)" runs `npm install` when needed, then
+  `connect`; "Take a first test screenshot with --preview? (Y/n)" runs `capture --preview --yes`. Never with `--yes`
+  (the next commands are printed instead); the next steps leave out what was done.
+- **Skill**: in the scoping phase, Claude asks whether the screenshots are taken on production (read-only) and whether
+  to open the browser now (AskUserQuestion when available), then runs `doc-kit init --target …` and `doc-kit connect`.
+- **`doc-kit view --full`**: the whole page in one image, from its top (the window first takes the height of the
+  page, so that the menu and the sticky panels follow it): a long editor page is reviewed in one view.
+- **Coverage of the plan**: an element that only the entry of a page not written yet cites gets `plannedBy` (the page);
+  `runCoverage` returns `planned`. `check coverage` prints "missing: /x — planned in <page>, not written yet" and
+  "N more elements are cited only by the entries of pages not written yet (P/T once they are written)"; `audit` shows
+  the coverage "with the pages not written yet" next to `coverage` and names the page in the coverage action.
+- **`audit` says how many pages remain to write**: "Pages: 1 written of 81 — 80 to write (72 without a file, 8 still
+  in template guidance)" in the summary; `written` carries `missing` and `drafts` in `audit.json` and in the report.
 
 ### Changed
+
+- The guided mode's `connect` question says that a browser window opens, where you sign in before pressing Enter.
 
 - **Product name** detected by `init`: the `metadata.title` of the Next.js root layout first, then `package.json`
   without its `-frontend`, `-front`, `-web`, `-ui`, `-client` or `-app` suffix (a generic name gives way to the root
@@ -49,6 +76,40 @@ Fixes for the frictions found by a pilot run on a real application with a separa
 - `brief.mjs` speaks the project's language; `{{appDir}}` comes from `app.dir`, else the documentation folder's
   parent or grandparent that holds `.git`, else its grandparent, with a warning when it was guessed and when the
   coverage source sits in a separate front end.
+- **A written page** (`standard/maturity.md`) is a declared page whose file exists and holds no template guidance.
+  `written` owns the pages not written yet (without a file, or drafts that keep their guidance) and is now required
+  at 100 % for level 3; every other page indicator is measured on the written pages only: `conformant`,
+  `completeness`, `annotated`, `proofs`, `tooLong` and `takeover` (a draft is named as the page to write, never as
+  present). `blocking` leaves out the build errors of the pages not written yet (shown next to it, counted by
+  `written`) and the elements that a page not written yet plans. `guidance` counts the template text left outside the
+  page bodies: the summary placeholder of `new` on a written page, guidance in the home page or a section
+  introduction. Level 1 still counts a draft as the first page of its section.
+- **Coverage** counts only what the written pages cite: the entry of a page declared without its file covers nothing
+  either (before: its `routes` counted, so a plan alone reached 91 %).
+- The template's examples never satisfy a criterion: proofs, numbered findings and `:::screen` blocks are looked for
+  outside HTML comments, in written pages only (before: the sample "(C1)" of the findings skeleton validated it).
+- **Audit actions**: an unwritten page is listed once (outside Take over at level 2, the others at level 3), with
+  `doc-kit new <id>` for a missing file or the guidance left in a draft; when every element must be handled, the
+  sentence says it once ("Document the 4 elements…", not "4, at least 4"); `typedChoose` never asks for more pages than
+  it lists.
+- **Numbers of the summaries**, in the language of the messages, each noun in the plural form of its number
+  (`engine/build/format.mjs`): `build` ("0,3 Mo · 81 pages · 1 schéma"; without screenshots, `capture.mode: "none"`,
+  the screenshots are not counted), `check images` ("0 errors, 0 warnings", no more "error(s)"), `check secrets`,
+  `check links`, `check tables` ("1 440 px"), `audit` ("1 page").
+- **Skeleton without screenshots**: the table of contents (tagline, subtitle of Use, summary of Maintaining the docs)
+  no longer speaks of illustrated or annotated screens; `README.md`, `WRITING-GUIDE.md`, the maintaining-docs page and
+  the technical architecture page get `capture=none` variants (browser of `view`/`check tables`/`audit`, strict build
+  messages, folder layout, checks, transfer, tooling limits), so a `none` project only mentions screenshots to state
+  the decision and how to add them later.
+- `doctor` checks one more contrast pair: `chrome-text` on `chrome-2` (the search field of the top bar).
+
+### Fixed
+
+- **A declared page without its file** is one problem, `page not written yet: <id> (<file>)` (a warning with
+  `--draft`), never the cascade of the "required section missing" errors of its template, nor "anchor not found" for
+  the links into it: 385 errors became 75 on a plan of 81 pages with 72 not written yet.
+- **The Ctrl K key of the top bar** was nearly unreadable in the light theme: the generic `kbd` gave it the page
+  surface (white) under the light chrome text (1.5:1); it now sits on `chrome-2` in both themes (9.9:1).
 
 ## [0.1.0] - 2026-10-01
 

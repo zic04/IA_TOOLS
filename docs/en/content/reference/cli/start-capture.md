@@ -1,7 +1,7 @@
 ## doc-kit init
 
 ```text
-doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--capture app|none] [--yes]
+doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--capture app|none] [--target local|demo|production] [--yes]
 ```
 
 Creates the documentation project of the application in `app-dir` (default: the current folder), in
@@ -17,6 +17,7 @@ Creates the documentation project of the application in `app-dir` (default: the 
 | `--framework <name>` | detected | `next` (App Router), `react-router` or `none`: the coverage adapter written in the configuration |
 | `--auth <adapter>` | `manual` | `manual`, `none`, `nextauth`, `api-me` or `local:<file>` |
 | `--capture app\|none` | `app` | `app`: screenshots of the running application; `none`: no screenshot at all (`capture.mode: "none"`), each screen described by a table |
+| `--target <where>` | `local`, or `demo` for a URL that is not local | `local`, `demo` or `production` (`capture.target`); `production` writes `capture.readOnly: true` and, with `--yes`, needs `--url`; refused with `--capture none` |
 | `--yes`, `-y` | | No question: the detected values and the options as they are |
 
 - **Detection**: `package.json` in the folder or in `frontend`, `front`, `web`, `client`, `ui`, `app`, `apps/web`;
@@ -26,10 +27,20 @@ Creates the documentation project of the application in `app-dir` (default: the 
   `package.json` when it has a `version`, else the front end's, else the `pyproject.toml` of a Python-only application.
 - **Masking** (`masking.env`): `.env` and `.env.local` at the root and in the front-end folder, only the files that
   exist; never `*.example`.
-- **Questions** (without `--yes`): name, language, URL, capture mode, sign-in method (only with screenshots).
-  Without a terminal and without `--yes`, it stops with exit code 2.
+- **Questions** (without `--yes`): name, language, URL, where the screenshots are taken, sign-in method (only with
+  screenshots). Without a terminal and without `--yes`, it stops with exit code 2.
+- **Where the screenshots are taken**: "1) local or demo application, 2) production, read-only, 3) no screenshots".
+  Choice 1 writes `capture.target: "local"` for a `localhost` or `127.x` URL, `"demo"` otherwise. Choice 2 asks the
+  **production URL** (never the local one detected from the dev script), then prints three safety reminders:
+  read-only blocks the browser's writes, **not** a write made by the server while it renders a page (list such routes
+  in `capture.forbidden`); the session file is a secret; the screenshots show real data, which is the owner's written
+  decision. It writes `capture.target: "production"` and `capture.readOnly: true`.
+- **Then**, in a terminal and with screenshots: "Open the browser now to sign in? (Y/n)" runs `npm install` in the new
+  project when needed, then `doc-kit connect`; "Take a first test
+  screenshot with --preview? (Y/n)" runs `doc-kit capture --preview --yes` on the example plan. With `--yes`, nothing
+  opens: the next steps are printed. A step that fails stops there with its exit code; the project stays written.
 - **Recap**: before writing anything, even with `--yes`, the folder, the name and where it was found, the slug, the
-  language, the URL, the version and its file, the capture mode, the sign-in, the coverage source, the masked `.env`
+  language, the URL, the version and its file, the capture mode and target, the sign-in, the coverage source, the masked `.env`
   files and the application folder. To rename the product afterwards: `product.name` in `doc.config.mjs`, then the
   title, tagline and section titles of `content/toc.json`.
 - **Writes** the skeleton of `templates/project/common` and `templates/project/<language>`: configuration,
@@ -52,7 +63,7 @@ One line per check, `✔` OK, `⚠` to look at, `✖` to fix, each problem follo
 | Group | Checks |
 |---|---|
 | Environment | Node version; kit dependencies; Chromium; the project's dependency on the kit; the installed Claude Code skill; the kit's version against the project's `kit` range |
-| Project | Configuration; table of contents; version file (⚠ "version never incremented?" when it says `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application says otherwise); application folder (`app.dir`); coverage sources; masking files; capture plans folder; `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts. With `capture.mode: "none"`, neither the session nor the plans folder is expected |
+| Project | Configuration; table of contents; version file (⚠ "version never incremented?" when it says `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application says otherwise); application folder (`app.dir`); coverage sources; masking files; capture plans folder; the capture target (⚠ "no forbidden route declared" for a production with an empty `capture.forbidden`); `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts. With `capture.mode: "none"`, neither the session, the plans folder nor the target is checked |
 | `--network` | The application answers at `app.url` |
 
 Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails, 0
@@ -74,7 +85,9 @@ session). The session is saved in `.doc-kit/session.json` (or `<PREFIX>_SESSION`
 
 Exit code 3 when the application cannot be reached, after 15 minutes without a sign-in, or when the window is
 closed; 2 without a terminal (with the `manual` adapter). With `auth.adapter: "none"`, there is nothing to do. With
-`capture.mode: "none"`, it explains the mode and stops with exit code 2; `--forget` still deletes a session.
+`capture.mode: "none"`, it explains the mode and stops with exit code 2; `--forget` still deletes a session. With
+`capture.target: "production"`, a first line says so: sign in with your own account, the session gives access to
+production.
 [Connect and sessions](#/capture/sessions) explains the rest.
 
 ## doc-kit demo
@@ -84,12 +97,13 @@ doc-kit demo
 ```
 
 Runs the script of `capture.setup` in its own Node process, from the project folder. A default export is called with
-`{ config, root, url }`. Exit code 0 when the script succeeds, 1 otherwise, 2 without `capture.setup`.
+`{ config, root, url }`. Exit code 0 when the script succeeds, 1 otherwise, 2 without `capture.setup`, and 2 with
+`capture.target: "production"`: a demo data script never runs against production.
 
 ## doc-kit capture
 
 ```text
-doc-kit capture [patterns…] [--plans <folder>] [--preview] [--no-session]
+doc-kit capture [patterns…] [--plans <folder>] [--preview] [--no-session] [--yes]
 ```
 
 Takes the captures of the plans in a headless Chromium and writes `images/<id>.webp` and `images/zones/<id>.json`.
@@ -101,6 +115,18 @@ With `capture.mode: "none"`, it explains the mode and stops with exit code 2.
 | `--plans <folder>` | Another plans folder, relative to the project |
 | `--preview` | Also writes `.doc-kit/<id>.zones.png`, the zones drawn in red |
 | `--no-session` | Without the saved session |
+| `--yes`, `-y` | Confirms a production capture in advance; required without a terminal |
+
+With `capture.target: "production"`, the run is always read-only, even without a session, and starts with a banner,
+then a question whose default is **No**: a reflexive Enter never starts a production run.
+
+```text
+PRODUCTION — read-only · 2 screenshots · https://orders.acme.example
+? Capture 2 screens on production now? (y/N) ›
+```
+
+Without a terminal, or with `--json`, `--yes` is required: otherwise "capture on production not confirmed", exit
+code 2. Answering no captures nothing (exit code 0).
 
 With a session, the session is checked first and the run is read-only (`capture.readOnly: "auto"`). Exit code 1
 when a route is forbidden or a capture failed, 3 when the application cannot be reached or the session expired, 2

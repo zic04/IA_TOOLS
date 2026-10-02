@@ -12,7 +12,7 @@
 ### "N errors — site NOT generated."
 
 - **Likely causes**
-  1. A declared page has no file yet (`missing page: content/…`).
+  1. A declared page has no file yet (`page not written yet: <id> (content/…)`): one line per page, never one per section of its template.
   2. A capture is cited but not taken, or its image is missing.
   3. A typed page lacks a required section.
 - **Check**: the lines above, one per error, each with the page id in brackets.

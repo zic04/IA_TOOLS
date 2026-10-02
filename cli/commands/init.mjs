@@ -1,27 +1,33 @@
 // init [app-dir] [--dir docs/manual] [--name] [--lang en|fr] [--url] [--framework next|react-router|none] [--auth]
-//      [--capture app|none] [--yes]
+//      [--capture app|none] [--target local|demo|production] [--yes]
 // Creates the documentation project of an application (ARCHITECTURE.md §2.1): <app-dir>/docs/manual/ by default.
 // <app-dir> is the application root; its front end may sit in a sub-folder (frontend/, web/…).
 //   - detects the framework (package.json: next → next-app-router, with app/ or src/app/; react-router →
 //     react-router), a Python back end (pyproject.toml, requirements.txt), the port of the dev script, the product
 //     name (Next.js metadata.title, then package.json without its -frontend/-web… suffix), the version file
 //     (version.txt or VERSION at the root, then the root package.json, then the front end's), the .env files;
-//   - asks the name, the language, the application URL, the capture mode and the sign-in method
-//     (--yes: the detected values and the options, no question);
+//   - asks the name, the language, the application URL, where the screenshots are taken (local or demo,
+//     production read-only, none: capture.mode and capture.target) and the sign-in method (--yes: the detected
+//     values and the options, no question); production: the production URL, the safety reminders, readOnly true;
 //   - prints the recap of what it is about to write, with or without --yes, then confirms (without --yes);
 //   - writes templates/project/common + templates/project/<language>, variables filled, the capture variant of
 //     every .md file, and the example capture plan only in capture mode "app";
-//   - refuses a non-empty folder (exit code 1); prints the next commands.
+//   - in a terminal, with screenshots (never with --yes): offers to open the browser (npm install if needed, then
+//     connect) and a first test screenshot (capture --preview --yes);
+//   - refuses a non-empty folder (exit code 1); prints the next commands (those not done yet).
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { productSlug } from "../../engine/project/defaults.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
 import { captureVariant, CAPTURE_MODES } from "../../engine/build/page-templates.mjs";
 import { BRAND } from "../../engine/brand.mjs";
-import { slash } from "../../engine/dev/environment.mjs";
-import { prompterOf, shownPath, absolutePath } from "../common.mjs";
+import { slash, projectDependency, DEFAULT_SESSION } from "../../engine/dev/environment.mjs";
+import { prompterOf, shownPath, absolutePath, printKitError } from "../common.mjs";
+import { run as runConnect } from "./connect.mjs";
+import { run as runCapture } from "./capture.mjs";
 
 export const options = {
   dir: { type: "string" },
@@ -30,12 +36,15 @@ export const options = {
   framework: { type: "string" },
   auth: { type: "string" },
   capture: { type: "string" },
+  target: { type: "string" },
   yes: { type: "boolean", short: "y" },
 };
 
 export const DEFAULT_DIR = "docs/manual";
 export const FRAMEWORKS = ["next", "react-router", "none"];
 export const AUTH_ADAPTERS = ["manual", "none", "nextauth"];
+/** Where the screenshots are taken (capture.target, ARCHITECTURE.md §3). */
+export const CAPTURE_TARGETS = ["local", "demo", "production"];
 const SUBFOLDERS = ["frontend", "front", "web", "client", "ui", "app", "apps/web"];
 const BACKENDS = ["", "backend", "back", "api", "server"];
 const GENERIC_NAMES = /^(app|web|client|frontend|front|ui|site|www|my-app|project|monorepo|root)$/i;
@@ -293,7 +302,7 @@ function escapeFor(file, value) {
 }
 
 /** Files of the skeleton written only in capture mode "app". */
-const CAPTURE_ONLY = new Set(["captures/plans/example.mjs"]);
+const CAPTURE_ONLY = new Set(["captures/plans/example.mjs", "captures/targets.mjs"]);
 
 /** The skeleton's package.json without the scripts that capture (capture mode "none": `capture` refuses to run). */
 function withoutCaptureScripts(text) {
@@ -316,7 +325,7 @@ function withoutCaptureScripts(text) {
  *   raw: variables inserted as they are (JavaScript literals such as {{coverage}}); mode: capture mode (§6.4 variants)
  * @returns {string[]} written files, relative to target, with forward slashes, sorted
  */
-export function scaffold({ target, language, vars, raw = ["coverage", "maskingEnv", "versionFile", "versionPattern"], kitVersion = BRAND.version, mode = "app" }) {
+export function scaffold({ target, language, vars, raw = ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly"], kitVersion = BRAND.version, mode = "app" }) {
   if (fs.existsSync(target) && fs.readdirSync(target).length) throw new KitError(EXIT.CHECK, "init.notEmpty", { folder: target });
   const written = [];
   for (const layer of ["common", language]) {
@@ -342,6 +351,106 @@ export function scaffold({ target, language, vars, raw = ["coverage", "maskingEn
 
 const URL_RE = /^https?:\/\/[^\s/]+/;
 
+/** Is this URL a loopback address (localhost, *.localhost, 127.x, [::1])? A URL that cannot be read is not. */
+export function isLoopback(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
+/** Target of the answer "local or demo application": local on a loopback address, demo anywhere else. */
+export const localOrDemo = (url) => (isLoopback(url) ? "local" : "demo");
+
+/** The safety reminders of a production target (init, interactive or --yes). */
+function printProductionReminders(ctx) {
+  const p = ctx.paint;
+  ctx.print(`\n${p.warn("⚠")} ${p.bold(ctx.t("cli.init.production.title"))}`);
+  for (const k of ["serverWrites", "session", "data"]) ctx.print(`  · ${ctx.t(`cli.init.production.${k}`, { file: DEFAULT_SESSION })}`);
+}
+
+/** Gives the terminal back to a command that reads it (connect waits for Enter; npm may ask). */
+function handOver(ctx) {
+  ctx.prompter?.close();
+  ctx.prompter = null;
+}
+
+/** Runs a command of the kit on the new project (connect, capture), in the same context. */
+async function runIn(ctx, folder, run, values) {
+  handOver(ctx);
+  ctx.globals.project = folder;
+  ctx.project = null;
+  ctx.config = null;
+  return run({ ctx, values, positionals: [] });
+}
+
+/**
+ * The follow-up steps offered once the project is written (ARCHITECTURE.md §2.1). Each returns an exit code or
+ * throws a KitError; the tests replace them through the context (`steps` of createContext): no npm, no browser.
+ */
+export const FOLLOW_UP_STEPS = {
+  /** npm install in the new project, when the kit is not linked yet (doc.config.mjs imports doc-kit/config). */
+  async install(ctx, folder) {
+    if (projectDependency(folder).ok) return EXIT.OK;
+    handOver(ctx);
+    ctx.print(ctx.t("cli.init.installing", { folder: shownPath(folder) }));
+    const r = spawnSync("npm", ["install"], { cwd: folder, stdio: "inherit", shell: process.platform === "win32" });
+    if (r.status !== 0) throw new KitError(EXIT.ENVIRONMENT, "init.installFailed", { folder: shownPath(folder) });
+    return EXIT.OK;
+  },
+  /** connect: the visible browser; the person signs in, then presses Enter. */
+  connect: (ctx, folder) => runIn(ctx, folder, runConnect, {}),
+  /** capture with the given options (--preview --yes: the person has just said yes). */
+  capture: (ctx, folder, values) => runIn(ctx, folder, runCapture, values),
+};
+
+/**
+ * Offers to open the browser (install, connect) and a first test screenshot (capture --preview --yes).
+ * Closing the input at a question counts as "no": the project is written.
+ * @returns {Promise<{ code: number, done: { install?: true, connect?: true, capture?: true } }>}
+ */
+async function followUp(ctx, folder, answers) {
+  const steps = { ...FOLLOW_UP_STEPS, ...(ctx.steps || {}) };
+  const done = {};
+  const ask = async (key, vars) => {
+    try {
+      return await prompterOf(ctx).confirm(ctx.t(key, vars), true);
+    } catch (e) {
+      if (e instanceof KitError && e.key === "prompt.cancelled") return false;
+      throw e;
+    }
+  };
+  const step = async (name, ...args) => {
+    try {
+      const code = (await steps[name](ctx, folder, ...args)) ?? EXIT.OK;
+      if (code === EXIT.OK) done[name] = true;
+      return code;
+    } catch (e) {
+      if (!(e instanceof KitError)) throw e;
+      printKitError(ctx, e);
+      return e.code;
+    }
+  };
+  const result = (code) => {
+    if (code !== EXIT.OK) ctx.print(`\n${ctx.t("cli.init.followUpStopped")}`);
+    return { code, done };
+  };
+  ctx.print("");
+  if (answers.auth !== "none") {
+    if (!(await ask("cli.init.ask.browser"))) return result(EXIT.OK);
+    let code = await step("install");
+    if (code === EXIT.OK) code = await step("connect");
+    if (code !== EXIT.OK) return result(code);
+  }
+  const production = answers.target === "production";
+  if (!(await ask(production ? "cli.init.ask.previewProduction" : "cli.init.ask.preview", { url: answers.url }))) return result(EXIT.OK);
+  let code = done.install ? EXIT.OK : await step("install");
+  if (code === EXIT.OK) code = await step("capture", { preview: true, yes: true });
+  return result(code);
+}
+
 /** Lines of the recap (label, value), in the message language. */
 function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot }) {
   const p = ctx.paint;
@@ -363,6 +472,7 @@ function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection,
     ["url", answers.url],
     ["version", v.value ? ctx.t("cli.init.version.read", { version: v.value, file: v.file }) : ctx.t("cli.init.version.unread", { file: v.file })],
     ["capture", ctx.t(`cli.init.capture.${answers.capture}`)],
+    ...(answers.capture === "app" ? [["target", ctx.t(`cli.init.target.${answers.target}`)]] : []),
     ["auth", answers.capture === "none" ? `${answers.auth} ${p.dim(`(${ctx.t("cli.init.authUnused")})`)}` : answers.auth],
     ["coverage", coverage],
     ["masking", detected.envFiles.length ? detected.envFiles.join(", ") : ctx.t("cli.init.masking.none")],
@@ -380,6 +490,12 @@ export async function run({ ctx, values, positionals }) {
   if (values.url !== undefined && !URL_RE.test(values.url)) throw new KitError(EXIT.USAGE, "option.value", { option: "url", value: values.url, expected: "http(s)://host[:port]" });
   if (values.capture !== undefined && !CAPTURE_MODES.includes(values.capture))
     throw new KitError(EXIT.USAGE, "option.value", { option: "capture", value: values.capture, expected: CAPTURE_MODES.join(" | ") });
+  if (values.target !== undefined && !CAPTURE_TARGETS.includes(values.target))
+    throw new KitError(EXIT.USAGE, "option.value", { option: "target", value: values.target, expected: CAPTURE_TARGETS.join(" | ") });
+  // A target says where the screenshots are taken: without screenshots, there is none.
+  if (values.target !== undefined && values.capture === "none") throw new KitError(EXIT.USAGE, "init.targetNoCapture", { target: values.target });
+  // Never a production guessed from the dev script's port: its address is given.
+  if (values.yes && values.target === "production" && values.url === undefined) throw new KitError(EXIT.USAGE, "init.productionUrl");
   if (!values.yes && !ctx.interactive) throw new KitError(EXIT.USAGE, "init.notInteractive");
 
   const detected = detectApp(appDir);
@@ -397,8 +513,10 @@ export async function run({ ctx, values, positionals }) {
     language: ctx.globals.lang || (envLang.startsWith("fr") ? "fr" : "en"),
     url: (values.url || detected.url).replace(/\/+$/, ""),
     capture: values.capture || "app",
+    target: "local",
     auth: values.auth || "manual",
   };
+  answers.target = values.target || localOrDemo(answers.url);
 
   const docsToApp = relativeSlash(target, detected.packageDir || appDir);
   const docsToRoot = relativeSlash(target, appDir);
@@ -447,13 +565,28 @@ export async function run({ ctx, values, positionals }) {
         // The project's language is also the language of its CLI messages: the rest is asked in it.
         ctx.setLanguage(answers.language);
       }
-      if (!values.url) answers.url = (await prompt.ask(ctx.t("cli.init.ask.url"), answers.url, (v) => (URL_RE.test(v) ? null : "init.ask.urlInvalid"))).replace(/\/+$/, "");
-      if (!values.capture)
-        answers.capture = await prompt.choose(
-          ctx.t("cli.init.ask.capture"),
-          CAPTURE_MODES.map((m) => ({ value: m, label: ctx.t(`cli.init.capture.ask.${m}`) })),
-          answers.capture
-        );
+      // --target production: only the production URL is asked, below.
+      if (!values.url && values.target !== "production") answers.url = (await prompt.ask(ctx.t("cli.init.ask.url"), answers.url, (v) => (URL_RE.test(v) ? null : "init.ask.urlInvalid"))).replace(/\/+$/, "");
+      // Where the screenshots are taken: local or demo, production read-only, none (capture.mode + capture.target).
+      if (!values.target && values.capture !== "none") {
+        const choices = [
+          { value: "local", label: ctx.t("cli.init.target.ask.local") },
+          { value: "production", label: ctx.t("cli.init.target.ask.production") },
+        ];
+        if (!values.capture) choices.push({ value: "none", label: ctx.t("cli.init.target.ask.none") });
+        const previous = answers.capture === "none" ? "none" : answers.target === "production" ? "production" : "local";
+        const where = await prompt.choose(ctx.t("cli.init.ask.where"), choices, choices.some((c) => c.value === previous) ? previous : "local");
+        answers.capture = where === "none" ? "none" : "app";
+        answers.target = where === "production" ? "production" : localOrDemo(answers.url);
+      } else if (!values.target) answers.target = localOrDemo(answers.url);
+      // Production: its own address (never a loopback guess), then the safety reminders.
+      if (answers.capture === "app" && answers.target === "production") {
+        if (!values.url) {
+          const check = (v) => (!v ? "init.ask.productionUrlMissing" : URL_RE.test(v) ? null : "init.ask.urlInvalid");
+          answers.url = (await prompt.ask(ctx.t("cli.init.ask.productionUrl"), isLoopback(answers.url) ? "" : answers.url, check)).replace(/\/+$/, "");
+        }
+        printProductionReminders(ctx);
+      }
       // The sign-in method only matters to capture the application.
       if (!values.auth && answers.capture === "app") {
         const choices = [
@@ -469,9 +602,12 @@ export async function run({ ctx, values, positionals }) {
         ctx.print(ctx.t("cli.init.cancelled"));
         return EXIT.OK;
       }
-      values = { ...values, name: undefined, capture: undefined };
+      values = { ...values, name: undefined, capture: undefined, target: undefined };
     }
-  } else if (!ctx.json) printRecap();
+  } else if (!ctx.json) {
+    printRecap();
+    if (answers.capture === "app" && answers.target === "production") printProductionReminders(ctx);
+  }
 
   const appPathFromDocs = detected.appPath ? relativeSlash(target, path.join(detected.packageDir || appDir, detected.appPath)) : null;
   const fromDocs = (rel) => (docsToRoot === "." ? rel : `${docsToRoot}/${rel}`);
@@ -482,6 +618,9 @@ export async function run({ ctx, values, positionals }) {
     appUrl: answers.url,
     auth: answers.auth,
     captureMode: answers.capture,
+    captureTarget: answers.capture === "app" ? answers.target : "local",
+    // Production is only ever captured read-only: written as true, not "auto" (ARCHITECTURE.md §3).
+    readOnly: answers.capture === "app" && answers.target === "production" ? "true" : '"auto"',
     coverage: coverageLiteral(detected.framework, appPathFromDocs),
     appDir: docsToApp,
     appRoot: docsToRoot,
@@ -492,12 +631,18 @@ export async function run({ ctx, values, positionals }) {
   };
   const files = scaffold({ target, language: answers.language, vars, mode: answers.capture });
 
-  const next = [`cd ${shownPath(target)}`, "npm install"];
-  if (answers.capture === "app") {
-    if (answers.auth !== "none") next.push(`${BRAND.command} connect`);
-    next.push(`${BRAND.command} capture`);
-  }
-  next.push(`${BRAND.command} dev`);
+  /** The next commands, without those already done by the follow-up. */
+  const nextSteps = (done = {}) => {
+    const list = [`cd ${shownPath(target)}`];
+    if (!done.install) list.push("npm install");
+    if (answers.capture === "app") {
+      if (answers.auth !== "none" && !done.connect) list.push(`${BRAND.command} connect`);
+      if (!done.capture) list.push(`${BRAND.command} capture`);
+    }
+    list.push(`${BRAND.command} dev`);
+    return list;
+  };
+  const next = nextSteps();
   if (ctx.json) {
     const { nameFromOption, ...shown } = answers;
     ctx.print(
@@ -522,8 +667,10 @@ export async function run({ ctx, values, positionals }) {
     return EXIT.OK;
   }
   ctx.print(`\n${p.ok("✔")} ${ctx.t("cli.init.done", { n: files.length, folder: shownPath(target) })}`);
+  // In a terminal, with screenshots: open the browser now (connect), then a first test screenshot.
+  const after = !values.yes && ctx.interactive && answers.capture === "app" ? await followUp(ctx, target, answers) : { code: EXIT.OK, done: {} };
   ctx.print(`\n${p.bold(ctx.t("cli.init.next"))}`);
-  for (const c of next) ctx.print(`  ${p.cmd(c)}`);
+  for (const c of nextSteps(after.done)) ctx.print(`  ${p.cmd(c)}`);
   ctx.print(`\n${p.dim(ctx.t("cli.init.hint"))}`);
-  return EXIT.OK;
+  return after.code;
 }

@@ -23,7 +23,7 @@ in three ways, and the third one depends on you.
 |---|---|
 | `"auto"` (default) | On whenever a session is used; off without session |
 | `true` | Always on, even without session |
-| `false` | Off: write requests reach the application. With a session, every run warns: "read-only is OFF although a session is used" |
+| `false` | Off: write requests reach the application. With a session, every run warns: "read-only is OFF although a session is used". Refused with `capture.target: "production"` |
 
 The variable `<PREFIX>_READONLY` (or `DOC_KIT_READONLY`) overrides it for one run: `1`, `true`, `yes` or `0`,
 `false`, `no`, or `auto`.
@@ -112,6 +112,20 @@ Service workers are blocked while the kit captures, so that no request escapes t
 | Server writes while rendering | A real risk: `capture.forbidden` | No consequence |
 | Personal data | Only with the owner's written decision; review every image | Fictional |
 | Preparation | One sign-in (`doc-kit connect`) | An idempotent script (`capture.setup`, run by `doc-kit demo`) |
+
+### Declaring the production: `capture.target`
+
+`doc-kit init` asks where the screenshots are taken: "1) local or demo application, 2) production, read-only, 3) no
+screenshots". The answer is `capture.target` (`"local"`, `"demo"` or `"production"`). With `"production"`:
+
+| What | Effect |
+|---|---|
+| Read-only | Always on, even without a session; `readOnly: false` or `<PREFIX>_READONLY=0` is refused (exit code 2) |
+| `doc-kit capture` | A banner `PRODUCTION — read-only · N screenshots · <url>`, then a question whose default is **No**; without a terminal, `--yes` |
+| `doc-kit demo` | Refused (exit code 2): a demo data script never runs against production |
+| `doc-kit connect` | A first line says it: you sign in with your own account |
+| `doc-kit doctor` | A line with the target; ⚠ while `capture.forbidden` is empty |
+| The guided mode | The production banner before it offers `connect` or `capture` |
 
 The two combine: document the editors on the demo, and the real configuration with read-only production captures
 kept in another plans folder (`captures/plans-prod`, ids prefixed `prod-`), selected with `--plans` or

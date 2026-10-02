@@ -16,13 +16,21 @@ Node.js 20 or later, then:
 npm ci
 ```
 
+<!-- doc-kit:capture=app -->
 If the capture browser is missing: `npx playwright install chromium`.
+<!-- doc-kit:capture=none -->
+If the browser of `doc-kit view`, `doc-kit check tables` and `doc-kit audit` is missing: `npx playwright install chromium`.
+<!-- doc-kit:end -->
 
 ## Commands
 
 | Script | doc-kit command | Role |
 |---|---|---|
+<!-- doc-kit:capture=app -->
 | `npm run site` | `doc-kit build` | Builds `dist/`; strict: stops on a missing page, capture or link |
+<!-- doc-kit:capture=none -->
+| `npm run site` | `doc-kit build` | Builds `dist/`; strict: stops on a missing page or link |
+<!-- doc-kit:end -->
 | `npm run dev` | `doc-kit dev` | Local server that rebuilds and reloads on every change |
 <!-- doc-kit:capture=app -->
 | `npm run captures` | `doc-kit capture` | Retakes the captures declared in `captures/plans/` |
@@ -37,7 +45,11 @@ If the capture browser is missing: `npx playwright install chromium`.
 | `npm run all` | Optimisation, build, every check, audit | The whole chain |
 <!-- doc-kit:end -->
 
+<!-- doc-kit:capture=app -->
 While writing, `doc-kit build --draft` tolerates missing pages and captures, and reports them ("Capture to produce" box).
+<!-- doc-kit:capture=none -->
+While writing, `doc-kit build --draft` tolerates the pages not written yet, and reports them ("page not written yet").
+<!-- doc-kit:end -->
 
 ## The workflow
 
@@ -73,5 +85,9 @@ Set `capture.mode: "app"` in `doc.config.mjs`, then follow the capture phase of 
 ## Further reading
 
 - `WRITING-GUIDE.md`: the rules specific to this project.
+<!-- doc-kit:capture=app -->
 - The kit's standard, `node_modules/doc-kit/standard/`: structure, templates, writing, captures, quality, maturity, delivery.
+<!-- doc-kit:capture=none -->
+- The kit's standard, `node_modules/doc-kit/standard/`: structure, templates, writing, quality, maturity, delivery.
+<!-- doc-kit:end -->
 - The "Maintaining this documentation" page of the site: the same content, for whoever takes the project over.

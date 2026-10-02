@@ -54,11 +54,21 @@ Each phase closes on its checks. Details of every phase: `references/method.md`.
 ### 0 · Scoping
 - **Goal**: decide audience, language, sections, capture mode (prepared demo, read-only production, none), real data or
   not, routes never to open, deliverable and weight, who signs in. **Read**: `references/capture-safety.md`.
+- **Ask, never assume** (AskUserQuestion when available, otherwise a plain question), before `init`:
+  1. "Where will the screenshots be taken?" — local or demo application · **production, read-only** · no screenshots.
+     The answer is `doc-kit init --target local|demo|production` (production: `--url <production address>` too; it
+     writes `capture.readOnly: true`) or `--capture none`.
+  2. With screenshots and a sign-in: "Open the browser now to sign in?" — yes: run `doc-kit connect` (a visible
+     window; the **user** signs in, then presses Enter in the terminal; you never type credentials); no: give them the
+     command for later.
+  For production, repeat the three reminders before the first capture: server-side writes on render are not blocked
+  (`capture.forbidden`), the session file is a secret, real data needs the owner's written decision.
 - **Exit**: written decisions (the "real data" decision is written by the owner, then repeated in `WRITING-GUIDE.md`).
 
 ### 1 · Set up the project
 - **Commands**: `doc-kit init <app-dir>` (`<app-dir>` = the application ROOT, even with a separate front end; creates
-  `<app-dir>/docs/manual/`; `--capture none` without screenshots). Read its recap (name, version and its file, `.env`
+  `<app-dir>/docs/manual/`; `--target` from the scoping answer, `--capture none` without screenshots). Run by an agent,
+  `init` needs `--yes` (no terminal): it then opens no browser and only prints the next commands. Read its recap (name, version and its file, `.env`
   files, `app.dir`) and fix what is wrong in `doc.config.mjs` (`product`, `app`, `auth`, `env.prefix`, `version`,
   `coverage`, `masking`, `capture.forbidden`); `doc-kit doctor`.
 - **Separate front end** (`frontend/`, `web/`…): coverage only inventories the front's routes. Check that `app.dir`
@@ -84,8 +94,11 @@ Each phase closes on its checks. Details of every phase: `references/method.md`.
 - **No-screenshot mode** (`capture.mode: "none"`): skip this phase. `capture` and `connect` refuse to run, the
   starter pages and `doc-kit new` describe each screen with a table (`| Element | What it shows |`, reading order),
   briefs say so, and the audit counts `annotated` as n/a.
-- **Demo**: `doc-kit demo` (runs `capture.setup`, idempotent). **Production**: `doc-kit connect` (the person signs in;
-  session in `.doc-kit/`), `capture.forbidden` filled after reading the code of detail pages.
+- **Demo**: `doc-kit demo` (runs `capture.setup`, idempotent; refused on a production target). **Production**
+  (`capture.target: "production"`): `doc-kit connect` (the person signs in; session in `.doc-kit/`),
+  `capture.forbidden` filled after reading the code of detail pages (`doctor` warns while it is empty). Every
+  `doc-kit capture` then prints a PRODUCTION banner and asks (default No): from an agent, with no terminal, add
+  `--yes` once the user has agreed to that batch.
 - **Trial**: `doc-kit capture "<prefix>-*" --preview` on the reference page; look at each `.doc-kit/<id>.zones.png`
   (the zones drawn in red) and at the count of blocked write requests on the last line.
 - **Exit**: zones right, no secret visible, read-only lock observed. **Read** `references/capture-safety.md` first.

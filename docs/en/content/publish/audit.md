@@ -14,50 +14,66 @@ level** reached (0 to 4), and, in priority order, **what to do** to reach the ne
 
 ## The summary
 
-The summary of a new project's skeleton (lines shortened here):
+The summary of a new project's skeleton (lines shortened here): its 9 pages are drafts, written by `init` with
+their template guidance, so none of them is written yet.
 
 ```text
-◆ Acme Orders — level 2 · User (9 pages)
-  ✔ written 100% · ✔ typed 100% · ✔ conformant 100% · ✔ completeness 95.6%
-  ✔ annotated 100% · – coverage not measured · ✔ proofs 66.7% · ✖ takeover 57.1%
-  ✔ tooLong 0% · ✖ guidance 9 · ✔ upToDateCaptures 100% · ✖ glossary 2
-  ✖ tours 1 · ✖ blocking 8 · ✔ wideTables 0
+◆ Acme Orders — level 1 · Skeleton (9 pages)
+  Pages: 0 written of 9 — 9 to write (0 without a file, 9 still in template guidance)
+  ✖ written 0% · ✔ typed 100% · – conformant n/a · – completeness n/a
+  – annotated n/a · – coverage not measured · – proofs n/a · ✖ takeover 0%
+  – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · ✖ glossary 2
+  ✖ tours 1 · ✔ blocking 0 · – wideTables not measured
 
-Next: level 3 · Complete — 4 criteria to meet
-  1. Write, then remove, the template guidance left in 9 pages (…)
-  2. Fix the 8 errors of the strict build (doc-kit build) (…)
-  3. Add guided tours (journeys in content/toc.json): 1 today, 3 expected (2 more)
-  4. Add terms to the glossary: 2 today, 20 expected (18 more)
+Next: level 2 · User — 1 criterion to meet
+  1. Write the 3 pages not written yet outside Take over (0 without a file, 3 still in template guidance) (…)
+  + 5 actions for the next levels: see the report
 
 → report: .doc-kit/audit.md · data: .doc-kit/audit.json
 ```
+
+## Pages not written yet
+
+A **written** page is a declared page whose file exists and holds no template guidance. A page declared in
+`toc.json` without its file, or whose file still holds guidance (a draft), is not written yet, and **only `written`
+counts it**:
+
+- the strict build reports a page without its file once, `page not written yet: <id>`, and checks neither the sections
+  of its template nor the anchors that point into it (a warning with `--draft`);
+- `conformant`, `completeness`, `annotated`, `proofs`, `tooLong` and `takeover` measure the written pages only: the
+  examples of a template (a sample finding `C1`, a sample proof) never satisfy a criterion;
+- `coverage` counts what the written pages cite. The `routes` of a page not written yet do not cover anything: the
+  report shows apart the coverage "with the pages not written yet", and names the page that plans each element;
+- `blocking` leaves out the build errors of the pages not written yet; the report shows them next to it.
+
+The summary line "Pages: … to write" says how far the plan is from the written documentation.
 
 ## The indicators
 
 | Indicator | What it measures |
 |---|---|
-| `written` | Declared pages that have their file |
+| `written` | Declared pages that are written: file present, no template guidance left |
 | `typed` | Pages that declare a `template` |
-| `conformant` | Typed pages that have all their required sections |
-| `completeness` | Share of the template's sections present, averaged over the typed pages |
-| `annotated` | `screen` and `editor` pages with a `:::screen` (while no page is typed: the pages outside Take over); `n/a` with `capture.mode: "none"` |
-| `coverage` | Elements cited ÷ elements inventoried by the coverage adapters |
-| `proofs` | Take over pages with at least one `file:line` proof (`lib/orders.ts:42`, in backticks) |
-| `takeover` | The 7 required Take over pages that are present |
-| `tooLong` | Pages beyond their `maxWords` (2,000 when untyped) |
-| `guidance` | Pages that still hold template guidance, or the summary placeholder of `doc-kit new` |
+| `conformant` | Written typed pages that have all their required sections |
+| `completeness` | Share of the template's sections present, averaged over the written typed pages |
+| `annotated` | Written `screen` and `editor` pages with a `:::screen` (while no page is typed: the written pages outside Take over); `n/a` with `capture.mode: "none"` |
+| `coverage` | Elements cited by the written pages ÷ elements inventoried by the coverage adapters |
+| `proofs` | Written Take over pages with at least one `file:line` proof (`lib/orders.ts:42`, in backticks) |
+| `takeover` | The 7 required Take over pages that are written |
+| `tooLong` | Written pages beyond their `maxWords` (2,000 when untyped) |
+| `guidance` | Template text left outside the pages: the summary placeholder of `doc-kit new` on a written page, guidance in the home page or a section introduction |
 | `upToDateCaptures` | Zone files whose `version` is the current documented version |
 | `glossary` · `tours` | Glossary terms · home-page journeys |
-| `blocking` | Strict build errors + uncovered elements + secrets found |
+| `blocking` | Strict build errors outside the pages not written yet + elements no page cites + secrets found |
 | `wideTables` | Tables that scroll at 1,440 px (every page is opened in Chromium) |
 
 ## The levels and their criteria
 
 | Level | Criteria |
 |---|---|
-| **1 Skeleton** | The configuration is valid · `doc-kit build --draft` succeeds · each section has a written page · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
+| **1 Skeleton** | The configuration is valid · `doc-kit build --draft` succeeds · each section has a page with its file (a draft counts) · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or n/a) · `coverage` ≥ 80 % (or not measured) · no broken link and no legend that differs from its zones, even in draft mode |
-| **3 Complete** | `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
+| **3 Complete** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
 | **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or n/a) |
 
 The **Take over** section is the one whose id is `take-over` (or `reprendre`); otherwise, the last section of the

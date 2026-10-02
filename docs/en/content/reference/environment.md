@@ -54,6 +54,7 @@ still read them.
 | Variable | Situation | Consequence |
 |---|---|---|
 | `<PREFIX>_READONLY` | A value outside the list (`maybe`) | Exit code 2: `ACME_READONLY: value “maybe” not recognised` |
+| `<PREFIX>_READONLY` | `0` while `capture.target` is `"production"` | Exit code 2: production is only captured read-only |
 | `<PREFIX>_URL` | Set, but `--url` given to `connect` | The option wins |
 | `<PREFIX>_SESSION` | Points to a file that does not exist | `capture` stops: `no session: …` (exit code 3) |
 | `DOC_KIT_LANG` | Set inside a project | No effect: the project's `language` wins; use `--lang` |
@@ -66,6 +67,6 @@ still read them.
    captures.
 2. **On a workstation with several environments**: one session file per environment (`<PREFIX>_SESSION`), and
    `<PREFIX>_URL` set in the same terminal as the capture.
-3. **Before a production run**: `<PREFIX>_READONLY` is not `0`; the first line of `doc-kit capture` says
-   `read-only: on`.
+3. **Before a production run**: `capture.target` is `"production"`, so `doc-kit capture` shows the production banner
+   and asks before it starts; its next line says `read-only: on`.
 :::

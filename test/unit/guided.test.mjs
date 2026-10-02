@@ -103,7 +103,7 @@ describe("guided mode", () => {
     try {
       const no = await cli(["--project", dir], { input: ["n"] });
       assert.equal(no.code, 0);
-      assert.match(no.out, /\? Run doc-kit connect now\? \(Y\/n\) › n\nWhen you are ready: doc-kit connect\n$/);
+      assert.match(no.out, /\? Run doc-kit connect now\? A browser window opens: sign in there, then press Enter here\. \(Y\/n\) › n\nWhen you are ready: doc-kit connect\n$/);
       withSession(dir);
       const doctor = await cli(["--project", dir], { input: ["4"], env: { CLAUDE_CONFIG_DIR: dir } });
       assert.match(doctor.out, /\? What do you want to do\?\n {2}1\) doc-kit dev/);
