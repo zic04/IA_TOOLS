@@ -13,6 +13,8 @@ entries between a project's `kit` range and the installed version.
   `build/`), and `translations.mjs` (the translated-file state, taken out of `build/languages.mjs`). The import
   resolver moves to `engine/facts/imports.mjs` and `readProjectVersion` to `engine/project/version.mjs`.
   `test/unit/layers.test.mjs` fails on a new folder cycle (RULES.md M14).
+- Direct tests for the build's text helpers and number formats (`text.test.mjs`) and for `optimize` (options,
+  threshold, re-encoding).
 
 ## [0.2.0] - 2026-10-03
 

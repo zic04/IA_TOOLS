@@ -63,7 +63,8 @@ mise à jour ou build** de l'application.
 | S13 Réseau et `probe` | **Corrigé** : `facts --network` n'envoie plus le nom d'un paquet privé (portée npm à registre propre dans `.npmrc`, registre npm remplacé, index pip privé, version locale, workspace, git ou URL) ; `probe` n'appelle jamais une route de `capture.forbidden` et la liste dans `forbidden`. Le mode `demo` reste une déclaration de l'utilisateur, écrite dans SECURITY.md | `facts.test.mjs` › paquets privés ; `reviews.test.mjs` › routes interdites ; ReDoS |
 | M12 Version | **Corrigé** : 0.2.0 publiée (`package.json`, CHANGELOG `[0.2.0]`, plage `kit` des projets livrés en `^0.2.0`) | `doctor.test.mjs`, `upgrade.test.mjs` |
 | M13 Cycles entre dossiers | **Corrigé** : le bloc était plus large que build/sync/check (capture et facts y étaient aussi). `hash.mjs`, `text.mjs`, `page-templates.mjs` et l'état des fichiers traduits (`translations.mjs`) vont dans `engine/core/` ; la résolution des imports passe de `sync` à `facts` ; `readProjectVersion` passe de `build` à `project/version.mjs`. Ordre de bas en haut : core, capture, check, facts, sync, build ; règle RULES.md M14 | `layers.test.mjs` |
-| M6, M8, M14 | Ouverts | — |
+| M8 Modules sans test direct | **Corrigé** : `text.test.mjs` (`esc`, `attrs`, `plainText`, `slug`, `normalize`, `escapeRegex`, et `numbers` de `format.mjs` en anglais et en français) ; `optimize.test.mjs` (options refusées, aucune image au-dessus du seuil) et e2e `optimize.test.mjs` (réencodage, gain d'au moins 20 %, WebP de mêmes dimensions). `check/tables.mjs` avait déjà son test direct (e2e `site.test.mjs`) | `text.test.mjs`, `optimize.test.mjs` |
+| M6, M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).
