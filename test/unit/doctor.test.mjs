@@ -54,7 +54,7 @@ describe("doctor", () => {
       assert.match(r.out, /^✔ kit dependencies: marked [\d.]+, playwright [\d.]+$/m);
       assert.match(r.out, /^✔ Chromium for Playwright: \/opt\/chromium\/chrome$/m);
       assert.match(r.out, /^⚠ Claude Code skill not installed \(optional\)\n {2}→ doc-kit skill install$/m);
-      assert.match(r.out, /^✔ kit \d+\.\d+\.\d+ accepted by the project \(\^0\.2\.0\)$/m);
+      assert.match(r.out, /^✔ kit \d+\.\d+\.\d+ accepted by the project \(\^0\.3\.0\)$/m);
       assert.match(r.out, /^✔ doc\.config\.mjs valid$/m);
       assert.match(r.out, /^✔ table of contents: content\/toc\.json$/m);
       assert.match(r.out, /^✔ documented version 1\.4\.0 \(read in version\.txt\)$/m);

@@ -66,7 +66,7 @@ Outside a documentation project, it checks the environment only and reports the 
 
 ## How to check it works
 
-- **Version**: `doc-kit --version` prints `doc-kit 0.2.0` (or the version of your copy).
+- **Version**: `doc-kit --version` prints `doc-kit 0.3.0` (or the version of your copy).
 - **Node**: the first line of `doctor` is ✔ with your Node version and the required range (`>=20`).
 - **Dependencies**: `doctor` shows ✔ for `marked 18.0.14, playwright 1.60.0`.
 - **Browser**: `doctor` shows ✔ with the path of the Chromium executable.

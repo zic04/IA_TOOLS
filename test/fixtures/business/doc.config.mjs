@@ -3,7 +3,7 @@
 // correspondence, and a business page that wrongly cites code. Used by the unit and end-to-end tests of
 // engine/build/business.mjs.
 export default {
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",
   app: { url: "http://127.0.0.1:4173" },

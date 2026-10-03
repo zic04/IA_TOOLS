@@ -38,7 +38,7 @@ doc-kit export ../acme-orders-docs --with-dist --zip
 ```text
 ⚠ version.file pointe hors du projet (../../package.json) : la copie affiche la version figée (version.fallback)
 · non exportés : package-lock.json
-✔ ../acme-orders-docs : 26 fichiers du projet + moteur 0.2.0 embarqué (172 fichiers) · version documentée 2.4.0
+✔ ../acme-orders-docs : 26 fichiers du projet + moteur 0.3.0 embarqué (172 fichiers) · version documentée 2.4.0
 ✔ archive ../acme-orders-docs.zip (0.5 Mo)
 ```
 
