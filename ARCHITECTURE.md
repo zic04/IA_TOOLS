@@ -134,7 +134,7 @@ Running `doc-kit` with no command starts the **guided mode** (§4.1): it detects
 ```js
 import { defineConfig } from "doc-kit/config";
 export default defineConfig({
-  kit: "^0.2.0",                                    // accepted kit version range (otherwise exit code 3)
+  kit: "^0.3.0",                                    // accepted kit version range (otherwise exit code 3)
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",                                   // "en" | "fr": language of the site and of the CLI messages
   languages: null,                                  // §6.12: ["fr", "en"], the first is the source language (then language = languages[0])

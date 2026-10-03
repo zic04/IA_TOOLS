@@ -4,7 +4,7 @@
 // (take-over/architecture) and missing (take-over/orders-api). Each space's pages still carry a marker text
 // (marker-business-7q, marker-takeover-9z), unaffected by the translations.
 export default {
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   languages: ["en", "fr"],
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },

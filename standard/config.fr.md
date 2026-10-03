@@ -19,7 +19,7 @@ Rappels :
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.2.0", // versions du kit acceptées ; hors de cette plage, chaque commande s'arrête avec le code 3
+  kit: "^0.3.0", // versions du kit acceptées ; hors de cette plage, chaque commande s'arrête avec le code 3
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "fr", // langue du site et des messages de la CLI
   output: "dist/Acme-Orders-Documentation.html",
@@ -115,7 +115,7 @@ doc-kit connect --forget                             # supprime la session
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Deliveries", slug: "acme-deliveries" },
   language: "fr",
   output: "dist/Acme-Deliveries-Documentation.html",

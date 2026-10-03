@@ -6,6 +6,8 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-03
+
 ### Changed
 
 - The folders of `engine/` no longer import one another in a cycle (they were build, sync, check, capture and facts).

@@ -7,7 +7,7 @@ configuration. Seule `product.name` est obligatoire ; toutes les autres clés on
 import { defineConfig } from "doc-kit/config";   // fonction identité : l'autocomplétion dans votre éditeur
 
 export default defineConfig({
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders" },
   language: "fr",
   app: { url: "http://localhost:3000" },
@@ -66,7 +66,7 @@ Quatre clés peuvent être fixées par des variables d'environnement, `DOC_KIT_<
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "fr",
   version: { file: "../../package.json" },

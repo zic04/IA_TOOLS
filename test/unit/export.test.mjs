@@ -32,7 +32,7 @@ function repository() {
     path.join(docs, "doc.config.mjs"),
     `// Demo configuration, with paths outside the documentation folder.
 export default {
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   version: { file: "../../package.json", pattern: "\\"version\\"\\\\s*:\\\\s*\\"([^\\"]+)\\"", fallback: "0.0.0" },
   theme: { logo: "theme/logo.svg" },

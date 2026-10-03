@@ -29,7 +29,7 @@ Add `doc.config.mjs` at the root of the documentation folder. Keep the legacy fo
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.2.0",
+  kit: "^0.3.0",
   product: { name: "Acme Orders" },
   language: "fr",
   paths: { content: "contenu", images: "images", diagrams: "schemas" },
