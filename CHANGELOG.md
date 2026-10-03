@@ -104,6 +104,9 @@ entries between a project's `kit` range and the installed version.
   - 109 exports that no other file used are internal again. A new rule (RULES.md M10) and its test,
     `exports.test.mjs`, reject any export that no other file uses; it does the job of knip without adding a
     dependency.
+  - `build()` is split into named steps: `engine/build/build-context.mjs` (shared readers and problems) and
+    `engine/build/render-language.mjs` (one language's data). It went from 532 lines to 51, with the same
+    output byte for byte.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and
