@@ -51,5 +51,7 @@
   "render.facts.column.tests": "Tests",
   "render.facts.column.version": "Version",
   "render.facts.column.words": "Words",
-  "render.facts.commitUnknown": "unknown"
+  "render.facts.commitUnknown": "unknown",
+  "cli.git.unsafeConfig": "git not run in {folder}: its configuration names a program that git could run ({keys})",
+  "cli.git.unsafeConfig.help": "read and remove these keys from the repository's .git/config if you do not trust them, then run the command again; the kit works without git meanwhile (files are listed directly)"
 }

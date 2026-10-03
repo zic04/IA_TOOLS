@@ -27,7 +27,9 @@ this file gives access to the application with the rights of the person who sign
   the system allows it.
 - `doc-kit doctor` reports a session file tracked by git; `doc-kit check secrets` reports a session file found
   anywhere else in the project, or tracked by git.
-- `doc-kit export` never copies `.doc-kit/`.
+- `doc-kit export` never copies a `.doc-kit/` folder (at any depth), the file named by `<PREFIX>_SESSION` /
+  `DOC_KIT_SESSION`, any JSON file that is a browser session, environment files (`.env*`, `.envrc`), keys and
+  certificates (`*.pem`, `*.key`, `*.p12`, `id_rsa`…) or tool credentials (`.npmrc`, `.netrc`, `.git-credentials`).
 - Never copy, show, attach or pass the file on — not in a ticket, not to a colleague, not to an agent, not to a CI
   pipeline. Delete it at the end of a campaign: `doc-kit connect --forget`. If it leaked, sign out of the application
   (or revoke the session on the identity provider) to invalidate it.
@@ -35,13 +37,20 @@ this file gives access to the application with the rights of the person who sign
 ### Read-only captures have limits
 
 With a session, `doc-kit capture` aborts **in the browser** every request other than `GET`, `HEAD` and `OPTIONS`, and
-counts them. This does not cover:
+counts them. A navigation of the application is fetched without following redirects, and its redirect chain is
+checked hop by hop before the browser follows it: a server redirect to a `capture.forbidden` route is refused before
+that route is requested. A forbidden pattern is tested on the path as written, percent-decoded, with doubled
+slashes collapsed and without a trailing slash. This does not cover:
 
 - **writes made by the server while it renders a page** requested with a `GET` (a record created when a detail page
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
   list such routes in `capture.forbidden`, which the kit never opens;
 - `GET` requests that change state, WebSocket messages, and calls the server makes to other services;
-- `capture.readOnly: false`, which turns the protection off (the CLI warns on every run).
+- `capture.readOnly: false`, which turns the protection off (the CLI warns on every run);
+- the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
+  (`[Aa]pprove`);
+- a route on another origin than the application's (an API on another subdomain): `capture.forbidden` only covers
+  the application's origin.
 
 On production, plans only navigate: no click on Save, Create, Approve, Delete, Send, Import or Sign out.
 
@@ -63,7 +72,28 @@ site.
 - The generated site has no access control: anyone who has the file can read it. A site that shows real data is
   shared only with the people its owner allows.
 
+### The application folder is not trusted
+
+A takeover reads an application written by someone else, often with its `.git/` folder. The kit treats that folder
+as untrusted input:
+
+- git is only run with hardened options (no file system monitor, no pager, no external diff, no textconv), and a
+  git reference read from `sync.json` or `--since` is refused unless it is a plain reference (never an option);
+- git is **not run at all** in a repository whose configuration names a program it could start (`core.fsmonitor`,
+  `diff.external`, a `textconv` driver, a `clean`/`smudge`/`process` filter other than Git LFS, an
+  `include`): the command warns, names the keys, and works without git (files are listed directly);
+- programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
+  placed in the application cannot replace the real one on Windows;
+- every expression that scans the application's files is tested against catastrophic backtracking (a crafted file
+  cannot block `facts` or `check secrets`).
+
+Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
+(JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
+`.git/config` handed over with an application before running anything on it.
+
 ### Network
 
 The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on
-`127.0.0.1` only. The generated site loads nothing from the network.
+`127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
+port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
+the application's direct dependencies to the npm and PyPI registries. The generated site loads nothing from the network.

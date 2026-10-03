@@ -11,6 +11,7 @@ import { prepareConfig } from "../project/load.mjs";
 import { readEnv } from "../project/env.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { BRAND } from "../brand.mjs";
+import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../util/safe-git.mjs";
 
 /** A folder for a message: relative to the current folder when shorter, quoted when it contains spaces. */
 export function shownFolder(folder) {
@@ -162,9 +163,13 @@ export function captureCount(root, config) {
  * otherwise { status, stdout }.
  */
 export function git(cwd, args) {
-  const inside = spawnSync("git", ["-C", cwd, "rev-parse", "--is-inside-work-tree"], { encoding: "utf8", windowsHide: true });
+  // Hardened, and refused on a repository whose configuration names a program (engine/util/safe-git.mjs).
+  if (riskyGitConfig(cwd).length) return null;
+  const bin = resolveOnPath("git", { exclude: [cwd] });
+  if (!bin) return null;
+  const inside = spawnSync(bin, ["-C", cwd, ...safeGitArgs(["rev-parse", "--is-inside-work-tree"])], { encoding: "utf8", windowsHide: true });
   if (inside.error || inside.status !== 0 || inside.stdout.trim() !== "true") return null;
-  const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8", windowsHide: true });
+  const r = spawnSync(bin, ["-C", cwd, ...safeGitArgs(args)], { encoding: "utf8", windowsHide: true });
   if (r.error) return null;
   return { status: r.status, stdout: (r.stdout || "").trim() };
 }

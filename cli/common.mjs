@@ -14,6 +14,7 @@ import { build } from "../engine/build/build.mjs";
 import { spaceOutput } from "../engine/build/spaces.mjs";
 import { watchedPaths } from "../engine/dev/server.mjs";
 import { BRAND } from "../engine/brand.mjs";
+import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
 
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
 export function createPaint(enabled) {
@@ -21,9 +22,22 @@ export function createPaint(enabled) {
   return { ok: wrap(32, 39), warn: wrap(33, 39), fail: wrap(31, 39), dim: wrap(2, 22), bold: wrap(1, 22), cmd: wrap(36, 39) };
 }
 
-/** Default `exec` of a context: a real child process, synchronous. `null` when the binary is not found (ENOENT). */
-function defaultExec(bin, args = [], options = {}) {
-  const r = spawnSync(bin, args, { encoding: "utf8", windowsHide: true, maxBuffer: 32 * 1024 * 1024, ...options });
+/**
+ * Default `exec` of a context: a real child process, synchronous, never through a shell. `null` when the binary is
+ * not found (ENOENT). The binary is looked up on the PATH only, never in the folder read (SECURITY.md); a git
+ * command is hardened (safeGitArgs) and refused, with status 128 and `refused`, when the repository's
+ * configuration names a program that git could run (riskyGitConfig).
+ */
+export function defaultExec(bin, args = [], options = {}) {
+  const cwd = options.cwd || process.cwd();
+  if (bin === "git") {
+    const risky = riskyGitConfig(cwd);
+    if (risky.length) return { status: 128, stdout: "", stderr: "", refused: risky };
+    args = safeGitArgs(args);
+  }
+  const file = resolveOnPath(bin, { exclude: [cwd] });
+  if (!file) return null;
+  const r = spawnSync(file, args, { encoding: "utf8", windowsHide: true, maxBuffer: 32 * 1024 * 1024, ...options, shell: false });
   return r.error?.code === "ENOENT" ? null : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
 }
 
@@ -41,6 +55,7 @@ function defaultExec(bin, args = [], options = {}) {
  */
 export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit } = {}) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
+  const warnedGit = new Set();
   const ctx = {
     globals,
     env,
@@ -50,12 +65,22 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     steps: steps ?? null,
     launch: launch ?? null,
     fetch: fetchImpl,
-    exec,
+    /** `exec`, with a warning (once per repository) when git is refused because of a risky configuration. */
+    exec: (bin, args, options) => {
+      const r = exec(bin, args, options);
+      if (r?.refused && !warnedGit.has(options?.cwd)) {
+        warnedGit.add(options?.cwd);
+        const vars = { folder: options?.cwd || ".", keys: r.refused.join("; ") };
+        stderr.write(`⚠ ${ctx.t ? ctx.t("cli.git.unsafeConfig", vars) : `git refused in ${vars.folder}: ${vars.keys}`}\n`);
+        if (ctx.t) stderr.write(`  → ${ctx.t("cli.git.unsafeConfig.help", vars)}\n`);
+      }
+      return r;
+    },
     /** (dir) => git HEAD of `dir`, or null (not a repository, git missing, or any error): never throws. */
     commit:
       commit ??
       ((dir) => {
-        const r = exec("git", ["rev-parse", "HEAD"], { cwd: dir });
+        const r = ctx.exec("git", ["rev-parse", "HEAD"], { cwd: dir });
         return r && r.status === 0 ? r.stdout.trim() || null : null;
       }),
     /** Questions can be asked (a person at a terminal). */

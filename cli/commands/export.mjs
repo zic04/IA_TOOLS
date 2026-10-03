@@ -1,7 +1,7 @@
 // export <target> [--with-dist] [--zip]
 // Self-contained copy of the documentation project, rebuildable without the kit's repository:
-//   - the project's files (without node_modules/, .doc-kit/ — session! —, .git/, dist/ unless --with-dist,
-//     .env files, package-lock.json); --with-dist also takes the exports per space, wherever they are written;
+//   - the project's files (without node_modules/, .doc-kit/ — session! —, .git/ at any depth, dist/ unless --with-dist,
+//     .env files, keys and credentials, any browser session file, package-lock.json); --with-dist also takes the exports per space, wherever they are written;
 //   - the engine vendored in vendor/doc-kit/ (engine, cli, adapters, i18n, schemas, templates, standard; no tests,
 //     examples, skill, docs, ci), and package.json pointing to it ("file:./vendor/doc-kit");
 //   - EXPORT.json (kit version, date, source) and a "standalone copy" section in README.md;
@@ -18,6 +18,8 @@ import { createI18n } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { loadProjectFriendly, git, slash, kitPackage } from "../../engine/dev/environment.mjs";
 import { zipFolder } from "../../engine/dev/zip.mjs";
+import { sessionFile } from "../../engine/capture/session.mjs";
+import { isStorageState } from "../../engine/check/secrets.mjs";
 import { shownPath } from "../common.mjs";
 
 export const options = {
@@ -30,6 +32,17 @@ export const VENDOR = "vendor/doc-kit";
 export const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templates", "standard"];
 export const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
 const SKIPPED_FOLDERS = new Set(["node_modules", ".doc-kit", ".git"]);
+/** Files never exported, at any depth: environment files, keys and certificates, credentials of tools. */
+const SECRET_FILE = /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
+
+/** Text of a small file (a browser session is a few hundred kilobytes at most); "" when it is larger or unreadable. */
+function readSmall(file) {
+  try {
+    return fs.statSync(file).size <= 2 * 1024 * 1024 ? fs.readFileSync(file, "utf8") : "";
+  } catch {
+    return "";
+  }
+}
 const README_START = "<!-- doc-kit:export -->";
 const README_END = "<!-- /doc-kit:export -->";
 
@@ -117,7 +130,7 @@ function copyTree(from, to, keep) {
  * Exports the project.
  * @returns {{ target, files: number, vendored: number, skipped: string[], warnings: object[], version, zip?: object }}
  */
-export function exportProject({ project, config, target, withDist = false, zip = false, now = new Date() }) {
+export function exportProject({ project, config, target, withDist = false, zip = false, now = new Date(), env = process.env }) {
   const root = project.root;
   if (path.resolve(target) === path.resolve(root)) throw new KitError(EXIT.USAGE, "export.self", { folder: target });
   if (fs.existsSync(target) && (!fs.statSync(target).isDirectory() || fs.readdirSync(target).length)) throw new KitError(EXIT.CHECK, "export.notEmpty", { folder: target });
@@ -130,15 +143,20 @@ export function exportProject({ project, config, target, withDist = false, zip =
   const targetAbs = path.resolve(target);
   const skipped = [];
   fs.mkdirSync(targetAbs, { recursive: true });
+  // The session file (SECURITY.md: a secret) is never copied, wherever <PREFIX>_SESSION puts it.
+  const session = sessionFile(root, config, env);
   const files = copyTree(root, targetAbs, (rel, d) => {
     if (path.join(root, rel) === targetAbs) return false; // a target inside the project is not copied into itself
     if (d.isDirectory()) {
-      if (SKIPPED_FOLDERS.has(d.name) && !rel.includes(path.sep)) return false;
-      if (d.name === "node_modules" || d.name === ".git") return false;
+      if (SKIPPED_FOLDERS.has(d.name)) return false;
       if (!withDist && rel === "dist") return false;
       return true;
     }
-    if (/^\.env(\..*)?$/.test(d.name) || d.name === "package-lock.json" || d.name.endsWith(".log")) {
+    if (d.name === "package-lock.json" || d.name.endsWith(".log")) {
+      skipped.push(slash(rel));
+      return false;
+    }
+    if (SECRET_FILE.test(d.name) || path.join(root, rel) === session || (d.name.endsWith(".json") && isStorageState(readSmall(path.join(root, rel))))) {
       skipped.push(slash(rel));
       return false;
     }
@@ -218,7 +236,7 @@ export async function run({ ctx, values, positionals }) {
   if (!positionals[0]) throw new KitError(EXIT.USAGE, "export.noTarget", { command: BRAND.command });
   const { project, config } = await loadProjectFriendly(ctx);
   const target = path.resolve(process.cwd(), positionals[0]);
-  const r = exportProject({ project, config, target, withDist: !!values["with-dist"], zip: !!values.zip });
+  const r = exportProject({ project, config, target, withDist: !!values["with-dist"], zip: !!values.zip, env: ctx.env });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));
     return EXIT.OK;

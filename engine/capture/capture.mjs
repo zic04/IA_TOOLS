@@ -96,13 +96,27 @@ export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigat
     } catch {
       return route.fallback();
     }
-    if (forbidden.length && u.origin === appOrigin && forbiddenMatch(u.pathname, forbidden)) {
-      const line = `${req.method()} ${u.pathname}`;
+    const refuse = (pathname) => {
+      const line = `${req.method()} ${pathname}`;
       if (forbiddenRequestKind(req) === "navigation") {
         result.refused.push(line);
-        onNavigation(u.pathname);
+        onNavigation(pathname);
       } else result.prefetched.push(line);
       return route.abort("blockedbyclient");
+    };
+    if (forbidden.length && u.origin === appOrigin && forbiddenMatch(u.pathname, forbidden)) return refuse(u.pathname);
+    // A redirect is followed by the browser without calling this handler again: a navigation of the application
+    // is fetched here without following redirects, and the chain is checked before the browser sees it, so that
+    // a server redirect never leads to a forbidden route (SECURITY.md).
+    if (forbidden.length && u.origin === appOrigin && req.isNavigationRequest() && SAFE_METHODS.includes(req.method())) {
+      let chain;
+      try {
+        chain = await redirectChain(route, u, { appOrigin, forbidden });
+      } catch {
+        return route.abort("failed");
+      }
+      if (chain.forbidden) return refuse(chain.forbidden);
+      return route.fulfill({ response: chain.response });
     }
     if (readOnly && !SAFE_METHODS.includes(req.method())) {
       result.blocked.push(`${req.method()} ${u.origin === appOrigin ? u.pathname : u.host + u.pathname}`);
@@ -110,6 +124,33 @@ export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigat
     }
     return route.fallback();
   };
+}
+
+/** Longest redirect chain checked before a navigation; a longer one is refused like a forbidden route. */
+export const MAX_REDIRECTS = 10;
+
+/**
+ * Fetches a navigation without following redirects, then each hop of its redirect chain on the application's
+ * origin, stopping before any forbidden route (never requested). A hop on another origin (an identity provider)
+ * ends the check: capture.forbidden only covers the application.
+ * @returns {Promise<{ response?: object, forbidden?: string }>} the first response, for the browser to follow; or
+ *   the forbidden path the chain leads to
+ */
+export async function redirectChain(route, url, { appOrigin, forbidden }) {
+  const response = await route.fetch({ maxRedirects: 0 });
+  let current = response;
+  let at = url;
+  for (let hop = 0; ; hop++) {
+    const status = current.status();
+    const location = status >= 300 && status < 400 ? current.headers().location : null;
+    if (!location) return { response };
+    const next = new URL(location, at);
+    if (next.origin !== appOrigin) return { response };
+    if (forbiddenMatch(next.pathname, forbidden)) return { forbidden: next.pathname };
+    if (hop >= MAX_REDIRECTS) return { forbidden: next.pathname };
+    current = await route.fetch({ url: next.href, maxRedirects: 0 });
+    at = next;
+  }
 }
 
 /** localStorage values: "{version}" substituted; other types written as JSON. */

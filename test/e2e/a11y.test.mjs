@@ -81,6 +81,10 @@ describe("keyboard", () => {
     await page.keyboard.press("Space");
     assert.match(await page.locator("#bulle.visible").textContent(), /Order summary/);
     assert.equal(await page.evaluate(() => window.scrollY), scroll, "Space does not scroll the page");
+    // A small scroll (the page following the focus) keeps the bubble open, next to its zone.
+    await page.evaluate(() => window.scrollBy(0, 40));
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    assert.equal(await page.locator("#bulle.visible").count(), 1, "still open after a scroll");
     await page.context().close();
   });
 

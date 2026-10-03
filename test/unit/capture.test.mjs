@@ -191,6 +191,50 @@ describe("plan entries", () => {
     assert.equal(await run("data:text/plain,x"), "fallback");
   });
 
+  test("a server redirect to a forbidden route is refused before the browser follows it (SECURITY.md)", async () => {
+    const forbidden = forbiddenMatchers(["^/orders/\\d+/approval$"]);
+    // The application: /latest → /orders/7 → /orders/7/approval; /home → 200; /sso → the identity provider.
+    const site = {
+      "http://app.test/latest": { status: 302, location: "/orders/7" },
+      "http://app.test/orders/7": { status: 302, location: "http://app.test/orders/7/approval" },
+      "http://app.test/home": { status: 200 },
+      "http://app.test/sso": { status: 302, location: "https://idp.test/login?next=/orders/7/approval" },
+      "http://app.test/loop": { status: 302, location: "/loop" },
+    };
+    const requested = [];
+    const run = async (url) => {
+      const result = { blocked: [], refused: [], prefetched: [] };
+      const navigations = [];
+      const guard = requestGuard({ appOrigin: "http://app.test", forbidden, readOnly: true, result, onNavigation: (p) => navigations.push(p) });
+      let outcome;
+      const request = { url: () => url, method: () => "GET", isNavigationRequest: () => true, frame: () => ({ parentFrame: () => null }) };
+      const fetchOne = (target) => {
+        requested.push(target);
+        const r = site[target] || { status: 404 };
+        return { status: () => r.status, headers: () => (r.location ? { location: r.location } : {}) };
+      };
+      await guard({
+        request: () => request,
+        fetch: async ({ url: target } = {}) => fetchOne(target || url),
+        fulfill: async ({ response }) => (outcome = `fulfill:${response.status()}`),
+        abort: async (r) => (outcome = `abort:${r}`),
+        fallback: async () => (outcome = "fallback"),
+      });
+      return { outcome, refused: result.refused, navigations };
+    };
+    assert.deepEqual(await run("http://app.test/latest"), { outcome: "abort:blockedbyclient", refused: ["GET /orders/7/approval"], navigations: ["/orders/7/approval"] });
+    assert.ok(!requested.includes("http://app.test/orders/7/approval"), "the forbidden route is never requested");
+    assert.equal((await run("http://app.test/home")).outcome, "fulfill:200");
+    assert.equal((await run("http://app.test/sso")).outcome, "fulfill:302", "another origin ends the check");
+    assert.equal((await run("http://app.test/loop")).outcome, "abort:blockedbyclient", "an endless chain is refused");
+  });
+
+  test("forbidden routes: encoded, doubled-slash and trailing-slash forms of a path match too", () => {
+    const m = forbiddenMatchers(["^/orders/\\d+/approval$"]);
+    for (const p of ["/orders/7/approval", "/orders/7%2Fapproval", "/orders/7/appr%6Fval", "//orders//7/approval", "/orders/7/approval/"]) assert.ok(forbiddenMatch(p, m), p);
+    assert.equal(forbiddenMatch("/orders/7%ZZ", m), null, "a malformed escape is read as written, never thrown");
+  });
+
   test("forbidden routes: on the path only, invalid expression → exit code 2", () => {
     const m = forbiddenMatchers(["^/orders/\\d+/approval$", "/sync"]);
     assert.equal(forbiddenMatch("/orders/12/approval?x=1#y", m), "^/orders/\\d+/approval$");

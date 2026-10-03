@@ -25,15 +25,15 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node: [20, 22]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Install the kit's dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
@@ -75,30 +75,30 @@ jobs:
 #       run:
 #         working-directory: app/docs/manual
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           path: app
 #
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           repository: <owner>/doc-kit          # the kit's repository
 #           ref: v0.1.0                           # a tag: the version the project's `kit` range accepts
 #           path: doc-kit
 #
-#       - uses: actions/setup-node@v4
+#       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
 #         with:
 #           node-version: 20
 #
 #       - name: Install the kit
 #         working-directory: doc-kit
-#         run: npm ci
+#         run: npm ci --ignore-scripts
 #
 #       - name: Chromium (for `check tables` and the audit's table widths)
 #         working-directory: doc-kit
 #         run: npx playwright install --with-deps chromium
 #
 #       - name: Link the documentation project to the kit
-#         run: npm install
+#         run: npm install --ignore-scripts
 #
 #       - name: Strict build (fails on any missing page, capture, link or required section)
 #         run: npx doc-kit build
@@ -114,7 +114,7 @@ jobs:
 #
 #       - name: Publish the site and the audit report
 #         if: always()
-#         uses: actions/upload-artifact@v4
+#         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
 #         with:
 #           name: documentation
 #           path: |

@@ -543,7 +543,7 @@ describe("context --translate", () => {
       if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return { status: 0, stdout: "true\n" };
       if (args[0] === "log") return { status: 0, stdout: "c2\nc1\n" };
       if (args[0] === "show") {
-        const [ref] = args[1].split(":");
+        const [ref] = args.at(-1).split(":");
         return { status: 0, stdout: ref === "c1" ? "old text" : "new text" };
       }
       return { status: 1, stdout: "" };

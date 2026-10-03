@@ -3,6 +3,7 @@
 // (cli/common.mjs: (bin, args, options) => { status, stdout, stderr } | null). Only `rev-parse`, `show`, `diff`
 // and `log` are ever run; never a write command, never a real git process in the tests.
 import path from "node:path";
+import { isSafeRef } from "../util/safe-git.mjs";
 
 /**
  * @param {Function} exec   (bin, args, options) => { status, stdout, stderr } | null
@@ -29,10 +30,13 @@ export function createGit(exec, dir) {
     // "./" forces git to read <ref>:<path> relative to `dir` (the `cwd` of the command): without it, the
     // <rev>:<path> object syntax is always relative to the repository's top level, which differs from `dir`
     // whenever the application sits inside a bigger repository (a monorepo).
-    show: (ref, p) => run(["show", `${ref}:./${p.split(path.sep).join("/")}`]),
+    // A reference comes from sync.json or --since: anything that is not a plain reference (isSafeRef: an option
+    // such as --output=<file>, a space, a colon) is refused, and --end-of-options keeps git from reading it as one.
+    show: (ref, p) => (isSafeRef(ref) ? run(["show", "--end-of-options", `${ref}:./${p.split(path.sep).join("/")}`]) : null),
     // --relative: paths relative to `dir` too (name-status lines, and pathspecs below), for the same reason.
     changed: (ref) => {
-      const out = run(["diff", "--name-status", "--find-renames", "--relative", ref]);
+      if (!isSafeRef(ref)) return null;
+      const out = run(["diff", "--name-status", "--find-renames", "--relative", "--end-of-options", ref]);
       if (out === null) return null;
       return out
         .split(/\r?\n/)
@@ -42,7 +46,7 @@ export function createGit(exec, dir) {
           return status[0] === "R" ? { status: "R", path: rest[1], from: rest[0] } : { status: status[0], path: rest[0] };
         });
     },
-    diff: (ref, paths) => (paths.length ? run(["diff", "--relative", ref, "--", ...paths]) : ""),
+    diff: (ref, paths) => (!isSafeRef(ref) ? null : paths.length ? run(["diff", "--relative", "--end-of-options", ref, "--", ...paths]) : ""),
     // `context --translate` (ARCHITECTURE.md §6.12): the commits of one file, most recent first, read-only, so
     // that the translator's dossier can show the diff since the commit whose content matches the recorded
     // fingerprint (findSourceCommit, engine/context/translate.mjs).

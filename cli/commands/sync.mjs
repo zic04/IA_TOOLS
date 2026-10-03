@@ -8,6 +8,7 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { checkDate } from "../common.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
+import { isSafeRef } from "../../engine/util/safe-git.mjs";
 import { readSyncReference, writeSyncReference, markPages } from "../../engine/sync/reference.mjs";
 import { compareWithReference, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
 import { applyReport } from "../../engine/sync/apply.mjs";
@@ -108,6 +109,7 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
 async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values }) {
   const { reference } = readSyncReference(root, config);
   const since = values.since ?? null;
+  if (since !== null && !isSafeRef(since)) throw new KitError(EXIT.USAGE, "option.invalid", { error: `--since ${since}` });
   if (!reference && !since) {
     ctx.print(ctx.t("cli.sync.noReference"));
     ctx.print(`  → ${ctx.t("cli.sync.noReference.help")}`);
