@@ -6,6 +6,30 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Security
+
+Fixes from the audit of 2026-10-03 (AUDIT.md §3), each guarded by a test in `test/unit/security.test.mjs` so that it
+cannot come back (RULES.md).
+
+- **ReDoS** in the private key detector of `check secrets` and `facts`: a `BEGIN PRIVATE KEY` line followed by
+  blank lines made the scan exponential (over a minute for 24 lines). The expression is linear again, and every
+  scanner of untrusted text now runs under a time budget on adversarial input, in a worker that names any check
+  that hangs.
+- **Redirects to forbidden routes**: a navigation of the application is fetched without following redirects and its
+  chain checked before the browser follows it; a forbidden route is no longer requested through a server redirect.
+  `capture.forbidden` also matches the percent-decoded, doubled-slash and trailing-slash forms of a path.
+- **git option injection**: a reference from `sync.json` (`app.commit`) or `sync --since` is checked
+  (`isSafeRef`) and passed after `--end-of-options`; `--since -x` is a usage error (exit code 2).
+- **Untrusted repositories**: git runs with hardened options and is refused, with a warning
+  (`cli.git.unsafeConfig`), in a repository whose configuration names a program; binaries are resolved on the
+  `PATH` only, never in the folder read.
+- **`export`** leaves out every `.doc-kit/` folder, the session file wherever `<PREFIX>_SESSION` puts it, any JSON
+  browser session, keys, certificates and tool credentials.
+- **`doc-kit dev`** refuses a request whose `Host` is not the server itself (DNS rebinding).
+- `facts --tools` passes `--redact` to gitleaks.
+- The kit's CI runs in `.github/workflows/ci.yml` (tests on three systems, security rules, `npm audit`); the CI
+  examples pin actions by commit and install without scripts.
+
 Fixes for the frictions found by a pilot run on a real application with a separate front end and no screenshots, and
 the first lot of the spaces (one source, one site per audience).
 

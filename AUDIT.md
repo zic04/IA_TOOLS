@@ -32,6 +32,25 @@ mise à jour ou build** de l'application.
 5. Ajouter au dossier de reprise un graphe de modules, un schéma entité-relation (ERD), les points chauds git et
    les vulnérabilités (§ 4).
 
+### Suivi des corrections
+
+| Point | Statut | Test qui l'empêche de revenir |
+|---|---|---|
+| S1 ReDoS `privateKey` | **Corrigé** | `security.test.mjs` › ReDoS (dans un worker, 300 ms par contrôle) |
+| S2 Redirection vers une route interdite | **Corrigé** | `capture.test.mjs` › redirection serveur ; e2e `capture.test.mjs` |
+| S3 Dépôt git non fiable | **Corrigé** (git durci, refusé sur une configuration à risque, binaires pris dans le `PATH`) ; limite écrite pour `knip` | `security.test.mjs` › git |
+| S4 Injection d'option git | **Corrigé** | `sync.test.mjs`, `security.test.mjs` |
+| S5 `export` et fichiers secrets | **Corrigé** | `security.test.mjs` › export |
+| S7 DNS rebinding sur `dev` | **Corrigé** | `security.test.mjs` › serveur dev |
+| S8 Formes du chemin (`%2F`, `//`) | **Corrigé** (la casse reste une limite écrite dans SECURITY.md) | `capture.test.mjs` |
+| S12 `--redact` pour gitleaks | **Corrigé** | — |
+| S14 Actions épinglées, `--ignore-scripts` | **Corrigé** | CI |
+| M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
+| S6, S9 à S11, S13 ; M2 à M14 | Ouverts | — |
+
+Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
+anglais).
+
 ---
 
 ## 2. Maintenabilité

@@ -17,7 +17,8 @@
     "test": "node test/run.mjs unit snapshot",
     "test:unit": "node test/run.mjs unit",
     "test:snapshot": "node test/run.mjs snapshot",
-    "test:e2e": "node test/run.mjs e2e"
+    "test:e2e": "node test/run.mjs e2e",
+    "test:security": "node --test test/unit/security.test.mjs"
   },
   "dependencies": {
     "marked": "18.0.14",

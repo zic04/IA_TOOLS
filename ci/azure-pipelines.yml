@@ -37,7 +37,7 @@ steps:
     inputs:
       versionSpec: $(nodeVersion)
 
-  - script: npm ci
+  - script: npm ci --ignore-scripts
     displayName: Install the kit's dependencies
 
   - script: npx playwright install --with-deps chromium
@@ -90,11 +90,11 @@ steps:
 #     inputs:
 #       versionSpec: 20.x
 #
-#   - script: npm ci && npx playwright install --with-deps chromium
+#   - script: npm ci --ignore-scripts && npx playwright install --with-deps chromium
 #     displayName: Install the kit and Chromium (for `check tables` and the audit's table widths)
 #     workingDirectory: $(kit)
 #
-#   - script: npm install
+#   - script: npm install --ignore-scripts
 #     displayName: Link the documentation project to the kit
 #     workingDirectory: $(docs)
 #

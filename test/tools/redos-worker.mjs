@@ -1,0 +1,45 @@
+// Worker of the ReDoS test (test/unit/security.test.mjs): runs every expression that scans untrusted text on
+// adversarial inputs and posts { start: name } before each check, then { name, ms, input } after it. A check that
+// never ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and
+// names the last check started.
+import { parentPort } from "node:worker_threads";
+import { GENERIC } from "../../engine/check/secrets.mjs";
+import { RULES } from "../../engine/facts/security.mjs";
+import { nextRouteHandlers, expressRoutes, fastapiRoutes, nextHandlerGuards } from "../../engine/facts/api.mjs";
+import { pydanticEnvNames } from "../../engine/facts/env.mjs";
+
+// Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
+// expression explore an exponential (or high-polynomial) number of paths.
+const PREFIXES = ["", "-----BEGIN PRIVATE KEY-----\n", "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n", "eyJ", "eyJabcdefgh.eyJ", "Password=", "https://u:", "?sig=", "secret = ", "api_key: ", "verify=", "app.get(", "@app.get(", 'router.post("/x", ', "res.redirect(", "SELECT * FROM t WHERE a = ", "export async function GET(", "class S(BaseSettings):\n", "dangerouslySetInnerHTML", "Access-Control-Allow-Origin"];
+const UNITS = [" ", "\t", "\n", "   \n", " \t\n", "a", "A1", "a:", "a-", "=", "-", "/", "'", '"', "(", "{", "a.", "%", "+", "_", "\\"];
+const N = 3000;
+const INPUTS = PREFIXES.flatMap((p) => UNITS.map((u) => p + u.repeat(Math.ceil(N / u.length)) + "!"));
+
+export const CHECKS = [
+  ...GENERIC.map((d) => [
+    `secret detector ${d.kind}`,
+    (s) => {
+      d.re.lastIndex = 0;
+      for (const m of s.matchAll(d.re)) d.accept?.(m);
+    },
+  ]),
+  ...RULES.map((r) => [`OWASP heuristic ${r.rule}`, (s) => r.find(s)]),
+  ["api nextRouteHandlers", (s) => nextRouteHandlers(s)],
+  ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
+  ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
+  ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
+  ["env pydanticEnvNames", (s) => pydanticEnvNames(s)],
+];
+
+for (const [name, fn] of CHECKS) {
+  parentPort.postMessage({ start: name });
+  let worst = { ms: 0, input: "" };
+  for (const input of INPUTS) {
+    const t = performance.now();
+    fn(input);
+    const ms = performance.now() - t;
+    if (ms > worst.ms) worst = { ms, input: input.slice(0, 60) };
+  }
+  parentPort.postMessage({ name, ...worst });
+}
+parentPort.postMessage({ done: true });
