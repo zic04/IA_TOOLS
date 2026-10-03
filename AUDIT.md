@@ -44,6 +44,7 @@ mise à jour ou build** de l'application.
 | S7 DNS rebinding sur `dev` | **Corrigé** | `security.test.mjs` › serveur dev |
 | S8 Formes du chemin (`%2F`, `//`) | **Corrigé** (la casse reste une limite écrite dans SECURITY.md) | `capture.test.mjs` |
 | S12 `--redact` pour gitleaks | **Corrigé** | — |
+| S6 Masquage incomplet | **Corrigé** : chaque frame (iframes comprises), chaque shadow root ouvert, les attributs `alt`, `aria-label`, `aria-description`, une valeur coupée entre plusieurs éléments et le texte généré par CSS ; les limites restantes (shadow root fermé, texte dans une image ou un canvas) sont écrites dans SECURITY.md | e2e `capture.test.mjs` › masquage étendu |
 | S14 Actions épinglées, `--ignore-scripts` | **Corrigé** | CI |
 | M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
 | § 4 : graphe des modules et cycles, historique git (fichiers à risque, propriétaires, bus factor), schéma entité-relation | **Fait** (`facts --source modules`, `--source history`, `::erd`) | `overview.test.mjs` |
@@ -56,7 +57,7 @@ mise à jour ou build** de l'application.
 | M3 Fonctions géantes | **Corrigé** pour `build()` : 532 lignes → 51, en étapes nommées (`build-context.mjs`, `render-language.mjs`) ; aucune fonction du build au-delà de 73 lignes. Sortie identique octet pour octet sur 86 cas (fixtures, démo, projets cassés × brouillon, langues, espaces). `runAudit()` aussi : 239 lignes → 59 (`collectPages`, `readPage`, `measureIndicators`, `criteriaOf`, `spaceLevels`), les actions dans `engine/audit/actions.mjs` (un gestionnaire par critère au lieu d'un `switch` de 94 lignes) et les seuils dans `thresholds.mjs`, sortie identique sur 33 audits. `runCaptures()` enfin : ~330 lignes → 86 (dont 25 de paramètres), une capture dans `engine/capture/take.mjs` (`openRoute`, `playEntry`, `measureEntry`, `writeEntry`, `compareAndWrite`), la file de travail dans `runWorkers` ; images, fichiers de zones et rapports identiques sur la démo (capture, `--compare`, `--verify`, échec de zone, requête bloquée) | tests existants (unitaires, snapshot, e2e) |
 | M2 Lint, formatage, types | **Corrigé** : formatage fait (Prettier épinglé, 120 colonnes, vérifié en CI, règle RULES.md M11, commit ignoré par `git blame`) ; ESLint fait (règles recommandées, 18 problèmes corrigés, tailles de M5 en avertissements plafonnés à 57, règle M12). contrôle des types fait (TypeScript 6 sur la JSDoc, mode non strict : 162 écarts JSDoc/code corrigés, aucun bug, règle M13). Le mode strict (≈2 700 paramètres sans type déclaré) reste une étape possible | CI › `format:check` |
 | M5 i18n du skill | **Corrigé** : les messages des scripts du skill sont dans `skill/doc-kit/i18n/{en,fr}.json` (une section commune, une par script), installés avec le skill ; `consolidation.mjs`, qui n'écrivait qu'en anglais, est traduit (33 messages) | `skill.test.mjs` › parité, clés utilisées, sortie en français |
-| S6, S9 à S11, S13 ; M6, M8, M12 à M14 | Ouverts | — |
+| S9 à S11, S13 ; M6, M8, M12 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).
