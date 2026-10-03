@@ -17,7 +17,9 @@ Example: "Mostly healthy; one function carries most of the complexity and is als
 
 ## Hotspots
 
-<!-- guidance: the files or functions that combine size, complexity and low test coverage — where a change is most likely to break something unseen. -->
+<!-- guidance: the files or functions that combine size, complexity and low test coverage — where a change is most likely to break something unseen. The history (`doc-kit facts --source history`) shows which of them change most often, and whether a single person knows them (owner share, bus factor). -->
+
+::facts{source="history" columns="file,commits,churn,authors,owner,ownerShare,last"}
 
 ## Duplication
 

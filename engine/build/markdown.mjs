@@ -17,6 +17,7 @@
 import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "./text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
+import { renderErd } from "./erd.mjs";
 
 /** Spelling → canonical kind. */
 export const DIRECTIVES = {
@@ -34,6 +35,8 @@ export const DIRECTIVES = {
   faits: "facts",
   usage: "usage",
   consommation: "usage",
+  erd: "erd",
+  mcd: "erd",
 };
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
 export const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
@@ -187,6 +190,30 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
       if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles") return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      // Entity-relationship diagram from facts/db.json (doc-kit facts --source db).
+      if (tk.kind === "erd") {
+        const f = `${paths.facts}/db.json`;
+        let data = null;
+        try {
+          data = exists(f) ? JSON.parse(read(f)) : null;
+        } catch {
+          data = null;
+        }
+        if (!data) {
+          signal(true, "facts.missing", { source: "db", file: f });
+          return "";
+        }
+        const only = tk.a.tables ? tk.a.tables.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const title = tk.a.title || t("render.erd.title");
+        const svg = renderErd(data.items, { esc, title, only, more: (n) => t("render.erd.more", { n }) });
+        if (!svg) {
+          signal(false, "erd.empty", { file: f });
+          return `<p class="usage-none">${esc(t("render.erd.empty"))}</p>`;
+        }
+        const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
+        const caption = t("render.facts.caption", { source: "db", date: String(data.generated || "").slice(0, 10) || "—", commit });
+        return `<figure class="schema erd-figure">${svg}<figcaption>${esc(tk.a.title ? `${tk.a.title} · ${caption}` : caption)}</figcaption></figure>`;
+      }
       // Production statistics (ARCHITECTURE.md §6.14): usage/<version>.jsonl, read by the build.
       if (tk.kind === "usage") {
         const view = tk.a.view || tk.a.vue;

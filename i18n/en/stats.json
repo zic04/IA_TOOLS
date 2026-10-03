@@ -52,5 +52,20 @@
   "cli.skill.settingsInvalid": "{file} is not valid JSON: {error}",
   "cli.skill.settingsInvalid.help": "fix the file, or pass another one with --settings",
   "cli.sync.autoIntact": "✔ {n} page(s) probably intact marked without an agent: {pages}",
-  "cli.capture.trace": "trace of the failure: npx playwright show-trace \"{file}\""
+  "cli.capture.trace": "trace of the failure: npx playwright show-trace \"{file}\"",
+  "render.erd.title": "Entity-relationship diagram",
+  "render.erd.more": "… {n} more",
+  "render.erd.empty": "No table found in facts/db.json yet.",
+  "cli.build.erd.empty": "[{page}] ::erd: no table in {file}",
+  "cli.build.erd.empty.help": "run {command} facts --source db (Prisma, SQLAlchemy or SQL migrations are read)",
+  "render.facts.column.commits": "Commits",
+  "render.facts.column.churn": "Lines changed",
+  "render.facts.column.authors": "Authors",
+  "render.facts.column.owner": "Main author",
+  "render.facts.column.ownerShare": "Main author's share (%)",
+  "render.facts.column.last": "Last change",
+  "render.facts.column.imports": "Imports",
+  "render.facts.column.importedBy": "Imported by",
+  "render.facts.column.cycle": "Cycle",
+  "render.facts.column.references": "References"
 }

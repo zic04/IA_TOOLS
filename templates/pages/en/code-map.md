@@ -20,7 +20,9 @@ Example: "A single repository: a front end and a back end, sharing one database.
 
 ## Components
 
-<!-- guidance: inside the main container(s), the modules that matter for a newcomer: where the business logic lives, where the data access lives. -->
+<!-- guidance: inside the main container(s), the modules that matter for a newcomer: where the business logic lives, where the data access lives. The import graph (`doc-kit facts --source modules`) lists the files most depended on first, and the import cycles to untangle. -->
+
+::facts{source="modules" columns="file,importedBy,imports,cycle"}
 
 | Component | Role | Code |
 |---|---|---|

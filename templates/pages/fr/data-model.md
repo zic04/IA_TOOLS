@@ -6,9 +6,9 @@ Exemple : « Une douzaine de tables ; quelques-unes portent des données personn
 
 ## Le schéma
 
-<!-- consigne : facultatif. Un schéma entité-association (SVG) des tables principales. -->
+<!-- consigne : facultatif. Le schéma entité-relation, dessiné depuis facts/db.json (`doc-kit facts --source db`) : chaque table, ses colonnes et ses références. Limitez-le avec tables="a,b" sur un gros schéma, ou remplacez-le par un ::schema dessiné à la main. -->
 
-::schema{id="data-model" titre="Tables principales et leurs relations."}
+::mcd{titre="Tables principales et leurs relations."}
 
 ## Tables
 

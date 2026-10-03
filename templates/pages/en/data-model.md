@@ -6,9 +6,9 @@ Example: "A dozen tables; a few hold personal data; row-level security is enable
 
 ## The diagram
 
-<!-- guidance: optional. An entity-relationship diagram (SVG) of the main tables. -->
+<!-- guidance: optional. The entity-relationship diagram, drawn from facts/db.json (`doc-kit facts --source db`): every table, its columns and its references. Limit it with tables="a,b" on a large schema, or replace it with a hand-drawn ::diagram. -->
 
-::diagram{id="data-model" title="Main tables and their relationships."}
+::erd{title="Main tables and their relationships."}
 
 ## Tables
 

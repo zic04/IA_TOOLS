@@ -2,12 +2,22 @@
 // security (`rls`) and policies only ever come from SQL (Prisma and SQLAlchemy do not express them): one item is
 // written per place a table is defined, so that a Prisma model and the migration that enables RLS on the same
 // table both appear, each with its own file and its own share of the information.
-//   item: { table, columns, file, rls, policies }
+//   item: { table, columns, file, rls, policies, references }   references: the tables this one points to (a Prisma
+//   relation field, a SQLAlchemy ForeignKey, a SQL REFERENCES), for the entity-relationship diagram (::erd)
 import fs from "node:fs";
 import path from "node:path";
 import { listFiles } from "./common.mjs";
 
 const NOT_A_COLUMN = /^(PRIMARY|FOREIGN|UNIQUE|CHECK|CONSTRAINT)$/i;
+
+/** The expressions that read the application's schema files (RULES.md S5: kept linear, tested by the ReDoS worker). */
+export const DB_PATTERNS = Object.freeze({
+  prismaModel: /model\s+(\w+)\s*\{([\s\S]*?)\n\}/g,
+  prismaField: /^(\w+)\s+(\w+)/,
+  foreignKey: /ForeignKey\(\s*["'](\w+)\./g,
+  createTable: /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?(\w+)"?\s*\(([\s\S]*?)\)\s*;/gi,
+  references: /REFERENCES\s+"?(\w+)"?/gi,
+});
 
 /** First file under `appDir` whose name is `name` (anywhere), or null. */
 const findFirst = (appDir, name) => listFiles(appDir).find((f) => f === name || f.endsWith("/" + name)) ?? null;
@@ -18,10 +28,12 @@ export function collectPrisma(appDir) {
   if (!rel) return [];
   const text = fs.readFileSync(path.join(appDir, rel), "utf8");
   const items = [];
-  for (const m of text.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)) {
+  const models = new Map(); // model name → its item (relations are resolved once every model is known)
+  for (const m of text.matchAll(DB_PATTERNS.prismaModel)) {
     const [, model, body] = m;
     let table = model;
     const columns = [];
+    const types = [];
     for (const raw of body.split(/\r?\n/)) {
       const line = raw.trim();
       if (!line) continue;
@@ -31,10 +43,20 @@ export function collectPrisma(appDir) {
         continue;
       }
       if (line.startsWith("@@") || line.startsWith("//")) continue;
-      const f = /^(\w+)\s+/.exec(line);
-      if (f) columns.push(f[1]);
+      const f = DB_PATTERNS.prismaField.exec(line);
+      if (f) {
+        columns.push(f[1]);
+        types.push(f[2]);
+      }
     }
-    items.push({ table, columns, file: rel, rls: false, policies: [] });
+    const item = { table, columns, file: rel, rls: false, policies: [], types };
+    models.set(model, item);
+    items.push(item);
+  }
+  // A field whose type is another model is a relation: a reference to that model's table.
+  for (const item of items) {
+    item.references = [...new Set(item.types.filter((t) => models.has(t) && models.get(t) !== item).map((t) => models.get(t).table))].sort();
+    delete item.types;
   }
   return items;
 }
@@ -51,7 +73,8 @@ export function collectSqlAlchemy(appDir) {
       const tm = /__tablename__\s*=\s*["']([^"']+)["']/.exec(body);
       if (!tm) continue;
       const columns = [...body.matchAll(/^\s*(\w+)\s*(?::[^=\n]+)?=\s*(?:mapped_column|Column)\(/gm)].map((cm) => cm[1]);
-      items.push({ table: tm[1], columns, file: rel, rls: false, policies: [] });
+      const references = [...new Set([...body.matchAll(DB_PATTERNS.foreignKey)].map((fm) => fm[1]))].filter((t) => t !== tm[1]).sort();
+      items.push({ table: tm[1], columns, file: rel, rls: false, policies: [], references });
     }
   }
   return items;
@@ -60,14 +83,17 @@ export function collectSqlAlchemy(appDir) {
 /** Tables of SQL migrations: CREATE TABLE (columns), ENABLE ROW LEVEL SECURITY (rls), CREATE POLICY … ON (policies). */
 export function collectSqlMigrations(appDir) {
   const items = new Map();
-  const get = (table, file) => items.get(table) || items.set(table, { table, columns: [], file, rls: false, policies: [] }).get(table);
+  const get = (table, file) => items.get(table) || items.set(table, { table, columns: [], file, rls: false, policies: [], references: [] }).get(table);
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".sql"))) {
     const text = fs.readFileSync(path.join(appDir, rel), "utf8");
-    for (const m of text.matchAll(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?(\w+)"?\s*\(([\s\S]*?)\)\s*;/gi))
-      get(m[1], rel).columns = m[2]
+    for (const m of text.matchAll(DB_PATTERNS.createTable)) {
+      const item = get(m[1], rel);
+      item.columns = m[2]
         .split(",")
         .map((c) => c.trim().split(/\s+/)[0].replace(/"/g, ""))
         .filter((c) => c && !NOT_A_COLUMN.test(c));
+      item.references = [...new Set([...m[2].matchAll(DB_PATTERNS.references)].map((r) => r[1]))].filter((t) => t !== m[1]).sort();
+    }
     for (const m of text.matchAll(/ALTER TABLE\s+"?(\w+)"?\s+ENABLE ROW LEVEL SECURITY/gi)) get(m[1], rel).rls = true;
     for (const m of text.matchAll(/CREATE POLICY\s+"?([\w-]+)"?\s+ON\s+"?(\w+)"?/gi)) get(m[2], rel).policies.push(m[1]);
   }
@@ -76,7 +102,7 @@ export function collectSqlMigrations(appDir) {
 
 /**
  * The `db` source: Prisma, SQLAlchemy, then SQL migrations.
- * @returns {Array<{table,columns,file,rls,policies}>} sorted by table then file
+ * @returns {Array<{table,columns,file,rls,policies,references}>} sorted by table then file
  */
 export function collectDb(appDir) {
   return [...collectPrisma(appDir), ...collectSqlAlchemy(appDir), ...collectSqlMigrations(appDir)].sort((a, b) => a.table.localeCompare(b.table) || a.file.localeCompare(b.file));

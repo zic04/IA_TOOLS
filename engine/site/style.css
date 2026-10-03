@@ -2200,3 +2200,34 @@ tr.usage-part td:first-child {
   color: var(--text-soft);
   font-style: italic;
 }
+
+/* Entity-relationship diagram (::erd, engine/build/erd.mjs): theme colours, so it follows light and dark. */
+.erd {
+  max-width: 100%;
+  height: auto;
+  font: 12px var(--font);
+}
+.erd-box {
+  fill: var(--surface);
+  stroke: var(--line);
+}
+.erd-head {
+  fill: var(--brand-soft);
+}
+.erd-name {
+  fill: var(--text);
+  font-weight: 700;
+}
+.erd-col {
+  fill: var(--text-soft);
+}
+.erd-more {
+  font-style: italic;
+}
+.erd-edge {
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+}
+.erd-arrow {
+  fill: var(--text-faint);
+}

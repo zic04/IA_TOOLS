@@ -18,6 +18,8 @@ import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectSecurity } from "../../engine/facts/security.mjs";
 import { collectQuality } from "../../engine/facts/quality.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
+import { collectModules } from "../../engine/facts/modules.mjs";
+import { collectHistory } from "../../engine/facts/history.mjs";
 import { checkExistence } from "../../engine/facts/network.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
@@ -29,7 +31,7 @@ export const options = {
 };
 
 /** Sources of `doc-kit facts`, in the order they are written (ARCHITECTURE.md §6.9, §6.13). */
-export const SOURCES = Object.freeze(["dependencies", "env", "api", "db", "agents", "secrets", "security", "quality", "tests"]);
+export const SOURCES = Object.freeze(["dependencies", "env", "api", "db", "agents", "secrets", "security", "quality", "tests", "modules", "history"]);
 
 /** Collects one source; `tests` and `quality` return an extra `summary`. */
 async function collect(name, appDir, ctx, config, network) {
@@ -55,6 +57,14 @@ async function collect(name, appDir, ctx, config, network) {
     }
     case "tests": {
       const { items, summary } = collectTests(appDir);
+      return { items, extra: { summary } };
+    }
+    case "modules": {
+      const { items, summary } = collectModules(appDir);
+      return { items, extra: { summary } };
+    }
+    case "history": {
+      const { items, summary } = collectHistory(appDir, ctx.exec);
       return { items, extra: { summary } };
     }
     default:

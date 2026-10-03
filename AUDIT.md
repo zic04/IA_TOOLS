@@ -46,6 +46,7 @@ mise à jour ou build** de l'application.
 | S12 `--redact` pour gitleaks | **Corrigé** | — |
 | S14 Actions épinglées, `--ignore-scripts` | **Corrigé** | CI |
 | M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
+| § 4 : graphe des modules et cycles, historique git (fichiers à risque, propriétaires, bus factor), schéma entité-relation | **Fait** (`facts --source modules`, `--source history`, `::erd`) | `overview.test.mjs` |
 | S6, S9 à S11, S13 ; M2 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en

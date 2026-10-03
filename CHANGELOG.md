@@ -39,6 +39,15 @@ entries between a project's `kit` range and the installed version.
   - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
   - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
 
+- **Developer overview**:
+  - `facts --source modules`: the import graph (JS/TS and Python), with fan-in, fan-out, import cycles and
+    orphan files;
+  - `facts --source history`: git history per file, with commits, lines changed, authors, main author and their
+    share, last change, and the bus factor. It uses read-only, hardened git and records author names only;
+  - `db` facts gain `references` (Prisma relations, SQLAlchemy `ForeignKey`, SQL `REFERENCES`);
+  - `::erd{title, tables}` (`::mcd`) draws the entity-relationship diagram from `facts/db.json` as inline SVG
+    that follows the theme;
+  - the `data-model`, `code-map` and `maintainability-review` templates use them.
 - **Parallel captures**: `capture.concurrency` (default 4, production always 1). Each capture runs in its own
   browser context, and events and results stay in plan order. On the demo, 12 captures take 2.9 s instead of
   7.3 s one at a time, and about 40 s before the condition-based waits.

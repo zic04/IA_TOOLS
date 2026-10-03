@@ -52,5 +52,20 @@
   "cli.skill.settingsInvalid": "{file} n'est pas un JSON valide : {error}",
   "cli.skill.settingsInvalid.help": "corrigez le fichier, ou indiquez-en un autre avec --settings",
   "cli.sync.autoIntact": "✔ {n} page(s) probablement intacte(s) marquée(s) sans agent : {pages}",
-  "cli.capture.trace": "trace de l'échec : npx playwright show-trace \"{file}\""
+  "cli.capture.trace": "trace de l'échec : npx playwright show-trace \"{file}\"",
+  "render.erd.title": "Schéma entité-relation",
+  "render.erd.more": "… {n} de plus",
+  "render.erd.empty": "Aucune table trouvée dans facts/db.json pour l'instant.",
+  "cli.build.erd.empty": "[{page}] ::erd : aucune table dans {file}",
+  "cli.build.erd.empty.help": "lancez {command} facts --source db (Prisma, SQLAlchemy ou migrations SQL sont lus)",
+  "render.facts.column.commits": "Commits",
+  "render.facts.column.churn": "Lignes modifiées",
+  "render.facts.column.authors": "Auteurs",
+  "render.facts.column.owner": "Auteur principal",
+  "render.facts.column.ownerShare": "Part de l'auteur principal (%)",
+  "render.facts.column.last": "Dernière modification",
+  "render.facts.column.imports": "Importe",
+  "render.facts.column.importedBy": "Importé par",
+  "render.facts.column.cycle": "Cycle",
+  "render.facts.column.references": "Références"
 }
