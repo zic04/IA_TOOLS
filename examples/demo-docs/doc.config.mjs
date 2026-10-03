@@ -5,7 +5,7 @@
 //   doc-kit dev
 // Capturing rewrites images/ and images/zones/: work on a copy to keep the reference screenshots.
 export default {
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },

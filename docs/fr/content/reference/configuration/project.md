@@ -2,7 +2,7 @@
 
 | Clé | Type · défaut | Rôle | Exemple |
 |---|---|---|---|
-| `kit` | texte · `"*"` | Versions du kit acceptées par le projet (plage semver) ; hors de la plage, code de sortie 3 | `"^0.1.0"` |
+| `kit` | texte · `"*"` | Versions du kit acceptées par le projet (plage semver) ; hors de la plage, code de sortie 3 | `"^0.2.0"` |
 | `product` | objet, obligatoire | Le produit documenté | `{ name: "Acme Orders" }` |
 | `product.name` | texte, obligatoire | Nom affiché dans le site, dans les messages et dans le fichier de sortie par défaut | `"Acme Orders"` |
 | `product.slug` | `[a-z0-9-]` · déduit du nom | Nom court : défaut de `theme.key` et de `env.prefix` | `"acme-orders"` |

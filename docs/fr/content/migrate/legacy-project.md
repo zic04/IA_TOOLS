@@ -30,7 +30,7 @@ Ajoutez `doc.config.mjs` à la racine du dossier de documentation. Gardez les an
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Orders" },
   language: "fr",
   paths: { content: "contenu", images: "images", diagrams: "schemas" },

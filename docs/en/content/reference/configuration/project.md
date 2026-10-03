@@ -2,7 +2,7 @@
 
 | Key | Type · default | Role | Example |
 |---|---|---|---|
-| `kit` | text · `"*"` | Kit versions the project accepts (semver range); outside the range, exit code 3 | `"^0.1.0"` |
+| `kit` | text · `"*"` | Kit versions the project accepts (semver range); outside the range, exit code 3 | `"^0.2.0"` |
 | `product` | object, required | The documented product | `{ name: "Acme Orders" }` |
 | `product.name` | text, required | Name shown in the site, the messages and the default output file | `"Acme Orders"` |
 | `product.slug` | `[a-z0-9-]` · from the name | Short name: default of `theme.key` and `env.prefix` | `"acme-orders"` |

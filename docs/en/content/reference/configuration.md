@@ -7,7 +7,7 @@ configuration. Only `product.name` is required; every other key has a neutral de
 import { defineConfig } from "doc-kit/config";   // identity function: autocompletion in your editor
 
 export default defineConfig({
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Orders" },
   language: "en",
   app: { url: "http://localhost:3000" },
@@ -65,7 +65,7 @@ Four keys can be set by environment variables, `DOC_KIT_<NAME>` first, then `<PR
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",
   version: { file: "../../package.json" },

@@ -186,6 +186,7 @@ export async function migrate({ files }) {
         path.join(migrations, "0.9.0.mjs"),
         'export const version = "0.9.0"; export async function migrate() { throw new Error("too new"); }',
       );
+      setRange(dir, "^0.1.0");
       const configFile = path.join(dir, "doc.config.mjs");
       const raw = { kit: "^0.1.0" };
       const plan = await planUpgrade({

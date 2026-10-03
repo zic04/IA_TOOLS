@@ -38,7 +38,7 @@ doc-kit export ../acme-orders-docs --with-dist --zip
 ```text
 ⚠ version.file points outside the project (../../package.json): the copy shows the frozen version (version.fallback)
 · not exported: package-lock.json
-✔ ../acme-orders-docs: 26 project files + engine 0.1.0 vendored (172 files) · documented version 2.4.0
+✔ ../acme-orders-docs: 26 project files + engine 0.2.0 vendored (172 files) · documented version 2.4.0
 ✔ archive ../acme-orders-docs.zip (0.5 MB)
 ```
 
