@@ -51,5 +51,6 @@
   "cli.skill.hooks": "hook de statistiques (jetons, modèle et temps de chaque agent → usage/) enregistré dans {file}",
   "cli.skill.settingsInvalid": "{file} n'est pas un JSON valide : {error}",
   "cli.skill.settingsInvalid.help": "corrigez le fichier, ou indiquez-en un autre avec --settings",
-  "cli.sync.autoIntact": "✔ {n} page(s) probablement intacte(s) marquée(s) sans agent : {pages}"
+  "cli.sync.autoIntact": "✔ {n} page(s) probablement intacte(s) marquée(s) sans agent : {pages}",
+  "cli.capture.trace": "trace de l'échec : npx playwright show-trace \"{file}\""
 }

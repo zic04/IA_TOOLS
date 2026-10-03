@@ -250,7 +250,10 @@ async function writePreview(page, clip, zones, file) {
  * @param {string|null} [p.commit]       application's git HEAD, written to the zone files when given
  * @param {(entry: object) => string|null} [p.planHash]   hash of a plan entry, written to its zone file
  * @param {{ before: string, after: string }} [p.labels]  before/after sheet captions
- * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms, compared? } | { type: "failed", id, key, vars }
+ * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms, compared? } | { type: "failed", id, key, vars,
+ *   trace? }
+ * @param {string|null} [p.trace]       folder where a failed capture leaves its Playwright trace (<id>.zip, opened
+ *   with `npx playwright show-trace`); null: no trace (default)
  * @param {object} [p.timer]             engine/stats/usage.mjs createTimer(): each capture's parts are measured
  *   (navigate, wait, actions, settle, mask, measure, shot, encode, compare, write) under step "capture"
  * @returns {Promise<{ ok: object[], failed: object[], blocked: string[], refused: string[], prefetched: string[],
@@ -282,9 +285,12 @@ export async function runCaptures({
   onEvent = () => {},
   launch = launchBrowser,
   timer = null,
+  trace = null,
 }) {
   await registerSelectors();
   const cap = capture || config.capture;
+  // A fixed clock (capture.clock): "today", relative dates and countdowns are the same on every run.
+  if (cap.clock && !Number.isFinite(Date.parse(cap.clock))) throw new KitError(EXIT.USAGE, "option.value", { option: "capture.clock", value: cap.clock, expected: "an ISO date, e.g. 2026-01-15T09:00:00Z" });
   const sel = cap.selectors;
   const appOrigin = new URL(appUrl).origin;
   const version = readProjectVersion(root, config.version);
@@ -327,13 +333,17 @@ export async function runCaptures({
         isMobile: mobile,
         hasTouch: mobile,
         ...(cap.geolocation ? { geolocation: cap.geolocation, permissions: ["geolocation"] } : {}),
+        // Animations and transitions an application ties to the user's preference stay still (ETUDE-CAPTURES.md B2).
+        reducedMotion: "reduce",
         ...(session ? { storageState: session } : {}),
         // A service worker could answer or send requests outside the guard: none is registered.
         ...(guarded ? { serviceWorkers: "block" } : {}),
       });
       if (guarded) await context.route("**/*", guard);
       if (cap.cookies.length) await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: appUrl })));
+      if (trace) await context.tracing.start({ screenshots: true, snapshots: true });
       const page = await context.newPage();
+      if (cap.clock) await page.clock.setFixedTime(new Date(cap.clock));
       networks.set(page, trackNetwork(page));
       pages.set(name, page);
       return page;
@@ -353,6 +363,10 @@ export async function runCaptures({
       const name = entry.context || "desktop";
       const page = await pageFor(name);
       const network = networks.get(page);
+      if (trace) {
+        await page.context().tracing.startChunk({ title: entry.id });
+        tracing.context = page.context();
+      }
       // One span per part of the capture (ETUDE-CAPTURES.md §6); the last one still open when an error is thrown
       // is closed by the caller.
       let open = null;
@@ -483,8 +497,25 @@ export async function runCaptures({
         JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry) }), null, 2) + "\n"
       );
       parts.close();
+      if (trace) await tracing.stop(null);
       return { zones: zones.length, bytes: webp.length, ...(compared ? { compared } : {}) };
     }
+    // The trace of the capture in progress: kept on failure only (ETUDE-CAPTURES.md C3).
+    const tracing = {
+      context: null,
+      async stop(file) {
+        const context = tracing.context;
+        tracing.context = null;
+        if (!context) return null;
+        try {
+          if (file) fs.mkdirSync(path.dirname(file), { recursive: true });
+          await context.tracing.stopChunk(file ? { path: file } : {});
+          return file;
+        } catch {
+          return null;
+        }
+      },
+    };
     const parts = { close: () => {} };
     async function mask(page, entry, { required = true } = {}) {
       try {
@@ -505,12 +536,14 @@ export async function runCaptures({
         onEvent(event);
       } catch (e) {
         parts.close();
+        const traceFile = trace ? await tracing.stop(path.join(trace, `${entry.id}.zip`)) : null;
         if (e instanceof SessionExpired) {
           result.expired = { id: entry.id, url: e.url };
           break;
         }
         if (e instanceof KitError) throw e;
         const event = e instanceof CaptureError ? { type: "failed", id: entry.id, key: e.key, vars: e.vars } : { type: "failed", id: entry.id, key: "generic", vars: { error: firstLine(e) } };
+        if (traceFile) event.trace = traceFile;
         result.failed.push(event);
         onEvent(event);
       }

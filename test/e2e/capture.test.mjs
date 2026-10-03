@@ -206,6 +206,36 @@ describe("capture", () => {
     }
   });
 
+  test("capture.clock fixes the page's date; --trace keeps the Playwright trace of a failed capture only", async () => {
+    const other = demoCopy();
+    try {
+      fs.rmSync(path.join(other, "captures", "plans"), { recursive: true, force: true });
+      const plans = path.join(other, "captures", "plans");
+      fs.mkdirSync(plans, { recursive: true });
+      fs.writeFileSync(
+        path.join(plans, "a.mjs"),
+        `export const CAPTURES = [
+          { id: "dated", route: "/orders", actions: [{ eval: "document.querySelector('main').insertAdjacentHTML('afterbegin', '<p>Clock ' + new Date().toISOString().slice(0, 10) + '</p>')" }], zones: [{ text: "Clock 2026-01-15", caption: "The fixed date" }] },
+          { id: "broken", route: "/orders", zones: [{ text: "No such text anywhere", caption: "x" }] },
+        ];`
+      );
+      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      config.capture = { ...config.capture, plans: "captures/plans", clock: "2026-01-15T09:00:00Z" };
+      fs.writeFileSync(path.join(other, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
+      fs.mkdirSync(path.join(other, ".doc-kit"), { recursive: true });
+      fs.copyFileSync(path.join(dir, ".doc-kit", "session.json"), path.join(other, ".doc-kit", "session.json"));
+      const r = await cli(["capture", "--project", other, "--trace"]);
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.match(r.out, /✔ dated /);
+      assert.match(r.err, /✖ broken: [\s\S]*→ trace of the failure: npx playwright show-trace ".*broken\.zip"/);
+      const traces = path.join(other, ".doc-kit", "traces");
+      assert.deepEqual(fs.readdirSync(traces), ["broken.zip"], "only the failed capture leaves a trace");
+      assert.ok(fs.statSync(path.join(traces, "broken.zip")).size > 1000);
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true });
+    }
+  });
+
   test("expired session → exit code 3 before the first capture, with what to do", async () => {
     const stale = path.join(work, "stale.json");
     const state = JSON.parse(fs.readFileSync(path.join(dir, ".doc-kit", "session.json"), "utf8"));

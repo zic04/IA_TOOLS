@@ -39,6 +39,7 @@ export const options = {
   yes: { type: "boolean", short: "y" },
   compare: { type: "boolean" },
   stale: { type: "boolean" },
+  trace: { type: "boolean" },
 };
 
 /** Capture ids of `.doc-kit/sync-report.json` (ARCHITECTURE.md §6.10); missing report: capture.noSyncReport. */
@@ -175,6 +176,8 @@ export async function run({ ctx, values, positionals }) {
     ...(compareDir ? { compareDir } : {}),
     ...(ctx.launch ? { launch: ctx.launch } : {}),
     ...(ctx.timer ? { timer: ctx.timer } : {}),
+    // --trace: a failed capture leaves its Playwright trace (ETUDE-CAPTURES.md C3).
+    ...(values.trace ? { trace: path.join(root, ".doc-kit", "traces") } : {}),
     onEvent: (e) => {
       if (ctx.json) return;
       if (e.type === "ok") {
@@ -183,7 +186,10 @@ export async function run({ ctx, values, positionals }) {
           const percent = (e.compared.ratio * 100).toFixed(2);
           ctx.print(`  ${ctx.t(e.compared.changed ? "cli.capture.compare.changed" : "cli.capture.compare.unchanged", { id: e.id, percent })}`);
         }
-      } else ctx.printErr(`✖ ${e.id}: ${ctx.t(`cli.capture.error.${e.key}`, e.vars)}`);
+      } else {
+        ctx.printErr(`✖ ${e.id}: ${ctx.t(`cli.capture.error.${e.key}`, e.vars)}`);
+        if (e.trace) ctx.printErr(`  → ${ctx.t("cli.capture.trace", { file: shown(e.trace) })}`);
+      }
     },
   });
   const blocked = summarizeRequests(r.blocked);

@@ -134,6 +134,7 @@
         "setup": { "type": ["string", "null"], "default": null },
         "locale": { "type": ["string", "null"], "default": null },
         "timezone": { "type": "string", "minLength": 1, "default": "UTC" },
+        "clock": { "type": ["string", "null"], "default": null, "description": "A fixed date and time for every capture (ISO, e.g. 2026-01-15T09:00:00Z): \"today\", relative dates and countdowns are the same on every run. null: the real clock." },
         "viewports": {
           "type": "object",
           "default": { "desktop": { "width": 1600, "height": 1000 }, "mobile": { "width": 390, "height": 844 } },

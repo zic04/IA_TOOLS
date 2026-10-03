@@ -39,8 +39,16 @@ entries between a project's `kit` range and the installed version.
   - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
   - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
 
+- **`capture.clock`**: a fixed date and time for every capture, so that "today" and relative dates stay the same
+  from run to run.
+- **`capture --trace`**: a failed capture leaves its Playwright trace in `.doc-kit/traces/<id>.zip`, and the
+  command prints how to open it.
+- The standard (`standard/captures.md`) documents a pinned Docker renderer, so that committed images are
+  identical across machines.
+
 ### Changed
 
+- Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and
   `settle` are now minimums, 0 by default; they were fixed waits of 2,500 and 600 ms. On the demo a capture takes
