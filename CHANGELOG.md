@@ -123,6 +123,10 @@ entries between a project's `kit` range and the installed version.
     nothing compiled): `npm run typecheck` runs in the CI. It found 162 places where the JSDoc no longer matched
     the code: undocumented options, missing type definitions, return types without a property the code sets.
     All are fixed in the JSDoc; no runtime behaviour changed and no bug was found. Rule RULES.md M13.
+  - The messages of the skill's scripts are in `skill/doc-kit/i18n/{en,fr}.json`, installed with the skill: a
+    `common` section and one section per script, instead of tables in the code. `consolidation.mjs`, whose
+    messages were in English only, now speaks the project's language (or `--lang`). Tests check that both
+    languages have the same keys and variables, and that every key a script uses exists.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and

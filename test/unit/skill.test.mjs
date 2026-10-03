@@ -613,3 +613,40 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
     );
   });
 });
+
+describe("skill messages (skill/doc-kit/i18n, AUDIT.md M5)", () => {
+  const read = (l) => JSON.parse(fs.readFileSync(path.join(SKILL_SOURCE, "i18n", `${l}.json`), "utf8"));
+  const vars = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+  const scripts = path.join(SKILL_SOURCE, "scripts");
+
+  test("en and fr: the same sections, the same keys, the same {variables}", () => {
+    const en = read("en");
+    const fr = read("fr");
+    assert.deepEqual(Object.keys(fr).sort(), Object.keys(en).sort());
+    for (const section of Object.keys(en)) {
+      assert.deepEqual(Object.keys(fr[section]).sort(), Object.keys(en[section]).sort(), section);
+      for (const key of Object.keys(en[section]))
+        assert.deepEqual(vars(fr[section][key]), vars(en[section][key]), `${section}.${key}`);
+    }
+  });
+
+  test('every t("key") of a script exists in its section or in common', () => {
+    const en = read("en");
+    for (const file of fs.readdirSync(scripts).filter((f) => f.endsWith(".mjs"))) {
+      const source = fs.readFileSync(path.join(scripts, file), "utf8");
+      const section = /useMessages\("(\w+)"\)/.exec(source)?.[1] ?? null;
+      for (const [, key] of source.matchAll(/\bt\("(\w+)"/g))
+        assert.ok(en[section]?.[key] !== undefined || en.common[key] !== undefined, `${file}: t("${key}")`);
+    }
+  });
+
+  test("consolidation.mjs speaks French with --lang fr", () => {
+    const r = spawnSync(process.execPath, [path.join(scripts, "consolidation.mjs"), "--lang", "fr"], {
+      encoding: "utf8",
+    });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /^✖ commande manquante\n {2}→ Usage :/);
+    const en = spawnSync(process.execPath, [path.join(scripts, "consolidation.mjs")], { encoding: "utf8" });
+    assert.match(en.stderr, /^✖ missing command\n {2}→ Usage:/);
+  });
+});

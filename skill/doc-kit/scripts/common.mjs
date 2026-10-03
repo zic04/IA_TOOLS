@@ -15,51 +15,14 @@ export const AGENTS_DIR = path.join(SKILL_ROOT, "agents");
 export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"];
 
 // ─── Messages (en, fr) ───────────────────────────────────────────────────────
-const MESSAGES = {
-  en: {
-    noConfigIn: "doc.config.mjs not found in {dir}",
-    noConfigIn_todo: "pass the documentation folder (the one that holds doc.config.mjs) with --project <docDir>",
-    noConfigUp: "no doc.config.mjs found from the current folder upwards",
-    noConfigUp_todo: "run the command in the documentation folder, or add --project <docDir>",
-    configUnreadable: "doc.config.mjs cannot be read: {error}",
-    configUnreadable_todo: "fix the file (doc-kit doctor checks it)",
-    configUnreadableDeps_todo: "run npm install in the documentation folder, or fix the file",
-    configNoExport: "doc.config.mjs has no default export object",
-    configNoExport_todo: "write export default { product: { name, slug }, language, app: { url } }",
-    varMalformed: 'malformed --var "{raw}"',
-    varMalformed_todo: "write --var key=value",
-    varName: 'invalid placeholder name: "{key}"',
-    varName_todo: "letters, digits, dot, dash or underscore",
-    varFile: "value file not found: {file}",
-    varFile_todo: "give a path from the current folder or from the documentation folder",
-    language: 'unknown language: "{value}"',
-    language_todo: "{label} en or {label} fr",
-    unexpected: "unexpected error: {error}",
-  },
-  fr: {
-    noConfigIn: "doc.config.mjs introuvable dans {dir}",
-    noConfigIn_todo:
-      "indiquez le dossier de la documentation (celui qui contient doc.config.mjs) avec --project <dossierDoc>",
-    noConfigUp: "aucun doc.config.mjs trouvé depuis le dossier courant en remontant",
-    noConfigUp_todo: "lancez la commande dans le dossier de la documentation, ou ajoutez --project <dossierDoc>",
-    configUnreadable: "doc.config.mjs illisible : {error}",
-    configUnreadable_todo: "corrigez le fichier (doc-kit doctor le vérifie)",
-    configUnreadableDeps_todo: "lancez npm install dans le dossier de la documentation, ou corrigez le fichier",
-    configNoExport: "doc.config.mjs n'exporte pas d'objet par défaut",
-    configNoExport_todo: "écrivez export default { product: { name, slug }, language, app: { url } }",
-    varMalformed: "--var mal formé : « {raw} »",
-    varMalformed_todo: "écrivez --var clé=valeur",
-    varName: "nom de paramètre invalide : « {key} »",
-    varName_todo: "lettres, chiffres, point, tiret ou tiret bas",
-    varFile: "fichier de valeur introuvable : {file}",
-    varFile_todo: "donnez un chemin depuis le dossier courant ou depuis le dossier de la documentation",
-    language: "langue inconnue : « {value} »",
-    language_todo: "{label} en ou {label} fr",
-    unexpected: "erreur inattendue : {error}",
-  },
-};
+// skill/doc-kit/i18n/<lang>.json, installed with the skill: a `common` section, then one section per script
+// (brief, usage, consolidation), chosen by useMessages(). Same keys and {variables} in en and fr
+// (test/unit/skill.test.mjs).
+const MESSAGES = Object.fromEntries(
+  LANGUAGES.map((l) => [l, JSON.parse(fs.readFileSync(path.join(SKILL_ROOT, "i18n", `${l}.json`), "utf8"))]),
+);
 let messageLanguage = "en";
-const extraMessages = { en: {}, fr: {} };
+let messageSection = null;
 
 /** Language of the messages of the scripts (en by default). */
 export function setMessageLanguage(language) {
@@ -67,19 +30,15 @@ export function setMessageLanguage(language) {
   return messageLanguage;
 }
 
-/** Adds the messages of a script (same keys in en and fr). */
-export function addMessages(table) {
-  for (const l of LANGUAGES) Object.assign(extraMessages[l], table[l] || {});
+/** The section of the messages of the running script (brief, usage, consolidation), on top of `common`. */
+export function useMessages(section) {
+  messageSection = section;
 }
 
 /** A message in the current language, with its {variables}; the English text when the key is missing. */
 export function t(key, vars = {}) {
-  const text =
-    extraMessages[messageLanguage][key] ??
-    MESSAGES[messageLanguage][key] ??
-    extraMessages.en[key] ??
-    MESSAGES.en[key] ??
-    key;
+  const own = (l) => (messageSection ? MESSAGES[l][messageSection]?.[key] : undefined) ?? MESSAGES[l].common[key];
+  const text = own(messageLanguage) ?? own("en") ?? key;
   return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 }
 

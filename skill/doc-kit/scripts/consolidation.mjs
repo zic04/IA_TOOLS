@@ -23,12 +23,13 @@ import {
   loadConfig,
   parseOptions,
   run,
+  setMessageLanguage,
+  t,
+  useMessages,
   warn,
 } from "./common.mjs";
 
-const USAGE = `Usage:
-  node consolidation.mjs init --project <docDir> --codes a,b,c [--topic "…"] [--lang en|fr] [--output <file>] [--force]
-  node consolidation.mjs duplicates --project <docDir> [--file <file>] [--findings <page-id>] [--no-findings] [--json]`;
+useMessages("consolidation");
 
 const START = "<!-- section:start -->";
 const END = "<!-- section:end -->";
@@ -38,12 +39,7 @@ const DEFAULT_TITLE = { en: "Writer", fr: "Rédacteur" };
 // ─── init ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 function readCodes(raw) {
-  if (!raw)
-    throw new ExitError(
-      2,
-      "--codes is missing",
-      'example: --codes u1,u2,cf or --codes "ord=Journey of an order,inv=Journey of an invoice"',
-    );
+  if (!raw) throw new ExitError(2, t("codesMissing"), t("codesMissing_todo"));
   const codes = raw
     .split(",")
     .map((s) => s.trim())
@@ -52,16 +48,15 @@ function readCodes(raw) {
       const i = s.indexOf("=");
       const code = (i < 0 ? s : s.slice(0, i)).trim();
       const title = i < 0 ? "" : s.slice(i + 1).trim();
-      if (!/^[\w-]+$/.test(code))
-        throw new ExitError(2, `invalid code: "${code}"`, "letters, digits, dash or underscore (u1, ord, a2…)");
+      if (!/^[\w-]+$/.test(code)) throw new ExitError(2, t("codeInvalid", { code }), t("codeInvalid_todo"));
       return { code, title };
     });
   const seen = new Set();
   for (const { code } of codes) {
-    if (seen.has(code)) throw new ExitError(2, `duplicate code: "${code}"`, "one code per writer");
+    if (seen.has(code)) throw new ExitError(2, t("codeDuplicate", { code }), t("codeDuplicate_todo"));
     seen.add(code);
   }
-  if (!codes.length) throw new ExitError(2, "--codes is empty", "example: --codes u1,u2,cf");
+  if (!codes.length) throw new ExitError(2, t("codesEmpty"), t("codesEmpty_todo"));
   return codes;
 }
 
@@ -70,15 +65,15 @@ async function init(o) {
   const config = await loadConfig(docDir);
   const lang = o.lang ?? config.language ?? "en";
   checkLanguage(lang, "language");
+  setMessageLanguage(lang);
   const codes = readCodes(o.codes).map((c) => ({ ...c, title: c.title || `${DEFAULT_TITLE[lang]} ${c.code}` }));
   const templateFile = path.join(SKILL_ROOT, "assets", "briefs", lang, "consolidation.md");
   if (!fs.existsSync(templateFile))
-    throw new ExitError(2, `template missing: ${templateFile}`, "reinstall the skill (doc-kit skill install)");
+    throw new ExitError(2, t("templateMissing", { file: templateFile }), t("templateMissing_todo"));
   const template = fs.readFileSync(templateFile, "utf8");
   const a = template.indexOf(START);
   const b = template.indexOf(END);
-  if (a < 0 || b < a)
-    throw new ExitError(2, "the consolidation template lacks its section markers", `${START} … ${END}`);
+  if (a < 0 || b < a) throw new ExitError(2, t("templateMarkers"), `${START} … ${END}`);
 
   const base = { ...baseVariables(docDir, config, lang), topic: o.topic ?? DEFAULT_TOPIC[lang] };
   const head = fill(template.slice(0, a), base);
@@ -91,27 +86,16 @@ async function init(o) {
 
   const output = o.output ? path.resolve(o.output) : path.join(docDir, WORK_DIR, "consolidation.md");
   if (fs.existsSync(output) && !o.force) {
-    throw new ExitError(
-      2,
-      `the file already exists: ${output}`,
-      "add --force to overwrite it, or --output <another file>",
-    );
+    throw new ExitError(2, t("fileExists", { file: output }), t("fileExists_todo"));
   }
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, text.endsWith("\n") ? text : `${text}\n`);
-  console.log(
-    `✔ consolidation file created: ${output} (${codes.length} section(s): ${codes.map((c) => c.code).join(", ")})`,
-  );
+  console.log(t("created", { file: output, n: codes.length, codes: codes.map((c) => c.code).join(", ") }));
   if (unfilled.length) {
-    warn(
-      `placeholder(s) left unfilled: ${unfilled.join(", ")}`,
-      "complete doc.config.mjs (product.name…), then run again with --force",
-    );
+    warn(t("unfilled", { names: unfilled.join(", ") }), t("unfilled_todo"));
     return 1;
   }
-  console.log(
-    '  → paste the candidates, errors and terms of each report into it, then run "consolidation.mjs duplicates".',
-  );
+  console.log(t("createdNext"));
   return 0;
 }
 
@@ -284,15 +268,12 @@ async function duplicates(o) {
   const docDir = findProject(o.project);
   const config = await loadConfig(docDir);
   const vars = baseVariables(docDir, config, config.language ?? "en");
+  setMessageLanguage(config.language ?? "en");
   const file = o.file
     ? ([path.resolve(o.file), path.resolve(docDir, o.file)].find((f) => fs.existsSync(f)) ?? path.resolve(o.file))
     : path.join(docDir, WORK_DIR, "consolidation.md");
   if (!fs.existsSync(file)) {
-    throw new ExitError(
-      2,
-      `consolidation file not found: ${file}`,
-      'create it with "consolidation.mjs init", or pass --file <path>',
-    );
+    throw new ExitError(2, t("fileMissing", { file }), t("fileMissing_todo"));
   }
   const { candidates, sections } = readCandidates(fs.readFileSync(file, "utf8"));
   const label = (c) => `${c.code} ${c.n}`;
@@ -344,15 +325,11 @@ async function duplicates(o) {
   }
 
   const refCount = candidates.reduce((s, c) => s + c.refs.length, 0);
-  console.log(`Consolidation: ${file}`);
-  console.log(
-    `${candidates.length} candidate(s) in ${sections.filter((s) => candidates.some((c) => c.code === s.code)).length} section(s), ${refCount} file:line reference(s).\n`,
-  );
+  console.log(t("header", { file }));
+  const withCandidates = sections.filter((s) => candidates.some((c) => c.code === s.code)).length;
+  console.log(`${t("counts", { candidates: candidates.length, sections: withCandidates, refs: refCount })}\n`);
   if (!candidates.length) {
-    warn(
-      "no candidate read",
-      'each "## Title (code)" section needs a "### Candidate findings" sub-section with a numbered list',
-    );
+    warn(t("noCandidate"), t("noCandidate_todo"));
     return 1;
   }
   const width =
@@ -361,32 +338,30 @@ async function duplicates(o) {
       ...existing.map((e) => `${e.candidate} ≈ ${e.finding}`.length),
       10,
     ) + 3;
-  console.log(pairs.length ? "Probable duplicates (same file:line):" : "No probable duplicate between candidates.");
+  console.log(pairs.length ? t("duplicates") : t("noDuplicate"));
   for (const p of pairs) console.log(`  ${`${p.a} ↔ ${p.b}`.padEnd(width)}${p.refs.join(", ")}`);
   if (findingsPage) {
     const where = `${vars.contentDir}/${findingsPage}…`;
     console.log("");
-    console.log(
-      existing.length
-        ? `Lines already cited by an existing finding (${where}):`
-        : `No existing finding (${where}) cites these lines.`,
-    );
+    console.log(existing.length ? t("existing", { where }) : t("noExisting", { where }));
     for (const e of existing)
       console.log(`  ${`${e.candidate} ≈ ${e.finding}`.padEnd(width)}${e.refs.join(", ")}  (${e.page})`);
   }
   if (withoutRef.length) {
     console.log("");
-    console.log(`Candidates without a file:line reference (complete or check by hand): ${withoutRef.join(", ")}`);
+    console.log(t("withoutRef", { list: withoutRef.join(", ") }));
   }
-  console.log(
-    '\n  → write the decisions under "Duplicates found", then launch findings-verification and page-corrections.',
-  );
+  console.log(`\n${t("next")}`);
   return 0;
 }
 
 // ─── dispatch ────────────────────────────────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Messages in --lang until the project's language is known (init and duplicates set it).
+  const argv = process.argv.slice(2);
+  const iLang = argv.indexOf("--lang");
+  setMessageLanguage(iLang >= 0 ? argv[iLang + 1] : "en");
   const { values: o, positionals } = parseOptions(
     {
       project: { type: "string" },
@@ -401,18 +376,18 @@ async function main() {
       json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
-    USAGE,
+    t("usage"),
   );
   if (o.help) {
-    console.log(USAGE);
+    console.log(t("usage"));
     return 0;
   }
   checkLanguage(o.lang);
   const [command, ...rest] = positionals;
-  if (rest.length) throw new ExitError(2, `unexpected argument: "${rest.join(" ")}"`, USAGE);
+  if (rest.length) throw new ExitError(2, t("unexpectedArgument", { args: rest.join(" ") }), t("usage"));
   if (command === "init") return init(o);
   if (command === "duplicates") return duplicates(o);
-  throw new ExitError(2, command ? `unknown command: "${command}"` : "missing command", USAGE);
+  throw new ExitError(2, command ? t("unknownCommand", { command }) : t("missingCommand"), t("usage"));
 }
 
 await run(main);
