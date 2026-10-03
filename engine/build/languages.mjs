@@ -8,7 +8,6 @@ import { hashText } from "../sync/hash.mjs";
 import { LOCALES } from "../i18n.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { closest } from "../project/validate.mjs";
 
 /** Text fields of each kind of entry in content/toc.json: translated; every other field comes from the source. */
 export const TEXT_FIELDS = Object.freeze({
@@ -302,6 +301,3 @@ export function languageCounts({ root, config, toc, lang }) {
   }
   return { id: lang, ...counts };
 }
-
-/** The declared id closest to an unknown one (for "did you mean" suggestions in CLI errors). */
-export const closestLanguage = (lang, known) => closest(String(lang), known);

@@ -8,8 +8,10 @@
 //   - two frames have been painted.
 // `min` keeps a floor (a plan's explicit `delay` or `settle`, for a map whose tiles draw on a canvas).
 
+import { TIMINGS } from "./timings.mjs";
+
 /** Defaults: quiet period, overall cap, cap of the network part. */
-export const STABLE = Object.freeze({ quietMs: 150, max: 10_000, networkMax: 3_000 });
+export const STABLE = Object.freeze({ quietMs: TIMINGS.quiet, max: TIMINGS.stableMax, networkMax: TIMINGS.networkMax });
 
 /**
  * Counts a page's requests in flight. Call once per page, before its first navigation.

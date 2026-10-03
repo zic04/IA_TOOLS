@@ -48,7 +48,6 @@
   "cli.estimate.agent": "[{page}] {agent} ({model}) : {input} jetons d'entrée, {output} jetons de sortie",
   "cli.estimate.total": "Total : {input} jetons d'entrée, {output} jetons de sortie",
   "cli.estimate.cost": "{cost} {currency}",
-  "cli.estimate.noPrices": "aucun prix configuré (llm.prices) : coût non estimé",
 
   "cli.new.prefilled": { "one": "✔ {n} ligne préremplie depuis facts/{source}.json", "other": "✔ {n} lignes préremplies depuis facts/{source}.json" },
   "cli.new.noFacts": "aucun fait à partir duquel préremplir : {file}",

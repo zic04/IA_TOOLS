@@ -14,6 +14,8 @@ import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { declaredSpaceIds, checkSpaceOption } from "../../engine/build/spaces.mjs";
 import { checkLanguageOption } from "../../engine/build/languages.mjs";
 import { builtSite } from "../common.mjs";
+import { waitForStable } from "../../engine/capture/stable.mjs";
+import { TIMINGS } from "../../engine/capture/timings.mjs";
 
 export const options = {
   theme: { type: "string" },
@@ -48,18 +50,24 @@ export async function run({ ctx, values, positionals }) {
     const page = await (await browser.newContext({ viewport: { width: 1440, height }, colorScheme: theme })).newPage();
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(pathToFileURL(site.file).href + "#" + hash);
-    await page.waitForTimeout(900);
+    await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
     if (step > 0) {
       // No annotated screen on the page (or a documentation without screenshots): say so at once, instead of
       // waiting for a button that will never appear.
       if (!(await page.locator("[data-action=visite]").count())) throw new KitError(EXIT.USAGE, "view.noTour", { page: hash });
+      // Each step's card is shown once the zone has scrolled into view (a timer in the site, hidden meanwhile):
+      // wait for it, then for the page to settle.
+      const card = page.locator(".vis-carte");
+      const shown = async () => {
+        await card.waitFor({ state: "visible", timeout: TIMINGS.element });
+        await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
+      };
       await page.locator("[data-action=visite]").first().click();
-      await page.waitForTimeout(500);
+      await shown();
       for (let i = 1; i < step; i++) {
         await page.getByRole("button", { name: next }).click();
-        await page.waitForTimeout(450);
+        await shown();
       }
-      await page.waitForTimeout(500);
     }
     // --full: the whole page in one image. The window first takes the height of the page, so that the elements
     // sized on the window (menu, sticky panels) follow the page instead of stopping after the first screen.
@@ -67,7 +75,7 @@ export async function run({ ctx, values, positionals }) {
       const full = await page.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight));
       if (full > height) {
         await page.setViewportSize({ width: 1440, height: Math.min(full, 32000) });
-        await page.waitForTimeout(300);
+        await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
       }
     }
     await page.screenshot({ path: output, fullPage: !!values.full });

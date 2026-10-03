@@ -15,6 +15,7 @@ import { spaceOutput } from "../engine/build/spaces.mjs";
 import { watchedPaths } from "../engine/dev/server.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
+import { chromiumStatus } from "../engine/dev/environment.mjs";
 
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
 export function createPaint(enabled) {
@@ -53,7 +54,7 @@ export function defaultExec(bin, args = [], options = {}) {
  *   (bin, args, options) => { status, stdout, stderr } | null (null: the binary is not on the PATH); commit
  *   replaces the read-only git HEAD lookup of `facts` (dir) => string | null.
  */
-export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit, codegen } = {}) {
+export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit, codegen, chromium } = {}) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const warnedGit = new Set();
   const ctx = {
@@ -66,6 +67,8 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     launch: launch ?? null,
     /** Test seam of `record`: replaces Playwright's codegen ({ url, output, storage }) => status. */
     codegen: codegen ?? null,
+    /** Test seam of `doctor` (AUDIT.md M7): () => { ok, path, command } for the Chromium of Playwright. */
+    chromium: chromium ?? (() => chromiumStatus()),
     fetch: fetchImpl,
     /** `exec`, with a warning (once per repository) when git is refused because of a risky configuration. */
     exec: (bin, args, options) => {

@@ -162,9 +162,6 @@ export function documentationTexts(root, content) {
   return { text, planned };
 }
 
-/** The written documentation only, normalised (see documentationTexts). */
-export const documentationText = (root, content) => documentationTexts(root, content).text;
-
 /** Does an item appear in the documentation text? */
 export const isCovered = (item, text) => (item.match || []).some((m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)));
 

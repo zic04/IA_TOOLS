@@ -18,7 +18,7 @@ const isDocRef = (p) => p.startsWith("doc:");
 const docPath = (p) => p.slice("doc:".length);
 
 /**
- * Line-numbered excerpts of a file's text (ARCHITECTURE.md §6.11 point 3, cadrage §2.9), in reading order.
+ * Line-numbered excerpts of a file's text (ARCHITECTURE.md §6.11 point 3), in reading order.
  * @param {string|null} fileText        null (file unreadable): no excerpt
  * @param {Array<[number, number]>} lines   cited ranges (1-based, inclusive): proofs and declared sources
  * @param {{ whole?: number, around?: number, head?: number, kind?: "direct"|"shared" }} [options]

@@ -1,6 +1,6 @@
 // Pixel comparison of two WebP images, decoded in the browser (same encoder on both sides: no false positive
 // caused by the compression itself), and the before/after sheet shown when a capture changed (ARCHITECTURE.md
-// §6.10, cadrage §2.7). Both run in the hidden page of the WebP encoder (`createWebpEncoder`, webp.mjs): no
+// §6.10). Both run in the hidden page of the WebP encoder (`createWebpEncoder`, webp.mjs): no
 // browser window, no extra page.
 const ZONE_COLOUR = "#e0443e";
 

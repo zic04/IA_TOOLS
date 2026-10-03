@@ -48,7 +48,12 @@ mise à jour ou build** de l'application.
 | M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
 | § 4 : graphe des modules et cycles, historique git (fichiers à risque, propriétaires, bus factor), schéma entité-relation | **Fait** (`facts --source modules`, `--source history`, `::erd`) | `overview.test.mjs` |
 | § 5 : « ce qui a changé » entre deux versions (`doc-kit changes`), historique par version dans le site (`--record`, `::changes`), recette CI à chaque build avec commentaire de PR, hooks git locaux (`doc-kit hooks install`) | **Fait** | `changes.test.mjs`, `hooks.test.mjs` |
-| S6, S9 à S11, S13 ; M2 à M14 | Ouverts | — |
+| M4 Lecteurs de sommaire | **Corrigé** pour le sommaire : un seul `engine/project/toc.mjs` ; `safeToc` lit désormais le sommaire hérité. Le scan JS reste à dédoublonner | `legacy.test.mjs` › lecteur unique |
+| M7 Tests liés à la machine | **Corrigé** : la détection de Chromium passe par `ctx.chromium` (seam), `doctor` et le mode guidé ne dépendent plus du navigateur installé | `doctor.test.mjs` › Chromium manquant |
+| M9 Code mort | **Corrigé** pour les cas cités (`closestLanguage`, `documentationText`, `getMessageLanguage`, `cli.estimate.noPrices`) ; `AGENT_TYPES` est gardé et sert de source au test. knip en CI reste à faire | — |
+| M10 Références « cadrage » | **Corrigé** : elles pointent vers ARCHITECTURE.md | — |
+| M11 Délais en dur | **Corrigé** : `engine/capture/timings.mjs` ; `view` et `check tables` attendent une condition (page stable, carte de la visite visible) au lieu d'un délai fixe | e2e `site.test.mjs` › `view --tour` |
+| S6, S9 à S11, S13 ; M2, M3, M5, M6, M8, M12 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

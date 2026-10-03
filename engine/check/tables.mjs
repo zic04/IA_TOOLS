@@ -5,6 +5,8 @@
 // (<wbr>, engine/build/markdown.mjs factsCell/render).
 import { pathToFileURL } from "node:url";
 import { launchBrowser } from "../project/browser.mjs";
+import { waitForStable } from "../capture/stable.mjs";
+import { TIMINGS } from "../capture/timings.mjs";
 
 /**
  * @param {{ file: string, width?: number, topOfPage?: string }} p
@@ -15,12 +17,12 @@ export async function checkTables({ file, width = 1440, topOfPage = "(top of pag
   try {
     const page = await (await browser.newContext({ viewport: { width, height: 900 } })).newPage();
     await page.goto(pathToFileURL(file).href);
-    await page.waitForTimeout(500);
+    await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
     const ids = await page.evaluate(() => JSON.parse(document.getElementById("donnees").textContent).ordre);
     const problems = [];
     for (const id of ids) {
       await page.evaluate((h) => (location.hash = h), "#/" + id);
-      await page.waitForTimeout(120);
+      await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
       const wide = await page.evaluate(
         (top) =>
           [...document.querySelectorAll(".contenu .tableau:not([data-generated])")]

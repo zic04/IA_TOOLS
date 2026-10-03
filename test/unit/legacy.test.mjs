@@ -3,6 +3,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { readToc } from "../../engine/project/toc.mjs";
 import { normalizeToc, normalizeGlossary, normalizeZones, normalizePlanEntry } from "../../engine/project/legacy.mjs";
 import { migrateProject } from "../../cli/commands/migrate.mjs";
 import { buildDemo, demoCopy } from "../tools/helpers.mjs";
@@ -189,6 +191,25 @@ describe("legacy project: build and migrate", () => {
       assert.deepEqual(after.warnings.map((w) => w.key), ["space.excludedLinks", "space.excludedLinks"]);
       assert.equal(after.html, (await buildDemo()).html);
       assert.deepEqual(migrateProject(dir, paths).converted, []);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("single table-of-contents reader (engine/project/toc.mjs)", () => {
+  test("reads the legacy sommaire.json normalised, the current file first, and reports what it found", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dk-toc-"));
+    try {
+      fs.mkdirSync(path.join(dir, "content"));
+      assert.deepEqual(readToc(dir, "content"), { file: "content/toc.json", toc: null, found: false });
+      fs.writeFileSync(path.join(dir, "content/sommaire.json"), "﻿" + JSON.stringify(LEGACY_TOC));
+      const legacy = readToc(dir, "content");
+      assert.equal(legacy.file, "content/sommaire.json");
+      assert.equal(legacy.legacy, true);
+      assert.deepEqual(legacy.toc, normalizeToc(LEGACY_TOC).value);
+      fs.writeFileSync(path.join(dir, "content/toc.json"), "{ not json");
+      assert.deepEqual(readToc(dir, "content"), { file: "content/toc.json", toc: null, found: true });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

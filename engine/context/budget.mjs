@@ -7,7 +7,7 @@ export function estimateTokens(text) {
 }
 
 /**
- * Drops parts until the total fits the budget (ARCHITECTURE.md §6.11, cadrage §1.14 §2.9): `shared` excerpts
+ * Drops parts until the total fits the budget (ARCHITECTURE.md §6.11): `shared` excerpts
  * first (the longest first), then `excerpt` (direct excerpts, farthest from a cited line first — `priority` is
  * that distance), then `facts`, then `labels`; `page` and `sections` parts are never touched. A cut part keeps
  * its place (so the rest of the file stays in the same order): its `text` is replaced by its one-line `cutLine`,

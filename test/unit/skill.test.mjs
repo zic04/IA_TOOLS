@@ -12,6 +12,7 @@ import { spawnSync } from "node:child_process";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { installSkill, skillStatus, agentsStatus, agentFileNames, skillsFolder, agentsFolder, SKILL_SOURCE, FINGERPRINT } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
+import { AGENT_TYPES } from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -255,7 +256,7 @@ const TEMPLATE_VARIANTS = {
   translate: [["--var", "lang=fr", "--var", "pages=use/orders", "--var", "contextFiles=.doc-kit/context/use__orders.fr.md"], ["--var", "lang=fr", "--var", "pages=use/settings", "--var", "contextFiles=.doc-kit/context/use__settings.fr.md"]],
   "capture-plans": [["--var", "code=cp1", "--var", "pages=/orders"], ["--var", "code=cp2", "--var", "pages=/settings"]],
 };
-const AGENT_TYPES_KNOWN = new Set(["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"]);
+const AGENT_TYPES_KNOWN = new Set(AGENT_TYPES);
 
 describe("brief templates: agent type and common/variable split", () => {
   for (const [name, variants] of Object.entries(TEMPLATE_VARIANTS)) {

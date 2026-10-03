@@ -29,6 +29,7 @@ import { createWebpEncoder } from "./webp.mjs";
 import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
 import { forbiddenMatch } from "./plans.mjs";
 import { trackNetwork, waitForStable } from "./stable.mjs";
+import { TIMINGS } from "./timings.mjs";
 import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
 
 export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
@@ -190,11 +191,11 @@ async function isChallenge(page) {
 }
 
 /** Waits for a bot challenge to clear by itself (20 s at most). */
-async function waitForChallenge(page, timeout = 20_000) {
+async function waitForChallenge(page, timeout = TIMINGS.challenge) {
   if (!(await isChallenge(page))) return;
   const end = Date.now() + timeout;
   while (Date.now() < end) {
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(TIMINGS.challengePoll);
     if (!(await isChallenge(page))) {
       await page.waitForLoadState("load").catch(() => {});
       return;
@@ -421,7 +422,7 @@ export async function runCaptures({
       };
       if (!onOrigin()) {
         try {
-          await page.goto(appUrl + auth.options.start, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          await page.goto(appUrl + auth.options.start, { waitUntil: "domcontentloaded", timeout: TIMINGS.start });
         } catch (e) {
           if (current.forbidden) throw stop();
           throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url: appUrl, error: firstLine(e) }, { cause: e });
@@ -434,7 +435,7 @@ export async function runCaptures({
 
       let response;
       try {
-        response = await page.goto(appUrl + routeWithView(entry.route, entry.view, cap.map), { waitUntil: "load", timeout: 45_000 });
+        response = await page.goto(appUrl + routeWithView(entry.route, entry.view, cap.map), { waitUntil: "load", timeout: TIMINGS.page });
       } catch (e) {
         if (current.forbidden) throw stop();
         throw new CaptureError("navigation", { route: entry.route, error: firstLine(e) });

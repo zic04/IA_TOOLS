@@ -13,10 +13,13 @@ before(() => {
 });
 after(() => fs.rmSync(claude, { recursive: true, force: true }));
 
+/** A Chromium found, by default: the result never depends on the machine running the tests (AUDIT.md M7). */
+const CHROMIUM_OK = async () => ({ ok: true, path: "/opt/chromium/chrome", command: "npx playwright install chromium" });
+
 async function cli(args, env = {}, io = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { CLAUDE_CONFIG_DIR: claude, ...env }, ...io });
+  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { CLAUDE_CONFIG_DIR: claude, ...env }, chromium: CHROMIUM_OK, ...io });
   return { code, out, err };
 }
 const line = (out, re) => out.split("\n").find((l) => re.test(l));
@@ -38,7 +41,7 @@ describe("doctor", () => {
       assert.match(r.out, /^doc-kit \d+\.\d+\.\d+ doctor — /);
       assert.match(r.out, /^✔ Node\.js \d+\.\d+\.\d+ \(required: >=20\)$/m);
       assert.match(r.out, /^✔ kit dependencies: marked [\d.]+, playwright [\d.]+$/m);
-      assert.match(r.out, /^(✔ Chromium for Playwright: |✖ Chromium)/m);
+      assert.match(r.out, /^✔ Chromium for Playwright: \/opt\/chromium\/chrome$/m);
       assert.match(r.out, /^⚠ Claude Code skill not installed \(optional\)\n {2}→ doc-kit skill install$/m);
       assert.match(r.out, /^✔ kit \d+\.\d+\.\d+ accepted by the project \(\^0\.1\.0\)$/m);
       assert.match(r.out, /^✔ doc\.config\.mjs valid$/m);
@@ -152,6 +155,18 @@ describe("doctor", () => {
     } finally {
       fs.rmSync(fr, { recursive: true, force: true });
       fs.rmSync(broken, { recursive: true, force: true });
+    }
+  });
+
+  test("Chromium missing → ✖ with the exact install command, exit code 3 (through the seam, whatever the machine)", async () => {
+    const dir = project();
+    try {
+      const chromium = async () => ({ ok: false, path: null, command: 'node "/kit/node_modules/playwright/cli.js" install chromium' });
+      const r = await cli(["doctor", "--project", dir], {}, { chromium });
+      assert.equal(r.code, 3, r.out); // an environment problem
+      assert.match(r.out, /^✖ Chromium for Playwright is not installed \(needed by connect, capture, view, check tables\)\n {2}→ node "\/kit\/node_modules\/playwright\/cli\.js" install chromium$/m);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
