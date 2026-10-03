@@ -23,14 +23,16 @@ import path from "node:path";
 import { launchBrowser } from "../project/browser.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { readProjectVersion } from "../build/build.mjs";
-import { CaptureError, firstLine, registerSelectors, zoneBox, frameClip, measureZone, play, actionKind, describeTarget, routeWithView } from "./actions.mjs";
-import { sensitiveValues, maskSource, maskPage } from "./masking.mjs";
+import { CaptureError, firstLine, registerSelectors } from "./actions.mjs";
+import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
-import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
 import { forbiddenMatch } from "./plans.mjs";
-import { trackNetwork, waitForStable } from "./stable.mjs";
-import { TIMINGS } from "./timings.mjs";
-import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
+import { trackNetwork } from "./stable.mjs";
+import { checkSession, sessionStorageOf, browserLaunch } from "./session.mjs";
+import { takeOne, SessionExpired, storageValues, zoneFile } from "./take.mjs";
+
+// Kept as exports of the capture module for the tests and commands that import them from here.
+export { storageValues, zoneFile };
 
 const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
@@ -43,14 +45,6 @@ const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 export function readOnlyMode(capture, hasSession) {
   if (capture.target === "production") return true;
   return capture.readOnly === "auto" ? hasSession : capture.readOnly === true;
-}
-
-/** Raised when the application sends the browser to a sign-in page during the run. */
-class SessionExpired extends Error {
-  constructor(url) {
-    super(`session expired: ${url}`);
-    this.url = url;
-  }
 }
 
 /** Unique list of blocked requests; the paths of bot challenges are grouped. */
@@ -155,77 +149,6 @@ async function redirectChain(route, url, { appOrigin, forbidden }) {
   }
 }
 
-/** localStorage values: "{version}" substituted; other types written as JSON. */
-export function storageValues(storage, version) {
-  return Object.fromEntries(Object.entries(storage).map(([k, v]) => [k, (typeof v === "string" ? v : JSON.stringify(v)).replaceAll("{version}", version)]));
-}
-
-/**
- * Zone file of a capture (ARCHITECTURE.md §6.2). `commit` (the application's git HEAD) and `plan` (hash of the
- * plan entry, ARCHITECTURE.md §6.10) are omitted when absent, so that a run without `sync` support keeps
- * writing the same shape as before (test parity, byte-identical files).
- */
-export function zoneFile({ entry, clip, zones, version, captured, commit = null, plan = null, scale = 1 }) {
-  return {
-    file: `${entry.id}.webp`,
-    title: entry.title || "",
-    route: entry.route,
-    width: Math.round(clip.width),
-    height: Math.round(clip.height),
-    // The image holds scale × width pixels (capture.scale, for high-density screens); width and height stay
-    // the size it is shown at.
-    ...(scale > 1 ? { scale } : {}),
-    version,
-    captured,
-    zones,
-    ...(commit ? { commit } : {}),
-    ...(plan ? { plan } : {}),
-  };
-}
-
-/** Is the page a bot challenge (an interstitial "Just a moment…" page)? */
-async function isChallenge(page) {
-  const title = await page.title().catch(() => "");
-  if (/just a moment|attention required|checking your browser/i.test(title)) return true;
-  return (await page.locator("#challenge-form, #challenge-running, #cf-challenge-running").count().catch(() => 0)) > 0;
-}
-
-/** Waits for a bot challenge to clear by itself (20 s at most). */
-async function waitForChallenge(page, timeout = TIMINGS.challenge) {
-  if (!(await isChallenge(page))) return;
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    await page.waitForTimeout(TIMINGS.challengePoll);
-    if (!(await isChallenge(page))) {
-      await page.waitForLoadState("load").catch(() => {});
-      return;
-    }
-  }
-  throw new CaptureError("challenge", { url: page.url() });
-}
-
-/** Draws the measured zones over the page and screenshots the clip (control image, never published). */
-async function writePreview(page, clip, zones, file) {
-  await page.evaluate(
-    ({ zones, clip }) => {
-      for (const z of zones) {
-        const d = document.createElement("div");
-        d.className = "__doc_kit_preview";
-        d.style.cssText = `position:fixed;z-index:2147483647;pointer-events:none;box-sizing:border-box;border:2px solid #e0443e;background:rgba(224,68,62,.08);left:${clip.x + (z.x / 100) * clip.width}px;top:${clip.y + (z.y / 100) * clip.height}px;width:${(z.w / 100) * clip.width}px;height:${(z.h / 100) * clip.height}px`;
-        const b = document.createElement("b");
-        b.textContent = String(z.n);
-        b.style.cssText = "position:absolute;top:-10px;left:-10px;background:#e0443e;color:#fff;border-radius:50%;width:20px;height:20px;font:700 12px/20px sans-serif;text-align:center";
-        d.appendChild(b);
-        document.body.appendChild(d);
-      }
-    },
-    { zones, clip }
-  );
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  await page.screenshot({ clip, path: file });
-  await page.evaluate(() => document.querySelectorAll(".__doc_kit_preview").forEach((d) => d.remove()));
-}
-
 /**
  * Takes captures.
  * @param {object} p
@@ -297,304 +220,168 @@ export async function runCaptures({
   const cap = capture || config.capture;
   // A fixed clock (capture.clock): "today", relative dates and countdowns are the same on every run.
   if (cap.clock && !Number.isFinite(Date.parse(cap.clock))) throw new KitError(EXIT.USAGE, "option.value", { option: "capture.clock", value: cap.clock, expected: "an ISO date, e.g. 2026-01-15T09:00:00Z" });
-  const sel = cap.selectors;
   const appOrigin = new URL(appUrl).origin;
-  const version = readProjectVersion(root, config.version);
-  const date = captured || new Date().toISOString().slice(0, 10);
   const imagesDir = path.join(root, imagesDirOption || config.paths.images);
-  const zonesDir = path.join(imagesDir, "zones");
-  const previewDir = previews || path.join(root, ".doc-kit");
-  /** Zones of the zone file written by a previous run (for the before/after sheet), or []. */
-  const previousZones = (id) => {
-    try {
-      return JSON.parse(fs.readFileSync(path.join(zonesDir, `${id}.json`), "utf8")).zones || [];
-    } catch {
-      return [];
-    }
+  const rc = {
+    cap,
+    sel: cap.selectors,
+    appUrl,
+    appOrigin,
+    auth,
+    session,
+    readOnly,
+    forbidden,
+    version: readProjectVersion(root, config.version),
+    date: captured || new Date().toISOString().slice(0, 10),
+    imagesDir,
+    zonesDir: path.join(imagesDir, "zones"),
+    previewDir: previews || path.join(root, ".doc-kit"),
+    source: maskSource(sensitiveValues(root, config.masking), config.masking),
+    baseline: sessionStorageOf(session, appOrigin),
+    checksSignIn: !auth.adapter.none,
+    result: { ok: [], failed: [], blocked: [], refused: [], prefetched: [], expired: null, who: null, compared: [] },
+    guarded: readOnly || forbidden.length > 0,
+    preview,
+    compare,
+    compareThreshold,
+    compareDir,
+    commit,
+    planHash,
+    labels,
+    timer,
+    trace,
+    verify,
+    networks: new Map(),
   };
-  const source = maskSource(sensitiveValues(root, config.masking), config.masking);
-  const baseline = sessionStorageOf(session, appOrigin);
-  const checksSignIn = !auth.adapter.none;
-  const result = { ok: [], failed: [], blocked: [], refused: [], prefetched: [], expired: null, who: null, compared: [] };
-  const guarded = readOnly || forbidden.length > 0;
   // Captures in parallel (ETUDE-CAPTURES.md A2): each worker has its own browser contexts, its own guard state
   // and its own spans; production is always captured one at a time.
   const concurrency = Math.max(1, Math.min(cap.concurrency ?? 4, entries.length || 1, config.capture?.target === "production" ? 1 : Infinity));
-  const newWorker = () => {
-    const w = { pages: new Map(), state: { forbidden: null }, span: { close: () => {} }, tracing: null };
-    w.guard = requestGuard({ appOrigin, forbidden, readOnly, result, onNavigation: (p) => (w.state.forbidden ??= p) });
-    w.tracing = {
-      context: null,
-      // The trace of the capture in progress: kept on failure only (ETUDE-CAPTURES.md C3).
-      async stop(file) {
-        const context = w.tracing.context;
-        w.tracing.context = null;
-        if (!context) return null;
-        try {
-          if (file) fs.mkdirSync(path.dirname(file), { recursive: true });
-          await context.tracing.stopChunk(file ? { path: file } : {});
-          return file;
-        } catch {
-          return null;
-        }
-      },
-    };
-    return w;
-  };
 
-  fs.mkdirSync(zonesDir, { recursive: true });
+  fs.mkdirSync(rc.zonesDir, { recursive: true });
   const browser = await launch(browserLaunch(auth, { headless: true }));
   try {
-    const encoder = await createWebpEncoder(browser);
-    const networks = new Map();
-    async function pageFor(w, name) {
-      if (w.pages.has(name)) return w.pages.get(name);
-      const viewport = cap.viewports[name];
-      const mobile = name === "mobile";
-      const context = await browser.newContext({
-        viewport,
-        deviceScaleFactor: cap.scale ?? 1,
-        locale: cap.locale,
-        timezoneId: cap.timezone,
-        colorScheme: "light",
-        isMobile: mobile,
-        hasTouch: mobile,
-        ...(cap.geolocation ? { geolocation: cap.geolocation, permissions: ["geolocation"] } : {}),
-        // Animations and transitions an application ties to the user's preference stay still (ETUDE-CAPTURES.md B2).
-        reducedMotion: "reduce",
-        ...(session ? { storageState: session } : {}),
-        // A service worker could answer or send requests outside the guard: none is registered.
-        ...(guarded ? { serviceWorkers: "block" } : {}),
-      });
-      if (guarded) await context.route("**/*", w.guard);
-      if (cap.cookies.length) await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: appUrl })));
-      if (trace) await context.tracing.start({ screenshots: true, snapshots: true });
-      const page = await context.newPage();
-      if (cap.clock) await page.clock.setFixedTime(new Date(cap.clock));
-      networks.set(page, trackNetwork(page));
-      w.pages.set(name, page);
-      return page;
-    }
-
-    const workers = Array.from({ length: concurrency }, newWorker);
+    rc.encoder = await createWebpEncoder(browser);
+    rc.pageFor = (w, name) => pageFor(rc, browser, w, name);
+    const workers = Array.from({ length: concurrency }, () => newWorker(rc));
     if (session) {
-      const page = await pageFor(workers[0], entries[0]?.context || "desktop");
+      const page = await rc.pageFor(workers[0], entries[0]?.context || "desktop");
       const s = await checkSession(page, { url: appUrl, auth });
       if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: page.url() });
-      result.who = s.who || null;
+      rc.result.who = s.who || null;
     }
-
-    const signedOut = (page, response, entry) =>
-      checksSignIn && !isSignInUrl(appUrl + entry.route, appUrl, auth.options.loginPattern) && (response?.status() === 401 || isSignInUrl(page.url(), appUrl, auth.options.loginPattern));
-
-    async function takeOne(entry, w) {
-      const name = entry.context || "desktop";
-      const page = await pageFor(w, name);
-      const network = networks.get(page);
-      if (trace) {
-        await page.context().tracing.startChunk({ title: entry.id });
-        w.tracing.context = page.context();
-      }
-      // One span per part of the capture (ETUDE-CAPTURES.md §6); the last one still open when an error is thrown
-      // is closed by the caller.
-      let open = null;
-      const part = (name) => {
-        open?.();
-        open = timer ? timer.start("capture", { sub: entry.id, part: name }) : null;
-      };
-      w.span.close = () => {
-        open?.();
-        open = null;
-      };
-      part("navigate");
-      const current = (w.state = { forbidden: null });
-      const stop = () => new CaptureError("forbiddenHit", { path: current.forbidden });
-      await page.setViewportSize({ ...cap.viewports[name], ...(entry.viewport || {}) });
-
-      // localStorage: the session's own, then capture.storage, then the entry's (on the application's origin).
-      const storage = { ...baseline, ...storageValues({ ...cap.storage, ...(entry.storage || {}) }, version) };
-      const onOrigin = () => {
-        try {
-          return new URL(page.url()).origin === appOrigin;
-        } catch {
-          return false;
-        }
-      };
-      if (!onOrigin()) {
-        try {
-          await page.goto(appUrl + auth.options.start, { waitUntil: "domcontentloaded", timeout: TIMINGS.start });
-        } catch (e) {
-          if (current.forbidden) throw stop();
-          throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url: appUrl, error: firstLine(e) }, { cause: e });
-        }
-      }
-      await page.evaluate((kv) => {
-        localStorage.clear();
-        for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v);
-      }, storage);
-
-      let response;
-      try {
-        response = await page.goto(appUrl + routeWithView(entry.route, entry.view, cap.map), { waitUntil: "load", timeout: TIMINGS.page });
-      } catch (e) {
-        if (current.forbidden) throw stop();
-        throw new CaptureError("navigation", { route: entry.route, error: firstLine(e) });
-      }
-      await waitForChallenge(page);
-      if (signedOut(page, response, entry)) throw new SessionExpired(page.url());
-      // On conditions (network quiet, fonts, DOM still, animations ended); `delay` is only a floor now.
-      part("wait");
-      await waitForStable(page, { network, min: entry.delay ?? 0 });
-      part("actions");
-      for (const [i, a] of (entry.actions || []).entries()) {
-        try {
-          await play(page, a, sel);
-        } catch (e) {
-          if (current.forbidden) throw stop();
-          if (e instanceof CaptureError) throw e;
-          throw new CaptureError("action", { n: i + 1, kind: actionKind(a), error: firstLine(e) });
-        }
-      }
-      part("settle");
-      if ((entry.actions || []).length || entry.settle) await waitForStable(page, { network, min: entry.settle ?? 0 });
-      // A client-side navigation (history API) to a forbidden route: its payload was aborted, the page shown is
-      // not the route of the plan.
-      if (!current.forbidden && forbidden.length && onOrigin()) {
-        const shown = new URL(page.url()).pathname;
-        if (forbiddenMatch(shown, forbidden)) current.forbidden = shown;
-      }
-      if (current.forbidden) throw stop();
-      if (signedOut(page, null, entry)) throw new SessionExpired(page.url());
-
-      part("mask");
-      await mask(page, entry);
-      part("measure");
-      let clip;
-      try {
-        clip = await frameClip(page, entry.frame, sel);
-      } catch (e) {
-        if (e instanceof CaptureError) throw e;
-        throw new CaptureError("frame", { target: describeTarget(entry.frame), error: firstLine(e) });
-      }
-      const zones = [];
-      for (const [i, z] of (entry.zones || []).entries()) {
-        let box;
-        try {
-          box = await zoneBox(page, z, sel);
-        } catch (e) {
-          if (e instanceof CaptureError) throw e;
-          throw new CaptureError("zone", { n: i + 1, target: describeTarget(z), caption: z.caption || "", error: firstLine(e) });
-        }
-        zones.push(measureZone(i + 1, box, clip, z));
-      }
-      // --verify: the page opened, the actions played and every zone and the frame were found; nothing is
-      // written (ETUDE-CAPTURES.md D6: the plans replayed as tests).
-      if (verify) {
-        w.span.close();
-        if (trace) await w.tracing.stop(null);
-        return { zones: zones.length, bytes: 0, verified: true };
-      }
-      // Masked again just before the shot: the application may have rendered data again while the zones were
-      // being waited for (SECURITY.md, ETUDE-CAPTURES.md C7).
-      part("mask");
-      await mask(page, entry, { required: false });
-      part("shot");
-      const png = await page.screenshot({ clip, animations: "disabled", caret: "hide" });
-      if (preview && zones.length) await writePreview(page, clip, zones, path.join(previewDir, `${entry.id}.zones.png`));
-      part("encode");
-      const webp = await encoder.encode(png, cap.webpQuality);
-      const imageFile = path.join(imagesDir, `${entry.id}.webp`);
-      let compared;
-      part(compare ? "compare" : "write");
-      if (compare) {
-        fs.mkdirSync(compareDir, { recursive: true });
-        fs.writeFileSync(path.join(compareDir, `${entry.id}.webp`), webp);
-        if (fs.existsSync(imageFile)) {
-          const before = fs.readFileSync(imageFile);
-          const { ratio, sameSize } = await compareImages(encoder.page, before, webp, { tolerance: 16 });
-          const outcome = compareOutcome({ ratio, sameSize, threshold: compareThreshold });
-          compared = { ratio, changed: outcome === "changed" };
-          if (outcome === "changed") {
-            fs.writeFileSync(imageFile, webp);
-            const sheet = await beforeAfterSheet(encoder.page, { before, after: webp, zonesBefore: previousZones(entry.id), zonesAfter: zones, labels });
-            fs.writeFileSync(path.join(compareDir, `${entry.id}.png`), sheet);
-          }
-          // unchanged: the image on disk is left exactly as it was (no binary change for git).
-        } else {
-          fs.writeFileSync(imageFile, webp);
-          compared = { ratio: 1, changed: true };
-        }
-      } else {
-        fs.writeFileSync(imageFile, webp);
-      }
-      fs.writeFileSync(
-        path.join(zonesDir, `${entry.id}.json`),
-        JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry), scale: cap.scale ?? 1 }), null, 2) + "\n"
-      );
-      w.span.close();
-      if (trace) await w.tracing.stop(null);
-      return { zones: zones.length, bytes: webp.length, ...(compared ? { compared } : {}) };
-    }
-    async function mask(page, entry, { required = true } = {}) {
-      try {
-        await maskPage(page, { source, masks: entry.masks || [], selectors: sel, required });
-      } catch (e) {
-        if (e instanceof CaptureError) throw e;
-        throw new CaptureError("mask", { error: firstLine(e) });
-      }
-    }
-
-    // Events and results in the order of the plan, whatever order the workers finish in.
-    const done = new Array(entries.length);
-    let flushed = 0;
-    const flush = () => {
-      while (flushed < entries.length && done[flushed]) {
-        const { event, compared } = done[flushed++];
-        if (event.type === "ok") result.ok.push(event);
-        else if (event.type === "failed") result.failed.push(event);
-        if (compared) result.compared.push(compared);
-        if (event.type !== "skipped") onEvent(event);
-      }
-    };
-    let next = 0;
-    let expired = null;
-    async function work(w) {
-      while (next < entries.length) {
-        const i = next++;
-        const entry = entries[i];
-        if (expired) {
-          done[i] = { event: { type: "skipped", id: entry.id } };
-          flush();
-          continue;
-        }
-        const t0 = Date.now();
-        try {
-          const r = await takeOne(entry, w);
-          done[i] = { event: { type: "ok", id: entry.id, ...r, ms: Date.now() - t0 }, compared: r.compared ? { id: entry.id, ...r.compared } : null };
-        } catch (e) {
-          w.span.close();
-          const traceFile = trace ? await w.tracing.stop(path.join(trace, `${entry.id}.zip`)) : null;
-          if (e instanceof SessionExpired) {
-            // The first expiry (in plan order) is reported; the captures not started yet are skipped.
-            if (!expired || entries.indexOf(expired.entry) > i) expired = { entry, url: e.url };
-            done[i] = { event: { type: "skipped", id: entry.id } };
-          } else if (e instanceof KitError) {
-            expired = expired || { fatal: e };
-            throw e;
-          } else {
-            const event = e instanceof CaptureError ? { type: "failed", id: entry.id, key: e.key, vars: e.vars } : { type: "failed", id: entry.id, key: "generic", vars: { error: firstLine(e) } };
-            if (traceFile) event.trace = traceFile;
-            done[i] = { event };
-          }
-        }
-        flush();
-      }
-    }
-    await Promise.all(workers.map(work));
-    if (expired?.entry) result.expired = { id: expired.entry.id, url: expired.url };
-    await encoder.close();
+    await runWorkers(rc, workers, entries, onEvent);
+    await rc.encoder.close();
   } finally {
     await browser.close().catch(() => {});
   }
-  return result;
+  return rc.result;
+}
+
+/** A worker: its own pages (one per context name), guard state, open span and trace. */
+function newWorker(rc) {
+  const w = { pages: new Map(), state: { forbidden: null }, span: { close: () => {} }, tracing: null };
+  w.guard = requestGuard({ appOrigin: rc.appOrigin, forbidden: rc.forbidden, readOnly: rc.readOnly, result: rc.result, onNavigation: (p) => (w.state.forbidden ??= p) });
+  w.tracing = {
+    context: null,
+    // The trace of the capture in progress: kept on failure only (ETUDE-CAPTURES.md C3).
+    async stop(file) {
+      const context = w.tracing.context;
+      w.tracing.context = null;
+      if (!context) return null;
+      try {
+        if (file) fs.mkdirSync(path.dirname(file), { recursive: true });
+        await context.tracing.stopChunk(file ? { path: file } : {});
+        return file;
+      } catch {
+        return null;
+      }
+    },
+  };
+  return w;
+}
+
+/** The worker's page for a context name (desktop, mobile…), created on first use with the run's settings. */
+async function pageFor(rc, browser, w, name) {
+  if (w.pages.has(name)) return w.pages.get(name);
+  const { cap, session, guarded } = rc;
+  const viewport = cap.viewports[name];
+  const mobile = name === "mobile";
+  const context = await browser.newContext({
+    viewport,
+    deviceScaleFactor: cap.scale ?? 1,
+    locale: cap.locale,
+    timezoneId: cap.timezone,
+    colorScheme: "light",
+    isMobile: mobile,
+    hasTouch: mobile,
+    ...(cap.geolocation ? { geolocation: cap.geolocation, permissions: ["geolocation"] } : {}),
+    // Animations and transitions an application ties to the user's preference stay still (ETUDE-CAPTURES.md B2).
+    reducedMotion: "reduce",
+    ...(session ? { storageState: session } : {}),
+    // A service worker could answer or send requests outside the guard: none is registered.
+    ...(guarded ? { serviceWorkers: "block" } : {}),
+  });
+  if (guarded) await context.route("**/*", w.guard);
+  if (cap.cookies.length) await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: rc.appUrl })));
+  if (rc.trace) await context.tracing.start({ screenshots: true, snapshots: true });
+  const page = await context.newPage();
+  if (cap.clock) await page.clock.setFixedTime(new Date(cap.clock));
+  rc.networks.set(page, trackNetwork(page));
+  w.pages.set(name, page);
+  return page;
+}
+
+/**
+ * Runs the entries on the workers; events and results come out in the order of the plan, whatever order the
+ * workers finish in. A session that expires stops the run: the captures not started yet are skipped.
+ */
+async function runWorkers(rc, workers, entries, onEvent) {
+  const { result } = rc;
+  const done = new Array(entries.length);
+  let flushed = 0;
+  const flush = () => {
+    while (flushed < entries.length && done[flushed]) {
+      const { event, compared } = done[flushed++];
+      if (event.type === "ok") result.ok.push(event);
+      else if (event.type === "failed") result.failed.push(event);
+      if (compared) result.compared.push(compared);
+      if (event.type !== "skipped") onEvent(event);
+    }
+  };
+  let next = 0;
+  let expired = null;
+  async function work(w) {
+    while (next < entries.length) {
+      const i = next++;
+      const entry = entries[i];
+      if (expired) {
+        done[i] = { event: { type: "skipped", id: entry.id } };
+        flush();
+        continue;
+      }
+      const t0 = Date.now();
+      try {
+        const r = await takeOne(rc, entry, w);
+        done[i] = { event: { type: "ok", id: entry.id, ...r, ms: Date.now() - t0 }, compared: r.compared ? { id: entry.id, ...r.compared } : null };
+      } catch (e) {
+        w.span.close();
+        const traceFile = rc.trace ? await w.tracing.stop(path.join(rc.trace, `${entry.id}.zip`)) : null;
+        if (e instanceof SessionExpired) {
+          // The first expiry (in plan order) is reported; the captures not started yet are skipped.
+          if (!expired || entries.indexOf(expired.entry) > i) expired = { entry, url: e.url };
+          done[i] = { event: { type: "skipped", id: entry.id } };
+        } else if (e instanceof KitError) {
+          expired = expired || { fatal: e };
+          throw e;
+        } else {
+          const event = e instanceof CaptureError ? { type: "failed", id: entry.id, key: e.key, vars: e.vars } : { type: "failed", id: entry.id, key: "generic", vars: { error: firstLine(e) } };
+          if (traceFile) event.trace = traceFile;
+          done[i] = { event };
+        }
+      }
+      flush();
+    }
+  }
+  await Promise.all(workers.map(work));
+  if (expired?.entry) result.expired = { id: expired.entry.id, url: expired.url };
 }
