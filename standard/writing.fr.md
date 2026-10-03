@@ -161,3 +161,85 @@ Chaque constat a une lettre pour sa famille et un numéro. Les lettres dépenden
 - Chaque rédacteur n'écrit que ses propres pages, ses plans de capture et ses schémas préfixés. Il ne modifie ni le sommaire, ni le glossaire, ni le moteur, ni les pages des autres, ni l'application.
 - Il signale ce qu'il trouve faux ailleurs (fichier, phrase, preuve) au lieu de le corriger.
 - Son rapport donne : les pages écrites, les captures et les zones, les écarts et les constats candidats avec leur preuve, les termes de glossaire proposés, et ce qui n'a pas pu être fait.
+
+## 13. Écrire dans l'espace Métier
+
+L'espace Métier (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` ; ARCHITECTURE.md
+§6.8) est lu par des personnes qui n'ouvrent jamais le code. Quatre règles le gardent ainsi.
+
+**Les identifiants.** `F-01`, `F-02`… numérotent les fiches de fonctionnalité ; `BR-01`, `BR-02`… (en anglais)
+ou `RG-01`, `RG-02`… (en français) numérotent les règles métier. Les deux suivent la même forme,
+`^[A-Z][A-Z0-9]{0,5}-\d{1,4}$`, et la même règle que les constats (§9 ci-dessus) : **un numéro ne change
+jamais** une fois qu'une fiche ou une règle est citée ailleurs. Attribuez le prochain numéro libre de son
+genre ; ne renumérotez jamais pour combler un trou. Une fiche de fonctionnalité déclare son id dans
+`toc.json` (`"feature": "F-01"`), jamais dans le Markdown ; une règle déclare son id sur son conteneur
+`:::regle` (`:::regle{id="RG-12" …}`, `:::rule{id="BR-12" …}`).
+
+**L'encart d'accès.** Une fiche de fonctionnalité ouvre sur un tableau « Accès » avant toute explication :
+module, qui peut l'utiliser (`[[droit …]]`), prérequis, la version et la date de dernière vérification de
+cette page. Une page `screen` ou `editor` met ses permissions **en dernier** (`[!DROITS]`), parce que son
+lecteur veut d'abord comprendre l'écran et vérifie qui peut l'utiliser après coup ; le lecteur d'une fiche de
+fonctionnalité veut souvent l'inverse — « est-ce que je peux même faire ça ? » — avant de lire comment ça
+marche. Placez l'information d'accès là où le lecteur de la page la cherche en premier.
+
+**Une règle, un énoncé, un exemple.** Une règle métier (`:::regle` / `:::rule`) tient en une ou deux phrases,
+suivies d'exactement un exemple travaillé sous la forme **Étant donné** une condition de départ, **quand**
+l'action déclenchante se produit, **alors** le résultat qui suit :
+
+```markdown
+:::regle{id="RG-12" titre="Une commande au-dessus du seuil attend un responsable"}
+Une commande dont le total est égal ou supérieur au seuil configuré n'est pas validée automatiquement.
+
+**Exemple.** **Étant donné** une commande de 12 000 € et un seuil de 10 000 €, **quand** l'acheteur la
+soumet, **alors** elle attend la validation d'un responsable.
+:::
+```
+
+Gardez l'exemple à un seul scénario avec des chiffres réels et précis — jamais « une grosse commande » quand
+« une commande de 12 000 € » tient en une ligne de plus et lève tout doute. Une règle qui a besoin de deux
+exemples pour être comprise est en général deux règles.
+
+**Pas de code dans l'espace Métier.** Une page dont l'espace effectif est `business` ne cite aucune preuve
+`fichier:ligne` : le build avertit (`business.technical`) quand l'une s'y glisse. Énoncez la règle en termes
+métier et renvoyez vers son `counterpart` pour le détail d'implémentation (« comment le seuil est réellement
+appliqué : voir `reprendre/surface-api` »). C'est le même partage que « une page, un lecteur » dans
+[structure.fr.md](structure.fr.md#une-page-un-lecteur-diátaxis) : un lecteur métier ne devrait jamais avoir à
+sauter une preuve `fichier:ligne` pour trouver la phrase qui répond à sa question.
+
+## 14. Statut des affirmations : vérifiée, déduite, inconnue
+
+La section 3 ci-dessus donne la règle pour la prose libre (« (déduit) », « à confirmer »). L'espace Reprise a
+aussi une puce compacte pour les trois mêmes statuts, posée sur une valeur plutôt que sur tout un paragraphe —
+typiquement dans un tableau construit depuis `::faits{…}` puis complété à la main (ARCHITECTURE.md §6.9) :
+
+| Puce (en · fr) | Signifie | Exemple |
+|---|---|---|
+| `[[verified …]]` · `[[verifie …]]` | Lu directement dans le code ou constaté en production, daté ; le texte après la puce est sa preuve | `[[verifie lib/orders.ts:42]]` |
+| `[[deduced …]]` · `[[deduit …]]` | Une conclusion tirée de ce qui a été lu, pas observée directement | `[[deduit les transitions de statut de commande supposent un seul validateur]]` |
+| `[[unknown]]` · `[[inconnu]]` | Personne n'a vérifié ; nommez ailleurs sur la page qui pourrait répondre | `[[inconnu]]` — demander à l'équipe paiements |
+
+Utilisez la forme libre (« constaté », « déduit », « à confirmer ») pour une phrase ou toute une légende (le
+dossier d'architecture technique, §3 ci-dessus) ; utilisez la puce pour une cellule de tableau ou une
+affirmation au milieu d'une phrase, là où une phrase complète ne tiendrait pas. Ne marquez jamais quelque
+chose `[[verifie]]` sur la seule foi de la documentation existante du dépôt (§1) : vérifiez-le dans le code,
+ou marquez-le `[[deduit]]`.
+
+## 15. Le registre des risques
+
+Une page `findings` (§9 ci-dessus numérote les constats eux-mêmes) est aussi le registre des risques du
+projet (ARCHITECTURE.md §6.9) : chaque constat porte, au-delà de son numéro, sa gravité et sa preuve, qui
+décide de son sort et où cela en est. Quatre faits de plus, un par constat :
+
+| Fait | Valeurs |
+|---|---|
+| Propriétaire | Qui décide — un nom ou un rôle, jamais « l'équipe » |
+| Décision | Corriger, accepter, transférer (à un contrat, un assureur, une autre équipe) ou éviter (retirer la fonctionnalité qui cause le risque) |
+| Statut | Ouvert, en cours, fait, accepté |
+| Échéance | Quand c'est dû, ou « aucune » quand la décision est de l'accepter indéfiniment |
+
+Sur la section d'un constat critique, ajoutez une ligne après Constat / Impact / Recommandation :
+« Propriétaire · Décision · Statut · Échéance ». Sur un tableau de constats, regroupez les quatre en une seule
+colonne **Suivi** : quatre colonnes séparées dépassent souvent la largeur de lecture une fois Où et
+Recommandation déjà présentes, et les séparer ne compte vraiment que si un projet suit aussi la remédiation
+ailleurs que sur cette page. Un constat dont le Suivi est encore vide n'est pas encore trié — cela appartient
+à « L'essentiel en une minute ».

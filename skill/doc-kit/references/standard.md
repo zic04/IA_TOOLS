@@ -5,11 +5,11 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 | File | Content |
 |---|---|
 | `structure` | recommended site structure |
-| `templates` (and `templates.json`) | the 13 page types (see `references/templates.md`) |
+| `templates` (and `templates.json` + fragments `templates/business.json`, `templates/takeover.json`) | the 30 page types (see `references/templates.md`) |
 | `writing` | writing rules |
 | `captures` | capture safety (see `references/capture-safety.md`) |
 | `quality` | blocking gates and warnings |
-| `maturity` | levels 1 to 4 and their criteria, measured by `audit` |
+| `maturity` | levels 1 to 4 and their criteria, measured by `audit` (also by space, when `spaces` is declared) |
 | `delivery` | handover checklist |
 | `config` | commented configuration examples, all fictional |
 
@@ -20,16 +20,26 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 - Adapt the vocabulary and the groups to the product; keep the four readers and the required Take over pages. A
   product without configuration screens merges Configure into Administer.
 - Groups expected in Take over: Architecture, technical architecture document, End-to-end journeys, Operate (including
-  troubleshooting), Findings, Maintaining the documentation.
+  troubleshooting), the takeover dossier (access and ownership, API surface, dependencies, agent instructions,
+  tests, threat model), Findings, Maintaining the documentation.
+- **Spaces** (ARCHITECTURE.md §6.1a), orthogonal to the four sections above: `business` (what each feature does,
+  for whom — read by users, key users, product owners, support) and `takeover` (how it is built, run and
+  secured — developers, operators, security). One source, one site with a space selector, and one exported HTML
+  file per space (the takeover export carries variables, hosts and risks the business export must not). A page's
+  `counterpart` links it to the same subject in the other space.
 - Guided tours on the home page (`journeys[]` in `content/toc.json`): 3 to 5 tours of 5 to 7 pages, one per reader,
   with a first-person title ("I follow an order from end to end").
-- `toc.json` and `glossary.json` are managed centrally: writers propose, the orchestrator edits.
+- `toc.json`, `glossary.json` and `features.json` are managed centrally: writers propose, the orchestrator edits.
 
 ## Writing rules
 
-Nothing invented, `file:line` proof; exact screen labels in bold; "inferred" says inferred; gaps in a NOTE callout,
-never fixed in the application; findings numbered by severity — C (critical), I (important), M (minor) — plus thematic
-series the findings page defines (for example P for production-only findings).
+Nothing invented, `file:line` proof (or a `doc-kit facts` file, with `[[verified]]`/`[[deduced]]`/`[[unknown]]`);
+exact screen labels in bold; "inferred" says inferred; gaps in a NOTE callout, never fixed in the application;
+findings numbered by severity — C (critical), I (important), M (minor) — plus thematic series the findings page
+defines (for example P for production-only findings). **Business pages cite no code**: no `file:line`, ever —
+the technical reason belongs to the page's takeover `counterpart`. With a takeover space, `findings` is the
+project's **risk register**: each finding also carries Owner, Decision (fix, accept, transfer, avoid), Status and
+Due date.
 
 ## Quality gates
 
@@ -40,7 +50,7 @@ series the findings page defines (for example P for production-only findings).
 | legend = number of zones | pages over their template's `maxWords` |
 | route coverage | captures from another version than the application |
 | required sections of templates | template guidance left in a page |
-| secrets (`.env` values, GUIDs, keys, session file) in the sources and the HTML | |
+| secrets (`.env` values, GUIDs, keys, session file) in the sources and the HTML | a business page citing `file:line` (`business.technical`) |
 
 Not checked automatically, so reviewed by hand: each zone frames the right element; no secret or personal data in the
 images; readability in light and dark; every claim is true (its proof); session deleted.
@@ -57,8 +67,11 @@ images; readability in light and dark; every claim is true (its proof); session 
 The exact indicators and thresholds: `{{KIT_PATH}}/standard/maturity.md`. `audit` writes `.doc-kit/audit.md` (indicators,
 level reached, "to do for the next level" with the pages concerned) and `.doc-kit/audit.json` (`--json` prints it). An
 indicator that cannot be measured (no coverage adapter, no browser for the table widths) is "not measured", never
-failed. A project handover aims at level 4: journeys, troubleshooting, the architecture document and consolidated
-findings come from phases 6 to 8.
+failed. With `spaces` declared, `audit.md` also shows a table "Level by space" (the same criteria, measured on
+each space's own pages). `facts` (files, staleness) and `claims` (verified/deduced/unknown ratio) are informative indicators;
+`upToDatePages` (pages marked by `sync` at the current version) is a level-4 criterion, `n/a` without `sync.json`. A project
+handover aims at level 4: journeys, troubleshooting, the takeover dossier and consolidated findings come from
+phases 6 to 8.
 
 ## Delivery
 

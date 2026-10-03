@@ -76,7 +76,7 @@ projet échoue, 0 sinon. Les avertissements ne font jamais échouer.
 ## doc-kit connect
 
 ```text
-doc-kit connect [--url <url>] [--forget]
+doc-kit connect [--url <url>] [--forget] [--as <rôle>]
 ```
 
 Ouvre l'application dans une fenêtre Chromium visible ; vous vous connectez, puis vous appuyez sur Entrée (ou
@@ -85,7 +85,8 @@ l'adaptateur détecte la session). La session est enregistrée dans `.doc-kit/se
 | Option | Effet |
 |---|---|
 | `--url <url>` | Une autre adresse que `app.url` |
-| `--forget` | Supprime le fichier de session |
+| `--forget` | Supprime le fichier de session (ou celui du rôle, avec `--as`) |
+| `--as <rôle>` | Enregistre la session dans `.doc-kit/session-<rôle>.json` à la place, pour ce rôle dans `doc-kit probe` ; le fichier de session simple n'est pas touché |
 
 Code de sortie 3 quand l'application est injoignable, après 15 minutes sans connexion, ou quand la fenêtre est
 fermée ; 2 sans terminal (avec l'adaptateur `manual`). Avec `auth.adapter: "none"`, il n'y a rien à faire. Avec
@@ -93,6 +94,27 @@ fermée ; 2 sans terminal (avec l'adaptateur `manual`). Avec `auth.adapter: "non
 toujours une session. Avec `capture.target: "production"`, une première ligne le dit : connectez-vous avec votre
 propre compte, la session donne accès à la production.
 [Connexion et sessions](#/capture/sessions) explique le reste.
+
+## doc-kit probe
+
+```text
+doc-kit probe [--as <rôle>]... [--json]
+```
+
+Vérifie une instance en cours d'exécution, **GET et HEAD seulement** : en-têtes de sécurité, cookies, CORS et
+divulgation de version sur `/` et sur une route API, puis chaque route `GET` de `facts/api.json`, une fois par
+identité — l'anonyme, plus une par `--as <rôle>` enregistré par `doc-kit connect --as <rôle>`. Écrit
+`facts/probe.json`.
+
+| Option | Effet |
+|---|---|
+| `--as <rôle>` | Répétable : vérifie aussi en tant que ce rôle |
+
+Refusé (code de sortie 2) sauf si l'adresse de l'application est une adresse locale (`localhost`, `127.x`,
+`[::1]`) ou si `capture.target` vaut `"demo"` ; `"production"` est toujours refusé, et aucune option ne contourne
+l'une ou l'autre règle. Instance inaccessible : code de sortie 3. Sinon informatif : code de sortie 0 quoi qu'elle
+trouve. Au plus 4 requêtes par seconde, et un corps de réponse n'est jamais enregistré. [Revues de sécurité et de
+maintenabilité](#/spaces/reviews) explique les constats et pourquoi la production n'est jamais dans le périmètre.
 
 ## doc-kit demo
 
@@ -107,7 +129,7 @@ et 2 avec `capture.target: "production"` : un script de données de démo ne tou
 ## doc-kit capture
 
 ```text
-doc-kit capture [motifs…] [--plans <dossier>] [--preview] [--no-session] [--yes]
+doc-kit capture [motifs…] [--plans <dossier>] [--preview] [--no-session] [--yes] [--compare] [--stale]
 ```
 
 Prend les captures des plans dans un Chromium sans fenêtre et écrit `images/<id>.webp` et `images/zones/<id>.json`.
@@ -120,6 +142,8 @@ Avec `capture.mode: "none"`, la commande explique le mode et s'arrête avec le c
 | `--preview` | Écrit aussi `.doc-kit/<id>.zones.png`, les zones dessinées en rouge |
 | `--no-session` | Sans la session enregistrée |
 | `--yes`, `-y` | Confirme d'avance une capture sur la production ; obligatoire sans terminal |
+| `--compare` | Ne remplace une image que si elle a vraiment changé (`capture.compareThreshold`, 0,5 % de pixels différents par défaut) ; une image inchangée est conservée à l'octet près, seul son fichier de zones est rafraîchi ; une image changée est remplacée et `.doc-kit/compare/<id>.png` montre l'avant et l'après côte à côte |
+| `--stale` | Seulement les captures listées dans `.doc-kit/sync-report.json` (`doc-kit sync`) ; implique `--compare` ; les motifs restreignent encore la sélection |
 
 Avec `capture.target: "production"`, l'exécution est toujours en lecture seule, même sans session, et commence par
 un bandeau, puis une question dont la réponse par défaut est **non** : un Entrée machinal ne lance jamais une
@@ -136,19 +160,27 @@ sortie 2. Répondre non ne capture rien (code de sortie 0).
 Avec une session, la session est d'abord vérifiée et l'exécution se fait en lecture seule
 (`capture.readOnly: "auto"`). Code de sortie 1 quand une route est interdite ou qu'une capture a échoué, 3 quand
 l'application est injoignable ou que la session a expiré, 2 pour une erreur de plan. `--json` affiche `ok`, `failed`,
-`readOnly`, `blocked`, `blockedRequests`, `refused` et `expired`. [Les plans de capture](#/capture/plans)
-expliquent les plans.
+`readOnly`, `blocked`, `blockedRequests`, `refused`, `expired` et, avec `--compare` ou `--stale`,
+`compared: [{ id, ratio, changed }]`. [Les plans de capture](#/capture/plans) expliquent les plans ;
+[Suivre l'application](#/reference/cli/write-check~doc-kit-sync) explique `doc-kit sync`, que `--stale` lit.
 
 ## doc-kit inventory
 
 ```text
 doc-kit inventory [--json]
+doc-kit inventory --features [--write] [--force]
 ```
 
 Liste ce que les adaptateurs de couverture voient dans l'application, famille par famille, avec `✔` pour les éléments
 déjà cités dans la documentation et `·` pour les autres. `doc-kit inventory --json > .doc-kit/inventory.json` est un
 bon point de départ pour un sommaire. Une page qui contient encore des consignes de gabarit ne cite encore rien : ni
 son texte ni son entrée dans le sommaire ne comptent. Code de sortie 2 quand `coverage` est vide.
+
+| Option | Effet |
+|---|---|
+| `--features` | Regroupe les éléments de chaque adaptateur en candidates fonctionnalités métier ([Espace métier : fonctionnalités, règles et rôles](#/write/markdown~espace-metier)), par le premier segment statique de leur identifiant : un identifiant suggéré (`F-01`…), les routes, les routes API et les clés i18n du groupe, et l'entrée de `features.json` qui la couvre déjà, s'il y en a une |
+| `--write` | Écrit `features.json` à partir des candidates ; refusé s'il existe déjà (code de sortie 1) |
+| `--force` | Avec `--write` : garde les identifiants déjà dans `features.json`, n'ajoute que les candidates qu'il ne couvre pas déjà |
 
 ## Pour aller plus loin
 

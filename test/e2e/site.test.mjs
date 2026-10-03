@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildDemo, tempDir, DEMO } from "../tools/helpers.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
+import { checkTables } from "../../engine/check/tables.mjs";
 
 let browser;
 let dir;
@@ -188,7 +189,9 @@ describe("printing", () => {
     });
     await page.evaluate(() => document.getElementById("bouton-imprimer").click());
     await page.waitForFunction(() => window.__printed === 1);
-    assert.equal(await page.locator("#impression .page-imprimee").count(), 5, "outline + 4 pages");
+    // Opening use/orders makes the business space current (ARCHITECTURE.md §6.1a): "print everything" only
+    // covers that space (7 pages), not the takeover one too.
+    assert.equal(await page.locator("#impression .page-imprimee").count(), 8, "outline + 7 business pages");
     assert.ok(await page.evaluate(() => document.body.classList.contains("impression-complete")));
     await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
     assert.equal(await page.locator("#impression .page-imprimee").count(), 0);
@@ -233,5 +236,27 @@ describe("doc-kit view", () => {
     const [width, height] = size(full);
     assert.equal(width, 1440);
     assert.ok(height > 900, `full page height ${height}`);
+  });
+});
+
+describe("check tables: a table rendered by a directive is never reported", () => {
+  test("a hand-written table wider than the reading column is reported; a ::facts/::faits one (data-generated) never is, however wide", async () => {
+    const file = path.join(dir, "tables.html");
+    fs.writeFileSync(
+      file,
+      `<!doctype html><html><body>
+        <script type="application/json" id="donnees">${JSON.stringify({ ordre: ["page1"] })}</script>
+        <main class="contenu" style="width:300px">
+          <h2>Hand-written</h2>
+          <div class="tableau" style="width:300px; overflow:auto;"><table style="width:2000px"><tr><td>wide, hand-written</td></tr></table></div>
+          <h2>Generated</h2>
+          <div class="tableau" data-generated="facts" style="width:300px; overflow:auto;"><table data-generated="facts" style="width:2000px"><tr><td>wide, from a directive</td></tr></table></div>
+        </main>
+      </body></html>`
+    );
+    const result = await checkTables({ file });
+    assert.equal(result.pages, 1);
+    assert.equal(result.problems.length, 1, JSON.stringify(result.problems));
+    assert.equal(result.problems[0].heading, "Hand-written");
   });
 });

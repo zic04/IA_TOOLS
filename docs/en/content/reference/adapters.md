@@ -15,10 +15,14 @@ names it and gives its options next to it.
 
 | Adapter | Inventories | Options (default) |
 |---|---|---|
-| `next-app-router` | The routes of a Next.js App Router folder (`page.tsx`, `.ts`, `.jsx`, `.js`, `.mdx`) | `app` (`"app"`), `family` (`"Routes"`), `exclude` (`["^/$"]`) |
+| `next-app-router` | The routes of a Next.js App Router folder (`page.tsx`, `.ts`, `.jsx`, `.js`, `.mdx`); with `api: true`, also its route handlers (`route.ts`/`.js`), as a second family | `app` (`"app"`), `family` (`"Routes"`), `exclude` (`["^/$"]`), `api` (`false`), `apiFamily` (`"API"`) |
 | `react-router` | The `path` of the routes declared in source files | `file` (`"src/App.tsx"`, or a list), `pattern`, `prefix` (`"/"`), `family`, `exclude` (`["^/$"]`) |
 | `i18n-registry` | The ids of a registry in a source file, covered by their label in an i18n file | `source`, `messages` (required), `key` (`"{id}"`), `block`, `pattern`, `flags` (`"m"`), `aliases`, `fallback`, `exclude`, `family` (`"Registry"`) |
 | `glob` | The files of a folder, cited under a form you choose | `pattern` (required), `base` (`"."`), `match` (`"{name}"`), `family` (`"Files"`), `exclude` |
+| `openapi` | The operations of an OpenAPI 3 or Swagger 2 document, in JSON | `file` (required), `family` (`"API"`), `prefix` (`""`), `exclude` |
+| `features` | The candidate business features of `features.json` ([Business space](#/write/markdown~business-space)) | `file` (`"features.json"`), `family` (`"Features"`) |
+| `fastapi` | The route handlers of a FastAPI application (`APIRouter(prefix)` and `include_router(prefix)` composed) | `app` (`"."`), `family` (`"API"`), `exclude` |
+| `facts` | One item per fact of a `doc-kit facts` source: `env`, `api`, `db`, the direct `dependencies`, or `agents` | `source` (required), `family` (by source), `dir` (`"facts"`), `exclude` |
 
 - **Next.js**: route groups `(marketing)` and slots `@modal` add no segment; intercepting routes and `_private`
   folders are skipped; `[id]`, `[...slug]` and `[[...slug]]` are kept.
@@ -27,6 +31,13 @@ names it and gives its options next to it.
 - **`exclude`** holds regular expressions, or exact ids.
 - **`glob`**: `match` is a template where `{path}` is the path relative to `base` without extension, `{name}` the
   file name without extension, `{dir}` its folder and `{file}` the file name.
+- **`openapi`**: an item's id is `METHOD /path` (e.g. `GET /orders/{id}`), its label the operation's `summary` or
+  `operationId`. The kit carries no YAML parser: a `.yaml` or `.yml` file answers "not available" (`yaml`), not
+  failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
+- **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys? }]`, `doc-kit inventory
+  --features --write`), covered when its id is cited — in practice on its feature sheet's `feature` field.
+- **`facts`**: reads `facts/<source>.json`, written by `doc-kit facts` (ARCHITECTURE.md §6.9); a missing file
+  answers "not available" (`noFacts`), not failed. `dependencies` only ever counts the direct packages.
 
 ```js
 coverage: [

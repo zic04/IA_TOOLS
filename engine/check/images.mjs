@@ -13,9 +13,34 @@ export const IMAGE_EXTENSIONS = /\.(webp|png|jpe?g)$/i;
 
 const unescape = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-/** Ids of the captures embedded in a built site (one <script id="img-<id>"> per image). */
+/** Ids of the captures embedded in a built site (one <script id="img-<id>"> per image), source only — a
+ * language variant (`id="img-<id>@<lang>"`, ARCHITECTURE.md §6.12) is excluded: embeddedLanguageCaptures. */
 export function embeddedCaptures(html) {
-  return new Set([...String(html).matchAll(/<script type="text\/plain" id="img-([^"]+)">data:/g)].map((m) => unescape(m[1])));
+  return new Set([...String(html).matchAll(/<script type="text\/plain" id="img-([^"@]+)">data:/g)].map((m) => unescape(m[1])));
+}
+
+/** Ids of the captures embedded FOR one language (`id="img-<id>@<lang>"`, ARCHITECTURE.md §6.12 §7). */
+export function embeddedLanguageCaptures(html, lang) {
+  const re = new RegExp(`<script type="text\\/plain" id="img-([^"@]+)@${lang}">data:`, "g");
+  return new Set([...String(html).matchAll(re)].map((m) => unescape(m[1])));
+}
+
+/** Zone files of one folder (`<images>/[<lang>/]zones/*.json`), normalised like the build does. */
+function readZones(root, zonesDir) {
+  const zones = {};
+  for (const f of fs.existsSync(path.join(root, zonesDir)) ? fs.readdirSync(path.join(root, zonesDir)).filter((x) => x.endsWith(".json")).sort() : []) {
+    try {
+      zones[f.slice(0, -5)] = normalizeZones(JSON.parse(fs.readFileSync(path.join(root, zonesDir, f), "utf8"))).value;
+    } catch {
+      /* reported by the build */
+    }
+  }
+  return zones;
+}
+
+/** Image files of one folder (webp/png/jpg), sorted. */
+function readImageFiles(root, dir) {
+  return fs.existsSync(path.join(root, dir)) ? fs.readdirSync(path.join(root, dir), { withFileTypes: true }).filter((d) => d.isFile() && IMAGE_EXTENSIONS.test(d.name)).map((d) => d.name).sort() : [];
 }
 
 /**
@@ -32,16 +57,8 @@ export function checkImages({ root, config, html, warnings: buildWarnings = [], 
   const images = config.paths.images;
   const dir = path.join(root, images);
   const rel = (f) => `${images}/${f}`;
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isFile() && IMAGE_EXTENSIONS.test(d.name)).map((d) => d.name).sort() : [];
-  const zonesDir = path.join(dir, "zones");
-  const zones = {};
-  for (const f of fs.existsSync(zonesDir) ? fs.readdirSync(zonesDir).filter((x) => x.endsWith(".json")).sort() : []) {
-    try {
-      zones[f.slice(0, -5)] = normalizeZones(JSON.parse(fs.readFileSync(path.join(zonesDir, f), "utf8"))).value;
-    } catch {
-      /* reported by the build */
-    }
-  }
+  const files = readImageFiles(root, images);
+  const zones = readZones(root, `${images}/zones`);
   const cited = embeddedCaptures(html);
   const errors = [];
   const warnings = [];
@@ -62,5 +79,18 @@ export function checkImages({ root, config, html, warnings: buildWarnings = [], 
   }
   for (const [id, z] of Object.entries(zones))
     if (z && z.version && version && z.version !== version) warnings.push({ key: "check.images.outdated", vars: { file: `${images}/zones/${id}.json`, captured: z.version, version } });
-  return { images: files.length, zones: Object.keys(zones).length, cited: cited.size, errors, warnings };
+
+  // Languages (ARCHITECTURE.md §6.12 §7): every <images>/<lang>/ is walked for ORPHANS only — a language image
+  // without a source counterpart is never "missing" (it is always optional), so nothing else is checked there.
+  let languageImages = 0;
+  for (const lang of (config.languages || []).slice(1)) {
+    const langImages = `${images}/${lang}`;
+    const langFiles = readImageFiles(root, langImages);
+    languageImages += langFiles.length;
+    const langZones = readZones(root, `${langImages}/zones`);
+    const citedLang = embeddedLanguageCaptures(html, lang);
+    const usedLangFiles = new Set([...citedLang].map((id) => (langZones[id] || zones[id])?.file).filter(Boolean));
+    for (const f of langFiles) if (!usedLangFiles.has(f)) errors.push({ key: "check.images.orphan", vars: { file: `${langImages}/${f}` } });
+  }
+  return { images: files.length + languageImages, zones: Object.keys(zones).length, cited: cited.size, errors, warnings };
 }

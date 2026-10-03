@@ -255,6 +255,64 @@ On Windows PowerShell, set the variables first: `$env:DELIVERIES_URL = "https://
 | `coverage` | Routes `app/**/page.tsx` | Routes + i18n registries | What must be documented depends on the product |
 | `statuses` | — | 5 coloured statuses | Statuses colour-coded in the application |
 
+## Spaces, facts, sync and the agent economy
+
+Fictional examples of the keys added by the two-space standard (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+None of them has a default that changes existing behaviour: a project that does not set them keeps building
+exactly as before.
+
+```js
+// content/toc.json declares the spaces; doc.config.mjs only configures their export and the facts/sync tooling.
+export default defineConfig({
+  // … product, language, app, capture, coverage, theme as above …
+
+  // One export per declared space, besides the full site (default: spaces.export === true already, this line
+  // is only here to show the key). {space} in the path is replaced by each space's id.
+  spaces: {
+    export: true,
+    output: "dist/Acme-Orders-Documentation-{space}.html",
+  },
+
+  // facts/<source>.json (doc-kit facts) and sync.json (doc-kit sync) live at the project root by default;
+  // an older or larger project may want them elsewhere.
+  paths: { content: "content", images: "images", diagrams: "diagrams", facts: "facts", sync: "." },
+
+  // sync --apply --labels only follows message files matched here (default: the next-app-router and
+  // i18n-registry coverage adapters' own "messages" option, when they have one).
+  sync: { labels: ["../../messages/en.json", "../../messages/fr.json"] },
+
+  capture: {
+    // … as above …
+    // capture --compare keeps an image as is (only its zones are rewritten) below this ratio of changed
+    // pixels; above it, the image is replaced. Default 0.005 (0.5 %); shown here for clarity.
+    compareThreshold: 0.005,
+  },
+
+  // Prices per million tokens, read by `sync --estimate` and the skill's `brief.mjs --estimate`
+  // (ARCHITECTURE.md §6.11). No default: prices change, and differ by contract. The numbers below are
+  // illustrative only — read them from your own contract or the provider's current price page, never from
+  // this file.
+  llm: {
+    currency: "EUR",
+    prices: {
+      haiku: { input: 1, output: 5, cacheRead: 0.1 },
+      sonnet: { input: 3, output: 15, cacheRead: 0.3 },
+      opus: { input: 15, output: 75, cacheRead: 1.5 },
+    },
+  },
+});
+```
+
+| Key | Role | Default |
+|---|---|---|
+| `spaces.export` | Write one export per declared space, besides the full site | `true` |
+| `spaces.output` | Path of each export, must contain `{space}` | the full site's output, `-{space}` inserted before its extension |
+| `paths.facts` | Folder of `facts/<source>.json`, committed with the project | `"facts"` |
+| `paths.sync` | Folder of `sync.json`, committed with the project | the project root (`"."`) |
+| `sync.labels` | Message files `sync --apply --labels` is allowed to touch | the coverage adapters' own `messages` |
+| `capture.compareThreshold` | `capture --compare`: ratio of changed pixels above which the image is replaced (0 to 1) | `0.005` |
+| `llm.currency`, `llm.prices` | Per-model prices (per million tokens), for the agent cost estimates | none — no estimate without it |
+
 ## Without screenshots
 
 When the documentation must be written without any access to the application, declare it: `doc-kit init --capture none` writes it for you.

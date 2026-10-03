@@ -1,9 +1,11 @@
 {
   "title": "Acme Orders documentation",
-  "tagline": "The demo documentation of the kit: two sections, a sub-page, two annotated screens, a diagram, a glossary and a reading path.",
+  "tagline": "The demo documentation of the kit: two spaces (Business and Takeover), feature sheets and business rules, a risk register, a sub-page, two annotated screens, a diagram, a glossary and a reading path.",
+  "spaces": ["business", "takeover"],
   "sections": [
     {
       "id": "use",
+      "space": "business",
       "title": "Using Acme Orders",
       "shortTitle": "Use",
       "icon": "screen",
@@ -42,7 +44,57 @@
       ]
     },
     {
+      "id": "features",
+      "space": "business",
+      "title": "Acme Orders features",
+      "shortTitle": "Features",
+      "icon": "book",
+      "subtitle": "What each feature does, for whom, and under which rule.",
+      "highlights": ["Order approval, end to end", "Who can do what"],
+      "groups": [
+        {
+          "title": "Feature sheets",
+          "pages": [
+            {
+              "id": "features/track-orders",
+              "title": "Track orders",
+              "menuTitle": "Track orders",
+              "summary": "Filter the orders list and open an order to see its status.",
+              "template": "feature",
+              "feature": "F-01",
+              "permissions": ["orders:read"]
+            },
+            {
+              "id": "features/approve-order",
+              "title": "Approve an order",
+              "menuTitle": "Approve an order",
+              "summary": "Open an order's approval chain so the approvers are notified.",
+              "template": "feature",
+              "feature": "F-02",
+              "permissions": ["orders:read", "orders:approve"],
+              "counterpart": "secure/api-surface~the-routes"
+            },
+            {
+              "id": "features/rules",
+              "title": "Business rules",
+              "menuTitle": "Business rules",
+              "summary": "The rules shared by several features, defined once and cited everywhere.",
+              "template": "business-rules"
+            },
+            {
+              "id": "features/roles",
+              "title": "Roles and permissions",
+              "menuTitle": "Roles and permissions",
+              "summary": "The roles Acme Orders ships with, and who can do what.",
+              "template": "roles-matrix"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "maintain",
+      "space": "takeover",
       "title": "Maintaining Acme Orders",
       "shortTitle": "Maintain",
       "icon": "code",
@@ -62,6 +114,60 @@
           ]
         }
       ]
+    },
+    {
+      "id": "secure",
+      "space": "takeover",
+      "title": "Securing Acme Orders",
+      "shortTitle": "Secure",
+      "icon": "shield",
+      "subtitle": "Who owns what, the API surface and its gaps.",
+      "highlights": ["No role check today"],
+      "groups": [
+        {
+          "title": "Ownership and the API",
+          "pages": [
+            {
+              "id": "secure/access-ownership",
+              "title": "Access and ownership",
+              "menuTitle": "Access and ownership",
+              "summary": "Who owns the repository, the hosting and the session secret.",
+              "template": "access-ownership"
+            },
+            {
+              "id": "secure/api-surface",
+              "title": "API surface",
+              "menuTitle": "API surface",
+              "summary": "Every route, who can call it, and the gaps.",
+              "template": "api-surface",
+              "counterpart": "features/approve-order"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "risks",
+      "space": "takeover",
+      "title": "Risks in Acme Orders",
+      "shortTitle": "Risks",
+      "icon": "warning",
+      "subtitle": "The findings, re-checked in the code.",
+      "highlights": ["No access control today"],
+      "groups": [
+        {
+          "title": "Findings",
+          "pages": [
+            {
+              "id": "risks/findings",
+              "title": "Findings",
+              "menuTitle": "Findings",
+              "summary": "Three findings, re-checked in the code: one critical, one important, one minor.",
+              "template": "findings"
+            }
+          ]
+        }
+      ]
     }
   ],
   "journeys": [
@@ -71,5 +177,5 @@
       "steps": ["use/orders", "use/settings", "maintain/architecture"]
     }
   ],
-  "suggestions": ["use/orders", "use/settings", "maintain/architecture"]
+  "suggestions": ["use/orders", "features/track-orders", "features/approve-order", "secure/api-surface", "risks/findings", "maintain/architecture"]
 }

@@ -131,7 +131,9 @@ describe("legacy project: build and migrate", () => {
     fs.writeFileSync(path.join(c, "sommaire.json"), JSON.stringify(back(toc)));
     fs.unlinkSync(path.join(c, "toc.json"));
     const g = JSON.parse(fs.readFileSync(path.join(c, "glossary.json"), "utf8"));
-    fs.writeFileSync(path.join(c, "glossaire.json"), JSON.stringify(g.map((t) => ({ terme: t.term, motif: t.pattern, def: t.def }))));
+    // "technical" (ARCHITECTURE.md §6.8) has no French spelling yet: passed through unchanged, like any other
+    // field the legacy renamer does not know (engine/project/legacy.mjs, `rename`).
+    fs.writeFileSync(path.join(c, "glossaire.json"), JSON.stringify(g.map(({ term, pattern, ...rest }) => ({ terme: term, motif: pattern, ...rest }))));
     fs.unlinkSync(path.join(c, "glossary.json"));
     fs.renameSync(path.join(c, "home.md"), path.join(c, "accueil.md"));
     for (const f of fs.readdirSync(path.join(dir, "images/zones"))) {
@@ -162,7 +164,9 @@ describe("legacy project: build and migrate", () => {
       const legacy = await buildDemo({ root: dir });
       assert.deepEqual(legacy.errors, []);
       assert.equal(legacy.html, current.html);
-      assert.deepEqual(legacy.warnings.map((w) => w.key), ["legacy.read"]);
+      // Plus the two spaces' own warning (ARCHITECTURE.md §6.1a, business.md/takeover.md link each other):
+      // identical on both sides, so still only one difference between the legacy copy and the current project.
+      assert.deepEqual(legacy.warnings.map((w) => w.key), ["legacy.read", "space.excludedLinks", "space.excludedLinks"]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -180,7 +184,9 @@ describe("legacy project: build and migrate", () => {
       );
       assert.ok(!fs.existsSync(path.join(dir, "content/sommaire.json")));
       const after = await buildDemo({ root: dir });
-      assert.deepEqual(after.warnings, []);
+      // The two spaces' own warning (ARCHITECTURE.md §6.1a), present on every build of this demo; migrating
+      // the legacy files introduces none of its own.
+      assert.deepEqual(after.warnings.map((w) => w.key), ["space.excludedLinks", "space.excludedLinks"]);
       assert.equal(after.html, (await buildDemo()).html);
       assert.deepEqual(migrateProject(dir, paths).converted, []);
     } finally {

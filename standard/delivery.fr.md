@@ -9,7 +9,7 @@ Parcourez-la avant de remettre un site à son propriétaire, ou à l'équipe qui
 | ☐ | Build strict sans erreur | `doc-kit build` | « site généré », aucune ligne ✖ |
 | ☐ | Tous les contrôles bloquants verts | `doc-kit check all` | Code de sortie 0 |
 | ☐ | Avertissements traités ou justifiés | `doc-kit audit` | Les avertissements restants sont expliqués dans « Maintenir la doc » |
-| ☐ | Niveau de maturité visé atteint (3 au minimum, 4 pour une reprise) | `doc-kit audit` | Niveau affiché ; voir [maturity.fr.md](maturity.fr.md) |
+| ☐ | Niveau de maturité visé atteint (3 au minimum, 4 pour une reprise) ; avec des espaces, le niveau de chaque espace aussi | `doc-kit audit` | Niveau affiché, par espace quand ils sont déclarés ; voir [maturity.fr.md](maturity.fr.md) |
 | ☐ | Relecture visuelle d'au moins une page par section, en thème clair et en thème sombre, et d'une visite guidée | `doc-kit view <page> --theme dark`, `--tour 2` | Images de relecture regardées, puis supprimées |
 
 ## 2. Sécurité
@@ -32,12 +32,15 @@ Parcourez-la avant de remettre un site à son propriétaire, ou à l'équipe qui
 | ☐ | Constats consolidés : candidats des rédacteurs revérifiés, dédupliqués, numérotés | `reprendre/points-attention` |
 | ☐ | Termes proposés ajoutés au glossaire | `content/glossary.json` |
 | ☐ | Mémoire du projet à jour : notes de reprise, mémoire de l'assistant s'il y en a une, `CHANGELOG` de la documentation | Selon le projet |
+| ☐ | Faits à jour : aucun `facts/<source>.json` périmé (ARCHITECTURE.md §6.9) | `doc-kit audit` (« Faits et affirmations ») ; rafraîchir avec `doc-kit facts --source <nom>` |
+| ☐ | **`sync.json` créé**, pour que la prochaine reprise sache ce qui a changé depuis celle-ci (ARCHITECTURE.md §6.10) | `doc-kit sync --mark --all` une fois chaque page ci-dessus vérifiée, juste avant l'export |
 
 ## 4. Export
 
 | ✓ | Point | Commande ou règle |
 |---|---|---|
 | ☐ | Une copie **autonome** du projet, sans `node_modules/`, `.doc-kit/` ni session | `doc-kit export <cible>` ; `--with-dist` pour joindre le site produit, `--zip` pour une archive |
+| ☐ | **Un export par espace**, quand le projet déclare des espaces (ARCHITECTURE.md §6.1a) | `doc-kit build` écrit l'export de chaque espace par défaut (`spaces.export`) ; vérifier que chacun s'ouvre et ne montre que son propre espace |
 | ☐ | Un README de remise à la racine | Ce qu'est le site, comment l'ouvrir, comment le régénérer (`npm ci`, `npm run site`), comment refaire les captures, où se trouve le guide de rédaction |
 | ☐ | L'export se régénère ailleurs | Dans la copie : `npm ci`, puis `npm run site` ; Node.js 20 ou plus récent ; `npx playwright install chromium` si le navigateur manque |
 | ☐ | Le contrôle de couverture est documenté comme ignoré hors du dépôt | Il a besoin du code de l'application |

@@ -1,5 +1,5 @@
 [
-  { "term": "Order", "pattern": "orders?", "def": "A customer request for one or more products, with a delivery address and a status." },
+  { "term": "Order", "pattern": "orders?", "def": "A customer request for one or more products, with a delivery address and a status.", "technical": "data.json → orders[]; field status; served by GET /api/orders and GET /api/orders/[id] (serve.mjs)." },
   { "term": "Back order", "pattern": "back[- ]orders?", "def": "An order line that cannot be shipped yet because the product is out of stock." },
-  { "term": "API", "pattern": "API(?: REST)?", "def": "Programming interface exposed by the Acme Orders server." }
+  { "term": "API", "pattern": "API(?: REST)?", "def": "Programming interface exposed by the Acme Orders server.", "technical": "serve.mjs: a single http.createServer handler, routes matched with plain string and regular-expression comparisons — no router." }
 ]

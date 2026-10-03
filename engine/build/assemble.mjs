@@ -10,6 +10,12 @@
 // each screenshot used by a page (`captured`, `version`) are added as data.meta.screenshots, read by app.js for
 // the "Screenshots taken on …, version …" line of the page footer. When no screenshot carries them, nothing is
 // added and the output is unchanged.
+//
+// Languages (ARCHITECTURE.md §6.12): `languages` (one entry per OTHER declared language) fills the
+// {{LANGUAGE_DATA}} marker with one <script id="donnees-<lang>"> per entry, each with its own meta.screenshots
+// (computed from its own `captures`, since a translated screenshot may carry its own date and version). Empty
+// without `languages` (the marker then resolves to ""); a template without the marker at all is unaffected (the
+// replacement loop only ever acts on markers it finds in the template text).
 import { esc } from "./text.mjs";
 
 /**
@@ -34,6 +40,10 @@ export function screenshotInfo(data, captures) {
   return Object.keys(info).length ? info : null;
 }
 
+/** Serialises site data the way `#donnees` is: "<" escaped, so that a "</script>" inside a page's HTML can
+ * never close the embedding tag early. */
+const toJson = (data) => JSON.stringify(data).replace(/</g, "\\u003c");
+
 /**
  * @param {object} p
  * @param {string} p.template   template.html
@@ -44,13 +54,19 @@ export function screenshotInfo(data, captures) {
  * @param {object} p.data       site data (serialised as JSON, "<" escaped); meta.screenshots is added to it
  * @param {string} p.themeKey
  * @param {object} [p.textVars] variables of the template texts ({product}…)
- * @param {Record<string, object>} [p.captures]  zone files by id (screenshot dates and versions)
+ * @param {Record<string, object>} [p.captures]  zone files by id (screenshot dates and versions) of `data`
+ * @param {Array<{ id: string, data: object, captures?: Record<string, object> }>} [p.languages]  ARCHITECTURE.md
+ *   §6.12: one entry per OTHER declared language; fills {{LANGUAGE_DATA}}, each with its own screenshots
  */
-export function assemble({ template, app, markers, t, icon, data, themeKey, textVars = {}, captures }) {
+export function assemble({ template, app, markers, t, icon, data, themeKey, textVars = {}, captures, languages = [] }) {
   const screenshots = screenshotInfo(data, captures);
   if (screenshots && data.meta) data.meta.screenshots = screenshots;
-  const json = JSON.stringify(data).replace(/</g, "\\u003c");
-  const values = { ...markers, DATA: json, APP: app.replace(/__THEME_KEY__/g, () => themeKey) };
+  for (const l of languages) {
+    const s = screenshotInfo(l.data, l.captures);
+    if (s && l.data.meta) l.data.meta.screenshots = s;
+  }
+  const languageData = languages.map((l) => `<script type="application/json" id="donnees-${esc(l.id)}">${toJson(l.data)}</script>`).join("\n");
+  const values = { ...markers, DATA: toJson(data), LANGUAGE_DATA: languageData, APP: app.replace(/__THEME_KEY__/g, () => themeKey) };
   return template.replace(/\{\{(t:[\w.]+|ICON:[\w-]+|[A-Z_]+)\}\}/g, (m, key) => {
     if (key.startsWith("t:")) return esc(t(key.slice(2), textVars));
     if (key.startsWith("ICON:")) return icon(key.slice(5));

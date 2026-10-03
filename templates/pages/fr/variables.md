@@ -17,6 +17,7 @@
 
 ### Famille (n)
 
+<!-- doc-kit:prefill source="env" -->
 | Variable | Source | Lue par le code | Rôle et valeur attendue | Remarque |
 |---|---|---|---|---|
 | `NOM_DE_VARIABLE` | Service ou coffre | `chemin/fichier.ts:17` | Valeurs comprises par le code, et le défaut | Défaut de l'infrastructure, piège connu |

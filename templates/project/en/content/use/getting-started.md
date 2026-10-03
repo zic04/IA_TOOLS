@@ -72,7 +72,7 @@
 > What happens, why, and how to avoid it.
 
 > [!NOTE] Observed gaps (vX.Y.Z)
-> - Gap between the screen, the documentation and the code (`path/file.ts:42`).
+> - Gap between the screen, the documentation and the code (see `path/file.ts`; no line number here — this page is in the Business space, see writing.md §13).
 
 ## In production
 

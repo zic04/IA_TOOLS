@@ -5,6 +5,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import {
   loadPageTemplates,
   comparable,
@@ -30,15 +31,51 @@ const table = loadPageTemplates();
 const TYPES = ["screen", "editor", "recipe", "technical", "technical-sub", "journey", "journey-step", "troubleshooting", "troubleshooting-area", "findings", "architecture", "variables", "resources"];
 
 describe("standard/templates.json and the page templates", () => {
-  test("13 types; en and fr lists of the same length; required indexes in range; word limits", () => {
-    assert.deepEqual(Object.keys(table.types), TYPES);
+  test("the 13 types first, then those of the fragments; en and fr lists of the same length; required indexes in range; word limits", () => {
+    assert.deepEqual(Object.keys(table.types).slice(0, TYPES.length), TYPES);
     for (const [type, def] of Object.entries(table.types)) {
       assert.equal(def.sections.en.length, def.sections.fr.length, type);
       for (const i of def.required) assert.ok(Number.isInteger(i) && i >= 0 && i < def.sections.en.length, `${type}: ${i}`);
       assert.ok(def.maxWords >= 1000, type);
     }
+    const all = Object.keys(table.types);
     for (const language of ["en", "fr"])
-      for (const label of Object.keys(table.aliases[language])) assert.ok(TYPES.some((t) => table.types[t].sections[language].includes(label)), `alias of an unknown label: ${label}`);
+      for (const label of Object.keys(table.aliases[language])) assert.ok(all.some((t) => table.types[t].sections[language].includes(label)), `alias of an unknown label: ${label}`);
+  });
+
+  test("ARCHITECTURE.md §7: the 30 page types, in order (13 general + 5 business + 12 takeover, including security-review/maintainability-review)", () => {
+    const expected = [
+      "screen", "editor", "recipe", "technical", "technical-sub", "journey", "journey-step", "troubleshooting", "troubleshooting-area", "findings", "architecture", "variables", "resources",
+      "feature", "business-rules", "roles-matrix", "process", "release-notes",
+      "access-ownership", "api-surface", "runbook", "data-model", "dependencies", "code-map", "tests-quality", "agent-instructions", "adr", "threat-model", "security-review", "maintainability-review",
+    ];
+    assert.deepEqual(Object.keys(table.types), expected);
+    assert.equal(expected.length, 30);
+    const architecture = fs.readFileSync(path.join(KIT_ROOT, "ARCHITECTURE.md"), "utf8");
+    assert.match(architecture, /The 30 page types are /);
+    assert.doesNotMatch(architecture, /\b28 page types\b/);
+    for (const type of expected) assert.ok(architecture.includes(`\`${type}\``), `${type} missing from ARCHITECTURE.md §7's list`);
+  });
+
+  test("fragments standard/templates/<group>.json: types and aliases added in file name order; a type defined twice is refused", () => {
+    const kit = fs.mkdtempSync(path.join(os.tmpdir(), "doc-kit-templates-"));
+    try {
+      const type = (label) => ({ title: { en: label, fr: label }, sections: { en: [label], fr: [label] }, required: [0], maxWords: 1000 });
+      fs.mkdirSync(path.join(kit, "standard", "templates"), { recursive: true });
+      fs.writeFileSync(path.join(kit, "standard", "templates.json"), JSON.stringify({ aliases: { en: { A: ["Aa"] } }, types: { a: type("A") } }));
+      fs.writeFileSync(path.join(kit, "standard", "templates", "2-c.json"), JSON.stringify({ types: { c: type("C") } }));
+      fs.writeFileSync(path.join(kit, "standard", "templates", "1-b.json"), JSON.stringify({ aliases: { en: { A: ["Ab"] }, fr: { B: ["Bb"] } }, types: { b: type("B") } }));
+      const merged = loadPageTemplates(kit);
+      assert.deepEqual(Object.keys(merged.types), ["a", "b", "c"]);
+      assert.deepEqual(merged.aliases, { en: { A: ["Aa", "Ab"] }, fr: { B: ["Bb"] } });
+      const twice = path.join(kit, "twice");
+      fs.mkdirSync(path.join(twice, "standard", "templates"), { recursive: true });
+      fs.writeFileSync(path.join(twice, "standard", "templates.json"), JSON.stringify({ types: { a: type("A") } }));
+      fs.writeFileSync(path.join(twice, "standard", "templates", "x.json"), JSON.stringify({ types: { a: type("A") } }));
+      assert.throws(() => loadPageTemplates(twice), /defined twice: a/);
+    } finally {
+      fs.rmSync(kit, { recursive: true, force: true });
+    }
   });
 
   test("each template exists in both languages, follows its own type, and holds guidance in its own language only", () => {

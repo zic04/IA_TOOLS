@@ -8,7 +8,7 @@ Writes a self-contained copy of the project into `<target>`, which must be new o
 
 | Option | Effect |
 |---|---|
-| `--with-dist` | Includes the built site (a warning when it is not built) |
+| `--with-dist` | Includes the built site and the file of each space (a warning when it is not built) |
 | `--zip` | Also writes `<target>.zip` |
 
 The copy holds the project's files (without `node_modules/`, `.doc-kit/`, `.git/`, `.env` files,
@@ -70,6 +70,33 @@ otherwise `$CLAUDE_CONFIG_DIR/skills`, otherwise `~/.claude/skills`.
 
 A fingerprint file lets `doc-kit doctor` report an outdated, edited or foreign copy. Only the `doc-kit` folder is
 ever written. See [Install the skill](#/skill/install).
+
+## doc-kit translate
+
+```text
+doc-kit translate status [--lang <l>] [--check]
+doc-kit translate --mark <page…> [--lang <l>]
+doc-kit translate --mark --all [--lang <l>]
+doc-kit translate --fix-anchors [page…] [--lang <l>]
+```
+
+The state of the translations declared by `languages` in `doc.config.mjs`; without `languages`, exit code 2
+(`translate.noLanguages`). Without the global `--lang`, every language but the source; `--lang <l>` limits to one
+and refuses the source itself (exit code 2, `translate.sourceLang`).
+
+| Form | Effect |
+|---|---|
+| `status [--check]` | Lists every translatable file's state (`current`, `stale`, `unmarked`, `missing`), the counts, then the files that are not `current` |
+| `--mark <page…>` | Records the current fingerprint of each item's source into `translations/<l>/.sources.json`; an item is a page id, or a path relative to `content/` when it contains a `.` (`home.md`, `use/index.md`, `toc.json`, `glossary.json`) |
+| `--mark --all` | Marks every file whose translation already exists |
+| `--fix-anchors [page…]` | Rewrites a link `#/<target>~<anchor>` whose anchor is a heading of the source target page but not of the translated one, to the translated heading at the same position; without `page…`, every page and section introduction |
+
+Exit codes: `status` is 0, or 1 with `--check` when a listed language has a `stale` or `missing` file. `--mark`
+is 1 when an item's translation file is missing (nothing written for that language,
+`translate.missingFile`), 2 with neither an item nor `--all` (`translate.markNothing`). `--fix-anchors` is 1 when
+a link could not be mapped — reported, never guessed — 0 otherwise. Calling `translate` with none of `status`,
+`--mark` or `--fix-anchors` is also a usage error (exit code 2, `translate.usage`). See
+[Documenting in multiple languages](#/spaces/languages).
 
 ## Further reading
 

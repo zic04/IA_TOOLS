@@ -1,0 +1,26 @@
+<svg viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Commandes, clients et étapes de validation, et leurs relations">
+  <defs>
+    <marker id="dm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="d-brand" x="60" y="130" width="230" height="110" rx="10"/>
+  <text class="d-title" x="175" y="158" text-anchor="middle">customers</text>
+  <text class="d-small" x="175" y="178" text-anchor="middle">id, email, name, region_id</text>
+  <text class="d-small" x="175" y="196" text-anchor="middle">pas de sécurité au niveau ligne</text>
+
+  <rect class="d-box" x="360" y="100" width="230" height="140" rx="10"/>
+  <text class="d-title" x="475" y="128" text-anchor="middle">orders</text>
+  <text class="d-small" x="475" y="148" text-anchor="middle">id, customer_id, region_id,</text>
+  <text class="d-small" x="475" y="164" text-anchor="middle">status, amount, created_at</text>
+  <text class="d-small" x="475" y="182" text-anchor="middle">sécurité au niveau ligne : orders_region_isolation</text>
+
+  <rect class="d-info" x="650" y="130" width="230" height="110" rx="10"/>
+  <text class="d-title" x="765" y="158" text-anchor="middle">approval_steps</text>
+  <text class="d-small" x="765" y="178" text-anchor="middle">id, order_id, role,</text>
+  <text class="d-small" x="765" y="196" text-anchor="middle">decided_by, decided_at</text>
+
+  <path class="d-line" d="M290 185H357" marker-end="url(#dm-arrow)"/>
+  <path class="d-line" d="M590 170H647" marker-end="url(#dm-arrow)"/>
+  <text class="d-small" x="323" y="178" text-anchor="middle">1</text>
+  <text class="d-small" x="618" y="163" text-anchor="middle">1</text>
+</svg>

@@ -13,10 +13,10 @@ before(() => {
 });
 after(() => fs.rmSync(claude, { recursive: true, force: true }));
 
-async function cli(args, env = {}) {
+async function cli(args, env = {}, io = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { CLAUDE_CONFIG_DIR: claude, ...env } });
+  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { CLAUDE_CONFIG_DIR: claude, ...env }, ...io });
   return { code, out, err };
 }
 const line = (out, re) => out.split("\n").find((l) => re.test(l));
@@ -49,6 +49,24 @@ describe("doctor", () => {
       assert.match(r.out, /^✔ theme contrasts: \d+ pairs at WCAG level/m);
       assert.match(r.out, /\d+ OK · \d+ warning\(s\) · 0 problem\(s\): ready\.\n$/);
       for (const l of r.out.split("\n").slice(2).filter((x) => x && !/^ {2}→ /.test(x) && !/^\d+ OK/.test(x))) assert.match(l, /^[✔⚠✖] /, l);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("stale facts (ARCHITECTURE.md §6.9/§6.10): a facts/<source>.json whose recorded commit differs from the application's current HEAD, read via the commit seam (never a real git call in the test)", async () => {
+    const dir = project();
+    try {
+      const stale = await cli(["doctor", "--project", dir], {}, { commit: () => "deadbeef" });
+      assert.equal(stale.code, 0, stale.out); // a warning, never a failure
+      const l = line(stale.out, /^⚠ facts behind the application's HEAD: /);
+      assert.ok(l, stale.out);
+      for (const source of ["agents", "api", "db", "dependencies", "env", "secrets", "tests"]) assert.ok(l.includes(source), l);
+      assert.match(stale.out, /^ {2}→ run doc-kit facts --source /m);
+
+      const fresh = await cli(["doctor", "--project", dir], {}, { commit: () => "939ed0c54555d0063931ddfbbcfb7c1f108833b0" });
+      assert.match(fresh.out, /^✔ facts: at the application's current HEAD$/m);
+      assert.doesNotMatch(fresh.out, /facts behind the application's HEAD/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

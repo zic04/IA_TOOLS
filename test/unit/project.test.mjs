@@ -116,7 +116,7 @@ describe("configuration", () => {
     assert.equal(c.auth.adapter, "manual");
     assert.equal(c.theme.logo, null);
     assert.deepEqual(c.theme.colors, {});
-    assert.deepEqual(c.paths, { content: "content", images: "images", diagrams: "diagrams" });
+    assert.deepEqual(c.paths, { content: "content", images: "images", diagrams: "diagrams", facts: "facts", sync: ".", translations: "translations" });
     assert.equal(prepareConfig({ product: { name: "X" }, language: "fr" }, { env: {} }).capture.locale, "fr-FR");
     assert.equal(productSlug("Café Orders é"), "cafe-orders-e");
     assert.equal(completeConfig({ product: { name: "Acme" }, theme: {}, env: {}, capture: {}, language: "en" }).output, "dist/Acme-Documentation.html");
@@ -162,6 +162,23 @@ describe("configuration", () => {
     assert.throws(() => applyEnv(base(), { DOC_KIT_READONLY: "maybe" }), (e) => e.code === 2);
     assert.deepEqual(readEnv("SESSION", "ACME", { ACME_SESSION: "s.json" }), { value: "s.json", variable: "ACME_SESSION" });
     assert.equal(readEnv("SESSION", "ACME", { ACME_SESSION: "" }), undefined);
+  });
+
+  test("capture.sessionRefresh (ARCHITECTURE.md §6.3a): the only exception to read-only — null accepted, a well-formed object validates and defaults method to POST, reason/path/method checked", () => {
+    const sessionRefresh = readSchema("config").properties.capture.properties.sessionRefresh;
+    const reason = "verified in the handler: it only rotates the token, no other write";
+    assert.deepEqual(validate(null, sessionRefresh).errors, []);
+    assert.deepEqual(validate({ path: "/api/auth/refresh", reason }, sessionRefresh).errors, []);
+    assert.equal(
+      prepareConfig({ product: { name: "X" }, capture: { sessionRefresh: { path: "/api/auth/refresh", reason } } }, { env: {} }).capture.sessionRefresh.method,
+      "POST"
+    );
+    // The object branch alone, to see each field's own error (the wrapping anyOf only reports "anyOf" otherwise).
+    const object = sessionRefresh.anyOf[1];
+    assert.deepEqual(keys(validate({ path: "/api/auth/refresh" }, object)), ["reason:required"], "no reason");
+    assert.deepEqual(keys(validate({ path: "/api/auth/refresh", reason: "too short" }, object)), ["reason:minLength"], "reason under 20 characters");
+    assert.deepEqual(keys(validate({ path: "auth/refresh", reason }, object)), ["path:pattern"], "path without a leading /");
+    assert.deepEqual(keys(validate({ method: "GET", path: "/api/auth/refresh", reason }, object)), ["method:enum"], "method other than POST");
   });
 });
 

@@ -10,6 +10,7 @@ import { applyEnv, readEnv } from "./env.mjs";
 import { satisfies, isValidRange } from "./semver.mjs";
 import { KitError, EXIT } from "./errors.mjs";
 import { checkOverrides } from "../theme/tokens.mjs";
+import { LANGUAGES } from "../i18n.mjs";
 
 const schemas = new Map();
 
@@ -19,8 +20,8 @@ export function readSchema(name) {
   return schemas.get(name);
 }
 
-/** Checks that the schema cannot express. */
-function extraChecks(config) {
+/** Checks that the schema cannot express. `raw`: the object doc.config.mjs exported, before defaults (§6.12). */
+function extraChecks(config, raw) {
   const errors = [];
   try {
     new RegExp(config.version.pattern);
@@ -36,6 +37,41 @@ function extraChecks(config) {
     if (/<script|\son[a-z]+\s*=|javascript:|<foreignObject|<iframe/i.test(svg)) errors.push({ path: `theme.icons.${name}`, key: "icon", vars: { name } });
   // Production is only ever captured read-only (ARCHITECTURE.md §3, capture.target).
   if (config.capture.target === "production" && config.capture.readOnly === false) errors.push({ path: "capture.readOnly", key: "productionReadOnly", vars: {} });
+  // One file per space (ARCHITECTURE.md §6.1a): the path of the exports names the space.
+  if (typeof config.spaces.output === "string" && !config.spaces.output.includes("{space}")) errors.push({ path: "spaces.output", key: "spaceOutput", vars: { placeholder: "{space}" } });
+  errors.push(...checkLanguages(config, raw));
+  return errors;
+}
+
+/**
+ * Cross-field checks of `languages` (ARCHITECTURE.md §6.12), run after the schema: the pure structural rules
+ * (array of strings) are there; everything that needs the sibling `language`, the kit's own languages or
+ * `paths.content` lives here, like `spaceOutput` above.
+ * @param {object} config   validated and defaulted value (schema defaults already applied: `language` is never
+ *   undefined here, even when doc.config.mjs did not write it)
+ * @param {object} raw      the object doc.config.mjs exported, before defaults: the only way to tell "language
+ *   absent" from "language explicitly set to the schema's default (en)"
+ */
+function checkLanguages(config, raw) {
+  const errors = [];
+  const langs = config.languages;
+  if (langs) {
+    if (langs.length < 2) errors.push({ path: "languages", key: "languagesMin", vars: {} });
+    const seen = new Set();
+    langs.forEach((lang, i) => {
+      if (seen.has(lang)) errors.push({ path: `languages[${i}]`, key: "languagesDuplicate", vars: { lang } });
+      seen.add(lang);
+      if (!LANGUAGES.includes(lang)) errors.push({ path: `languages[${i}]`, key: "languagesUnsupported", vars: { lang, known: LANGUAGES.join(", ") } });
+    });
+    if (raw.language !== undefined && raw.language !== langs[0]) errors.push({ path: "language", key: "languagesSource", vars: { expected: langs[0] } });
+    const translations = String(config.paths.translations).split(/[\\/]+/).filter(Boolean);
+    const content = String(config.paths.content).split(/[\\/]+/).filter(Boolean);
+    if (content.length && content.every((seg, i) => translations[i] === seg)) errors.push({ path: "paths.translations", key: "translationsInsideContent", vars: {} });
+    for (const key of Object.keys(config.capture.languages || {}))
+      if (!langs.includes(key)) errors.push({ path: `capture.languages.${key}`, key: "captureLanguageUnknown", vars: { key, known: langs.join(", ") } });
+  } else {
+    for (const key of Object.keys(config.capture.languages || {})) errors.push({ path: `capture.languages.${key}`, key: "captureLanguageUnknown", vars: { key, known: "" } });
+  }
   return errors;
 }
 
@@ -46,7 +82,7 @@ function extraChecks(config) {
 export function prepareConfig(raw, { file = CONFIG_FILE, env = process.env, version = kitVersion() } = {}) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new KitError(EXIT.USAGE, "config.noDefaultExport", { file });
   const { value, errors } = validate(raw, readSchema("config"), { applyDefaults: true });
-  if (!errors.length) errors.push(...extraChecks(value));
+  if (!errors.length) errors.push(...extraChecks(value, raw));
   if (errors.length) throw new KitError(EXIT.USAGE, "config.invalid", { file, n: errors.length }, { details: errors, prefix: file });
   if (!satisfies(version, value.kit)) throw new KitError(EXIT.ENVIRONMENT, "config.kitIncompatible", { range: value.kit, version });
   completeConfig(value);

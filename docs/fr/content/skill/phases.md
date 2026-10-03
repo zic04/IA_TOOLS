@@ -52,6 +52,14 @@ node <skill>/scripts/brief.mjs writing-batch --project docs/manual --var code=u1
 le même `fichier:ligne`. Les briefs remplis vont dans `.doc-kit/brief-<template>.md` ; un paramètre resté vide arrête
 le script avec le code de sortie 1.
 
+**Économie des agents.** L'en-tête de chaque brief nomme le type d'agent Claude Code pour le lancer :
+`doc-kit-triage` (`haiku`, lecture seule), `doc-kit-writer` (`sonnet`), `doc-kit-reviewer` (`opus`, lecture
+seule) — copiés près du dossier des skills par `doc-kit skill install`. Deux briefs de maintenance, `triage` et
+`update`, lisent `doc-kit context <page> --update` pour décider ou refaire une page d'après ce qui a changé.
+`brief.mjs --estimate` donne les jetons d'entrée et de sortie d'un brief et son coût, quand `llm` est renseigné
+dans `doc.config.mjs` (`llm.currency`, `llm.prices` par modèle — sans défaut : les prix changent et diffèrent
+selon le contrat) ; `scripts/usage.mjs log`, `report` et `scan` mesurent ce que les agents ont vraiment consommé.
+
 ## Les règles non négociables
 
 1. **Des captures sans risque** : en production, lecture seule et navigation uniquement ; lisez le code serveur d'une
@@ -90,3 +98,5 @@ le script avec le code de sortie 1.
 - [Installer le skill](#/skill/install) : la commande et ses vérifications.
 - [Le standard de documentation](#/method/standard) : les règles qu'appliquent les phases.
 - [Démo ou production : capturer sans risque](#/capture/safety) : les règles de sécurité de la phase 4.
+- [Coût et vitesse](#/skill/cost-and-speed) : les types d'agents, `doc-kit context`, et chiffrer une vague avant de la lancer.
+- [Suivre l'évolution de l'application](#/publish/sync) : ce que fait vraiment la maintenance de la phase 10.

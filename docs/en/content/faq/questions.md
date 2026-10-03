@@ -8,6 +8,7 @@ explains more.
 | [The site](#/faq/questions~the-site) | What readers need, weight, hosting, printing |
 | [The application](#/faq/questions~the-application) | Which applications, sign-in, public sites, versions |
 | [Writing](#/faq/questions~writing) | Languages, HTML, diagrams, look and feel |
+| [Spaces, takeover and agents](#/faq/questions~spaces-takeover-and-agents) | Business vs takeover, LLM use, token cost, keeping up to date |
 | [The kit](#/faq/questions~the-kit) | Network, data, licence, name |
 
 ## The site
@@ -77,6 +78,32 @@ the themes ([Diagrams](#/write/diagrams)). Images of diagrams are not supported.
 The colours, the logo, the icons and every text: yes ([Theme, colours and logo](#/reference/theme),
 [Languages and texts](#/reference/i18n)). The layout of the site is the kit's, the same for every project: readers
 find their way from one documentation to another.
+
+## Spaces, takeover and agents
+
+### Can I hand out only the business pages, or only the takeover dossier?
+
+Yes: declare `spaces` in `content/toc.json`, then `doc-kit build` — it writes the full site plus one export per
+space, each with every other space's content physically removed, not merely hidden
+([Two spaces, one source](#/spaces/overview)).
+
+### Does the kit use an LLM to find risks or write the findings?
+
+No. The kit calls no LLM anywhere: `doc-kit facts` reads the application's code with plain parsers, and the claim
+badges and the risk register are written by a person or an agent, never generated automatically
+([Taking over a vibe-coded application](#/spaces/takeover)).
+
+### How much does running the skill cost, in tokens?
+
+It depends on what an agent reads, not on the kit's size: `doc-kit context` keeps that to one page's own
+dependencies (a few hundred to a few thousand tokens) instead of the whole code inventory (about 15,000)
+([Cost and speed](#/skill/cost-and-speed)).
+
+### How do I know the documentation is still accurate after a release?
+
+`doc-kit sync` compares what each marked page depends on with the application now, or with a git commit, and
+lists exactly what to review — nothing mechanical is left to a person
+([Keeping up with the application](#/publish/sync)).
 
 ## The kit
 

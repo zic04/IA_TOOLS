@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Approvals · Acme Orders</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="approval">
+    <header class="top">
+      <a class="brand" href="/orders">Acme Orders</a>
+      <nav><a href="/orders" aria-current="page">Orders</a><a href="/settings">Settings</a><a href="/invoices">Invoices</a></nav>
+      <span class="user" id="user"></span><a href="/logout">Sign out</a>
+    </header>
+    <main class="settings">
+      <h1>Approvals</h1>
+      <section class="panel">
+        <p>The approval chain of this order was created by the server while it rendered this page, and the approvers
+          were notified. This is the kind of write a browser cannot block: such routes belong in <code>capture.forbidden</code>.</p>
+      </section>
+    </main>
+  </body>
+</html>

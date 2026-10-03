@@ -64,6 +64,11 @@
       }
     },
     "language": { "enum": ["en", "fr"], "default": "en" },
+    "languages": {
+      "anyOf": [{ "type": "null" }, { "type": "array", "items": { "type": "string" } }],
+      "default": null,
+      "description": "One source, several languages (ARCHITECTURE.md §6.12): at least two, unique, each one a language the kit speaks; the first is the source (language is then derived from it). Cross-field rules (languagesMin, languagesDuplicate, languagesUnsupported, languagesSource) are checked after this schema, where the known languages and the sibling `language` are available."
+    },
     "output": {
       "type": "string",
       "minLength": 1,
@@ -77,7 +82,10 @@
       "properties": {
         "content": { "$ref": "#/$defs/folder", "default": "content" },
         "images": { "$ref": "#/$defs/folder", "default": "images" },
-        "diagrams": { "$ref": "#/$defs/folder", "default": "diagrams" }
+        "diagrams": { "$ref": "#/$defs/folder", "default": "diagrams" },
+        "facts": { "$ref": "#/$defs/folder", "default": "facts", "description": "Where `doc-kit facts` writes one file per source (ARCHITECTURE.md §6.9)." },
+        "sync": { "$ref": "#/$defs/folder", "default": ".", "description": "Where sync.json lives (ARCHITECTURE.md §6.10)." },
+        "translations": { "$ref": "#/$defs/folder", "default": "translations", "description": "Translations of content/ (ARCHITECTURE.md §6.12); must not be inside paths.content." }
       }
     },
     "version": {
@@ -191,7 +199,53 @@
           "default": null
         },
         "forbidden": { "type": "array", "items": { "type": "string" }, "default": [] },
-        "readOnly": { "enum": ["auto", true, false], "default": "auto" }
+        "readOnly": { "enum": ["auto", true, false], "default": "auto" },
+        "sessionRefresh": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "reason"],
+              "properties": {
+                "method": { "enum": ["POST"], "default": "POST" },
+                "path": { "type": "string", "pattern": "^/" },
+                "json": { "anyOf": [{ "type": "null" }, { "type": "object" }], "default": null },
+                "reason": { "type": "string", "minLength": 20 }
+              }
+            }
+          ],
+          "default": null,
+          "description": "The only exception to the read-only lock (ARCHITECTURE.md §6.3a): one request that renews a short-lived session (path relative to app.url), sent once before each capture run, outside any page; every request of the pages stays GET/HEAD/OPTIONS. `reason` records the owner's decision and why the endpoint writes nothing."
+        },
+        "compareThreshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.005, "description": "`capture --compare` (ARCHITECTURE.md §6.10): share of differing pixels above which the image is replaced." },
+        "languages": {
+          "type": "object",
+          "default": {},
+          "description": "One entry per language captured with `capture --lang <l>` (ARCHITECTURE.md §6.12); every field optional, merged over the fields above.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "default": {},
+            "properties": {
+              "locale": { "type": ["string", "null"], "default": null },
+              "cookies": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "required": ["name", "value"],
+                  "properties": {
+                    "name": { "type": "string", "minLength": 1 },
+                    "value": { "type": "string" }
+                  }
+                }
+              },
+              "storage": { "type": "object", "default": {}, "additionalProperties": { "type": "string" } }
+            }
+          }
+        }
       }
     },
     "masking": {
@@ -228,6 +282,67 @@
         "colors": { "type": "object", "default": {}, "additionalProperties": { "$ref": "#/$defs/colour" } },
         "dark": { "type": "object", "default": {}, "additionalProperties": { "$ref": "#/$defs/colour" } },
         "icons": { "type": "object", "default": {}, "additionalProperties": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "spaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Exports of the spaces declared in content/toc.json (ARCHITECTURE.md §6.1a); ignored without spaces.",
+      "properties": {
+        "export": { "type": "boolean", "default": true, "description": "false: the full site alone, no export per space." },
+        "output": { "type": ["string", "null"], "minLength": 1, "default": null, "description": "Path of each export, relative to the project, containing {space}. Default: the output with -{space} before its extension." }
+      }
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "`doc-kit sync` (ARCHITECTURE.md §6.10): what the documentation must follow after a change of the application.",
+      "properties": {
+        "labels": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Message files whose labels are followed (globs, relative to the project); default: the `messages` of the i18n-registry coverage adapters." }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Prices per million tokens, by model (ARCHITECTURE.md §6.11), read by `sync --estimate`. No default value: prices change and differ by contract.",
+      "properties": {
+        "currency": { "type": ["string", "null"], "default": null },
+        "prices": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["input", "output"],
+            "properties": {
+              "input": { "type": "number", "minimum": 0 },
+              "output": { "type": "number", "minimum": 0 },
+              "cacheRead": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Security and maintainability reviews on demand (ARCHITECTURE.md §6.13): guard patterns for the `api` facts source and `probe`'s access-control matrix, example path parameters for `probe`, and a local semgrep rules folder.",
+      "properties": {
+        "guards": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "role": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Regular expressions (strings, case-insensitive); replaces the built-in role guard pattern when not empty." },
+            "user": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Regular expressions (strings, case-insensitive); replaces the built-in user guard pattern when not empty." }
+          }
+        },
+        "params": { "type": "object", "default": {}, "additionalProperties": { "type": "string" }, "description": "Path parameter name → example value, to fill the routes `probe` checks for access control; a route with a parameter not given here is skipped." },
+        "semgrep": { "type": ["string", "null"], "default": null, "description": "Local semgrep rules folder, relative to the project. Without it, `facts --tools` never runs semgrep (never --config auto, which downloads rules)." }
       }
     },
     "statuses": {

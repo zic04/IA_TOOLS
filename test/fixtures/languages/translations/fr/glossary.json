@@ -1,0 +1,5 @@
+[
+  { "term": "Commande", "pattern": "commandes?", "def": "Une demande d'un client pour un ou plusieurs produits, avec une adresse de livraison et un statut." },
+  { "term": "Commande en souffrance", "pattern": "commande[s]? en souffrance", "def": "Une ligne de commande qui ne peut pas encore être expédiée car le produit est en rupture de stock." },
+  { "term": "API", "pattern": "API(?: REST)?", "def": "Interface de programmation exposée par le serveur d'Acme Orders." }
+]

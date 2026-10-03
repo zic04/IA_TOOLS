@@ -48,6 +48,8 @@
   "cli.capture.on": "on",
   "cli.capture.off": "off",
   "cli.capture.readOnlyDisabled": "read-only is OFF although a session is used (capture.readOnly: false): write requests reach the application",
+  "cli.capture.sessionRefreshed": "Session renewed: {method} {path} ({status}), the only declared exception to read-only (capture.sessionRefresh)",
+  "cli.capture.sessionRefreshFailed": "session renewal failed: {method} {path} ({status}); the session check decides whether the run can go on",
   "cli.capture.ok": { "one": "✔ {id} ({n} zone, {kb} KB, {seconds} s)", "other": "✔ {id} ({n} zones, {kb} KB, {seconds} s)" },
   "cli.capture.summary": { "one": "{ok}/{n} capture taken.", "other": "{ok}/{n} captures taken." },
   "cli.capture.failures": "Failed: {ids}",

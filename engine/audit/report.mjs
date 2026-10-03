@@ -3,9 +3,9 @@
 // printed by the CLI. Every sentence comes from the `cli.audit.*` keys (i18n/<language>/audit.json).
 
 /** Order of the indicators in the reports (standard/maturity.md). */
-export const INDICATORS = ["written", "typed", "conformant", "completeness", "annotated", "coverage", "proofs", "takeover", "tooLong", "guidance", "upToDateCaptures", "glossary", "tours", "blocking", "wideTables"];
+export const INDICATORS = ["written", "typed", "conformant", "completeness", "annotated", "coverage", "proofs", "takeover", "tooLong", "guidance", "upToDateCaptures", "upToDatePages", "glossary", "tours", "blocking", "wideTables"];
 /** Indicators whose thresholds are ratios (shown as percentages). */
-const RATIOS = new Set(["written", "typed", "conformant", "completeness", "annotated", "coverage", "proofs", "tooLong", "upToDateCaptures"]);
+const RATIOS = new Set(["written", "typed", "conformant", "completeness", "annotated", "coverage", "proofs", "tooLong", "upToDateCaptures", "upToDatePages"]);
 /** Items listed per action in the Markdown report (all of them are in audit.json). */
 const MAX_ITEMS = 50;
 
@@ -118,6 +118,29 @@ export function renderMarkdown(result, i18n) {
   out.push(t("cli.audit.generated", { date: result.date.slice(0, 10), version: result.version, pages: f.count("cli.audit.count.pages", result.pages), generator: result.generator }), "");
   out.push(`**${t("cli.audit.levelReached", { level: L, name: levelName(f, L) })}**${L ? ` — ${t(`cli.audit.levelSentence.${L}`)}` : ""}`, "");
 
+  // Spaces (ARCHITECTURE.md §6.1a): the level of each space, and what it misses for the next one.
+  if (result.spaces?.length) {
+    out.push(`## ${t("cli.audit.spaces.title")}`, "");
+    out.push(`| ${t("cli.audit.spaces.col.space")} | ${t("cli.audit.spaces.col.pages")} | ${t("cli.audit.spaces.col.level")} | ${t("cli.audit.spaces.col.next")} |`, "|---|---|---|---|");
+    for (const s of result.spaces) {
+      const missing = s.criteria.filter((c) => c.level === s.level + 1 && !c.ok).map((c) => `\`${c.id}\``);
+      const next = s.level === 4 ? t("cli.audit.spaces.complete") : missing.join(", ");
+      out.push(`| ${s.title} (\`${s.id}\`) | ${f.nf.format(s.pages)} | ${s.level} ${levelName(f, s.level)} | ${next} |`);
+    }
+    out.push("");
+  }
+
+  // Languages (ARCHITECTURE.md §6.12): informative, never a criterion.
+  if (result.languages?.length) {
+    out.push(`## ${t("cli.audit.languages.title")}`, "");
+    out.push(
+      `| ${t("cli.audit.languages.col.language")} | ${t("cli.audit.languages.col.current")} | ${t("cli.audit.languages.col.stale")} | ${t("cli.audit.languages.col.missing")} | ${t("cli.audit.languages.col.ratio")} |`,
+      "|---|---|---|---|---|"
+    );
+    for (const l of result.languages) out.push(`| ${l.id} | ${f.nf.format(l.current)} | ${f.nf.format(l.stale)} | ${f.nf.format(l.missing)} | ${l.ratio === null ? "—" : f.nf.format(Math.round(l.ratio * 100)) + " %"} |`);
+    out.push("");
+  }
+
   if (result.indicators && Object.keys(result.indicators).length) {
     out.push(`## ${t("cli.audit.indicators")}`, "");
     out.push(`| ${t("cli.audit.col.indicator")} | ${t("cli.audit.col.value")} | ${t("cli.audit.col.target")} | | ${t("cli.audit.col.measures")} |`, "|---|---|---|---|---|");
@@ -145,6 +168,14 @@ export function renderMarkdown(result, i18n) {
     out.push(`| # | ${t("cli.audit.col.page")} | | ${t("cli.audit.col.found")} |`, "|---|---|---|---|");
     const found = (x) => (x.ok && x.page ? `\`${x.page}\`` : x.candidate ? t("cli.audit.candidate", { id: x.candidate.id }) : x.unwritten ? t(`cli.audit.unwrittenPage.${x.unwritten.state}`, { id: x.unwritten.id }) : "");
     result.takeover.forEach((x, i) => out.push(`| ${i + 1} | ${t(`cli.audit.takeover.${x.id}`)} | ${x.ok ? "✔" : "✖"} | ${found(x)} |`));
+    out.push("");
+  }
+
+  // Facts and claims (ARCHITECTURE.md §6.9): informative, no criterion uses them yet.
+  if (result.facts?.files || result.claims?.verified || result.claims?.deduced || result.claims?.unknown) {
+    out.push(`## ${t("cli.audit.facts.title")}`, "");
+    out.push(`- ${f.count("cli.audit.facts.files", result.facts.files)}, ${f.count("cli.audit.facts.stale", result.facts.stale)}`);
+    out.push(`- ${t("cli.audit.claims.line", { verified: result.claims.verified, deduced: result.claims.deduced, unknown: result.claims.unknown, percent: result.claims.ratio === null ? t("cli.audit.na") : f.percent(result.claims.ratio) })}`);
     out.push("");
   }
 

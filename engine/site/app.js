@@ -6,7 +6,7 @@
 (function () {
   "use strict";
 
-  const D = JSON.parse(document.getElementById("donnees").textContent);
+  let D = JSON.parse(document.getElementById("donnees").textContent);
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
   // Icon names used by this file → keys of the embedded icon set.
@@ -20,8 +20,8 @@
   // ─── Texts (i18n) ─────────────────────────────────────────────────────────
   // t(key, vars): plain text; variables {name}; plural { one, other… } chosen from vars.n.
   // th(key, vars): HTML; the text is escaped, the variables (already HTML) are inserted as they are.
-  const TEXTS = D.i18n || {};
-  const rules = new Intl.PluralRules(document.documentElement.lang || undefined);
+  let TEXTS = D.i18n || {};
+  let rules = new Intl.PluralRules(document.documentElement.lang || undefined);
   function form(key, vars) {
     const v = TEXTS[key];
     if (v === undefined) return key;
@@ -38,20 +38,27 @@
   const sidebar = $("#lateral");
   const toc = $("#toc");
   const bubble = $("#bulle");
-  const sectionsById = Object.fromEntries(D.sections.map((s) => [s.id, s]));
-  // Sub-pages (level 2): attached to the last level-1 page above them in their group.
-  const parentOf = {};
-  const childrenOf = {};
-  for (const s of D.sections)
-    for (const g of s.groupes) {
-      let parent = null;
-      for (const pid of g.pages) {
-        if (D.pages[pid].niveau === 2 && parent) {
-          parentOf[pid] = parent;
-          (childrenOf[parent] = childrenOf[parent] || []).push(pid);
-        } else parent = pid;
+  // Sub-pages (level 2): attached to the last level-1 page above them in their group. Recomputed by
+  // computeHierarchy() whenever the language changes (D.sections then points to the new language's data).
+  let sectionsById = {};
+  let parentOf = {};
+  let childrenOf = {};
+  function computeHierarchy() {
+    sectionsById = Object.fromEntries(D.sections.map((s) => [s.id, s]));
+    parentOf = {};
+    childrenOf = {};
+    for (const s of D.sections)
+      for (const g of s.groupes) {
+        let parent = null;
+        for (const pid of g.pages) {
+          if (D.pages[pid].niveau === 2 && parent) {
+            parentOf[pid] = parent;
+            (childrenOf[parent] = childrenOf[parent] || []).push(pid);
+          } else parent = pid;
+        }
       }
-    }
+  }
+  computeHierarchy();
   let currentPage = null;
 
   // ─── Local storage (reading preferences only, never required) ─────────────
@@ -72,14 +79,234 @@
     },
   };
 
+  // ─── Spaces (one source, one site per audience) ───────────────────────────
+  // The spaces apply when the build declares them (D.spaces). The current space, an id or null for "everything",
+  // comes from the URL #/@<id>, else from the page or the section shown, else from the value remembered under
+  // __THEME_KEY__.space. The filter only changes what is shown: D.sections, D.ordre, D.parcours and D.suggestions
+  // hold the part of the current space (the full lists stay in FULL), so that the menus, previous / next, the
+  // home page and the full print follow it. An export (D.meta.space) holds one space, always current.
+  let SPACES = D.spaces || null;
+  let spacesById = Object.fromEntries((SPACES || []).map((s) => [s.id, s]));
+  const SPACE_KEY = "__THEME_KEY__.space";
+  const exported = SPACES && D.meta.space ? D.meta.space : null;
+  let FULL = { sections: D.sections, ordre: D.ordre, parcours: D.parcours || [], suggestions: D.suggestions || [], byId: { ...sectionsById } };
+  const knownSpace = (id) => (id && spacesById[id] ? id : null);
+  let currentSpace = exported || knownSpace(memo.read(SPACE_KEY));
+  const inCurrentSpace = (pid) => !currentSpace || (!!D.pages[pid] && D.pages[pid].space === currentSpace);
+
+  function applySpace() {
+    // A section shown for some of its pages keeps its title; its "featured" mark, subtitle and highlights describe
+    // its own space.
+    const reduce = (s) => ({
+      ...s,
+      ...(s.space === currentSpace ? {} : { vedette: false, sous_titre: "", points: [] }),
+      groupes: s.groupes.map((g) => ({ ...g, pages: g.pages.filter(inCurrentSpace) })).filter((g) => g.pages.length),
+    });
+    D.sections = currentSpace ? FULL.sections.map(reduce).filter((s) => s.groupes.length) : FULL.sections;
+    D.ordre = FULL.ordre.filter(inCurrentSpace);
+    D.parcours = currentSpace ? FULL.parcours.filter((j) => j.space === currentSpace) : FULL.parcours;
+    D.suggestions = FULL.suggestions.filter(inCurrentSpace);
+    Object.assign(sectionsById, FULL.byId, Object.fromEntries(D.sections.map((s) => [s.id, s])));
+    renderSpaces();
+  }
+  /** The current space of a route (#/@<id>, a page, a section), remembered; unchanged for the home page. */
+  function chooseSpace(path) {
+    if (!SPACES) return;
+    let next = currentSpace;
+    if (path.charAt(0) === "@") next = knownSpace(path.slice(1));
+    else if (D.pages[path]) next = knownSpace(D.pages[path].space);
+    else if (FULL.byId[path]) next = knownSpace(FULL.byId[path].space);
+    if (path && !exported) memo.write(SPACE_KEY, next || "");
+    currentSpace = exported || next;
+    applySpace();
+  }
+  /** Where a section leads: its overview, or its first page of the current space when it belongs to another one. */
+  const sectionLink = (s) => (currentSpace && s.space !== currentSpace && s.groupes.length ? s.groupes[0].pages[0] : s.id);
+  const spaceIcon = (s) => (s.icon ? icon(s.icon) : "");
+
+  // Selector: "everything", then one button per space (tooltip: its readers); the current one is pressed. In the
+  // top bar, and at the head of the side menu below 1080 px. An export shows its space as a label instead.
+  const spacesBar = $("#espaces");
+  const spaceButtons = () =>
+    `<button type="button" class="espace-choix" data-espace="" title="${esc(t("ui.spaces.allFor"))}" aria-pressed="${!currentSpace}">${esc(t("ui.spaces.all"))}</button>` +
+    (SPACES || [])
+      .map((s) => `<button type="button" class="espace-choix" data-espace="${esc(s.id)}" title="${esc(s.for)}" aria-pressed="${s.id === currentSpace}">${esc(s.shortTitle)}</button>`)
+      .join("");
+  const sidebarSpaces = () => (SPACES && !exported ? `<div class="espaces lat-espaces" role="group" aria-label="${esc(t("ui.spaces.label"))}">${spaceButtons()}</div>` : "");
+  function renderSpaces() {
+    if (!spacesBar) return;
+    if (!exported) {
+      spacesBar.innerHTML = spaceButtons();
+      return;
+    }
+    const s = spacesById[exported];
+    spacesBar.removeAttribute("role");
+    spacesBar.removeAttribute("aria-label");
+    spacesBar.innerHTML = `<span class="espace-unique" title="${esc(s.title)}">${spaceIcon(s)}${esc(s.shortTitle)}</span>`;
+  }
+  if (spacesBar && !SPACES) spacesBar.remove();
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-espace]");
+    if (b) location.hash = "#/@" + b.dataset.espace;
+  });
+
+  /** In "everything" mode, the title of a space above its sections (again whenever the space changes). */
+  const spaceHeader = (s, i) =>
+    SPACES && !currentSpace && spacesById[s.space] && (i === 0 || D.sections[i - 1].space !== s.space)
+      ? `<div class="lat-espace">${spaceIcon(spacesById[s.space])}<span>${esc(spacesById[s.space].title)}</span></div>`
+      : "";
+  const spaceBadge = (p) => {
+    const s = SPACES && spacesById[p.space];
+    return s ? `<span class="puce espace" title="${esc(s.title)}">${spaceIcon(s)}${esc(s.shortTitle)}</span>` : "";
+  };
+  const spaceCrumb = (id) => {
+    const s = SPACES && spacesById[id];
+    return s ? `<a href="#/@${esc(s.id)}">${esc(s.shortTitle)}</a><span class="sep">›</span>` : "";
+  };
+  /** "Same topic, for {space}: {title} →" (another space), else "Related: {title} →". */
+  function counterpartLine(p) {
+    const c = p.counterpart;
+    const target = c && D.pages[c.id];
+    if (!target) return "";
+    const other = SPACES && target.space !== p.space ? spacesById[target.space] : null;
+    const text = other ? t("ui.counterpart", { space: other.shortTitle, title: target.titre }) : t("ui.counterpart.plain", { title: target.titre });
+    return `<p class="pendant"><a href="#/${c.id}${c.anchor ? "~" + c.anchor : ""}">${icon("lien")}<span>${esc(text)}</span></a></p>`;
+  }
+  /** Home page, "everything" mode: one door per space. */
+  const spaceDoors = () =>
+    SPACES.map(
+      (s) => `<a class="porte porte-espace" href="#/@${esc(s.id)}">
+          <span class="icone">${spaceIcon(s)}</span>
+          <h2>${esc(s.title)}</h2>
+          ${s.for ? `<p class="porte-pour">${esc(t("home.spaces.for", { for: s.for }))}</p>` : ""}
+          <p>${esc(s.subtitle)}</p>
+          <span class="aller">${esc(t("home.doorPages", { n: s.pages }))}</span>
+        </a>`
+    ).join("");
+  /** Home page with a space current (not in an export): "You are reading: {title} · Show everything". */
+  function spaceStrip() {
+    if (!currentSpace || exported) return "";
+    const s = spacesById[currentSpace];
+    return `<div class="espace-bandeau">${spaceIcon(s)}<span>${th("home.spaces.current", { title: `<strong>${esc(s.title)}</strong>` })}</span><a href="#/@">${esc(t("home.spaces.showAll"))}</a></div>`;
+  }
+
+  // ─── Languages (one source, one site, several languages) ─────────────────
+  // The languages apply when the build declares them (D.meta.languages). The current language comes from, in
+  // this order: the URL prefix #/<lang>/…, else the value remembered under __THEME_KEY__.lang, else the first
+  // of navigator.languages that matches a declared language, else the source. Switching parses and caches the
+  // other language's data (#donnees-<lang>, parsed once), rebuilds every derived structure (sections index,
+  // sub-pages, spaces, search index, glossary terms, image cache) from it, and re-applies the template texts
+  // (data-t / data-t-<attribute> of template.html). The current space (ids, not texts) is kept.
+  const LANGUAGES = D.meta.languages || null;
+  const SOURCE_LANG = LANGUAGES ? D.meta.language : null;
+  const LANG_KEY = "__THEME_KEY__.lang";
+  const DATA = { [SOURCE_LANG]: D };
+  let currentLang = SOURCE_LANG;
+  /** Parses and caches the data of another language (#donnees-<lang>), once. */
+  function dataOf(lang) {
+    if (!(lang in DATA)) {
+      const el = document.getElementById("donnees-" + lang);
+      DATA[lang] = el ? JSON.parse(el.textContent) : null;
+    }
+    return DATA[lang];
+  }
+  /** Language to use when the URL carries no prefix: the value remembered, else a matching browser language,
+   * else the source. `navigator.languages` entries are matched on their base (before "-"). */
+  function initialLanguage(prefix) {
+    if (prefix) return prefix;
+    const stored = memo.read(LANG_KEY);
+    if (stored && LANGUAGES.includes(stored)) return stored;
+    const nav = (navigator.languages || []).map((l) => String(l).split("-")[0].toLowerCase());
+    return nav.find((base) => LANGUAGES.includes(base)) || SOURCE_LANG;
+  }
+  /** Switches the active language: rebuilds every structure derived from D, re-applies the template texts,
+   * keeps the current page reset (forces a re-render even when its id is unchanged) and the current space. */
+  function switchLanguage(lang) {
+    const next = dataOf(lang);
+    if (!next || lang === currentLang) return;
+    D = next;
+    TEXTS = D.i18n || {};
+    rules = new Intl.PluralRules(lang);
+    computeHierarchy();
+    SPACES = D.spaces || null;
+    spacesById = Object.fromEntries((SPACES || []).map((s) => [s.id, s]));
+    FULL = { sections: D.sections, ordre: D.ordre, parcours: D.parcours || [], suggestions: D.suggestions || [], byId: { ...sectionsById } };
+    INDEX = buildIndex();
+    TERMS = buildTerms();
+    imageCache.clear();
+    currentPage = null;
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    memo.write(LANG_KEY, lang);
+    applyTemplateTexts();
+    updateThemeButton();
+    renderLanguages();
+  }
+  /** Re-applies the texts of template.html (data-t: textContent; data-t-aria-label / data-t-title /
+   * data-t-placeholder: the matching attribute) from the embedded template.* keys of the current language.
+   * A mono-language build never embeds template.*: nothing to do. */
+  function applyTemplateTexts() {
+    if (!("template.menu" in TEXTS)) return;
+    $$("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
+    $$("[data-t-aria-label]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.tAriaLabel)));
+    $$("[data-t-title]").forEach((el) => el.setAttribute("title", t(el.dataset.tTitle)));
+    $$("[data-t-placeholder]").forEach((el) => el.setAttribute("placeholder", t(el.dataset.tPlaceholder)));
+  }
+  /** The anchor at the same position (index) in the target page's outline, when both outlines have the same
+   * number of headings; otherwise the anchor cannot be carried over. */
+  function mapAnchor(fromToc, toToc, anchor) {
+    if (!fromToc || !toToc || fromToc.length !== toToc.length) return null;
+    const i = fromToc.findIndex((h) => h.id === anchor);
+    return i >= 0 ? toToc[i].id : null;
+  }
+  /** Where the language selector leads: the page, section, space home or home page currently shown, in the
+   * target language, its anchor carried over by position when possible. */
+  function languageLink(lang) {
+    let anchor = "";
+    if (routed.anchor && D.pages[routed.path]) {
+      const target = dataOf(lang);
+      const targetToc = target && target.pages[routed.path] ? target.pages[routed.path].toc : null;
+      const mapped = mapAnchor(D.pages[routed.path].toc, targetToc, routed.anchor);
+      if (mapped) anchor = "~" + mapped;
+    }
+    return "#/" + lang + "/" + routed.path + anchor;
+  }
+  const languageButtons = () =>
+    LANGUAGES.map(
+      (id) =>
+        `<button type="button" class="espace-choix" data-langue="${id}" lang="${id}" aria-pressed="${id === currentLang}">${esc(TEXTS["ui.language." + id] || id)}</button>`
+    ).join("");
+  const sidebarLanguages = () =>
+    LANGUAGES ? `<div class="espaces lat-espaces lat-langues" role="group" aria-label="${esc(t("ui.language.label"))}">${languageButtons()}</div>` : "";
+  const langBar = $("#langues");
+  function renderLanguages() {
+    if (!langBar) return;
+    langBar.innerHTML = languageButtons();
+    langBar.setAttribute("aria-label", t("ui.language.label"));
+  }
+  if (langBar && !LANGUAGES) langBar.remove();
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-langue]");
+    if (b) location.hash = languageLink(b.dataset.langue);
+  });
+  /** "Not translated yet — shown in {language}.": a page, a section introduction or the home page rendered
+   * from the source because the current language has none (a draft build only: a strict build never lets a
+   * missing translation reach the site). {language} is named IN THE INTERFACE LANGUAGE shown (ui.language.name.*,
+   * e.g. "anglais" on a French interface, "French" on an English one), never the autonym (reserved for the
+   * language selector): ui.language.name.<fallback> first, then the autonym, then the raw code. */
+  const translationBanner = (fallback) =>
+    fallback ? `<div class="bandeau-traduction" role="note">${icon("note")}<span>${esc(t("ui.translation.missing", { language: TEXTS["ui.language.name." + fallback] || TEXTS["ui.language." + fallback] || fallback }))}</span></div>` : "";
+
   // ─── Embedded images ──────────────────────────────────────────────────────
   const imageCache = new Map();
   function imageSrc(id) {
-    if (!imageCache.has(id)) {
-      const el = document.getElementById("img-" + id);
-      imageCache.set(id, el ? el.textContent.trim() : "");
+    const key = LANGUAGES ? currentLang + ":" + id : id;
+    if (!imageCache.has(key)) {
+      let el = LANGUAGES && currentLang !== SOURCE_LANG ? document.getElementById("img-" + id + "@" + currentLang) : null;
+      if (!el) el = document.getElementById("img-" + id);
+      imageCache.set(key, el ? el.textContent.trim() : "");
     }
-    return imageCache.get(id);
+    return imageCache.get(key);
   }
   function hydrateImages(root) {
     $$("img[data-img]", root).forEach((img) => {
@@ -107,7 +334,7 @@
     $("#topnav").innerHTML = D.sections
       .map(
         (s) =>
-          `<a href="#/${s.id}" class="${s.id === sectionId ? "actif" : ""} ${s.vedette ? "vedette" : ""}">${esc(s.titre_court || s.titre)}</a>`
+          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.vedette ? "vedette" : ""}">${esc(s.titre_court || s.titre)}</a>`
       )
       .join("");
   }
@@ -115,8 +342,8 @@
   const openSections = new Set();
   function renderSidebar(sectionId, pageId) {
     if (sectionId) openSections.add(sectionId);
-    sidebar.innerHTML = D.sections
-      .map((s) => {
+    sidebar.innerHTML = sidebarLanguages() + sidebarSpaces() + D.sections
+      .map((s, i) => {
         const open = openSections.has(s.id);
         const groups = s.groupes
           .map(
@@ -143,9 +370,11 @@
                 .join("")
           )
           .join("");
-        return `<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
+        // The overview of a section belongs to its own space: not offered from another one.
+        const overview = !currentSpace || s.space === currentSpace;
+        return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
           <button type="button" aria-expanded="${open}"><span class="pastille-section">${icon(s.icone)}</span>${esc(s.titre)}${icon("chevron", "ico chevron")}</button>
-          <div class="lat-corps"><a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${s.id}">${esc(t("ui.sidebar.overview"))}</a>${groups}</div>
+          <div class="lat-corps">${overview ? `<a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${s.id}">${esc(t("ui.sidebar.overview"))}</a>` : ""}${groups}</div>
         </div>`;
       })
       .join("");
@@ -167,6 +396,7 @@
   // ─── Pages ────────────────────────────────────────────────────────────────
   function pageBadges(p) {
     const badges = [];
+    if (SPACES && spacesById[p.space]) badges.push(spaceBadge(p));
     (p.routes || []).forEach((r) => badges.push(`<span class="puce route">${icon("screen")}${esc(r)}</span>`));
     (p.droits || []).forEach((d) => badges.push(`<span class="puce droit">${icon("lock")}${esc(d)}</span>`));
     if (p.captures) badges.push(`<span class="puce menu">${icon("screen")}${esc(t("ui.page.annotatedScreens", { n: p.captures }))}</span>`);
@@ -196,18 +426,21 @@
   };
   const versionOrder = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
   function screenshotsNote(p) {
-    const info = D.meta.screenshots;
-    if (!info) return "";
-    const ids = new Set(Array.from(String(p.html).matchAll(/data-img="([^"]+)"/g), (m) => m[1]));
-    const known = Array.from(ids, (id) => info[id]).filter(Boolean);
-    const dates = Array.from(new Set(known.map((x) => x.captured).filter(Boolean))).sort();
-    const versions = Array.from(new Set(known.map((x) => x.version).filter(Boolean))).sort(versionOrder);
-    if (!dates.length && !versions.length) return "";
     const parts = [];
-    if (dates.length === 1) parts.push(t("ui.footer.screenshots.on", { date: longDate(dates[0]) }));
-    else if (dates.length > 1) parts.push(t("ui.footer.screenshots.between", { from: longDate(dates[0]), to: longDate(dates[dates.length - 1]) }));
-    if (versions.length)
-      parts.push(t(dates.length ? "ui.footer.screenshots.version" : "ui.footer.screenshots.versionOnly", { n: versions.length, version: versions.join(", ") }));
+    // Following the application (ARCHITECTURE.md §6.10): only present when sync.json marked this page.
+    if (p.verified) parts.push(t("ui.footer.verified", { version: p.verified.version, date: longDate(p.verified.date) }));
+    const info = D.meta.screenshots;
+    if (info) {
+      const ids = new Set(Array.from(String(p.html).matchAll(/data-img="([^"]+)"/g), (m) => m[1]));
+      const known = Array.from(ids, (id) => info[id]).filter(Boolean);
+      const dates = Array.from(new Set(known.map((x) => x.captured).filter(Boolean))).sort();
+      const versions = Array.from(new Set(known.map((x) => x.version).filter(Boolean))).sort(versionOrder);
+      if (dates.length === 1) parts.push(t("ui.footer.screenshots.on", { date: longDate(dates[0]) }));
+      else if (dates.length > 1) parts.push(t("ui.footer.screenshots.between", { from: longDate(dates[0]), to: longDate(dates[dates.length - 1]) }));
+      if (versions.length)
+        parts.push(t(dates.length ? "ui.footer.screenshots.version" : "ui.footer.screenshots.versionOnly", { n: versions.length, version: versions.join(", ") }));
+    }
+    if (!parts.length) return "";
     return `<div class="pied-captures">${esc(parts.join(", "))}</div>`;
   }
 
@@ -228,10 +461,12 @@
     renderTopnav(p.section);
     renderSidebar(p.section, id);
     main.innerHTML = `<article class="article">
-      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span><a href="#/${sec.id}">${esc(sec.titre)}</a>${p.groupe ? `<span class="sep">›</span><span>${esc(p.groupe)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${parentOf[id]}">${esc(D.pages[parentOf[id]].titre_menu || D.pages[parentOf[id]].titre)}</a>` : ""}</nav>
+      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(p.space)}<a href="#/${sectionLink(sec)}">${esc(sec.titre)}</a>${p.groupe ? `<span class="sep">›</span><span>${esc(p.groupe)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${parentOf[id]}">${esc(D.pages[parentOf[id]].titre_menu || D.pages[parentOf[id]].titre)}</a>` : ""}</nav>
       <h1 class="page-titre">${esc(p.titre)}</h1>
       ${p.resume ? `<p class="page-resume">${esc(p.resume)}</p>` : ""}
       ${pageBadges(p)}
+      ${counterpartLine(p)}
+      ${p.fallback ? translationBanner(p.fallback) : ""}
       <div class="contenu">${p.html}</div>
       ${footerNav(id)}
       ${screenshotsNote(p)}${siteFooter()}
@@ -268,9 +503,10 @@
       )
       .join("");
     main.innerHTML = `<article class="article">
-      <nav class="ariane"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span><span>${esc(sec.titre)}</span></nav>
+      <nav class="ariane"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(sec.space)}<span>${esc(sec.titre)}</span></nav>
       <h1 class="page-titre">${esc(sec.titre)}</h1>
       <p class="page-resume">${esc(sec.sous_titre || "")}</p>
+      ${sec.fallback ? translationBanner(sec.fallback) : ""}
       <div class="contenu">${sec.intro_html || ""}</div>
       ${groups}
       ${siteFooter()}
@@ -287,10 +523,11 @@
     renderSidebar(null, null);
     toc.innerHTML = "";
     const s = D.meta.stats;
-    const doors = D.sections
+    // "Everything" mode: one door per space; a space current: the doors of its sections.
+    const doors = SPACES && !currentSpace ? spaceDoors() : D.sections
       .map((sec) => {
         const n = sec.groupes.reduce((total, g) => total + g.pages.length, 0);
-        return `<a class="porte ${sec.vedette ? "vedette" : ""}" href="#/${sec.id}">
+        return `<a class="porte ${sec.vedette ? "vedette" : ""}" href="#/${sectionLink(sec)}">
           ${sec.vedette ? `<span class="etiquette">${esc(t("home.featured"))}</span>` : ""}
           <span class="icone">${icon(sec.icone)}</span>
           <h2>${esc(sec.titre)}</h2>
@@ -304,10 +541,11 @@
     const journeys = (D.parcours || [])
       .map(
         (j) => `<div class="carte-lien"><span class="titre">${esc(j.titre)}</span><span class="resume">${esc(j.desc)}</span>
-        <ol>${j.etapes.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].titre)}</a></li>` : "")).join("")}</ol></div>`
+        <ol>${j.etapes.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].titre)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`
       )
       .join("");
-    const first = D.sections.find((x) => x.vedette) || D.sections[0];
+    // A space current: its first featured section, else its first own section.
+    const first = D.sections.find((x) => x.vedette) || D.sections.find((x) => !currentSpace || x.space === currentSpace) || D.sections[0];
     main.innerHTML = `
       <section class="heros">
         <div class="heros-interieur">
@@ -315,8 +553,8 @@
           <h1>${th("home.title", { accent: `<span>${esc(t("home.titleAccent", { product: D.meta.produit }))}</span>` })}</h1>
           <p>${esc(D.meta.accroche)}</p>
           <div class="actions">
-            <a class="bouton primaire" href="#/${first.id}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.titre_court || first.titre }))}</a>
-            <a class="bouton" href="#/${D.sections[0].id}">${icon("map")}${esc(t("home.gettingStarted"))}</a>
+            <a class="bouton primaire" href="#/${sectionLink(first)}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.titre_court || first.titre }))}</a>
+            <a class="bouton" href="#/${sectionLink(D.sections[0])}">${icon("map")}${esc(t("home.gettingStarted"))}</a>
             <button class="bouton" type="button" data-action="recherche">${icon("search")}${esc(t("home.search"))}</button>
           </div>
           <div class="chiffres">
@@ -325,10 +563,12 @@
             <div><strong>${s.zones}</strong>${esc(t("home.stats.zones", { n: s.zones }))}</div>
             <div><strong>${s.schemas}</strong>${esc(t("home.stats.diagrams", { n: s.schemas }))}</div>
           </div>
+          ${spaceStrip()}
         </div>
       </section>
       <div class="accueil-corps">
         <div class="portes">${doors}</div>
+        ${D.meta.homeFallback ? translationBanner(D.meta.homeFallback) : ""}
         <div class="contenu">${D.accueil_html || ""}</div>
         ${journeys ? `<h2 class="accueil-section-titre">${esc(t("home.journeysTitle"))}</h2><p class="accueil-section-sous">${esc(t("home.journeysIntro", { n: journeyCount, count: TEXTS["home.number." + journeyCount] || journeyCount }))}</p><div class="parcours ${journeyCount === 4 ? "deux-colonnes" : ""}">${journeys}</div>` : ""}
         ${siteFooter()}
@@ -427,11 +667,14 @@
     showBubble(`<span class="bulle-n">${n}</span>${legendText(fig, n)}`, zone);
   }
 
-  // Glossary: the first occurrence of each term in the page gets a tooltip.
-  const TERMS = (D.glossaire || []).map((g) => ({
-    ...g,
-    re: new RegExp(`(^|[^\\p{L}\\p{N}_])(${g.motif})(?=$|[^\\p{L}\\p{N}_])`, "iu"),
-  }));
+  // Glossary: the first occurrence of each term in the page gets a tooltip. Rebuilt by switchLanguage().
+  function buildTerms() {
+    return (D.glossaire || []).map((g) => ({
+      ...g,
+      re: new RegExp(`(^|[^\\p{L}\\p{N}_])(${g.motif})(?=$|[^\\p{L}\\p{N}_])`, "iu"),
+    }));
+  }
+  let TERMS = buildTerms();
   function markGlossary(root) {
     if (!root || !TERMS.length) return;
     const remaining = new Set(TERMS);
@@ -455,12 +698,22 @@
         span.tabIndex = 0;
         span.dataset.terme = term.terme;
         span.dataset.def = term.def;
+        if (term.tech) span.dataset.tech = term.tech;
         word.parentNode.replaceChild(span, word);
         span.appendChild(word);
         remaining.delete(term);
         break;
       }
     }
+  }
+
+  // Glossary bubble content: the term and its definition, then its technical correspondence (§6.8) when the term
+  // has one and the reader can see it: no spaces declared, or the current space is takeover / everything (an
+  // export other than takeover never embeds `tech` at all, engine/build/spaces.mjs).
+  function glossaryBubble(gl) {
+    const showTech = gl.dataset.tech && (!SPACES || currentSpace === null || currentSpace === "takeover");
+    const tech = showTech ? `<div class="bulle-tech">${esc(t("ui.glossary.technical"))} ${esc(gl.dataset.tech)}</div>` : "";
+    return `<strong>${esc(gl.dataset.terme)}</strong> — ${esc(gl.dataset.def)}${tech}`;
   }
 
   // ─── Tooltips (screen zones + glossary) ───────────────────────────────────
@@ -504,7 +757,7 @@
       return;
     }
     const gl = e.target.closest(".gl");
-    if (gl) showBubble(`<strong>${esc(gl.dataset.terme)}</strong> — ${esc(gl.dataset.def)}`, gl);
+    if (gl) showBubble(glossaryBubble(gl), gl);
   });
   document.addEventListener("mouseout", (e) => {
     const zone = e.target.closest(".zone");
@@ -519,7 +772,7 @@
   });
   document.addEventListener("focusin", (e) => {
     const gl = e.target.closest && e.target.closest(".gl");
-    if (gl) showBubble(`<strong>${esc(gl.dataset.terme)}</strong> — ${esc(gl.dataset.def)}`, gl);
+    if (gl) showBubble(glossaryBubble(gl), gl);
     const zone = e.target.closest && e.target.closest(".ecran .zone");
     if (zone) highlight(zone.closest(".ecran"), zone.dataset.n, true);
   });
@@ -718,10 +971,14 @@
   const searchBackdrop = $("#recherche");
   const field = $("#recherche-champ");
   const resultList = $("#recherche-resultats");
-  const INDEX = D.recherche.map((e) => {
-    const p = D.pages[e.p];
-    return { ...e, nt: norm(e.t), np: norm(p ? p.titre : ""), nx: norm(e.x) };
-  });
+  // Rebuilt by switchLanguage() from the translated pages and search entries.
+  function buildIndex() {
+    return D.recherche.map((e) => {
+      const p = D.pages[e.p];
+      return { ...e, nt: norm(e.t), np: norm(p ? p.titre : ""), nx: norm(e.x) };
+    });
+  }
+  let INDEX = buildIndex();
   let results = [];
   let selection = 0;
 
@@ -773,8 +1030,29 @@
       if (!e.a) score += 2;
       found.push({ e, score, terms });
     }
-    return found.sort((a, b) => b.score - a.score).slice(0, 24);
+    return bySpace(found.sort((a, b) => b.score - a.score)).slice(0, 24);
   }
+  // A space current: its results first, then those of each other space (declaration order), under a heading
+  // "In {space} ({n})"; the limit applies to the whole list. "Everything": the order of the scores.
+  const spaceOfResult = (x) => (D.pages[x.e.p] ? D.pages[x.e.p].space : null);
+  function bySpace(found) {
+    if (!SPACES || !currentSpace) return found;
+    const rank = (x) => {
+      const s = spaceOfResult(x);
+      const k = SPACES.findIndex((sp) => sp.id === s);
+      return s === currentSpace ? -1 : k < 0 ? SPACES.length : k;
+    };
+    return found.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map((a) => a[0]);
+  }
+  function resultHeading(r, i) {
+    if (!SPACES || !currentSpace) return "";
+    const s = spaceOfResult(r[i]);
+    if (s === currentSpace || !spacesById[s] || (i > 0 && spaceOfResult(r[i - 1]) === s)) return "";
+    const n = r.filter((x) => spaceOfResult(x) === s).length;
+    return `<div class="recherche-groupe">${esc(t("ui.search.inSpace", { space: spacesById[s].shortTitle, n }))}</div>`;
+  }
+  /** "Everything" mode: the path of a result starts with its space. */
+  const spacePath = (p) => (SPACES && !currentSpace && spacesById[p.space] ? `${esc(spacesById[p.space].shortTitle)} › ` : "");
 
   // Screen readers hear the number of results (role="status", aria-live="polite").
   const searchStatus = $("#recherche-statut");
@@ -813,8 +1091,8 @@
         }, -1));
         const start = Math.max(0, pos - 50);
         const excerpt = (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
-        return `<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
-          <div class="chemin">${esc(sectionsById[p.section].titre)} › ${esc(p.titre)}</div>
+        return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
+          <div class="chemin">${spacePath(p)}${esc(sectionsById[p.section].titre)} › ${esc(p.titre)}</div>
           <div class="titre">${mark(e.t, terms)}</div>
           <div class="extrait">${mark(excerpt, terms)}</div></a>`;
       })
@@ -924,6 +1202,10 @@
     hydrateImages(target);
     document.body.classList.add("impression-complete");
     const images = $$("img", target);
+    // Eager: a `loading="lazy"` image far enough down this one long page (every page concatenated) may never be
+    // considered "near the viewport" by the browser, so it would never load and decode() would never resolve —
+    // print() would then never run. Printing needs everything immediately, not deferred.
+    for (const i of images) i.loading = "eager";
     Promise.all(images.map((i) => (i.decode ? i.decode().catch(() => {}) : Promise.resolve()))).then(() => {
       window.print();
     });
@@ -936,12 +1218,30 @@
   });
 
   // ─── Router (#/section, #/page/id, #/page/id~anchor) ──────────────────────
+  // With spaces, also #/@<id>: the home page of a space (#/@: everything).
+  // With languages, #/[<lang>/]<path>[~anchor]: the first segment is a language when it is one of LANGUAGES
+  // (hence languages.idClash at the build); without it, the URL means the current language. After routing,
+  // a URL without a prefix is rewritten with history.replaceState (no hashchange, no history entry) so that
+  // the address bar always carries the language; the language is switched BEFORE chooseSpace and any render.
+  let routed = { path: "", anchor: "" };
   function route() {
     closeSearch();
     if (viewerState.open) closeViewer();
     const h = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
-    const [path, anchor] = h.split("~");
-    if (!path) showHome();
+    const [rest, anchor] = h.split("~");
+    const segments = rest.split("/");
+    let prefix = null;
+    if (LANGUAGES && LANGUAGES.includes(segments[0])) prefix = segments.shift();
+    const path = segments.join("/");
+    if (LANGUAGES) {
+      const target = initialLanguage(prefix);
+      if (target !== currentLang) switchLanguage(target);
+      renderLanguages();
+      if (!prefix) history.replaceState(null, "", "#/" + currentLang + "/" + path + (anchor ? "~" + anchor : ""));
+    }
+    routed = { path, anchor: anchor || "" };
+    chooseSpace(path);
+    if (!path || path.charAt(0) === "@") showHome();
     else if (D.pages[path]) showPage(path, anchor);
     else if (sectionsById[path]) showSection(sectionsById[path]);
     else showNotFound(path);

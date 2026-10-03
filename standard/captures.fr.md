@@ -41,6 +41,17 @@ D'où trois règles :
 | **Supprimée en fin de campagne** | `doc-kit connect --forget`. Tant qu'elle est valide, elle donne accès à l'application |
 | **Arrêt si elle expire** | Redirection vers la page de connexion (reconnue par `auth.loginPattern`, par défaut `login\|signin\|sign-in\|oauth\|authorize`) ou réponse 401 : le moteur s'arrête (code de sortie 3). Reconnectez-vous ; ne contournez pas |
 
+### Le renouvellement de session : la seule exception
+
+Une session dont le jeton d'accès vit quelques minutes, renouvelé par un `POST`, expirerait sinon en pleine campagne. `capture.sessionRefresh` déclare **une** requête autorisée à franchir la lecture seule — envoyée une fois, hors de toute page, avant la vérification de la session ; rien d'autre ne change : toute requête faite par une page reste `GET`/`HEAD`/`OPTIONS`.
+
+Ne l'acceptez que si les trois conditions sont réunies :
+1. **Le point d'accès n'écrit rien d'autre** : il renouvelle la session, il ne touche pas aux données métier.
+2. **La preuve dans le code** : lisez le gestionnaire ; il ne fait rien de plus que cela.
+3. Une **décision écrite** du propriétaire de l'application, notée dans `reason` (au moins 20 caractères) et dans le guide de rédaction du projet.
+
+Déclarée ou non, chaque campagne qui utilise une session affiche le résultat avant que les captures ne commencent : « Session renouvelée : POST … », ou, en cas d'échec, un avertissement — jamais silencieux, et pas fatal en soi : la vérification de session qui suit décide si la campagne continue.
+
 ### Le masquage
 
 | Masqué automatiquement | Limite |

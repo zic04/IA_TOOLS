@@ -12,6 +12,9 @@ import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { findProject } from "../engine/project/find.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environment.mjs";
+import { readSyncReference } from "../engine/sync/reference.mjs";
+import { readProjectVersion } from "../engine/build/build.mjs";
+import { languageCounts } from "../engine/build/languages.mjs";
 import { WORK_DIR } from "./commands/audit.mjs";
 import { SKILL_NAME } from "./commands/skill.mjs";
 
@@ -131,11 +134,12 @@ async function runSafely(ctx, fn) {
 /**
  * Where the person stands.
  * @param {{ project?: string, cwd?: string, env?: object }} p
- * @returns {Promise<{ step: "init"|"install"|"doctor"|"connect"|"capture"|"menu", folder: string, root?: string,
+ * @returns {Promise<{ step: "init"|"install"|"doctor"|"connect"|"capture"|"sync"|"translate"|"menu", folder: string, root?: string,
  *   config?: object, error?: KitError, session?: object }>}
  *   init: no documentation project here · install: the project's dependencies are missing (npm install) ·
  *   doctor: the configuration cannot be used · connect: no session while the app needs a sign-in ·
- *   capture: no screenshot yet · menu: everything is in place (dev, audit, build…)
+ *   capture: no screenshot yet · sync: the application moved on since the last check (ARCHITECTURE.md §6.10) ·
+ *   translate: a declared language (§6.12) has a stale or missing file · menu: everything is in place (dev, audit, build…)
  */
 export async function detectSituation({ project, cwd = process.cwd(), env = process.env } = {}) {
   let found;
@@ -158,18 +162,41 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   const session = sessionInfo({ root, config, env });
   if (session.needed && !session.exists) return { step: "connect", folder: root, root, config, session };
   if (captureCount(root, config) === 0) return { step: "capture", folder: root, root, config };
+  // What the documentation must follow since the last check (ARCHITECTURE.md §6.10): no git here, only the
+  // documented version against the one sync.json last saw.
+  const { reference } = readSyncReference(root, config);
+  if (reference && reference.app.version !== readProjectVersion(root, config.version)) return { step: "sync", folder: root, root, config };
+  // Languages (ARCHITECTURE.md §6.12): a translation behind or missing, shown as "translate status".
+  if (config.languages && config.languages.slice(1).some((lang) => { const c = languageCounts({ root, config, toc: safeToc(root, config), lang }); return c.stale > 0 || c.missing > 0; }))
+    return { step: "translate", folder: root, root, config };
   return { step: "menu", folder: root, root, config };
 }
 
-/** Commands offered once everything is in place, in this order. */
+/** A read-only table of contents for `detectSituation` (an invalid or missing one is `doctor`'s job to report,
+ * not the guided mode's: a project that cannot be built never reaches this check anyway, since `doctor`/`build`
+ * steps come first). */
+function safeToc(root, config) {
+  try {
+    const file = path.join(root, config.paths.content, "toc.json");
+    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : { sections: [] };
+  } catch {
+    return { sections: [] };
+  }
+}
+
+/** Commands offered once everything is in place, in this order; `translate status` only with `languages`
+ * declared (ARCHITECTURE.md §6.12) — built by a function, not a constant, since it depends on the project. */
 export const MENU = ["dev", "audit", "build", "doctor"];
+export const menuFor = (config) => [...MENU, ...(config?.languages ? ["translate"] : [])];
 
 async function guided({ ctx, modules, values }) {
   const s = await detectSituation({ project: values.project, env: ctx.env });
   if (s.config && !values.lang) ctx.setLanguage(s.config.language);
-  const command = (step) => (step === "init" ? `${BRAND.command} init ${shownPath(s.folder)}` : step === "install" ? "npm install" : `${BRAND.command} ${step}`);
+  const menu = menuFor(s.config);
+  const command = (step) =>
+    step === "init" ? `${BRAND.command} init ${shownPath(s.folder)}` : step === "install" ? "npm install" : step === "translate" ? `${BRAND.command} translate status` : `${BRAND.command} ${step}`;
   if (ctx.json) {
-    ctx.print(JSON.stringify({ step: s.step, folder: s.folder, next: s.step === "menu" ? MENU.map(command) : [command(s.step)] }, null, 2));
+    ctx.print(JSON.stringify({ step: s.step, folder: s.folder, next: s.step === "menu" ? menu.map(command) : [command(s.step)] }, null, 2));
     return EXIT.OK;
   }
   const p = ctx.paint;
@@ -184,7 +211,7 @@ async function guided({ ctx, modules, values }) {
   if (production) ctx.print(p.warn(p.bold(ctx.t("cli.guided.production", { url: s.config.app.url || "—" }))));
 
   if (!ctx.interactive) {
-    const next = s.step === "menu" ? MENU.map(command).join(" · ") : command(s.step);
+    const next = s.step === "menu" ? menu.map(command).join(" · ") : command(s.step);
     ctx.print(`
 ${ctx.t("cli.guided.next", { command: next })}`);
     ctx.print(p.dim(ctx.t("cli.guided.notInteractive")));
@@ -196,7 +223,7 @@ ${ctx.t("cli.guided.next", { command: next })}`);
   if (s.step === "menu") {
     step = await prompt.choose(
       ctx.t("cli.guided.ask.menu"),
-      [...MENU.map((m) => ({ value: m, label: `${p.cmd(command(m))}  ${p.dim(ctx.t(`cli.guided.menu.${m}`))}` })), { value: "quit", label: ctx.t("cli.guided.menu.quit") }],
+      [...menu.map((m) => ({ value: m, label: `${p.cmd(command(m))}  ${p.dim(ctx.t(`cli.guided.menu.${m}`))}` })), { value: "quit", label: ctx.t("cli.guided.menu.quit") }],
       "dev"
     );
     if (step === "quit") return EXIT.OK;
@@ -223,7 +250,7 @@ ${ctx.t("cli.guided.next", { command: next })}`);
   const globals = Object.fromEntries(Object.entries(values).filter(([k]) => k in GLOBALS));
   // A production capture was confirmed right after its banner: capture does not ask a second time.
   const confirmed = production && step === "capture" ? { yes: true } : {};
-  return module.run({ ctx, values: { ...globals, ...confirmed }, positionals: step === "init" ? [s.folder] : [] });
+  return module.run({ ctx, values: { ...globals, ...confirmed }, positionals: step === "init" ? [s.folder] : step === "translate" ? ["status"] : [] });
 }
 
 /** Is this file the program being run? Real paths: npm links the kit (symlink, Windows junction) into projects. */

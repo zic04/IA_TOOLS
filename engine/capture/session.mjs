@@ -19,7 +19,7 @@ import { firstLine } from "./actions.mjs";
 
 export const BUILT_IN = Object.freeze({
   auth: ["manual", "none", "nextauth", "api-me"],
-  coverage: ["next-app-router", "react-router", "i18n-registry", "glob"],
+  coverage: ["next-app-router", "react-router", "i18n-registry", "glob", "openapi", "features", "fastapi", "facts"],
 });
 
 export const LOGIN_PATTERN = "login|signin|sign-in|oauth|authorize";
@@ -106,6 +106,18 @@ export const browserLaunch = (auth, options = {}) => ({ ...options, ...(auth && 
 export function sessionFile(root, config, env = process.env) {
   const found = readEnv("SESSION", config.env.prefix, env);
   return path.resolve(root, found ? found.value : path.join(".doc-kit", "session.json"));
+}
+
+/** A role's name (ARCHITECTURE.md §6.13, `connect --as` / `probe`): letters, digits and dashes, starting with a letter. */
+export const ROLE_PATTERN = /^[a-z][a-z0-9-]*$/i;
+
+/**
+ * Session file of a role (ARCHITECTURE.md §6.13): always `.doc-kit/session-<role>.json`, regardless of
+ * `<PREFIX>_SESSION` / `DOC_KIT_SESSION` — a role session is additional, never the one the other commands read
+ * by default.
+ */
+export function roleSessionFile(root, role) {
+  return path.resolve(root, ".doc-kit", `session-${role}.json`);
 }
 
 /** Deletes the session file. @returns {boolean} whether there was one */
@@ -211,6 +223,37 @@ export async function connect({ url, auth, file, headless = false, locale, waitF
     return { ...session, file };
   } finally {
     await browser.close().catch(() => {});
+  }
+}
+
+/**
+ * Renews a short-lived session before a capture run (capture.sessionRefresh, ARCHITECTURE.md §6.3a): the only
+ * request of a run that is not GET/HEAD/OPTIONS, sent once, outside any page, from a context that loads the
+ * session; the cookies it sets are written back to the session file. Nothing else is sent.
+ * @param {{ file: string, appUrl: string, refresh: { method?: string, path: string }, launch?: Function }} p
+ * @returns {Promise<{ ok: boolean, status: number|null, error?: string }>}
+ */
+export async function refreshSession({ file, appUrl, refresh, launch = launchBrowser }) {
+  const browser = await launch({ headless: true });
+  try {
+    const context = await browser.newContext({ storageState: file });
+    let response;
+    try {
+      response = await context.request.fetch(appUrl + refresh.path, {
+        method: refresh.method || "POST",
+        ...(refresh.json ? { data: refresh.json } : {}), // sent as JSON (Content-Type: application/json)
+        failOnStatusCode: false,
+        maxRedirects: 0,
+        timeout: 30_000,
+      });
+    } catch (e) {
+      return { ok: false, status: null, error: firstLine(e) };
+    }
+    if (!response.ok()) return { ok: false, status: response.status() };
+    await saveSession(context, file);
+    return { ok: true, status: response.status() };
+  } finally {
+    await browser.close();
   }
 }
 

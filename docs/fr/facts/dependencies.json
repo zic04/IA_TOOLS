@@ -1,0 +1,14 @@
+{
+  "source": "dependencies",
+  "generator": "doc-kit 0.1.0",
+  "generated": "2026-09-30T09:00:00.000Z",
+  "commit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+  "app": "../../..",
+  "items": [
+    { "name": "next", "version": "14.2.3", "ecosystem": "npm", "direct": true, "dev": false, "manifest": "package.json", "license": "MIT" },
+    { "name": "react", "version": "18.3.1", "ecosystem": "npm", "direct": true, "dev": false, "manifest": "package.json", "license": "MIT" },
+    { "name": "prisma", "version": "5.18.0", "ecosystem": "npm", "direct": true, "dev": true, "manifest": "package.json", "license": "Apache-2.0" },
+    { "name": "acme-date-helpers", "version": "0.3.1", "ecosystem": "npm", "direct": true, "dev": false, "manifest": "package.json" },
+    { "name": "left-pad", "version": "1.3.0", "ecosystem": "npm", "direct": false, "dev": false, "manifest": "package-lock.json", "license": "MIT" }
+  ]
+}

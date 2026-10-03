@@ -6,8 +6,13 @@ Pages are **GitHub-flavoured Markdown** (tables, fenced code, task-free lists) w
 1. **Blocks with a body**: `:::screen` (an annotated capture and its legend) and `:::steps` (numbered steps).
 2. **One-line directives**: `::capture`, `::diagram` and `::before-after`.
 3. **Callouts**: `> [!TIP]`, `> [!WARNING]`, `> [!CAUTION]`, `> [!PERMISSIONS]`, `> [!NOTE]`, `> [!RECIPE]`, `> [!HOW]`.
-4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`.
+4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the business space's
+   `[[feature …]]`, `[[rule …]]`.
 5. **Internal links**: `#/page-id` and `#/page-id~anchor`, checked by the build.
+6. **Business space** (§6.8): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
+   `::roles`.
+7. **Takeover space** (§6.9): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
+   `[[deduced …]]`, `[[unknown …]]`.
 
 Every extension has an English and a French spelling; both are accepted in any project, whatever its language.
 
@@ -114,6 +119,70 @@ An unknown type (`[!DANGER]`) is a build warning, and the quote is shown with th
   and its label); otherwise it shows `x` in a neutral badge.
 - `[[route …]]` accepts brackets inside (`/orders/[id]`). The coverage check finds a route anywhere in the text of
   the pages, in a badge or not.
+
+## Business space
+
+The business space (ARCHITECTURE.md §6.8) describes each feature for the people who use it, decide about it or
+support it: no code, no `file:line`.
+
+| English | French | What it does |
+|---|---|---|
+| `:::rule{id="BR-01" title="…"}` … `:::` | `:::regle{id="RG-01" titre="…"}` … `:::` | Defines a business rule once: a statement, then a "Given / When / Then" example. Rendered as an `h3` (the id in lower case), so it is in the page outline, the search index and a link target. |
+| `[[feature F-01]]` | `[[fonctionnalite F-01]]` | A link chip to the feature sheet whose `feature` field (`content/toc.json`) matches. |
+| `[[rule BR-01]]` | `[[regle RG-01]]` | A link chip to where the rule is defined. |
+| `::features{}` | `::fonctionnalites{}` | A table of every feature sheet: id, feature (linked), summary, who (its permissions). |
+| `::rules{}` | `::regles{}` | A table of every rule: id (linked), rule, defined in (linked), cited by. |
+| `::roles{}` | `::roles{}` (same spelling) | A table of every feature sheet's permissions, one row per sheet, `✔` where a permission unlocks it. |
+
+```markdown
+:::rule{id="BR-12" title="An order above the threshold waits for a manager"}
+An order whose total is at or above the threshold cannot ship until a manager of its region approves it.
+
+**Example.** **Given** an order of 12,000 €, **when** the buyer submits it, **then** it waits for a manager.
+:::
+```
+
+A citation and a generated table are resolved only once every page of the build has rendered, so a rule may be
+defined on a page that sits further down the table of contents than the page that cites it; the same goes for a
+feature sheet. An unknown id (`feature.unknown`, `rule.unknown`) fails a strict build; a rule without both `id` and
+`title` (`rule.attributes`) or defined twice (`rule.duplicate`) too.
+
+A page declares its own feature id with the `feature` field of `content/toc.json` (only on a page of template
+`feature`; one sheet per id, `feature.duplicate` otherwise). `doc-kit inventory --features [--write] [--force]`
+([Commands: start and capture](#/reference/cli/start-capture~doc-kit-inventory)) suggests candidate features from
+what the coverage adapters see, grouped by the first static segment of their routes, API routes or i18n keys.
+
+A glossary term's `technical` field (where it lives in the code) is shown in its tooltip only when the project has
+no spaces, or the current space is `takeover` or "everything" ([Glossary](#/write/glossary)); exports other than
+`takeover` drop it.
+
+[Example · Feature sheet](#/examples/feature), [Example · Business rules](#/examples/business-rules) and
+[Example · Roles matrix](#/examples/roles-matrix) show every element of this section in a real page.
+
+## Takeover space
+
+The takeover space (ARCHITECTURE.md §6.9) is the dossier a team needs to take over an application: every claim is
+backed by a proof (`file:line`), or marked as deduced or unknown.
+
+| English | French | What it does |
+|---|---|---|
+| `::facts{source="…" columns="…"}` | `::faits{source="…" colonnes="…"}` | A table from `facts/<source>.json`, written by `doc-kit facts`: one row per item, one column per listed key (header translated when known), lists joined with commas, booleans `✔` / `—`. A caption gives the generation date and the application's commit. |
+| `[[verified …]]` | `[[verifie …]]` | A small badge: the claim was checked directly in the code. The text after the kind is optional: a bare `[[verified]]`, or `[[verified lib/orders.ts:42]]` with its proof. |
+| `[[deduced …]]` | `[[deduit …]]` | The claim follows from what was read, without a direct line-by-line check. |
+| `[[unknown …]]` | `[[inconnu …]]` | Nobody could tell, inside the time available for the takeover. |
+
+```markdown
+::facts{source="api" columns="method,route,file"}
+
+The route accepts any signed-in user, from any region ([[verified lib/orders.ts:42]]); whether every caller
+actually goes through it first is [[unknown]].
+```
+
+An unknown source (`facts.missing`) or a column that none of the items has (`facts.column`) fails a strict build;
+run `doc-kit facts` first. [Commands: write and check](#/reference/cli/write-check~doc-kit-facts) lists the seven
+sources. The ten takeover page types ([Page templates](#/write/page-templates)) are built around these two pieces
+of syntax: [Example · API surface](#/examples/api-surface), [Example · Dependencies](#/examples/dependencies) and
+the other examples of the takeover space show them in a real page.
 
 ## Links
 

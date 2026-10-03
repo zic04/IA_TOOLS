@@ -72,7 +72,7 @@ otherwise. Warnings never fail.
 ## doc-kit connect
 
 ```text
-doc-kit connect [--url <url>] [--forget]
+doc-kit connect [--url <url>] [--forget] [--as <role>]
 ```
 
 Opens the application in a visible Chromium window; you sign in, then press Enter (or the adapter detects the
@@ -81,7 +81,8 @@ session). The session is saved in `.doc-kit/session.json` (or `<PREFIX>_SESSION`
 | Option | Effect |
 |---|---|
 | `--url <url>` | Another address than `app.url` |
-| `--forget` | Deletes the session file |
+| `--forget` | Deletes the session file (or the role's, with `--as`) |
+| `--as <role>` | Saves the session as `.doc-kit/session-<role>.json` instead, for that role in `doc-kit probe`; the plain session file is unchanged |
 
 Exit code 3 when the application cannot be reached, after 15 minutes without a sign-in, or when the window is
 closed; 2 without a terminal (with the `manual` adapter). With `auth.adapter: "none"`, there is nothing to do. With
@@ -89,6 +90,26 @@ closed; 2 without a terminal (with the `manual` adapter). With `auth.adapter: "n
 `capture.target: "production"`, a first line says so: sign in with your own account, the session gives access to
 production.
 [Connect and sessions](#/capture/sessions) explains the rest.
+
+## doc-kit probe
+
+```text
+doc-kit probe [--as <role>]... [--json]
+```
+
+Checks a running instance, **GET and HEAD only**: security headers, cookies, CORS and version disclosure on `/`
+and on one API route, then every `GET` route of `facts/api.json`, once per identity — anonymous, plus one per
+`--as <role>` saved by `doc-kit connect --as <role>`. Writes `facts/probe.json`.
+
+| Option | Effect |
+|---|---|
+| `--as <role>` | Repeatable: also checks as this role |
+
+Refused (exit code 2) unless the application URL is a loopback address (`localhost`, `127.x`, `[::1]`) or
+`capture.target` is `"demo"`; `"production"` is always refused, and no option overrides either rule. Unreachable
+instance: exit code 3. Otherwise informative: exit code 0 whatever it finds. At most 4 requests a second, and a
+response body is never stored. [Security and maintainability reviews](#/spaces/reviews) explains the findings and
+why production is never in scope.
 
 ## doc-kit demo
 
@@ -103,7 +124,7 @@ Runs the script of `capture.setup` in its own Node process, from the project fol
 ## doc-kit capture
 
 ```text
-doc-kit capture [patterns…] [--plans <folder>] [--preview] [--no-session] [--yes]
+doc-kit capture [patterns…] [--plans <folder>] [--preview] [--no-session] [--yes] [--compare] [--stale]
 ```
 
 Takes the captures of the plans in a headless Chromium and writes `images/<id>.webp` and `images/zones/<id>.json`.
@@ -116,6 +137,8 @@ With `capture.mode: "none"`, it explains the mode and stops with exit code 2.
 | `--preview` | Also writes `.doc-kit/<id>.zones.png`, the zones drawn in red |
 | `--no-session` | Without the saved session |
 | `--yes`, `-y` | Confirms a production capture in advance; required without a terminal |
+| `--compare` | Only replaces an image that really changed (`capture.compareThreshold`, default 0.5 % of differing pixels); an unchanged image is kept byte for byte, only its zone file is refreshed; a changed one is replaced and `.doc-kit/compare/<id>.png` shows before and after side by side |
+| `--stale` | Only the captures listed in `.doc-kit/sync-report.json` (`doc-kit sync`); implies `--compare`; patterns narrow the selection further |
 
 With `capture.target: "production"`, the run is always read-only, even without a session, and starts with a banner,
 then a question whose default is **No**: a reflexive Enter never starts a production run.
@@ -130,19 +153,28 @@ code 2. Answering no captures nothing (exit code 0).
 
 With a session, the session is checked first and the run is read-only (`capture.readOnly: "auto"`). Exit code 1
 when a route is forbidden or a capture failed, 3 when the application cannot be reached or the session expired, 2
-for a plan error. `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused` and `expired`.
-[Capture plans](#/capture/plans) explains the plans.
+for a plan error. `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired`
+and, with `--compare` or `--stale`, `compared: [{ id, ratio, changed }]`.
+[Capture plans](#/capture/plans) explains the plans; [Following the application](#/reference/cli/write-check~doc-kit-sync)
+explains `doc-kit sync`, which `--stale` reads.
 
 ## doc-kit inventory
 
 ```text
 doc-kit inventory [--json]
+doc-kit inventory --features [--write] [--force]
 ```
 
 Lists what the coverage adapters see in the application, family by family, with `✔` for the elements already cited
 in the documentation and `·` for the others. `doc-kit inventory --json > .doc-kit/inventory.json` is a good start
 for a table of contents. A page that still holds template guidance cites nothing yet: neither its text nor its
 entry in the table of contents count. Exit code 2 when `coverage` is empty.
+
+| Option | Effect |
+|---|---|
+| `--features` | Groups the items of every adapter into candidate business features ([Business space: features, rules and roles](#/write/markdown~business-space)), by the first static segment of their id: a suggested id (`F-01`…), the routes, the API routes and the i18n keys of the group, and the `features.json` entry that already covers it, if any |
+| `--write` | Writes `features.json` from the candidates; refused when it already exists (exit code 1) |
+| `--force` | With `--write`: keeps the ids already in `features.json`, appends only the candidates it does not already cover |
 
 ## Further reading
 

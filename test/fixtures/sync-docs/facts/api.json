@@ -1,0 +1,10 @@
+{
+  "source": "api",
+  "generator": "doc-kit 0.1.0",
+  "generated": "2026-10-01T00:00:00.000Z",
+  "commit": null,
+  "app": "../sync-app",
+  "items": [
+    { "method": "GET", "route": "/api/orders/{id}", "file": "backend/api/orders.py", "framework": "fastapi" }
+  ]
+}

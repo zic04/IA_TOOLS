@@ -17,6 +17,7 @@
 
 ### Family (n)
 
+<!-- doc-kit:prefill source="env" -->
 | Variable | Source | Read by the code | Role and expected value | Remark |
 |---|---|---|---|---|
 | `VARIABLE_NAME` | Service or vault | `path/file.ts:17` | Values understood by the code, and the default | Infrastructure default, known pitfall |

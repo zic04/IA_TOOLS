@@ -22,6 +22,18 @@ avec son chemin (`coverage[0].ap`). Vide : pas de contrôle de couverture. Voir 
 Les noms des jetons, le contrôle des contrastes et les règles du logo sont dans
 [Thème, couleurs et logo](#/reference/theme).
 
+## Espaces
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `spaces` | objet · `{}` | Les fichiers par espace, quand `content/toc.json` déclare des espaces ; ignorée sinon | |
+| `spaces.export` | booléen · `true` | `false` : `build` écrit le site complet seul | `false` |
+| `spaces.output` | chemin ou `null` · `null` | Le fichier de chaque espace, relatif au projet ; il doit contenir `{space}` (code de sortie 2 sinon). Défaut : la sortie, avec `-<espace>` avant son extension | `"dist/Acme-Orders-{space}.html"` |
+
+Un espace est la partie de la documentation écrite pour un public, comme `business` (le métier) ou `takeover` (la
+reprise). Le site reçoit un sélecteur d'espace, et `build` écrit aussi un fichier par espace, d'où les autres espaces
+sont retirés.
+
 ## Pastilles de statut
 
 | Clé | Type · défaut | Rôle | Exemple |

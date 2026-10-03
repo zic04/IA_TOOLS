@@ -1,14 +1,17 @@
 // PNG → WebP with Chromium's canvas (Playwright): no native dependency.
 
 /**
- * Encoder bound to a browser: one hidden page, reused for every image.
+ * Encoder bound to a browser: one hidden page, reused for every image. `page` is exposed so that other
+ * features needing a throwaway canvas (capture --compare: engine/capture/compare.mjs) share it instead of
+ * opening one of their own.
  * @param {import("playwright").Browser} browser
- * @returns {Promise<{ encode(png: Buffer, quality: number): Promise<Buffer>, close(): Promise<void> }>}
+ * @returns {Promise<{ page: import("playwright").Page, encode(png: Buffer, quality: number): Promise<Buffer>, close(): Promise<void> }>}
  */
 export async function createWebpEncoder(browser) {
   const context = await browser.newContext();
   const page = await context.newPage();
   return {
+    page,
     async encode(png, quality = 0.82) {
       const b64 = await page.evaluate(
         async ({ b64, q }) => {

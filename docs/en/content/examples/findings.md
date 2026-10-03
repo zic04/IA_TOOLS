@@ -45,6 +45,8 @@ At about 1,300 words, the findings stay on one page. Beyond about 2,000 words, m
 
 **Recommendation**: declare a fourth scheduled job, hourly, in `infra/jobs.tf`; check the first `reminder.sent` entries; add the job to the alert rule (P4).
 
+Owner: Platform team · Decision: Fix · Status: In progress · Due: 2026-10-15
+
 ### C2 — Approval decisions ignore the scope
 
 **Finding**: for a step given to a role, `decide` (`lib/services/approvalService.ts:88-97`) accepts any holder of the role, from any region. It checks [[perm orders:approve]] but never calls `scopeWhere`, unlike every other read. Step ids are sequential integers.
@@ -53,39 +55,44 @@ At about 1,300 words, the findings stay on one page. Beyond about 2,000 words, m
 
 **Recommendation**: load the step through `scopeWhere`, as every other read does, and add one test per role.
 
+Owner: Orders team · Decision: Fix · Status: Open · Due: 2026-10-10
+
 ## Important findings
 
-| No. | Point | Where | Finding and impact | Recommendation |
-|---|---|---|---|---|
-| **I1** | Opening the approval chain writes | `app/(app)/orders/[id]/approval/page.tsx:22-31` | A GET request creates the chain of an order that has none, with the rules of the day, and e-mails its approvers. A link preview or a capture tool can do it. | Create the chain at submission only; make the page read-only |
-| **I2** | **Today** is not about today | `app/(app)/orders/TodayPanel.tsx:14-22` | The panel sums the rows shown, any date, cancelled orders included. Managers read it as the day's figures. | Rename it, or compute the day's figures on the server |
-| **I3** | A role change waits for the next sign-in | `lib/auth/index.ts:64-71` | The role is frozen in the session for 8 hours. A person removed from a group keeps their rights until then. | Re-read the role at each request, or shorten the session |
-| **I4** | A resubmitted order keeps its old chain | `lib/services/approvalService.ts:141-150` | After a rejection, the order reuses its chain and its copy of the rules. A threshold added in between does not apply. | Build a new chain at each submission |
-| **I5** | A failed invoice is never retried | `jobs/invoiceJob.ts:52-60` | An error is logged and skipped, and the next run takes only the orders shipped the day before. The order stays shipped without invoice. | Select every shipped order without invoice |
+This register adds who decides, what was decided, where it stands and by when, as one "Follow-up" column:
+owner · decision · status · due date.
+
+| No. | Point | Where | Finding and impact | Recommendation | Follow-up |
+|---|---|---|---|---|---|
+| **I1** | Opening the approval chain writes | `app/(app)/orders/[id]/approval/page.tsx:22-31` | A GET request creates the chain of an order that has none, with the rules of the day, and e-mails its approvers. A link preview or a capture tool can do it. | Create the chain at submission only; make the page read-only | Orders team · Fix · Open · 2026-10-20 |
+| **I2** | **Today** is not about today | `app/(app)/orders/TodayPanel.tsx:14-22` | The panel sums the rows shown, any date, cancelled orders included. Managers read it as the day's figures. | Rename it, or compute the day's figures on the server | Orders team · Fix · Open · 2026-11-01 |
+| **I3** | A role change waits for the next sign-in | `lib/auth/index.ts:64-71` | The role is frozen in the session for 8 hours. A person removed from a group keeps their rights until then. | Re-read the role at each request, or shorten the session | Platform team · Accept · Accepted · — |
+| **I4** | A resubmitted order keeps its old chain | `lib/services/approvalService.ts:141-150` | After a rejection, the order reuses its chain and its copy of the rules. A threshold added in between does not apply. | Build a new chain at each submission | Orders team · Fix · Open · 2026-11-01 |
+| **I5** | A failed invoice is never retried | `jobs/invoiceJob.ts:52-60` | An error is logged and skipped, and the next run takes only the orders shipped the day before. The order stays shipped without invoice. | Select every shipped order without invoice | Billing team · Fix · In progress · 2026-10-15 |
 
 ## Minor findings
 
-| No. | Point | Where | Finding and impact | Recommendation |
-|---|---|---|---|---|
-| **M1** | The filters are lost | `app/(app)/orders/OrdersFilters.tsx:18` | The filters live in the page state, not in the address: coming back from an order resets them. | Keep them in the query string |
-| **M2** | A name of spaces is accepted | `lib/validation/profile.ts:6` | The length is checked before trimming; the header then shows no name. | Trim first, then check |
-| **M3** | **System** theme read once | `app/ThemeScript.tsx:12` | The device's mode is read when a page loads; a change during the visit is ignored. | Listen to the change of colour scheme |
+| No. | Point | Where | Finding and impact | Recommendation | Follow-up |
+|---|---|---|---|---|---|
+| **M1** | The filters are lost | `app/(app)/orders/OrdersFilters.tsx:18` | The filters live in the page state, not in the address: coming back from an order resets them. | Keep them in the query string | Front-end team · Fix · Open · — |
+| **M2** | A name of spaces is accepted | `lib/validation/profile.ts:6` | The length is checked before trimming; the header then shows no name. | Trim first, then check | Front-end team · Fix · Done · — |
+| **M3** | **System** theme read once | `app/ThemeScript.tsx:12` | The device's mode is read when a page loads; a change during the visit is ignored. | Listen to the change of colour scheme | Front-end team · Accept · Accepted · — |
 
 ## Production findings
 
-| No. | Point | Severity | Finding and impact | Recommendation |
-|---|---|---|---|---|
-| **P1** | `APP_URL` points to staging | Important | Set to the staging address on the container app; every link of every e-mail opens staging (`lib/mail/links.ts:6`). | Set it to `https://orders.example.org` |
-| **P2** | Backups kept 7 days | Important | The database keeps 7 days of backups; `infra/db.tf:22` and `docs/DEPLOYMENT.md` say 35. A mistake found after a week cannot be undone. | Apply the infrastructure as code again |
-| **P3** | An unused storage account | Minor | `acmeordersprdold` holds the files of version 1, read by nothing, but the application's identity can still write to it. | Remove the role, then the account |
-| **P4** | The alert on failed jobs notifies nobody | Important | `alert-jobs-failed` sends to an action group whose only address is a disabled mailbox (to be confirmed). Failures such as I5 go unnoticed. | Point it to a monitored address, then test it |
+| No. | Point | Severity | Finding and impact | Recommendation | Follow-up |
+|---|---|---|---|---|---|
+| **P1** | `APP_URL` points to staging | Important | Staging address on the container app; every e-mail link opens staging (`lib/mail/links.ts:6`). | Set it to the production address | Platform team · Fix · Done · 2026-09-25 |
+| **P2** | Backups kept 7 days | Important | 7-day backups; `infra/db.tf:22` and the deployment doc say 35 — a week-old mistake is unrecoverable. | Re-apply the infrastructure as code | Infra team · Fix · In progress · 2026-10-10 |
+| **P3** | An unused storage account | Minor | `acmeordersprdold` holds unread version-1 files, still writable by the app's identity. | Remove the role, then the account | Platform team · Fix · Open · 2026-11-01 |
+| **P4** | The alert on failed jobs notifies nobody | Important | `alert-jobs-failed` targets a disabled mailbox (to confirm); failures like I5 go unnoticed. | Point it to a monitored address, then test | Platform team · Fix · Open · 2026-10-10 |
 
 ## Findings with no effect
 
-| No. | Point | Severity | Finding and impact | Recommendation |
-|---|---|---|---|---|
-| **N1** | **Language** does not reach the e-mails | Minor | **Settings › Language** changes the interface only; every e-mail is sent in English (`lib/mail/send.ts:22`). | Pass the recipient's language to the templates |
-| **N2** | `LOG_LEVEL` is never read | Minor | Declared on the container app, but the logger has a fixed level (`lib/log.ts:5`). Raising it during an incident does nothing. | Read it, or remove it |
+| No. | Point | Severity | Finding and impact | Recommendation | Follow-up |
+|---|---|---|---|---|---|
+| **N1** | **Language** does not reach the e-mails | Minor | **Settings › Language** changes the interface only; every e-mail is sent in English (`lib/mail/send.ts:22`). | Pass the recipient's language to the templates | Front-end team · Fix · Open · — |
+| **N2** | `LOG_LEVEL` is never read | Minor | Declared on the container app, but the logger has a fixed level (`lib/log.ts:5`). Raising it during an incident does nothing. | Read it, or remove it | Platform team · Accept · Accepted · — |
 
 ## Findings already fixed
 

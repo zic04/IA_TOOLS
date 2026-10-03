@@ -1,0 +1,208 @@
+{
+  "generator": "doc-kit 0.1.0",
+  "app": {
+    "commit": "939ed0c54555d0063931ddfbbcfb7c1f108833b0",
+    "version": "1.4.0",
+    "date": "2026-10-02"
+  },
+  "pages": {
+    "features/approve-order": {
+      "captures": [],
+      "declared": [],
+      "files": {
+        "doc:facts/api.json": "9f25972d9d9d6ac7",
+        "doc:facts/db.json": "34ea6763530db135",
+        "public/app.js": "0990fb802755c321",
+        "serve.mjs": "015b960f3df60b16"
+      },
+      "source": "df55fb0b0b8d3f59",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "features/roles": {
+      "captures": [],
+      "declared": [],
+      "files": {},
+      "source": "e94497a03f1165a7",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "features/rules": {
+      "captures": [],
+      "declared": [],
+      "files": {},
+      "source": "d6222b03bbae4360",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "features/track-orders": {
+      "captures": [],
+      "declared": [],
+      "files": {},
+      "source": "891c2d1a38cd1e75",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "maintain/architecture": {
+      "captures": [],
+      "declared": [],
+      "files": {},
+      "source": "5bf8c95195ce8002",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "risks/findings": {
+      "captures": [],
+      "declared": [],
+      "files": {
+        "public/app.js": "0990fb802755c321",
+        "public/order.html": "f009ed782ad4a072",
+        "serve.mjs": "015b960f3df60b16"
+      },
+      "source": "6d11dc9de9a150a1",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "secure/access-ownership": {
+      "captures": [],
+      "declared": [],
+      "files": {
+        "serve.mjs": "015b960f3df60b16"
+      },
+      "source": "f405629bf80939a1",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "secure/api-surface": {
+      "captures": [],
+      "declared": [],
+      "files": {
+        "doc:facts/api.json": "9f25972d9d9d6ac7",
+        "doc:facts/db.json": "34ea6763530db135",
+        "public/app.js": "0990fb802755c321",
+        "serve.mjs": "015b960f3df60b16"
+      },
+      "source": "8d4678bad27982fa",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "use/orders": {
+      "captures": [
+        "orders-list"
+      ],
+      "declared": [],
+      "files": {},
+      "source": "500c09cd073fbed2",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "use/orders/detail": {
+      "captures": [],
+      "declared": [],
+      "files": {},
+      "source": "eb0110c49baee46e",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    },
+    "use/settings": {
+      "captures": [
+        "settings-profile"
+      ],
+      "declared": [],
+      "files": {},
+      "source": "a7258077cf7f2989",
+      "verified": "2026-10-02",
+      "version": "1.4.0"
+    }
+  },
+  "proofs": {
+    "app.js:16": {
+      "hash": "b10c35764a31ae9e",
+      "text": "const prefetch = () =>"
+    },
+    "app.js:51": {
+      "hash": "a4bcc78ddf384ff9",
+      "text": "$(\"theme\").value = p.theme;"
+    },
+    "app.js:55": {
+      "hash": "a1ac8ecf82c1200b",
+      "text": "await api(\"/api/settings\", { method: \"POST\", headers: { \"content-type\": \"application/json\" }, body: JSON.stringify({ nam"
+    },
+    "order.html:22": {
+      "hash": "ff00b3007cc4bf61",
+      "text": "<a id=\"approval\" href=\"#\" data-prefetch>Approval chain</a>"
+    },
+    "serve.mjs:21": {
+      "hash": "c48d45563d862adf",
+      "text": "const sessions = new Map();"
+    },
+    "serve.mjs:22": {
+      "hash": "e8d804d8e68aba88",
+      "text": "const state = { data: structuredClone(SEED), writes: [] };"
+    },
+    "serve.mjs:33": {
+      "hash": "f884afc6d465e7db",
+      "text": "if (req.method === \"POST\" && p === \"/login\") {"
+    },
+    "serve.mjs:35": {
+      "hash": "4659d2eb6d6a53b3",
+      "text": "const token = randomBytes(16).toString(\"hex\");"
+    },
+    "serve.mjs:36": {
+      "hash": "f987c16b169f22e3",
+      "text": "sessions.set(token, { id: \"u-1\", name: state.data.profile.name, email: form.get(\"email\") || state.data.profile.email });"
+    },
+    "serve.mjs:40": {
+      "hash": "55d9b1321795a7db",
+      "text": "if (req.method === \"POST\" && p === \"/api/demo/reset\") return (state.data = structuredClone(SEED)), send(200, { ok: true "
+    },
+    "serve.mjs:41": {
+      "hash": "e17613e3534a70ec",
+      "text": "if (p === \"/login\") return file(\"login.html\");"
+    },
+    "serve.mjs:43": {
+      "hash": "9479e389534a0a89",
+      "text": "if (p === \"/style.css\" || p === \"/app.js\") return file(p.slice(1));"
+    },
+    "serve.mjs:46": {
+      "hash": "fbea9e4dae2963d1",
+      "text": "if (!user) return p.startsWith(\"/api/\") ? send(401, { error: \"unauthorized\" }) : send(302, \"\", \"text/plain\", { location:"
+    },
+    "serve.mjs:49": {
+      "hash": "7bd38590578d9534",
+      "text": "if (p === \"/api/settings\") Object.assign(state.data.profile, JSON.parse(body || \"{}\"));"
+    },
+    "serve.mjs:52": {
+      "hash": "5c60ef8162f44584",
+      "text": "if (p === \"/api/me\") return send(200, user);"
+    },
+    "serve.mjs:54": {
+      "hash": "25a9de34e9c9a6fd",
+      "text": "if (p === \"/api/orders\") return send(200, state.data.orders);"
+    },
+    "serve.mjs:55": {
+      "hash": "48111afc8de9a5f4",
+      "text": "const order = /^\\/api\\/orders\\/(\\d+)$/.exec(p);"
+    },
+    "serve.mjs:59": {
+      "hash": "fb7abc9dd94a2626",
+      "text": "if (page[1] === \"approval.html\") state.writes.push(`approval chain created for order ${p.split(\"/\")[2]}`);"
+    }
+  },
+  "labels": {
+    "../demo-app/public/messages/en.json": {
+      "orders.approvalLink": "Approval chain"
+    }
+  },
+  "inventory": {},
+  "captures": {
+    "orders-list": {
+      "plan": "9855806a434d7fb3",
+      "route": "/orders"
+    },
+    "settings-profile": {
+      "plan": "bd23363b54393885",
+      "route": "/settings"
+    }
+  }
+}

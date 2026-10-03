@@ -48,6 +48,8 @@
   "cli.capture.on": "activée",
   "cli.capture.off": "désactivée",
   "cli.capture.readOnlyDisabled": "la lecture seule est DÉSACTIVÉE alors qu'une session est utilisée (capture.readOnly : false) : les requêtes d'écriture atteignent l'application",
+  "cli.capture.sessionRefreshed": "Session renouvelée : {method} {path} ({status}), seule exception déclarée à la lecture seule (capture.sessionRefresh)",
+  "cli.capture.sessionRefreshFailed": "échec du renouvellement de la session : {method} {path} ({status}) ; la vérification de la session décide de la suite",
   "cli.capture.ok": { "one": "✔ {id} ({n} zone, {kb} Ko, {seconds} s)", "other": "✔ {id} ({n} zones, {kb} Ko, {seconds} s)" },
   "cli.capture.summary": { "one": "{ok}/{n} capture produite.", "other": "{ok}/{n} captures produites." },
   "cli.capture.failures": "Échecs : {ids}",

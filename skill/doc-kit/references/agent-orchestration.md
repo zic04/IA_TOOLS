@@ -25,6 +25,14 @@ of the reference journey `ord` (an order from creation to archiving).
 Another organisation that worked (site B): prefixes by application area (`map-…`, `bar-…`, `dash-…`, `admin-…`), 11
 plans, plus a separate production plan with its own prefix.
 
+**With a business space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
+entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
+`process` pages, usually their own small batch since they are not tied to one feature). **With a takeover
+space**: `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
+`tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
+`access-ownership` and `system-dossier` (`runbook`, `data-model`, `code-map`, `adr` together). None of the three
+splits further: keeping each whole is cheaper than reconciling two agents' views of the same facts afterwards.
+
 **Batch size**: on a real 99-page plan with 213 captures, 8 batches gave 10 to 15 pages and 20 to 35 captures per
 agent. Group pages that share screens (an editor and its usage page), and isolate heavy domains (the AI assistant had a
 batch of its own).
@@ -33,16 +41,22 @@ batch of its own).
 
 | Who | Writes | Does not touch |
 |---|---|---|
-| Batch writer | `content/<id>.md` of its pages; `<plans>/<code>.mjs`; `diagrams/<prefix>-*.svg`; review images `.doc-kit/<code>-*.png` (deleted at the end) | everything else |
+| Batch writer (`writing-batch`) | `content/<id>.md` of its pages; `<plans>/<code>.mjs`; `diagrams/<prefix>-*.svg`; review images `.doc-kit/<code>-*.png` (deleted at the end) | everything else |
+| Functional-spec writer | `content/<id>.md` of its feature/business-rules/roles-matrix/process pages | `features.json` (reads only), code, everything else |
 | Journey writer | its pages, its diagram, its fact sheet `.doc-kit/<code>.md` when asked | everything else, even to fix an error |
-| Findings verification | the findings page and its sub-pages | other pages, glossary, toc |
+| Findings verification | the findings page and its sub-pages (now a risk register with Owner/Decision/Status/Due) | other pages, glossary, toc |
 | Page corrections | the pages cited by the consolidation (except findings); `content/glossary.json` | findings, toc |
+| Code-health reviewer | its takeover pages (`api-surface`, `dependencies`, `agent-instructions`, `tests-quality`, `threat-model` — only those assigned); its diagram | `facts/*.json` (reads only), the application, everything else |
+| Access-ownership writer | the `access-ownership` page | `facts/*.json` (reads only), everything else |
+| System-dossier writer | its pages (`runbook`, `data-model`, `code-map`, `adr` — only those assigned); its diagram | `facts/*.json` (reads only), everything else, no git command |
 | Production technical | architecture document, deployment, resources, variables pages; their diagram | everything else |
 
-**Centrally managed** (orchestrator only): `content/toc.json`, `content/glossary.json` (unless explicitly delegated to
-the corrections agent), `content/home.md`, `doc.config.mjs`, `WRITING-GUIDE.md`, `captures/targets.mjs`, the engine
-(the kit, never changed by a writing agent), and the commands that write these files or touch access: `doc-kit new`,
-`doc-kit connect`, `doc-kit demo`. No agent runs a git command.
+**Centrally managed** (orchestrator only): `content/toc.json`, `content/glossary.json`, `features.json` (unless
+explicitly delegated to the corrections agent), `content/home.md`, `doc.config.mjs`, `WRITING-GUIDE.md`,
+`captures/targets.mjs`, `facts/*.json` (written only by `doc-kit facts`), `sync.json` (written only by
+`doc-kit sync --mark`), the engine (the kit, never changed by a writing agent), and the commands that write these
+files or touch access: `doc-kit new`, `doc-kit connect`, `doc-kit demo`, `doc-kit facts`. No agent runs a git
+command.
 
 Why: agents work at the same time; two concurrent writes of a shared file lose one agent's work. Anything that touches
 a central file comes back through the **report** ("proposed glossary terms", "summary of a page to change").
@@ -51,15 +65,18 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 
 | Wave | Agents in parallel | Start condition |
 |---|---|---|
-| 1 | inventory (1 Explore) | `init` + `doctor` green |
-| 2 | reference page (orchestrator, or 1 agent) | toc written |
-| 3 | all writing batches (example: 8) | reference page approved, captures tried |
+| 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
+| 1 | inventory (1 Explore) | facts generated |
+| 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
+| 3 | all writing batches: `writing-batch` and `functional-spec`, business and takeover together (example: 8) | reference page(s) approved, captures tried |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
 | 7 | 2nd consolidation (2) | reports of wave 6 |
-| apart | production technical (1) | portal screenshots received; disjoint files, so it can join any wave |
+| apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical` (each its own agent) | facts generated (the first three) or portal screenshots received (production-technical); disjoint files, so each can join any wave |
 
+- Translations (ARCHITECTURE.md §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
+  same target language (never mixed); each batch can join any wave once its pages are written.
 - Agents run in the background; you are notified when they finish, no need to poll. Paste each report into the
   consolidation file as soon as it arrives.
 - In production the platform is shared: each agent captures in small runs (3 to 8 per command). Zones are written to
@@ -67,12 +84,21 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 - An instruction discovered during a wave (a page that writes when rendered…) is added to the brief **and** sent to the
   running agents.
 
-**Launching an agent**: a general agent (able to write) for writing, Explore for the inventory. Typical message:
+**Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
+`brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
+inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief (ARCHITECTURE.md §6.11, "Economy of the
+agents"). Typical message:
 
 ```
 Read <docDir>/.doc-kit/brief-writing-batch-u1.md and carry it out in full.
 Your final report follows the format asked at the end of the brief.
 ```
+
+**Economy**: before launching a wave, `node scripts/brief.mjs <template> --project <docDir> --var …… --estimate`
+for each of its briefs gives input and output tokens and the cost (`llm.prices` in `doc.config.mjs`); after each
+agent ends, `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> --tools <n> --duration <ms>
+--pages a,b --phase <n>` from what Claude Code reports, so `usage.mjs report` can total the wave and compare it
+with the estimate. Agents of the same wave share a brief template's common part byte for byte (prompt cache).
 
 ## 4. Brief placeholders
 
@@ -94,7 +120,8 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `plansDir` | `capture.plans` | captures/plans |
 | `kitPath` | the kit's location | (set at install) |
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
-| `contentDir`, `imagesDir`, `diagramsDir` | `paths.*` | content, images, diagrams |
+| `contentDir`, `imagesDir`, `diagramsDir`, `factsDir` | `paths.*` (`factsDir` default `facts`) | content, images, diagrams, facts |
+| `featuresFile` | the `features` coverage adapter's `file` option, else `features.json` | features.json |
 | `tocFile`, `glossaryFile`, `targetsFile`, `guideFile` | the existing file (legacy names detected) | content/toc.json |
 | `findingsPage` | `extra.briefs.findingsPage`, default by language | take-over/findings |
 | `consolidationFile` | `.doc-kit/consolidation.md` | |
@@ -156,3 +183,30 @@ sub-pages. It is a central operation, because it changes the toc.
    points to another page. The build reports any anchor it cannot find.
 
 On site A, 37 sub-pages were created this way in one pass, with a script that moved the sections and rewrote the links.
+
+## 8. The cost of an agent, and the step budget
+
+**Model**: an agent's cost ≈ its number of round-trips × its context size. Cache reads dominate — each round-trip
+re-reads the whole context accumulated so far, so a wave that shares a brief's common part byte for byte
+(§4) still pays for every round-trip's growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
+read costs; it does not by itself cut how many reads an agent takes. **The step budget is the main lever**: how
+many extra reads an agent allows itself beyond the context file and the page's own template, how many times it
+runs a build, whether it reviews a screenshot mid-way.
+
+Measured on a real application (FastAPI + Next.js, 81 pages): nine admin screen pages, one `writing-batch` agent
+per page, three methods compared.
+
+| Method | Avg. cost (token-equivalent) | Round-trips | Duration | Conformant |
+|---|---|---|---|---|
+| Old brief: writing guide + reference page + full inventory + free exploration + repeated checks | 1,039,000 | 47 | 13.6 min | 3/3 |
+| + a context folder, same free exploration | 890,000 (−14 %) | 42 | 11.4 min | 3/3 |
+| **Sober**: context folder + template only, at most 3 targeted reads, the page written once, one build, `view` only with screenshots | **323,000 (−69 %)** | **21** | **7 min (−49 %)** | 3/3 |
+
+("Token-equivalent" cost: input × 1 + cache write × 1.25 + cache read × 0.1 + output × 5 — cache reads are cheap
+per token, but there are far more of them per round-trip than any other kind.) The context folder alone bought
+14 %; the step budget bought the rest. Conformance to the standard did not move: fewer steps did not mean fewer
+checks, only fewer *exploratory* ones.
+
+**The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
+rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply
+this: at most 3 extra reads per page for a writer, at most 1 for an updater.

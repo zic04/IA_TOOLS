@@ -8,7 +8,7 @@ doc-kit export <cible> [--with-dist] [--zip]
 
 | Option | Effet |
 |---|---|
-| `--with-dist` | Inclut le site construit (un avertissement quand il n'est pas construit) |
+| `--with-dist` | Inclut le site construit et le fichier de chaque espace (un avertissement quand il n'est pas construit) |
 | `--zip` | Écrit aussi `<cible>.zip` |
 
 La copie contient les fichiers du projet (sans `node_modules/`, `.doc-kit/`, `.git/`, les fichiers `.env`,
@@ -71,6 +71,33 @@ sinon `$CLAUDE_CONFIG_DIR/skills`, sinon `~/.claude/skills`.
 
 Un fichier d'empreintes permet à `doc-kit doctor` de signaler une copie périmée, modifiée ou étrangère. La commande
 n'écrit jamais ailleurs que dans le dossier `doc-kit`. Voir [Installer le skill](#/skill/install).
+
+## doc-kit translate
+
+```text
+doc-kit translate status [--lang <l>] [--check]
+doc-kit translate --mark <page…> [--lang <l>]
+doc-kit translate --mark --all [--lang <l>]
+doc-kit translate --fix-anchors [page…] [--lang <l>]
+```
+
+L'état des traductions déclarées par `languages` dans `doc.config.mjs` ; sans `languages`, code de sortie 2
+(`translate.noLanguages`). Sans le `--lang` global, toutes les langues sauf la source ; `--lang <l>` limite à une
+seule et refuse la source elle-même (code de sortie 2, `translate.sourceLang`).
+
+| Forme | Effet |
+|---|---|
+| `status [--check]` | Liste l'état de chaque fichier traduisible (`current`, `stale`, `unmarked`, `missing`), les décomptes, puis les fichiers qui ne sont pas `current` |
+| `--mark <page…>` | Enregistre l'empreinte actuelle de la source de chaque élément dans `translations/<l>/.sources.json` ; un élément est un id de page, ou un chemin relatif à `content/` dès qu'il contient un point (`home.md`, `use/index.md`, `toc.json`, `glossary.json`) |
+| `--mark --all` | Marque chaque fichier dont la traduction existe déjà |
+| `--fix-anchors [page…]` | Réécrit un lien `#/<cible>~<ancre>` dont l'ancre est un titre de la page cible source mais pas de la page traduite, vers le titre traduit à la même position ; sans `page…`, chaque page et introduction de section |
+
+Codes de sortie : `status` vaut 0, ou 1 avec `--check` quand une langue listée a un fichier `stale` ou
+`missing`. `--mark` vaut 1 quand le fichier traduit d'un élément manque (rien n'est écrit pour cette langue,
+`translate.missingFile`), 2 sans élément ni `--all` (`translate.markNothing`). `--fix-anchors` vaut 1 quand un
+lien n'a pas pu être reporté — signalé, jamais deviné — 0 sinon. Appeler `translate` sans `status`, `--mark` ni
+`--fix-anchors` est aussi une erreur d'usage (code de sortie 2, `translate.usage`). Voir
+[Documenter en plusieurs langues](#/spaces/languages).
 
 ## Pour aller plus loin
 

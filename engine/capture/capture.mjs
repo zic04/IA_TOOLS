@@ -3,6 +3,11 @@
 // screenshots, converts to WebP (Chromium canvas) and writes images/<id>.webp + images/zones/<id>.json (one file
 // per capture, so that several runs can work side by side).
 //
+// `compare` (ARCHITECTURE.md §6.10, capture --compare): the new image is compared with the one already on disk
+// (engine/capture/compare.mjs, same WebP encoder on both sides); below `compareThreshold` the image on disk is
+// left byte for byte untouched (no binary diff for git), only its zone file is rewritten; above it, the image is
+// replaced and a before/after sheet is written next to the comparison copy in `compareDir`.
+//
 // Safety:
 //   read-only   every request other than GET/HEAD/OPTIONS is aborted in the browser and counted (on whenever a
 //               session is used, with capture.readOnly "auto"; always with capture.target "production");
@@ -21,6 +26,7 @@ import { readProjectVersion } from "../build/build.mjs";
 import { CaptureError, firstLine, registerSelectors, zoneBox, frameClip, measureZone, play, actionKind, describeTarget, routeWithView } from "./actions.mjs";
 import { sensitiveValues, maskSource, maskPage } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
+import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
 import { forbiddenMatch } from "./plans.mjs";
 import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
 
@@ -111,8 +117,12 @@ export function storageValues(storage, version) {
   return Object.fromEntries(Object.entries(storage).map(([k, v]) => [k, (typeof v === "string" ? v : JSON.stringify(v)).replaceAll("{version}", version)]));
 }
 
-/** Zone file of a capture (ARCHITECTURE.md §6.2). */
-export function zoneFile({ entry, clip, zones, version, captured }) {
+/**
+ * Zone file of a capture (ARCHITECTURE.md §6.2). `commit` (the application's git HEAD) and `plan` (hash of the
+ * plan entry, ARCHITECTURE.md §6.10) are omitted when absent, so that a run without `sync` support keeps
+ * writing the same shape as before (test parity, byte-identical files).
+ */
+export function zoneFile({ entry, clip, zones, version, captured, commit = null, plan = null }) {
   return {
     file: `${entry.id}.webp`,
     title: entry.title || "",
@@ -122,6 +132,8 @@ export function zoneFile({ entry, clip, zones, version, captured }) {
     version,
     captured,
     zones,
+    ...(commit ? { commit } : {}),
+    ...(plan ? { plan } : {}),
   };
 }
 
@@ -182,27 +194,71 @@ async function writePreview(page, clip, zones, file) {
  * @param {boolean} [p.preview]          also writes <previews>/<id>.zones.png
  * @param {string} [p.previews]          folder of the previews (default <root>/.doc-kit)
  * @param {string} [p.captured]          date written in the zone files (default: today, YYYY-MM-DD)
- * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms } | { type: "failed", id, key, vars }
+ * @param {boolean} [p.compare]          ARCHITECTURE.md §6.10 (capture --compare): compares each new image with
+ *   the one already on disk before replacing it; unchanged (below `compareThreshold`): the image is left byte
+ *   for byte as it was, only its zone file is rewritten; changed: the image is replaced and a before/after
+ *   sheet is written next to the comparison copy
+ * @param {number} [p.compareThreshold]  share of differing pixels above which an image counts as changed (0-1)
+ * @param {string} [p.compareDir]        where the comparison copies and sheets are written (default <root>/.doc-kit/compare)
+ * @param {string} [p.imagesDir]         where the images and their zone files are written (default config.paths.images,
+ *   relative to root); `capture --lang <l>` (ARCHITECTURE.md §6.12) passes `<paths.images>/<l>`
+ * @param {object} [p.capture]           capture options (default config.capture); `capture --lang <l>` passes
+ *   `mergeLanguageCapture(config.capture, l)` (engine/build/languages.mjs): the same shape, that language's locale,
+ *   cookies and storage merged over the defaults
+ * @param {string|null} [p.commit]       application's git HEAD, written to the zone files when given
+ * @param {(entry: object) => string|null} [p.planHash]   hash of a plan entry, written to its zone file
+ * @param {{ before: string, after: string }} [p.labels]  before/after sheet captions
+ * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms, compared? } | { type: "failed", id, key, vars }
  * @returns {Promise<{ ok: object[], failed: object[], blocked: string[], refused: string[], prefetched: string[],
- *   expired: object|null, who: string|null }>}
+ *   expired: object|null, who: string|null, compared: Array<{ id, ratio, changed }> }>}
  *   refused: navigations to forbidden routes (each one stopped its capture); prefetched: other requests to
- *   forbidden routes, aborted silently
+ *   forbidden routes, aborted silently; compared: only with `compare` (ARCHITECTURE.md §6.10)
  * @throws {KitError} exit code 3: application unreachable, session expired before the run
  */
-export async function runCaptures({ root, config, entries, appUrl, auth, session, readOnly, forbidden = [], preview = false, previews, captured, onEvent = () => {}, launch = launchBrowser }) {
+export async function runCaptures({
+  root,
+  config,
+  entries,
+  appUrl,
+  auth,
+  session,
+  readOnly,
+  forbidden = [],
+  preview = false,
+  previews,
+  captured,
+  compare = false,
+  compareThreshold = 0.005,
+  compareDir = path.join(root, ".doc-kit", "compare"),
+  imagesDir: imagesDirOption,
+  capture,
+  commit = null,
+  planHash = () => null,
+  labels = { before: "Before", after: "After" },
+  onEvent = () => {},
+  launch = launchBrowser,
+}) {
   await registerSelectors();
-  const cap = config.capture;
+  const cap = capture || config.capture;
   const sel = cap.selectors;
   const appOrigin = new URL(appUrl).origin;
   const version = readProjectVersion(root, config.version);
   const date = captured || new Date().toISOString().slice(0, 10);
-  const imagesDir = path.join(root, config.paths.images);
+  const imagesDir = path.join(root, imagesDirOption || config.paths.images);
   const zonesDir = path.join(imagesDir, "zones");
   const previewDir = previews || path.join(root, ".doc-kit");
+  /** Zones of the zone file written by a previous run (for the before/after sheet), or []. */
+  const previousZones = (id) => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(zonesDir, `${id}.json`), "utf8")).zones || [];
+    } catch {
+      return [];
+    }
+  };
   const source = maskSource(sensitiveValues(root, config.masking), config.masking);
   const baseline = sessionStorageOf(session, appOrigin);
   const checksSignIn = !auth.adapter.none;
-  const result = { ok: [], failed: [], blocked: [], refused: [], prefetched: [], expired: null, who: null };
+  const result = { ok: [], failed: [], blocked: [], refused: [], prefetched: [], expired: null, who: null, compared: [] };
   let current = { forbidden: null };
   const guarded = readOnly || forbidden.length > 0;
   const guard = requestGuard({ appOrigin, forbidden, readOnly, result, onNavigation: (p) => (current.forbidden ??= p) });
@@ -331,9 +387,34 @@ export async function runCaptures({ root, config, entries, appUrl, auth, session
       const png = await page.screenshot({ clip, animations: "disabled", caret: "hide" });
       if (preview && zones.length) await writePreview(page, clip, zones, path.join(previewDir, `${entry.id}.zones.png`));
       const webp = await encoder.encode(png, cap.webpQuality);
-      fs.writeFileSync(path.join(imagesDir, `${entry.id}.webp`), webp);
-      fs.writeFileSync(path.join(zonesDir, `${entry.id}.json`), JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date }), null, 2) + "\n");
-      return { zones: zones.length, bytes: webp.length };
+      const imageFile = path.join(imagesDir, `${entry.id}.webp`);
+      let compared;
+      if (compare) {
+        fs.mkdirSync(compareDir, { recursive: true });
+        fs.writeFileSync(path.join(compareDir, `${entry.id}.webp`), webp);
+        if (fs.existsSync(imageFile)) {
+          const before = fs.readFileSync(imageFile);
+          const { ratio, sameSize } = await compareImages(encoder.page, before, webp, { tolerance: 16 });
+          const outcome = compareOutcome({ ratio, sameSize, threshold: compareThreshold });
+          compared = { ratio, changed: outcome === "changed" };
+          if (outcome === "changed") {
+            fs.writeFileSync(imageFile, webp);
+            const sheet = await beforeAfterSheet(encoder.page, { before, after: webp, zonesBefore: previousZones(entry.id), zonesAfter: zones, labels });
+            fs.writeFileSync(path.join(compareDir, `${entry.id}.png`), sheet);
+          }
+          // unchanged: the image on disk is left exactly as it was (no binary change for git).
+        } else {
+          fs.writeFileSync(imageFile, webp);
+          compared = { ratio: 1, changed: true };
+        }
+      } else {
+        fs.writeFileSync(imageFile, webp);
+      }
+      fs.writeFileSync(
+        path.join(zonesDir, `${entry.id}.json`),
+        JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry) }), null, 2) + "\n"
+      );
+      return { zones: zones.length, bytes: webp.length, ...(compared ? { compared } : {}) };
     }
 
     for (const entry of entries) {
@@ -342,6 +423,7 @@ export async function runCaptures({ root, config, entries, appUrl, auth, session
         const r = await takeOne(entry);
         const event = { type: "ok", id: entry.id, ...r, ms: Date.now() - t0 };
         result.ok.push(event);
+        if (r.compared) result.compared.push({ id: entry.id, ...r.compared });
         onEvent(event);
       } catch (e) {
         if (e instanceof SessionExpired) {

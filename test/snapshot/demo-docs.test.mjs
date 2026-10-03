@@ -14,12 +14,14 @@ const stable = (html) => html.split(generatorTag()).join("<generator>");
 
 for (const language of ["en", "fr"]) {
   test(`demo project, ${language}`, async () => {
-    // The content is in English: in French, the page-template check (French section titles) only warns.
+    // The content is in English: in French, the page-template check (French section titles) only warns, once
+    // per required section missing across the 8 typed pages. Both languages also carry the two spaces' own
+    // warning (ARCHITECTURE.md §6.1a): a link to another space, replaced by its text in that space's export.
     const r = await buildDemo({ language, draft: language === "fr" });
     assert.deepEqual(r.errors, []);
     assert.deepEqual(
       r.warnings.map((w) => w.key),
-      language === "fr" ? Array(5).fill("template.missingSection") : []
+      language === "fr" ? [...Array(26).fill("template.missingSection"), "space.excludedLinks", "space.excludedLinks"] : ["space.excludedLinks", "space.excludedLinks"]
     );
     const html = stable(r.html);
     const file = path.join(FOLDER, `demo-docs.${language}.html`);

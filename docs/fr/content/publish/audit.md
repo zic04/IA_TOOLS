@@ -1,8 +1,9 @@
 ## En bref
 
-`doc-kit audit` mesure un site de documentation par rapport au standard : une quinzaine d'**indicateurs**, le
+`doc-kit audit` mesure un site de documentation par rapport au standard : une seizaine d'**indicateurs**, le
 **niveau de maturité** atteint (de 0 à 4), et, par ordre de priorité, **ce qu'il reste à faire** pour atteindre le
-niveau suivant, avec les pages concernées.
+niveau suivant, avec les pages concernées. Avec des espaces déclarés, il donne aussi un niveau **par espace**, et
+deux mesures qui n'influencent jamais le niveau : `facts` et `claims`.
 
 1. Il construit le site en mémoire, en mode strict, et lit chaque page, le sommaire et les fichiers de zones.
 2. Il écrit `.doc-kit/audit.md` (le rapport, dans la langue du projet) et `.doc-kit/audit.json` (les mêmes données),
@@ -16,19 +17,17 @@ niveau suivant, avec les pages concernées.
 
 ## Le résumé
 
-Le résumé du squelette d'un nouveau projet (lignes raccourcies ici) : ses 9 pages sont des brouillons, écrits par
-`init` avec leurs consignes de gabarit, donc aucune n'est encore écrite.
+Le résumé du squelette d'un nouveau projet (ses deux espaces déjà déclarés, métier et reprise) : ses 14 pages sont
+des brouillons, écrits par `init` avec leurs consignes de gabarit, donc aucune n'est encore écrite.
 
 ```text
-◆ Acme Orders — niveau 1 · Squelette (9 pages)
-  Pages : 0 écrite sur 9 — 9 à écrire (0 sans fichier, 9 encore en consignes)
-  ✖ written 0 % · ✔ typed 100 % · – conformant n/a · – completeness n/a
-  – annotated n/a · – coverage non mesuré · – proofs n/a · ✖ takeover 0 %
-  – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · ✖ glossary 2
-  ✖ tours 1 · ✔ blocking 0 · – wideTables non mesuré
+◆ Acme Orders — niveau 1 · Squelette (14 pages)
+  Pages : 0 écrite sur 14 — 14 à écrire (0 sans fichier, 14 encore en consignes)
+  ✖ written 0 % · ✔ typed 100 % · – conformant n/a · – completeness n/a · – annotated n/a · – coverage non mesuré · – proofs n/a · ✖ takeover 0 %
+  – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · – upToDatePages n/a · ✖ glossary 2 · ✖ tours 1 · ✔ blocking 0 · – wideTables non mesuré
 
 Prochain : niveau 2 · Utilisateur — 1 critère à remplir
-  1. Écrivez les 3 pages pas encore écrites hors Reprendre (0 sans fichier, 3 encore en consignes) (…)
+  1. Écrivez les 4 pages pas encore écrites hors Reprendre (0 sans fichier, 4 encore en consignes) (utiliser/prise-en-main, fonctionnalites/exemple-fonctionnalite, configurer/editeur-exemple +1)
   + 5 actions pour les niveaux suivants : voir le rapport
 
 → rapport : .doc-kit/audit.md · données : .doc-kit/audit.json
@@ -66,6 +65,7 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 | `tooLong` | Les pages écrites au-delà de leur `maxWords` (2 000 sans type) |
 | `guidance` | Le texte de gabarit resté hors des pages : résumé provisoire de `doc-kit new` d'une page écrite, consigne dans l'accueil ou une introduction de section |
 | `upToDateCaptures` | Les fichiers de zones dont la `version` est la version documentée courante |
+| `upToDatePages` | Les pages marquées (`sync.json`, [Suivre l'évolution de l'application](#/publish/sync)) dont la `version` est la version courante, parmi les pages écrites ; `n/a` sans `sync.json` |
 | `glossary` · `tours` | Termes du glossaire · parcours de la page d'accueil |
 | `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments qu'aucune page ne cite + secrets trouvés |
 | `wideTables` | Les tableaux qui défilent à 1 440 px (chaque page est ouverte dans Chromium) |
@@ -77,7 +77,7 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 | **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page avec son fichier (un brouillon compte) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou n/a) · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
 | **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) |
+| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) · `upToDatePages` ≥ 90 % (ou n/a) |
 
 La section **Reprendre** est celle dont l'id est `reprendre` (ou `take-over`) ; sinon, la dernière section du plan
 quand il y en a au moins deux. Ses 7 pages obligatoires sont : une vue d'ensemble de l'architecture (id qui se termine
@@ -87,11 +87,60 @@ moins 3 étapes, une page d'exploitation (id qui contient `operations`, `deploym
 constat numéroté (`C1`, `I1`…), et une page sur la maintenance de la doc (id qui se termine par `/maintenir-doc` ou
 `/maintaining-docs`).
 
+## Le niveau par espace
+
+Avec `spaces` déclaré ([Deux espaces, une seule source](#/spaces/overview)), le rapport montre aussi une ligne par
+espace :
+
+```text
+## Niveau par espace
+
+| Espace | Pages | Niveau | Manque pour le niveau suivant |
+|---|---|---|---|
+| Pour le métier (`business`) | 4 | 1 Squelette | `written2` |
+| Pour l'équipe de reprise (`takeover`) | 10 | 2 Utilisateur | `written3`, `guidance3`, `glossary3`, `tours3` |
+```
+
+- `written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs` et `tooLong` sont mesurés seulement sur
+  les pages de cet espace ; les indicateurs communs au projet (configuration, build, accueil, glossaire, parcours,
+  couverture, blocages, tableaux trop larges, versions des captures et des pages) sont ceux déjà affichés au
+  niveau global.
+- Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a` : `written2` (pages hors Reprendre)
+  dans l'espace Reprise ; `takeover4` et `proofs4` (les 7 pages obligatoires de Reprendre, les preuves sur ces
+  pages) en dehors.
+- **Le niveau global reste global** : toutes les pages, quel que soit leur espace. Un projet peut être au niveau 2
+  dans l'ensemble alors que son espace métier atteint déjà le niveau 3 — utile pour savoir quel public est
+  vraiment servi en premier. `audit.json` porte `spaces : [{ id, title, pages, level, indicators, criteria }]` ;
+  sans espaces déclarés, rien ne change dans le rapport.
+
+## Faits et affirmations (informatif)
+
+Avec un espace reprise, deux mesures de plus sont affichées, **jamais** un critère de niveau — aucun site
+antérieur à elles ne permet d'en observer un seuil :
+
+```text
+## Faits et affirmations
+
+- 7 fichiers de faits, 1 périmé (plus ancien que le commit courant de l'application)
+- 34 vérifiées, 9 déduites, 2 inconnues (taux vérifié : 79 %)
+```
+
+- `facts` : combien de fichiers `facts/<source>.json` existent
+  ([Reprendre une application vibe-codée](#/spaces/takeover)), et combien sont **périmés** — leur commit
+  enregistré diffère du `HEAD` courant de l'application. Corrigé par `doc-kit facts --source <nom>`.
+- `claims` : combien de puces `[[verifie]]`, `[[deduit]]` et `[[inconnu]]` apparaissent dans les pages de reprise
+  écrites, et le taux vérifiées ÷ (vérifiées + déduites). Un taux bas se corrige en lisant le code, jamais en
+  changeant une puce.
+
+`audit.md` n'affiche cette section que s'il y a quelque chose à signaler ; `audit.json` porte toujours `facts` et
+`claims`.
+
 ## Comment l'audit décide
 
 - **Non mesuré** (aucun adaptateur de couverture ne peut inventorier l'application ; pas de navigateur pour les
   tableaux, ou `DOC_KIT_NO_BROWSER=1`) : le critère est ignoré, jamais en échec, et le rapport dit comment le mesurer.
-- **n/a** (rien à mesurer, comme `conformant` tant qu'aucune page n'est typée) : le critère est rempli.
+- **n/a** (rien à mesurer, comme `conformant` tant qu'aucune page n'est typée, ou `upToDatePages` avant le premier
+  `doc-kit sync --mark --all`) : le critère est rempli.
 - **Les actions** sont listées niveau par niveau, à partir du suivant ; dans un niveau, les plus rapides d'abord
   (renommer un titre, déclarer un type, retirer une consigne), les plus longues en dernier (écrire des pages, ajouter
   des preuves).
@@ -126,3 +175,6 @@ node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
 - `standard/maturity.fr.md` dans le kit : les formules, les seuils et un exemple détaillé.
 - [Les contrôles](#/publish/checks) : les contrôles bloquants derrière `blocking`.
 - [Les gabarits de page](#/write/page-templates) : `typed`, `conformant` et `completeness`.
+- [Deux espaces, une seule source](#/spaces/overview) : le tableau niveau par espace, en contexte.
+- [Suivre l'évolution de l'application](#/publish/sync) : `upToDatePages`, marqué par `doc-kit sync --mark`.
+- [Reprendre une application vibe-codée](#/spaces/takeover) : `facts` et `claims`, mesurés.

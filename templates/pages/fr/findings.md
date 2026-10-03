@@ -21,7 +21,7 @@ Les constats sont numérotés **C** (critiques), **I** (importants) et **M** (mi
 
 ## Dans cette partie
 
-<!-- consigne : facultatif. Dès que la liste dépasse environ 2 000 mots, une sous-page par famille : production (P), critiques (C), importants (I, éventuellement en deux pages), mineurs (M), sans effet (R). Une ligne par sous-page ; colonne 1 = lien. Format d'un constat critique : « ## C1 — titre », puis Constat, Impact, Recommandation. Format des autres : tableau N° · Point · Où · Constat et impact · Recommandation. -->
+<!-- consigne : facultatif. Dès que la liste dépasse environ 2 000 mots, une sous-page par famille : production (P), critiques (C), importants (I, éventuellement en deux pages), mineurs (M), sans effet (R). Une ligne par sous-page ; colonne 1 = lien. Cette page est un registre de risques : chaque constat porte aussi Propriétaire (qui décide), Décision (corriger, accepter, transférer, éviter), Statut (ouvert, en cours, fait, accepté) et Échéance. Format d'un constat critique : « ## C1 — titre », puis Constat, Impact, Recommandation, puis une ligne « Propriétaire · Décision · Statut · Échéance ». Format des autres : tableau N° · Point · Où · Constat et impact · Recommandation · Suivi, « Suivi » regroupant Propriétaire · Décision · Statut · Échéance en une seule colonne (quatre colonnes séparées dépassent souvent la largeur de lecture une fois Où et Recommandation ajoutés ; regroupez-les, ou passez plus tôt en sous-pages). -->
 
 | Sous-page | Ce que vous y trouverez |
 |---|---|

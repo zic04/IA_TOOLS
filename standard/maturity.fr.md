@@ -2,6 +2,9 @@
 
 Quatre niveaux, chacun défini par des critères que `doc-kit audit` **mesure**. Un niveau est atteint quand tous ses critères, et tous les critères des niveaux inférieurs, sont remplis.
 
+Avec des espaces déclarés (`content/toc.json`, ARCHITECTURE.md §6.1a), le niveau est aussi mesuré **par
+espace** : voir « Le niveau par espace » plus bas. Sans espaces, rien ne change dans ce fichier.
+
 | Niveau | Nom | En une phrase |
 |---|---|---|
 | 1 | **Squelette** | Le site se construit, et chaque section a sa première page |
@@ -36,6 +39,7 @@ Quatre niveaux, chacun défini par des critères que `doc-kit audit` **mesure**.
 | `tooLong` | Pages écrites au-delà de leur `maxWords` (2 000 sans type) ÷ pages écrites. Les mots sont comptés dans le Markdown, sans les blocs de code, les commentaires, les URL et le balisage |
 | `guidance` | Texte de gabarit resté hors du corps des pages : pages écrites dont le résumé est encore celui qu'écrit `doc-kit new`, plus l'accueil et les introductions de section (`<section>/index.md`) qui contiennent encore une consigne |
 | `upToDateCaptures` | Fichiers de zones dont la `version` est la version courante de l'application ÷ fichiers de zones qui portent une `version` ; `n/a` quand aucun n'en porte |
+| `upToDatePages` | Pages marquées (`sync.json`, ARCHITECTURE.md §6.10) dont la `version` est la version courante de l'application ÷ pages écrites ; `n/a` sans `sync.json` |
 | `glossary` | Nombre de termes du glossaire |
 | `tours` | Nombre de parcours guidés de l'accueil (`journeys` dans `toc.json`) |
 | `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments cités par aucune page, pas même par l'entrée d'une page pas encore écrite (quand `coverage` est mesuré) + secrets trouvés par `doc-kit check secrets` (voir [quality.fr.md](quality.fr.md)). Les erreurs des pages pas encore écrites (`page.missing`, les erreurs d'un brouillon) sont affichées à côté, comptées par `written` |
@@ -62,7 +66,7 @@ La section **Reprendre** est la section dont l'id est `take-over` (ou `reprendre
 | **1 Squelette** | `doc.config.mjs` est valide · `doc-kit build --draft` réussit · chaque section a au moins 1 page avec son fichier (un brouillon compte : c'est le squelette) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou `n/a`) · `coverage` ≥ 80 % (ou `n/a`) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
 | **3 Complet** | `written` = 100 % · `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) |
+| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) · `upToDatePages` ≥ 90 % (ou `n/a`) |
 
 Les seuils viennent des sites les plus aboutis construits avec cette méthode : on peut les atteindre sans exploit, et un site qui en manque un a une lacune qu'un lecteur remarquera.
 
@@ -70,10 +74,47 @@ Les seuils viennent des sites les plus aboutis construits avec cette méthode : 
 
 - **Niveau 0** : le niveau 1 n'est pas atteint (le sommaire ne peut pas être lu, ou un critère du niveau 1 échoue).
 - **Non mesuré** (aucun adaptateur de couverture ne peut inventorier l'application, pas de navigateur pour la largeur des tableaux) : le critère est ignoré, jamais en échec, et le rapport dit comment le mesurer.
-- **n/a** (rien à mesurer, par exemple `conformant` tant qu'aucune page n'est typée) : le critère est rempli. Avec `capture.mode: "none"`, `annotated` vaut `n/a` : une documentation sans captures atteint donc le niveau 2 avec des pages écrites et couvertes.
+- **n/a** (rien à mesurer, par exemple `conformant` tant qu'aucune page n'est typée) : le critère est rempli. Avec `capture.mode: "none"`, `annotated` vaut `n/a` : une documentation sans captures atteint donc le niveau 2 avec des pages écrites et couvertes. `upToDatePages` vaut `n/a` de la même façon : un projet sans `sync.json` encore (ARCHITECTURE.md §6.10) remplit le critère sans avoir jamais lancé `doc-kit sync`. Le premier `doc-kit sync --mark --all` en fait un vrai ratio mesuré — et à partir de là, une page que `doc-kit sync` signale comme changée le fait baisser jusqu'à ce qu'elle soit relue et marquée à nouveau.
 - `doc-kit audit` construit le site en mémoire en mode strict, puis écrit `.doc-kit/audit.md` (le rapport, dans la langue du projet) et `.doc-kit/audit.json`, et affiche un résumé. Son code de sortie vaut 0 : il informe, il ne bloque pas (code 2 quand la configuration ne peut pas être lue).
 - **Les actions** sont listées niveau par niveau, à partir du suivant ; dans un niveau, les plus rapides d'abord (renommer un titre, déclarer un type, retirer une consigne), les plus longues ensuite (écrire des pages, ajouter des preuves). Chaque action nomme les pages concernées.
 - **Pages non typées.** L'audit nomme les pages qui suivent déjà un gabarit, d'après leurs titres : toutes les sections obligatoires du type sont là. Il préfère les types habituels de la section (`screen` dans Utiliser et Administrer, `editor` et `recipe` dans Configurer), et ne propose jamais de type pour une sous-page d'une page `screen`, `editor` ou des points d'attention, qui restent non typées (voir [templates.fr.md](templates.fr.md#pages-sans-type)). Pour les autres pages, il donne le type le plus proche et les sections obligatoires qui manquent encore.
+
+## Le niveau par espace
+
+Avec des espaces déclarés (`content/toc.json`, ARCHITECTURE.md §6.1a), `doc-kit audit` affiche aussi un
+niveau **par espace** : les mêmes critères, les indicateurs de page (`written`, `typed`, `conformant`,
+`completeness`, `annotated`, `proofs`, `tooLong`) mesurés uniquement sur les pages de cet espace, et les
+indicateurs transverses au projet (configuration, build, accueil, glossaire, parcours, couverture, problèmes
+bloquants, tableaux trop larges, versions des captures et des pages) partagés avec le niveau global.
+`audit.md` montre un tableau « Niveau par espace » sous le niveau global ; `audit.json` porte
+`spaces: [{ id, title, pages, level, indicators, criteria }]`.
+
+Un critère qui ne concerne pas un espace est rempli et affiché `n/a` : `written2` (pages hors Reprendre) dans
+l'espace Reprise, et `takeover4` / `proofs4` (les 7 pages obligatoires de Reprise, preuves sur les pages de
+Reprise) hors de cet espace. Rien d'autre n'est ignoré — un espace Métier sans aucune capture a quand même
+besoin de `annotated`, `coverage`, `conformant`… mesurés sur ses propres pages.
+
+Le **niveau global reste ce qu'il a toujours été** : toutes les pages, sans distinction d'espace. Un projet
+peut être au niveau 2 globalement alors que son espace Métier seul est déjà au niveau 3 — utile pour savoir
+quel public est réellement servi en premier. Sans espaces déclarés, cette section ne produit rien : le
+rapport est exactement ce qu'il était avant les espaces.
+
+## Faits et affirmations (informatif)
+
+`doc-kit audit` affiche aussi deux mesures de l'espace Reprise (ARCHITECTURE.md §6.9), **jamais** un critère et
+sans jamais affecter le niveau, parce qu'aucun site n'existe avant elles pour qu'un seuil y soit observé :
+
+| Mesure | Ce qu'elle compte |
+|---|---|
+| `facts` | Combien de fichiers `facts/<source>.json` existent, et combien sont **périmés** — leur `commit` enregistré diffère du `HEAD` courant de l'application |
+| `claims` | Combien de puces `[[verified]]`, `[[deduced]]` et `[[unknown]]` (§6.9, [writing.fr.md](writing.fr.md#14-statut-des-affirmations-vérifiée-déduite-inconnue)) apparaissent dans les pages de Reprise écrites, et le ratio vérifiées ÷ (vérifiées + déduites) |
+
+Elles répondent à deux questions différentes du niveau : « les preuves sur lesquelles repose ce dossier
+sont-elles encore fraîches » (`facts`) et « quelle part de ce qui est affirmé est réellement vérifiée, plutôt
+que supposée » (`claims`). Un fichier de faits périmé se corrige avec `doc-kit facts --source <nom>` ; un
+ratio de vérification bas se corrige en lisant le code, pas en changeant une puce. `audit.md` montre les deux
+sous « Faits et affirmations » quand l'un des deux a quelque chose à signaler ; `audit.json` porte toujours
+`facts` et `claims`.
 
 ## Exemple détaillé : Acme Orders
 
@@ -92,6 +133,7 @@ La documentation d'Acme Orders, version 2.4.0, compte 92 pages. `doc-kit audit` 
 | `tooLong` | 3 / 92 (3 %) | Oui (niveau 4 : ≤ 5 %) |
 | `guidance` | 0 | Oui |
 | `upToDateCaptures` | 118 / 124 (95 %) | Oui |
+| `upToDatePages` | n/a — pas encore de `sync.json` | Oui (n/a) |
 | `glossary` · `tours` | 34 · 4 | Oui |
 | `blocking` · `wideTables` | 0 · 0 | Oui |
 

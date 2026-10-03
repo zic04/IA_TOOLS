@@ -2,6 +2,9 @@
 
 Four levels, each defined by criteria that `doc-kit audit` **measures**. A level is reached when all its criteria, and all the criteria of the levels below it, are met.
 
+With spaces declared (`content/toc.json`, ARCHITECTURE.md §6.1a), the level is also measured **per space**:
+see "Level by space" below. Without spaces, nothing in this file changes.
+
 | Level | Name | In one sentence |
 |---|---|---|
 | 1 | **Skeleton** | The site builds, and each section has its first page |
@@ -36,6 +39,7 @@ Four levels, each defined by criteria that `doc-kit audit` **measures**. A level
 | `tooLong` | Written pages beyond their `maxWords` (2,000 when untyped) ÷ written pages. Words are counted in the Markdown, without code blocks, comments, URLs and markup |
 | `guidance` | Template text left outside the page bodies: written pages whose summary is still the placeholder of `doc-kit new`, plus the home page and the section introductions (`<section>/index.md`) that still hold guidance |
 | `upToDateCaptures` | Zone files whose `version` is the current version of the application ÷ zone files that carry a `version`; `n/a` when none does |
+| `upToDatePages` | Marked pages (`sync.json`, ARCHITECTURE.md §6.10) whose `version` is the current version of the application ÷ written pages; `n/a` without `sync.json` |
 | `glossary` | Number of glossary terms |
 | `tours` | Number of home-page guided tours (`journeys` in `toc.json`) |
 | `blocking` | Strict build errors outside the pages not written yet + elements cited by no page, not even by the entry of a page not written yet (when `coverage` is measured) + secrets found by `doc-kit check secrets` (see [quality.md](quality.md)). The errors of the pages not written yet (`page.missing`, the errors of a draft) are shown next to it, counted by `written` |
@@ -62,7 +66,7 @@ The **Take over** section is the section whose id is `take-over` (or `reprendre`
 | **1 Skeleton** | `doc.config.mjs` is valid · `doc-kit build --draft` succeeds · each section has at least 1 page with its file (a draft counts: this is the skeleton) · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or `n/a`) · `coverage` ≥ 80 % (or `n/a`) · no broken link and no legend that differs from its zones, even in draft mode |
 | **3 Complete** | `written` = 100 % · `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) |
+| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) · `upToDatePages` ≥ 90 % (or `n/a`) |
 
 The thresholds come from the most complete sites built with this method: they can be reached without heroics, and a site that misses one of them has a gap a reader will notice.
 
@@ -70,10 +74,45 @@ The thresholds come from the most complete sites built with this method: they ca
 
 - **Level 0** means that level 1 is not reached: the plan cannot be read, or a level-1 criterion fails.
 - **Not measured** (no coverage adapter can inventory the application, no browser for the table widths): the criterion is skipped, never failed, and the report says how to measure it.
-- **n/a** (nothing to measure, for example `conformant` while no page is typed, or `annotated` with `capture.mode: "none"`): the criterion is met. A documentation without screenshots therefore reaches level 2 on its written, covered pages.
+- **n/a** (nothing to measure, for example `conformant` while no page is typed, or `annotated` with `capture.mode: "none"`): the criterion is met. A documentation without screenshots therefore reaches level 2 on its written, covered pages. `upToDatePages` is `n/a` the same way: a project with no `sync.json` yet (ARCHITECTURE.md §6.10) meets the criterion without having run `doc-kit sync` once. The first `doc-kit sync --mark --all` turns it into a real, measured ratio — and from then on, a page `doc-kit sync` marks as changed lowers it until someone reviews the page and marks it again.
 - `doc-kit audit` builds the site in memory in strict mode, then writes `.doc-kit/audit.md` (the report, in the language of the project) and `.doc-kit/audit.json`, and prints a summary. Its exit code is 0: it informs, it does not block (exit code 2 when the configuration cannot be read).
 - **The actions** are listed level by level, from the next one; inside a level, the quickest first (rename a heading, declare a type, remove guidance) and the longest last (write pages, add proofs). Each action names the pages concerned.
 - **Untyped pages.** The audit names the pages that already follow a template, judged by their headings: all the required sections of the type are there. It prefers the usual types of the section (`screen` in Use and Administer, `editor` and `recipe` in Configure), and never suggests a type for a sub-page of a `screen`, an `editor` or the findings, which stay untyped (see [templates.md](templates.md#untyped-pages)). For the other pages, it gives the closest type and the required sections still missing.
+
+## Level by space
+
+With spaces declared (`content/toc.json`, ARCHITECTURE.md §6.1a), `doc-kit audit` also reports a level **per
+space**: the same criteria, the page indicators (`written`, `typed`, `conformant`, `completeness`, `annotated`,
+`proofs`, `tooLong`) measured on that space's pages only, and the project-wide indicators (configuration, the
+build, the home page, glossary, journeys, coverage, blocking problems, wide tables, screenshot and page
+versions) shared with the global level. `audit.md` shows a "Level by space" table under the global level;
+`audit.json` carries `spaces: [{ id, title, pages, level, indicators, criteria }]`.
+
+A criterion that does not concern a space is met and shown `n/a`: `written2` (pages outside Take over) inside
+the Takeover space, and `takeover4` / `proofs4` (the 7 required Takeover pages, proofs on Takeover pages)
+outside it. Nothing else is skipped — a Business space with no screenshot still needs `annotated`,
+`coverage`, `conformant`… measured on its own pages.
+
+The **global level stays what it always was**: every page, regardless of space. A project can be level 2
+globally while its Business space alone is already level 3 — useful to know which audience is actually served
+first. Without spaces declared, this section produces nothing: the report is exactly as it was before spaces
+existed.
+
+## Facts and claims (informative)
+
+`doc-kit audit` also reports two measures from the Takeover space (ARCHITECTURE.md §6.9), **never** part of a
+criterion and never affecting the level, because no site predates them for a threshold to be observed on:
+
+| Measure | What it counts |
+|---|---|
+| `facts` | How many `facts/<source>.json` files exist, and how many are **stale** — their recorded `commit` differs from the application's current `HEAD` |
+| `claims` | How many `[[verified]]`, `[[deduced]]` and `[[unknown]]` badges (§6.9, [writing.md](writing.md#14-claim-status-verified-deduced-unknown)) appear in the written Takeover pages, and the ratio verified ÷ (verified + deduced) |
+
+They answer two different questions than the level does: "is the evidence this dossier relies on still fresh"
+(`facts`) and "how much of what is stated is actually checked, rather than guessed" (`claims`). A stale facts
+file is fixed by `doc-kit facts --source <name>`; a low verified ratio is fixed by reading the code, not by
+changing a badge. `audit.md` shows both under "Facts and claims" when either has something to report;
+`audit.json` always carries `facts` and `claims`.
 
 ## Worked example: Acme Orders
 
@@ -92,6 +131,7 @@ The documentation of Acme Orders, version 2.4.0, has 92 pages. `doc-kit audit` r
 | `tooLong` | 3 / 92 (3 %) | Yes (level 4: ≤ 5 %) |
 | `guidance` | 0 | Yes |
 | `upToDateCaptures` | 118 / 124 (95 %) | Yes |
+| `upToDatePages` | n/a — no `sync.json` yet | Yes (n/a) |
 | `glossary` · `tours` | 34 · 4 | Yes |
 | `blocking` · `wideTables` | 0 · 0 | Yes |
 

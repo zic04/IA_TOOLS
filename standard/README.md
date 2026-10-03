@@ -28,8 +28,8 @@ Every document exists in English (`.md`) and in French (`.fr.md`).
 
 | File | Content |
 |---|---|
-| [structure.md](structure.md) | The four sections, the groups, the required "Take over" pages, the home-page guided tours, sub-pages, when to adapt |
-| [templates.md](templates.md) | The 13 page types: purpose, sections in order, length, example, common mistakes |
+| [structure.md](structure.md) | The two spaces (Business, Takeover), their parts, the groups, the required Takeover pages, `counterpart`, the home-page guided tours, sub-pages, when to adapt |
+| [templates.md](templates.md) | The 28 page types: purpose, sections in order, length, example, common mistakes |
 | [templates.json](templates.json) | The machine-readable version, read by the build and by `doc-kit audit`: `en` and `fr` sections, required sections, `maxWords`, aliases |
 | [writing.md](writing.md) | Nothing made up, `file:line` proofs, exact labels, observed gaps, links, glossary, numbering of findings, diagrams |
 | [captures.md](captures.md) | Capture safety on production, the session, masking, zone quality, production or demo |

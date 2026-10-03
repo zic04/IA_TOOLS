@@ -41,6 +41,17 @@ Hence three rules:
 | **Deleted at the end of the run** | `doc-kit connect --forget`. As long as it is valid, it gives access to the application |
 | **Stop when it expires** | A redirect to the sign-in page (matched by `auth.loginPattern`, by default `login\|signin\|sign-in\|oauth\|authorize`) or a 401 response: the engine stops (exit code 3). Sign in again; do not work around it |
 
+### Session renewal: the only exception
+
+A session whose access token lives a few minutes, renewed by a `POST`, would otherwise expire mid-campaign. `capture.sessionRefresh` declares **one** request allowed to cross the read-only lock — sent once, outside any page, before the session is checked; nothing else changes: every request a page itself makes still stays `GET`/`HEAD`/`OPTIONS`.
+
+Accept it only when all three hold:
+1. **The endpoint writes nothing else**: it rotates the session, it does not touch business data.
+2. **Proof in the code**: read the handler; it does no more than that.
+3. A **written decision** of the application's owner, recorded in `reason` (at least 20 characters) and in the project's writing guide.
+
+Declared or not, every run that uses a session prints the outcome before the captures start: "Session renewed: POST …", or, on failure, a warning — never silent, and not fatal by itself: the session check that follows decides whether the run goes on.
+
 ### Masking
 
 | Masked automatically | Limit |

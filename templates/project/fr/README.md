@@ -8,6 +8,12 @@ Le site de documentation du produit **{{name}}**, livré en **un seul fichier HT
 
 Le moteur est **doc-kit**, relié par `package.json`. Ce dossier ne contient que le contenu.
 
+Ce squelette déclare deux **espaces** : Métier (`utiliser`, `fonctionnalites`, `configurer`, `administrer` — sans
+code, pour les utilisateurs, key users et product owners) et Reprise (`reprendre` — pour celui qui exploite,
+sécurise et fait évoluer l'application). `doc-kit build` écrit le site complet plus un export par espace,
+chacun privé de l'autre espace. Voir `standard/structure.fr.md` pour la vue d'ensemble, et le haut de
+`content/toc.json`.
+
 ## Prérequis
 
 Node.js 20 ou plus, puis :
@@ -39,6 +45,8 @@ Si le navigateur de `doc-kit view`, `doc-kit check tables` et `doc-kit audit` ma
 | `npm run tables` | `doc-kit check tables` | Aucun tableau ne déborde à 1 440 px |
 | `npm run optimize` | `doc-kit optimize` | Recompresse les images lourdes |
 | `npm run audit` | `doc-kit audit` | Score, niveau de maturité, avertissements |
+| `doc-kit facts --source <nom>` | | Lit le code de l'application dans `facts/<nom>.json` (env, api, db, dependencies, agents, secrets, tests), pour le dossier de reprise |
+| `doc-kit sync` | | Rapporte ce que la documentation doit suivre depuis la dernière vérification (`sync.json`) ; `--mark --all` enregistre aujourd'hui comme dernière vérification |
 <!-- doc-kit:capture=app -->
 | `npm run all` | Captures, optimisation, site, tous les contrôles, audit | La chaîne complète |
 <!-- doc-kit:capture=none -->
@@ -65,6 +73,16 @@ Pendant la rédaction, `doc-kit build --draft` tolère les pages pas encore écr
 6. **Remettre** : `npx doc-kit export <dossier>`, et la checklist du standard du kit (`delivery.fr.md`).
 
 Lancer `npx doc-kit` sans commande ouvre le mode guidé : il propose l'étape suivante.
+
+## Maintenir le dossier de reprise à jour
+
+Pour les pages de Reprise (`acces-et-propriete`, `manuel-exploitation`, `instructions-agents`, et tout
+`api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `threat-model` ajouté) : lancez
+d'abord `npx doc-kit facts --source <nom>` (env, api, db, dependencies, agents, secrets, tests), remplissez le
+tableau de la page depuis le résultat (`::faits{…}` ou à la main), marquez ce qui n'a pas pu être lu
+directement avec `[[verifie …]]`, `[[deduit]]` ou `[[inconnu]]`. Une fois le dossier vérifié,
+`npx doc-kit sync --mark --all` enregistre ce qui a été vérifié, et contre quelle version — la prochaine
+reprise (ou `npx doc-kit sync` sans `--mark`) rapporte alors exactement ce qui a changé depuis.
 
 <!-- doc-kit:capture=app -->
 ## Captures en production

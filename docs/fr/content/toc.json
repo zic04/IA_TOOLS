@@ -28,7 +28,7 @@
       "shortTitle": "Rédiger",
       "icon": "book",
       "subtitle": "Du Markdown avec quelques extensions, des gabarits de page, le sommaire, le glossaire et les schémas.",
-      "highlights": ["Chaque directive du Markdown étendu", "Treize gabarits de page", "Des schémas qui suivent le thème"],
+      "highlights": ["Chaque directive du Markdown étendu", "30 gabarits de page, généraux, métier et reprise", "Des schémas qui suivent le thème"],
       "groups": [
         {
           "title": "Les pages",
@@ -43,6 +43,26 @@
           "pages": [
             { "id": "write/glossary", "title": "Le glossaire", "menuTitle": "Glossaire", "summary": "Des termes expliqués par une infobulle à leur première apparition dans chaque page.", "template": "technical" },
             { "id": "write/diagrams", "title": "Les schémas", "menuTitle": "Schémas", "summary": "Des schémas SVG dessinés avec les classes d-* du site, pour suivre les thèmes clair et sombre.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spaces",
+      "title": "Espaces métier et reprise",
+      "shortTitle": "Espaces",
+      "icon": "map",
+      "subtitle": "Une seule source, documentée deux fois : une fiche métier pour chaque fonctionnalité, un dossier technique pour qui reprend l'application.",
+      "highlights": ["Une source, deux publics, deux exports", "Fiches de fonctionnalité, règles métier et rôles", "Faits, affirmations vérifiées et registre des risques"],
+      "groups": [
+        {
+          "title": "Guides",
+          "pages": [
+            { "id": "spaces/overview", "title": "Deux espaces, une seule source", "menuTitle": "Deux espaces, une source", "summary": "Déclarer les espaces métier et reprise, le sélecteur, l'export par espace, et pourquoi seul l'export convient à la diffusion.", "template": "technical" },
+            { "id": "spaces/business", "title": "Documenter chaque fonctionnalité", "menuTitle": "Documenter une fonctionnalité", "summary": "Fiches de fonctionnalité, règles métier avec leur exemple Étant donné/Quand/Alors, la matrice des rôles, et les tableaux générés.", "template": "technical" },
+            { "id": "spaces/takeover", "title": "Reprendre une application vibe-codée", "menuTitle": "Reprendre une application", "summary": "Les risques habituels, doc-kit facts, les puces d'affirmation, le registre des risques, et par où commencer.", "template": "technical" },
+            { "id": "spaces/reviews", "title": "Revues de sécurité et de maintenabilité", "menuTitle": "Sécurité et maintenabilité", "summary": "La matrice d'accès auth/guards, les faits security et quality, doc-kit probe, et pourquoi il ne touche jamais la production.", "template": "technical" },
+            { "id": "spaces/languages", "title": "Documenter en plusieurs langues", "menuTitle": "Plusieurs langues", "summary": "languages dans doc.config.mjs, le dossier des traductions, le sélecteur de langue, les quatre états d'une traduction, et doc-kit translate.", "template": "technical" }
           ]
         }
       ]
@@ -95,6 +115,12 @@
             { "id": "publish/export", "title": "Exporter et transmettre", "menuTitle": "Exporter", "summary": "Une copie autonome du projet, moteur compris, et la liste de contrôle de la passation.", "template": "recipe" },
             { "id": "publish/ci", "title": "L'intégration continue", "menuTitle": "Intégration continue", "summary": "Construire, contrôler et auditer un projet de documentation dans un pipeline, et publier le site comme artefact.", "template": "recipe" }
           ]
+        },
+        {
+          "title": "Maintenir",
+          "pages": [
+            { "id": "publish/sync", "title": "Suivre l'évolution de l'application", "menuTitle": "Suivre l'évolution", "summary": "sync.json, doc-kit sync --mark, les catégories du rapport, --apply, --check en CI, --since, et rafraîchir les captures avec capture --compare.", "template": "technical" }
+          ]
         }
       ]
     },
@@ -110,7 +136,7 @@
           "title": "Configuration",
           "pages": [
             { "id": "reference/configuration", "title": "La configuration", "menuTitle": "Configuration", "summary": "doc.config.mjs : validation stricte, valeurs par défaut, priorités, et la carte des clés.", "template": "technical" },
-            { "id": "reference/configuration/project", "title": "Clés du projet, de la version et de la connexion", "menuTitle": "Clés du projet", "level": 2, "summary": "kit, product, language, output, paths, version, env, app, auth et extra.", "template": "technical-sub" },
+            { "id": "reference/configuration/project", "title": "Clés du projet, de la version et de la connexion", "menuTitle": "Clés du projet", "level": 2, "summary": "kit, product, language, languages, output, paths, version, env, app, auth et extra.", "template": "technical-sub" },
             { "id": "reference/configuration/capture", "title": "Clés de capture et de masquage", "menuTitle": "Clés de capture", "level": 2, "summary": "capture.* et masking.*, avec leurs types, valeurs par défaut et exemples.", "template": "technical-sub" },
             { "id": "reference/configuration/site", "title": "Clés de couverture, de thème et de textes", "menuTitle": "Clés du site", "level": 2, "summary": "coverage, theme, statuses, texts et feedback.", "template": "technical-sub" },
             { "id": "reference/environment", "title": "Les variables d'environnement", "menuTitle": "Variables d'environnement", "summary": "Les variables DOC_KIT_* et <PREFIXE>_*, et celles qui changent le comportement du kit.", "template": "variables" }
@@ -120,9 +146,9 @@
           "title": "Ligne de commande",
           "pages": [
             { "id": "reference/cli", "title": "La ligne de commande", "menuTitle": "Ligne de commande", "summary": "Options globales, codes de sortie, forme des messages, et la liste des commandes.", "template": "technical" },
-            { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, demo, capture et inventory.", "template": "technical-sub" },
+            { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, probe, demo, capture et inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commandes : rédiger et vérifier", "menuTitle": "Rédiger et vérifier", "level": 2, "summary": "dev, new, build, view, open, check, audit et optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, upgrade, migrate et skill install.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, upgrade, migrate, skill install et translate.", "template": "technical-sub" }
           ]
         },
         {
@@ -157,13 +183,14 @@
       "shortTitle": "Skill",
       "icon": "gear",
       "subtitle": "Un skill qui mène Claude Code à travers toute la méthode, avec des agents en parallèle et la ligne de commande.",
-      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Des modèles de consignes pour les agents"],
+      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Trois types d'agents, chiffrés et mesurés"],
       "groups": [
         {
           "title": "Le skill",
           "pages": [
             { "id": "skill/install", "title": "Installer le skill", "menuTitle": "Installer", "summary": "doc-kit skill install, son dossier cible, et comment doctor signale une copie périmée.", "template": "recipe" },
-            { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" }
+            { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" },
+            { "id": "skill/cost-and-speed", "title": "Coût et vitesse", "menuTitle": "Coût et vitesse", "summary": "Ce qui ne coûte aucun jeton, doc-kit context, new --prefill, les trois types d'agents, et estimer face à mesurer ce que dépensent les agents.", "template": "technical" }
           ]
         }
       ]
@@ -209,8 +236,8 @@
       "title": "Exemples de pages",
       "shortTitle": "Exemples",
       "icon": "tip",
-      "subtitle": "Une page complète de chacun des 13 types, écrite pour Acme Orders, le produit fictif du kit.",
-      "highlights": ["Écrans, éditeurs et recettes", "Parcours et diagnostic", "Points d'attention, DAT, variables, ressources"],
+      "subtitle": "Une page complète de chaque type, écrite pour Acme Orders, le produit fictif du kit.",
+      "highlights": ["Écrans, éditeurs et recettes", "Fonctionnalités, règles et rôles", "Parcours et diagnostic"],
       "groups": [
         {
           "title": "Utiliser et configurer",
@@ -218,6 +245,16 @@
             { "id": "examples/screen", "title": "Exemple · Page d'écran : la liste des commandes", "menuTitle": "screen", "summary": "Un écran et ses actions, chaque zone expliquée : la liste des commandes d'Acme Orders.", "template": "screen", "routes": ["/orders"], "permissions": ["orders:read"] },
             { "id": "examples/editor", "title": "Exemple · Page d'éditeur : les réglages du profil", "menuTitle": "editor", "summary": "Un éditeur et le mécanisme qu'il pilote : les réglages du profil d'Acme Orders.", "template": "editor", "routes": ["/settings"], "permissions": ["settings:write"] },
             { "id": "examples/recipe", "title": "Exemple · Recette de configuration : valider les grosses commandes en deux temps", "menuTitle": "recipe", "summary": "Un objectif atteint en enchaînant plusieurs éditeurs, dans l'application et en dehors.", "template": "recipe" }
+          ]
+        },
+        {
+          "title": "Espace métier",
+          "pages": [
+            { "id": "examples/feature", "title": "Exemple · Fiche de fonctionnalité : la validation des commandes", "menuTitle": "feature", "summary": "Une fiche de fonctionnalité avec son encadré d'accès, ses règles métier et son scénario : la validation des commandes d'Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
+            { "id": "examples/business-rules", "title": "Exemple · Règles métier", "menuTitle": "business-rules", "summary": "Des règles partagées entre fonctionnalités, chacune un :::regle avec son exemple Given/When/Then, et le tableau généré ::regles{}.", "template": "business-rules" },
+            { "id": "examples/roles-matrix", "title": "Exemple · Matrice des rôles", "menuTitle": "roles-matrix", "summary": "Les rôles d'Acme Orders et qui peut faire quoi, avec le tableau généré ::roles{}.", "template": "roles-matrix" },
+            { "id": "examples/process", "title": "Exemple · Processus : la validation des commandes", "menuTitle": "process", "summary": "La même validation des commandes, vue de bout en bout : états, ce qui avance seul, et ce qui attend quelqu'un.", "template": "process" },
+            { "id": "examples/release-notes", "title": "Exemple · Notes de version", "menuTitle": "release-notes", "summary": "Un historique de version écrit pour un lecteur métier, jamais un message de commit copié tel quel.", "template": "release-notes" }
           ]
         },
         {
@@ -231,8 +268,25 @@
             { "id": "examples/troubleshooting-area", "title": "Exemple · Domaine de diagnostic : les accès", "menuTitle": "troubleshooting-area", "level": 2, "summary": "Les symptômes d'un domaine, chacun avec ses causes, sa vérification, sa correction et son explication.", "template": "troubleshooting-area" },
             { "id": "examples/findings", "title": "Exemple · Points d'attention", "menuTitle": "findings", "summary": "Les points d'attention numérotés d'une reprise : écarts, risques et dettes, classés.", "template": "findings" },
             { "id": "examples/architecture", "title": "Exemple · Dossier d'architecture technique (DAT)", "menuTitle": "architecture", "summary": "Le montage de production : schéma, flux numérotés, inconnues et responsabilités.", "template": "architecture" },
+            { "id": "examples/adr", "title": "Exemple · Fiche de décision d'architecture (ADR)", "menuTitle": "adr", "level": 2, "summary": "Une décision reconstituée : comment l'isolation par locataire a été mise en œuvre, et pourquoi.", "template": "adr" },
             { "id": "examples/variables", "title": "Exemple · Variables d'environnement", "menuTitle": "variables", "summary": "Les variables du service de production, comparées au code ; les valeurs ne sont jamais copiées.", "template": "variables" },
             { "id": "examples/resources", "title": "Exemple · Ressources du déploiement", "menuTitle": "resources", "summary": "Les ressources du déploiement, par famille, et ce qui utilise vraiment chacune.", "template": "resources" }
+          ]
+        },
+        {
+          "title": "Espace reprise technique",
+          "pages": [
+            { "id": "examples/access-ownership", "title": "Exemple · Accès et propriété", "menuTitle": "access-ownership", "summary": "Qui possède quoi, où vivent les secrets, les comptes des outils IA, et la checklist de passation.", "template": "access-ownership" },
+            { "id": "examples/api-surface", "title": "Exemple · Surface d'API", "menuTitle": "api-surface", "summary": "Chaque route, construite à partir de ::facts{source=\"api\"}, complétée par l'authentification, le rôle et l'isolation par locataire.", "template": "api-surface" },
+            { "id": "examples/runbook", "title": "Exemple · Runbook", "menuTitle": "runbook", "summary": "Installation, construction, déploiement, retour arrière, tâches planifiées, sauvegarde et restauration, et les premiers réflexes quand ça casse.", "template": "runbook" },
+            { "id": "examples/data-model", "title": "Exemple · Modèle de données", "menuTitle": "data-model", "summary": "Les tables, construites à partir de ::facts{source=\"db\"}, les données personnelles qu'elles portent et comment les migrations s'appliquent.", "template": "data-model" },
+            { "id": "examples/dependencies", "title": "Exemple · Dépendances", "menuTitle": "dependencies", "summary": "Dépendances directes et un paquet qui n'existe pas dans son registre, construit à partir de ::facts{source=\"dependencies\"}.", "template": "dependencies" },
+            { "id": "examples/code-map", "title": "Exemple · Carte du code", "menuTitle": "code-map", "summary": "Conteneurs, composants et intégrations d'Acme Orders, et un morceau de code dupliqué.", "template": "code-map" },
+            { "id": "examples/tests-quality", "title": "Exemple · Tests et qualité", "menuTitle": "tests-quality", "summary": "Ce qui est testé, les parcours critiques, et un test qui ne teste rien, construit à partir de ::facts{source=\"tests\"}.", "template": "tests-quality" },
+            { "id": "examples/agent-instructions", "title": "Exemple · Fichiers d'instructions des agents", "menuTitle": "agent-instructions", "summary": "Les fichiers d'instructions des assistants IA eux-mêmes, chaque règle vérifiée face au code, construit à partir de ::facts{source=\"agents\"}.", "template": "agent-instructions" },
+            { "id": "examples/threat-model", "title": "Exemple · Modèle de menaces", "menuTitle": "threat-model", "summary": "Le schéma de flux de données, les frontières de confiance et les menaces STRIDE d'Acme Orders.", "template": "threat-model" },
+            { "id": "examples/security-review", "title": "Exemple · Revue de sécurité", "menuTitle": "security-review", "summary": "La matrice d'accès statique, les résultats de la sonde, et des constats rattachés à l'OWASP Top 10, construits à partir de facts/api.json et facts/security.json.", "template": "security-review" },
+            { "id": "examples/maintainability-review", "title": "Exemple · Revue de maintenabilité", "menuTitle": "maintainability-review", "summary": "Notes, points chauds et recommandations par effort, construits à partir de facts/quality.json.", "template": "maintainability-review" }
           ]
         }
       ]
@@ -258,7 +312,12 @@
       "title": "Reprendre un site existant",
       "description": "Migrer un projet ancien, mettre à jour le kit, mesurer, et transmettre.",
       "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+    },
+    {
+      "title": "Métier et reprise, une seule source",
+      "description": "Déclarer les deux espaces, écrire une fiche de fonctionnalité et un dossier de reprise, puis maintenir les deux à jour.",
+      "steps": ["spaces/overview", "spaces/business", "examples/feature", "spaces/takeover", "examples/access-ownership", "publish/sync"]
     }
   ],
-  "suggestions": ["start/first-five-minutes", "write/markdown", "capture/plans", "reference/configuration", "reference/cli", "faq/troubleshooting"]
+  "suggestions": ["start/first-five-minutes", "write/markdown", "spaces/overview", "capture/plans", "reference/configuration", "reference/cli", "faq/troubleshooting"]
 }

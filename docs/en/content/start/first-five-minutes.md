@@ -14,7 +14,7 @@ with the kit in `examples/demo-app`: a sign-in page, an orders list, an order re
 | Step | Command | What you get |
 |---|---|---|
 | 1 | `node serve.mjs` | The demo application on `http://127.0.0.1:4173` |
-| 2 | `doc-kit init` | `docs/manual/`, a complete project skeleton |
+| 2 | `doc-kit init` | `docs/manual/`, a complete project skeleton with its two spaces |
 | 3 | `npm install` | The project linked to the kit |
 | 4 | `doc-kit connect` | Your session, saved in `.doc-kit/session.json` |
 | 5 | `doc-kit capture --preview` | `images/home.webp` and its zones |
@@ -46,9 +46,17 @@ taken** (answer 1, "local or demo application"; 2 is a production, read-only) an
 you sign in, then press Enter); it asks the **application URL** too when `--url` is not given. Press Enter
 to accept each proposal. Before writing anything, it prints a **recap**: the product name and where it was found, the
 slug, the language, the URL, the version and the file it is read in, the sign-in, the coverage, the masked `.env` files
-and the application folder. Check it, then confirm. It writes 22 files in `acme-orders/docs/manual/` and prints the
+and the application folder. Check it, then confirm. It writes 27 files in `acme-orders/docs/manual/` and prints the
 next commands. To rename the product afterwards, change `product.name` in `doc.config.mjs` and the titles of
 `content/toc.json`.
+
+> [!NOTE] A skeleton with its two spaces already declared
+> `content/toc.json` already declares `spaces: ["business", "takeover"]`: **Use**, **Features** and **Configure**
+> and **Administer** in `business` (one sample feature sheet, `features/example-feature`, id `F-01`); **Take
+> over** in `takeover` (the sample takeover dossier: access and ownership, runbook, agent instructions, and
+> `take-over/architecture/example-feature`, the sample feature's technical `counterpart`). `doc-kit build` and
+> `doc-kit dev` already produce one export per space alongside the full site — [Two spaces, one source](#/spaces/overview)
+> explains the mechanism.
 
 Once the files are written, `init` offers to go on: "Open the browser now to sign in?" runs steps 3 and 4 for you,
 then "Take a first test screenshot with --preview?" runs step 5. Answer `n` to follow the steps one by one below.
@@ -115,8 +123,9 @@ doc-kit dev
 ```
 
 The site opens in your browser on `http://127.0.0.1:4400/`. Open **Use › Getting started**: the capture is there,
-with its three markers and a **Guided tour** button. Edit `content/use/getting-started.md` and save: the page
-reloads by itself. Stop the server with [[key Ctrl+C]].
+with its three markers and a **Guided tour** button. The top bar also shows a space selector ("Everything",
+"Business", "Takeover"); with spaces, `dev` serves each export too, at `/space/business` and `/space/takeover`.
+Edit `content/use/getting-started.md` and save: the page reloads by itself. Stop the server with [[key Ctrl+C]].
 
 ## How to check it works
 

@@ -258,6 +258,64 @@ Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "h
 | `coverage` | Routes `app/**/page.tsx` | Routes + registres i18n | Ce qui doit être documenté dépend du produit |
 | `statuses` | — | 5 statuts colorés | Statuts codés en couleur dans l'application |
 
+## Espaces, faits, suivi et économie des agents
+
+Exemples fictifs des clés ajoutées par le standard à deux espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+Aucune n'a de défaut qui change le comportement existant : un projet qui ne les règle pas continue de se
+construire exactement comme avant.
+
+```js
+// content/toc.json déclare les espaces ; doc.config.mjs ne configure que leur export et l'outillage facts/sync.
+export default defineConfig({
+  // … product, language, app, capture, coverage, theme comme plus haut …
+
+  // Un export par espace déclaré, en plus du site complet (défaut : spaces.export vaut déjà true, cette ligne
+  // n'est là que pour montrer la clé). {space} dans le chemin est remplacé par l'id de chaque espace.
+  spaces: {
+    export: true,
+    output: "dist/Acme-Orders-Documentation-{space}.html",
+  },
+
+  // facts/<source>.json (doc-kit facts) et sync.json (doc-kit sync) vivent à la racine du projet par défaut ;
+  // un projet plus ancien ou plus volumineux peut vouloir les ranger ailleurs.
+  paths: { content: "content", images: "images", diagrams: "diagrams", facts: "facts", sync: "." },
+
+  // sync --apply --labels ne suit que les fichiers de messages désignés ici (défaut : l'option "messages"
+  // propre aux adaptateurs de couverture next-app-router et i18n-registry, quand ils en ont une).
+  sync: { labels: ["../../messages/en.json", "../../messages/fr.json"] },
+
+  capture: {
+    // … comme plus haut …
+    // capture --compare garde une image telle quelle (seules ses zones sont réécrites) en dessous de ce ratio
+    // de pixels changés ; au-delà, l'image est remplacée. Défaut 0,005 (0,5 %) ; montré ici pour la clarté.
+    compareThreshold: 0.005,
+  },
+
+  // Prix par million de jetons, lus par `sync --estimate` et par `brief.mjs --estimate` du skill
+  // (ARCHITECTURE.md §6.11). Pas de défaut : les prix changent, et diffèrent selon le contrat. Les chiffres
+  // ci-dessous sont purement illustratifs — lisez-les dans votre propre contrat ou la page de prix actuelle
+  // du fournisseur, jamais dans ce fichier.
+  llm: {
+    currency: "EUR",
+    prices: {
+      haiku: { input: 1, output: 5, cacheRead: 0.1 },
+      sonnet: { input: 3, output: 15, cacheRead: 0.3 },
+      opus: { input: 15, output: 75, cacheRead: 1.5 },
+    },
+  },
+});
+```
+
+| Clé | Rôle | Défaut |
+|---|---|---|
+| `spaces.export` | Écrire un export par espace déclaré, en plus du site complet | `true` |
+| `spaces.output` | Chemin de chaque export, doit contenir `{space}` | la sortie du site complet, `-{space}` inséré avant son extension |
+| `paths.facts` | Dossier de `facts/<source>.json`, commité avec le projet | `"facts"` |
+| `paths.sync` | Dossier de `sync.json`, commité avec le projet | la racine du projet (`"."`) |
+| `sync.labels` | Fichiers de messages que `sync --apply --labels` peut toucher | les `messages` propres aux adaptateurs de couverture |
+| `capture.compareThreshold` | `capture --compare` : ratio de pixels changés au-delà duquel l'image est remplacée (0 à 1) | `0.005` |
+| `llm.currency`, `llm.prices` | Prix par modèle (par million de jetons), pour les estimations de coût des agents | aucun — pas d'estimation sans lui |
+
 ## Sans captures
 
 Quand la documentation doit s'écrire sans aucun accès à l'application, déclarez-le : `doc-kit init --capture none` l'écrit pour vous.

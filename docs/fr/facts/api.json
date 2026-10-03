@@ -1,0 +1,16 @@
+{
+  "source": "api",
+  "generator": "doc-kit 0.1.0",
+  "generated": "2026-09-30T09:00:00.000Z",
+  "commit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+  "app": "../../..",
+  "items": [
+    { "method": "GET", "route": "/api/orders", "file": "app/api/orders/route.ts", "framework": "next-app-router", "auth": "user", "guards": ["requireSession"] },
+    { "method": "POST", "route": "/api/orders", "file": "app/api/orders/route.ts", "framework": "next-app-router", "auth": "user", "guards": ["requireSession"] },
+    { "method": "GET", "route": "/api/orders/[id]", "file": "app/api/orders/[id]/route.ts", "framework": "next-app-router", "auth": "user", "guards": ["requireSession"] },
+    { "method": "POST", "route": "/api/orders/[id]/approval", "file": "app/(app)/orders/[id]/approval/page.tsx", "framework": "next-app-router", "auth": "role", "guards": ["requireApprovalRole"] },
+    { "method": "GET", "route": "/api/customers", "file": "app/api/customers/route.ts", "framework": "next-app-router", "auth": "user", "guards": ["requireSession"] },
+    { "method": "GET", "route": "/api/v1/health", "file": "app/api/v1/health/route.ts", "framework": "next-app-router", "auth": "none", "guards": [] },
+    { "method": "GET", "route": "/api/jobs/[job]", "file": "app/api/jobs/[job]/route.ts", "framework": "next-app-router", "auth": "user", "guards": ["requireSession"] }
+  ]
+}

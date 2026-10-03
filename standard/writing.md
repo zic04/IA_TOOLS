@@ -161,3 +161,82 @@ Each finding has a letter for its family and a number. The letters depend on the
 - Each writer writes only their own pages, capture plans and prefixed diagrams. They do not edit the plan, the glossary, the engine, other people's pages or the application.
 - They report what they find wrong elsewhere (file, sentence, proof) instead of fixing it.
 - Their report gives: the pages written, the captures and zones, the gaps and the candidate findings with their proof, the proposed glossary terms, and what could not be done.
+
+## 13. Writing in the Business space
+
+The Business space (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`; ARCHITECTURE.md
+§6.8) is read by people who never open the code. Four rules keep it that way.
+
+**Identifiers.** `F-01`, `F-02`… number feature sheets; `BR-01`, `BR-02`… (English) or `RG-01`, `RG-02`…
+(French) number business rules. Both follow the same shape, `^[A-Z][A-Z0-9]{0,5}-\d{1,4}$`, and the same
+rule as findings (§9 below): **a number never changes** once a sheet or a rule is cited elsewhere. Assign the
+next free number of its kind; never renumber to close a gap. A feature sheet declares its id in `toc.json`
+(`"feature": "F-01"`), never in the Markdown; a rule declares its id on its `:::rule` container
+(`:::rule{id="BR-12" …}`, `:::regle{id="RG-12" …}`).
+
+**The access box.** A feature sheet opens with an "Access" table before any explanation: module, who can use
+it (`[[perm …]]`), prerequisites, the version and date this page was last checked. A `screen` or `editor` page
+puts its permissions **last** (`[!PERMISSIONS]`), because its reader wants to understand the screen first and
+checks who may use it afterwards; a feature sheet's reader often wants exactly the opposite — "can I even do
+this?" — before reading how it works. Put the access information where the page's own reader looks for it
+first.
+
+**One rule, one statement, one example.** A business rule (`:::rule` / `:::regle`) is one or two sentences,
+followed by exactly one worked example in the form **Given** a starting condition, **when** the triggering
+action happens, **then** the result that follows:
+
+```markdown
+:::rule{id="BR-12" title="An order above the threshold waits for a manager"}
+An order whose total is at or above the configured threshold is not approved automatically.
+
+**Example.** **Given** an order of 12,000 € and a threshold of 10,000 €, **when** the buyer submits it,
+**then** it waits for a manager's approval.
+:::
+```
+
+Keep the example to one scenario with real, specific numbers — never "a large order" when "an order of
+12,000 €" is one line longer and removes all doubt. A rule that needs two examples to be understood is
+usually two rules.
+
+**No code in the Business space.** A page whose effective space is `business` cites no `file:line` proof: the
+build warns (`business.technical`) when one slips in. State the rule in business terms and link to its
+`counterpart` for the implementation detail ("how the threshold is actually enforced: see
+`take-over/api-surface`"). This is the same split as "one page, one reader" in
+[structure.md](structure.md#one-page-one-reader-diátaxis): a business reader should never have to skip past a
+`file:line` proof to find the sentence that answers their question.
+
+## 14. Claim status: verified, deduced, unknown
+
+Section 3 above states the rule for free-running prose ("(inferred)", "to be confirmed"). The Takeover space
+also has a compact badge for the same three states, used inline on a value rather than on a whole paragraph —
+typically in a table built from `::facts{…}` and completed by hand (ARCHITECTURE.md §6.9):
+
+| Badge (en · fr) | Means | Example |
+|---|---|---|
+| `[[verified …]]` · `[[verifie …]]` | Read directly in the code or in a dated production check; the text after the badge is its proof | `[[verified lib/orders.ts:42]]` |
+| `[[deduced …]]` · `[[deduit …]]` | A conclusion drawn from what was read, not observed directly | `[[deduced order status transitions imply a single approver]]` |
+| `[[unknown]]` · `[[inconnu]]` | Nobody has checked; name who could answer, elsewhere on the page | `[[unknown]]` — ask the payments team |
+
+Use the free-text form ("observed", "inferred", "to be confirmed") for a sentence or a whole legend (the
+technical architecture document, §3 above); use the badge for one cell of a table or one claim inside a
+sentence, where a full phrase would not fit. Never mark something `[[verified]]` on the strength of the
+existing repository documentation alone (§1): verify it in the code, or mark it `[[deduced]]`.
+
+## 15. The risk register
+
+A `findings` page (§9 above numbers the findings themselves) is also the project's risk register
+(ARCHITECTURE.md §6.9): every finding carries, beyond its number, severity and proof, who decides what happens
+to it and where that stands. Four more facts, one per finding:
+
+| Fact | Values |
+|---|---|
+| Owner | Who decides — a name or a role, never "the team" |
+| Decision | Fix, accept, transfer (to a contract, an insurer, another team) or avoid (remove the feature that causes it) |
+| Status | Open, in progress, done, accepted |
+| Due date | When it is due, or "none" when the decision is to accept it indefinitely |
+
+On a critical finding's own section, add one line after Finding / Impact / Recommendation: "Owner · Decision ·
+Status · Due". On a table of findings, combine the four into one **Follow-up** column: four separate columns
+rarely fit the reading width once Where and Recommendation are already there, and splitting them only matters
+once a project tracks remediation outside this page too. A finding whose Follow-up is still blank is not yet
+triaged — that itself belongs in "The essentials in one minute".

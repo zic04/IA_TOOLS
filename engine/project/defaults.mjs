@@ -23,6 +23,8 @@ export const productSlug = (name) =>
  *   theme.key       ← <slug>-doc-theme                        (localStorage key of the theme choice)
  *   env.prefix      ← SLUG in upper case                      (ACME_ORDERS_URL, ACME_ORDERS_SESSION…)
  *   capture.locale  ← locale of the language                  (en → en-US, fr → fr-FR)
+ * `spaces.output` stays null: the file of each space derives from the output actually built (a --output included),
+ * by engine/build/spaces.mjs (spaceOutput).
  * Mutates and returns `config`.
  */
 export function completeConfig(config) {
@@ -31,6 +33,9 @@ export function completeConfig(config) {
   config.output ??= `dist/${String(name).replace(/[\\/:*?"<>|\s]+/g, "-")}-Documentation.html`;
   config.theme.key ??= `${config.product.slug}-doc-theme`;
   config.env.prefix ??= config.product.slug.toUpperCase().replace(/-/g, "_");
+  // Languages (ARCHITECTURE.md §6.12): the source language is languages[0]; derived BEFORE capture.locale, so
+  // that an unset capture.locale follows the source language, not the schema's bare default ("en").
+  if (config.languages) config.language = config.languages[0];
   config.capture.locale ??= LOCALES[config.language];
   return config;
 }

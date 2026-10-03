@@ -1,0 +1,30 @@
+{
+  "cli.help.probe": "Usage : {command} probe [--as <rôle>]... [--json]\n\nVérifie une instance LOCALE ou de DÉMO en cours d'exécution, GET et HEAD seulement : en-têtes de sécurité, cookies, CORS et divulgation de version sur « / » et sur une route API ; le contrôle d'accès de chaque route GET de facts/api.json face à son auth (facts --source api), pour l'anonyme et chaque rôle --as (sa session enregistrée par connect --as <rôle>). Écrit facts/probe.json. Refusé (code 2) hors local ou démo (capture.target) ; jamais contourné. Instance inaccessible : code 3.\n\nOptions\n  --as <rôle>              répétable : vérifie aussi en tant que ce rôle (sa session : {work}/session-<rôle>.json)",
+  "cli.probe.checked": {
+    "one": "{url} : {n} route vérifiée en tant que {identities}",
+    "other": "{url} : {n} routes vérifiées en tant que {identities}"
+  },
+  "cli.probe.noFinding": "Aucun constat.",
+  "cli.probe.notLocal": "probe ne vérifie qu'une instance LOCALE ou de DÉMO",
+  "cli.probe.notLocal.help": "mettez capture.target à « local » ou « demo » (app.url : {url}), ou pointez app.url vers une adresse locale",
+  "cli.probe.publicData": "{method} {route} : renvoie des données avec un champ email à un appelant anonyme",
+  "cli.probe.skipped": {
+    "one": "{n} route sautée (un paramètre de chemin manque dans review.params)",
+    "other": "{n} routes sautées (un paramètre de chemin manque dans review.params)"
+  },
+  "cli.probe.unprotected": "{method} {route} : répond à un appelant anonyme sans être protégée",
+  "cli.probe.unreachable": "impossible d'atteindre {url}",
+  "cli.probe.unreachable.help": "{error}",
+  "cli.probe.written": "Écrit dans {file}.",
+  "cli.connect.asSaved": "Enregistrée pour le rôle « {role} » (utilisée par probe).",
+  "render.facts.column.auth": "Authentification",
+  "render.facts.column.complexity": "Complexité",
+  "render.facts.column.duplicated": "Lignes dupliquées",
+  "render.facts.column.functions": "Fonctions",
+  "render.facts.column.guards": "Gardes",
+  "render.facts.column.line": "Ligne",
+  "render.facts.column.longest": "Fonction la plus longue",
+  "render.facts.column.owasp": "OWASP",
+  "render.facts.column.severity": "Sévérité",
+  "render.facts.column.todo": "TODO"
+}

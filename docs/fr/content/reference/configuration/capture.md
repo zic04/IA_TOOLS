@@ -17,6 +17,7 @@
 | `capture.viewports` | objet · `desktop` 1600 × 1000, `mobile` 390 × 844 | Tailles de fenêtre nommées ; une entrée en choisit une avec `context` | `{ desktop: { width: 1440, height: 900 } }` |
 | `capture.webpQuality` | nombre de 0 à 1 · `0.82` | Qualité de l'encodage WebP | `0.9` |
 | `capture.geolocation` | `{ latitude, longitude }` ou `null` · `null` | Position donnée aux pages, avec l'autorisation | `{ latitude: 48.85, longitude: 2.35 }` |
+| `capture.languages` | objet · `{}` | Une entrée par langue déclarée (ARCHITECTURE.md §6.12) : `{ locale, cookies, storage }`, chacune fusionnée par-dessus le réglage correspondant ci-dessus pour `doc-kit capture --lang <l>` ; `locale` prend par défaut la locale propre à cette langue | `{ en: { locale: "en-GB" } }` |
 
 - Chaque fenêtre est `{ width, height }`, l'une et l'autre d'au moins 200. Le contexte `mobile` émule aussi un écran
   tactile.
@@ -47,6 +48,8 @@ Un cookie sans `url` ni `domain` est posé pour `app.url`. Le `storage` propre �
 |---|---|---|---|
 | `capture.forbidden` | liste d'expressions régulières · `[]` | Chemins de routes jamais ouverts : une entrée est refusée, une requête est annulée | `["^/orders/[^/]+/approval$"]` |
 | `capture.readOnly` | `"auto"`, `true` ou `false` · `"auto"` | Annule toute requête autre que `GET`, `HEAD`, `OPTIONS` ; `"auto"` : dès qu'une session est utilisée, toujours en production | `true` |
+| `capture.sessionRefresh` | `{ method?, path, json?, reason }` ou `null` · `null` | La seule exception déclarée à la lecture seule (ARCHITECTURE.md §6.3a) : une requête qui renouvelle une session de courte durée, envoyée une fois avant chaque campagne, hors de toute page. `method` vaut `"POST"` par défaut ; `path` commence par `/`, relatif à `app.url` ; `reason` (au moins 20 caractères) note la décision écrite du propriétaire que le point d'accès n'écrit rien d'autre | `{ path: "/api/auth/refresh", reason: "Décision du 01/10/2026 : ne fait que renouveler le jeton, vérifié dans le code" }` |
+| `capture.compareThreshold` | nombre de 0 à 1 · `0.005` | `capture --compare` : une image n'est remplacée qu'au-delà de cette part de pixels différents ; en dessous, seul son fichier de zones est rafraîchi | `0.01` |
 
 Voir [Démo ou production](#/capture/safety) pour comprendre pourquoi les deux existent.
 

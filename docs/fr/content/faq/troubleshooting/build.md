@@ -78,6 +78,42 @@
 - **Corriger** : modifiez le fichier existant, ou choisissez un autre id.
 - **Comprendre** : [Les gabarits de page](#/write/page-templates~creer-une-page-doc-kit-new).
 
+## Espaces, faits et synchronisation
+
+### « la section « use » n'a pas d'espace » ou « espace inconnu « takeove » »
+
+- **Causes probables**
+  1. `spaces` vient d'être déclaré, et une section (ou une page, ou un parcours) n'a pas encore reçu de `space`.
+  2. Une faute de frappe dans une valeur de `space`.
+- **Vérifier** : `spaces` dans `content/toc.json` liste les identifiants déclarés ; l'erreur nomme la section ou
+  l'identifiant exact essayé.
+- **Corriger** : ajoutez `"space": "business"` (ou le bon identifiant) à la section ; corrigez la faute de frappe.
+- **Comprendre** : [Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces).
+
+### « "space" est utilisé mais le sommaire ne déclare aucun "spaces" »
+
+- **Causes probables**
+  1. Un champ `space` a été copié depuis un autre projet avant que `spaces` lui-même soit déclaré.
+- **Vérifier** : le début de `content/toc.json`.
+- **Corriger** : déclarez `spaces` d'abord, ou retirez le champ `space`.
+- **Comprendre** : [Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces).
+
+### « aucune application à lire » avec `doc-kit facts` ou `doc-kit sync`
+
+- **Causes probables**
+  1. `app.dir` n'est pas renseigné dans `doc.config.mjs`.
+- **Vérifier** : `app.dir`, relatif au projet, doit pointer vers le dossier racine de l'application.
+- **Corriger** : renseignez-le (`init` l'écrit normalement) ; relancez ensuite la commande.
+- **Comprendre** : [Reprendre une application vibe-codée](#/spaces/takeover~lire-le-code-automatiquement-doc-kit-facts).
+
+### « aucun fait à partir duquel préremplir : facts/env.json » avec `doc-kit new --prefill`
+
+- **Causes probables**
+  1. `doc-kit facts` n'a jamais été lancé, ou pas pour la source dont le type a besoin.
+- **Vérifier** : le fichier nommé dans le message, sous `paths.facts`.
+- **Corriger** : lancez `doc-kit facts --source <nom>` d'abord, puis recréez la page avec `--prefill`.
+- **Comprendre** : [Coût et vitesse](#/skill/cost-and-speed~partir-des-faits-new-prefill).
+
 ## Configurer
 
 ### « doc.config.mjs › capture.storgae: clé inconnue »

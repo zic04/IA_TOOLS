@@ -8,11 +8,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildDemo, tempDir, dataOf } from "../tools/helpers.mjs";
+import { buildDemo, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 import { assemble, screenshotInfo } from "../../engine/build/assemble.mjs";
 
 let browser;
 let dir;
+let noSyncDir;
 const files = {};
 const errors = [];
 
@@ -31,8 +32,12 @@ before(async () => {
     fs.writeFileSync(files[name], html);
   };
   const feedback = (c) => ({ ...c, feedback: { url: "https://example.org/report" } });
-  const plain = await buildDemo({ draft: true });
-  // The demo's zone files carry screenshot dates: remove them, so "plain" shows none of the optional features.
+  // The demo now commits its own sync.json (ARCHITECTURE.md §6.10: every page marked, "Checked against
+  // version…"): "plain" means neither optional feature is used, so it builds from a copy with no sync.json
+  // and no screenshot dates, not from the demo as committed.
+  noSyncDir = demoCopy();
+  fs.rmSync(path.join(noSyncDir, "sync.json"), { force: true });
+  const plain = await buildDemo({ draft: true, root: noSyncDir });
   write("plain", withScreenshots(plain.html, undefined));
   const en = await buildDemo({ draft: true, modify: feedback });
   write("en", withScreenshots(en.html, { "orders-list": { captured: "2026-01-01", version: "1.4.0" } }));
@@ -44,6 +49,7 @@ before(async () => {
 after(async () => {
   await browser?.close();
   fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(noSyncDir, { recursive: true, force: true });
   assert.deepEqual(errors, [], "page errors");
 });
 
@@ -130,28 +136,30 @@ describe("keyboard", () => {
 describe("footer", () => {
   test("screenshot date and version; Report a problem link", async () => {
     const page = await open("en", "use/orders");
-    assert.equal(await page.locator(".pied-captures").textContent(), "Screenshots taken on January 1, 2026, version 1.4.0");
+    // The demo's own sync.json (ARCHITECTURE.md §6.10) marks every page: "Checked against version…" always
+    // comes first, before the screenshot dates (set by this fixture's own withScreenshots, above).
+    assert.equal(await page.locator(".pied-captures").textContent(), "Checked against version 1.4.0 on October 2, 2026, Screenshots taken on January 1, 2026, version 1.4.0");
     const link = page.locator('.pied-site a[href="https://example.org/report"]');
     assert.equal(await link.textContent(), "Report a problem");
     assert.equal(await link.getAttribute("rel"), "noopener");
-    // A page whose screenshot has no metadata: no line.
+    // A page whose screenshot has no metadata, but still marked: only the "Checked against…" part.
     await page.evaluate(() => (location.hash = "#/use/settings"));
     await page.waitForTimeout(100);
-    assert.equal(await page.locator(".pied-captures").count(), 0);
+    assert.equal(await page.locator(".pied-captures").textContent(), "Checked against version 1.4.0 on October 2, 2026");
     assert.equal(await page.locator(".pied-site a").count(), 1);
     await page.context().close();
   });
 
   test("French, several dates and versions", async () => {
     const page = await open("fr", "use/orders");
-    assert.equal(await page.locator(".pied-captures").textContent(), "Captures d'écran prises le 1 janvier 2026, version 1.4.0");
+    assert.equal(await page.locator(".pied-captures").textContent(), "Vérifiée sur la version 1.4.0 le 2 octobre 2026, Captures d'écran prises le 1 janvier 2026, version 1.4.0");
     await page.evaluate(() => (location.hash = "#/use/settings"));
     await page.waitForTimeout(100);
-    assert.equal(await page.locator(".pied-captures").textContent(), "Captures d'écran prises le 15 mars 2026, version 1.5.0");
+    assert.equal(await page.locator(".pied-captures").textContent(), "Vérifiée sur la version 1.4.0 le 2 octobre 2026, Captures d'écran prises le 15 mars 2026, version 1.5.0");
     // The sub-page shows both screenshots (before / after).
     await page.evaluate(() => (location.hash = "#/use/orders/detail"));
     await page.waitForTimeout(100);
-    assert.equal(await page.locator(".pied-captures").textContent(), "Captures d'écran prises entre le 1 janvier 2026 et le 15 mars 2026, versions 1.4.0, 1.5.0");
+    assert.equal(await page.locator(".pied-captures").textContent(), "Vérifiée sur la version 1.4.0 le 2 octobre 2026, Captures d'écran prises entre le 1 janvier 2026 et le 15 mars 2026, versions 1.4.0, 1.5.0");
     await page.context().close();
   });
 

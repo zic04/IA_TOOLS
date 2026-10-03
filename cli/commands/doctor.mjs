@@ -18,6 +18,9 @@ import { findProject, KIT_ROOT, kitVersion, CONFIG_FILE } from "../../engine/pro
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
 import { checkContrasts } from "../../engine/theme/contrast.mjs";
+import { normalizeToc } from "../../engine/project/legacy.mjs";
+import { languageCounts } from "../../engine/build/languages.mjs";
+import { staleFacts } from "../../engine/sync/report.mjs";
 import { describeProblem } from "../common.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import {
@@ -32,7 +35,7 @@ import {
   slash,
   shownFolder,
 } from "../../engine/dev/environment.mjs";
-import { skillStatus } from "./skill.mjs";
+import { agentsStatus, skillStatus } from "./skill.mjs";
 import { VERSION_FILES, VERSION_TEXT_PATTERN } from "./init.mjs";
 
 export const options = {
@@ -116,6 +119,11 @@ export async function diagnose(ctx, { network = false } = {}) {
   const skillKeys = { current: "ok", missing: "warn", outdated: "warn", modified: "warn", otherKit: "warn", foreign: "warn" };
   add("skill", skillKeys[skill.state], "env", `cli.doctor.skill.${skill.state}`, { folder: skill.folder, version: skill.version ?? "", kit: skill.kitPath ?? "", command: BRAND.command });
 
+  // Agent types (ARCHITECTURE.md §6.11: doc-kit-triage, doc-kit-writer, doc-kit-reviewer), installed alongside the skill.
+  const agents = agentsStatus({ env: ctx.env });
+  const agentsKeys = { current: "ok", missing: "warn", outdated: "warn", modified: "warn", otherKit: "warn" };
+  add("agents", agentsKeys[agents.state], "env", `cli.doctor.agents.${agents.state}`, { folder: agents.folder, version: agents.version ?? "", kit: agents.kitPath ?? "", command: BRAND.command });
+
   // ─── Project ───────────────────────────────────────────────────────────────
   let found = null;
   try {
@@ -189,6 +197,25 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   if (toc) add("toc", "ok", "project", "cli.doctor.toc.ok", { file: rel(toc) });
   else add("toc", "fail", "project", "cli.doctor.toc.fail", { file: `${config.paths.content}/toc.json`, command: BRAND.command });
 
+  // Languages (ARCHITECTURE.md §6.12): one line per declared language but the source.
+  if (config.languages && toc) {
+    let parsedToc;
+    try {
+      parsedToc = normalizeToc(JSON.parse(fs.readFileSync(toc, "utf8"))).value;
+    } catch {
+      parsedToc = null;
+    }
+    for (const lang of config.languages.slice(1)) {
+      if (!fs.existsSync(path.join(root, config.paths.translations, lang, "toc.json"))) {
+        add(`languages.${lang}`, "fail", "project", "cli.doctor.languagesToc", { lang });
+        continue;
+      }
+      if (!parsedToc) continue; // the toc check above already reports the invalid table of contents
+      const c = languageCounts({ root, config, toc: parsedToc, lang });
+      add(`languages.${lang}`, c.stale > 0 || c.missing > 0 ? "warn" : "ok", "project", "cli.doctor.languages", { lang, current: c.current, stale: c.stale, missing: c.missing });
+    }
+  }
+
   // Version file.
   if (config.version.file) {
     const f = path.resolve(root, config.version.file);
@@ -207,6 +234,17 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   if (config.app.dir) {
     const ok = fs.existsSync(path.resolve(root, config.app.dir));
     add("appDir", ok ? "ok" : "warn", "project", ok ? "cli.doctor.appDir.ok" : "cli.doctor.appDir.missing", { path: config.app.dir, folder: path.resolve(root, config.app.dir) });
+  }
+
+  // Stale facts (ARCHITECTURE.md §6.9/§6.10): a facts/<source>.json whose recorded commit differs from the
+  // application's current HEAD, read-only through the exec seam (ctx.commit), like `sync`'s own report.
+  if (config.app.dir && fs.existsSync(path.join(root, config.paths.facts))) {
+    const commit = ctx.commit(path.resolve(root, config.app.dir));
+    if (commit) {
+      const stale = staleFacts(root, config.paths.facts, commit);
+      if (stale.length) add("factsStale", "warn", "project", "cli.doctor.factsStale", { sources: stale.join(", "), command: BRAND.command });
+      else add("factsStale", "ok", "project", "cli.doctor.factsStale.ok", {});
+    }
   }
 
   // Coverage sources.

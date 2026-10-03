@@ -21,7 +21,7 @@ Findings are numbered **C** (critical), **I** (important) and **M** (minor). Two
 
 ## In this part
 
-<!-- guidance: optional. As soon as the list exceeds about 2,000 words, one sub-page per family: production (P), critical (C), important (I, possibly over two pages), minor (M), no effect (N). One row per sub-page; column 1 = a link. Format of a critical finding: "## C1 — title", then Finding, Impact, Recommendation. Format of the others: a No. · Point · Where · Finding and impact · Recommendation table. -->
+<!-- guidance: optional. As soon as the list exceeds about 2,000 words, one sub-page per family: production (P), critical (C), important (I, possibly over two pages), minor (M), no effect (N). One row per sub-page; column 1 = a link. This page is a risk register: every finding also carries Owner (who decides), Decision (fix, accept, transfer, avoid), Status (open, in progress, done, accepted) and Due date. Format of a critical finding: "## C1 — title", then Finding, Impact, Recommendation, and a line "Owner · Decision · Status · Due". Format of the others: a No. · Point · Where · Finding and impact · Recommendation · Follow-up table, "Follow-up" combining Owner · Decision · Status · Due in one column (four separate columns rarely fit the reading width once Where and Recommendation are also tables; combine them, or move to sub-pages sooner). -->
 
 | Sub-page | What you will find there |
 |---|---|

@@ -1,6 +1,7 @@
 {
   "title": "Documentation {{name}}",
   "tagline": "Le guide de référence de l'application {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués élément par élément.",
+  "spaces": ["business", "takeover"],
   "sections": [
     {
       "id": "utiliser",
@@ -8,6 +9,7 @@
       "shortTitle": "Utiliser",
       "icon": "screen",
       "subtitle": "Le quotidien de l'utilisateur : chaque écran, élément par élément, et ce qu'il fait réellement.",
+      "space": "business",
       "highlights": [
         "Se connecter et se repérer",
         "Chaque écran expliqué élément par élément",
@@ -30,12 +32,42 @@
       ]
     },
     {
+      "id": "fonctionnalites",
+      "title": "Fonctionnalités de l'application {{name}}",
+      "shortTitle": "Fonctionnalités",
+      "icon": "book",
+      "subtitle": "Ce que fait chaque fonctionnalité, pour qui, et les règles qu'elle impose — sans code.",
+      "space": "business",
+      "highlights": [
+        "Une fiche par fonctionnalité, avec sa règle d'accès",
+        "Les règles métier, au même endroit",
+        "Qui peut faire quoi"
+      ],
+      "groups": [
+        {
+          "title": "Fonctionnalités",
+          "pages": [
+            {
+              "id": "fonctionnalites/exemple-fonctionnalite",
+              "title": "Une fonctionnalité d'exemple (à remplacer)",
+              "menuTitle": "Fonctionnalité d'exemple",
+              "summary": "Modèle de fiche de fonctionnalité : renommez-la d'après la première fonctionnalité de l'application {{name}}, et gardez son id F-01 ou renumérotez-le.",
+              "template": "feature",
+              "feature": "F-01",
+              "counterpart": "reprendre/architecture/exemple-fonctionnalite"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "configurer",
       "title": "Configurer — les éditeurs",
       "shortTitle": "Configurer",
       "icon": "sliders",
       "featured": true,
       "subtitle": "Chaque éditeur et chaque réglage, avec le mécanisme réel qu'il pilote.",
+      "space": "business",
       "highlights": [
         "Le mécanisme de chaque réglage",
         "La référence complète des réglages",
@@ -62,6 +94,7 @@
       "shortTitle": "Administrer",
       "icon": "shield",
       "subtitle": "Accès, données de référence et réglages système.",
+      "space": "business",
       "highlights": [
         "Les comptes et les droits",
         "Les données de référence",
@@ -88,6 +121,7 @@
       "shortTitle": "Reprendre",
       "icon": "code",
       "subtitle": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application : architecture, DAT, diagnostic, points d'attention.",
+      "space": "takeover",
       "highlights": [
         "L'architecture et le DAT",
         "Le diagnostic par symptôme",
@@ -103,6 +137,15 @@
               "menuTitle": "Architecture",
               "summary": "Le grand schéma, la pile technique, les principes et les flux principaux.",
               "template": "technical"
+            },
+            {
+              "id": "reprendre/architecture/exemple-fonctionnalite",
+              "title": "La fonctionnalité d'exemple, techniquement",
+              "menuTitle": "Fonctionnalité d'exemple",
+              "summary": "Le pendant technique de la fiche de fonctionnalité d'exemple : comment elle est réellement implémentée.",
+              "level": 2,
+              "template": "technical-sub",
+              "counterpart": "fonctionnalites/exemple-fonctionnalite"
             },
             {
               "id": "reprendre/dat",
@@ -135,7 +178,7 @@
               "id": "reprendre/points-attention",
               "title": "Points d'attention à la reprise",
               "menuTitle": "Points d'attention",
-              "summary": "Les écarts, risques et dettes constatés, revérifiés dans le code, numérotés et classés par gravité.",
+              "summary": "Les écarts, risques et dettes constatés, revérifiés dans le code, numérotés et classés par gravité : le registre des risques.",
               "template": "findings"
             },
             {
@@ -144,6 +187,32 @@
               "menuTitle": "Maintenir la doc",
               "summary": "Comment le site est fabriqué et contrôlé, écrire une page, transférer le dossier.",
               "template": "technical"
+            }
+          ]
+        },
+        {
+          "title": "Dossier de reprise",
+          "pages": [
+            {
+              "id": "reprendre/acces-et-propriete",
+              "title": "Accès et propriété",
+              "menuTitle": "Accès et propriété",
+              "summary": "Qui possède quoi, où vivent les secrets, et la checklist pour vraiment en recevoir la charge.",
+              "template": "access-ownership"
+            },
+            {
+              "id": "reprendre/manuel-exploitation",
+              "title": "Manuel d'exploitation",
+              "menuTitle": "Manuel d'exploitation",
+              "summary": "Installer, construire, déployer, revenir en arrière, sauvegarder : les commandes exactes, lues dans le pipeline réel.",
+              "template": "runbook"
+            },
+            {
+              "id": "reprendre/instructions-agents",
+              "title": "Fichiers d'instructions des agents",
+              "menuTitle": "Instructions des agents",
+              "summary": "Chaque fichier d'instructions d'agent IA trouvé dans le code, règle par règle, confronté à ce qu'il fait réellement.",
+              "template": "agent-instructions"
             }
           ]
         }
@@ -165,6 +234,7 @@
   ],
   "suggestions": [
     "utiliser/prise-en-main",
+    "fonctionnalites/exemple-fonctionnalite",
     "reprendre/architecture",
     "reprendre/diagnostic"
   ]

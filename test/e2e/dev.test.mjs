@@ -125,7 +125,8 @@ describe("dev server", () => {
     });
     try {
       const url = await waitFor(() => /Site: (http:\/\/127\.0\.0\.1:\d+\/)/.exec(out)?.[1]);
-      assert.match(out, /✔ built in \d+\.\d s — 4 pages · 2 screenshots · 0 warnings \(draft\)/);
+      // 2 warnings: the two spaces' own (ARCHITECTURE.md §6.1a, a link to the other space replaced by its text).
+      assert.match(out, /✔ built in \d+\.\d s — 11 pages · 2 screenshots · 2 warnings \(draft\)/);
       assert.match(out, /watching content\/, images\/, diagrams\/, theme\/, doc\.config\.mjs/);
       const html = await (await fetch(url)).text();
       assert.match(html, /<script id="doc-kit-dev">/);

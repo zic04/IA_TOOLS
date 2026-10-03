@@ -2,18 +2,43 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "doc-kit/schemas/toc.schema.json",
   "title": "content/toc.json",
-  "description": "Site outline (ARCHITECTURE.md §6.1). Legacy French-keyed files (contenu/sommaire.json) are normalised by engine/project/legacy.mjs before validation. `product` is deprecated: the name comes from doc.config.mjs.",
+  "description": "Site outline (ARCHITECTURE.md §6.1; spaces, space and counterpart: §6.1a; feature: §6.8). Legacy French-keyed files (contenu/sommaire.json) are normalised by engine/project/legacy.mjs before validation. `product` is deprecated: the name comes from doc.config.mjs.",
   "type": "object",
   "additionalProperties": false,
   "required": ["title", "sections"],
   "$defs": {
     "pageId": { "type": "string", "pattern": "^[^\\s~#]+$" },
-    "strings": { "type": "array", "items": { "type": "string" } }
+    "strings": { "type": "array", "items": { "type": "string" } },
+    "spaceId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "space": {
+      "anyOf": [
+        { "$ref": "#/$defs/spaceId" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id"],
+          "properties": {
+            "id": { "$ref": "#/$defs/spaceId" },
+            "title": { "type": "string", "minLength": 1 },
+            "shortTitle": { "type": "string", "minLength": 1 },
+            "subtitle": { "type": "string" },
+            "icon": { "type": "string" },
+            "for": { "type": "string" }
+          }
+        }
+      ]
+    }
   },
   "properties": {
     "title": { "type": "string", "minLength": 1 },
     "product": { "type": "string" },
     "tagline": { "type": "string" },
+    "spaces": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Spaces (ARCHITECTURE.md §6.1a): the parts of the documentation written for one audience each.",
+      "items": { "$ref": "#/$defs/space" }
+    },
     "sections": {
       "type": "array",
       "minItems": 1,
@@ -29,6 +54,7 @@
           "subtitle": { "type": "string" },
           "featured": { "type": "boolean" },
           "highlights": { "$ref": "#/$defs/strings" },
+          "space": { "$ref": "#/$defs/spaceId" },
           "groups": {
             "type": "array",
             "items": {
@@ -52,7 +78,11 @@
                       "template": { "type": "string", "pattern": "^[a-z-]+$" },
                       "routes": { "$ref": "#/$defs/strings" },
                       "permissions": { "$ref": "#/$defs/strings" },
-                      "file": { "type": "string", "minLength": 1 }
+                      "file": { "type": "string", "minLength": 1 },
+                      "space": { "$ref": "#/$defs/spaceId" },
+                      "counterpart": { "type": "string", "pattern": "^[^\\s~#]+(~[^\\s~#]+)?$" },
+                      "feature": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+                      "sources": { "$ref": "#/$defs/strings", "description": "Globs, relative to app.dir: declared dependencies of a page without routes, proofs or captures (ARCHITECTURE.md §6.10)." }
                     }
                   }
                 }
@@ -71,6 +101,7 @@
         "properties": {
           "title": { "type": "string", "minLength": 1 },
           "description": { "type": "string" },
+          "space": { "$ref": "#/$defs/spaceId" },
           "steps": { "type": "array", "items": { "$ref": "#/$defs/pageId" } }
         }
       }

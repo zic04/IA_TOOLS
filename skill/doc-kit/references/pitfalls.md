@@ -2,8 +2,57 @@
 
 Each pitfall cost time on a real project. Form: **pitfall** — what you observe. → What to do.
 
-Contents: [Windows and shell](#windows-and-shell) · [Captures](#captures) · [Production](#production) ·
-[Writing](#writing) · [Orchestration](#orchestration) · [Delivery](#delivery)
+Contents: [Vibe-coded applications](#vibe-coded-applications) · [Windows and shell](#windows-and-shell) ·
+[Captures](#captures) · [Production](#production) · [Writing](#writing) · [Orchestration](#orchestration) ·
+[Delivery](#delivery)
+
+## Vibe-coded applications
+
+A vibe-coded application — written largely by an AI assistant from natural-language prompts — tends to fail the
+same way twice. A 2025 study of AI-generated coding tasks found an OWASP Top 10 vulnerability in 45 % of them;
+none of that is specific to one model or one tool, so check for it on every takeover, whatever generated the
+code. The `code-health` brief (ARCHITECTURE.md §6.9, `doc-kit facts`) exists to make these checks routine rather
+than a one-off review.
+
+- **Access control missing, or only on the client** — a page hides a button with CSS or a client-side `if`, but
+  the API behind it accepts the same request from anyone signed in. → For every route in `facts/api.json`,
+  open the handler: is there a server-side check, not just a UI one? List the gaps on `api-surface`'s "Gaps"
+  section, each a numbered finding.
+- **Row-level security absent** — a multi-tenant table with no RLS policy: any authenticated query can read
+  every tenant's rows, only the application's own (often incomplete) filters stand in the way. Frequent on
+  Supabase and Lovable projects, where RLS is opt-in and easy to forget enabling. → `facts/db.json` records
+  `rls` and `policies` per table; a tenant-scoped table with neither is a candidate finding on `api-surface`'s
+  "Database access rules".
+- **A secret in the code, or sent to the browser** — an API key hard-coded instead of read from the environment,
+  or a server-only secret included in a client bundle because a framework's "public" prefix convention was
+  misunderstood. → `facts/secrets.json` and `facts/env.json` (never a value); check a browser-sent variable
+  against the server/client boundary of the framework in use.
+- **A package that does not exist ("slopsquatting")** — an assistant invents a plausible package name that was
+  never published; an attacker can register it later and ship anything. → `doc-kit facts --source dependencies
+  --network` checks each direct dependency against its public registry; list every `exists: false` on
+  `dependencies`'s "Packages that do not exist", and anything the facts could not check (no `--network`) as "to
+  confirm".
+- **Code duplicated** — the same validation or calculation copied into three handlers instead of shared, each
+  one drifting a little further from the others. → `code-map`'s "Duplicated or dead code"; cite each copy by
+  `file:line`.
+- **Tests absent or misleading** — an assistant asked to "add tests" sometimes writes ones that always pass: an
+  assertion on a constant, a mocked call never checked, no assertion at all. → `facts/tests.json` counts tests,
+  it does not judge them; open a sample, cite a test that tests nothing on `tests-quality`'s "Tests that test
+  nothing", and check that the critical flows (payment, approval, sign-in) have one that could actually fail.
+- **Agent instructions as a hidden specification, sometimes with invisible characters** — `AGENTS.md`,
+  `CLAUDE.md` or a `.cursorrules` file can carry a real behavioural rule that exists nowhere else, or, more
+  rarely, characters invisible to a human reviewer (zero-width joiners, bidi overrides) that steer an agent
+  without a human noticing — a known prompt-injection technique. → `doc-kit facts --source agents` lists every
+  file and flags `hidden` characters by codepoint; check each rule against the code (confirmed, obsolete,
+  contradicted) on `agent-instructions`.
+- **Dependencies out of date** — a framework or library several major versions behind, often because an
+  assistant pinned whatever version it was trained on and nothing since has prompted an upgrade. →
+  `dependencies`'s "Out of date", from `facts/dependencies.json` and the registry's current version.
+- **No owner of the accounts** — the domain, the database, the hosting account and the AI tool subscriptions
+  were set up by whoever was experimenting that week, with nobody formally responsible. → the `access-ownership`
+  brief and page: every asset gets an Owner or an explicit "to ask", and a question list for the real owner.
+
+## Windows and shell
 
 ## Windows and shell
 

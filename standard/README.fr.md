@@ -28,8 +28,8 @@ Chaque document existe en anglais (`.md`) et en français (`.fr.md`).
 
 | Fichier | Contenu |
 |---|---|
-| [structure.fr.md](structure.fr.md) | Les quatre sections, les groupes, les pages obligatoires de « Reprendre », les parcours guidés de l'accueil, les sous-pages, quand adapter |
-| [templates.fr.md](templates.fr.md) | Les 13 types de page : rôle, sections dans l'ordre, longueur, exemple, erreurs fréquentes |
+| [structure.fr.md](structure.fr.md) | Les deux espaces (Métier, Reprise), leurs parties, les groupes, les pages obligatoires de Reprise, `counterpart`, les parcours guidés de l'accueil, les sous-pages, quand adapter |
+| [templates.fr.md](templates.fr.md) | Les 28 types de page : rôle, sections dans l'ordre, longueur, exemple, erreurs fréquentes |
 | [templates.json](templates.json) | La version lisible par la machine, lue par le build et par `doc-kit audit` : sections `en` et `fr`, sections obligatoires, `maxWords`, alias |
 | [writing.fr.md](writing.fr.md) | Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts constatés, liens, glossaire, numérotation des constats, schémas |
 | [captures.fr.md](captures.fr.md) | Sécurité des captures en production, la session, le masquage, la qualité des zones, production ou démo |

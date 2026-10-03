@@ -8,6 +8,7 @@ page qui en dit plus.
 | [Le site](#/faq/questions~le-site) | Ce qu'il faut aux lecteurs, poids, hébergement, impression |
 | [L'application](#/faq/questions~l-application) | Quelles applications, connexion, sites publics, versions |
 | [Rédiger](#/faq/questions~rediger) | Langues, HTML, schémas, apparence |
+| [Espaces, reprise et agents](#/faq/questions~espaces-reprise-et-agents) | Métier contre reprise, usage d'un LLM, coût en jetons, rester à jour |
 | [Le kit](#/faq/questions~le-kit) | Réseau, données, licence, nom |
 
 ## Le site
@@ -80,6 +81,32 @@ pour suivre les thèmes ([Les schémas](#/write/diagrams)). Les images de schém
 Les couleurs, le logo, les icônes et chaque texte : oui ([Thème, couleurs et logo](#/reference/theme),
 [Langues et textes](#/reference/i18n)). La mise en page du site est celle du kit, la même pour chaque projet : les
 lecteurs s'y retrouvent d'une documentation à l'autre.
+
+## Espaces, reprise et agents
+
+### Puis-je diffuser seulement les pages métier, ou seulement le dossier de reprise ?
+
+Oui : déclarez `spaces` dans `content/toc.json`, puis lancez `doc-kit build` — il écrit le site complet plus un
+export par espace, chacun avec le contenu des autres espaces physiquement retiré, pas seulement caché
+([Deux espaces, une seule source](#/spaces/overview)).
+
+### Le kit utilise-t-il un LLM pour trouver les risques ou écrire les constats ?
+
+Non. Le kit ne fait appel à aucun LLM, où que ce soit : `doc-kit facts` lit le code de l'application avec des
+analyseurs ordinaires, et les puces d'affirmation et le registre des risques sont écrits par une personne ou un
+agent, jamais générés automatiquement ([Reprendre une application vibe-codée](#/spaces/takeover)).
+
+### Combien coûte, en jetons, l'exécution du skill ?
+
+Cela dépend de ce qu'un agent lit, pas de la taille du kit : `doc-kit context` limite cela aux dépendances propres
+d'une page (de quelques centaines à quelques milliers de jetons) au lieu de tout l'inventaire du code (environ
+15 000) ([Coût et vitesse](#/skill/cost-and-speed)).
+
+### Comment savoir si la documentation est encore exacte après une version ?
+
+`doc-kit sync` compare les dépendances enregistrées de chaque page marquée avec l'application maintenant, ou avec
+un commit git, et liste exactement ce qu'il faut relire — rien de mécanique n'est laissé à une personne
+([Suivre l'évolution de l'application](#/publish/sync)).
 
 ## Le kit
 

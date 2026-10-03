@@ -1,7 +1,7 @@
 // export <target> [--with-dist] [--zip]
 // Self-contained copy of the documentation project, rebuildable without the kit's repository:
 //   - the project's files (without node_modules/, .doc-kit/ — session! —, .git/, dist/ unless --with-dist,
-//     .env files, package-lock.json);
+//     .env files, package-lock.json); --with-dist also takes the exports per space, wherever they are written;
 //   - the engine vendored in vendor/doc-kit/ (engine, cli, adapters, i18n, schemas, templates, standard; no tests,
 //     examples, skill, docs, ci), and package.json pointing to it ("file:./vendor/doc-kit");
 //   - EXPORT.json (kit version, date, source) and a "standalone copy" section in README.md;
@@ -13,6 +13,7 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT, CONFIG_FILE } from "../../engine/project/find.mjs";
 import { readProjectVersion } from "../../engine/build/build.mjs";
+import { declaredSpaceIds, spaceOutput } from "../../engine/build/spaces.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { loadProjectFriendly, git, slash, kitPackage } from "../../engine/dev/environment.mjs";
@@ -143,13 +144,15 @@ export function exportProject({ project, config, target, withDist = false, zip =
     }
     return true;
   });
-  // An output outside dist/ (custom `output`) is included with --with-dist too.
-  if (withDist && fs.existsSync(output)) {
-    const rel = path.relative(root, output);
-    const dest = rel.startsWith("..") || path.isAbsolute(rel) ? path.join(targetAbs, "dist", path.basename(output)) : path.join(targetAbs, rel);
+  // An output outside dist/ (custom `output`, or `spaces.output` for the exports per space, ARCHITECTURE.md §6.1a)
+  // is included with --with-dist too.
+  const outputs = [output, ...(declaredSpaceIds(root, config) || []).map((space) => spaceOutput(root, config, space, output))];
+  for (const file of withDist ? outputs.filter((f) => fs.existsSync(f)) : []) {
+    const rel = path.relative(root, file);
+    const dest = rel.startsWith("..") || path.isAbsolute(rel) ? path.join(targetAbs, "dist", path.basename(file)) : path.join(targetAbs, rel);
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.copyFileSync(output, dest);
+      fs.copyFileSync(file, dest);
       files.push(slash(path.relative(targetAbs, dest)));
     }
   }

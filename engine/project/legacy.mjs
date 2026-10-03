@@ -1,6 +1,6 @@
 // Legacy formats (ARCHITECTURE.md §6.7): projects created before the kit use French keys. They are normalised
 // here when READ, so an old project builds unchanged; `doc-kit migrate` rewrites the JSON files for good.
-//   toc        contenu/sommaire.json → content/toc.json
+//   toc        contenu/sommaire.json → content/toc.json; espaces, espace, pendant → spaces, space, counterpart
 //   glossary   glossaire.json (terme, motif, def) → glossary.json (term, pattern, def)
 //   zones      images/zones/<id>.json (fichier, titre, largeur, hauteur, l, libelle, cote) → file, title…
 //   plans      capture plan entries, actions and targets (JavaScript modules: normalised when read only); the
@@ -12,11 +12,11 @@
 export const LEGACY_FILES = Object.freeze({ toc: "sommaire.json", glossary: "glossaire.json" });
 export const CURRENT_FILES = Object.freeze({ toc: "toc.json", glossary: "glossary.json" });
 
-const TOC = { titre: "title", produit: "product", accroche: "tagline", parcours: "journeys" };
-const SECTION = { titre: "title", titre_court: "shortTitle", icone: "icon", sous_titre: "subtitle", points: "highlights", vedette: "featured", groupes: "groups" };
+const TOC = { titre: "title", produit: "product", accroche: "tagline", parcours: "journeys", espaces: "spaces" };
+const SECTION = { titre: "title", titre_court: "shortTitle", icone: "icon", sous_titre: "subtitle", points: "highlights", vedette: "featured", groupes: "groups", espace: "space" };
 const GROUP = { titre: "title" };
-const PAGE = { titre: "title", titre_menu: "menuTitle", resume: "summary", niveau: "level", droits: "permissions", gabarit: "template", fichier: "file" };
-const JOURNEY = { titre: "title", desc: "description", etapes: "steps" };
+const PAGE = { titre: "title", titre_menu: "menuTitle", resume: "summary", niveau: "level", droits: "permissions", gabarit: "template", fichier: "file", espace: "space", pendant: "counterpart" };
+const JOURNEY = { titre: "title", desc: "description", etapes: "steps", espace: "space" };
 const TERM = { terme: "term", motif: "pattern" };
 const ZONE_FILE = { fichier: "file", titre: "title", largeur: "width", hauteur: "height", capture: "captured" };
 const ZONE = { l: "w", libelle: "label", cote: "side" };

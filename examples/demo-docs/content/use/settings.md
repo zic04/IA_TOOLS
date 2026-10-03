@@ -4,7 +4,7 @@ The **profile** holds your name, language and theme. This page uses the French s
 are accepted on an equal footing.
 
 > [!ASTUCE]
-> The theme follows the system's until you choose one.
+> Light, Dark and System are saved to your profile, but this demo does not actually change the page's colours yet.
 
 ## The screen
 
@@ -28,8 +28,8 @@ are accepted on an equal footing.
 | Language | List | English · Français | Interface language |
 | Theme | Switch | Light · Dark · System | Colours |
 
-> [!ERREUR] Save refused
-> An empty name is refused by the API.
+> [!ERREUR] No validation
+> An empty name is saved as it is: the demo does not check it.
 
 ## Required permissions
 

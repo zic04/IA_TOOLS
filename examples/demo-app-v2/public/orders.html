@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Orders · Acme Orders</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body data-page="orders">
+    <header class="top">
+      <a class="brand" href="/orders">Acme Orders</a>
+      <nav><a href="/orders" aria-current="page">Orders</a><a href="/settings">Settings</a></nav>
+      <span class="user" id="user"></span><a href="/logout">Sign out</a>
+    </header>
+    <main>
+      <h1>Orders</h1>
+      <div class="layout">
+        <section class="panel" aria-label="Filters">
+          <h2>Filters</h2>
+          <label class="field"><span>Status</span>
+            <select id="status"><option value="">All</option><option>Open</option><option>Shipped</option><option>Cancelled</option></select>
+          </label>
+          <label class="field"><span>Customer</span><input id="customer" placeholder="Search a customer…" /></label>
+          <label class="field"><span>Date</span><input id="date" type="date" /></label>
+        </section>
+        <div class="content">
+          <section class="panel" aria-label="Order summary">
+            <h2>Today</h2>
+            <div class="kpis">
+              <div><b id="k-count">0</b><span>orders</span></div>
+              <div><b id="k-open">0</b><span>open</span></div>
+              <div><b id="k-total">$0.00</b><span>total</span></div>
+            </div>
+          </section>
+          <div class="actions"><button type="button" class="primary">New order</button></div>
+          <table>
+            <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

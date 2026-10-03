@@ -1,8 +1,19 @@
 # Les gabarits de page
 
-Un gabarit fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y a 13 types. La version lisible par la machine est [templates.json](templates.json) ; les pages prêtes à remplir sont dans `templates/pages/en/<type>.md` et `templates/pages/fr/<type>.md`.
+Un gabarit fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y a 30
+types : les 13 d'origine, utilisés dans l'un ou l'autre espace, et 17 ajoutés pour les deux espaces de
+[structure.fr.md](structure.fr.md) — 5 pour l'espace Métier (§6.8 d'ARCHITECTURE.md), 12 pour l'espace Reprise
+(§6.9, §6.13). La version lisible par la machine est [templates.json](templates.json) (les 13 types d'origine) plus
+`templates/<groupe>.json` (`business.json`, `takeover.json`) ; les pages prêtes à remplir sont dans
+`templates/pages/en/<type>.md` et `templates/pages/fr/<type>.md`.
 
-Les identifiants de type sont en anglais dans tous les projets : `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`, `resources`. Les libellés de section suivent la langue du projet.
+Les identifiants de type sont en anglais dans tous les projets : `screen`, `editor`, `recipe`, `technical`,
+`technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`,
+`architecture`, `variables`, `resources` (utilisés dans l'un ou l'autre espace, surtout en Reprise) ; `feature`,
+`business-rules`, `roles-matrix`, `process`, `release-notes` (espace Métier) ; `access-ownership`,
+`api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`,
+`adr`, `threat-model`, `security-review`, `maintainability-review` (espace Reprise). Les libellés de section
+suivent la langue du projet.
 
 ## Comment le build s'en sert
 
@@ -21,21 +32,50 @@ Légende des tableaux ci-dessous : **✱** = obligatoire.
 
 ## Vue d'ensemble
 
-| Type | Section | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
+### Les 13 types d'origine (l'un ou l'autre espace, surtout Reprendre)
+
+| Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
 |---|---|---|---|---|---|
 | `screen` | Utiliser, Administrer | Un écran et ses actions | 5 | 2 500 | `utiliser/commandes/liste` |
-| `editor` | Configurer | Un éditeur et le mécanisme qu'il pilote | 6 | 3 000 | `configurer/validation/circuits` |
-| `recipe` | Configurer | Un but atteint en enchaînant plusieurs éditeurs | 5 | 3 500 | `configurer/recettes/validation-en-deux-temps` |
-| `technical` | Reprendre | Un sujet technique (page parente ou page seule) | 1 | 2 000 | `reprendre/securite` |
-| `technical-sub` | Reprendre | Le détail d'un sujet technique | 0 | 2 000 | `reprendre/securite/connexion` |
-| `journey` | Reprendre | Ce qui se passe de bout en bout | 5 | 2 000 | `reprendre/parcours-commande` |
-| `journey-step` | Reprendre | Une étape d'un parcours | 5 | 2 200 | `reprendre/parcours-commande/validation` |
-| `troubleshooting` | Reprendre | Du symptôme à la cause | 5 | 2 000 | `reprendre/diagnostic` |
-| `troubleshooting-area` | Reprendre | Les symptômes d'un domaine | 2 | 2 000 | `reprendre/diagnostic/acces` |
-| `findings` | Reprendre | Les constats numérotés | 2 | 2 000 | `reprendre/points-attention` |
-| `architecture` | Reprendre | L'implantation en production | 5 | 2 000 | `reprendre/dat` |
-| `variables` | Reprendre | Les variables d'environnement | 2 | 2 200 | `reprendre/deploiement/variables` |
-| `resources` | Reprendre | Les ressources du déploiement | 7 | 2 200 | `reprendre/deploiement/ressources` |
+| `editor` | Administrer | Un éditeur et le mécanisme qu'il pilote | 6 | 3 000 | `administrer/validation/circuits` |
+| `recipe` | Administrer | Un but atteint en enchaînant plusieurs éditeurs | 5 | 3 500 | `administrer/recettes/validation-en-deux-temps` |
+| `technical` | Comprendre, ou tout sujet | Un sujet technique (page parente ou page seule) | 1 | 2 000 | `reprendre/securite` |
+| `technical-sub` | Comprendre, ou tout sujet | Le détail d'un sujet technique | 0 | 2 000 | `reprendre/securite/connexion` |
+| `journey` | Comprendre | Ce qui se passe de bout en bout | 5 | 2 000 | `reprendre/parcours-commande` |
+| `journey-step` | Comprendre | Une étape d'un parcours | 5 | 2 200 | `reprendre/parcours-commande/validation` |
+| `troubleshooting` | Risques | Du symptôme à la cause | 5 | 2 000 | `reprendre/diagnostic` |
+| `troubleshooting-area` | Risques | Les symptômes d'un domaine | 2 | 2 000 | `reprendre/diagnostic/acces` |
+| `findings` | Risques | Les constats numérotés, le registre des risques | 2 | 2 000 | `reprendre/points-attention` |
+| `architecture` | Exploiter | L'implantation en production | 5 | 2 000 | `reprendre/dat` |
+| `variables` | Exploiter | Les variables d'environnement | 2 | 2 200 | `reprendre/deploiement/variables` |
+| `resources` | Exploiter | Les ressources du déploiement | 7 | 2 200 | `reprendre/deploiement/ressources` |
+
+### Les 5 types de l'espace Métier (ARCHITECTURE.md §6.8)
+
+| Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
+|---|---|---|---|---|---|
+| `feature` | Fonctionnalités | Une fonctionnalité : qui l'utilise, quand, ses règles | 5 | 2 500 | `fonctionnalites/validation-en-deux-temps` |
+| `business-rules` | Fonctionnalités | Toutes les règles métier, au même endroit | 2 | 3 000 | `fonctionnalites/regles-metier` |
+| `roles-matrix` | Fonctionnalités | Les rôles et ce que chacun peut faire | 3 | 2 000 | `fonctionnalites/roles` |
+| `process` | Processus | Un processus métier de bout en bout | 4 | 2 200 | `processus/commande-a-encaissement` |
+| `release-notes` | Processus | Ce qui a changé, version après version | 2 | 3 000 | `processus/notes-de-version` |
+
+### Les 12 types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13)
+
+| Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
+|---|---|---|---|---|---|
+| `access-ownership` | Sécuriser | Qui possède quoi, et comment en faire la passation | 3 | 2 200 | `reprendre/acces-et-propriete` |
+| `api-surface` | Sécuriser | Chaque route, son authentification, ses manques | 3 | 3 000 | `reprendre/surface-api` |
+| `runbook` | Exploiter | Installer, construire, déployer, revenir en arrière, sauvegarder | 5 | 3 000 | `reprendre/manuel-exploitation` |
+| `data-model` | Comprendre | Les tables, leurs données personnelles, leur conservation | 3 | 2 500 | `reprendre/modele-donnees` |
+| `dependencies` | Maintenir | Les paquets utilisés, y compris ceux qui n'existent pas | 3 | 2 200 | `reprendre/dependances` |
+| `code-map` | Comprendre | Conteneurs, composants, intégrations | 4 | 2 500 | `reprendre/carte-du-code` |
+| `tests-quality` | Maintenir | Ce qui est réellement testé, et comment le lancer | 4 | 2 200 | `reprendre/tests-et-qualite` |
+| `agent-instructions` | Maintenir | Chaque fichier d'instructions d'agent IA, règle par règle | 4 | 2 500 | `reprendre/instructions-agents` |
+| `adr` | Comprendre | Une décision d'architecture reconstituée | 5 | 1 500 | `reprendre/architecture/adr-01-base-donnees` |
+| `threat-model` | Sécuriser | Le schéma de flux, les menaces, les mesures d'atténuation | 4 | 3 000 | `reprendre/modele-menaces` |
+| `security-review` | Sécuriser | Authentification, contrôle d'accès, constats OWASP | 7 | 3 000 | `reprendre/revue-de-securite` |
+| `maintainability-review` | Maintenir | Notes, points chauds, recommandations par effort | 5 | 2 200 | `reprendre/revue-de-maintenabilite` |
 
 ---
 
@@ -281,12 +321,361 @@ Les ressources du déploiement de production, par famille, et ce qui se sert ré
 
 ---
 
+# Les types de l'espace Métier (ARCHITECTURE.md §6.8)
+
+Ces 5 types décrivent **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la
+soutiennent : pas de code, pas de preuve `fichier:ligne` (voir « Les pages métier ne citent pas de code »
+plus bas). Ils suivent la structure des cas d'utilisation de Cockburn (acteurs, déclencheur, scénario
+principal, variantes numérotées) et les règles métier de RuleSpeak (un énoncé, un exemple « Étant donné /
+Quand / Alors »).
+
+## `feature` — Fiche de fonctionnalité
+
+Une fonctionnalité, de bout en bout, pour un lecteur métier : qui l'utilise, quand elle démarre, ce qu'elle
+fait pas à pas, et les règles qu'elle impose. Porte l'identifiant `feature` de la page (`toc.json`, par
+exemple `"feature": "F-01"`) et, quand un pendant technique existe, son `counterpart`.
+
+| Section | | Contenu |
+|---|---|---|
+| Accès | ✱ | Un tableau à deux colonnes, lignes fixes : Module · Qui peut l'utiliser (`[[droit …]]`) · Prérequis · Vérifié le (version, date) |
+| À quoi ça sert | ✱ | Le besoin métier en 2 à 4 phrases ; le titre de la page en gras dans la première phrase |
+| Qui l'utilise | ✱ | Une ligne par rôle : « **Rôle** : ce qu'il fait » |
+| Déclencheur et prérequis | | Facultatif ; à supprimer quand le déclencheur est simplement « quelqu'un ouvre l'écran » |
+| Scénario principal | ✱ | `:::etapes` ; une capture `:::ecran` ou `::capture` seulement quand elle éclaire une étape (ni l'une ni l'autre n'est obligatoire ici) |
+| Variantes et exceptions | | Numérotées après l'étape dont elles bifurquent : « 3a. Si … » |
+| Règles métier | ✱ | Les règles propres à cette fonctionnalité, définies avec `:::regle` ; une règle partagée est seulement citée avec `[[regle …]]` |
+| Données traitées | | Les données métier lues ou modifiées, nommées comme les connaît un lecteur métier — jamais un nom de table ou de colonne |
+| Notifications et effets | | Ce que la fonctionnalité déclenche au-delà de l'écran : un e-mail, une entrée ailleurs, un compteur qui change |
+| Limites | | Ce que la fonctionnalité ne fait délibérément pas, en termes métier, jamais un piège de code |
+| Questions fréquentes | | 2 à 5 questions réelles, chacune avec une réponse courte et directe |
+
+- **Longueur** : limite 2 500 mots ; la plupart des fiches restent bien en dessous — une fonctionnalité qui en
+  demande plus est souvent plusieurs fonctionnalités, ou relève en partie de `process`.
+- **Exemple** : `fonctionnalites/validation-en-deux-temps` dans Acme Orders : qui peut relever le seuil, les
+  deux étapes de validation, ce qui arrive à une commande déjà en attente quand le circuit change.
+- **Erreurs fréquentes** :
+  - une preuve `fichier:ligne` qui se glisse dans le texte (`business.technical`, avertissement) : déplacez-la
+    vers le `counterpart` ;
+  - décrire l'écran au lieu de la fonctionnalité — ce doublon relève de `screen` ou `editor`, cité par un lien,
+    pas réécrit ici ;
+  - une fiche de fonctionnalité sans identifiant `feature` (`feature.noId`, avertissement) : `::fonctionnalites{}`
+    et `[[fonctionnalite …]]` ne la retrouvent pas.
+
+## `business-rules` — Règles métier
+
+Toutes les règles métier réunies au même endroit, même si la plupart sont **définies** sur la fiche de
+fonctionnalité à laquelle elles appartiennent et seulement **citées** ici. Utile dès que des règles sont
+partagées entre plusieurs fonctionnalités, ou dès qu'un lecteur veut la liste complète sans ouvrir chaque
+fiche.
+
+| Section | | Contenu |
+|---|---|---|
+| Comment lire cette page | ✱ | Où vit la définition complète d'une règle (sa fiche de fonctionnalité, ou ici quand elle n'en a pas) ; le système d'id (`RG-01`…) |
+| Les règles | ✱ | `::regles{}` : chaque règle définie, où elle est définie, et les fonctionnalités qui la citent |
+| Les règles par fonctionnalité | | Facultatif ; les mêmes règles regroupées par fonctionnalité plutôt que listées à plat |
+| Règles retirées | | Facultatif ; une règle retirée du produit, gardée ici pour qu'une citation ailleurs reste compréhensible |
+
+- **Longueur** : limite 3 000 mots ; un tableau généré (`::regles{}`) reste court quel que soit le nombre de
+  règles.
+- **Exemple** : `fonctionnalites/regles-metier` dans Acme Orders : les seuils de validation, la date limite de
+  facturation, le plafond de crédit client — chacune définie une fois, citée depuis plusieurs fiches.
+- **Erreur fréquente** : redéfinir ici une règle déjà définie sur une fiche de fonctionnalité (`rule.duplicate`,
+  erreur) : citez-la avec `[[regle …]]` à la place.
+
+## `roles-matrix` — Matrice des rôles
+
+Les rôles du produit et ce que chacun peut faire, lus d'un seul coup sur toutes les fonctionnalités — la page
+que le support ouvre en premier quand quelqu'un dit « je ne vois pas le bouton ».
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de rôles, et la règle qui explique l'essentiel de ce que les gens ne peuvent pas faire |
+| Les rôles | ✱ | Une ligne par rôle : qui le détient, en quoi il diffère du plus proche |
+| Qui peut faire quoi | ✱ | `::roles{}` : un tableau généré, lignes = fiches de fonctionnalité, colonnes = permissions |
+| Responsabilités | | Facultatif ; ce dont un rôle répond au-delà de l'application elle-même |
+| Comment obtenir un rôle | | Facultatif ; le processus réel : un formulaire, l'accord d'un responsable, un groupe du fournisseur d'identité |
+
+- **Longueur** : limite 2 000 mots ; le tableau généré porte l'essentiel du contenu.
+- **Exemple** : `fonctionnalites/roles` dans Acme Orders : Commercial, Validateur, Finance, Administrateur,
+  chacun une colonne de `::roles{}`.
+- **Erreur fréquente** : un tableau écrit à la main qui dérive des `permissions` des fiches de fonctionnalité ;
+  préférez `::roles{}`, reconstruit à partir d'elles chaque fois.
+
+## `process` — Processus
+
+Un processus métier de bout en bout, en langage métier : qui y prend part, les étapes, ce qui est automatique
+et ce qui attend une personne. L'équivalent, côté métier, d'un `journey`, sans le code.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | La réponse courte : ce qui déclenche le processus, et ce qu'il produit |
+| Qui intervient | ✱ | Les rôles concernés, dans l'ordre où ils agissent |
+| Les étapes | ✱ | `:::etapes`, ou un tableau ; une étape par action métier, pas par clic d'écran |
+| Les états | | Les états nommés de l'objet que le processus traverse, en langage métier |
+| Ce qui se fait tout seul, et ce qui attend quelqu'un | ✱ | Deux listes |
+| Délais et relances | | Ce qui déclenche une relance, et après combien de temps |
+| Quand ça se passe mal | | Ce que voit un rôle quand le processus ne peut pas continuer, et qui prévenir |
+| Fonctionnalités concernées | | Liens vers les fiches de fonctionnalité que ce processus utilise, dans l'ordre |
+
+- **Longueur** : limite 2 200 mots.
+- **Exemple** : `processus/commande-a-encaissement` dans Acme Orders : d'une commande créée par un commercial
+  jusqu'à l'encaissement enregistré par Finance, en citant `fonctionnalites/validation-en-deux-temps` et la
+  fonctionnalité de facturation au passage.
+- **Erreur fréquente** : décrire une seule fonctionnalité au lieu de l'enchaînement de plusieurs — un
+  « processus » à une seule fonctionnalité est une page `feature` avec un meilleur titre.
+
+## `release-notes` — Notes de version
+
+Ce qui a changé, version après version, pour les personnes qui utilisent le produit plutôt que celles qui
+l'ont construit : pas de message de commit, pas de refactorisation interne, seulement ce qu'un utilisateur ou
+un administrateur remarque.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Jusqu'où remonte cette page, et où demander pour tout ce qui est plus ancien |
+| Dernière version | ✱ | Ce qui a changé, en langage métier, chaque entrée nommant la fonctionnalité concernée |
+| Versions précédentes | | Un sous-titre par version, la plus récente en premier |
+
+- **Longueur** : limite 3 000 mots ; découpez en sous-page par année une fois que « Versions précédentes »
+  dépasse cette limite.
+- **Exemple** : `processus/notes-de-version` dans Acme Orders : « v2.4.0 — Les circuits de validation peuvent
+  désormais se ramifier par montant (voir Validation en deux temps) ».
+- **Erreur fréquente** : recopier le journal des modifications technique tel quel — réécrivez chaque entrée
+  pour le lecteur qui ne voit jamais un commit.
+
+**Les pages métier ne citent pas de code.** Une page dont l'espace effectif est `business` et qui contient
+encore une preuve `fichier:ligne` reçoit l'avertissement `business.technical` : déplacez le détail vers le
+`counterpart` de la page, la fiche technique de la même fonctionnalité.
+
+---
+
+# Les types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13)
+
+Ces 12 types forment le dossier dont une équipe a besoin pour reprendre une application, surtout une
+application largement écrite par des agents IA (« vibe-codée »). Chaque affirmation est appuyée par une preuve
+`fichier:ligne`, ou marquée `[[deduit]]` ou `[[inconnu]]` (voir [writing.fr.md](writing.fr.md)). Les deux
+derniers, `security-review` et `maintainability-review`, sont des revues optionnelles à la demande (§6.13) :
+voir leurs propres gabarits (`templates/pages/<langue>/security-review.md`, `maintainability-review.md`) et
+exemples travaillés pour le détail de leurs sections.
+
+## `access-ownership` — Accès et propriété
+
+Qui détient quoi, et les étapes concrètes pour en recevoir réellement la charge : la page par laquelle une
+passation commence.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Qui contacter en premier pour quoi, et la confiance globale dans cette cartographie |
+| Qui possède quoi | ✱ | Une ligne par actif : domaine, dépôt, hébergement, CI/CD, base de données, paiement, e-mail, chaque compte d'outil IA |
+| Secrets et où ils vivent | | Chaque endroit où vit un secret — jamais la valeur ; recoupé avec `facts/secrets.json` |
+| Comptes des outils IA | | Chaque compte d'assistant IA de codage utilisé sur ce code, qui le détient, quels accès il porte |
+| Propriétaires inconnus | ✱ | Chaque actif ci-dessus dont le propriétaire est inconnu, répété ici pour qu'il ne soit pas oublié |
+| Checklist de passation | | Les étapes concrètes : réinitialiser les secrets partagés, créer des comptes nominatifs, révoquer les accès de l'équipe précédente |
+
+- **Longueur** : limite 2 200 mots.
+- **Exemple** : `reprendre/acces-et-propriete` dans Acme Orders : la base de production et le fournisseur de
+  paiement ont un propriétaire nommé ; la moitié des variables CI/CD n'en ont pas.
+- **Erreur fréquente** : un « Propriétaire : l'équipe précédente » sans nom ni moyen de la contacter — c'est un
+  propriétaire inconnu, dites-le.
+
+## `api-surface` — Surface d'API
+
+Chaque route exposée par l'application, avec un jugement sur son authentification, son contrôle de rôle et son
+isolation par locataire — construite à partir de `::facts{source="api"}`, puis complétée à la main.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de routes, combien sont publiques, l'état global de l'isolation par locataire |
+| Les routes | ✱ | `::facts{source="api"}`, complété : Méthode · Route · Authentification · Rôle · Isolation par locataire · Preuve |
+| Règles d'accès à la base de données | | Les politiques de sécurité au niveau ligne qui appuient l'isolation annoncée ci-dessus, ou leur absence |
+| Routes publiques | | Chaque route accessible sans authentification, et pourquoi |
+| Manques | ✱ | Une route sans contrôle visible, citée comme constat numéroté |
+
+- **Longueur** : limite 3 000 mots.
+- **Exemple** : `reprendre/surface-api` dans Acme Orders : 61 routes, 3 publiques (vérification de santé,
+  webhook, la page publique de suivi de commande), un manque (`C1`, une route qui fait confiance à un id de
+  locataire fourni par le client).
+- **Erreur fréquente** : faire confiance au nom d'une route plutôt qu'à son code — une route nommée
+  `/admin/...` sans contrôle de rôle dans `api.py` est un manque, pas une garantie.
+
+## `runbook` — Manuel d'exploitation (runbook)
+
+Comment installer, construire, déployer, revenir en arrière et sauvegarder l'application, lu dans le pipeline
+et les scripts réels, jamais de mémoire.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Les une ou deux commandes qui installent et démarrent l'application en local |
+| Installation | ✱ | Commandes exactes, versions nécessaires, fichiers qu'elles lisent |
+| Construction | | Facultatif ; la commande de build, ce qu'elle produit, combien de temps elle prend |
+| Déploiement | ✱ | Le chemin réel de déploiement, avec le `fichier:ligne` de la définition du pipeline |
+| Retour arrière | ✱ | Comment annuler un déploiement raté |
+| Tâches planifiées | | Chaque tâche planifiée (cron), ce qu'elle fait, ce qui se passe quand elle échoue en silence |
+| Sauvegarde et restauration | ✱ | Où sont prises les sauvegardes, à quelle fréquence, et la procédure réelle de restauration |
+| Quand ça casse | | Les premières vérifications pour les incidents les plus fréquents |
+
+- **Longueur** : limite 3 000 mots.
+- **Exemple** : `reprendre/manuel-exploitation` dans Acme Orders : le pipeline déploie à chaque push sur `main`
+  (`[[verifie .github/workflows/deploy.yml:1]]`) ; le retour arrière redéploie l'image précédente depuis le
+  registre.
+- **Erreur fréquente** : une « Sauvegarde et restauration » qui dit seulement que des sauvegardes existent —
+  dites si une restauration a vraiment été testée, et quand.
+
+## `data-model` — Modèle de données
+
+Les tables telles que la base de données les a réellement, pas telles qu'un vieux schéma entité-association
+s'en souvient, avec un œil sur les données personnelles et leur conservation.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de tables, et l'état global du traitement des données personnelles |
+| Le schéma | | `::schema`, construit ou confirmé à partir de `schema.prisma`, des modèles SQLAlchemy ou des migrations |
+| Tables | ✱ | Une ligne ou sous-section par table : colonnes, relations, `fichier:ligne` |
+| Données personnelles | ✱ | Quelles tables et colonnes portent des données personnelles, et la base légale si elle est connue |
+| Conservation | | Combien de temps chaque type de donnée personnelle est gardé, et ce qui l'applique (une tâche, rien encore) |
+| Sous-traitants | | Les tiers qui reçoivent des données personnelles (un fournisseur d'e-mail, un outil d'analytics) |
+| Migrations | | Comment les changements de schéma sont faits, et le retard de ceux qui restent à appliquer |
+
+- **Longueur** : limite 2 500 mots.
+- **Exemple** : `reprendre/modele-donnees` dans Acme Orders : 22 tables ; l'e-mail et l'adresse du client sont
+  des données personnelles sans politique de conservation documentée (`M3`).
+- **Erreur fréquente** : décrire les modèles de l'ORM au lieu de la base réelle — une migration jamais
+  appliquée en production désynchronise les deux ; dites laquelle vous avez vérifiée.
+
+## `dependencies` — Dépendances
+
+Les paquets réellement utilisés par l'application, y compris ceux qui n'existent plus — un constat fréquent et
+dangereux dans le code généré par IA (un nom de paquet halluciné, enregistré plus tard par quelqu'un d'autre :
+risque de chaîne d'approvisionnement).
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de dépendances directes, et si un paquet a été vérifié auprès du registre |
+| Dépendances directes | ✱ | D'après `facts/dependencies.json` ; écosystème, version, licence quand elle est connue |
+| Paquets qui n'existent pas | ✱ | Chaque dépendance que `doc-kit facts --network` n'a pas trouvée dans son registre — un constat `C` chacune |
+| Licences | | Les licences qui limitent la distribution ou exigent une attribution |
+| Obsolètes | | Les dépendances directes en retard de plusieurs versions majeures |
+| À vérifier | | Les dépendances dont le rôle dans le code n'était pas évident |
+
+- **Longueur** : limite 2 200 mots.
+- **Exemple** : `reprendre/dependances` dans Acme Orders : 84 dépendances directes ; l'une, importée une seule
+  fois, n'existe pas dans le registre npm (`C2`).
+- **Erreur fréquente** : passer « Paquets qui n'existent pas » parce que l'application tourne bien en local —
+  un paquet halluciné ne casse qu'une installation *propre*, exactement ce qu'une reprise fait en premier.
+
+## `code-map` — Carte du code
+
+La forme du code en un coup d'œil : les conteneurs, avec quoi chacun est construit, comment ils s'appellent
+entre eux — la carte façon C4 qu'un nouveau développeur dessine sa première semaine, déjà dessinée.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de conteneurs, et le schéma dominant (un monolithe, un front plus une API, plusieurs services) |
+| Contexte | ✱ | `::schema` : l'application et les systèmes externes avec qui elle parle |
+| Conteneurs | ✱ | Un par unité déployable : sa pile, son rôle, qui l'appelle |
+| Composants | ✱ | À l'intérieur du ou des conteneurs principaux : les couches et le sens de leurs appels |
+| Intégrations | | Chaque service externe appelé, et pour quoi |
+| Code dupliqué ou mort | | Le code qui existe deux fois avec une dérive, ou que plus rien n'appelle |
+
+- **Longueur** : limite 2 500 mots.
+- **Exemple** : `reprendre/carte-du-code` dans Acme Orders : un conteneur Next.js (écrans, routes API, actions
+  serveur) et un conteneur de tâches planifiées partageant la même base de données.
+- **Erreur fréquente** : un schéma de composants copié d'un starter générique de framework — vérifiez chaque
+  flèche contre un import ou un appel réseau réel.
+
+## `tests-quality` — Tests et qualité
+
+Ce qui est réellement testé, par opposition à ce que le nom d'un fichier de test promet — un écart fréquent et
+coûteux dans le code généré par IA (un test qui n'affirme rien, ou qui simule ce qu'il prétend vérifier).
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de tests, et le chiffre de couverture global s'il existe |
+| Ce qui est testé | ✱ | D'après `facts/tests.json` : fichiers, nombres, rapport de couverture s'il y en a |
+| Parcours critiques | ✱ | Les parcours les plus importants, et si chacun a un vrai test |
+| Tests qui ne testent rien | | Un test qui passe toujours, n'affirme rien, ou simule la chose même qu'il prétend vérifier |
+| Comment les lancer | ✱ | La commande exacte, et ce à quoi ressemble une exécution propre |
+
+- **Longueur** : limite 2 200 mots.
+- **Exemple** : `reprendre/tests-et-qualite` dans Acme Orders : 340 tests, 61 % de couverture d'instructions ;
+  la suite de tests des circuits de validation simule le service de validation lui-même, donc ne teste rien de
+  la validation (`I9`).
+- **Erreur fréquente** : citer un pourcentage de couverture sans avoir lancé la suite — un badge périmé dans un
+  README n'est pas une mesure.
+
+## `agent-instructions` — Fichiers d'instructions des agents
+
+Chaque fichier d'instructions lu par un assistant IA de codage (`AGENTS.md`, `CLAUDE.md`, un fichier
+`.cursorrules`…), règle par règle, confronté à ce que le code fait réellement — ces fichiers agissent comme une
+spécification cachée, et dérivent souvent du code qu'ils étaient censés piloter.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de fichiers d'instructions, leur taille globale, si quelque chose de caché a été trouvé |
+| Les fichiers | ✱ | `::faits{source="agents"}` : une ligne par fichier, sa taille |
+| Chaque règle | ✱ | Une ligne par règle énoncée : son statut une fois vérifiée — confirmée, obsolète, contredite |
+| Caractères invisibles | ✱ | Tout caractère invisible pour un relecteur humain, trouvé dans un fichier d'instructions — un piège connu d'injection de prompt |
+| Ce qu'il faut garder | | Une fois chaque règle statuée, ce qu'il faut verser dans cette documentation, ce qu'il faut abandonner |
+
+- **Longueur** : limite 2 500 mots.
+- **Exemple** : `reprendre/instructions-agents` dans Acme Orders : un `CLAUDE.md`, 340 mots ; une règle
+  (« toujours filtrer par locataire ») contredite par une route (`C1`, également listée sur `api-surface`).
+- **Erreur fréquente** : traiter le fichier d'instructions comme de la documentation au lieu de l'auditer —
+  une règle que le code ne suit plus est un constat, pas un fait.
+
+## `adr` — Fiche de décision d'architecture (ADR)
+
+Une décision reconstituée, dans le format ADR classique, pour un choix que le code révèle mais que personne
+n'a écrit — une sous-page de la page `technical` ou `architecture` qu'elle concerne.
+
+| Section | | Contenu |
+|---|---|---|
+| Statut | ✱ | Proposée, acceptée, remplacée — au mieux de ce qu'on peut dire après coup |
+| Contexte | ✱ | Le problème auquel la décision répond, tel que le code et l'historique des commits le suggèrent |
+| Décision | ✱ | Ce qui a été choisi |
+| Conséquences | ✱ | Ce que cela a rendu plus facile, plus difficile, ou impossible par la suite |
+| Comment elle a été reconstituée | ✱ | À partir de quel code, quels commits ou quelles personnes cette page est construite |
+
+- **Longueur** : limite 1 500 mots ; une ADR qui la dépasse est en général deux décisions.
+- **Exemple** : `reprendre/architecture/adr-01-base-donnees` dans Acme Orders : pourquoi une base de données
+  unique et partagée sert chaque locataire (sécurité au niveau ligne, pas une base par locataire) —
+  reconstituée à partir des migrations et d'une description de pull request survivante.
+- **Erreur fréquente** : présenter une supposition comme la décision — dites franchement quand « Comment elle
+  a été reconstituée » se résume à « déduit du code seul, personne ne l'a confirmé ».
+
+## `threat-model` — Modèle de menaces
+
+Les menaces STRIDE de l'application, organisées par les frontières de confiance de son schéma de flux de
+données — la pièce maîtresse sécurité du dossier de reprise.
+
+| Section | | Contenu |
+|---|---|---|
+| En bref | ✱ | Combien de frontières de confiance, et la confiance globale dans ce modèle |
+| Le schéma de flux de données | ✱ | `::schema` : acteurs, processus, magasins de données, frontières de confiance |
+| Frontières de confiance | ✱ | Chaque frontière traversée par le schéma, et ce qui est censé la garder |
+| Menaces | ✱ | STRIDE, regroupées par frontière de confiance ; chacune avec une gravité et une cause |
+| Mesures d'atténuation | | Ce qui garde réellement contre chaque menace aujourd'hui, avec sa preuve |
+| Risques acceptés | | Une menace que le propriétaire a décidé d'accepter, avec qui a décidé et quand |
+
+- **Longueur** : limite 3 000 mots.
+- **Exemple** : `reprendre/modele-menaces` dans Acme Orders : 4 frontières de confiance ; la frontière
+  navigateur-API a une menace d'altération non atténuée sur le total de la commande (`C3`, également sur
+  `api-surface`).
+- **Erreur fréquente** : un tableau STRIDE générique copié d'un modèle, sans frontière ni preuve — chaque ligne
+  a besoin de la frontière réelle du schéma qu'elle menace.
+
+---
+
 ## Pages sans type
 
 Toutes les pages n'ont pas de gabarit. Ne déclarez pas `template` pour :
 - une sous-page d'écran ou d'éditeur ;
 - une sous-page de points d'attention (elle suit le format de constat décrit plus haut) ;
 - une page de concepts, un catalogue ou une annexe.
+
+`adr` est la seule sous-page typée, même si elle se trouve sous une page parente `technical` ou
+`architecture` : chaque fiche de décision est contrôlée sur ses propres sections obligatoires, indépendamment
+de sa parente.
 
 ## Variantes de titre
 

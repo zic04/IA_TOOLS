@@ -9,7 +9,7 @@ export default {
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },
-  app: { url: "http://127.0.0.1:4173" },
+  app: { url: "http://127.0.0.1:4173", dir: "../demo-app" },
   auth: { adapter: "manual", loginPattern: "^/login" },
   capture: {
     setup: "captures/setup.mjs",
@@ -17,6 +17,10 @@ export default {
     // mode cannot block that, so the route is never opened.
     forbidden: ["^/orders/\\d+/approval$"],
   },
+  // Followed by `doc-kit sync` (ARCHITECTURE.md §6.10): the one message file of the demo app, so that a renamed
+  // label (e.g. the "Approval chain" link, cited in bold on features/approve-order.md) is reported and fixed by
+  // `sync --apply --labels` instead of going unnoticed.
+  sync: { labels: ["../demo-app/public/messages/en.json"] },
   theme: { logo: "theme/logo.svg" },
   statuses: {
     open: ["st-0", "Open"],

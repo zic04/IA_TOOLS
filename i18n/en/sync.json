@@ -1,0 +1,96 @@
+{
+  "cli.help.sync": "Usage: {command} sync [--since <ref>] [--apply [--labels]] [--mark <page…> | --mark --all] [--sources <file[:lines]…>] [--date YYYY-MM-DD] [--check] [--estimate]\n\nWhat the documentation must follow after a change of the application (ARCHITECTURE.md §6.10): without options, a report comparing the application now with sync.json (or with --since <ref>, a git commit); --mark records the pages checked now. Writes {work}/sync.md, {work}/sync-report.json and {work}/sync/<page>.diff. git is read only, through the application's app.dir.\n\nOptions\n  --since <ref>            compares with this git commit instead of sync.json (no new/removed: the adapters are not re-run at that commit)\n  --apply                  rewrites moved proofs (file:line) in the pages; restamps the pages left unchanged\n  --labels                 with --apply: also replaces a label's old value by its new one, in the allowed contexts only\n  --mark <page…>           records these pages as checked now\n  --all                    with --mark: every written page\n  --sources <file[:lines]…>  with --mark of a single page: declared sources, repeatable\n  --date YYYY-MM-DD        date written by --mark instead of today's\n  --check                  exit code 1 when any category but “unchanged” and “unmarked” is not empty\n  --estimate               the cost of updating the pages to review (ARCHITECTURE.md §6.11)",
+  "cli.sync.noApp": "no application to read",
+  "cli.sync.noApp.help": "set app.dir in doc.config.mjs, pointing at the application's code",
+  "cli.sync.noReference": "no sync.json yet",
+  "cli.sync.noReference.help": "run {command} sync --mark --all once the pages are checked",
+  "cli.sync.unwritten": "page not written yet: {page}",
+  "cli.sync.unwritten.help": "write it first ({command} new {page} --template <type>), then mark it",
+  "cli.sync.sourcesOnePage": "--sources only works with --mark naming exactly one page",
+  "cli.sync.sourcesOnePage.help": "run {command} sync --mark <page> --sources <file[:lines]>",
+  "cli.sync.proofUnresolved": "[{page}] proof not recorded: {ref} (the file does not exist, or the line is beyond its end)",
+  "cli.sync.truncated": "[{page}] the closure of local imports was cut at 200 files: some dependencies may be missing",
+  "cli.sync.noGit": "no git here: a deleted file is never detected as a rename",
+  "cli.sync.sinceNoInventory": "--since never reports new or removed elements: the coverage adapters are not re-run at that commit",
+  "cli.sync.marked": {
+    "one": "✔ {n} page marked as checked",
+    "other": "✔ {n} pages marked as checked"
+  },
+  "cli.sync.title": "Application: version {version}, commit {commit}, checked on {date}",
+  "cli.sync.summary.proofsMoved": {
+    "one": "{n} proof moved",
+    "other": "{n} proofs moved"
+  },
+  "cli.sync.summary.proofsBroken": {
+    "one": "{n} proof broken",
+    "other": "{n} proofs broken"
+  },
+  "cli.sync.summary.labels": {
+    "one": "{n} label changed",
+    "other": "{n} labels changed"
+  },
+  "cli.sync.summary.review": {
+    "one": "{n} page to review",
+    "other": "{n} pages to review"
+  },
+  "cli.sync.summary.captures": {
+    "one": "{n} screenshot to retake",
+    "other": "{n} screenshots to retake"
+  },
+  "cli.sync.summary.new": {
+    "one": "{n} new element",
+    "other": "{n} new elements"
+  },
+  "cli.sync.summary.removed": {
+    "one": "{n} removed element, still cited",
+    "other": "{n} removed elements, still cited"
+  },
+  "cli.sync.summary.unchanged": {
+    "one": "{n} page unchanged",
+    "other": "{n} pages unchanged"
+  },
+  "cli.sync.summary.unmarked": {
+    "one": "{n} written page never marked",
+    "other": "{n} written pages never marked"
+  },
+  "cli.sync.priority.direct": "Direct",
+  "cli.sync.priority.shared": "Shared",
+  "cli.sync.priority.probablyIntact": "Probably intact",
+  "cli.sync.reason.modified": "{path} changed",
+  "cli.sync.reason.deleted": "{path} deleted",
+  "cli.sync.proof.moved": "[{page}] proof moved: {ref} → {newRef}",
+  "cli.sync.proof.broken.fileDeleted": "[{page}] proof broken: {ref} (file deleted)",
+  "cli.sync.proof.broken.textNotFound": "[{page}] proof broken: {ref} (the cited text was not found again)",
+  "cli.sync.proof.broken.ambiguous": "[{page}] proof broken: {ref} (the cited text was found more than once)",
+  "cli.sync.label.changed": "{file} “{key}”: “{old}” → “{new}” (pages: {pages})",
+  "cli.sync.label.removed": "{file} “{key}”: “{old}” → (removed) (pages: {pages})",
+  "cli.sync.capture.stale": "{id}: retake ({reasons})",
+  "cli.sync.new.item": "{family}: {id} (new) — suggested page: {suggest}",
+  "cli.sync.new.noSuggest": "{family}: {id} (new) — no page to suggest",
+  "cli.sync.removed.item": "{family}: {id} (removed, still cited in: {pages})",
+  "cli.sync.factsStale": "facts behind the application's HEAD: {sources} — run {command} facts --source {sources}",
+  "cli.sync.written": "✔ written: {folder}/sync.md, {folder}/sync-report.json",
+  "cli.sync.check.failed": "the documentation is behind the application",
+  "cli.sync.check.failed.help": "read {work}/sync.md, fix what it lists, then run {command} sync --mark again",
+  "cli.sync.check.ok": "the documentation follows the application",
+  "cli.sync.applied.file": "✔ {file}",
+  "cli.sync.applied.summary": {
+    "one": "✔ {proofs} proof and {labels} label fixed in {pages} page",
+    "other": "✔ {proofs} proofs and {labels} labels fixed in {pages} pages"
+  },
+  "cli.sync.applied.none": "nothing to apply",
+  "cli.sync.md.title": "Following the application",
+  "cli.sync.md.reviewTitle": "Pages to review",
+  "cli.sync.md.detailsTitle": "Details",
+  "cli.build.sync.invalid": "sync.json cannot be read ({file}: {error})",
+  "ui.footer.verified": "Checked against version {version} on {date}",
+  "cli.audit.ind.upToDatePages": "marked pages (`sync.json`) checked against the current version, among the written pages",
+  "cli.audit.crit.upToDatePages4": "`upToDatePages` ≥ {threshold} (or n/a)",
+  "cli.audit.action.upToDatePages": { "one": "Check the page whose marked version is not {current}, then `{command} sync --mark` it", "other": "Check the {n} pages whose marked version is not {current}, then `{command} sync --mark` them" },
+  "cli.audit.item.pageVersion": "marked on version {version}",
+  "cli.audit.item.pageUnmarked": "never marked (`{command} sync --mark`)",
+  "cli.guided.situation.sync": "{folder} — {product}'s documentation is behind the application's version.",
+  "cli.guided.menu.sync": "what the documentation must follow since the last check",
+  "cli.sync.markNothing": "--mark names no page",
+  "cli.sync.markNothing.help": "run {command} sync --mark <page…>, or {command} sync --mark --all for every written page"
+}

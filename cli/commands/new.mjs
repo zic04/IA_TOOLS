@@ -1,7 +1,9 @@
-// new <page-id> --template <type> [--title "…"] [--parent <id>]
+// new <page-id> --template <type> [--title "…"] [--parent <id>] [--prefill]
 // Creates <content>/<page-id>.md from templates/pages/<language>/<type>.md (never overwrites: exit code 1), in the
 // variant of the project's capture mode (capture.mode "none": tables instead of screenshots), and declares the page
-// in the table of contents:
+// in the table of contents. --prefill (ARCHITECTURE.md §6.11, types variables/api-surface/data-model/dependencies/
+// agent-instructions only): fills the page's main table from the facts (`doc-kit facts`) instead of leaving every
+// cell a placeholder; without the facts file, exit code 1; on another type, exit code 2.
 //   --parent <id>   right after the parent and its sub-pages, with level 2;
 //   otherwise       at the end of the group whose pages share the longest id prefix, or of the last group of
 //                   the section named by the first segment of the id.
@@ -17,11 +19,13 @@ import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { loadPageTemplates, captureVariant } from "../../engine/build/page-templates.mjs";
+import { PREFILL_SOURCES, prefillTemplate, stripPrefillMarkers } from "../../engine/context/prefill.mjs";
 
 export const options = {
   template: { type: "string" },
   title: { type: "string" },
   parent: { type: "string" },
+  prefill: { type: "boolean" },
 };
 
 /** Page ids: lower-case segments separated by "/", the first one being the section id. */
@@ -150,10 +154,11 @@ const commonSegments = (a, b) => {
 
 /**
  * Creates a page and declares it. Pure enough to be tested: reads and writes only under `root`.
- * @param {{ root: string, config: object, id: string, template?: string, title?: string, parent?: string, summary: string }} p
- * @returns {{ file: string, toc: string, template: string, entry: object|null, placement: { kind: "after"|"end"|"declared"|"typed", after?: string, group?: string } }}
+ * @param {{ root: string, config: object, id: string, template?: string, title?: string, parent?: string, summary: string, prefill?: boolean }} p
+ * @returns {{ file: string, toc: string, template: string, entry: object|null, placement: object, prefilled: { rows: number, source: string }|null }}
+ *   `prefilled`: null without `--prefill` (ARCHITECTURE.md §6.11)
  */
-export function createPage({ root, config, id, template, title, parent, summary }) {
+export function createPage({ root, config, id, template, title, parent, summary, prefill = false }) {
   if (!id) throw new KitError(EXIT.USAGE, "new.missingId");
   if (!PAGE_ID.test(id)) throw new KitError(EXIT.USAGE, "new.invalidId", { id });
   const table = loadPageTemplates();
@@ -247,9 +252,32 @@ export function createPage({ root, config, id, template, title, parent, summary 
   if (!fs.existsSync(source)) throw new KitError(EXIT.ENVIRONMENT, "new.templateFileMissing", { file: path.relative(KIT_ROOT, source) });
   fs.mkdirSync(path.dirname(fileAbs), { recursive: true });
   // The variant of the project's capture mode (ARCHITECTURE.md §6.4): "The screen" is a table without screenshots.
-  fs.writeFileSync(fileAbs, captureVariant(fs.readFileSync(source, "utf8"), config.capture?.mode || "app"));
+  let pageText = captureVariant(fs.readFileSync(source, "utf8"), config.capture?.mode || "app");
+
+  // --prefill (ARCHITECTURE.md §6.11): the page's main table, filled from the facts; the marker is always
+  // removed, with or without --prefill (like the capture variant markers above).
+  let prefilled = null;
+  if (prefill) {
+    const prefillSource = PREFILL_SOURCES[template];
+    if (!prefillSource) throw new KitError(EXIT.USAGE, "new.noPrefill", { template, known: Object.keys(PREFILL_SOURCES).join(", ") });
+    const factsRel = `${config.paths.facts}/${prefillSource}.json`;
+    const factsAbs = path.join(root, factsRel);
+    if (!fs.existsSync(factsAbs)) throw new KitError(EXIT.CHECK, "new.noFacts", { file: factsRel, source: prefillSource });
+    let facts;
+    try {
+      facts = JSON.parse(fs.readFileSync(factsAbs, "utf8"));
+    } catch (e) {
+      throw new KitError(EXIT.CHECK, "new.noFacts", { file: factsRel, source: prefillSource }, { cause: e });
+    }
+    const r = prefillTemplate(pageText, { source: prefillSource, items: facts.items || [], template });
+    pageText = r.text;
+    prefilled = { rows: r.rows, source: prefillSource };
+  }
+  pageText = stripPrefillMarkers(pageText);
+
+  fs.writeFileSync(fileAbs, pageText);
   if (newText !== text) fs.writeFileSync(tocAbs, newText);
-  return { file: fileRel, toc: tocRel, template, entry, placement };
+  return { file: fileRel, toc: tocRel, template, entry, placement, prefilled };
 }
 
 export async function run({ ctx, values, positionals }) {
@@ -262,12 +290,14 @@ export async function run({ ctx, values, positionals }) {
     title: values.title,
     parent: values.parent,
     summary: ctx.t("cli.new.summaryPlaceholder"),
+    prefill: !!values.prefill,
   });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));
     return EXIT.OK;
   }
   ctx.print(ctx.t("cli.new.created", { file: r.file, template: r.template }));
+  if (r.prefilled) ctx.print(ctx.t("cli.new.prefilled", { n: r.prefilled.rows, source: r.prefilled.source }));
   const id = positionals[0];
   if (r.placement.kind === "after") ctx.print(ctx.t("cli.new.tocAfter", { toc: r.toc, id, after: r.placement.after }));
   else if (r.placement.kind === "end") ctx.print(ctx.t("cli.new.tocEnd", { toc: r.toc, id, group: r.placement.group, section: r.placement.section }));

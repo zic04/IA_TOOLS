@@ -2,3 +2,6 @@
 node_modules/
 dist/
 .doc-kit/
+
+# facts/ (doc-kit facts) and sync.json (doc-kit sync) are the project's memory of what was checked, and when:
+# commit them. Do not add them above.

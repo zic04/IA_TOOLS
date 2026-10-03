@@ -50,6 +50,14 @@ node <skill>/scripts/brief.mjs writing-batch --project docs/manual --var code=u1
 same `file:line`. The filled briefs go to `.doc-kit/brief-<template>.md`; an unfilled placeholder stops the script
 with exit code 1.
 
+**Economy of the agents.** Each brief's own front matter names the Claude Code agent type to launch it with:
+`doc-kit-triage` (`haiku`, read-only), `doc-kit-writer` (`sonnet`), `doc-kit-reviewer` (`opus`, read-only) — copied
+next to the skills folder by `doc-kit skill install`. Two maintenance briefs, `triage` and `update`, read
+`doc-kit context <page> --update` to decide or redo a page from what changed. `brief.mjs --estimate` gives the
+input and output tokens of a brief and its cost, when `llm` is set in `doc.config.mjs` (`llm.currency`,
+`llm.prices` per model — no default: prices change and differ by contract); `scripts/usage.mjs log`, `report` and
+`scan` measure what the agents actually consumed.
+
 ## The non-negotiable rules
 
 1. **Safe captures**: on production, read-only and navigation only; read a detail page's server code before opening
@@ -84,3 +92,5 @@ with exit code 1.
 - [Install the skill](#/skill/install): the command and its checks.
 - [The documentation standard](#/method/standard): the rules the phases apply.
 - [Demo or production](#/capture/safety): the safety rules of phase 4.
+- [Cost and speed](#/skill/cost-and-speed): the agent types, `doc-kit context`, and pricing a wave before it runs.
+- [Keeping up with the application](#/publish/sync): what phase 10's maintenance actually runs.

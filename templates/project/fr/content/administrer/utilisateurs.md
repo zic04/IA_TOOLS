@@ -72,7 +72,7 @@
 > Ce qui se passe, pourquoi, et comment l'éviter.
 
 > [!NOTE] Écarts constatés (vX.Y.Z)
-> - Écart entre l'écran, la documentation et le code (`chemin/fichier.ts:42`).
+> - Écart entre l'écran, la documentation et le code (voir `chemin/fichier.ts` ; pas de numéro de ligne ici — cette page est dans l'espace Métier, voir writing.fr.md §13).
 
 ## En production
 

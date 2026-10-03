@@ -20,11 +20,16 @@ encore.
 doc-kit check coverage
 ```
 
-Les adaptateurs de couverture de `coverage` (configuration) listent ce que contient l'application : les routes d'une
-application Next.js ou React Router, les entrées d'un registre avec leurs libellés, les fichiers d'un dossier. Un
+Les adaptateurs de couverture de `coverage` (configuration) listent ce que contient l'application : les routes
+d'une application Next.js ou React Router (l'option `api: true` de `next-app-router` ajoute ses gestionnaires de
+route comme seconde famille), les gestionnaires de route FastAPI (`fastapi`), les opérations d'un document
+OpenAPI ou Swagger (`openapi`), les entrées d'un registre avec leurs libellés (`i18n-registry`), les
+fonctionnalités métier candidates de `features.json` (`features`), un élément par fait lu par `doc-kit facts`
+(`facts`, [Reprendre une application vibe-codée](#/spaces/takeover)), ou les fichiers d'un dossier (`glob`). Un
 élément est **couvert** quand l'un de ses textes apparaît dans une page **écrite** (`content/**/*.md` et `*.json`,
-les `routes` de son entrée du sommaire comprises), sans tenir compte de la casse ni des espaces. Une route `/orders/[id]` est couverte
-par `/orders/[id]`, `/orders/:id`, `/orders/{id}` ou son préfixe statique `/orders/`.
+les `routes` de son entrée du sommaire comprises), sans tenir compte de la casse ni des espaces. Une route
+`/orders/[id]` est couverte par `/orders/[id]`, `/orders/:id`, `/orders/{id}` ou son préfixe statique `/orders/`.
+Chaque adaptateur intégré et ses options sont listés sur [Les adaptateurs](#/reference/adapters~les-adaptateurs-de-couverture).
 
 ```text
 ✔ Routes : 14/14
@@ -62,9 +67,10 @@ de commande, adaptateur intégré et commande est cité ([Les adaptateurs](#/ref
 doc-kit check links
 ```
 
-Chaque lien `#/page` et `#/page~ancre` de chaque page, et chaque étape des parcours de la page d'accueil. Le build
-strict bloque sur les mêmes erreurs ; ce contrôle tourne sur un brouillon, il peut donc servir alors que des pages
-manquent.
+Chaque lien `#/page` et `#/page~ancre` de chaque page, chaque étape des parcours de la page d'accueil, et le
+`counterpart` de chaque page (`link.counterpart` : une page inconnue, une ancre inconnue, ou une page qui se cite
+elle-même). Le build strict bloque sur les mêmes erreurs ; ce contrôle tourne sur un brouillon, il peut donc
+servir alors que des pages manquent.
 
 ## Tableaux
 
@@ -125,6 +131,21 @@ Les GUID restent signalés tant que `masking.allow` ne les nomme pas
 signalé, même quand l'hôte est privé. Avec `--json`,
 `secrets.ignored` compte ce qui a été écarté, par règle : `local`, `template`, `exclude`, `allow`.
 
+## Métier, reprise et espaces : contrôlés par le build, pas par `check`
+
+Ces barrières s'exécutent dans `doc-kit build` lui-même (strict ou `--draft`), pas comme une catégorie séparée de
+`doc-kit check` — `standard/quality.md` dans le kit les liste toutes en détail :
+
+| Barrière | Échoue sur |
+|---|---|
+| `space.*` | Une section sans `space` ; `space` nommant un identifiant inconnu ou non déclaré ; un espace déclaré deux fois, ou un espace personnalisé sans `title` — seulement une fois `spaces` déclaré ([Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces)) |
+| `feature.*`, `rule.*` | Un identifiant `feature` déclaré sur le mauvais gabarit, ou deux fois ; `[[feature …]]` ou `[[rule …]]` citant un identifiant inconnu ; un `:::rule` sans `id` ni `title`, ou défini deux fois ([Documenter chaque fonctionnalité](#/spaces/business)) |
+| `facts.*` | `::facts{source="…"}` nommant une source sans fichier `facts/<source>.json`, ou une entrée `columns` que le fichier n'a pas ([Reprendre une application vibe-codée](#/spaces/takeover~lire-le-code-automatiquement-doc-kit-facts)) |
+| `business.technical` (avertissement) | Une page dont l'espace effectif est `business` contient une preuve `file:line` : déplacez-la derrière le `counterpart` de la page |
+
+Correction : écrivez ou déclarez l'identifiant manquant une seule fois, lancez `doc-kit facts` d'abord, ou
+corrigez l'identifiant, la colonne ou le nom de l'espace.
+
 ## Pièges et écarts constatés
 
 > [!ATTENTION] Les images ne sont pas lues
@@ -140,3 +161,5 @@ signalé, même quand l'hôte est privé. Avec `--json`,
 - [Construire le site](#/publish/build) : ce que le build strict bloque déjà.
 - [L'audit et les niveaux de maturité](#/publish/audit) : les contrôles traduits en niveau.
 - [Commandes : rédiger et vérifier](#/reference/cli/write-check) : les options de `check`.
+- [Les adaptateurs](#/reference/adapters) : chaque adaptateur de couverture, intégré ou le vôtre.
+- [Deux espaces, une seule source](#/spaces/overview) : les barrières `space.*`, en contexte.

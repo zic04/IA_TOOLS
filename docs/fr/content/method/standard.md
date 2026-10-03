@@ -21,7 +21,9 @@ Les cinq règles qui comptent le plus :
 | Document | Ce qu'il contient | Dans ce site |
 |---|---|---|
 | `standard/structure.fr.md` | Les quatre sections, les groupes, les pages obligatoires de Reprendre, les parcours de la page d'accueil, les sous-pages | [Sommaire, sous-pages et parcours](#/write/table-of-contents) |
-| `standard/templates.fr.md` et `templates.json` | Les 13 types de page : rôle, sections, longueur, exemple, erreurs fréquentes | [Les gabarits de page](#/write/page-templates) |
+| `standard/templates.fr.md` et `templates.json` | Les 13 types de page généraux : rôle, sections, longueur, exemple, erreurs fréquentes | [Les gabarits de page](#/write/page-templates) |
+| `standard/templates/business.json` | 5 types de plus pour l'espace métier : fiche de fonctionnalité, règles métier, matrice des rôles, processus, notes de version | [Documenter chaque fonctionnalité](#/spaces/business) |
+| `standard/templates/takeover.json` | 10 types de plus pour l'espace reprise : accès et propriété, surface d'API, runbook, modèle de données, dépendances, carte du code, tests, instructions des agents, ADR, modèle de menaces | [Reprendre une application vibe-codée](#/spaces/takeover) |
 | `standard/writing.fr.md` | Rien d'inventé, preuves, libellés exacts, écarts, liens, glossaire, numérotation des constats, schémas | ci-dessous |
 | `standard/captures.fr.md` | Sécurité des captures en production, la session, le masquage, la qualité des zones, production ou démo | [Démo ou production : capturer sans risque](#/capture/safety) |
 | `standard/quality.fr.md` | Les barrières bloquantes et les avertissements, avec la commande qui contrôle chacun | [Les contrôles](#/publish/checks) |
@@ -42,6 +44,16 @@ La section Reprendre rend un projet transmissible. Ses sept pages obligatoires s
 dossier d'architecture technique (DAT), au moins un parcours de bout en bout, l'exploitation, le diagnostic par
 symptôme, les points d'attention, et la façon dont la documentation elle-même est maintenue.
 
+## Deux publics, superposés
+
+Un projet peut aussi déclarer des **espaces** (ARCHITECTURE.md §6.1a) : `business` et `takeover`, une seule source
+exportée deux fois, un fichier HTML par public, qui ne doit pas voir le reste. Les espaces sont facultatifs et se
+superposent aux quatre sections ci-dessus — une section appartient toujours à un public, une page peut appartenir
+à un autre — et apportent leurs propres types de page (fiches de fonctionnalité et règles métier pour `business` ;
+dossiers construits à partir des faits et registre des risques pour `takeover`). [Deux espaces, une seule
+source](#/spaces/overview) explique le mécanisme ; [Documenter chaque fonctionnalité](#/spaces/business) et
+[Reprendre une application vibe-codée](#/spaces/takeover) l'appliquent.
+
 ## Règles de rédaction
 
 | Règle | En pratique |
@@ -59,8 +71,10 @@ symptôme, les points d'attention, et la façon dont la documentation elle-même
 Le standard s'applique par phases : cadrer le travail, mettre en place le projet (`init`, `doctor`), inventorier le
 code, planifier le site et écrire une page de référence, capturer, écrire par lots, consolider les constats, écrire
 les parcours et le diagnostic, puis les pages techniques de production, contrôler, et enfin livrer. Le
-[skill Claude Code](#/skill/phases) mène ces phases avec des agents en parallèle ; une équipe peut les suivre à la
-main.
+[skill Claude Code](#/skill/phases) mène ces phases avec des agents en parallèle, chacun briefé à partir du
+[contexte](#/skill/cost-and-speed) propre à une page plutôt que de tout l'inventaire ; une équipe peut suivre les
+phases à la main. Après la livraison, [suivre l'évolution de l'application](#/publish/sync) dit exactement quoi
+revoir, plutôt que de tout relire.
 
 ## Pièges et écarts constatés
 
@@ -79,3 +93,4 @@ main.
 - [Exemples de pages](#/examples/screen) : une page de chaque type, écrite selon le standard.
 - [L'audit et les niveaux de maturité](#/publish/audit) : le standard, mesuré.
 - [Les phases du skill](#/skill/phases) : la méthode, menée par Claude Code.
+- [Deux espaces, une seule source](#/spaces/overview) : les espaces métier et reprise, en détail.

@@ -20,10 +20,14 @@ doc-kit check coverage
 ```
 
 The coverage adapters of `coverage` (configuration) list what the application contains: the routes of a Next.js or
-React Router application, the entries of a registry with their labels, the files of a folder. An element is
-**covered** when one of its texts appears in a **written** page (`content/**/*.md` and `*.json`, the `routes` of
-its entry in the table of contents included), ignoring case and spaces. A route `/orders/[id]` is covered by `/orders/[id]`,
-`/orders/:id`, `/orders/{id}` or its static prefix `/orders/`.
+React Router application (`next-app-router`'s `api: true` option adds its route handlers as a second family),
+FastAPI route handlers (`fastapi`), the operations of an OpenAPI or Swagger document (`openapi`), the entries of a
+registry with their labels (`i18n-registry`), the candidate business features of `features.json` (`features`),
+one item per fact read by `doc-kit facts` (`facts`, [Taking over a vibe-coded application](#/spaces/takeover)), or
+the files of a folder (`glob`). An element is **covered** when one of its texts appears in a **written** page
+(`content/**/*.md` and `*.json`, the `routes` of its entry in the table of contents included), ignoring case and
+spaces. A route `/orders/[id]` is covered by `/orders/[id]`, `/orders/:id`, `/orders/{id}` or its static prefix
+`/orders/`. Every built-in adapter and its options are listed on [Adapters](#/reference/adapters~coverage-adapters).
 
 ```text
 ✔ Routes: 14/14
@@ -61,7 +65,8 @@ command is cited ([Adapters](#/reference/adapters~writing-an-adapter)).
 doc-kit check links
 ```
 
-Every `#/page` and `#/page~anchor` link of every page, and every step of the home page's journeys. The strict build
+Every `#/page` and `#/page~anchor` link of every page, every step of the home page's journeys, and every page's
+`counterpart` (`link.counterpart`: an unknown page, an unknown anchor, or a page naming itself). The strict build
 blocks on the same errors; this check runs on a draft, so it can be used while pages are missing.
 
 ## Tables
@@ -120,6 +125,21 @@ GUIDs stay reported until `masking.allow` names them ([Masking](#/capture/maskin
 a password in a URL stays reported, even when the host is private. With
 `--json`, `secrets.ignored` counts what was set aside, by rule: `local`, `template`, `exclude`, `allow`.
 
+## Business, takeover and spaces: checked by the build, not by `check`
+
+These gates run inside `doc-kit build` itself (strict or `--draft`), not as a separate `doc-kit check` category —
+`standard/quality.md` in the kit lists every one in full:
+
+| Gate | Fails on |
+|---|---|
+| `space.*` | A section with no `space`; `space` naming an unknown or undeclared id; a space declared twice, or a custom one with no `title` — only once `spaces` is declared ([Two spaces, one source](#/spaces/overview~declaring-the-spaces)) |
+| `feature.*`, `rule.*` | A `feature` id declared on the wrong template, or twice; `[[feature …]]` or `[[rule …]]` citing an unknown id; a `:::rule` with no `id` or `title`, or defined twice ([Documenting each feature](#/spaces/business)) |
+| `facts.*` | `::facts{source="…"}` naming a source with no `facts/<source>.json` file, or a `columns` entry the file does not have ([Taking over a vibe-coded application](#/spaces/takeover~reading-the-code-automatically-doc-kit-facts)) |
+| `business.technical` (warning) | A page whose effective space is `business` contains a `file:line` proof: move it behind the page's `counterpart` |
+
+Fix: write or declare the missing id once, run `doc-kit facts` first, or correct the id, the column or the space
+name.
+
 ## Pitfalls and observed gaps
 
 > [!WARNING] The images are not read
@@ -135,3 +155,5 @@ a password in a URL stays reported, even when the host is private. With
 - [Build the site](#/publish/build): what the strict build already blocks.
 - [Audit and maturity levels](#/publish/audit): the checks turned into a level.
 - [Commands: write and check](#/reference/cli/write-check): the options of `check`.
+- [Adapters](#/reference/adapters): every coverage adapter, built-in or your own.
+- [Two spaces, one source](#/spaces/overview): the `space.*` gates, in context.

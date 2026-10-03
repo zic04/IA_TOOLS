@@ -26,9 +26,9 @@ export default defineConfig({
 
 | Sub-page | Keys |
 |---|---|
-| [Project, version and sign-in keys](#/reference/configuration/project) | `kit`, `product`, `language`, `output`, `paths`, `version`, `env`, `app`, `auth`, `extra` |
+| [Project, version and sign-in keys](#/reference/configuration/project) | `kit`, `product`, `language`, `languages`, `output`, `paths`, `version`, `env`, `app`, `auth`, `extra` |
 | [Capture and masking keys](#/reference/configuration/capture) | `capture` and `masking` |
-| [Coverage, theme and text keys](#/reference/configuration/site) | `coverage`, `theme`, `statuses`, `texts`, `feedback` |
+| [Coverage, theme and text keys](#/reference/configuration/site) | `coverage`, `theme`, `spaces`, `statuses`, `texts`, `feedback` |
 
 The formal definition is `schemas/config.schema.json` in the kit; this reference is checked against it by the
 coverage check of this site.

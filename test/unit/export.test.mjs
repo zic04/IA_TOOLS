@@ -117,7 +117,7 @@ describe("export", () => {
       const html = fs.readFileSync(out, "utf8");
       assert.ok(html.includes(`<meta name="generator" content="${generatorTag()}">`));
       assert.equal(dataOf(html).meta.version, "2.4.0", "frozen version, the repository's package.json being out of reach");
-      assert.equal(dataOf(html).meta.stats.pages, 4);
+      assert.equal(dataOf(html).meta.stats.pages, 11);
       // Same output as the kit itself on the same copy.
       const reference = await cli(["build", "--project", target, "--date", "2026-01-01", "--output", out + ".ref"]);
       assert.equal(reference.code, 0, reference.err);

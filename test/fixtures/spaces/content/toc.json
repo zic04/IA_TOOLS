@@ -1,0 +1,102 @@
+{
+  "title": "Acme Orders documentation",
+  "tagline": "One source, two audiences: the people who use Acme Orders, and the team that takes it over.",
+  "spaces": ["business", { "id": "takeover", "subtitle": "Architecture, API and operations of Acme Orders." }],
+  "sections": [
+    {
+      "id": "use",
+      "space": "business",
+      "title": "Using Acme Orders",
+      "shortTitle": "Use",
+      "icon": "screen",
+      "featured": true,
+      "subtitle": "Day-to-day work: the orders list and the profile settings.",
+      "highlights": ["The annotated orders list", "Settings, step by step"],
+      "groups": [
+        {
+          "title": "Getting started",
+          "pages": [
+            {
+              "id": "use/orders",
+              "title": "The orders list",
+              "menuTitle": "Orders",
+              "summary": "Filters, order summary and the New order button.",
+              "routes": ["/orders"],
+              "permissions": ["orders:read"],
+              "counterpart": "take-over/orders-api"
+            },
+            {
+              "id": "use/orders/detail",
+              "title": "Order details",
+              "menuTitle": "Details",
+              "level": 2,
+              "summary": "What changes once an order has been created."
+            },
+            {
+              "id": "use/settings",
+              "title": "Profile settings",
+              "menuTitle": "Settings",
+              "summary": "Change your profile and save it.",
+              "routes": ["/settings"]
+            }
+          ]
+        },
+        {
+          "title": "Limits",
+          "pages": [
+            {
+              "id": "use/api-limits",
+              "title": "Limits of the orders API",
+              "menuTitle": "API limits",
+              "summary": "Quotas and timeouts, for the team that runs the API.",
+              "space": "takeover"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "space": "takeover",
+      "title": "Taking over Acme Orders",
+      "shortTitle": "Take over",
+      "icon": "code",
+      "subtitle": "How Acme Orders is built and run.",
+      "highlights": ["Three-block architecture", "The orders API"],
+      "groups": [
+        {
+          "title": "Technical",
+          "pages": [
+            {
+              "id": "take-over/architecture",
+              "title": "Architecture of Acme Orders",
+              "menuTitle": "Architecture",
+              "summary": "The three blocks of Acme Orders and how they talk."
+            },
+            {
+              "id": "take-over/orders-api",
+              "title": "The orders API",
+              "menuTitle": "Orders API",
+              "summary": "The endpoints behind the orders list.",
+              "counterpart": "use/orders~the-screen"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "Discover Acme Orders",
+      "description": "The pages to read first.",
+      "steps": ["use/orders", "use/settings", "take-over/architecture"]
+    },
+    {
+      "title": "Take over Acme Orders",
+      "description": "From the architecture to the API.",
+      "space": "takeover",
+      "steps": ["take-over/architecture", "take-over/orders-api"]
+    }
+  ],
+  "suggestions": ["use/orders", "use/settings", "take-over/architecture"]
+}

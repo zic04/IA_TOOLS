@@ -1,0 +1,31 @@
+<svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Acme Orders and the systems it talks to: the payment provider, the e-mail provider and the identity provider">
+  <defs>
+    <marker id="cc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="d-box" x="340" y="10" width="220" height="60" rx="8"/>
+  <text class="d-title" x="450" y="36" text-anchor="middle">Users</text>
+  <text class="d-small" x="450" y="54" text-anchor="middle">browser, HTTPS</text>
+
+  <rect class="d-brand" x="330" y="165" width="240" height="90" rx="10"/>
+  <text class="d-title" x="450" y="200" text-anchor="middle">Acme Orders</text>
+  <text class="d-small" x="450" y="220" text-anchor="middle">Next.js application</text>
+  <text class="d-small" x="450" y="238" text-anchor="middle">+ scheduled jobs</text>
+
+  <rect class="d-info" x="40" y="330" width="220" height="60" rx="8"/>
+  <text class="d-title" x="150" y="356" text-anchor="middle">Payment provider</text>
+  <text class="d-small" x="150" y="374" text-anchor="middle">card tokens, amounts</text>
+
+  <rect class="d-info" x="340" y="330" width="220" height="60" rx="8"/>
+  <text class="d-title" x="450" y="356" text-anchor="middle">E-mail provider</text>
+  <text class="d-small" x="450" y="374" text-anchor="middle">transactional e-mail</text>
+
+  <rect class="d-info" x="640" y="330" width="220" height="60" rx="8"/>
+  <text class="d-title" x="750" y="356" text-anchor="middle">Identity provider</text>
+  <text class="d-small" x="750" y="374" text-anchor="middle">sign-in, OIDC</text>
+
+  <path class="d-line-brand" d="M450 70V163" marker-end="url(#cc-arrow)"/>
+  <path class="d-line" d="M330 230L160 328" marker-end="url(#cc-arrow)"/>
+  <path class="d-line" d="M450 255V328" marker-end="url(#cc-arrow)"/>
+  <path class="d-line" d="M570 230L740 328" marker-end="url(#cc-arrow)"/>
+</svg>

@@ -3,6 +3,7 @@
 //
 //   node brief.mjs <template> --project <docDir> [--lang en|fr] [--var key=value]… [--output <file>]
 //   node brief.mjs <template> --project <docDir> --vars       show the template's placeholders and their values
+//   node brief.mjs <template> --project <docDir> --estimate [--var key=value]…   token and cost estimate
 //   node brief.mjs --list [--lang en|fr]                       list the languages and the templates of each
 //
 // <template>: a file name of assets/briefs/<lang>/ (writing-batch, journey…) or the path of a .md file.
@@ -14,6 +15,12 @@
 // source sits in a separate front end (the inventory of routes does not see the back end).
 // "--var key=@file" reads the value from a file (a multi-line value becomes a bullet list).
 // Default output: <docDir>/.doc-kit/brief-<template>[-<code>].md.
+// Every brief template starts with a front matter line `agent: <type>` (ARCHITECTURE.md §6.11): this script
+// reports it after writing the brief ("launch it with the agent type …").
+// --estimate (no file written): input tokens (the filled brief, plus the files it cites in backticks when they
+// exist on disk, characters ÷ 4) and output tokens (1.4 per word of the template's `maxWords` for a new page,
+// 0.3 for an update), read from `{{pages}}` and the project's table of contents; the cost when `llm.prices` of
+// the agent's model is set in doc.config.mjs.
 // Exit codes: 0 OK · 1 placeholders left unfilled (the file is written anyway) · 2 usage or configuration.
 import fs from "node:fs";
 import path from "node:path";
@@ -23,17 +30,24 @@ import {
   SKILL_ROOT,
   WORK_DIR,
   addMessages,
+  agentModel,
   appDirInfo,
   baseVariables,
   checkLanguage,
+  citedPaths,
   fill,
   findProject,
+  flattenedPages,
   loadConfig,
+  maxWordsOf,
+  pageTemplatesTable,
   parseOptions,
+  parsePageList,
   readVars,
   run,
   setMessageLanguage,
   t,
+  templateAgent,
   templateVariables,
   warn,
 } from "./common.mjs";
@@ -44,6 +58,7 @@ addMessages({
       "Usage:",
       "  node brief.mjs <template> --project <docDir> [--lang en|fr] [--var key=value]… [--output <file>]",
       "  node brief.mjs <template> --project <docDir> --vars",
+      "  node brief.mjs <template> --project <docDir> --estimate [--var key=value]…",
       "  node brief.mjs --list [--lang en|fr]",
     ].join("\n"),
     notABrief: '"{name}" is not a brief',
@@ -59,7 +74,17 @@ addMessages({
     written: "✔ brief written: {file}",
     unfilled: "placeholder(s) left unfilled: {list}",
     unfilled_todo: "add {vars} (or extra.briefs.<key> in doc.config.mjs), then run again",
-    launch: '  → launch the agent with: "Read {file} and carry it out in full."',
+    launch: '  → launch it with the agent type {agent}: "Read {file} and carry it out in full."',
+    noAgent: "  → this brief template declares no agent type (add a front matter line \"agent: <type>\")",
+    estimateTitle: "Estimate for {template} — agent {agent}, model {model}",
+    estimateNoAgent: "Estimate for {template} — this brief declares no agent type",
+    estimateInput: "  input:  {tokens} tokens (brief {brief} + {n} cited file(s) {files})",
+    estimateOutput: "  output: {tokens} tokens ({n} page(s): {fresh} new, {update} update)",
+    estimateOutputNone: "  output: 0 tokens (no page list to estimate from: {reason})",
+    estimateOutputNone_noPages: "the \"pages\" placeholder is empty or not used by this template",
+    estimateTotal: "  total:  {tokens} tokens",
+    estimateCost: "  cost:   {cost} {currency}",
+    estimateNoCost: "  cost:   not estimated (set llm.prices.{model} in doc.config.mjs)",
     appDirDerived: "appDir is not configured (app.dir in doc.config.mjs): {dir} is assumed ({how})",
     appDirDerived_todo: "check it: set app.dir in doc.config.mjs (the application root, relative to the documentation folder), or pass --var appDir=<folder>",
     how_git: "the folder that holds .git",
@@ -74,6 +99,7 @@ addMessages({
       "Usage :",
       "  node brief.mjs <modèle> --project <dossierDoc> [--lang en|fr] [--var clé=valeur]… [--output <fichier>]",
       "  node brief.mjs <modèle> --project <dossierDoc> --vars",
+      "  node brief.mjs <modèle> --project <dossierDoc> --estimate [--var clé=valeur]…",
       "  node brief.mjs --list [--lang en|fr]",
     ].join("\n"),
     notABrief: "« {name} » n'est pas un brief",
@@ -89,7 +115,17 @@ addMessages({
     written: "✔ brief écrit : {file}",
     unfilled: "paramètre(s) non rempli(s) : {list}",
     unfilled_todo: "ajoutez {vars} (ou extra.briefs.<clé> dans doc.config.mjs), puis relancez",
-    launch: "  → lancez l'agent avec : « Lis {file} et exécute-le en entier. »",
+    launch: "  → lancez-le avec le type d'agent {agent} : « Lis {file} et exécute-le en entier. »",
+    noAgent: "  → ce modèle de brief ne déclare aucun type d'agent (ajoutez une ligne d'en-tête « agent: <type> »)",
+    estimateTitle: "Estimation pour {template} — agent {agent}, modèle {model}",
+    estimateNoAgent: "Estimation pour {template} — ce brief ne déclare aucun type d'agent",
+    estimateInput: "  entrée : {tokens} jetons (brief {brief} + {n} fichier(s) cité(s) {files})",
+    estimateOutput: "  sortie : {tokens} jetons ({n} page(s) : {fresh} nouvelle(s), {update} mise(s) à jour)",
+    estimateOutputNone: "  sortie : 0 jeton (rien à estimer : {reason})",
+    estimateOutputNone_noPages: "le paramètre « pages » est vide ou inutilisé par ce modèle",
+    estimateTotal: "  total :  {tokens} jetons",
+    estimateCost: "  coût :   {cost} {currency}",
+    estimateNoCost: "  coût :   non estimé (renseignez llm.prices.{model} dans doc.config.mjs)",
     appDirDerived: "appDir n'est pas configuré (app.dir dans doc.config.mjs) : {dir} est supposé ({how})",
     appDirDerived_todo: "vérifiez-le : renseignez app.dir dans doc.config.mjs (la racine de l'application, relative au dossier de la documentation), ou passez --var appDir=<dossier>",
     how_git: "le dossier qui contient .git",
@@ -143,6 +179,77 @@ function appDirWarnings(docDir, config, given) {
   if (info.front) warn(t("separateFront", { source: info.source, front: path.relative(info.dir, info.front).replace(/\\/g, "/") }), t("separateFront_todo", { dir: info.dir }));
 }
 
+/**
+ * Token and cost estimate of a filled brief (ARCHITECTURE.md §6.11): input (the brief plus the files it cites
+ * that exist on disk, characters ÷ 4) and output (the pages named by `{{pages}}`, 1.4 × maxWords for a page not
+ * written yet, 0.3 × maxWords for one that already has a content file); cost when `llm.prices` of the agent's
+ * model is set.
+ */
+async function printEstimate({ name, agent, text, vars, docDir, config }) {
+  const model = agent ? agentModel(agent) : "";
+  console.log(t(agent ? "estimateTitle" : "estimateNoAgent", { template: name, agent, model }));
+  if (!agent) console.log(t("noAgent"));
+
+  const pageIds = parsePageList(vars.pages);
+  // Candidate paths: whatever the (filled) brief cites in backticks, plus the context file of each page named
+  // by {{pages}} (doc-kit context <page> --update, ARCHITECTURE.md §6.11) — the brief only ever names its
+  // pattern, never the per-page path, so it is rebuilt here the same way `doc-kit context` names that file.
+  const candidates = new Set(citedPaths(text));
+  for (const id of pageIds) candidates.add(`.doc-kit/context/${id.replace(/\//g, "__")}.md`);
+  let filesChars = 0;
+  let filesCounted = 0;
+  for (const p of candidates) {
+    const abs = path.isAbsolute(p) ? p : path.resolve(docDir, p);
+    try {
+      const st = fs.statSync(abs);
+      if (st.isFile()) {
+        filesChars += st.size;
+        filesCounted++;
+      }
+    } catch {
+      // cited but absent (not written yet, no context file generated, or a placeholder left in the text): not counted
+    }
+  }
+  const briefTokens = Math.ceil(text.length / 4);
+  const inputTokens = briefTokens + Math.ceil(filesChars / 4);
+  console.log(t("estimateInput", { tokens: inputTokens, brief: briefTokens, n: filesCounted, files: `${Math.ceil(filesChars / 4)} tokens` }));
+
+  let outputTokens = 0;
+  if (!pageIds.length) {
+    console.log(t("estimateOutputNone", { reason: t("estimateOutputNone_noPages") }));
+  } else {
+    const pages = await flattenedPages(docDir, config, vars.kitPath);
+    const byId = new Map(pages.map((p) => [p.id, p]));
+    const table = await pageTemplatesTable(vars.kitPath);
+    const contentDir = vars.contentDir || "content";
+    let fresh = 0;
+    let update = 0;
+    for (const id of pageIds) {
+      const page = byId.get(id);
+      const maxWords = maxWordsOf(table, page?.template);
+      const file = path.join(docDir, contentDir, page?.file || `${id}.md`);
+      if (fs.existsSync(file)) {
+        update++;
+        outputTokens += maxWords * 0.3;
+      } else {
+        fresh++;
+        outputTokens += maxWords * 1.4;
+      }
+    }
+    outputTokens = Math.ceil(outputTokens);
+    console.log(t("estimateOutput", { tokens: outputTokens, n: pageIds.length, fresh, update }));
+  }
+
+  console.log(t("estimateTotal", { tokens: inputTokens + outputTokens }));
+  const prices = model ? config.llm?.prices?.[model] : null;
+  if (prices) {
+    const cost = (inputTokens / 1e6) * (prices.input ?? 0) + (outputTokens / 1e6) * (prices.output ?? 0);
+    console.log(t("estimateCost", { cost: cost.toFixed(4), currency: config.llm?.currency ?? "" }));
+  } else {
+    console.log(t("estimateNoCost", { model: model || "?" }));
+  }
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const iLang = argv.indexOf("--lang");
@@ -155,6 +262,7 @@ async function main() {
       var: { type: "string", multiple: true },
       output: { type: "string" },
       vars: { type: "boolean" },
+      estimate: { type: "boolean" },
       list: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -199,7 +307,14 @@ async function main() {
   }
 
   const { text, unfilled } = fill(template, vars);
+  const agent = templateAgent(template);
   const base = path.basename(templateFile, ".md");
+
+  if (o.estimate) {
+    await printEstimate({ name: base, agent, text, vars, docDir, config });
+    return 0;
+  }
+
   const output = o.output ? path.resolve(o.output) : path.join(docDir, WORK_DIR, `brief-${base}${vars.code ? `-${vars.code}` : ""}.md`);
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, text);
@@ -208,7 +323,8 @@ async function main() {
     warn(t("unfilled", { list: unfilled.join(", ") }), t("unfilled_todo", { vars: unfilled.map((v) => `--var ${v}=…`).join(" ") }));
     return 1;
   }
-  console.log(t("launch", { file: output }));
+  if (agent) console.log(t("launch", { file: output, agent }));
+  else console.log(t("noAgent"));
   return 0;
 }
 

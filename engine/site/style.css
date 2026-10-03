@@ -539,6 +539,22 @@ button {
   border-radius: var(--radius-sm);
 }
 
+/* Business rule (:::rule, ARCHITECTURE.md §6.8): statement + "Given / When / Then" example. */
+.regle {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.regle h3 {
+  margin: 0 0 8px;
+}
+.regle p:last-child {
+  margin-bottom: 0;
+}
+
 /* Settings tables */
 .tableau {
   margin: 0 0 22px;
@@ -634,6 +650,15 @@ button {
   font-family: var(--mono);
   font-size: 12px;
 }
+/* Business space citations (§6.8): [[feature …]] links to its sheet, [[rule …]] links to its definition. */
+.puce.fonctionnalite {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.puce.regle {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
 .puce.statut::before {
   content: "";
   width: 9px;
@@ -645,6 +670,36 @@ button {
   background: var(--surface-2);
   border: 1px solid var(--line);
   color: var(--text);
+}
+/* Claim badges (§6.9): [[verified]], [[deduced]], [[unknown]] (verifie, deduit, inconnu), with or without a proof. */
+.puce.affirmation {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.puce.affirmation code {
+  font: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+.puce.verifie {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.puce.deduit {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.puce.inconnu {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+/* Facts table (§6.9): the caption gives the generation date and the application's commit. */
+.tableau caption {
+  margin-top: 6px;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--text-faint);
 }
 kbd,
 .touche {
@@ -946,6 +1001,15 @@ ol.etapes > li:last-child::after {
   background: color-mix(in srgb, var(--on-chrome) 10%, transparent);
   padding: 0 4px;
   border-radius: 4px;
+}
+/* Glossary bubble: technical correspondence of a term (§6.8), under its definition. */
+.bulle .bulle-tech {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--on-chrome) 20%, transparent);
+  color: var(--chrome-text);
+  font-family: var(--mono);
+  font-size: 12px;
 }
 .bulle .bulle-n {
   display: inline-grid;
@@ -1480,7 +1544,7 @@ figcaption,
 }
 .portes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
   margin-top: -34px;
   position: relative;
@@ -1740,6 +1804,224 @@ figcaption,
   background: var(--surface-2);
 }
 
+/* ─── Spaces (ARCHITECTURE.md §6.1a) ────────────────────────────────────────
+   Selector in the top bar (at the head of the side menu below 1080 px), the space label of an export, the title
+   of each space in the side menu, the space badge of a page, its counterpart, the home page strip and doors, the
+   hidden steps of a journey, the headings of the search results. */
+.espaces {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--chrome-line);
+  background: var(--chrome-2);
+}
+.espace-choix {
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--chrome-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.espace-choix:hover {
+  color: var(--on-chrome);
+}
+.espace-choix[aria-pressed="true"] {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.espaces:has(.espace-unique) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.espace-unique {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-glow) 18%, transparent);
+  color: var(--brand-on-chrome);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.espace-unique .ico {
+  width: 14px;
+  height: 14px;
+}
+.lat-espaces,
+.lat-langues {
+  display: none;
+  margin: 0 2px 14px;
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+.lat-espaces .espace-choix,
+.lat-langues .espace-choix {
+  flex: 1;
+  color: var(--text-soft);
+}
+.lat-espaces .espace-choix:hover,
+.lat-langues .espace-choix:hover {
+  color: var(--text);
+}
+.lat-espaces .espace-choix[aria-pressed="true"],
+.lat-langues .espace-choix[aria-pressed="true"] {
+  color: var(--on-brand);
+}
+.lat-espace {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 18px 4px 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.lat-espace:first-child,
+.lat-espaces + .lat-espace {
+  margin-top: 0;
+}
+.lat-espace .ico {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--brand-strong);
+}
+.puce.espace {
+  background: var(--surface);
+  border: 1px solid var(--brand-line);
+  color: var(--brand-strong);
+}
+.pendant {
+  margin: -10px 0 24px;
+}
+.pendant a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-line);
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.pendant a:hover {
+  text-decoration: none;
+  border-color: var(--brand);
+}
+.pendant .ico {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.espace-bandeau {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 7px 16px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--chrome-line);
+  background: var(--chrome-2);
+  color: var(--chrome-text);
+  font-size: 14px;
+}
+.espace-bandeau strong {
+  color: var(--on-chrome);
+}
+.espace-bandeau .ico {
+  width: 16px;
+  height: 16px;
+  color: var(--brand-on-chrome);
+}
+.espace-bandeau a {
+  padding-left: 10px;
+  border-left: 1px solid var(--chrome-line);
+  color: var(--brand-on-chrome);
+  font-weight: 600;
+}
+.porte .porte-pour {
+  margin: -2px 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-strong);
+}
+/* A single door (a space with one section) keeps the width of a door instead of the whole row. */
+.portes > .porte:only-child {
+  max-width: 560px;
+}
+.parcours-cache {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.recherche-groupe {
+  margin: 8px 12px 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+@media (max-width: 1080px) {
+  .topbar .espaces:not(:has(.espace-unique)) {
+    display: none;
+  }
+  .lat-espaces {
+    display: flex;
+  }
+}
+
+/* ─── Languages (ARCHITECTURE.md §6.12) ─────────────────────────────────────
+   Selector: reuses .espaces / .espace-choix (the top bar, right of the search button; at the head of the side
+   menu below 1080 px, above the spaces). The "not translated yet" banner reuses the warning callout's tokens. */
+.bandeau-traduction {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 11px 16px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 14px;
+}
+.bandeau-traduction .ico {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex: none;
+  color: var(--warn);
+}
+@media (max-width: 1080px) {
+  .topbar .langues {
+    display: none;
+  }
+  .lat-langues {
+    display: flex;
+  }
+}
+
 /* ─── Full print ────────────────────────────────────────────────────────── */
 #impression {
   display: none;
@@ -1755,11 +2037,6 @@ figcaption,
   }
   .principal {
     padding: 30px 34px 70px;
-  }
-}
-@media (max-width: 1200px) {
-  .portes {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (max-width: 1080px) {

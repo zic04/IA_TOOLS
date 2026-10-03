@@ -1,6 +1,7 @@
 // Development server of `doc-kit dev`: draft build in memory, served on localhost, rebuilt when a source changes,
 // pages reloaded through Server-Sent Events, build errors shown in an overlay of the page.
 //   GET /                    the site (last successful build) + the live-reload client (engine/dev/client.js)
+//   GET /space/<id>          with spaces (ARCHITECTURE.md §6.1a), the export of that space, with the same client
 //   GET /__doc-kit/events    SSE stream: event "build" { id, errors[], warnings } after every build
 //   GET /__doc-kit/state     the same state, as JSON (tests, tools)
 // Watched: <content>/, <images>/, <diagrams>/, theme/ (recursive) and doc.config.mjs. Nothing is written to disk.
@@ -28,7 +29,9 @@ export function injectClient(html, settings) {
 /** Folders and files that trigger a rebuild, relative to the project, from the configuration. */
 export function watchedPaths(config) {
   return {
-    folders: [...new Set([config.paths.content, config.paths.images, config.paths.diagrams, "theme"])],
+    // Languages (ARCHITECTURE.md §6.12): paths.translations too, so that editing a translated page rebuilds
+    // the draft site, like editing the source.
+    folders: [...new Set([config.paths.content, config.paths.images, config.paths.diagrams, "theme", ...(config.languages ? [config.paths.translations] : [])])],
     files: [CONFIG_FILE],
   };
 }
@@ -45,12 +48,14 @@ export function watchedPaths(config) {
  * @param {string} [p.host="127.0.0.1"]
  * @param {number} [p.debounce=150]  ms between the last change and the rebuild
  * @param {(event: object) => void} [p.onEvent]  { type: "build", ok, ms, stats, errors, warnings, changed } | { type: "error", error }
- * @returns {Promise<{ url: string, port: number, state: object, rebuild: () => Promise<object>, close: () => Promise<void> }>}
+ * @returns {Promise<{ url: string, port: number, state: object, spaces: string[], rebuild: () => Promise<object>, close: () => Promise<void> }>}
+ *   spaces: the ids of the exports served at /space/<id> (last successful build)
  */
 export async function startDevServer({ root, loadConfig, describe, describeError, texts, port = 0, host = "127.0.0.1", debounce = 150, onEvent = () => {} }) {
   const clients = new Set();
   const watchers = [];
   let html = null; // last successful build
+  let spaces = {}; // its exports, by space id
   let buildId = 0;
   let config = null;
   const state = { id: 0, errors: [], warnings: 0, building: false };
@@ -71,6 +76,7 @@ export async function startDevServer({ root, loadConfig, describe, describeError
       const ok = !!r.html && !r.errors.length;
       if (ok) {
         html = r.html;
+        spaces = Object.fromEntries(r.sites.map((x) => [x.space, x.html]));
         state.id = ++buildId;
       }
       state.errors = r.errors.map(describe);
@@ -153,6 +159,12 @@ export async function startDevServer({ root, loadConfig, describe, describeError
       res.end(injectClient(html || placeholder(), settings()));
       return;
     }
+    const space = /^\/space\/([a-z][a-z0-9-]*)\/?(?:index\.html)?$/.exec(url.pathname);
+    if (space && Object.hasOwn(spaces, space[1])) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(injectClient(spaces[space[1]], settings()));
+      return;
+    }
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("404");
   });
@@ -175,6 +187,9 @@ export async function startDevServer({ root, loadConfig, describe, describeError
     url: `http://${host}:${actual}/`,
     port: actual,
     state,
+    get spaces() {
+      return Object.keys(spaces);
+    },
     rebuild: () => (running = running.then(() => rebuild(["(manual)"]))),
     async close() {
       clearTimeout(timer);

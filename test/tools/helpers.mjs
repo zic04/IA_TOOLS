@@ -37,6 +37,98 @@ export function demoCopy() {
   return dir;
 }
 
+/** The test project with two spaces, business and takeover (ARCHITECTURE.md §6.1a). */
+export const SPACES = path.join(KIT_ROOT, "test", "fixtures", "spaces");
+
+/** Configuration of the spaces project (validated, completed), optionally modified first. */
+export async function spacesConfig(modify = (c) => c) {
+  const raw = (await import(pathToFileURL(path.join(SPACES, "doc.config.mjs")).href)).default;
+  return prepareConfig(modify(structuredClone(raw)), { env: {} });
+}
+
+/** Builds the spaces project in memory; `root`: a copy of it (spacesCopy). */
+export async function buildSpaces({ language = "en", date = "2026-01-01", draft = false, modify, root = SPACES, options = {} } = {}) {
+  const config = await spacesConfig((c) => {
+    c.language = language;
+    return modify ? modify(c) : c;
+  });
+  return build({ project: { root }, config, options: { date, draft, ...options } });
+}
+
+/** Copy of the spaces project in a temporary folder; `editToc(toc)` returns its new table of contents. */
+export function spacesCopy(editToc) {
+  const dir = tempDir("doc-kit-spaces-");
+  fs.cpSync(SPACES, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+  if (editToc) {
+    const file = path.join(dir, "content", "toc.json");
+    fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
+  }
+  return dir;
+}
+
+/** The test project with two languages (ARCHITECTURE.md §6.12), a copy of SPACES with `languages: ["en","fr"]`
+ * and `translations/fr/`: one page of every translation state (current, stale, unmarked, missing), a translated
+ * diagram, a translated image + zones (orders-list), and a link to fix with `translate --fix-anchors`. */
+export const LANGUAGES = path.join(KIT_ROOT, "test", "fixtures", "languages");
+
+/** Configuration of the languages project (validated, completed), optionally modified first. */
+export async function languagesConfig(modify = (c) => c) {
+  const raw = (await import(pathToFileURL(path.join(LANGUAGES, "doc.config.mjs")).href)).default;
+  return prepareConfig(modify(structuredClone(raw)), { env: {} });
+}
+
+/** Builds the languages project in memory; `root`: a copy of it (languagesCopy). */
+export async function buildLanguages({ date = "2026-01-01", draft = false, modify, root = LANGUAGES, options = {} } = {}) {
+  const config = await languagesConfig(modify);
+  return build({ project: { root }, config, options: { date, draft, ...options } });
+}
+
+/** Copy of the languages project in a temporary folder; `editToc(toc)` returns its new (source) table of
+ * contents, `editTranslatedToc(toc)` its translated (fr) one. */
+export function languagesCopy({ editToc, editTranslatedToc } = {}) {
+  const dir = tempDir("doc-kit-languages-");
+  fs.cpSync(LANGUAGES, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+  if (editToc) {
+    const file = path.join(dir, "content", "toc.json");
+    fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
+  }
+  if (editTranslatedToc) {
+    const file = path.join(dir, "translations", "fr", "toc.json");
+    fs.writeFileSync(file, JSON.stringify(editTranslatedToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
+  }
+  return dir;
+}
+
+/** The test project of the business space (ARCHITECTURE.md §6.8): a feature sheet, a rule cited before its own
+ * definition, the generated tables, a glossary technical correspondence, and a takeover page. */
+export const BUSINESS = path.join(KIT_ROOT, "test", "fixtures", "business");
+
+/** Configuration of the business project (validated, completed), optionally modified first. */
+export async function businessConfig(modify = (c) => c) {
+  const raw = (await import(pathToFileURL(path.join(BUSINESS, "doc.config.mjs")).href)).default;
+  return prepareConfig(modify(structuredClone(raw)), { env: {} });
+}
+
+/** Builds the business project in memory; `root`: a copy of it (businessCopy). */
+export async function buildBusiness({ language = "en", date = "2026-01-01", draft = false, modify, root = BUSINESS, options = {} } = {}) {
+  const config = await businessConfig((c) => {
+    c.language = language;
+    return modify ? modify(c) : c;
+  });
+  return build({ project: { root }, config, options: { date, draft, ...options } });
+}
+
+/** Copy of the business project in a temporary folder; `editToc(toc)` returns its new table of contents. */
+export function businessCopy(editToc) {
+  const dir = tempDir("doc-kit-business-");
+  fs.cpSync(BUSINESS, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+  if (editToc) {
+    const file = path.join(dir, "content", "toc.json");
+    fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
+  }
+  return dir;
+}
+
 /**
  * Isolated Markdown engine: fake screenshots and files, collected reports.
  * @param {{ captures?: object, files?: Record<string,string>, language?: string, statuses?: object }} p
@@ -56,7 +148,10 @@ export function testEngine({ captures = {}, files = {}, language = "en", statuse
   return { engine, reports, render: (src, id = "page/test") => engine.render(src, id) };
 }
 
-/** Embedded data of a built HTML file. */
-export function dataOf(html) {
-  return JSON.parse(/<script type="application\/json" id="donnees">([\s\S]*?)<\/script>/.exec(html)[1]);
+/** Embedded data of a built HTML file; with `lang` (ARCHITECTURE.md §6.12), the slice of that OTHER language
+ * (`#donnees-<lang>`) instead of the source's (`#donnees`). */
+export function dataOf(html, lang) {
+  const id = lang ? `donnees-${lang}` : "donnees";
+  const m = new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)</script>`).exec(html);
+  return JSON.parse(m[1]);
 }

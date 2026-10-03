@@ -1,0 +1,4 @@
+[
+  { "term": "Order", "def": "A customer's purchase request.", "technical": "table `orders`, column `status`" },
+  { "term": "Manager", "def": "A sales manager who may approve an order." }
+]

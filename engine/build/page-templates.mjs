@@ -18,11 +18,34 @@ export const GUIDANCE = /<!--\s*(?:guidance|consigne)\s*:/gi;
 
 const cache = new Map();
 
-/** The template table of the kit (standard/templates.json), or null when it is missing. Read once. */
+/**
+ * The template table of the kit, or null when it is missing. Read once: standard/templates.json, then the
+ * fragments standard/templates/<group>.json in file name order (ARCHITECTURE.md §6.4a), whose types and aliases
+ * are added to the table. A type defined twice is a defect of the kit: an error is thrown.
+ */
 export function loadPageTemplates(kitRoot = KIT_ROOT) {
   if (!cache.has(kitRoot)) {
     const f = path.join(kitRoot, "standard", "templates.json");
-    cache.set(kitRoot, fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : null);
+    if (!fs.existsSync(f)) cache.set(kitRoot, null);
+    else {
+      const table = JSON.parse(fs.readFileSync(f, "utf8"));
+      table.aliases ??= {};
+      const dir = path.join(kitRoot, "standard", "templates");
+      const fragments = fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => x.endsWith(".json")).sort() : [];
+      for (const name of fragments) {
+        const fragment = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
+        for (const [type, def] of Object.entries(fragment.types || {})) {
+          if (table.types[type]) throw new Error(`page template defined twice: ${type} (standard/templates/${name})`);
+          table.types[type] = def;
+        }
+        for (const [language, aliases] of Object.entries(fragment.aliases || {}))
+          for (const [label, list] of Object.entries(aliases)) {
+            const known = (table.aliases[language] ??= {});
+            known[label] = [...(known[label] || []), ...list];
+          }
+      }
+      cache.set(kitRoot, table);
+    }
   }
   return cache.get(kitRoot);
 }

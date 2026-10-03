@@ -45,6 +45,8 @@ Avec environ 1 400 mots, les constats tiennent sur une page. Au-delà d'environ 
 
 **Recommandation** : déclarez une quatrième tâche planifiée, toutes les heures, dans `infra/jobs.tf` ; vérifiez les premières entrées `reminder.sent` ; ajoutez la tâche à la règle d'alerte (P4).
 
+Propriétaire : équipe plateforme · Décision : corriger · Statut : en cours · Échéance : 2026-10-15
+
 ### C2 — Les décisions de validation ignorent le périmètre
 
 **Constat** : pour une étape confiée à un rôle, `decide` (`lib/services/approvalService.ts:88-97`) accepte tout titulaire du rôle, de n'importe quelle région. Elle vérifie [[droit orders:approve]] mais n'appelle jamais `scopeWhere`, contrairement à toutes les autres lectures. Les identifiants d'étape sont des entiers séquentiels.
@@ -53,39 +55,44 @@ Avec environ 1 400 mots, les constats tiennent sur une page. Au-delà d'environ 
 
 **Recommandation** : chargez l'étape avec `scopeWhere`, comme le fait toute autre lecture, et ajoutez un test par rôle.
 
+Propriétaire : équipe commandes · Décision : corriger · Statut : ouvert · Échéance : 2026-10-10
+
 ## Constats importants
 
-| N° | Point | Où | Constat et impact | Recommandation |
-|---|---|---|---|---|
-| **I1** | Ouvrir le circuit de validation écrit | `app/(app)/orders/[id]/approval/page.tsx:22-31` | Une requête GET crée le circuit d'une commande qui n'en a pas, avec les règles du jour, et envoie un e-mail à ses valideurs. Un aperçu de lien ou un outil de capture peut le faire. | Créer le circuit à la soumission seulement ; mettre la page en lecture seule |
-| **I2** | **Today** ne parle pas d'aujourd'hui | `app/(app)/orders/TodayPanel.tsx:14-22` | Le panneau additionne les lignes affichées, quelle que soit leur date, commandes annulées comprises. Les directeurs commerciaux le lisent comme les chiffres du jour. | Le renommer, ou calculer les chiffres du jour sur le serveur |
-| **I3** | Un changement de rôle attend la connexion suivante | `lib/auth/index.ts:64-71` | Le rôle est figé dans la session pendant 8 heures. Une personne retirée d'un groupe garde ses droits jusque-là. | Relire le rôle à chaque requête, ou raccourcir la session |
-| **I4** | Une commande soumise à nouveau garde son ancien circuit | `lib/services/approvalService.ts:141-150` | Après un rejet, la commande réutilise son circuit et sa copie des règles. Un seuil ajouté entre-temps ne s'applique pas. | Construire un nouveau circuit à chaque soumission |
-| **I5** | Une facture en échec n'est jamais retentée | `jobs/invoiceJob.ts:52-60` | Une erreur est journalisée puis ignorée, et l'exécution suivante ne prend que les commandes expédiées la veille. La commande reste expédiée sans facture. | Sélectionner toutes les commandes expédiées sans facture |
+Ce registre ajoute qui décide, ce qui a été décidé, où ça en est et pour quand, en une colonne « Suivi » :
+propriétaire · décision · statut · échéance.
+
+| N° | Point | Où | Constat et impact | Recommandation | Suivi |
+|---|---|---|---|---|---|
+| **I1** | Ouvrir le circuit de validation écrit | `app/(app)/orders/[id]/approval/page.tsx:22-31` | Une requête GET crée le circuit d'une commande qui n'en a pas, avec les règles du jour, et envoie un e-mail à ses valideurs. Un aperçu de lien ou un outil de capture peut le faire. | Créer le circuit à la soumission seulement ; mettre la page en lecture seule | Commandes · Corriger · Ouvert · 2026-10-20 |
+| **I2** | **Today** ne parle pas d'aujourd'hui | `app/(app)/orders/TodayPanel.tsx:14-22` | Le panneau additionne les lignes affichées, quelle que soit leur date, commandes annulées comprises. Les directeurs commerciaux le lisent comme les chiffres du jour. | Le renommer, ou calculer les chiffres du jour sur le serveur | Commandes · Corriger · Ouvert · 2026-11-01 |
+| **I3** | Un changement de rôle attend la connexion suivante | `lib/auth/index.ts:64-71` | Le rôle est figé dans la session pendant 8 heures. Une personne retirée d'un groupe garde ses droits jusque-là. | Relire le rôle à chaque requête, ou raccourcir la session | Plateforme · Accepter · Accepté · — |
+| **I4** | Une commande soumise à nouveau garde son ancien circuit | `lib/services/approvalService.ts:141-150` | Après un rejet, la commande réutilise son circuit et sa copie des règles. Un seuil ajouté entre-temps ne s'applique pas. | Construire un nouveau circuit à chaque soumission | Commandes · Corriger · Ouvert · 2026-11-01 |
+| **I5** | Une facture en échec n'est jamais retentée | `jobs/invoiceJob.ts:52-60` | Une erreur est journalisée puis ignorée, et l'exécution suivante ne prend que les commandes expédiées la veille. La commande reste expédiée sans facture. | Sélectionner toutes les commandes expédiées sans facture | Facturation · Corriger · En cours · 2026-10-15 |
 
 ## Constats mineurs
 
-| N° | Point | Où | Constat et impact | Recommandation |
-|---|---|---|---|---|
-| **M1** | Les filtres sont perdus | `app/(app)/orders/OrdersFilters.tsx:18` | Les filtres vivent dans l'état de la page, pas dans l'adresse : revenir d'une commande les remet à zéro. | Les garder dans les paramètres de l'adresse |
-| **M2** | Un nom fait d'espaces est accepté | `lib/validation/profile.ts:6` | La longueur est vérifiée avant le retrait des espaces ; l'en-tête n'affiche alors aucun nom. | Retirer les espaces d'abord, puis vérifier |
-| **M3** | Thème **System** lu une seule fois | `app/ThemeScript.tsx:12` | Le mode de l'appareil est lu au chargement d'une page ; un changement pendant la visite est ignoré. | Écouter le changement de jeu de couleurs |
+| N° | Point | Où | Constat et impact | Recommandation | Suivi |
+|---|---|---|---|---|---|
+| **M1** | Les filtres sont perdus | `app/(app)/orders/OrdersFilters.tsx:18` | Les filtres vivent dans l'état de la page, pas dans l'adresse : revenir d'une commande les remet à zéro. | Les garder dans les paramètres de l'adresse | Front-end · Corriger · Ouvert · — |
+| **M2** | Un nom fait d'espaces est accepté | `lib/validation/profile.ts:6` | La longueur est vérifiée avant le retrait des espaces ; l'en-tête n'affiche alors aucun nom. | Retirer les espaces d'abord, puis vérifier | Front-end · Corriger · Fait · — |
+| **M3** | Thème **System** lu une seule fois | `app/ThemeScript.tsx:12` | Le mode de l'appareil est lu au chargement d'une page ; un changement pendant la visite est ignoré. | Écouter le changement de jeu de couleurs | Front-end · Accepter · Accepté · — |
 
 ## Constats de production
 
-| N° | Point | Gravité | Constat et impact | Recommandation |
-|---|---|---|---|---|
-| **P1** | `APP_URL` pointe vers la préproduction | Important | Réglée sur l'adresse de préproduction dans l'application conteneur ; chaque lien de chaque e-mail ouvre la préproduction (`lib/mail/links.ts:6`). | La régler sur `https://orders.example.org` |
-| **P2** | Sauvegardes conservées 7 jours | Important | La base garde 7 jours de sauvegardes ; `infra/db.tf:22` et `docs/DEPLOYMENT.md` disent 35. Une erreur découverte au bout d'une semaine ne peut pas être annulée. | Appliquer de nouveau l'infrastructure as code |
-| **P3** | Un compte de stockage inutilisé | Mineur | `acmeordersprdold` contient les fichiers de la version 1, lus par rien, mais l'identité de l'application peut encore y écrire. | Retirer le rôle, puis le compte |
-| **P4** | L'alerte sur les tâches en échec ne prévient personne | Important | `alert-jobs-failed` envoie à un groupe d'actions dont la seule adresse est une boîte aux lettres désactivée (à confirmer). Des échecs comme I5 passent inaperçus. | La diriger vers une adresse surveillée, puis la tester |
+| N° | Point | Gravité | Constat et impact | Recommandation | Suivi |
+|---|---|---|---|---|---|
+| **P1** | `APP_URL` pointe vers la préproduction | Important | Adresse de préproduction sur l'application conteneur ; chaque lien d'e-mail ouvre la préproduction (`lib/mail/links.ts:6`). | La régler sur l'adresse de production | Plateforme · Corriger · Fait · 2026-09-25 |
+| **P2** | Sauvegardes conservées 7 jours | Important | 7 jours de sauvegardes ; `infra/db.tf:22` et le guide de déploiement disent 35 — une erreur vieille d'une semaine est irrécupérable. | Réappliquer l'infrastructure as code | Infra · Corriger · En cours · 2026-10-10 |
+| **P3** | Un compte de stockage inutilisé | Mineur | `acmeordersprdold` contient des fichiers v1 non lus, encore accessibles en écriture par l'identité de l'application. | Retirer le rôle, puis le compte | Plateforme · Corriger · Ouvert · 2026-11-01 |
+| **P4** | L'alerte sur les tâches en échec ne prévient personne | Important | `alert-jobs-failed` vise une boîte aux lettres désactivée (à confirmer) ; des échecs comme I5 passent inaperçus. | La diriger vers une adresse surveillée, puis tester | Plateforme · Corriger · Ouvert · 2026-10-10 |
 
 ## Réglages sans effet
 
-| N° | Point | Gravité | Constat et impact | Recommandation |
-|---|---|---|---|---|
-| **R1** | **Language** n'atteint pas les e-mails | Mineur | **Settings › Language** ne change que l'interface ; chaque e-mail part en anglais (`lib/mail/send.ts:22`). | Passer la langue du destinataire aux modèles d'e-mail |
-| **R2** | `LOG_LEVEL` n'est jamais lue | Mineur | Déclarée dans l'application conteneur, mais le journaliseur a un niveau fixe (`lib/log.ts:5`). L'augmenter pendant un incident ne change rien. | La lire, ou la supprimer |
+| N° | Point | Gravité | Constat et impact | Recommandation | Suivi |
+|---|---|---|---|---|---|
+| **R1** | **Language** n'atteint pas les e-mails | Mineur | **Settings › Language** ne change que l'interface ; chaque e-mail part en anglais (`lib/mail/send.ts:22`). | Passer la langue du destinataire aux modèles d'e-mail | Front-end · Corriger · Ouvert · — |
+| **R2** | `LOG_LEVEL` n'est jamais lue | Mineur | Déclarée dans l'application conteneur, mais le journaliseur a un niveau fixe (`lib/log.ts:5`). L'augmenter pendant un incident ne change rien. | La lire, ou la supprimer | Plateforme · Accepter · Accepté · — |
 
 ## Les points déjà corrigés
 

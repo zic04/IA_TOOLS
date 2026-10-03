@@ -23,6 +23,8 @@ import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { productSlug } from "../../engine/project/defaults.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
 import { captureVariant, CAPTURE_MODES } from "../../engine/build/page-templates.mjs";
+import { writeSources } from "../../engine/build/languages.mjs";
+import { LANGUAGES as KIT_LANGUAGES } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { slash, projectDependency, DEFAULT_SESSION } from "../../engine/dev/environment.mjs";
 import { prompterOf, shownPath, absolutePath, printKitError } from "../common.mjs";
@@ -37,8 +39,34 @@ export const options = {
   auth: { type: "string" },
   capture: { type: "string" },
   target: { type: "string" },
+  languages: { type: "string" },
   yes: { type: "boolean", short: "y" },
 };
+
+/**
+ * Parses `--languages en,fr` (ARCHITECTURE.md §6.12): at least two, unique, each a language the kit speaks; the
+ * same cross-field rules as `doc.config.mjs`'s `languages` (engine/project/load.mjs, checkLanguages), reported
+ * together as a single `init.languagesInvalid` so that init stays a one-shot command.
+ * @param {string} value
+ * @param {(key: string, vars?: object) => string} t
+ * @returns {string[]}
+ * @throws {KitError} init.languagesInvalid { value, reason } (exit code 2)
+ */
+export function parseLanguages(value, t) {
+  const list = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const invalid = (reason) => new KitError(EXIT.USAGE, "init.languagesInvalid", { value, reason });
+  if (list.length < 2) throw invalid(t("cli.validate.languagesMin"));
+  const seen = new Set();
+  for (const lang of list) {
+    if (seen.has(lang)) throw invalid(t("cli.validate.languagesDuplicate", { lang }));
+    seen.add(lang);
+    if (!KIT_LANGUAGES.includes(lang)) throw invalid(t("cli.validate.languagesUnsupported", { lang, known: KIT_LANGUAGES.join(", ") }));
+  }
+  return list;
+}
 
 export const DEFAULT_DIR = "docs/manual";
 export const FRAMEWORKS = ["next", "react-router", "none"];
@@ -452,7 +480,7 @@ async function followUp(ctx, folder, answers) {
 }
 
 /** Lines of the recap (label, value), in the message language. */
-function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot }) {
+function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot, languages }) {
   const p = ctx.paint;
   const s = detected.nameSource;
   const nameSource = !nameFromDetection
@@ -469,6 +497,7 @@ function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection,
     ["name", `${answers.name} ${p.dim(`(${nameSource})`)}`],
     ["slug", productSlug(answers.name)],
     ["language", `${answers.language} — ${ctx.t(`cli.init.language.${answers.language}`)}`],
+    ...(languages ? [["languages", languages.join(", ")]] : []),
     ["url", answers.url],
     ["version", v.value ? ctx.t("cli.init.version.read", { version: v.value, file: v.file }) : ctx.t("cli.init.version.unread", { file: v.file })],
     ["capture", ctx.t(`cli.init.capture.${answers.capture}`)],
@@ -497,6 +526,10 @@ export async function run({ ctx, values, positionals }) {
   // Never a production guessed from the dev script's port: its address is given.
   if (values.yes && values.target === "production" && values.url === undefined) throw new KitError(EXIT.USAGE, "init.productionUrl");
   if (!values.yes && !ctx.interactive) throw new KitError(EXIT.USAGE, "init.notInteractive");
+  // Languages (ARCHITECTURE.md §6.12): --languages validated up front, like the other options; --lang (global)
+  // is the message language AND, with --languages, must agree with the source (the first of the list).
+  let languages = values.languages !== undefined ? parseLanguages(values.languages, ctx.t) : null;
+  if (languages && ctx.globals.lang && ctx.globals.lang !== languages[0]) throw new KitError(EXIT.USAGE, "init.languagesLang");
 
   const detected = detectApp(appDir);
   if (values.framework === "none") Object.assign(detected, { framework: null, appPath: null });
@@ -522,7 +555,7 @@ export async function run({ ctx, values, positionals }) {
   const docsToRoot = relativeSlash(target, appDir);
   const p = ctx.paint;
   const printRecap = () => {
-    const lines = recapLines(ctx, { target, appDir, detected, answers, nameFromDetection: answers.name === detected.name && !answers.nameFromOption, docsToRoot });
+    const lines = recapLines(ctx, { target, appDir, detected, answers, nameFromDetection: answers.name === detected.name && !answers.nameFromOption, docsToRoot, languages });
     const width = Math.max(...lines.map(([l]) => l.length)) + 2;
     ctx.print(`${values.yes ? "" : "\n"}${p.bold(ctx.t("cli.init.summary"))}`);
     for (const [label, value] of lines) ctx.print(`  ${label.padEnd(width)}${value}`);
@@ -628,8 +661,21 @@ export async function run({ ctx, values, positionals }) {
     versionPattern: JSON.stringify(detected.version.pattern),
     maskingEnv: arrayLiteral(detected.envFiles.map(fromDocs)),
     kitPath: relativeSlash(target, KIT_ROOT),
+    // Languages (ARCHITECTURE.md §6.12): a config line, or none at all (mono-language project, unchanged).
+    languagesLine: languages ? `  languages: ${JSON.stringify(languages)},\n` : "",
   };
-  const files = scaffold({ target, language: answers.language, vars, mode: answers.capture });
+  const files = scaffold({ target, language: answers.language, vars, mode: answers.capture, raw: ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly", "languagesLine"] });
+  // Every other language starts with nothing translated yet (`translate status` then lists it all as missing):
+  // simpler and safer than guessing a correspondence with the OTHER mono-language skeleton's own file names
+  // (templates/project/<lang>/content/ uses that language's own folder names, e.g. "utiliser/" for "use/" —
+  // they do not share paths with the chosen source, so they cannot be copied into translations/<lang>/ as is).
+  if (languages) {
+    for (const lang of languages.slice(1)) {
+      writeSources(target, "translations", lang, {});
+      files.push(`translations/${lang}/.sources.json`);
+    }
+    files.sort();
+  }
 
   /** The next commands, without those already done by the follow-up. */
   const nextSteps = (done = {}) => {
@@ -654,6 +700,7 @@ export async function run({ ctx, values, positionals }) {
           appPath: appPathFromDocs,
           ...shown,
           slug: vars.slug,
+          languages: languages || [],
           nameSource: nameFromOption ? { kind: "option" } : answers.name === detected.name ? detected.nameSource : { kind: "answer" },
           version: { file: fromDocs(detected.version.file), value: detected.version.value },
           masking: detected.envFiles.map(fromDocs),

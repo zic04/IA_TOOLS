@@ -9,7 +9,8 @@ every function through the menu [[menu Orders › All orders]] ([[route /orders]
 
 ## How it works
 
-The list is loaded from the API when the page opens, then refreshed every minute.
+The list is loaded from the API when the page opens. **Order summary** always follows the three filters above
+it, not every order in the list ([[rule BR-03]]): narrow the filters, and today's figures narrow with them.
 
 ## The screen
 

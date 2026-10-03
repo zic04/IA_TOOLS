@@ -105,7 +105,21 @@ describe("creating a page", () => {
       assert.equal(r.entry.title, "Deployment");
       const hint = createPage({ root: dir, config: cfg, id: "use/settings/advanced", template: "screen", summary: SUMMARY });
       assert.equal(hint.placement.parentHint, "use/settings", "the id extends a level-1 page");
-      assert.deepEqual(outline(JSON.parse(read(dir, "content/toc.json"))), ["use/orders:1", "use/orders/detail:2", "use/settings:1", "use/settings/advanced:1", "maintain/architecture:1", "maintain/deployment:1"]);
+      assert.deepEqual(outline(JSON.parse(read(dir, "content/toc.json"))), [
+        "use/orders:1",
+        "use/orders/detail:2",
+        "use/settings:1",
+        "use/settings/advanced:1",
+        "features/track-orders:1",
+        "features/approve-order:1",
+        "features/rules:1",
+        "features/roles:1",
+        "maintain/architecture:1",
+        "maintain/deployment:1",
+        "secure/access-ownership:1",
+        "secure/api-surface:1",
+        "risks/findings:1",
+      ]);
       const b = build({ project: { root: dir }, config: cfg, options: { draft: true } });
       assert.ok(b.html);
       assert.deepEqual(b.errors, []);

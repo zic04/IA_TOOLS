@@ -4,15 +4,53 @@
 //   :::screen{capture title} … ::: (:::ecran)   :::steps … ::: (:::etapes)
 //   > [!TIP|WARNING|CAUTION|PERMISSIONS|NOTE|RECIPE|HOW] (ASTUCE, ATTENTION, ERREUR, DROITS, RECETTE, MECANISME)
 //   [[perm …]] ([[droit …]])  [[menu …]]  [[key …]] ([[touche …]])  [[status …]] ([[statut …]])  [[route …]]
+// Business space (ARCHITECTURE.md §6.8): [[feature F-03]] ([[fonctionnalite F-03]])  [[rule BR-12]] ([[regle RG-12]])
+//   :::rule{id title} … ::: (:::regle)   ::features{} (::fonctionnalites{})   ::rules{} (::regles{})   ::roles{}
+//   A citation and a generated table cannot be resolved while their page renders (a rule or a feature sheet may sit
+//   further down the table of contents), so they are left as placeholders (`.ref-*`, `.biz-directive`) and resolved
+//   once every page has been rendered, after the build's page loop (engine/build/business.mjs, resolveBusinessRefs).
+// Takeover space (ARCHITECTURE.md §6.9): ::facts{source columns} (::faits{source colonnes}) renders a table from
+//   facts/<source>.json, read at build time; [[verified]] [[deduced]] [[unknown]] (verifie, deduit, inconnu), with
+//   or without a file:line proof, are rendered immediately (no cross-page reference to resolve).
 // The generated markup (CSS classes, data-* attributes) is the historical one: app.js, style.css and the
 // equivalence tests depend on it.
 import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "./text.mjs";
 
 /** Spelling → canonical kind. */
-export const DIRECTIVES = { capture: "capture", diagram: "diagram", schema: "diagram", "before-after": "before-after", "avant-apres": "before-after" };
-export const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps" };
-export const BADGES = { perm: "perm", droit: "perm", menu: "menu", key: "key", touche: "key", status: "status", statut: "status", route: "route" };
+export const DIRECTIVES = {
+  capture: "capture",
+  diagram: "diagram",
+  schema: "diagram",
+  "before-after": "before-after",
+  "avant-apres": "before-after",
+  features: "features",
+  fonctionnalites: "features",
+  rules: "rules",
+  regles: "rules",
+  roles: "roles",
+  facts: "facts",
+  faits: "facts",
+};
+/** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
+export const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
+/** Canonical claim status → CSS class of the badge. */
+export const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
+export const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
+export const BADGES = {
+  perm: "perm",
+  droit: "perm",
+  menu: "menu",
+  key: "key",
+  touche: "key",
+  status: "status",
+  statut: "status",
+  route: "route",
+  feature: "feature",
+  fonctionnalite: "feature",
+  rule: "rule",
+  regle: "rule",
+};
 export const CALLOUTS = {
   tip: "tip",
   astuce: "tip",
@@ -31,7 +69,7 @@ export const CALLOUTS = {
 /** Canonical callout → CSS class (and icon name) of the generated markup. */
 export const CALLOUT_CLASSES = { tip: "astuce", warning: "attention", caution: "erreur", permissions: "droits", note: "note", recipe: "recette", how: "mecanisme" };
 /** French attribute spellings → English. */
-export const ATTRIBUTES = { titre: "title", avant: "before", apres: "after", "libelle-avant": "before-label", "libelle-apres": "after-label" };
+export const ATTRIBUTES = { titre: "title", avant: "before", apres: "after", "libelle-avant": "before-label", "libelle-apres": "after-label", colonnes: "columns" };
 /** Zone side → CSS class suffix of the pin. */
 export const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
 
@@ -43,6 +81,8 @@ const RE_DIRECTIVE = new RegExp(`^::(${alternatives(DIRECTIVES)})\\{([^}\\n]*)\\
 const RE_CONTAINER = new RegExp(`^:::(${alternatives(CONTAINERS)})(?:\\{([^}\\n]*)\\})?[ \\t]*\\n([\\s\\S]*?)\\n:::[ \\t]*(?:\\n+|$)`);
 // Lazy content up to the first "]]" not followed by "]": accepts /orders/[id].
 const RE_BADGE = new RegExp(`^\\[\\[(${alternatives(BADGES)})\\s+([^\\n]+?)\\]\\](?!\\])`);
+// Claim badges (§6.9): the text after the kind is optional ([[verified]] alone, or [[verified lib/orders.ts:42]]).
+const RE_CLAIM = new RegExp(`^\\[\\[(${alternatives(CLAIMS)})(?:\\s+([^\\n]+?))?\\]\\](?!\\])`);
 
 function attributes(s) {
   const a = attrs(s);
@@ -66,11 +106,14 @@ export function statusColour(c) {
  * @param {(key: string, vars?: object) => string} p.t   translator (render.*, callouts.*)
  * @param {(name: string, cls?: string) => string} p.icon
  * @param {Record<string, [string, string]>} [p.statuses]  coloured [[status X]] badges
- * @param {{ images: string, diagrams: string }} [p.paths]
+ * @param {{ images: string, diagrams: string, facts: string }} [p.paths]
  */
-export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams" } }) {
+export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" } }) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
+  // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
+  // Citations ([[rule …]]) and the generated tables are resolved once every page has rendered (engine/build/business.mjs).
+  const rules = new Map();
   let zoneCount = 0;
   let ctx = null;
   const signal = (strict, key, vars = {}) => report(strict, { kind: key.split(".")[0], key, vars: { page: ctx?.pageId, ...vars } });
@@ -87,6 +130,7 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     }
     if (!exists(`${paths.images}/${c.file}`)) signal(true, "capture.fileMissing", { file: `${paths.images}/${c.file}` });
     usedCaptures.add(id);
+    ctx.used.images.add(id);
     ctx.captures++;
     return {
       ok: true,
@@ -104,6 +148,28 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       .join("");
   }
 
+  /** Header label of a facts column: render.facts.column.<key> when translated, else the raw key. */
+  function factsLabel(column) {
+    const key = `render.facts.column.${column}`;
+    const label = t(key);
+    return label === key ? column : label;
+  }
+
+  /** One cell of a facts table (ARCHITECTURE.md §6.9): lists joined with commas, booleans ✔ / —, "—" when absent.
+   * A path-like scalar value (a file path, a route — contains "/") is wrapped in `<code>`, so that it gets the
+   * same break opportunities as hand-written inline code (below, `render()`): a long nested path (a Next.js
+   * route such as `frontend/src/app/admin/orders/[id]/…`) must be able to wrap, never widen the table. */
+  function factsCell(value) {
+    if (value === null || value === undefined) return "—";
+    if (typeof value === "boolean") return value ? "✔" : "—";
+    if (Array.isArray(value)) {
+      if (!value.length) return "—";
+      return esc(value.map((x) => (x && typeof x === "object" ? Object.values(x).join(":") : String(x))).join(", "));
+    }
+    const text = String(value);
+    return text.includes("/") ? `<code>${esc(text)}</code>` : esc(text);
+  }
+
   const md = new Marked({ gfm: true });
 
   const directiveExtension = {
@@ -115,6 +181,37 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       if (m) return { type: "directive", raw: m[0], kind: DIRECTIVES[m[1]], a: attributes(m[2]) };
     },
     renderer(tk) {
+      // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
+      // defined further down the table of contents), so only a placeholder is left here.
+      if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles") return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      if (tk.kind === "facts") {
+        const source = tk.a.source || "";
+        const f = `${paths.facts}/${source}.json`;
+        let data;
+        try {
+          data = source && exists(f) ? JSON.parse(read(f)) : null;
+        } catch {
+          data = null;
+        }
+        if (!data) {
+          signal(true, "facts.missing", { source, file: f });
+          return "";
+        }
+        const items = Array.isArray(data.items) ? data.items : [];
+        const requested = tk.a.columns ? tk.a.columns.split(",").map((c) => c.trim()).filter(Boolean) : Object.keys(items[0] || {});
+        // No items: nothing to validate a column name against (an empty facts file is not a column error).
+        const known = new Set(items.flatMap((it) => Object.keys(it)));
+        if (items.length) for (const c of requested) if (!known.has(c)) signal(true, "facts.column", { source, column: c });
+        const header = requested.map((c) => `<th>${esc(factsLabel(c))}</th>`).join("");
+        const rows = items.map((it) => `<tr>${requested.map((c) => `<td>${factsCell(it[c])}</td>`).join("")}</tr>`).join("");
+        const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
+        const date = String(data.generated || "").slice(0, 10) || "—";
+        const caption = `<caption>${esc(t("render.facts.caption", { source, date, commit }))}</caption>`;
+        // data-generated: so that the wrapping div below can be told apart from a table the writer wrote by
+        // hand in Markdown (check tables, ARCHITECTURE.md §6.9: a directive's own table is never too narrow a
+        // column to fix — only a hand-written one is reported).
+        return `<table data-generated="facts">${caption}<thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
       if (tk.kind === "diagram") {
         const f = `${paths.diagrams}/${tk.a.id}.svg`;
         if (!exists(f)) {
@@ -122,6 +219,7 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
           return "";
         }
         usedDiagrams.add(tk.a.id);
+        ctx.used.diagrams.add(tk.a.id);
         const svg = read(f).replace(/<\?xml[^>]*>/, "").trim();
         return `<figure class="schema">${svg}${tk.a.title ? `<figcaption>${esc(tk.a.title)}</figcaption>` : ""}</figure>`;
       }
@@ -160,6 +258,23 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     },
     renderer(tk) {
       if (tk.kind === "steps") return this.parser.parse(tk.tokens).replace(/^<ol(?: start="\d+")?>/, '<ol class="etapes">');
+      if (tk.kind === "rule") {
+        const { id, title } = tk.a;
+        const body = this.parser.parse(tk.tokens);
+        if (!id || !title) {
+          signal(true, "rule.attributes", {});
+          return `<div class="regle">${body}</div>`;
+        }
+        if (rules.has(id)) signal(true, "rule.duplicate", { id });
+        else rules.set(id, { title, page: ctx.pageId, anchor: id.toLowerCase() });
+        // Rendered like a heading, so that the rule appears in the page outline, in the search index (search.mjs
+        // splits on `<h[23] id="…">`) and as a link target for its citations: id in lower case, "BR-12 · title".
+        const anchor = id.toLowerCase();
+        ctx.slugs.add(anchor);
+        ctx.toc.push({ id: anchor, titre: plainText(`${id} · ${title}`), niveau: 3 });
+        const heading = `<h3 id="${esc(anchor)}">${esc(id)} · ${esc(title)}<a class="ancre" href="#/${ctx.pageId}~${anchor}" aria-label="${esc(t("render.sectionLink"))}">#</a></h3>`;
+        return `<div class="regle">${heading}${body}</div>`;
+      }
       const id = tk.a.capture;
       const img = captureImage(id, tk.a.title);
       const list = tk.tokens.find((x) => x.type === "list");
@@ -169,6 +284,7 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       const zones = img.c.zones || [];
       if (items.length !== zones.length) signal(true, "screen.legend", { id, zones: zones.length, items: items.length });
       zoneCount += items.length;
+      ctx.used.zones += items.length;
       const legend = items
         .map((it, i) => `<li data-n="${i + 1}"><span class="n">${i + 1}</span><div>${this.parser.parse(it.tokens)}</div></li>`)
         .join("");
@@ -192,6 +308,9 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     },
     renderer(tk) {
       const v = tk.value;
+      // Business space citations (§6.8): the sheet or the rule may not have rendered yet, so a placeholder is left
+      // for engine/build/business.mjs (resolveBusinessRefs), once every page has rendered.
+      if (tk.kind === "feature" || tk.kind === "rule") return `<span class="ref-${tk.kind}" data-ref-id="${esc(v)}">${esc(v)}</span>`;
       if (tk.kind === "key") return v.split("+").map((k) => `<kbd>${esc(k.trim())}</kbd>`).join("+");
       if (tk.kind === "perm") return `<span class="puce droit" title="${esc(t("render.permission"))}">${icon("droits")}${esc(v)}</span>`;
       if (tk.kind === "route") return `<span class="puce route">${esc(v)}</span>`;
@@ -203,8 +322,23 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     },
   };
 
+  const claimExtension = {
+    name: "claim",
+    level: "inline",
+    start: (src) => src.indexOf("[["),
+    tokenizer(src) {
+      const m = RE_CLAIM.exec(src);
+      if (m) return { type: "claim", raw: m[0], kind: CLAIMS[m[1]], value: (m[2] || "").trim() };
+    },
+    renderer(tk) {
+      const cls = CLAIM_CLASSES[tk.kind];
+      const label = t(`render.claim.${tk.kind}`);
+      return `<span class="puce affirmation ${cls}" title="${esc(label)}">${esc(label)}${tk.value ? ` <code>${esc(tk.value)}</code>` : ""}</span>`;
+    },
+  };
+
   md.use({
-    extensions: [directiveExtension, containerExtension, badgeExtension],
+    extensions: [directiveExtension, containerExtension, badgeExtension, claimExtension],
     renderer: {
       heading({ tokens, depth, text }) {
         const html = this.parser.parseInline(tokens);
@@ -239,15 +373,22 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     },
   });
 
-  /** Renders one page: HTML, table of contents, internal links, number of screenshots. */
+  /**
+   * Renders one page: HTML, table of contents, internal links, number of screenshots, and what it uses (screenshot
+   * and diagram ids, legend items), so that an export per space recounts its own (engine/build/spaces.mjs).
+   */
   function render(source, pageId) {
-    ctx = { pageId, slugs: new Set(), toc: [], links: [], captures: 0 };
+    ctx = { pageId, slugs: new Set(), toc: [], links: [], captures: 0, used: { images: new Set(), diagrams: new Set(), zones: 0 } };
     let html = md.parse(source);
-    html = html.replace(/<table>/g, '<div class="tableau"><table>').replace(/<\/table>/g, "</table></div>");
+    // A table's own data-generated (set above, ::facts/::faits) is carried onto its wrapping div, so that
+    // `check tables` can tell a directive's table apart from one the writer wrote by hand in Markdown.
+    html = html
+      .replace(/<table( data-generated="[^"]*")?>/g, (m, generated) => `<div class="tableau"${generated || ""}><table${generated || ""}>`)
+      .replace(/<\/table>/g, "</table></div>");
     // Long code (URLs, paths): clean break opportunities after / . _ ? = , (never inside an HTML entity),
     // so that it wraps in a table cell without widening it or crushing the other columns.
     html = html.replace(/<code>([^<]{28,})<\/code>/g, (m, c) => "<code>" + c.replace(/([/._?=,])(?=\S)/g, "$1<wbr>") + "</code>");
-    const r = { html, toc: ctx.toc, links: ctx.links, captures: ctx.captures };
+    const r = { html, toc: ctx.toc, links: ctx.links, captures: ctx.captures, used: ctx.used };
     ctx = null;
     return r;
   }
@@ -256,6 +397,7 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     render,
     usedCaptures,
     usedDiagrams,
+    rules,
     get zoneCount() {
       return zoneCount;
     },

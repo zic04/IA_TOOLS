@@ -28,7 +28,7 @@
       "shortTitle": "Write",
       "icon": "book",
       "subtitle": "Markdown with a few extensions, page templates, the table of contents, the glossary and the diagrams.",
-      "highlights": ["Every directive of the extended Markdown", "Thirteen page templates", "Diagrams that follow the theme"],
+      "highlights": ["Every directive of the extended Markdown", "30 page templates, general, business and takeover", "Diagrams that follow the theme"],
       "groups": [
         {
           "title": "Pages",
@@ -43,6 +43,26 @@
           "pages": [
             { "id": "write/glossary", "title": "Glossary", "menuTitle": "Glossary", "summary": "Terms explained by a tooltip on their first occurrence in each page.", "template": "technical" },
             { "id": "write/diagrams", "title": "Diagrams", "menuTitle": "Diagrams", "summary": "SVG diagrams drawn with the site's d-* classes, so that they follow the light and dark themes.", "template": "technical" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spaces",
+      "title": "Business and takeover spaces",
+      "shortTitle": "Spaces",
+      "icon": "map",
+      "subtitle": "One source, documented twice: a business sheet for each feature, a technical dossier for whoever takes the application over.",
+      "highlights": ["One source, two audiences, two exports", "Feature sheets, business rules and roles", "Facts, verified claims and the risk register"],
+      "groups": [
+        {
+          "title": "Guides",
+          "pages": [
+            { "id": "spaces/overview", "title": "Two spaces, one source", "menuTitle": "Two spaces, one source", "summary": "Declaring business and takeover spaces, the selector, the export per space, and why only an export is fit to hand out.", "template": "technical" },
+            { "id": "spaces/business", "title": "Documenting each feature", "menuTitle": "Documenting a feature", "summary": "Feature sheets, business rules with their Given/When/Then example, the roles matrix, and the generated tables.", "template": "technical" },
+            { "id": "spaces/takeover", "title": "Taking over a vibe-coded application", "menuTitle": "Taking over an application", "summary": "The usual risks, doc-kit facts, claim badges, the risk register, and where to start.", "template": "technical" },
+            { "id": "spaces/reviews", "title": "Security and maintainability reviews", "menuTitle": "Security and maintainability", "summary": "The auth/guards access matrix, the security and quality facts, doc-kit probe, and why it never touches production.", "template": "technical" },
+            { "id": "spaces/languages", "title": "Documenting in multiple languages", "menuTitle": "Multiple languages", "summary": "languages in doc.config.mjs, the translations folder, the language selector, the four translation states, and doc-kit translate.", "template": "technical" }
           ]
         }
       ]
@@ -95,6 +115,12 @@
             { "id": "publish/export", "title": "Export and hand over", "menuTitle": "Export", "summary": "A self-contained copy of the project, engine included, and the handover checklist.", "template": "recipe" },
             { "id": "publish/ci", "title": "Continuous integration", "menuTitle": "Continuous integration", "summary": "Build, check and audit a documentation project in a pipeline, and publish the site as an artifact.", "template": "recipe" }
           ]
+        },
+        {
+          "title": "Maintain",
+          "pages": [
+            { "id": "publish/sync", "title": "Keeping up with the application", "menuTitle": "Keeping up to date", "summary": "sync.json, doc-kit sync --mark, the report's categories, --apply, --check in CI, --since, and refreshing captures with capture --compare.", "template": "technical" }
+          ]
         }
       ]
     },
@@ -110,7 +136,7 @@
           "title": "Configuration",
           "pages": [
             { "id": "reference/configuration", "title": "Configuration", "menuTitle": "Configuration", "summary": "doc.config.mjs: strict validation, defaults, precedence, and the map of the keys.", "template": "technical" },
-            { "id": "reference/configuration/project", "title": "Project, version and sign-in keys", "menuTitle": "Project keys", "level": 2, "summary": "kit, product, language, output, paths, version, env, app, auth and extra.", "template": "technical-sub" },
+            { "id": "reference/configuration/project", "title": "Project, version and sign-in keys", "menuTitle": "Project keys", "level": 2, "summary": "kit, product, language, languages, output, paths, version, env, app, auth and extra.", "template": "technical-sub" },
             { "id": "reference/configuration/capture", "title": "Capture and masking keys", "menuTitle": "Capture keys", "level": 2, "summary": "capture.* and masking.*, with their types, defaults and examples.", "template": "technical-sub" },
             { "id": "reference/configuration/site", "title": "Coverage, theme and text keys", "menuTitle": "Site keys", "level": 2, "summary": "coverage, theme, statuses, texts and feedback.", "template": "technical-sub" },
             { "id": "reference/environment", "title": "Environment variables", "menuTitle": "Environment variables", "summary": "DOC_KIT_* and <PREFIX>_* variables, and the ones that change the behaviour of the kit.", "template": "variables" }
@@ -120,9 +146,9 @@
           "title": "Command line",
           "pages": [
             { "id": "reference/cli", "title": "Command line", "menuTitle": "Command line", "summary": "Global options, exit codes, message format, and the list of commands.", "template": "technical" },
-            { "id": "reference/cli/start-capture", "title": "Commands: start and capture", "menuTitle": "Start and capture", "level": 2, "summary": "init, doctor, connect, demo, capture and inventory.", "template": "technical-sub" },
+            { "id": "reference/cli/start-capture", "title": "Commands: start and capture", "menuTitle": "Start and capture", "level": 2, "summary": "init, doctor, connect, probe, demo, capture and inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commands: write and check", "menuTitle": "Write and check", "level": 2, "summary": "dev, new, build, view, open, check, audit and optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, upgrade, migrate and skill install.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, upgrade, migrate, skill install and translate.", "template": "technical-sub" }
           ]
         },
         {
@@ -157,13 +183,14 @@
       "shortTitle": "Skill",
       "icon": "gear",
       "subtitle": "A skill that drives Claude Code through the whole method, with parallel agents and the CLI.",
-      "highlights": ["Installed in one command", "Ten phases, each with its exit checks", "Brief templates for the agents"],
+      "highlights": ["Installed in one command", "Eleven phases, each with its exit checks", "Three agent types, priced and measured"],
       "groups": [
         {
           "title": "The skill",
           "pages": [
             { "id": "skill/install", "title": "Install the skill", "menuTitle": "Install", "summary": "doc-kit skill install, its target folder, and how doctor reports an outdated copy.", "template": "recipe" },
-            { "id": "skill/phases", "title": "The phases of the skill", "menuTitle": "Phases", "summary": "From scoping to delivery: what each phase does, which commands and agents it uses, and when it is done.", "template": "technical" }
+            { "id": "skill/phases", "title": "The phases of the skill", "menuTitle": "Phases", "summary": "From scoping to delivery: what each phase does, which commands and agents it uses, and when it is done.", "template": "technical" },
+            { "id": "skill/cost-and-speed", "title": "Cost and speed", "menuTitle": "Cost and speed", "summary": "What costs no token, doc-kit context, new --prefill, the three agent types, and estimating versus measuring what agents spend.", "template": "technical" }
           ]
         }
       ]
@@ -209,8 +236,8 @@
       "title": "Page examples",
       "shortTitle": "Examples",
       "icon": "tip",
-      "subtitle": "One complete page of each of the 13 types, written for Acme Orders, the kit's fictional product.",
-      "highlights": ["Screens, editors and recipes", "Journeys and troubleshooting", "Findings, architecture, variables, resources"],
+      "subtitle": "One complete page of each type, written for Acme Orders, the kit's fictional product.",
+      "highlights": ["Screens, editors and recipes", "Features, rules and roles", "Journeys and troubleshooting"],
       "groups": [
         {
           "title": "Use and configure",
@@ -218,6 +245,16 @@
             { "id": "examples/screen", "title": "Example · Screen page: the orders list", "menuTitle": "screen", "summary": "A screen and its actions, every zone explained: the orders list of Acme Orders.", "template": "screen", "routes": ["/orders"], "permissions": ["orders:read"] },
             { "id": "examples/editor", "title": "Example · Editor page: profile settings", "menuTitle": "editor", "summary": "An editor and the mechanism it drives: the profile settings of Acme Orders.", "template": "editor", "routes": ["/settings"], "permissions": ["settings:write"] },
             { "id": "examples/recipe", "title": "Example · Configuration recipe: approve large orders in two steps", "menuTitle": "recipe", "summary": "A goal reached by chaining several editors, inside and outside the application.", "template": "recipe" }
+          ]
+        },
+        {
+          "title": "Business space",
+          "pages": [
+            { "id": "examples/feature", "title": "Example · Feature sheet: order approval", "menuTitle": "feature", "summary": "A feature sheet with its access box, business rules and scenario: order approval at Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
+            { "id": "examples/business-rules", "title": "Example · Business rules", "menuTitle": "business-rules", "summary": "Rules shared across features, each a :::rule with its Given/When/Then example, and the generated ::rules{} table.", "template": "business-rules" },
+            { "id": "examples/roles-matrix", "title": "Example · Roles matrix", "menuTitle": "roles-matrix", "summary": "The roles of Acme Orders and who can do what, with the generated ::roles{} table.", "template": "roles-matrix" },
+            { "id": "examples/process", "title": "Example · Process: order approval", "menuTitle": "process", "summary": "The same order approval, seen end to end: states, what proceeds on its own, and what waits for someone.", "template": "process" },
+            { "id": "examples/release-notes", "title": "Example · Release notes", "menuTitle": "release-notes", "summary": "Version history written for a business reader, never a copied commit message.", "template": "release-notes" }
           ]
         },
         {
@@ -231,8 +268,25 @@
             { "id": "examples/troubleshooting-area", "title": "Example · Troubleshooting area: access", "menuTitle": "troubleshooting-area", "level": 2, "summary": "The symptoms of one area, each with its causes, check, fix and explanation.", "template": "troubleshooting-area" },
             { "id": "examples/findings", "title": "Example · Findings", "menuTitle": "findings", "summary": "The numbered findings of a takeover: gaps, risks and debts, ranked.", "template": "findings" },
             { "id": "examples/architecture", "title": "Example · Technical architecture document", "menuTitle": "architecture", "summary": "The production setup: diagram, numbered flows, unknowns and responsibilities.", "template": "architecture" },
+            { "id": "examples/adr", "title": "Example · Architecture decision record", "menuTitle": "adr", "level": 2, "summary": "A reconstructed decision: how tenant isolation was implemented, and why.", "template": "adr" },
             { "id": "examples/variables", "title": "Example · Environment variables", "menuTitle": "variables", "summary": "The variables of the production service, compared with the code; values never copied.", "template": "variables" },
             { "id": "examples/resources", "title": "Example · Deployment resources", "menuTitle": "resources", "summary": "The resources of the deployment, by family, and what really uses each one.", "template": "resources" }
+          ]
+        },
+        {
+          "title": "Takeover space",
+          "pages": [
+            { "id": "examples/access-ownership", "title": "Example · Access and ownership", "menuTitle": "access-ownership", "summary": "Who owns what, where the secrets live, the AI tool accounts, and the handover checklist.", "template": "access-ownership" },
+            { "id": "examples/api-surface", "title": "Example · API surface", "menuTitle": "api-surface", "summary": "Every route, built from ::facts{source=\"api\"}, completed with authentication, role and tenant isolation.", "template": "api-surface" },
+            { "id": "examples/runbook", "title": "Example · Runbook", "menuTitle": "runbook", "summary": "Install, build, deploy, roll back, scheduled jobs, backup and restore, and the first reflexes when it breaks.", "template": "runbook" },
+            { "id": "examples/data-model", "title": "Example · Data model", "menuTitle": "data-model", "summary": "The tables, built from ::facts{source=\"db\"}, the personal data they hold and how migrations are applied.", "template": "data-model" },
+            { "id": "examples/dependencies", "title": "Example · Dependencies", "menuTitle": "dependencies", "summary": "Direct dependencies and a package that does not exist in its registry, built from ::facts{source=\"dependencies\"}.", "template": "dependencies" },
+            { "id": "examples/code-map", "title": "Example · Code map", "menuTitle": "code-map", "summary": "Containers, components and integrations of Acme Orders, and one piece of duplicated code.", "template": "code-map" },
+            { "id": "examples/tests-quality", "title": "Example · Tests and quality", "menuTitle": "tests-quality", "summary": "What is tested, the critical flows, and a test that tests nothing, built from ::facts{source=\"tests\"}.", "template": "tests-quality" },
+            { "id": "examples/agent-instructions", "title": "Example · Agent instruction files", "menuTitle": "agent-instructions", "summary": "The AI assistants' own instruction files, each rule checked against the code, built from ::facts{source=\"agents\"}.", "template": "agent-instructions" },
+            { "id": "examples/threat-model", "title": "Example · Threat model", "menuTitle": "threat-model", "summary": "The data flow diagram, trust boundaries and STRIDE threats of Acme Orders.", "template": "threat-model" },
+            { "id": "examples/security-review", "title": "Example · Security review", "menuTitle": "security-review", "summary": "The static access matrix, the probe results, and findings tied to the OWASP Top 10, built from facts/api.json and facts/security.json.", "template": "security-review" },
+            { "id": "examples/maintainability-review", "title": "Example · Maintainability review", "menuTitle": "maintainability-review", "summary": "Ratings, hotspots and recommendations by effort, built from facts/quality.json.", "template": "maintainability-review" }
           ]
         }
       ]
@@ -258,7 +312,12 @@
       "title": "Take over an existing site",
       "description": "Migrate a legacy project, upgrade the kit, measure, and hand over.",
       "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+    },
+    {
+      "title": "Business and takeover, one source",
+      "description": "Declare the two spaces, write a feature sheet and a takeover dossier, then keep both in sync.",
+      "steps": ["spaces/overview", "spaces/business", "examples/feature", "spaces/takeover", "examples/access-ownership", "publish/sync"]
     }
   ],
-  "suggestions": ["start/first-five-minutes", "write/markdown", "capture/plans", "reference/configuration", "reference/cli", "faq/troubleshooting"]
+  "suggestions": ["start/first-five-minutes", "write/markdown", "spaces/overview", "capture/plans", "reference/configuration", "reference/cli", "faq/troubleshooting"]
 }

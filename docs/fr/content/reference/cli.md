@@ -20,9 +20,9 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 
 | Sous-page | Commandes |
 |---|---|
-| [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `demo`, `capture`, `inventory` |
+| [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `capture`, `inventory` |
 | [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize` |
-| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install` |
+| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate` |
 
 ## Les options globales
 
@@ -66,6 +66,7 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit init [dossier-app]` | Crée le projet de documentation d'une application |
 | `doc-kit doctor` | Vérifie l'environnement et le projet, avec la correction de chaque problème |
 | `doc-kit connect` | Ouvre l'application pour que vous vous connectiez, puis enregistre la session |
+| `doc-kit probe` | Vérifie une instance locale ou de démo en cours d'exécution, en lecture seule : en-têtes, cookies, CORS, contrôle d'accès |
 | `doc-kit demo` | Lance le script des données de démo (`capture.setup`) |
 | `doc-kit capture [motifs…]` | Prend les captures des plans, en lecture seule avec une session |
 | `doc-kit inventory` | Liste ce que voient les adaptateurs de couverture |
@@ -81,6 +82,7 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |
 | `doc-kit migrate` | Réécrit au format courant les fichiers anciens à clés françaises |
 | `doc-kit skill install` | Installe le skill Claude Code |
+| `doc-kit translate status \| --mark <page…> \| --mark --all \| --fix-anchors [page…]` | L'état des traductions, ou leur marquage, ou la réécriture de leurs ancres |
 
 ## Ajouter une commande
 

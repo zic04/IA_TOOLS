@@ -63,6 +63,7 @@ describe("a complete typed site", () => {
     assert.deepEqual([I.takeover.n, I.proofs.n, I.proofs.total], [7, 12, 12]);
     assert.deepEqual([I.glossary.n, I.tours.n, I.blocking.n, I.guidance.n], [20, 3, 0, 0]);
     assert.deepEqual([I.upToDateCaptures.n, I.upToDateCaptures.total, I.upToDateCaptures.current], [1, 1, "2.4.0"]);
+    assert.deepEqual([I.upToDatePages.value, I.upToDatePages.measured], [null, true], "no sync.json yet: n/a, met");
     assert.equal(I.coverage.measured, false);
     assert.equal(I.wideTables.measured, false);
     assert.equal(I.blocking.secrets, 0, "the secrets check of the kit ran and found nothing");
@@ -209,6 +210,65 @@ function dropPage(toc, id) {
   for (const s of toc.sections) for (const g of s.groups) g.pages = g.pages.filter((p) => p.id !== id);
   return toc;
 }
+
+/** Every page id declared in a toc.json (current format), in declaration order. */
+function pageIds(toc) {
+  return toc.sections.flatMap((s) => s.groups.flatMap((g) => g.pages.map((p) => p.id)));
+}
+
+/** Writes a minimal, schema-valid sync.json (ARCHITECTURE.md §6.10) marking `pages` ({ id: version }). */
+function writeSync(dir, pages, { version = "2.4.0" } = {}) {
+  const ref = {
+    generator: "doc-kit test",
+    app: { commit: null, version, date: "2026-10-01" },
+    pages: Object.fromEntries(Object.entries(pages).map(([id, v]) => [id, { verified: "2026-10-01", version: v, source: "0000000000000000" }])),
+  };
+  fs.writeFileSync(path.join(dir, "sync.json"), JSON.stringify(ref, null, 2));
+}
+
+describe("following the application: upToDatePages (standard/maturity.md, level 4)", () => {
+  test("sync.json marking every written page at the current version: the criterion passes, level stays 4", () =>
+    withCopy(
+      TYPED,
+      (d) => {
+        const toc = JSON.parse(fs.readFileSync(path.join(d, "content/toc.json"), "utf8"));
+        writeSync(d, Object.fromEntries(pageIds(toc).map((id) => [id, "2.4.0"])));
+      },
+      async (d) => {
+        const r = await audit(d);
+        assert.deepEqual([r.indicators.upToDatePages.n, r.indicators.upToDatePages.total, r.indicators.upToDatePages.value], [16, 16, 1]);
+        assert.equal(r.level, 4);
+        assert.deepEqual(failed(r), []);
+        assertTranslated(r);
+      }
+    ));
+
+  test("a page marked on an old version, and one never marked: the criterion fails, capped at level 3, both named", () =>
+    withCopy(
+      TYPED,
+      (d) => {
+        const toc = JSON.parse(fs.readFileSync(path.join(d, "content/toc.json"), "utf8"));
+        const ids = pageIds(toc);
+        const pages = Object.fromEntries(ids.slice(0, -2).map((id) => [id, "2.4.0"]));
+        pages[ids.at(-2)] = "2.3.0"; // marked, but stale
+        // the very last page is left out of sync.json entirely: never marked
+        writeSync(d, pages);
+      },
+      async (d) => {
+        const r = await audit(d);
+        assert.deepEqual([r.indicators.upToDatePages.n, r.indicators.upToDatePages.total], [14, 16]);
+        assert.ok(r.indicators.upToDatePages.value < THRESHOLDS.upToDatePages4);
+        assert.ok(failed(r).includes("upToDatePages4"));
+        assert.equal(r.level, 3);
+        const a = action(r, "upToDatePages");
+        assert.equal(a.vars.n, 2);
+        assert.deepEqual(a.items.map((i) => i.key).sort(), ["pageUnmarked", "pageVersion"]);
+        const versioned = a.items.find((i) => i.key === "pageVersion");
+        assert.equal(versioned.vars.version, "2.3.0");
+        assertTranslated(r);
+      }
+    ));
+});
 
 describe("measures that may be unavailable", () => {
   test("not measured never lowers the level; a measured failure does", async () => {

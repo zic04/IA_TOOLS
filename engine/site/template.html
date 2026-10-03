@@ -24,54 +24,57 @@
 </style>
 </head>
 <body>
-<a class="sr-only" href="#contenu-principal">{{t:template.skipToContent}}</a>
+<a class="sr-only" href="#contenu-principal" data-t="template.skipToContent">{{t:template.skipToContent}}</a>
 
 <header class="topbar">
-  <button class="icone-bouton" id="menu-mobile" aria-label="{{t:template.menu}}">{{ICON:menu}}</button>
+  <button class="icone-bouton" id="menu-mobile" aria-label="{{t:template.menu}}" data-t-aria-label="template.menu">{{ICON:menu}}</button>
   <a class="marque" href="#/">
     <span class="marque-logo">{{LOGO}}</span>
-    <span>{{PRODUCT}}<small>{{t:template.documentation}}</small></span>
+    <span>{{PRODUCT}}<small data-t="template.documentation">{{t:template.documentation}}</small></span>
   </a>
   <span class="version-puce">v{{VERSION}}</span>
-  <nav class="topnav" id="topnav" aria-label="{{t:template.sections}}"></nav>
-  <button class="recherche-bouton" id="ouvrir-recherche" aria-label="{{t:template.search}}">
-    {{ICON:search}}<span>{{t:template.searchEllipsis}}</span><kbd>{{t:template.searchShortcut}}</kbd>
+  <div class="espaces" id="espaces" role="group" aria-label="{{t:template.spaces}}" data-t-aria-label="template.spaces"></div>
+  <nav class="topnav" id="topnav" aria-label="{{t:template.sections}}" data-t-aria-label="template.sections"></nav>
+  <button class="recherche-bouton" id="ouvrir-recherche" aria-label="{{t:template.search}}" data-t-aria-label="template.search">
+    {{ICON:search}}<span data-t="template.searchEllipsis">{{t:template.searchEllipsis}}</span><kbd data-t="template.searchShortcut">{{t:template.searchShortcut}}</kbd>
   </button>
-  <button class="icone-bouton" id="bouton-theme" aria-label="{{t:template.changeTheme}}"></button>
-  <button class="icone-bouton" id="bouton-imprimer" aria-label="{{t:template.print}}" title="{{t:template.printTitle}}">{{ICON:print}}</button>
+  <div class="espaces langues" id="langues" role="group" aria-label="{{t:template.language}}" data-t-aria-label="template.language"></div>
+  <button class="icone-bouton" id="bouton-theme" aria-label="{{t:template.changeTheme}}" data-t-aria-label="template.changeTheme"></button>
+  <button class="icone-bouton" id="bouton-imprimer" aria-label="{{t:template.print}}" title="{{t:template.printTitle}}" data-t-aria-label="template.print" data-t-title="template.printTitle">{{ICON:print}}</button>
 </header>
 
 <div class="coque" id="coque">
-  <nav class="lateral" id="lateral" aria-label="{{t:template.contents}}"></nav>
+  <nav class="lateral" id="lateral" aria-label="{{t:template.contents}}" data-t-aria-label="template.contents"></nav>
   <main class="principal" id="contenu-principal" tabindex="-1"></main>
-  <aside class="toc" id="toc" aria-label="{{t:template.onThisPage}}"></aside>
+  <aside class="toc" id="toc" aria-label="{{t:template.onThisPage}}" data-t-aria-label="template.onThisPage"></aside>
 </div>
 <div id="impression"></div>
 
 <div class="bulle" id="bulle" role="tooltip"></div>
 
-<div class="visionneuse" id="visionneuse" role="dialog" aria-modal="true" aria-label="{{t:template.viewer}}">
+<div class="visionneuse" id="visionneuse" role="dialog" aria-modal="true" aria-label="{{t:template.viewer}}" data-t-aria-label="template.viewer">
   <div class="vis-barre">
     <span class="titre" id="vis-titre"></span>
-    <button class="bouton" id="vis-visite">{{ICON:play}}<span>{{t:template.guidedTour}}</span></button>
-    <button class="bouton" id="vis-fermer">{{ICON:close}}<span>{{t:template.close}}</span></button>
+    <button class="bouton" id="vis-visite">{{ICON:play}}<span data-t="template.guidedTour">{{t:template.guidedTour}}</span></button>
+    <button class="bouton" id="vis-fermer">{{ICON:close}}<span data-t="template.close">{{t:template.close}}</span></button>
   </div>
   <div class="vis-scene" id="vis-scene"></div>
 </div>
 
-<div class="recherche-fond" id="recherche" role="dialog" aria-modal="true" aria-label="{{t:template.searchDialog}}">
+<div class="recherche-fond" id="recherche" role="dialog" aria-modal="true" aria-label="{{t:template.searchDialog}}" data-t-aria-label="template.searchDialog">
   <div class="recherche-boite">
     <div class="recherche-champ">
       {{ICON:search}}
-      <input id="recherche-champ" type="search" autocomplete="off" spellcheck="false" placeholder="{{t:template.searchPlaceholder}}">
+      <input id="recherche-champ" type="search" autocomplete="off" spellcheck="false" placeholder="{{t:template.searchPlaceholder}}" data-t-placeholder="template.searchPlaceholder">
     </div>
     <div class="recherche-resultats" id="recherche-resultats"></div>
     <div class="sr-only" id="recherche-statut" role="status" aria-live="polite" aria-atomic="true"></div>
-    <div class="recherche-aide"><span><kbd>↑</kbd> <kbd>↓</kbd> {{t:template.helpNavigate}}</span><span><kbd>{{t:template.keyEnter}}</kbd> {{t:template.helpOpen}}</span><span><kbd>{{t:template.keyEscape}}</kbd> {{t:template.helpClose}}</span></div>
+    <div class="recherche-aide"><span><kbd>↑</kbd> <kbd>↓</kbd> <span data-t="template.helpNavigate">{{t:template.helpNavigate}}</span></span><span><kbd data-t="template.keyEnter">{{t:template.keyEnter}}</kbd> <span data-t="template.helpOpen">{{t:template.helpOpen}}</span></span><span><kbd data-t="template.keyEscape">{{t:template.keyEscape}}</kbd> <span data-t="template.helpClose">{{t:template.helpClose}}</span></span></div>
   </div>
 </div>
 
 <script type="application/json" id="donnees">{{DATA}}</script>
+{{LANGUAGE_DATA}}
 {{IMAGES}}
 <script>
 {{APP}}

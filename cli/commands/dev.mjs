@@ -1,7 +1,8 @@
 // dev [--port <n>]
 // Builds the site in draft mode, serves it on http://127.0.0.1:<port>/, opens the browser, and rebuilds when
 // content/, images/, diagrams/, theme/ or doc.config.mjs change: the page reloads by itself (SSE), and build
-// errors show both in the terminal and in an overlay of the page. Ctrl+C stops cleanly.
+// errors show both in the terminal and in an overlay of the page. Ctrl+C stops cleanly. With spaces (ARCHITECTURE.md
+// §6.1a), the export of each space is served at /space/<id> too, listed in the start message.
 // DOC_KIT_NO_OPEN=1: the browser is not opened (tests, remote machines).
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
@@ -80,9 +81,11 @@ export async function run({ ctx, values }) {
   });
 
   const watched = watchedPaths(config);
-  if (ctx.json) ctx.print(JSON.stringify({ url: server.url, port: server.port, root: project.root, watched }));
+  const spaces = server.spaces.map((space) => ({ space, url: `${server.url}space/${space}` }));
+  if (ctx.json) ctx.print(JSON.stringify({ url: server.url, port: server.port, root: project.root, watched, ...(spaces.length ? { spaces } : {}) }));
   else {
     ctx.print(`\n  ${p.bold(ctx.t("cli.dev.serving"))} ${p.cmd(server.url)}  ${p.dim(ctx.t("cli.dev.stop"))}`);
+    for (const s of spaces) ctx.print(`  ${p.bold(ctx.t("cli.dev.space", { space: s.space }))} ${p.cmd(s.url)}`);
     ctx.print(`  ${p.dim(ctx.t("cli.dev.watching", { list: [...watched.folders.map((f) => f + "/"), ...watched.files].join(", "), folder: path.basename(project.root) }))}\n`);
   }
   await openBrowser(server.url, ctx.env);

@@ -1,0 +1,17 @@
+[[package]]
+name = "fastapi"
+version = "0.104.1"
+description = "FastAPI framework"
+groups = ["main"]
+
+[[package]]
+name = "httpx"
+version = "0.27.0"
+description = "HTTP client"
+groups = ["main"]
+
+[[package]]
+name = "pytest"
+version = "7.4.0"
+description = "Testing framework"
+groups = ["dev"]

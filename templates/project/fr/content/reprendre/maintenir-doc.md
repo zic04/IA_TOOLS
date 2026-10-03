@@ -63,6 +63,8 @@ Ce site est produit par ce dossier avec **doc-kit**. Les pages sont écrites en 
 | `content/toc.json` | Plan du site : sections, groupes, pages (`template`, `level`), parcours guidés, suggestions | Gestion centrale |
 | `content/<id>.md` | Une page par entrée du sommaire | Rédacteurs |
 | `content/home.md`, `content/glossary.json` | Accueil et glossaire | Gestion centrale |
+| `facts/*.json` | Ce que `doc-kit facts` a lu dans le code de l'application (env, api, db, dependencies, agents…) ; commité | Généré, à relancer quand périmé |
+| `sync.json` | Ce que `doc-kit sync --mark` a vérifié, et contre quelle version ; commité | Généré par `--mark` |
 <!-- doc-kit:capture=app -->
 | `captures/plans/*.mjs` | Plans de captures, un fichier par lot de pages | Rédacteurs |
 | `captures/targets.mjs` | Aides pour désigner un élément | Gestion centrale |

@@ -1,8 +1,11 @@
-# The 13 page templates (summary)
+# The 30 page templates (summary)
 
-The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations) and
-`{{KIT_PATH}}/standard/templates.json` (sections, required sections, maximum length, model, example). Page models live
-in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one down.
+The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations), `{{KIT_PATH}}/
+standard/templates.json` (the first 13 types) and its fragments `{{KIT_PATH}}/standard/templates/business.json`
+(business space, ARCHITECTURE.md §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json` (takeover space,
+ARCHITECTURE.md §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
+models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one
+down, and `--prefill` fills its main table from `doc-kit facts` for the types that support it (below).
 
 The template is declared in the toc (`template` field of the page). The build then checks that each required section
 is present: a `##` heading that **starts with** its label or an alias (case and accents ignored). A warning with
@@ -46,6 +49,50 @@ checks…"); French models have the same sections in the same order. The list of
 | `architecture` | In short · The diagram · Numbered flows · What this document does not show · Who manages what | 2,000 |
 | `variables` | In short · To check | 2,200 |
 | `resources` | In short · Compute · Data · Secrets · Monitoring · Backup · What the application uses outside this group | 2,200 |
+
+## Business space types (ARCHITECTURE.md §6.8)
+
+No `file:line` here: a business page that cites one gets the warning `business.technical` (move the detail to
+its takeover `counterpart`). Identifiers: `F-01`… for a feature (`feature` field of the page), `BR-01`… (`RG-01`
+in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewhere with `[[rule BR-01]]`/
+`[[regle RG-01]]`. Generated tables: `::features{}`/`::fonctionnalites{}`, `::rules{}`/`::regles{}`,
+`::roles{}`.
+
+| Type | For | Required sections | maxWords | Example |
+|---|---|---|---|---|
+| `feature` | one feature's sheet | Access · What it is for · Who uses it · Main scenario · Business rules (required); Trigger/preconditions, Variants, Data handled, Notifications, Limits, Questions (optional) | 2,500 | `use/orders/approve` (`feature: "F-03"`) |
+| `business-rules` | the rules shared by several features | How to read this page · The rules (required); Rules by feature, Retired rules (optional) | 3,000 | `use/business-rules` |
+| `roles-matrix` | who can do what | In short · The roles · Who can do what (required); Responsibilities, How to get a role (optional) | 2,000 | `use/roles` |
+| `process` | a business process end to end | In short · Who takes part · The steps · What happens on its own, and what waits for someone (required); The states, Deadlines, When it goes wrong, Features involved (optional) | 2,200 | `use/order-lifecycle` |
+| `release-notes` | what changed, for the business reader | In short · Latest version (required); Earlier versions (optional) | 3,000 | `use/release-notes` |
+
+## Takeover dossier types (ARCHITECTURE.md §6.9)
+
+The dossier a team needs to take over an application, especially one written largely by AI assistants
+("vibe-coded"): `references/pitfalls.md` lists exactly what each type is defending against. Every claim is
+`file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `doc-kit facts` feeds these pages
+(one JSON file per source, `facts/<source>.json`); `doc-kit new <id> --prefill` fills the main table of
+`api-surface`, `data-model`, `dependencies` and `agent-instructions` (also `variables` of the 13 original types)
+from the matching facts source.
+
+| Type | For | Required sections | maxWords | Facts source |
+|---|---|---|---|---|
+| `access-ownership` | who owns what, and what is still unknown | In short · Who owns what · Unknown owners | 2,200 | `secrets`, `env`, `agents`, `dependencies` |
+| `api-surface` | every route, its authentication and its isolation | In short · The routes · Gaps | 3,000 | `api`, `db` |
+| `runbook` | install, build, deploy, roll back, restore | In short · Install · Deploy · Roll back · Backup and restore | 3,000 | — |
+| `data-model` | the tables and the personal data they hold | In short · Tables · Personal data | 2,500 | `db` |
+| `dependencies` | packages, including ones that do not exist | In short · Direct dependencies · Packages that do not exist | 2,200 | `dependencies` (`--network`) |
+| `code-map` | the system's containers and components | In short · Context · Containers · Components | 2,500 | — |
+| `tests-quality` | what is tested, and what is not | In short · What is tested · Critical flows · How to run them | 2,200 | `tests` |
+| `agent-instructions` | every rule in `AGENTS.md`-like files | In short · The files · Each rule · Hidden characters | 2,500 | `agents` |
+| `adr` | one reconstructed architecture decision | Status · Context · Decision · Consequences · How it was reconstructed | 1,500 | — |
+| `threat-model` | STRIDE threats by trust boundary | In short · The data flow diagram · Trust boundaries · Threats | 3,000 | `api`, `dependencies` (grounding) |
+| `security-review` | authentication, access control, OWASP findings | In short · Scope and method · Authentication and sessions · Access control · Input handling · Secrets and configuration · Findings | 3,000 | `api`, `security`, `probe.json` |
+| `maintainability-review` | ratings, hotspots, recommendations | In short · Ratings · Hotspots · Tests · Recommendations | 2,200 | `quality` |
+
+`findings` becomes the project's **risk register** once a takeover space exists: each finding also carries Owner,
+Decision (fix, accept, transfer, avoid), Status and Due date, combined into one "Follow-up" column on a table row
+(`references/method.md`, phase 6 and 8).
 
 ## Common rules
 

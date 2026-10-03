@@ -1,6 +1,7 @@
 {
   "title": "{{name}} documentation",
   "tagline": "The reference guide to {{name}}: every screen, every setting and how they really work, explained element by element.",
+  "spaces": ["business", "takeover"],
   "sections": [
     {
       "id": "use",
@@ -8,6 +9,7 @@
       "shortTitle": "Use",
       "icon": "screen",
       "subtitle": "The user's daily work: every screen, element by element, and what it really does.",
+      "space": "business",
       "highlights": [
         "Signing in and finding your way",
         "Every screen explained item by item",
@@ -30,12 +32,42 @@
       ]
     },
     {
+      "id": "features",
+      "title": "Features of {{name}}",
+      "shortTitle": "Features",
+      "icon": "book",
+      "subtitle": "What each feature does, for whom, and the rules it enforces — no code.",
+      "space": "business",
+      "highlights": [
+        "One sheet per feature, with its access rule",
+        "The business rules, in one place",
+        "Who can do what"
+      ],
+      "groups": [
+        {
+          "title": "Features",
+          "pages": [
+            {
+              "id": "features/example-feature",
+              "title": "An example feature (sample to replace)",
+              "menuTitle": "Example feature",
+              "summary": "Model of a feature sheet: rename it after the first feature of {{name}}, and keep its F-01 id or renumber it.",
+              "template": "feature",
+              "feature": "F-01",
+              "counterpart": "take-over/architecture/example-feature"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "configure",
       "title": "Configure — the editors",
       "shortTitle": "Configure",
       "icon": "sliders",
       "featured": true,
       "subtitle": "Every editor and every setting, with the real mechanism it drives.",
+      "space": "business",
       "highlights": [
         "The mechanism behind each setting",
         "The complete settings reference",
@@ -62,6 +94,7 @@
       "shortTitle": "Administer",
       "icon": "shield",
       "subtitle": "Access, reference data and system settings.",
+      "space": "business",
       "highlights": [
         "Accounts and permissions",
         "Reference data",
@@ -88,6 +121,7 @@
       "shortTitle": "Take over",
       "icon": "code",
       "subtitle": "What you need to know to run and evolve the application: architecture, production setup, troubleshooting, findings.",
+      "space": "takeover",
       "highlights": [
         "The architecture and the production setup",
         "Troubleshooting by symptom",
@@ -103,6 +137,15 @@
               "menuTitle": "Architecture",
               "summary": "The big picture, the technical stack, the principles and the main flows.",
               "template": "technical"
+            },
+            {
+              "id": "take-over/architecture/example-feature",
+              "title": "The example feature, technically",
+              "menuTitle": "Example feature",
+              "summary": "The technical counterpart of the example feature sheet: how it is actually implemented.",
+              "level": 2,
+              "template": "technical-sub",
+              "counterpart": "features/example-feature"
             },
             {
               "id": "take-over/technical-architecture",
@@ -135,7 +178,7 @@
               "id": "take-over/findings",
               "title": "Findings at takeover",
               "menuTitle": "Findings",
-              "summary": "The gaps, risks and debts found, re-checked in the code, numbered and ranked by severity.",
+              "summary": "The gaps, risks and debts found, re-checked in the code, numbered and ranked by severity: the risk register.",
               "template": "findings"
             },
             {
@@ -144,6 +187,32 @@
               "menuTitle": "Maintaining the docs",
               "summary": "How the site is built and checked, how to write a page, and how to hand the folder over.",
               "template": "technical"
+            }
+          ]
+        },
+        {
+          "title": "Takeover dossier",
+          "pages": [
+            {
+              "id": "take-over/access-ownership",
+              "title": "Access and ownership",
+              "menuTitle": "Access and ownership",
+              "summary": "Who owns what, where the secrets live, and the checklist to actually receive them.",
+              "template": "access-ownership"
+            },
+            {
+              "id": "take-over/runbook",
+              "title": "Runbook",
+              "menuTitle": "Runbook",
+              "summary": "Install, build, deploy, roll back, back up: the exact commands, read from the real pipeline.",
+              "template": "runbook"
+            },
+            {
+              "id": "take-over/agent-instructions",
+              "title": "Agent instruction files",
+              "menuTitle": "Agent instructions",
+              "summary": "Every AI agent instruction file found in the code, rule by rule, checked against what it actually does.",
+              "template": "agent-instructions"
             }
           ]
         }
@@ -165,6 +234,7 @@
   ],
   "suggestions": [
     "use/getting-started",
+    "features/example-feature",
     "take-over/architecture",
     "take-over/troubleshooting"
   ]

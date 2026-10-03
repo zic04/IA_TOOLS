@@ -33,6 +33,9 @@ Read in full before any capture of a real application. These rules come from two
   in a field that saves on its own (editors that auto-save every setting).
 - A page that loads its data through a server action or an RPC (a `POST`) shows up incomplete: describe it, do not
   work around it.
+- **The only declared exception:** `capture.sessionRefresh` sends one `POST` that renews a short-lived session,
+  outside any page, before this lock is checked — accept it only on the owner's written decision (`reason`, at
+  least 20 characters) that the endpoint writes nothing else (ARCHITECTURE.md §6.3a).
 
 ## 3. Server-side writes while rendering
 

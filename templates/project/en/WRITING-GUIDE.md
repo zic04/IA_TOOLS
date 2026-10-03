@@ -4,9 +4,9 @@ This guide sets the rules **specific to this project**. The rules shared by ever
 
 | Topic | Standard file |
 |---|---|
-| Structure of the site, required "Take over" pages | `structure.md` |
-| The 13 page templates and their sections | `templates.md` |
-| Nothing made up, `file:line` proofs, exact labels, gaps, links, glossary, findings, diagrams | `writing.md` |
+| The two spaces (Business, Takeover), required "Take over" pages | `structure.md` |
+| The 28 page templates and their sections | `templates.md` |
+| Nothing made up, `file:line` proofs, exact labels, gaps, links, glossary, findings, diagrams; writing in the Business space; claim status; the risk register | `writing.md` |
 <!-- doc-kit:capture=app -->
 | Capture safety and quality | `captures.md` |
 <!-- doc-kit:end -->
@@ -29,6 +29,7 @@ When this guide and the standard disagree, this guide wins for this project. Com
 <!-- doc-kit:capture=none -->
 7. **No screenshot**: each screen is described by a table of its elements (§3).
 <!-- doc-kit:end -->
+8. **No code in the Business space** (`use`, `features`, `configure`, `administer`): a business page cites no `file:line` proof; link its `counterpart` for the implementation detail.
 
 ## 2. Sources of truth
 
@@ -85,3 +86,20 @@ doc-kit view <page-id> --theme dark
 <!-- doc-kit:capture=none -->
 `doc.config.mjs`, `content/toc.json`, `content/glossary.json` and `content/home.md` are managed centrally: propose your changes (new page, summary, term) instead of editing them in parallel.
 <!-- doc-kit:end -->
+
+## 8. The Takeover dossier: facts, then sync
+
+The Takeover pages (`access-ownership`, `runbook`, `agent-instructions`, and any `api-surface`, `data-model`,
+`dependencies`, `code-map`, `tests-quality`, `threat-model` you add) follow a two-step cycle:
+
+1. **`doc-kit facts --source <name>`** reads the application's code (env names, API routes, database tables,
+   dependencies, agent instruction files, secrets, tests) into `facts/<source>.json`, **committed** with this
+   project. `::facts{source="…" columns="…"}` turns one into a table at build time; fill the rest by hand.
+2. Mark what you could not read directly: `[[verified file:line]]`, `[[deduced …]]`, `[[unknown]]` (see
+   `writing.md`).
+3. Once the dossier is checked, **`doc-kit sync --mark --all`** records, in `sync.json` (also committed), which
+   pages were checked and against which version of the application. The next time someone opens this project,
+   `doc-kit sync` (no `--mark`) reports exactly what changed since — not a full re-read.
+
+`facts/` and `sync.json` are never in `.gitignore`: they are the project's memory of what was checked, and
+when.

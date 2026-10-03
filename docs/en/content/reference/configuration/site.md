@@ -21,6 +21,17 @@ adapter (`local:adapters/x.mjs`), with its options next to it. An unknown option
 
 The token names, the contrast check and the logo rules are on [Theme, colours and logo](#/reference/theme).
 
+## Spaces
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `spaces` | object · `{}` | The files per space, when `content/toc.json` declares spaces; ignored otherwise | |
+| `spaces.export` | boolean · `true` | `false`: `build` writes the full site alone | `false` |
+| `spaces.output` | path or `null` · `null` | The file of each space, relative to the project; it must contain `{space}` (exit code 2 otherwise). Default: the output with `-<space>` before its extension | `"dist/Acme-Orders-{space}.html"` |
+
+A space is the part of the documentation written for one audience, such as `business` or `takeover`. The site gets
+a space selector, and `build` also writes one file per space, from which the other spaces are removed.
+
 ## Status badges
 
 | Key | Type · default | Role | Example |

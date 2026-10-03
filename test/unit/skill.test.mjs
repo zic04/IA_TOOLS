@@ -1,5 +1,8 @@
 // skill install: copy into a TEMPORARY skills folder only (never the real ~/.claude), {{KIT_PATH}} replaced,
-// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched.
+// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the three agent
+// types (ARCHITECTURE.md §6.11) are copied next to the skills folder and reported the same way.
+// brief.mjs: every brief template declares its agent type and its common part is byte-identical whatever the
+// per-agent variables (code, pages…), so a wave's agents share their prompt cache; --estimate.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -7,7 +10,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { installSkill, skillStatus, skillsFolder, SKILL_SOURCE, FINGERPRINT } from "../../cli/commands/skill.mjs";
+import { installSkill, skillStatus, agentsStatus, agentFileNames, skillsFolder, agentsFolder, SKILL_SOURCE, FINGERPRINT } from "../../cli/commands/skill.mjs";
+import { prepareConfig } from "../../engine/project/load.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -17,16 +21,20 @@ async function cli(args, env = {}) {
   return { code, out, err };
 }
 const kitPath = KIT_ROOT.split(path.sep).join("/");
+const AGENT_NAMES = agentFileNames();
 
 describe("skill install", () => {
   test("copies the skill, replaces {{KIT_PATH}}, writes the fingerprint, leaves other skills alone", async () => {
-    const skills = tempDir("doc-kit-skills-");
+    const root = tempDir("doc-kit-skills-");
+    const skills = path.join(root, "skills");
     try {
+      fs.mkdirSync(skills, { recursive: true });
       fs.mkdirSync(path.join(skills, "other-skill"));
       fs.writeFileSync(path.join(skills, "other-skill", "SKILL.md"), "---\nname: other\n---\n");
       const r = await cli(["skill", "install", "--target", skills]);
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /^✔ Claude Code skill installed in .*doc-kit \(\d+ files, kit .*\)\n/);
+      assert.match(r.out, new RegExp(`agent types installed in .*agents \\(${AGENT_NAMES.length} files\\)`));
       const dir = path.join(skills, "doc-kit");
       const skill = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
       assert.doesNotMatch(skill, /\{\{KIT_PATH\}\}/);
@@ -35,38 +43,61 @@ describe("skill install", () => {
       for (const f of fs.readdirSync(path.join(dir, "references"))) assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_PATH\}\}/, f);
       // Brief templates keep their own placeholders.
       assert.match(fs.readFileSync(path.join(dir, "assets", "briefs", "en", "inventory.md"), "utf8"), /\{\{\w+\}\}/);
+      // The skill folder itself never receives the agent definitions: they go next to the skills folder.
+      assert.ok(!fs.existsSync(path.join(dir, "agents")));
       const fp = JSON.parse(fs.readFileSync(path.join(dir, FINGERPRINT), "utf8"));
       assert.equal(fp.kitPath, kitPath);
       assert.match(fp.source, /^[0-9a-f]{64}$/);
+      assert.deepEqual(fp.agentNames, AGENT_NAMES);
+      assert.match(fp.agentsSource, /^[0-9a-f]{64}$/);
+      assert.equal(fp.agentsInstalled, fp.agentsSource, "just installed: source and installed hashes match");
       assert.equal(fs.readFileSync(path.join(skills, "other-skill", "SKILL.md"), "utf8"), "---\nname: other\n---\n");
       assert.deepEqual(fs.readdirSync(skills).sort(), ["doc-kit", "other-skill"]);
-      // The installed scripts find the kit through the replaced path.
-      const common = await import(pathToFileURL(path.join(dir, "scripts", "common.mjs")).href);
-      assert.equal(path.resolve(common.kitPath()), KIT_ROOT);
 
-      // Reinstall: replaced (fingerprint present).
+      // The agent types: copied as plain files (no {{KIT_PATH}}), next to the skills folder, nothing else there.
+      const agents = path.join(root, "agents");
+      assert.deepEqual(fs.readdirSync(agents).sort(), AGENT_NAMES);
+      for (const name of AGENT_NAMES) {
+        const installed = fs.readFileSync(path.join(agents, name), "utf8");
+        assert.equal(installed, fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8"), name);
+        assert.match(installed, /^---\nname: doc-kit-\w+\ndescription: .+\nmodel: (haiku|sonnet|opus)\ntools: [\w, ]+\n---\n/, name);
+      }
+      assert.equal(agentsStatus({ target: skills }).state, "current");
+
+      // Reinstall: replaced (fingerprint present); a foreign file dropped into the shared agents folder is left alone.
+      fs.writeFileSync(path.join(agents, "someone-elses-agent.md"), "not doc-kit's");
       const again = await cli(["skill", "install", "--target", skills]);
       assert.equal(again.code, 0);
       assert.match(again.out, /updated/);
+      assert.equal(fs.readFileSync(path.join(agents, "someone-elses-agent.md"), "utf8"), "not doc-kit's");
+      assert.deepEqual(fs.readdirSync(agents).sort(), [...AGENT_NAMES, "someone-elses-agent.md"].sort());
+
+      // The installed scripts find the kit through the replaced path.
+      const common = await import(pathToFileURL(path.join(dir, "scripts", "common.mjs")).href);
+      assert.equal(path.resolve(common.kitPath()), KIT_ROOT);
     } finally {
-      fs.rmSync(skills, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
   test("a doc-kit folder not installed by the command is kept unless --force; unknown action → 2", async () => {
-    const skills = tempDir("doc-kit-skills-");
+    const root = tempDir("doc-kit-skills-");
+    const skills = path.join(root, "skills");
     try {
-      fs.mkdirSync(path.join(skills, "doc-kit"));
+      fs.mkdirSync(path.join(skills, "doc-kit"), { recursive: true });
       fs.writeFileSync(path.join(skills, "doc-kit", "SKILL.md"), "mine");
       const r = await cli(["skill", "install", "--target", skills]);
       assert.equal(r.code, 1);
       assert.match(r.err, /already exists and was not installed by this command\n {2}→ remove it, or add --force/);
       assert.equal(fs.readFileSync(path.join(skills, "doc-kit", "SKILL.md"), "utf8"), "mine");
+      // Nothing was written to the agents folder either, since the install was refused before copying anything.
+      assert.ok(!fs.existsSync(path.join(root, "agents")));
       assert.equal((await cli(["skill", "install", "--target", skills, "--force"])).code, 0);
       assert.notEqual(fs.readFileSync(path.join(skills, "doc-kit", "SKILL.md"), "utf8"), "mine");
+      assert.deepEqual(fs.readdirSync(path.join(root, "agents")).sort(), AGENT_NAMES);
       assert.equal((await cli(["skill", "remove"])).code, 2);
     } finally {
-      fs.rmSync(skills, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
@@ -76,17 +107,34 @@ describe("skill install", () => {
       const env = { CLAUDE_CONFIG_DIR: config };
       assert.equal(skillsFolder({ env }), path.join(config, "skills"));
       assert.equal(skillsFolder({ env: { HOME: config } }), path.join(config, ".claude", "skills"));
+      assert.equal(agentsFolder({ env }), path.join(config, "agents"));
       assert.equal(skillStatus({ env }).state, "missing");
+      assert.equal(agentsStatus({ env }).state, "missing");
       installSkill({ skills: path.join(config, "skills") });
       assert.equal(skillStatus({ env }).state, "current");
+      assert.equal(agentsStatus({ env }).state, "current");
       fs.appendFileSync(path.join(config, "skills", "doc-kit", "SKILL.md"), "\nlocal edit\n");
       assert.equal(skillStatus({ env }).state, "modified");
-      // A changed source (newer kit): copy the source, change it, compare.
+      assert.equal(agentsStatus({ env }).state, "current", "editing SKILL.md does not affect the agents' own status");
+      // The agent types edited after install, and one removed: both report "modified".
+      fs.appendFileSync(path.join(config, "agents", AGENT_NAMES[0]), "\nlocal edit\n");
+      assert.equal(agentsStatus({ env }).state, "modified");
+      fs.rmSync(path.join(config, "agents", AGENT_NAMES[0]));
+      assert.equal(agentsStatus({ env }).state, "modified");
+      // All agent files removed: "missing", like the skill would report if its own folder were gone.
+      for (const name of AGENT_NAMES) fs.rmSync(path.join(config, "agents", name), { force: true });
+      assert.equal(agentsStatus({ env }).state, "missing");
+      // A changed source (newer kit): copy the source, change it, compare (skill and agents both pick it up).
       const source = path.join(config, "source");
       fs.cpSync(SKILL_SOURCE, source, { recursive: true });
       fs.appendFileSync(path.join(source, "SKILL.md"), "\nnew section\n");
       assert.equal(skillStatus({ env, source }).state, "outdated");
+      fs.appendFileSync(path.join(source, "agents", AGENT_NAMES[0]), "\nnew section\n");
+      // Reinstall cleanly first, from the ORIGINAL source, so the fingerprint matches what's on disk again.
+      installSkill({ skills: path.join(config, "skills"), force: true });
+      assert.equal(agentsStatus({ env, source }).state, "outdated");
       assert.equal(skillStatus({ env, kitRoot: config }).state, "otherKit");
+      assert.equal(agentsStatus({ env, kitRoot: config }).state, "otherKit");
     } finally {
       fs.rmSync(config, { recursive: true, force: true });
     }
@@ -136,18 +184,33 @@ describe("brief.mjs", () => {
       assert.doesNotMatch(vars.err, /appDir n'est pas configuré/);
       const r = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=configure/x"], app);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez l'agent avec : « Lis .* et exécute-le en entier\. »\n$/);
+      assert.match(r.out, /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer : « Lis .* et exécute-le en entier\. »\n$/);
       const text = fs.readFileSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md"), "utf8");
+      assert.match(text, /^agent: doc-kit-writer\n/m);
       assert.match(text, /\*\*AUCUNE CAPTURE DU TOUT\*\* \(`capture\.mode: "none"`/);
       assert.match(text, /\| Élément \| Ce qu'il montre \|/);
       assert.doesNotMatch(text, /Réutilise au plus 1 ou 2 captures/);
-      assert.match(text, /du produit \*\*Acme Orders\*\*/, "no elision trap");
+      assert.match(text, /Acme Orders/, "product name filled correctly, no corruption near a template boundary");
       const unknown = brief(["nope", "--project", docs], app);
       assert.equal(unknown.code, 2);
       assert.match(unknown.err, /^✖ modèle inconnu : « nope » \(langue fr\)\n {2}→ modèles disponibles : /);
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
     }
+  });
+
+  test("writing-batch (en and fr): the announced word range is the template's maxWords, with no contradicting fixed range", () => {
+    const templates = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "standard", "templates.json"), "utf8"));
+    const screenMaxWords = templates.types.screen.maxWords;
+    assert.equal(screenMaxWords, 2500, "sanity check: the screen template's bound this brief refers to");
+    const en = fs.readFileSync(path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "en", "writing-batch.md"), "utf8");
+    const fr = fs.readFileSync(path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "fr", "writing-batch.md"), "utf8");
+    // No hard-coded range that could contradict a template's own maxWords (the former "2,000 to 3,500 words").
+    assert.doesNotMatch(en, /\b2,000 to 3,500 words\b/);
+    assert.doesNotMatch(fr, /\b2 000\s*à\s*3 500 mots\b/);
+    // The brief must point the writer at the template's own bound instead, with no minimum.
+    assert.match(en, /up\s+to\s+the\s+template's\s+`maxWords`[\s\S]*no\s+minimum/);
+    assert.match(fr, /jusqu'au\s+`maxWords`\s+du\s+gabarit[\s\S]*sans\s+minimum/);
   });
 
   test("an English project without app.dir: appDir is derived (the .git folder, else two levels up), and the warning says so", () => {
@@ -167,5 +230,120 @@ describe("brief.mjs", () => {
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
     }
+  });
+});
+
+// ARCHITECTURE.md §6.11: every brief declares its agent type, and two briefs of the same template differ only
+// after their common part — tested here with different `code`/`pages` (and, where relevant, other per-agent
+// variables), so that the agents of one wave can share their prompt cache.
+const TEMPLATE_VARIANTS = {
+  "writing-batch": [["--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=use/orders"], ["--var", "code=u2", "--var", "pages=use/settings", "--var", "referencePage=use/orders"]],
+  inventory: [["--var", "reads=guide-a.md"], ["--var", "reads=guide-b.md"]],
+  "findings-verification": [["--var", "consolidationFile=.doc-kit/consolidation-a.md"], ["--var", "consolidationFile=.doc-kit/consolidation-b.md"]],
+  "page-corrections": [["--var", "labels=messages/a.json"], ["--var", "labels=messages/b.json"]],
+  journey: [["--var", "code=ord", "--var", "pages=take-over/order-journey", "--var", "topic=the journey of an order", "--var", "diagram=t-order-journey"], ["--var", "code=inv", "--var", "pages=take-over/invoice-journey", "--var", "topic=the journey of an invoice", "--var", "diagram=t-invoice-journey"]],
+  troubleshooting: [["--var", "code=tbl", "--var", "pages=take-over/troubleshooting", "--var", "diagram=t-troubleshooting"], ["--var", "code=tb2", "--var", "pages=take-over/troubleshooting-2", "--var", "diagram=t-troubleshooting-2"]],
+  "production-technical": [["--var", "code=t", "--var", "pages=take-over/architecture", "--var", "portalCaptures=.doc-kit/portal-a", "--var", "diagram=t-architecture"], ["--var", "code=t2", "--var", "pages=take-over/resources", "--var", "portalCaptures=.doc-kit/portal-b", "--var", "diagram=t-resources"]],
+  triage: [["--var", "pages=use/orders"], ["--var", "pages=use/settings"]],
+  update: [["--var", "pages=use/orders"], ["--var", "pages=use/settings"]],
+  "functional-spec": [["--var", "code=fs1", "--var", "pages=use/orders"], ["--var", "code=fs2", "--var", "pages=use/invoices"]],
+  "code-health": [["--var", "code=t", "--var", "pages=take-over/api-surface"], ["--var", "code=t2", "--var", "pages=take-over/dependencies"]],
+  "access-ownership": [["--var", "pages=take-over/access-ownership"], ["--var", "pages=take-over/access-ownership-2"]],
+  "system-dossier": [["--var", "code=t3", "--var", "pages=take-over/runbook"], ["--var", "code=t4", "--var", "pages=take-over/data-model"]],
+  "security-review": [["--var", "pages=take-over/security-review"], ["--var", "pages=take-over/security-review-2"]],
+  "maintainability-review": [["--var", "pages=take-over/maintainability-review"], ["--var", "pages=take-over/maintainability-review-2"]],
+  translate: [["--var", "lang=fr", "--var", "pages=use/orders", "--var", "contextFiles=.doc-kit/context/use__orders.fr.md"], ["--var", "lang=fr", "--var", "pages=use/settings", "--var", "contextFiles=.doc-kit/context/use__settings.fr.md"]],
+};
+const AGENT_TYPES_KNOWN = new Set(["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"]);
+
+describe("brief templates: agent type and common/variable split", () => {
+  for (const [name, variants] of Object.entries(TEMPLATE_VARIANTS)) {
+    for (const lang of ["en", "fr"]) {
+      test(`${name} (${lang}): declares a known agent type; common part byte-identical across variables`, () => {
+        const { app, docs } = briefProject({ language: lang });
+        try {
+          const outputs = variants.map((vars, i) => {
+            const output = path.join(docs, ".doc-kit", `t-${name}-${i}.md`);
+            const r = brief([name, "--project", docs, "--lang", lang, "--output", output, ...vars], app);
+            assert.ok(r.code === 0 || r.code === 1, `${name} ${lang} #${i}: ${r.err}`);
+            return fs.readFileSync(output, "utf8");
+          });
+          for (const text of outputs) {
+            const agent = /^agent:\s*(\S+)/m.exec(text)?.[1];
+            assert.ok(agent && AGENT_TYPES_KNOWN.has(agent), `${name} (${lang}) has a known agent type, got ${agent}`);
+          }
+          const marker = "## Variables";
+          const commons = outputs.map((t) => t.slice(0, t.indexOf(marker)));
+          assert.ok(commons[0].length > 0 && outputs.every((t) => t.includes(marker)), `${name} (${lang}) has a Variables section`);
+          assert.equal(commons[1], commons[0], `${name} (${lang}): common part differs between two variable sets`);
+        } finally {
+          fs.rmSync(app, { recursive: true, force: true });
+        }
+      });
+    }
+  }
+
+  test("newer briefs (triage, update, functional-spec, code-health, access-ownership, system-dossier, security-review, maintainability-review): the same placeholders in en and fr", () => {
+    for (const name of ["triage", "update", "functional-spec", "code-health", "access-ownership", "system-dossier", "security-review", "maintainability-review", "translate"]) {
+      const en = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "en", `${name}.md`), "utf8");
+      const fr = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "fr", `${name}.md`), "utf8");
+      const vars = (t) => [...new Set([...t.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((m) => m[1]))].sort();
+      assert.deepEqual(vars(fr), vars(en), `${name}: en/fr placeholder parity`);
+    }
+  });
+});
+
+describe("brief.mjs --estimate", () => {
+  test("input and output tokens, agent and model; no cost without llm.prices, a cost with it", () => {
+    const { app, docs } = briefProject({ language: "en" });
+    try {
+      fs.mkdirSync(path.join(docs, "content", "use"), { recursive: true });
+      fs.writeFileSync(path.join(docs, "content", "toc.json"), JSON.stringify({ sections: [{ id: "use", groups: [{ pages: [{ id: "use/orders", template: "screen" }, { id: "use/brandnew", template: "screen" }] }] }] }));
+      fs.writeFileSync(path.join(docs, "content", "use", "orders.md"), "existing content\n");
+
+      const r = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders, use/brandnew", "--var", "referencePage=use/orders", "--estimate"], app);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /^Estimate for writing-batch — agent doc-kit-writer, model sonnet\n/);
+      assert.match(r.out, /^ {2}input: {2}\d+ tokens \(brief \d+ \+ \d+ cited file\(s\) \d+ tokens\)$/m);
+      assert.match(r.out, /^ {2}output: \d+ tokens \(2 page\(s\): 1 new, 1 update\)$/m);
+      assert.match(r.out, /^ {2}total: {2}\d+ tokens$/m);
+      assert.match(r.out, /not estimated \(set llm\.prices\.sonnet/);
+      // No file was written: --estimate never produces a brief file.
+      assert.ok(!fs.existsSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md")));
+
+      // With llm.prices set, the same run reports a cost.
+      fs.writeFileSync(path.join(docs, "doc.config.mjs"), fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8").replace("export default {", 'export default {\n  llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15 } } },'));
+      const r2 = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders, use/brandnew", "--var", "referencePage=use/orders", "--estimate"], app);
+      assert.equal(r2.code, 0, r2.err);
+      assert.match(r2.out, /^ {2}cost: {3}\d+\.\d{4} EUR$/m);
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("a read-only template (inventory, no pages): input tokens only, no output", () => {
+    const { app, docs } = briefProject({ language: "en" });
+    try {
+      const r = brief(["inventory", "--project", docs, "--estimate"], app);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /^Estimate for inventory — agent doc-kit-reviewer, model opus\n/);
+      assert.match(r.out, /^ {2}output: 0 tokens \(no page list to estimate from:/m);
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
+  test("accepted with prices per model, currency optional; rejected without output, or with an unknown key", () => {
+    const base = { product: { name: "Acme Orders" } };
+    const ok = prepareConfig({ ...base, llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } } }, { env: {} });
+    assert.deepEqual(ok.llm, { currency: "EUR", prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } });
+    const noCurrency = prepareConfig({ ...base, llm: { prices: { opus: { input: 15, output: 75 } } } }, { env: {} });
+    assert.equal(noCurrency.llm.currency, null, "no default currency");
+    assert.deepEqual(prepareConfig(base, { env: {} }).llm, { currency: null, prices: {} }, "no price by default: prices change and differ by contract");
+    assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: 3 } } } }, { env: {} }), /KitError|invalid/i, "output is required");
+    assert.throws(() => prepareConfig({ ...base, llm: { bogus: 1 } }, { env: {} }), /KitError|invalid/i, "no unknown key");
+    assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: -1, output: 1 } } } }, { env: {} }), /KitError|invalid/i, "no negative price");
   });
 });

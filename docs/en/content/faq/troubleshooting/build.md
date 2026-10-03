@@ -74,6 +74,41 @@
 - **Fix**: edit the existing file, or choose another id.
 - **Understand**: [Page templates](#/write/page-templates~creating-a-page-doc-kit-new).
 
+## Spaces, facts and sync
+
+### "section “use” has no space" or "unknown space “takeove”"
+
+- **Likely causes**
+  1. `spaces` was just declared, and a section (or a page, or a journey) was not given a `space` yet.
+  2. A typo in a `space` value.
+- **Check**: `spaces` in `content/toc.json` lists the declared ids; the error names the section or the exact id tried.
+- **Fix**: add `"space": "business"` (or the right id) to the section; fix the typo.
+- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+
+### "\"space\" is used but the table of contents declares no \"spaces\""
+
+- **Likely causes**
+  1. A `space` field was copied from another project before `spaces` itself was declared.
+- **Check**: the top of `content/toc.json`.
+- **Fix**: declare `spaces` first, or remove the `space` field.
+- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+
+### "no application to read" from `doc-kit facts` or `doc-kit sync`
+
+- **Likely causes**
+  1. `app.dir` is not set in `doc.config.mjs`.
+- **Check**: `app.dir`, relative to the project, should point at the application's root folder.
+- **Fix**: set it (`init` normally writes it); then run the command again.
+- **Understand**: [Taking over a vibe-coded application](#/spaces/takeover~reading-the-code-automatically-doc-kit-facts).
+
+### "no facts to prefill from: facts/env.json" with `doc-kit new --prefill`
+
+- **Likely causes**
+  1. `doc-kit facts` was never run, or not for the source the type needs.
+- **Check**: the file named in the message, under `paths.facts`.
+- **Fix**: run `doc-kit facts --source <name>` first, then create the page again with `--prefill`.
+- **Understand**: [Cost and speed](#/skill/cost-and-speed~starting-from-the-facts-new-prefill).
+
 ## Configuring
 
 ### "doc.config.mjs › capture.storgae: unknown key"

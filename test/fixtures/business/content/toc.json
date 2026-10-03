@@ -1,0 +1,39 @@
+{
+  "title": "Acme Orders documentation",
+  "tagline": "Business and takeover, one source.",
+  "spaces": ["business", "takeover"],
+  "sections": [
+    {
+      "id": "use",
+      "space": "business",
+      "title": "Using Acme Orders",
+      "shortTitle": "Use",
+      "groups": [
+        {
+          "title": "Approval",
+          "pages": [
+            { "id": "use/approval", "title": "Order approval", "menuTitle": "Approval", "summary": "Large orders wait for a manager.", "template": "feature", "feature": "F-01", "permissions": ["orders:approve"] },
+            { "id": "use/rules", "title": "Business rules", "menuTitle": "Rules", "summary": "Every rule, in one place.", "template": "business-rules" },
+            { "id": "use/proof", "title": "A page that wrongly cites code", "menuTitle": "Proof", "summary": "Deliberately cites a file:line, to test business.technical.", "template": "release-notes" },
+            { "id": "use/screen-with-proof", "title": "A screen page with its proofs", "menuTitle": "Screen", "summary": "Untyped here; a screen page keeps its proofs." }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "space": "takeover",
+      "title": "Taking over Acme Orders",
+      "shortTitle": "Take over",
+      "groups": [
+        {
+          "title": "Technical",
+          "pages": [
+            { "id": "take-over/notes", "title": "Technical notes", "menuTitle": "Notes", "summary": "Where Order lives in the code; cites code on purpose, outside the business space." }
+          ]
+        }
+      ]
+    }
+  ],
+  "suggestions": ["use/approval"]
+}

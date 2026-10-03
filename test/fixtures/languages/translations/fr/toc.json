@@ -1,0 +1,87 @@
+{
+  "title": "Documentation d'Acme Orders",
+  "tagline": "Une source, deux publics : les personnes qui utilisent Acme Orders, et l'équipe qui en reprend la charge.",
+  "spaces": ["business", { "id": "takeover", "subtitle": "Architecture, API et exploitation d'Acme Orders." }],
+  "sections": [
+    {
+      "id": "use",
+      "title": "Utiliser Acme Orders",
+      "shortTitle": "Utiliser",
+      "subtitle": "Le travail au quotidien : la liste des commandes et les réglages du profil.",
+      "highlights": ["La liste des commandes annotée", "Les réglages, étape par étape"],
+      "groups": [
+        {
+          "title": "Prise en main",
+          "pages": [
+            {
+              "id": "use/orders",
+              "title": "La liste des commandes",
+              "menuTitle": "Commandes",
+              "summary": "Filtres, résumé des commandes et le bouton Nouvelle commande."
+            },
+            {
+              "id": "use/orders/detail",
+              "title": "Détail d'une commande",
+              "menuTitle": "Détail",
+              "summary": "Ce qui change une fois qu'une commande a été créée."
+            },
+            {
+              "id": "use/settings",
+              "title": "Réglages du profil",
+              "menuTitle": "Réglages",
+              "summary": "Modifiez votre profil et enregistrez-le."
+            }
+          ]
+        },
+        {
+          "title": "Limites",
+          "pages": [
+            {
+              "id": "use/api-limits",
+              "title": "Limites de l'API des commandes",
+              "menuTitle": "Limites de l'API",
+              "summary": "Quotas et délais, pour l'équipe qui exploite l'API."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "title": "Reprendre Acme Orders",
+      "shortTitle": "Reprendre",
+      "subtitle": "Comment Acme Orders est construit et exploité.",
+      "highlights": ["Architecture en trois blocs", "L'API des commandes"],
+      "groups": [
+        {
+          "title": "Technique",
+          "pages": [
+            {
+              "id": "take-over/architecture",
+              "title": "Architecture d'Acme Orders",
+              "menuTitle": "Architecture",
+              "summary": "Les trois blocs d'Acme Orders et comment ils communiquent."
+            },
+            {
+              "id": "take-over/orders-api",
+              "title": "L'API des commandes",
+              "menuTitle": "API des commandes",
+              "summary": "Les points d'entrée derrière la liste des commandes."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "title": "Découvrir Acme Orders",
+      "description": "Les pages à lire en premier."
+    },
+    {
+      "title": "Reprendre Acme Orders",
+      "description": "De l'architecture à l'API."
+    }
+  ],
+  "suggestions": ["use/orders", "use/settings", "take-over/architecture"]
+}

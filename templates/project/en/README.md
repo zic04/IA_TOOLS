@@ -8,6 +8,11 @@ The documentation site of **{{name}}**, delivered as **a single self-contained H
 
 The engine is **doc-kit**, linked by `package.json`. This folder only holds the content.
 
+This skeleton declares two **spaces**: Business (`use`, `features`, `configure`, `administer` — no code, for
+users, key users and product owners) and Takeover (`take-over` — for whoever runs, secures and evolves the
+application). `doc-kit build` writes the full site plus one export per space, each with the other space
+physically removed. See `standard/structure.md` for the full picture, and the top of `content/toc.json`.
+
 ## Requirements
 
 Node.js 20 or later, then:
@@ -39,6 +44,8 @@ If the browser of `doc-kit view`, `doc-kit check tables` and `doc-kit audit` is 
 | `npm run tables` | `doc-kit check tables` | No table overflows at 1,440 px |
 | `npm run optimize` | `doc-kit optimize` | Recompresses heavy images |
 | `npm run audit` | `doc-kit audit` | Score, maturity level, warnings |
+| `doc-kit facts --source <name>` | | Reads the application's code into `facts/<source>.json` (env, api, db, dependencies, agents, secrets, tests), for the Takeover dossier |
+| `doc-kit sync` | | Reports what the documentation must follow since the last check (`sync.json`); `--mark --all` records today as the last check |
 <!-- doc-kit:capture=app -->
 | `npm run all` | Captures, optimisation, build, every check, audit | The whole chain |
 <!-- doc-kit:capture=none -->
@@ -65,6 +72,15 @@ While writing, `doc-kit build --draft` tolerates the pages not written yet, and 
 6. **Hand over**: `npx doc-kit export <folder>`, and the checklist of the kit's standard (`delivery.md`).
 
 Running `npx doc-kit` with no command starts the guided mode: it suggests the next step.
+
+## Keeping the Takeover dossier current
+
+For the Takeover pages (`access-ownership`, `runbook`, `agent-instructions`, `api-surface`…): run
+`npx doc-kit facts --source <name>` first (env, api, db, dependencies, agents, secrets, tests), fill the
+page's table from the result (`::facts{…}` or by hand), mark non-code claims `[[verified …]]`, `[[deduced]]`
+or `[[unknown]]`. Once the dossier is checked, `npx doc-kit sync --mark --all` records what was checked,
+against which version — the next takeover (or `npx doc-kit sync` without `--mark`) then reports exactly what
+changed since.
 
 <!-- doc-kit:capture=app -->
 ## Captures on production

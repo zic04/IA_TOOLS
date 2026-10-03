@@ -1,0 +1,136 @@
+{
+  "types": {
+    "access-ownership": {
+      "title": { "en": "Access and ownership", "fr": "Accès et propriété" },
+      "sections": {
+        "en": ["In short", "Who owns what", "Secrets and where they live", "Accounts of the AI tools", "Unknown owners", "Handover checklist"],
+        "fr": ["En bref", "Qui possède quoi", "Secrets et où ils vivent", "Comptes des outils IA", "Propriétaires inconnus", "Checklist de passation"]
+      },
+      "required": [0, 1, 4],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/access-ownership.md",
+      "example": "docs/{language}/content/examples/access-ownership.md"
+    },
+    "api-surface": {
+      "title": { "en": "API surface", "fr": "Surface d'API" },
+      "sections": {
+        "en": ["In short", "The routes", "Database access rules", "Public routes", "Gaps"],
+        "fr": ["En bref", "Les routes", "Règles d'accès à la base de données", "Routes publiques", "Manques"]
+      },
+      "required": [0, 1, 4],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/api-surface.md",
+      "example": "docs/{language}/content/examples/api-surface.md"
+    },
+    "runbook": {
+      "title": { "en": "Runbook", "fr": "Manuel d'exploitation (runbook)" },
+      "sections": {
+        "en": ["In short", "Install", "Build", "Deploy", "Roll back", "Scheduled jobs", "Backup and restore", "When it breaks"],
+        "fr": ["En bref", "Installation", "Construction", "Déploiement", "Retour arrière", "Tâches planifiées", "Sauvegarde et restauration", "Quand ça casse"]
+      },
+      "required": [0, 1, 3, 4, 6],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/runbook.md",
+      "example": "docs/{language}/content/examples/runbook.md"
+    },
+    "data-model": {
+      "title": { "en": "Data model", "fr": "Modèle de données" },
+      "sections": {
+        "en": ["In short", "The diagram", "Tables", "Personal data", "Retention", "Processors", "Migrations"],
+        "fr": ["En bref", "Le schéma", "Tables", "Données personnelles", "Conservation", "Sous-traitants", "Migrations"]
+      },
+      "required": [0, 2, 3],
+      "maxWords": 2500,
+      "template": "templates/pages/{language}/data-model.md",
+      "example": "docs/{language}/content/examples/data-model.md"
+    },
+    "dependencies": {
+      "title": { "en": "Dependencies", "fr": "Dépendances" },
+      "sections": {
+        "en": ["In short", "Direct dependencies", "Packages that do not exist", "Licences", "Out of date", "To check"],
+        "fr": ["En bref", "Dépendances directes", "Paquets qui n'existent pas", "Licences", "Obsolètes", "À vérifier"]
+      },
+      "required": [0, 1, 2],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/dependencies.md",
+      "example": "docs/{language}/content/examples/dependencies.md"
+    },
+    "code-map": {
+      "title": { "en": "Code map", "fr": "Carte du code" },
+      "sections": {
+        "en": ["In short", "Context", "Containers", "Components", "Integrations", "Duplicated or dead code"],
+        "fr": ["En bref", "Contexte", "Conteneurs", "Composants", "Intégrations", "Code dupliqué ou mort"]
+      },
+      "required": [0, 1, 2, 3],
+      "maxWords": 2500,
+      "template": "templates/pages/{language}/code-map.md",
+      "example": "docs/{language}/content/examples/code-map.md"
+    },
+    "tests-quality": {
+      "title": { "en": "Tests and quality", "fr": "Tests et qualité" },
+      "sections": {
+        "en": ["In short", "What is tested", "Critical flows", "Tests that test nothing", "How to run them"],
+        "fr": ["En bref", "Ce qui est testé", "Parcours critiques", "Tests qui ne testent rien", "Comment les lancer"]
+      },
+      "required": [0, 1, 2, 4],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/tests-quality.md",
+      "example": "docs/{language}/content/examples/tests-quality.md"
+    },
+    "agent-instructions": {
+      "title": { "en": "Agent instruction files", "fr": "Fichiers d'instructions des agents" },
+      "sections": {
+        "en": ["In short", "The files", "Each rule", "Hidden characters", "What to keep"],
+        "fr": ["En bref", "Les fichiers", "Chaque règle", "Caractères invisibles", "Ce qu'il faut garder"]
+      },
+      "required": [0, 1, 2, 3],
+      "maxWords": 2500,
+      "template": "templates/pages/{language}/agent-instructions.md",
+      "example": "docs/{language}/content/examples/agent-instructions.md"
+    },
+    "adr": {
+      "title": { "en": "Architecture decision record (ADR)", "fr": "Fiche de décision d'architecture (ADR)" },
+      "sections": {
+        "en": ["Status", "Context", "Decision", "Consequences", "How it was reconstructed"],
+        "fr": ["Statut", "Contexte", "Décision", "Conséquences", "Comment elle a été reconstituée"]
+      },
+      "required": [0, 1, 2, 3, 4],
+      "maxWords": 1500,
+      "template": "templates/pages/{language}/adr.md",
+      "example": "docs/{language}/content/examples/adr.md"
+    },
+    "threat-model": {
+      "title": { "en": "Threat model", "fr": "Modèle de menaces" },
+      "sections": {
+        "en": ["In short", "The data flow diagram", "Trust boundaries", "Threats", "Mitigations", "Accepted risks"],
+        "fr": ["En bref", "Le schéma de flux de données", "Frontières de confiance", "Menaces", "Mesures d'atténuation", "Risques acceptés"]
+      },
+      "required": [0, 1, 2, 3],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/threat-model.md",
+      "example": "docs/{language}/content/examples/threat-model.md"
+    },
+    "security-review": {
+      "title": { "en": "Security review", "fr": "Revue de sécurité" },
+      "sections": {
+        "en": ["In short", "Scope and method", "Authentication and sessions", "Access control", "Input handling", "Secrets and configuration", "Dependencies", "HTTP security headers", "Logging and monitoring", "Findings"],
+        "fr": ["En bref", "Périmètre et méthode", "Authentification et sessions", "Contrôle d'accès", "Traitement des entrées", "Secrets et configuration", "Dépendances", "En-têtes de sécurité HTTP", "Journalisation et supervision", "Constats"]
+      },
+      "required": [0, 1, 2, 3, 4, 5, 9],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/security-review.md",
+      "example": "docs/{language}/content/examples/security-review.md"
+    },
+    "maintainability-review": {
+      "title": { "en": "Maintainability review", "fr": "Revue de maintenabilité" },
+      "sections": {
+        "en": ["In short", "Ratings", "Hotspots", "Duplication", "Complexity", "Tests", "Dependencies", "Recommendations"],
+        "fr": ["En bref", "Notes", "Points chauds", "Duplication", "Complexité", "Tests", "Dépendances", "Recommandations"]
+      },
+      "required": [0, 1, 2, 5, 7],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/maintainability-review.md",
+      "example": "docs/{language}/content/examples/maintainability-review.md"
+    }
+  }
+}

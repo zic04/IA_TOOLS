@@ -4,9 +4,9 @@ Ce guide fixe les règles **propres à ce projet**. Les règles communes à tous
 
 | Sujet | Fichier du standard |
 |---|---|
-| Structure du site, pages obligatoires de « Reprendre » | `structure.fr.md` |
-| Les 13 gabarits de page et leurs sections | `templates.fr.md` |
-| Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts, liens, glossaire, constats, schémas | `writing.fr.md` |
+| Les deux espaces (Métier, Reprise), pages obligatoires de Reprise | `structure.fr.md` |
+| Les 28 gabarits de page et leurs sections | `templates.fr.md` |
+| Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts, liens, glossaire, constats, schémas ; écrire dans l'espace Métier ; statut des affirmations ; le registre des risques | `writing.fr.md` |
 <!-- doc-kit:capture=app -->
 | Sécurité et qualité des captures | `captures.fr.md` |
 <!-- doc-kit:end -->
@@ -29,6 +29,7 @@ En cas de désaccord, ce guide l'emporte pour ce projet. Complétez chaque ligne
 <!-- doc-kit:capture=none -->
 7. **Aucune capture** : chaque écran est décrit par un tableau de ses éléments (§3).
 <!-- doc-kit:end -->
+8. **Pas de code dans l'espace Métier** (`utiliser`, `fonctionnalites`, `configurer`, `administrer`) : une page métier ne cite aucune preuve `fichier:ligne` ; renvoyez vers son `counterpart` pour le détail d'implémentation.
 
 ## 2. Sources de vérité
 
@@ -85,3 +86,23 @@ doc-kit view <id-de-page> --theme dark
 <!-- doc-kit:capture=none -->
 `doc.config.mjs`, `content/toc.json`, `content/glossary.json` et `content/home.md` sont gérés de façon centrale : proposez vos modifications (nouvelle page, résumé, terme) au lieu de les éditer en parallèle.
 <!-- doc-kit:end -->
+
+## 8. Le dossier de reprise : faits, puis suivi
+
+Les pages de Reprise (`acces-et-propriete`, `manuel-exploitation`, `instructions-agents`, et tout
+`api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `threat-model` que vous ajoutez)
+suivent un cycle en deux temps :
+
+1. **`doc-kit facts --source <nom>`** lit le code de l'application (noms de variables d'environnement, routes
+   d'API, tables de la base, dépendances, fichiers d'instructions d'agents, secrets, tests) dans
+   `facts/<nom>.json`, **commité** avec ce projet. `::faits{source="…" colonnes="…"}` en fait un tableau au
+   moment du build ; complétez le reste à la main.
+2. Marquez ce que vous n'avez pas pu lire directement : `[[verifie fichier:ligne]]`, `[[deduit …]]`,
+   `[[inconnu]]` (voir `writing.fr.md`).
+3. Une fois le dossier vérifié, **`doc-kit sync --mark --all`** enregistre, dans `sync.json` (également
+   commité), quelles pages ont été vérifiées et contre quelle version de l'application. La prochaine fois que
+   quelqu'un ouvre ce projet, `doc-kit sync` (sans `--mark`) rapporte exactement ce qui a changé depuis — pas
+   une relecture complète.
+
+`facts/` et `sync.json` ne sont jamais dans `.gitignore` : ils sont la mémoire du projet sur ce qui a été
+vérifié, et quand.

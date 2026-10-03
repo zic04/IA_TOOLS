@@ -61,6 +61,21 @@ describe("situation", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("sync.json whose app.version differs from the documented version → sync, offered before the menu", async () => {
+    const dir = demoCopy();
+    try {
+      withSession(dir);
+      fs.writeFileSync(path.join(dir, "sync.json"), JSON.stringify({ generator: "doc-kit 0.1.0", app: { commit: null, version: "9.9.9", date: "2026-10-01" }, pages: {} }));
+      assert.equal((await detectSituation({ project: dir, env: {} })).step, "sync", "1.4.0 (version.txt) ≠ 9.9.9 (sync.json)");
+      fs.writeFileSync(path.join(dir, "sync.json"), JSON.stringify({ generator: "doc-kit 0.1.0", app: { commit: null, version: "1.4.0", date: "2026-10-01" }, pages: {} }));
+      assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "same version: nothing to follow");
+      const r = await cli(["--project", dir, "--json"], {});
+      assert.equal(JSON.parse(r.out).step, "menu");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("no-screenshot mode (capture.mode none)", () => {

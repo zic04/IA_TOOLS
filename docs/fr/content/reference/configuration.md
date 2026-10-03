@@ -27,9 +27,9 @@ export default defineConfig({
 
 | Sous-page | Clés |
 |---|---|
-| [Clés du projet, de la version et de la connexion](#/reference/configuration/project) | `kit`, `product`, `language`, `output`, `paths`, `version`, `env`, `app`, `auth`, `extra` |
+| [Clés du projet, de la version et de la connexion](#/reference/configuration/project) | `kit`, `product`, `language`, `languages`, `output`, `paths`, `version`, `env`, `app`, `auth`, `extra` |
 | [Clés de capture et de masquage](#/reference/configuration/capture) | `capture` et `masking` |
-| [Clés de couverture, de thème et de textes](#/reference/configuration/site) | `coverage`, `theme`, `statuses`, `texts`, `feedback` |
+| [Clés de couverture, de thème et de textes](#/reference/configuration/site) | `coverage`, `theme`, `spaces`, `statuses`, `texts`, `feedback` |
 
 La définition formelle est `schemas/config.schema.json` dans le kit ; cette référence est confrontée à elle par le
 contrôle de couverture de ce site.

@@ -99,6 +99,11 @@ réservez son accès aux personnes qu'autorise le propriétaire.
 > Remplacez `vendor/doc-kit/` par un kit plus récent, puis lancez `npx doc-kit upgrade` pour voir les changements et
 > appliquer les migrations ([Passer à un kit plus récent](#/migrate/upgrade)).
 
+> [!NOTE] Un projet avec des espaces
+> `--with-dist` copie les exports par espace là où `build` les a écrits, en plus du site complet : un dossier de
+> reprise transmis à une équipe n'a jamais besoin que les pages métier en soient retirées à la main
+> ([Deux espaces, une seule source](#/spaces/overview~exporter-la-ou-la-confidentialite-commence-vraiment)).
+
 > [!NOTE] La liste de contrôle de la passation
 > `standard/delivery.fr.md` liste tout ce qu'il faut vérifier avant une passation : contrôles, sécurité, contenu de
 > reprise, export et diffusion, chaque point avec sa preuve.

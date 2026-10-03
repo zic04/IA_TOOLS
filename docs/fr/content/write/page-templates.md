@@ -1,19 +1,24 @@
 ## En bref
 
 Un **gabarit de page** fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y
-a 13 types. Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que ses
-**sections obligatoires** sont présentes, et `doc-kit audit` mesure à quel point elle est complète.
+a **30 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 pour l'espace métier, 12 pour
+l'espace reprise. Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
+ses **sections obligatoires** sont présentes, et `doc-kit audit` mesure à quel point elle est complète.
 
-1. **La source de vérité** est `standard/templates.json` dans le kit : les sections de chaque type en anglais et en
-   français, les index des sections obligatoires, `maxWords`, et quelques variantes de titres acceptées.
+1. **La source de vérité** est `standard/templates.json` dans le kit, plus ses deux fragments,
+   `standard/templates/business.json` et `standard/templates/takeover.json` : les sections de chaque type en
+   anglais et en français, les index des sections obligatoires, `maxWords`, et quelques variantes de titres
+   acceptées.
 2. **Les pages prêtes à remplir** sont `templates/pages/en/<type>.md` et `templates/pages/fr/<type>.md`, avec un
    commentaire de consigne dans chaque section.
-3. **`doc-kit new <id-de-page> --template <type>`** écrit la page à partir du gabarit, dans la langue du projet, et la
-   déclare dans `content/toc.json`.
+3. **`doc-kit new <id-de-page> --template <type> [--prefill]`** écrit la page à partir du gabarit, dans la langue
+   du projet, et la déclare dans `content/toc.json`.
 
 ## Dans cette partie
 
 Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exemples** de ce site.
+
+### Types généraux
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
@@ -31,8 +36,37 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `variables` | Les variables d'environnement | 2 sur 4 | 2 200 | [variables](#/examples/variables) |
 | `resources` | Les ressources du déploiement | 7 sur 9 | 2 200 | [resources](#/examples/resources) |
 
+### Types de l'espace métier
+
+| Type | Pour | Sections obligatoires | `maxWords` | Exemple |
+|---|---|---|---|---|
+| `feature` | Une fonctionnalité de bout en bout | 5 sur 11 | 2 500 | [feature](#/examples/feature) |
+| `business-rules` | Les règles partagées entre fonctionnalités | 2 sur 4 | 3 000 | [business-rules](#/examples/business-rules) |
+| `roles-matrix` | Chaque rôle et ce qu'il peut faire | 3 sur 5 | 2 000 | [roles-matrix](#/examples/roles-matrix) |
+| `process` | La même fonctionnalité, de bout en bout | 4 sur 8 | 2 200 | [process](#/examples/process) |
+| `release-notes` | Un historique de version pour un lecteur métier | 2 sur 3 | 3 000 | [release-notes](#/examples/release-notes) |
+
+### Types de l'espace reprise
+
+| Type | Pour | Sections obligatoires | `maxWords` | Exemple |
+|---|---|---|---|---|
+| `access-ownership` | Qui possède quoi | 3 sur 6 | 2 200 | [access-ownership](#/examples/access-ownership) |
+| `api-surface` | Chaque route, l'authentification et l'isolation | 3 sur 5 | 3 000 | [api-surface](#/examples/api-surface) |
+| `runbook` | Installer, déployer, revenir en arrière, sauvegarder | 5 sur 8 | 3 000 | [runbook](#/examples/runbook) |
+| `data-model` | Tables, données personnelles, migrations | 3 sur 7 | 2 500 | [data-model](#/examples/data-model) |
+| `dependencies` | Dépendances directes, paquets hallucinés | 3 sur 6 | 2 200 | [dependencies](#/examples/dependencies) |
+| `code-map` | Conteneurs, composants, intégrations | 4 sur 6 | 2 500 | [code-map](#/examples/code-map) |
+| `tests-quality` | Ce qui est testé, un test qui ne teste rien | 4 sur 5 | 2 200 | [tests-quality](#/examples/tests-quality) |
+| `agent-instructions` | Les fichiers d'instructions des assistants IA | 4 sur 5 | 2 500 | [agent-instructions](#/examples/agent-instructions) |
+| `adr` | Une décision reconstituée | 5 sur 5 | 1 500 | [adr](#/examples/adr) |
+| `threat-model` | Le schéma de flux de données et les menaces STRIDE | 4 sur 6 | 3 000 | [threat-model](#/examples/threat-model) |
+| `security-review` | La matrice d'accès, les résultats de la sonde, les constats OWASP | 7 sur 10 | 3 000 | [security-review](#/examples/security-review) |
+| `maintainability-review` | Notes, points chauds, recommandations par effort | 5 sur 8 | 2 200 | [maintainability-review](#/examples/maintainability-review) |
+
 Les sections elles-mêmes, type par type, sont listées dans `standard/templates.fr.md`. Les pages de ce site sont
-typées elles aussi : les pages de référence sont `technical`, les pages pratiques `recipe`.
+typées elles aussi : les pages de référence sont `technical`, les pages pratiques `recipe`. Les types métier et
+reprise sont aussi expliqués comme des guides, pas seulement comme un tableau de référence :
+[Documenter chaque fonctionnalité](#/spaces/business) et [Reprendre une application vibe-codée](#/spaces/takeover).
 
 ## Comment une section est reconnue
 
@@ -74,6 +108,7 @@ libellés français n'y comptent pas.
 ```bash
 doc-kit new utiliser/commandes/export --template screen --title "Exporter les commandes"
 doc-kit new utiliser/commandes/export/colonnes --template technical-sub --parent utiliser/commandes/export
+doc-kit new reprendre/deploiement/variables --template variables --prefill
 ```
 
 | Option | Effet |
@@ -81,12 +116,16 @@ doc-kit new utiliser/commandes/export/colonnes --template technical-sub --parent
 | `--template <type>` | Le type ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | `title` et `menuTitle` de l'entrée ; par défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id>` | Déclare une sous-page (`"level": 2`) juste après sa parente et les sous-pages de celle-ci |
+| `--prefill` | Remplit le tableau principal de la page à partir de `doc-kit facts`, pour les cinq types de reprise construits sur une seule source : `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`) |
 
 Sans `--parent`, la page est ajoutée à la fin du groupe dont les pages partagent le plus long préfixe d'id, ou du
 dernier groupe de la section que nomme le premier segment de l'id. Le sommaire est modifié **comme du texte** : son
 indentation et ses fins de ligne sont conservées, et un ancien fichier à clés françaises reçoit des clés dans son
 propre style. Le résumé de l'entrée est un texte provisoire, que `doc-kit audit` signale tant que vous ne l'avez pas
-écrit. Un fichier existant n'est jamais écrasé (code de sortie 1).
+écrit. Un fichier existant n'est jamais écrasé (code de sortie 1). `--prefill` a besoin que `facts/<source>.json`
+existe déjà (`doc-kit facts` d'abord, sinon code de sortie 1) et d'un type qui en a un (sinon code de sortie 2) ;
+il remplit les cellules clés et leur preuve, ligne par ligne, et laisse le reste en consigne — voir
+[Coût et vitesse](#/skill/cost-and-speed~partir-des-faits-new-prefill).
 
 ## Les pages sans type
 

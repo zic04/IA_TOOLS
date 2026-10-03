@@ -4,12 +4,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { spawnSync } from "node:child_process";
 import { createI18n, LANGUAGES } from "../engine/i18n.mjs";
 import { pathToFileURL } from "node:url";
 import { loadProject, readSchema } from "../engine/project/load.mjs";
 import { findProject } from "../engine/project/find.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { build } from "../engine/build/build.mjs";
+import { spaceOutput } from "../engine/build/spaces.mjs";
+import { watchedPaths } from "../engine/dev/server.mjs";
 import { BRAND } from "../engine/brand.mjs";
 
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
@@ -18,15 +21,25 @@ export function createPaint(enabled) {
   return { ok: wrap(32, 39), warn: wrap(33, 39), fail: wrap(31, 39), dim: wrap(2, 22), bold: wrap(1, 22), cmd: wrap(36, 39) };
 }
 
+/** Default `exec` of a context: a real child process, synchronous. `null` when the binary is not found (ENOENT). */
+function defaultExec(bin, args = [], options = {}) {
+  const r = spawnSync(bin, args, { encoding: "utf8", windowsHide: true, maxBuffer: 32 * 1024 * 1024, ...options });
+  return r.error?.code === "ENOENT" ? null : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
+}
+
 /**
  * Execution context of a command.
  * @param {object} globals  global options (--project, --json, --verbose, --lang)
- * @param {{ stdout?, stderr?, env?, stdin?, interactive?: boolean, signal?: AbortSignal, steps?: object, launch?: Function }} [io]
+ * @param {{ stdout?, stderr?, env?, stdin?, interactive?: boolean, signal?: AbortSignal, steps?: object, launch?: Function,
+ *   fetch?: Function, exec?: Function, commit?: Function }} [io]
  *   interactive: questions allowed (default: stdin and stdout are terminals); signal: stops long-running
  *   commands (dev) like Ctrl+C. Test seams (ARCHITECTURE.md §4): steps replaces the follow-up steps of `init`
- *   ({ install, connect, capture }); launch replaces the browser launcher of `capture` and `connect`.
+ *   ({ install, connect, capture }); launch replaces the browser launcher of `capture` and `connect`; fetch
+ *   replaces the network calls of `facts --network`; exec replaces the process launcher of `facts --tools`
+ *   (bin, args, options) => { status, stdout, stderr } | null (null: the binary is not on the PATH); commit
+ *   replaces the read-only git HEAD lookup of `facts` (dir) => string | null.
  */
-export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch } = {}) {
+export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit } = {}) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const ctx = {
     globals,
@@ -36,6 +49,15 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     signal,
     steps: steps ?? null,
     launch: launch ?? null,
+    fetch: fetchImpl,
+    exec,
+    /** (dir) => git HEAD of `dir`, or null (not a repository, git missing, or any error): never throws. */
+    commit:
+      commit ??
+      ((dir) => {
+        const r = exec("git", ["rev-parse", "HEAD"], { cwd: dir });
+        return r && r.status === 0 ? r.stdout.trim() || null : null;
+      }),
     /** Questions can be asked (a person at a terminal). */
     interactive: interactive ?? !!(stdin?.isTTY && stdout?.isTTY),
     /** Colours of the standard output (no-ops when it is not a terminal). */
@@ -119,11 +141,13 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
 
 /**
  * Text of a problem { kind, key, vars }: what is wrong + what to do. A validation problem starts with where it is:
- * file › entry (a capture plan entry: "id (CAPTURES[i])") › path.
+ * file › entry (a capture plan entry: "id (CAPTURES[i])") › path. A problem of a translated language's build pass
+ * (ARCHITECTURE.md §6.12: links, template sections, business refs, captures, the `translation.*` family — every
+ * one of them carries `vars.lang`) starts with "(<lang>) " instead, so that its own text never repeats {lang}.
  */
 export function describeProblem(ctx, p) {
   const prefix = p.kind === "validate" ? "cli.validate." : "cli.build.";
-  const where = p.kind === "validate" ? `${[p.file, p.entry, p.path].filter(Boolean).join(" › ")}: ` : "";
+  const where = p.kind === "validate" ? `${[p.file, p.entry, p.path].filter(Boolean).join(" › ")}: ` : p.vars?.lang ? `(${p.vars.lang}) ` : "";
   return {
     what: where + ctx.t(prefix + p.key, p.vars),
     help: ctx.i18n.has(`${prefix}${p.key}.help`) ? ctx.t(`${prefix}${p.key}.help`, p.vars) : "",
@@ -149,15 +173,58 @@ export function checkDate(date) {
   return date;
 }
 
+/** Newest modification time (ms) under `folders` (recursively) and among `files`, all resolved against `root`;
+ * a missing folder or file is skipped, never an error. mtime-based, not a content hash: good enough to tell a
+ * stale dist/*.html from a fresh one (builtSite), never used as a proof of anything written to the project. */
+function newestMtime(root, { folders = [], files = [] } = {}) {
+  let newest = 0;
+  const bump = (abs) => {
+    try {
+      const t = fs.statSync(abs).mtimeMs;
+      if (t > newest) newest = t;
+    } catch {
+      // missing: not this check's job
+    }
+  };
+  const walk = (abs) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = path.join(abs, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.isFile()) bump(p);
+    }
+  };
+  for (const f of folders) walk(path.resolve(root, f));
+  for (const f of files) bump(path.resolve(root, f));
+  return newest;
+}
+
 /**
- * File of the site to open: the project's output when it exists; otherwise an in-memory draft build written
- * to a temporary file, to be removed with `release()`.
+ * File of the site to open: the project's output when it exists AND is at least as recent as every source
+ * (content, translations, images, diagrams, facts, doc.config.mjs — the same folders `dev` watches, plus
+ * `paths.facts`); otherwise an in-memory draft build written to a temporary file, to be removed with
+ * `release()`. With `space` (checked by the caller), the export of that space (ARCHITECTURE.md §6.1a) instead
+ * of the full site. `requireExisting` (open: never silently build a first site): `site.missing` when the
+ * output does not exist at all, instead of building a draft — a stale-but-existing output still rebuilds.
  */
-export async function builtSite(ctx) {
+export async function builtSite(ctx, { space, requireExisting = false } = {}) {
   const { project, config } = await ctx.loadProject();
-  const output = path.resolve(project.root, config.output);
-  if (fs.existsSync(output)) return { file: output, release() {} };
-  const r = build({ project, config, options: { draft: true } });
+  const full = path.resolve(project.root, config.output);
+  const output = space ? spaceOutput(project.root, config, space, full) : full;
+  const exists = fs.existsSync(output);
+  if (!exists && requireExisting) throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });
+  if (exists) {
+    const { folders, files } = watchedPaths(config);
+    const sources = newestMtime(project.root, { folders: [...folders, config.paths.facts], files });
+    if (sources <= fs.statSync(output).mtimeMs) return { file: output, release() {} };
+  }
+  const built = build({ project, config, options: { draft: true, ...(space ? { space } : {}) } });
+  const r = space ? { ...built, html: built.html && built.sites[0] ? built.sites[0].html : null } : built;
   if (!r.html) {
     ctx.printProblems(r);
     throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });

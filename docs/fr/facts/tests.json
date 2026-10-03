@@ -1,0 +1,14 @@
+{
+  "source": "tests",
+  "generator": "doc-kit 0.1.0",
+  "generated": "2026-09-30T09:00:00.000Z",
+  "commit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+  "app": "../../..",
+  "summary": { "files": 4, "tests": 46, "coverage": 61.4 },
+  "items": [
+    { "file": "lib/services/approvalService.test.ts", "tests": 9 },
+    { "file": "lib/services/searchService.test.ts", "tests": 6 },
+    { "file": "jobs/invoiceJob.test.ts", "tests": 4 },
+    { "file": "jobs/reminderJob.test.ts", "tests": 1 }
+  ]
+}

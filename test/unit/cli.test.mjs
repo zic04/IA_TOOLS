@@ -2,9 +2,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { runCli, COMMANDS } from "../../cli/doc-kit.mjs";
+import { createContext, builtSite } from "../../cli/common.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 
 /** Runs the CLI and captures its output. */
@@ -62,7 +64,7 @@ describe("dispatching", () => {
     assert.equal(unknown.code, 2);
     assert.match(unknown.err, /^✖ unknown command: nope\n {2}→ available commands: /);
     // Every command of the contract is delivered.
-    for (const c of ["init", "doctor", "connect", "demo", "capture", "build", "dev", "new", "check", "audit", "inventory", "view", "open", "optimize", "migrate", "export", "upgrade", "skill"])
+    for (const c of ["init", "doctor", "connect", "demo", "capture", "build", "dev", "new", "check", "audit", "inventory", "facts", "view", "open", "optimize", "migrate", "export", "upgrade", "skill"])
       assert.ok(unknown.err.includes(c), c);
     assert.equal((await cli(["build", "--nope"])).code, 2);
     assert.equal((await cli(["build", "--width", "10", "--project", DEMO])).code, 2);
@@ -110,10 +112,19 @@ describe("build", () => {
       const out = path.join(dir, "site.html");
       const r = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^✔ .*site\.html — 0\.\d MB · 4 pages · 2 screenshots · 5 annotated elements · 1 diagram\n$/);
+      // Two spaces (ARCHITECTURE.md §6.1a): the full site, then one export per space (warnings on stderr; the
+      // last export's own summary line also carries their count).
+      assert.match(
+        r.out,
+        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-business\.html — 0\.\d MB · 7 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-takeover\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings\n$/
+      );
+      assert.match(r.err, /⚠ export “business”: 2 links to another space replaced by their text\n⚠ export “takeover”: 4 links to another space replaced by their text\n/);
       // Sizes with the decimal comma of the language, each noun in the plural form of its number.
       const fr = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out + "-fr", "--lang", "fr"]);
-      assert.match(fr.out, /^✔ .*site\.html-fr — 0,\d Mo · 4 pages · 2 captures · 5 éléments annotés · 1 schéma\n$/);
+      assert.match(
+        fr.out,
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-business\.html-fr — 0,\d Mo · 7 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-takeover\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 1 schéma · 2 avertissements\n$/
+      );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);
       assert.equal(dataOf(html).meta.date, "January 1, 2026");
@@ -168,7 +179,9 @@ describe("build", () => {
       const draft = await cli(["build", "--project", dir, "--output", out, "--draft"]);
       assert.equal(draft.code, 0);
       assert.match(draft.err, /⚠ page not written yet: use\/settings/);
-      assert.match(draft.out, / · 1 warning\n$/);
+      // 3, not 1: the two spaces (ARCHITECTURE.md §6.1a) already exclude 2 cross-space links on every build of
+      // this demo (see the "writes the site" test above); this page going missing adds its own warning on top.
+      assert.match(draft.out, / · 3 warnings\n$/);
       assert.match(fs.readFileSync(out, "utf8"), /Page being written/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -181,7 +194,9 @@ describe("build", () => {
       const r = await cli(["build", "--project", DEMO, "--json", "--output", path.join(dir, "x.html")]);
       const j = JSON.parse(r.out);
       assert.equal(j.ok, true);
-      assert.equal(j.stats.pages, 4);
+      assert.equal(j.stats.pages, 11);
+      // Two spaces (ARCHITECTURE.md §6.1a): one export per declared space, besides the full site above.
+      assert.deepEqual(j.sites.map((s) => s.space), ["business", "takeover"]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -220,6 +235,65 @@ describe("check links, migrate, open", () => {
       const r = await cli(["open", "use/orders", "--project", dir], { DOC_KIT_NO_OPEN: "1" });
       assert.equal(r.code, 0);
       assert.match(r.out, /^Opening file:\/\/\/.*Acme-Orders-Documentation\.html#\/use\/orders\n$/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("builtSite (view/open, cli/common.mjs): a dist/*.html older than a project source (content, images, diagrams, translations, facts, config) is rebuilt as a temporary draft, never reused stale", async () => {
+    const dir = demoCopy();
+    try {
+      assert.equal((await cli(["build", "--project", dir])).code, 0);
+      const distFile = path.join(dir, "dist", "Acme-Orders-Documentation.html");
+      const builtAt = fs.statSync(distFile).mtimeMs;
+      const ctx = createContext({ project: dir });
+      await ctx.loadProject();
+
+      // Unchanged since the build: the persisted dist file itself is reused, release() is a no-op.
+      const fresh = await builtSite(ctx);
+      assert.equal(fresh.file, distFile);
+      fresh.release();
+      assert.ok(fs.existsSync(distFile), "release() of the real output must never delete it");
+
+      // A content source changed after the build: made unmistakably newer, whatever the filesystem's mtime
+      // resolution.
+      const page = path.join(dir, "content", "use", "orders.md");
+      fs.appendFileSync(page, "\n\nSTALE-MARKER-9f3\n");
+      fs.utimesSync(page, new Date(builtAt + 60000), new Date(builtAt + 60000));
+
+      const stale = await builtSite(ctx);
+      try {
+        assert.notEqual(stale.file, distFile, "a fresh temporary draft, never the stale dist file");
+        assert.ok(path.resolve(stale.file).startsWith(path.resolve(os.tmpdir())), stale.file);
+        assert.ok(fs.readFileSync(stale.file, "utf8").includes("STALE-MARKER-9f3"), "rebuilt from the changed source");
+        assert.ok(!fs.readFileSync(distFile, "utf8").includes("STALE-MARKER-9f3"), "the stale dist file on disk is untouched");
+      } finally {
+        stale.release();
+      }
+      assert.ok(!fs.existsSync(stale.file), "release() removes the temporary draft");
+
+      // requireExisting (open): a missing output is never silently drafted.
+      fs.rmSync(distFile);
+      await assert.rejects(() => builtSite(ctx, { requireExisting: true }), (e) => e.key === "site.missing");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("open: prints the address (DOC_KIT_NO_OPEN); a stale dist/*.html is rebuilt and opened from a temporary file instead of the stale one", async () => {
+    const dir = demoCopy();
+    try {
+      assert.equal((await cli(["build", "--project", dir])).code, 0);
+      const distFile = path.join(dir, "dist", "Acme-Orders-Documentation.html");
+      const builtAt = fs.statSync(distFile).mtimeMs;
+      const page = path.join(dir, "content", "use", "orders.md");
+      fs.utimesSync(page, new Date(builtAt + 60000), new Date(builtAt + 60000));
+
+      const r = await cli(["open", "use/orders", "--project", dir, "--json"], { DOC_KIT_NO_OPEN: "1" });
+      assert.equal(r.code, 0, r.err);
+      const opened = fileURLToPath(JSON.parse(r.out).url.split("#")[0]);
+      assert.notEqual(opened, distFile);
+      assert.ok(!fs.existsSync(opened), "DOC_KIT_NO_OPEN: cleaned up right away, nothing left behind");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

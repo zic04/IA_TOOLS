@@ -7,8 +7,13 @@ avec quelques extensions, dans `content/<id-de-page>.md`. La page n'a pas de tit
 2. **Des directives d'une ligne** : `::capture`, `::schema` et `::avant-apres`.
 3. **Des encadrés** : `> [!ASTUCE]`, `> [!ATTENTION]`, `> [!ERREUR]`, `> [!DROITS]`, `> [!NOTE]`, `> [!RECETTE]`,
    `> [!MECANISME]`.
-4. **Des badges en ligne** : `[[droit …]]`, `[[menu …]]`, `[[touche …]]`, `[[statut …]]`, `[[route …]]`.
+4. **Des badges en ligne** : `[[droit …]]`, `[[menu …]]`, `[[touche …]]`, `[[statut …]]`, `[[route …]]`, et ceux de
+   l'espace métier, `[[fonctionnalite …]]`, `[[regle …]]`.
 5. **Des liens internes** : `#/id-de-page` et `#/id-de-page~ancre`, vérifiés par le build.
+6. **L'espace métier** (§6.8) : un bloc avec un corps, `:::regle`, et des tableaux générés, `::fonctionnalites`,
+   `::regles`, `::roles`.
+7. **L'espace reprise technique** (§6.9) : `::faits` (un tableau à partir de `facts/<source>.json`) et les puces
+   d'affirmation `[[verifie …]]`, `[[deduit …]]`, `[[inconnu …]]`.
 
 Chaque extension a une graphie française et une graphie anglaise ; les deux sont acceptées dans tout projet, quelle
 que soit sa langue.
@@ -118,6 +123,72 @@ Un type inconnu (`[!DANGER]`) est un avertissement du build, et la citation est 
   hexadécimale, et son libellé) ; sinon il affiche `x` dans un badge neutre.
 - `[[route …]]` accepte des crochets à l'intérieur (`/orders/[id]`). Le contrôle de couverture trouve une route
   n'importe où dans le texte des pages, dans un badge ou non.
+
+## Espace métier
+
+L'espace métier (ARCHITECTURE.md §6.8) décrit chaque fonctionnalité pour les personnes qui l'utilisent, en décident
+ou la soutiennent : aucun code, aucun `file:line`.
+
+| Français | Anglais | Ce que ça fait |
+|---|---|---|
+| `:::regle{id="RG-01" titre="…"}` … `:::` | `:::rule{id="BR-01" title="…"}` … `:::` | Définit une règle métier une seule fois : un énoncé, puis un exemple « Étant donné / Quand / Alors ». Rendu comme un `h3` (l'id en minuscules), donc présent dans le plan de la page, l'index de recherche et comme cible de lien. |
+| `[[fonctionnalite F-01]]` | `[[feature F-01]]` | Une puce-lien vers la fiche dont le champ `feature` (`content/toc.json`) correspond. |
+| `[[regle RG-01]]` | `[[rule BR-01]]` | Une puce-lien vers l'endroit où la règle est définie. |
+| `::fonctionnalites{}` | `::features{}` | Un tableau de chaque fiche de fonctionnalité : id, fonctionnalité (liée), résumé, qui (ses droits). |
+| `::regles{}` | `::rules{}` | Un tableau de chaque règle : id (lié), règle, définie dans (lié), citée par. |
+| `::roles{}` | `::roles{}` (même graphie) | Un tableau des droits de chaque fiche de fonctionnalité, une ligne par fiche, `✔` où un droit la débloque. |
+
+```markdown
+:::regle{id="RG-12" titre="Une commande au-dessus du seuil attend un responsable"}
+Une commande dont le total atteint ou dépasse le seuil ne peut pas être expédiée avant qu'un responsable de sa
+région ne la valide.
+
+**Exemple.** **Étant donné** une commande de 12 000 €, **quand** l'acheteur la soumet, **alors** elle attend un responsable.
+:::
+```
+
+Une citation et un tableau généré ne se résolvent qu'une fois que chaque page du build a été rendue, donc une règle
+peut être définie sur une page plus loin dans le sommaire que celle qui la cite ; de même pour une fiche de
+fonctionnalité. Un id inconnu (`feature.unknown`, `rule.unknown`) fait échouer un build strict ; une règle sans `id`
+ni `titre` (`rule.attributes`) ou définie deux fois (`rule.duplicate`) aussi.
+
+Une page déclare son propre identifiant de fonctionnalité avec le champ `feature` de `content/toc.json` (seulement
+sur une page de gabarit `feature` ; une fiche par id, `feature.duplicate` sinon). `doc-kit inventory --features
+[--write] [--force]` ([Commandes : démarrer et capturer](#/reference/cli/start-capture~doc-kit-inventory)) suggère
+des fonctionnalités candidates à partir de ce que voient les adaptateurs de couverture, regroupées par le premier
+segment statique de leurs routes, routes API ou clés i18n.
+
+Le champ `technical` d'un terme du glossaire (où il vit dans le code) n'apparaît dans sa bulle que si le projet n'a
+pas d'espaces, ou que l'espace courant est `takeover` ou « tout » ([Glossaire](#/write/glossary)) ; les exports
+autres que `takeover` le retirent.
+
+[Exemple · Fiche de fonctionnalité](#/examples/feature), [Exemple · Règles métier](#/examples/business-rules) et
+[Exemple · Matrice des rôles](#/examples/roles-matrix) montrent chaque élément de cette section dans une vraie page.
+
+## Espace reprise technique
+
+L'espace reprise technique (ARCHITECTURE.md §6.9) est le dossier dont une équipe a besoin pour reprendre une
+application : chaque affirmation s'appuie sur une preuve (`file:line`), ou est marquée déduite ou inconnue.
+
+| Français | Anglais | Ce que ça fait |
+|---|---|---|
+| `::faits{source="…" colonnes="…"}` | `::facts{source="…" columns="…"}` | Un tableau à partir de `facts/<source>.json`, écrit par `doc-kit facts` : une ligne par élément, une colonne par clé listée (en-tête traduit quand il est connu), les listes jointes par des virgules, les booléens `✔` / `—`. Une légende donne la date de génération et le commit de l'application. |
+| `[[verifie …]]` | `[[verified …]]` | Une petite puce : l'affirmation a été vérifiée directement dans le code. Le texte après le mot est facultatif : un simple `[[verifie]]`, ou `[[verifie lib/orders.ts:42]]` avec sa preuve. |
+| `[[deduit …]]` | `[[deduced …]]` | L'affirmation découle de ce qui a été lu, sans vérification directe ligne par ligne. |
+| `[[inconnu …]]` | `[[unknown …]]` | Personne n'a pu le dire, dans le temps disponible pour la reprise. |
+
+```markdown
+::faits{source="api" colonnes="method,route,file"}
+
+La route accepte tout utilisateur connecté, de n'importe quelle région ([[verifie lib/orders.ts:42]]) ; si tous les
+appelants passent bien par elle d'abord est [[inconnu]].
+```
+
+Une source inconnue (`facts.missing`) ou une colonne qu'aucun élément ne possède (`facts.column`) fait échouer un
+build strict ; lancez d'abord `doc-kit facts`. [Commandes : écrire et vérifier](#/reference/cli/write-check~doc-kit-facts)
+liste les sept sources. Les dix types de pages de reprise ([Les gabarits de page](#/write/page-templates)) sont
+construits autour de ces deux syntaxes : [Exemple · Surface d'API](#/examples/api-surface), [Exemple ·
+Dépendances](#/examples/dependencies) et les autres exemples de l'espace reprise les montrent dans une vraie page.
 
 ## Liens
 

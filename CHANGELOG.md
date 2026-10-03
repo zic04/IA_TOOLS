@@ -6,9 +6,48 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
-Fixes for the frictions found by a pilot run on a real application with a separate front end and no screenshots.
+Fixes for the frictions found by a pilot run on a real application with a separate front end and no screenshots, and
+the first lot of the spaces (one source, one site per audience).
 
 ### Added
+
+- **`capture.sessionRefresh`** (ARCHITECTURE.md §6.3a): the only declared exception to the read-only lock, for a
+  short-lived session that renews itself through a `POST`. `{ method?: "POST", path, json?, reason }`, `reason` at
+  least 20 characters (the application owner's written decision that the endpoint writes nothing else); default
+  `null`. Before each session-based `capture` run, and only then, `refreshSession` (`engine/capture/session.mjs`)
+  sends this one request outside any page and writes the response's cookies back to the session file; every
+  request a page itself makes still stays `GET`/`HEAD`/`OPTIONS`. A failure is a warning
+  (`cli.capture.sessionRefreshFailed`), not fatal: the session check that follows decides. Success prints
+  `cli.capture.sessionRefreshed` before the captures start.
+- **Spaces** (ARCHITECTURE.md §6.1a): `content/toc.json` may declare `spaces` (`"business"`, `"takeover"`, or objects
+  `{ id, title, shortTitle, subtitle, icon, for }`); every section then names its `space`, a page or a journey may name
+  another one. `business` and `takeover` have default texts in English and French and a default icon. The build
+  checks the declaration (`space.missing`, `space.unknown`, `space.undeclared`, `space.duplicate`, `space.title`: errors
+  that stop even a draft build; `space.empty`: a warning).
+- **Space selector in the site**: "Everything" and one button per space in the top bar (`aria-pressed`; at the head of
+  the side menu below 1080 px); `#/@<id>` opens the home page of a space; the current space is remembered
+  (`<theme key>.space`) and follows the page shown. With a space current, the top and side menus, previous / next,
+  the home page doors and journeys, the search suggestions and the full print show that space only; the search lists
+  its results first, then "In {space} (n)" for the others. The home page shows one door per space in "everything"
+  mode, a "You are reading" strip otherwise; a page shows a space badge, and its breadcrumb starts with the space.
+- **One file per space**: `build` also writes, for each space, an export from which the other spaces are physically
+  removed (pages, sections, search entries, journey steps counted as "+ n steps in another part of the
+  documentation", images; statistics recounted); a link to another space becomes its text followed by "(see the
+  {space} documentation)" (warning `space.excludedLinks`). New configuration key `spaces: { export, output }`
+  (`output` must contain `{space}`, key `spaceOutput`); default: the output with `-<space>` before its extension.
+- **`--space <id>`** for `build` (that export alone; `--output` then names it), `view` and `open`; an unknown id
+  (with the closest one) or no space declared is a usage error (exit code 2). `build --json` adds
+  `sites: [{ space, output, stats, excludedLinks }]`. `dev` serves each export at `/space/<id>` too, and
+  `export --with-dist` copies the exports wherever they are written.
+- **`counterpart`** on a page (`"<page id>[~anchor]"`, with or without spaces): one line under the page badges,
+  "Same topic, for {space}: {title} →" or "Related: {title} →"; checked like an internal link (`link.counterpart`,
+  `link.anchor`), also by `check links`; removed from an export that does not hold its target.
+- **Audit by space**: with a `takeover` space, the takeover pages are the pages of that space; with spaces, `audit.md`
+  shows a table "Level by space" and `audit.json` carries `spaces: [{ id, title, pages, level, indicators, criteria }]`
+  (page indicators measured on the pages of the space, `written2`, `takeover4` and `proofs4` n/a where they do not
+  apply).
+- Legacy French keys `espaces`, `espace` and `pendant` are read as `spaces`, `space` and `counterpart`.
+- New i18n fragment `i18n/<language>/spaces.json`.
 
 - **Help of a command**: `doc-kit <command> --help` and `doc-kit help <command>` print the usage and every option of
   that command, in the language of the messages (`cli.help.*`, fragment `i18n/<language>/help.json`).
@@ -55,9 +94,183 @@ Fixes for the frictions found by a pilot run on a real application with a separa
   the coverage "with the pages not written yet" next to `coverage` and names the page in the coverage action.
 - **`audit` says how many pages remain to write**: "Pages: 1 written of 81 — 80 to write (72 without a file, 8 still
   in template guidance)" in the summary; `written` carries `missing` and `drafts` in `audit.json` and in the report.
+- **Business space** (ARCHITECTURE.md §6.8): five page types (`feature`, `business-rules`, `roles-matrix`, `process`,
+  `release-notes`), templates and examples in English and French. `:::rule{id title}` (`:::regle`) defines a
+  business rule once, rendered as an `h3` so it is in the page outline, the search index and a link target;
+  `[[feature …]]` (`[[fonctionnalite …]]`) and `[[rule …]]` (`[[regle …]]`) cite a feature sheet or a rule as a link
+  chip; `::features{}`, `::rules{}` and `::roles{}` (`::fonctionnalites{}`, `::regles{}`) generate their tables.
+  Citations and the generated tables are resolved once every page has rendered (`engine/build/business.mjs`), so a
+  rule may be defined on a page further down the table of contents than the page that cites it. A page declares its
+  feature id with the `feature` field of `content/toc.json` (`feature.template`, `feature.duplicate`,
+  `feature.noId`, `feature.unknown`, `rule.duplicate`, `rule.attributes`, `rule.unknown`); a business page that
+  cites a `file:line` proof gets the warning `business.technical`.
+- **Glossary `technical`** (§6.8): an entry may carry `technical` (where the term lives in the code), shown in its
+  tooltip when the project has no spaces, or the current space is `takeover` or "everything"; dropped from the
+  exports other than `takeover`.
+- **`doc-kit inventory --features [--write] [--force]`**: groups what the coverage adapters see into candidate
+  features (by the first static segment of a route, an API route or an i18n key), each with a suggested id, its
+  routes, API routes and keys, and the sheet that already cites it, if any; `--write` writes `features.json`
+  (refused when it exists, exit code 1, unless `--force`, which keeps the existing ids and appends the new
+  candidates).
+- **Coverage adapters `openapi`** (an OpenAPI 3 or Swagger 2 document, JSON only; a `.yaml`/`.yml` file answers
+  `reason: "yaml"`) **and `features`** (the entries of `features.json`).
+- New i18n fragment `i18n/<language>/business.json`.
+- **Takeover space** (ARCHITECTURE.md §6.9): ten page types for the team that takes an application over
+  (`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`,
+  `agent-instructions`, `adr`, `threat-model`), templates and examples in English and French, and `findings`
+  becomes a risk register (a combined "Follow-up" column: owner, decision, status, due date).
+- **`doc-kit facts [--source <name>]… [--network] [--tools] [--json]`**: reads the application's code (`app.dir`)
+  and writes one file per source into `paths.facts` (`facts/<source>.json`, default folder `facts`), never into the
+  application: `dependencies` (every package.json, package-lock.json v2/v3, pnpm-lock.yaml, yarn.lock v1 and
+  berry, requirements*.txt, poetry.lock and pyproject.toml found under the application, searched recursively, at
+  most 4 folders deep — a separate front end and API, each with its own manifest, is the usual case; each manifest
+  is read on its own, so the same package named by two manifests gives two items, de-duplicated by name for
+  coverage), `env` (names read by the code and by an example env file, never a value; besides the literal
+  `process.env`/`os.environ` forms, also a Node destructuring read, `const { X, Y } = process.env`, and a
+  pydantic settings class, `BaseSettings` v1 or v2, with its `env_prefix` and the `alias`/`validation_alias`/`env`
+  overrides), `api` (Next.js App Router route handlers, `pages/api`, FastAPI with `APIRouter`/`include_router`
+  prefix composition, Express), `db` (Prisma, SQLAlchemy, SQL migrations with row-level security and policies),
+  `agents` (AGENTS.md and the other instruction files, their size, and any hidden Unicode character), `secrets`
+  (file and rule only, never the value) and `tests` (a rough count per file, and a coverage report when one
+  exists). `--network` adds, for `dependencies`, whether each direct package exists in its registry (the name
+  only); `--tools` also runs `gitleaks` (scrubbed of `Secret`/`Match`), `osv-scanner`, `syft` and `knip` when they
+  are on the PATH, each into `facts/tool-<name>.json`. Same code, same application: the same file, `generated`
+  aside. Exit code 2 without `app.dir` (`facts.noApp`).
+- **`::facts{source="…" columns="…"}`** (`::faits{… colonnes="…"}`): a table built from a facts file at build time,
+  with a caption giving the generation date and the application's commit; an unknown source or column fails a
+  strict build (`facts.missing`, `facts.column`).
+- **Claim badges `[[verified]]`, `[[deduced]]`, `[[unknown]]`** (`[[verifie]]`, `[[deduit]]`, `[[inconnu]]`), with
+  or without a `file:line` proof.
+- **Coverage adapters `fastapi`** (one item per route handler, sharing the parsers of `engine/facts/api.mjs`) **and
+  `facts`** (one item per fact of a source that is worth citing: `env`, `api`, `db`, the direct `dependencies`, or
+  `agents`; `{ available: false, reason: "noFacts" }` when the file is missing); **`next-app-router` gains the
+  `api` option** (a second family of route handlers, no change when it is left out).
+- **`audit`**: two informative indicators, never part of a criterion — `facts` (`{ files, stale }`: a facts file is
+  stale when its `commit` differs from the application's current HEAD) and `claims` (verified, deduced and unknown
+  claims tallied on the written takeover pages, with the verified ratio); shown in `audit.md` under "Facts and
+  claims" when there is something to show, and always in `audit.json`.
+- `paths.facts` (default `"facts"`).
+- New i18n fragment `i18n/<language>/takeover.json`.
+- **Agent economy** (ARCHITECTURE.md §6.11): three Claude Code agent types (`skill/doc-kit/agents/*.md`) —
+  `doc-kit-triage` (`haiku`, read-only), `doc-kit-writer` (`sonnet`, reads and writes), `doc-kit-reviewer`
+  (`opus`, read-only) — installed by `skill install` into `<skills folder>/../agents/` and reported by `doctor`
+  like the skill (current, missing, outdated, modified). Every brief template now starts with a front matter
+  line `agent: <type>` and is split in two: a common part first (rules, safety, syntax, standard — identical
+  byte for byte whatever the variables, so a wave's agents share their prompt cache) and a variable part last
+  (batch, pages, paths); new briefs `triage` and `update` (English and French), built on `doc-kit context
+  <page> --update` and `.doc-kit/sync-report.json`. `brief.mjs` reports the agent type to launch with, and
+  `--estimate` gives input tokens (the brief and the files it cites, characters ÷ 4) and output tokens (1.4 per
+  word of a new page's `maxWords`, 0.3 for an update), with the cost when `llm.prices` is set. New
+  `skill/doc-kit/scripts/usage.mjs` (`log`, `report [--json]`, `scan --transcripts <folder>`, tolerant of
+  anything but `message.usage`) measures what the agents actually consumed and compares it with a fresh
+  estimate. The context file's header also gives the product (`product.name`) and the documented version
+  (`readProjectVersion`). `writing-batch` and `update` rewritten to a **sober method**: the context file and the
+  page's own template only, at most 3 extra targeted reads per page for a writer (1 for an update), the page
+  written once, one `build --draft` per batch, `view` only with screenshots — an agent over this step budget
+  stops and reports instead of exploring. Measured on a real application (FastAPI + Next.js, 81 pages, nine
+  admin pages): −69 % cost, −49 % duration, 47 → 21 round-trips versus the previous brief, same conformance
+  (details: `references/agent-orchestration.md` §8 of the skill, `docs/*/content/skill/cost-and-speed.md`).
+- **`doc-kit sync [--since <ref>] [--apply [--labels]] [--mark <page…> | --all] [--sources <file[:lines]…>]
+  [--date YYYY-MM-DD] [--check] [--estimate]`** (ARCHITECTURE.md §6.10): what the documentation must follow
+  after a change of the application. `--mark`/`--all` record, in `sync.json` (`paths.sync`, default the project
+  root), each page's dependencies — the files behind its `routes` (derived for `next-app-router`, `react-router`,
+  `fastapi` and `glob` without changing the adapters, `engine/sync/routes.mjs`), the local import closure of
+  those files (`engine/sync/imports.mjs`: relative paths, `tsconfig`/`jsconfig` `paths` aliases, Python relative
+  and absolute imports; bounded to 3 levels and 200 files), its `file:line` proofs, its captures, its `::facts`
+  tables, its `counterpart` and its declared `sources` (new optional page field) or `--sources`. The report
+  (default; writes `.doc-kit/sync.md`, `.doc-kit/sync-report.json`, one `.doc-kit/sync/<page>.diff` per page)
+  compares this reference with the application now, or with a git commit (`--since`, read only): proofs moved or
+  broken, labels whose value changed (`sync.labels`, or the `messages` of the `i18n-registry` adapters), pages to
+  review by priority (`direct`, `shared`, `probablyIntact` — a shared file changed but its diff touches nothing
+  the page names), stale screenshots, new or removed coverage elements, and pages never marked. `--apply` rewrites
+  a moved proof's `file:line` and, with `--labels`, a changed label — only inside `**bold**`, code spans,
+  `[[menu …]]` badges and quotes — then restamps the pages left unchanged; `--check` gives CI a gate (exit code 1
+  on anything but `unchanged`/`unmarked`); `--estimate` prices the pages to review (`llm.prices`). A marked page's
+  footer shows "Checked against version {version} on {date}" (`ui.footer.verified`); `audit` gains the
+  informative `upToDatePages` indicator; the guided mode offers `sync` before the menu when `sync.json`'s
+  `app.version` differs from the documented one. New configuration keys `paths.sync`, `sync: { labels }`,
+  `capture.compareThreshold` and `llm: { currency, prices }` (read by `--estimate`); new i18n fragment
+  `i18n/<language>/sync.json`.
+- **Skill**: `SKILL.md` reorganised around the business and takeover spaces, the `facts` → `sync` → `triage` →
+  `update` maintenance cycle, and the economy of the agents (ARCHITECTURE.md §8, §6.11); new briefs
+  `functional-spec` (feature sheets, business rules, roles matrix, process; `doc-kit-writer`), `code-health`
+  (the takeover dossier's `api-surface`, `dependencies`, `agent-instructions`, `tests-quality` and
+  `threat-model` from `doc-kit facts`; `doc-kit-reviewer`), `access-ownership` (who owns what, and the
+  questions for the owner; `doc-kit-writer`) and `system-dossier` (`runbook`, `data-model`, `code-map` and
+  `adr` — install/build/deploy/rollback commands checked in the repository, the data model from
+  `new --prefill` and `facts/db.json`, a C4-style code map, reconstructed ADRs; `doc-kit-writer`), in English
+  and French, with the same byte-identical common part guarantee as the existing briefs; `writing-batch`,
+  `journey`, `troubleshooting` and `production-technical` now prepare each page with `doc-kit context <page>`
+  instead of the whole inventory and end it with `sync --mark <page> --sources …`.
+  `references/pitfalls.md` gains a "Vibe-coded applications" section (missing or client-only access control,
+  no row-level security, secrets, slopsquatting, duplicated code, misleading tests, agent instructions as a
+  hidden specification, outdated dependencies, no account owner); `references/templates.md` documents the 28
+  page types; `references/method.md` details both spaces, the full takeover dossier and the update cycle. New
+  computed brief placeholders `{{featuresFile}}` and `{{factsDir}}`.
+- **Documentation**: five new guides, in English and French, as a new "Spaces" section (`spaces/overview`,
+  `spaces/business`, `spaces/takeover`) plus `publish/sync` ("Keeping up with the application") and
+  `skill/cost-and-speed`; `write/page-templates`, `method/standard`, `faq/questions`,
+  `faq/troubleshooting/build` and `skill/phases` updated for the 28 page types, the two spaces and the agent
+  economy; 8 new glossary terms (space, space export, feature sheet, business rule, fact, verified claim, sync
+  reference, context folder). `start/first-five-minutes` now describes the real two-space skeleton (27 files,
+  the sample `features/example-feature` and its technical `counterpart`); `publish/audit` documents
+  `upToDatePages`, "Level by space" and the informative `facts`/`claims` section; `publish/checks` documents the
+  `openapi`, `features`, `facts` and `fastapi` coverage adapters, `next-app-router`'s `api` option, and the
+  build-time gates specific to spaces and the business/takeover types (`space.*`, `feature.*`, `rule.*`,
+  `facts.*`, `business.technical`, `link.counterpart`); `reference/adapters` gained the missing `api`/`apiFamily`
+  options of `next-app-router`.
+- **Standard and skeleton**: `structure` rewritten around the two spaces (Business: Use, Features, Administer,
+  Process; Takeover: Understand, Operate, Secure, Risks, Maintain), which page type belongs where, `counterpart`,
+  Diátaxis ("one page, one reader"), and when a project keeps a single space; `templates` documents the 15 new
+  types alongside the 13 original ones; `writing` adds the `F-xx`/`BR-xx` (`RG-xx` in French) identifiers, the
+  access box, one rule as one statement plus a Given/When/Then example, "no code in the Business space", the
+  `[[verified]]`/`[[deduced]]`/`[[unknown]]` claim badges and the risk register (owner, decision, status, due
+  date); `maturity` documents the level by space, `facts` and `claims` as informative measures, and
+  `upToDatePages` as a new level-4 criterion (met, `n/a`, without `sync.json`); `quality` lists the `feature.*`,
+  `rule.*`, `business.technical`, `facts.*`, `space.*` and `link.counterpart` problems; `delivery` adds
+  `sync --mark --all` and the per-space exports to the handover checklist; `config` shows fictional examples of
+  `spaces`, `paths.facts`, `paths.sync`, `sync.labels`, `capture.compareThreshold` and `llm`. `doc-kit audit`:
+  `upToDatePages` (ARCHITECTURE.md §6.10) is now measured as a level-4 criterion (`upToDatePages4`, `≥ 90 %` or
+  `n/a` without `sync.json`), in the global level and in each space's. The `init` skeleton now declares
+  `"spaces": ["business", "takeover"]`, adds a `features` part with a sample `feature` sheet (its `counterpart`
+  a new `technical-sub` page under the architecture overview) and, to the Takeover space, sample
+  `access-ownership`, `runbook` and `agent-instructions` pages; the findings page's guidance now describes the
+  risk register; `README.md` and `WRITING-GUIDE.md` explain the two spaces and the `facts` → `sync` cycle.
+- **Demo**: `examples/demo-docs` now declares both spaces (Business: `F-01`/`F-02` feature sheets, a
+  `business-rules` registry, a `roles-matrix`; Takeover: `access-ownership`, `api-surface`, `findings`, a
+  `counterpart` between a feature sheet and its technical page), with its own `facts/` and `sync.json` committed.
+  `examples/demo-app-v2` is a second version of the demo app (a renamed label, a modified screen, an added
+  route) that drives a new end-to-end test of the full update cycle (`sync` report, `--apply --labels`,
+  `capture --stale --compare`, `--mark`, `--check`).
+- **Reviews** (§6.13): two optional takeover page types, `security-review` and `maintainability-review`, each
+  built from deterministic facts first. The `api` source now also reports `auth` (`none`/`user`/`role`/`unknown`)
+  and `guards` for every route, classified against `review.guards.role`/`.user` (default patterns, overridable).
+  New source `security` (eleven OWASP Top 10 heuristics: `rule`, `file`, `line`, `severity`, `owasp` — never a
+  value) and `quality` (functions, complexity, duplication, TODOs per file; A-to-E ratings and tooling found,
+  project-wide); `facts --tools` also runs `semgrep` when `review.semgrep` names a local rules folder (never
+  `--config auto`). New command `doc-kit probe [--as <role>]… [--json]`: a safety-checked GET/HEAD-only check of
+  a running LOCAL or DEMO instance (never production, no option overrides it) — security headers, cookies, CORS
+  and version disclosure on `/` and one API route, then the access control of every `GET` route against its
+  `auth` (`probe.unprotected`, `probe.publicData`); at most 4 requests a second, a response body never stored;
+  writes `facts/probe.json`. `connect --as <role>` saves a role's session separately
+  (`.doc-kit/session-<role>.json`) for `probe` to use, leaving the plain session file untouched. New
+  configuration key `review: { guards: { role, user }, params, semgrep }` (`params`: path parameter → example
+  value, for `probe` to fill a parameterised route). New briefs `security-review` (`doc-kit-reviewer`) and
+  `maintainability-review` (`doc-kit-writer`); their findings are candidates for the risk register. New guide
+  "Security and maintainability reviews" (`spaces/reviews`), the `review.*` configuration keys, and the `probe`/
+  `connect --as` CLI reference, in English and French; two new Acme Orders examples.
+- **Languages** (§6.12): one source, several languages in a single multilingual site (a language selector,
+  `#/[<lang>/]<path>`), or `build --lang <l>` for a mono-language file; `languages` + `paths.translations` +
+  `capture.languages`; `doc-kit translate status|--mark|--fix-anchors`, `context <page> --translate <lang>`,
+  `capture --lang <l>`, `init --languages`; new brief `translate`.
 
 ### Changed
 
+- A project that declares neither spaces nor counterparts keeps the same site data and the same visible text
+  (equivalence levels 1 to 3): the texts and site data of the spaces are only emitted when used. The home page doors
+  fill the width (`auto-fit`) instead of a fixed grid of 4 columns.
+- `build()` returns `sites` (`[]` without spaces); the Markdown engine reports what each rendered document uses
+  (screenshots, diagrams, legend items), so that an export recounts its statistics.
 - The guided mode's `connect` question says that a browser window opens, where you sign in before pressing Enter.
 
 - **Product name** detected by `init`: the `metadata.title` of the Next.js root layout first, then `package.json`

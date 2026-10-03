@@ -1,0 +1,59 @@
+{
+  "types": {
+    "feature": {
+      "title": { "en": "Feature sheet", "fr": "Fiche de fonctionnalité" },
+      "sections": {
+        "en": ["Access", "What it is for", "Who uses it", "Trigger and preconditions", "Main scenario", "Variants and exceptions", "Business rules", "Data handled", "Notifications and effects", "Limits", "Questions people ask"],
+        "fr": ["Accès", "À quoi ça sert", "Qui l'utilise", "Déclencheur et prérequis", "Scénario principal", "Variantes et exceptions", "Règles métier", "Données traitées", "Notifications et effets", "Limites", "Questions fréquentes"]
+      },
+      "required": [0, 1, 2, 4, 6],
+      "maxWords": 2500,
+      "template": "templates/pages/{language}/feature.md",
+      "example": "docs/{language}/content/examples/feature.md"
+    },
+    "business-rules": {
+      "title": { "en": "Business rules", "fr": "Règles métier" },
+      "sections": {
+        "en": ["How to read this page", "The rules", "Rules by feature", "Retired rules"],
+        "fr": ["Comment lire cette page", "Les règles", "Les règles par fonctionnalité", "Règles retirées"]
+      },
+      "required": [0, 1],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/business-rules.md",
+      "example": "docs/{language}/content/examples/business-rules.md"
+    },
+    "roles-matrix": {
+      "title": { "en": "Roles matrix", "fr": "Matrice des rôles" },
+      "sections": {
+        "en": ["In short", "The roles", "Who can do what", "Responsibilities", "How to get a role"],
+        "fr": ["En bref", "Les rôles", "Qui peut faire quoi", "Responsabilités", "Comment obtenir un rôle"]
+      },
+      "required": [0, 1, 2],
+      "maxWords": 2000,
+      "template": "templates/pages/{language}/roles-matrix.md",
+      "example": "docs/{language}/content/examples/roles-matrix.md"
+    },
+    "process": {
+      "title": { "en": "Process", "fr": "Processus" },
+      "sections": {
+        "en": ["In short", "Who takes part", "The steps", "The states", "What happens on its own, and what waits for someone", "Deadlines and reminders", "When it goes wrong", "Features involved"],
+        "fr": ["En bref", "Qui intervient", "Les étapes", "Les états", "Ce qui se fait tout seul, et ce qui attend quelqu'un", "Délais et relances", "Quand ça se passe mal", "Fonctionnalités concernées"]
+      },
+      "required": [0, 1, 2, 4],
+      "maxWords": 2200,
+      "template": "templates/pages/{language}/process.md",
+      "example": "docs/{language}/content/examples/process.md"
+    },
+    "release-notes": {
+      "title": { "en": "Release notes", "fr": "Notes de version" },
+      "sections": {
+        "en": ["In short", "Latest version", "Earlier versions"],
+        "fr": ["En bref", "Dernière version", "Versions précédentes"]
+      },
+      "required": [0, 1],
+      "maxWords": 3000,
+      "template": "templates/pages/{language}/release-notes.md",
+      "example": "docs/{language}/content/examples/release-notes.md"
+    }
+  }
+}

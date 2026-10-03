@@ -44,7 +44,10 @@ the next step.
 
 No application at hand? The kit ships a fictional one, **Acme Orders**: `node examples/demo-app/serve.mjs` serves it
 on `http://127.0.0.1:4173` and accepts any e-mail and password. The documentation walks you through it in
-[the first five minutes](docs/en/content/start/first-five-minutes.md).
+[the first five minutes](docs/en/content/start/first-five-minutes.md). Its documentation project,
+`examples/demo-docs`, shows both spaces (a Business space of feature sheets and business rules, a Takeover space
+of ownership, API surface and findings) and the full update cycle: `examples/demo-app-v2` is a second version of
+the app (a renamed label, a modified screen, a new route) that `doc-kit sync` follows end to end.
 
 ## Requirements
 
@@ -77,7 +80,7 @@ doc-kit/
 ├─ standard/            the documentation standard (English and French) and templates.json
 ├─ templates/           the project skeleton written by `init`, and the 13 page templates (en, fr)
 ├─ skill/doc-kit/       the Claude Code skill, installed with `doc-kit skill install`
-├─ examples/            Acme Orders: a fictional demo application and its documentation project
+├─ examples/            Acme Orders: a fictional demo app (+ a "version 2" for the update cycle) and its docs
 ├─ docs/                the kit's own documentation, built with the kit (docs/en, docs/fr)
 ├─ ci/                  GitHub Actions and Azure Pipelines examples
 └─ test/                unit, snapshot and end-to-end tests

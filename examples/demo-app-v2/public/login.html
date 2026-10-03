@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sign in · Acme Orders</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="login">
+      <form class="panel" method="post" action="/login">
+        <h1>Acme Orders</h1>
+        <p class="note">Fictional demo: any e-mail and password are accepted.</p>
+        <label class="field"><span>E-mail</span><input id="email" name="email" type="email" required autocomplete="username" /></label>
+        <label class="field"><span>Password</span><input id="password" name="password" type="password" required autocomplete="current-password" /></label>
+        <input type="hidden" name="next" id="next" />
+        <button type="submit" class="primary">Sign in</button>
+      </form>
+    </main>
+    <script>
+      document.getElementById("next").value = new URLSearchParams(location.search).get("next") || "/orders";
+    </script>
+  </body>
+</html>

@@ -12,7 +12,7 @@ export default defineConfig({
   // Renommer le produit : changez name ici, puis le titre, l'accroche et les titres de section de content/toc.json.
   product: { name: "{{name}}", slug: "{{slug}}" },
   language: "{{language}}", // "en" | "fr" : langue du site et des messages de la CLI
-  // output: "dist/{{slug}}-documentation.html", // par défaut : dist/<nom du produit>-Documentation.html
+{{languagesLine}}  // output: "dist/{{slug}}-documentation.html", // par défaut : dist/<nom du produit>-Documentation.html
 
   // Dossiers du projet. Un projet ancien déclare les siens ici, par exemple { content: "contenu", diagrams: "schemas" }.
   paths: { content: "content", images: "images", diagrams: "diagrams" },

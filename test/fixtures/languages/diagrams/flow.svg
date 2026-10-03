@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 900 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="How an order flows">
+  <defs><marker id="fl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0 10 5 0 10z"/></marker></defs>
+  <rect class="d-box" x="20" y="40" width="220" height="80" rx="10"/>
+  <text class="d-title" x="130" y="76" text-anchor="middle">Browser</text>
+  <text class="d-small" x="130" y="98" text-anchor="middle">single-page app</text>
+  <rect class="d-brand" x="340" y="40" width="220" height="80" rx="10"/>
+  <text class="d-title" x="450" y="76" text-anchor="middle">Orders API</text>
+  <text class="d-text" x="450" y="98" text-anchor="middle">REST, JSON</text>
+  <rect class="d-info" x="660" y="40" width="220" height="80" rx="10"/>
+  <text class="d-title" x="770" y="86" text-anchor="middle">Database</text>
+  <path class="d-line" d="M240 80H336" marker-end="url(#fl-arrow)"/>
+  <path class="d-line-brand" d="M560 80H656" marker-end="url(#fl-arrow)"/>
+</svg>

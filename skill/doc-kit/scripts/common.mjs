@@ -10,6 +10,9 @@ export const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SKILL_ROOT = path.resolve(HERE, "..");
 export const WORK_DIR = ".doc-kit";
 export const LANGUAGES = ["en", "fr"];
+export const AGENTS_DIR = path.join(SKILL_ROOT, "agents");
+/** The three agent types of the economy of the agents (ARCHITECTURE.md §6.11), in a stable order. */
+export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"];
 
 // ─── Messages (en, fr) ───────────────────────────────────────────────────────
 const MESSAGES = {
@@ -250,6 +253,12 @@ function coverageSource(config) {
   return "";
 }
 
+/** The `features` coverage adapter's `file` option (ARCHITECTURE.md §6.8), relative to the project; "features.json" by default. */
+function featuresFileOf(config) {
+  const entry = (Array.isArray(config.coverage) ? config.coverage : []).find((e) => e?.adapter === "features");
+  return slash(entry?.file ?? "features.json");
+}
+
 /** Is `p` strictly inside `dir`? */
 const isInside = (dir, p) => {
   const r = path.relative(dir, p);
@@ -331,10 +340,14 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     version: readVersion(docDir, config, appDir),
     date: today(),
     contentDir,
+    // Languages (ARCHITECTURE.md §6.12): translationsDir, for the `translate` brief ({{translationsDir}}/{{lang}}/…).
+    translationsDir: slash(config.paths?.translations ?? "translations"),
     tocFile: firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]),
     glossaryFile: firstExisting(docDir, [`${contentDir}/glossary.json`, `${contentDir}/glossaire.json`]),
     imagesDir: slash(config.paths?.images ?? "images"),
     diagramsDir: slash(config.paths?.diagrams ?? "diagrams"),
+    factsDir: slash(config.paths?.facts ?? "facts"),
+    featuresFile: featuresFileOf(config),
     targetsFile: firstExisting(docDir, ["captures/targets.mjs", "captures/cibles.mjs"]),
     guideFile: firstExisting(docDir, ["WRITING-GUIDE.md", "GUIDE-REDACTION.md"]),
     findingsPage: FINDINGS_PAGE[language] ?? FINDINGS_PAGE.en,
@@ -423,6 +436,95 @@ export function fill(template, vars) {
   });
   text = text.replace(/\n(?:[ \t]*\n){2,}/g, "\n\n");
   return { text, unfilled: [...unfilled] };
+}
+
+// ─── Economy of the agents (ARCHITECTURE.md §6.11) ──────────────────────────
+
+const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
+
+/** A field of a `---\nkey: value\n---` front matter block at the start of `text` ("" when absent). */
+export function frontMatterField(text, field) {
+  const m = FRONT_MATTER.exec(String(text ?? ""));
+  if (!m) return "";
+  const line = new RegExp(`^${field}:\\s*(\\S+)\\s*$`, "m").exec(m[1]);
+  return line ? line[1] : "";
+}
+
+/** The `agent: <type>` declared by a brief template ("" when absent: not a brief launched as an agent). */
+export const templateAgent = (template) => frontMatterField(template, "agent");
+
+/** The `model: <name>` declared by an agent definition file (agents/<type>.md), read once per process. */
+const agentModelCache = new Map();
+export function agentModel(type, agentsDir = AGENTS_DIR) {
+  if (!agentModelCache.has(agentsDir)) agentModelCache.set(agentsDir, new Map());
+  const cache = agentModelCache.get(agentsDir);
+  if (!cache.has(type)) {
+    const file = path.join(agentsDir, `${type}.md`);
+    cache.set(type, fs.existsSync(file) ? frontMatterField(fs.readFileSync(file, "utf8"), "model") : "");
+  }
+  return cache.get(type);
+}
+
+/**
+ * Dynamically imports a module of the kit's engine, by path relative to the kit root. The installed skill does
+ * not carry `engine/`: callers degrade gracefully (null) when the kit root is unknown or the file is missing.
+ */
+export async function importKitModule(kitRoot, relPath) {
+  if (!kitRoot) return null;
+  const file = path.join(kitRoot, ...relPath.split("/"));
+  if (!fs.existsSync(file)) return null;
+  try {
+    return await import(pathToFileURL(file).href);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Flattened pages of the project's table of contents (id, template, file…), legacy keys normalised when the
+ * kit's own normaliser can be reached (`importKitModule`); read as plain JSON otherwise (current keys only).
+ * `[]` when there is no table of contents or it cannot be parsed.
+ */
+export async function flattenedPages(docDir, config, kitRoot) {
+  const contentDir = config?.paths?.content ?? "content";
+  const file = firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]);
+  const abs = path.join(docDir, file);
+  if (!fs.existsSync(abs)) return [];
+  let raw;
+  try {
+    raw = JSON.parse(fs.readFileSync(abs, "utf8"));
+  } catch {
+    return [];
+  }
+  const legacy = await importKitModule(kitRoot, "engine/project/legacy.mjs");
+  const toc = legacy?.normalizeToc ? legacy.normalizeToc(raw).value : raw;
+  const pages = [];
+  for (const sec of toc?.sections || []) for (const g of sec.groups || []) for (const p of g.pages || []) if (p && p.id) pages.push(p);
+  return pages;
+}
+
+/** The kit's page template table (engine/build/page-templates.mjs), or null when the kit's engine is unreachable. */
+export async function pageTemplatesTable(kitRoot) {
+  const mod = await importKitModule(kitRoot, "engine/build/page-templates.mjs");
+  return mod ? mod.loadPageTemplates(kitRoot) : null;
+}
+
+/** Word limit of a type in `table` ("" table: the kit's own default, 2000). */
+export const maxWordsOf = (table, type) => table?.types?.[type]?.maxWords ?? 2000;
+
+/** Backtick-wrapped, slash-containing, whitespace-free spans of `text`: candidate cited file paths. */
+export function citedPaths(text) {
+  return [...new Set([...String(text ?? "").matchAll(/`([^`\s]+\/[^`\s]*)`/g)].map((m) => m[1]))];
+}
+
+/**
+ * Parses a `pages` brief variable into page ids: one per line (bullets "- id" from a `--var pages=@file` list
+ * stripped), else split on commas; blanks dropped.
+ */
+export function parsePageList(text) {
+  const raw = String(text ?? "");
+  const lines = raw.includes("\n") ? raw.split(/\r?\n/) : raw.split(",");
+  return lines.map((l) => l.trim().replace(/^-\s*/, "")).filter(Boolean);
 }
 
 /** Strict parseArgs, with a usage error (exit code 2) instead of a raw exception. */

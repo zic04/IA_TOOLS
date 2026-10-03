@@ -56,7 +56,9 @@ describe("app.js and template.html", () => {
   test("template.html: no visible text outside {{t:…}} markers", () => {
     const html = read("engine/site/template.html").replace(/<script>[\s\S]*?<\/script>/, "").replace(/<style>[\s\S]*?<\/style>/, "");
     for (const m of html.matchAll(/>([^<>]+)</g)) assert.match(m[1].trim(), /^(|\{\{[^}]+\}\}(\s*\{\{[^}]+\}\})*|[↑↓]|v\{\{VERSION\}\})$/, `text: «${m[1].trim()}»`);
-    for (const m of html.matchAll(/\b(title|aria-label|placeholder|content)="([^"]*)"/g))
+    // The lookbehind excludes data-t-aria-label / data-t-title / data-t-placeholder (ARCHITECTURE.md §6.12):
+    // those carry a plain template.* key (re-applied at runtime by applyTemplateTexts()), not a {{t:…}} marker.
+    for (const m of html.matchAll(/(?<![\w-])(title|aria-label|placeholder|content)="([^"]*)"/g))
       if (!["width=device-width, initial-scale=1"].includes(m[2])) assert.match(m[2], /^\{\{[^}]+\}\}$/, m[0]);
   });
 

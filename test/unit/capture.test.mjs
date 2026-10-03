@@ -8,13 +8,15 @@ import path from "node:path";
 import { normalizeEntry, validateEntry, loadPlans, selectCaptures, patternRegex, forbiddenMatchers, forbiddenMatch, routePath } from "../../engine/capture/plans.mjs";
 import { measureZone, routeWithView, describeTarget, actionKind } from "../../engine/capture/actions.mjs";
 import { storageValues, summarizeRequests, zoneFile, forbiddenRequestKind, requestGuard } from "../../engine/capture/capture.mjs";
+import { compareOutcome } from "../../engine/capture/compare.mjs";
 import { parseEnv, sensitiveValues, maskSource, maskText, DOTS } from "../../engine/capture/masking.mjs";
 import { webpSize } from "../../engine/capture/webp.mjs";
 import { isSignInUrl, sessionFile, sessionStorageOf, forgetSession } from "../../engine/capture/session.mjs";
 import * as targets from "../../engine/capture/targets.mjs";
 import { loadDictionary } from "../../engine/i18n.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
-import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { runCli } from "../../cli/doc-kit.mjs";
+import { KIT_ROOT, tempDir, demoCopy } from "../tools/helpers.mjs";
 
 const en = loadDictionary("en");
 
@@ -225,6 +227,15 @@ describe("measures and helpers", () => {
     assert.deepEqual(z, { file: "x.webp", title: "", route: "/r", width: 100, height: 50, version: "1.0.0", captured: "2026-10-01", zones: [] });
   });
 
+  test("zone file: commit and plan (ARCHITECTURE.md §6.10) are included only when given", () => {
+    const base = { entry: { id: "x", route: "/r" }, clip: { width: 100, height: 50 }, zones: [], version: "1.0.0", captured: "2026-10-01" };
+    assert.deepEqual(Object.keys(zoneFile(base)), ["file", "title", "route", "width", "height", "version", "captured", "zones"]);
+    assert.deepEqual(zoneFile({ ...base, commit: "9f2c0ff", plan: "c0ffee00c0ffee00" }), {
+      file: "x.webp", title: "", route: "/r", width: 100, height: 50, version: "1.0.0", captured: "2026-10-01", zones: [], commit: "9f2c0ff", plan: "c0ffee00c0ffee00",
+    });
+    assert.deepEqual(zoneFile({ ...base, commit: null, plan: null }), { file: "x.webp", title: "", route: "/r", width: 100, height: 50, version: "1.0.0", captured: "2026-10-01", zones: [] });
+  });
+
   test("target and action descriptions; targets helpers (union)", () => {
     assert.equal(describeTarget({ role: "button", name: "Save" }), "role button “Save”");
     assert.equal(describeTarget({ union: [{ field: "A" }, { css: "b" }] }), "field “A” + css “b”");
@@ -257,6 +268,14 @@ describe("measures and helpers", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("compare outcome: a different size, or a ratio above the threshold, is a change (ARCHITECTURE.md §6.10)", () => {
+    assert.equal(compareOutcome({ ratio: 0, sameSize: true, threshold: 0.005 }), "unchanged");
+    assert.equal(compareOutcome({ ratio: 0.005, sameSize: true, threshold: 0.005 }), "unchanged", "at the threshold: not above it");
+    assert.equal(compareOutcome({ ratio: 0.0051, sameSize: true, threshold: 0.005 }), "changed");
+    assert.equal(compareOutcome({ ratio: 1, sameSize: false, threshold: 0.005 }), "changed");
+    assert.equal(compareOutcome({ ratio: 0, sameSize: false, threshold: 0.005 }), "changed", "a size mismatch is always a change, whatever the ratio");
   });
 
   test("WebP header size (VP8, VP8L, VP8X); not a WebP → null", () => {
@@ -299,6 +318,50 @@ describe("masking", () => {
   });
 });
 
+describe("CLI: --compare, --stale (ARCHITECTURE.md §6.10), no browser needed on this path", () => {
+  async function cli(args) {
+    let out = "";
+    let err = "";
+    const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: {} });
+    return { code, out, err };
+  }
+
+  // The demo's own plans import "doc-kit/targets" (resolves only inside the kit, test/e2e/capture.test.mjs):
+  // replaced with a trivial local plan, since these tests never reach the browser.
+  function trivialPlans(dir) {
+    fs.rmSync(path.join(dir, "captures", "plans"), { recursive: true, force: true });
+    fs.mkdirSync(path.join(dir, "captures", "plans"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "captures", "plans", "a.mjs"), 'export const CAPTURES = [{ id: "a", route: "/a" }];');
+  }
+
+  test("--stale without a sync report → capture.noSyncReport, exit code 2 (checked before any URL or session)", async () => {
+    const dir = demoCopy();
+    try {
+      trivialPlans(dir);
+      const r = await cli(["capture", "--project", dir, "--stale"]);
+      assert.equal(r.code, 2, r.out + r.err);
+      assert.match(r.err, /✖ no sync report yet: .*sync-report\.json\n {2}→ run doc-kit sync first/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("--stale narrows the plans to the ids of .doc-kit/sync-report.json; nothing stale → exit code 0, nothing opened", async () => {
+    const dir = demoCopy();
+    try {
+      trivialPlans(dir);
+      fs.mkdirSync(path.join(dir, ".doc-kit"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".doc-kit", "sync-report.json"), JSON.stringify({ captures: [] }));
+      const r = await cli(["capture", "--project", dir, "--stale"]);
+      assert.equal(r.code, 0, r.out + r.err);
+      assert.equal(r.out.trim(), "Nothing is stale: every capture already matches the application.");
+      assert.doesNotMatch(r.out, /captures? ·/, "nothing was opened");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("i18n keys of the capture engine, the adapters and the checks", () => {
   const read = (p) => fs.readFileSync(path.join(KIT_ROOT, p), "utf8");
   const uses = (source, re) => [...source.matchAll(re)].map((m) => m[1]);
@@ -329,6 +392,7 @@ describe("i18n keys of the capture engine, the adapters and the checks", () => {
       ...uses(source, /key: "(check\.[\w.]+)"/g).map((k) => `cli.${k}`),
       ...uses(source, /key: "(\w+)", vars: \{ (?:found|kinds)/g).map((k) => `cli.validate.${k}`),
       ...["generic", "forbiddenHit"].map((k) => `cli.capture.error.${k}`),
+      ...["changed", "unchanged"].map((k) => `cli.capture.compare.${k}`),
       ...["notFound", "blockNotFound", "error", "unknown"].map((k) => `cli.adapter.reason.${k}`),
       ...["env", "guid", "pattern", "privateKey", "jwt", "connectionString", "credentialsUrl", "cloudKey", "assignment", "signedUrl"].map((k) => `cli.check.secrets.kind.${k}`),
       ...["sessionOutside", "sessionTracked"].map((k) => `cli.check.secrets.${k}`),

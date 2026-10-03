@@ -19,7 +19,9 @@ The five rules that matter most:
 | Document | What it holds | In this site |
 |---|---|---|
 | `standard/structure.md` | The four sections, the groups, the required Take over pages, the home-page journeys, sub-pages | [Table of contents](#/write/table-of-contents) |
-| `standard/templates.md` and `templates.json` | The 13 page types: purpose, sections, length, example, common mistakes | [Page templates](#/write/page-templates) |
+| `standard/templates.md` and `templates.json` | The 13 general page types: purpose, sections, length, example, common mistakes | [Page templates](#/write/page-templates) |
+| `standard/templates/business.json` | 5 more types for the business space: feature, business rules, roles matrix, process, release notes | [Documenting each feature](#/spaces/business) |
+| `standard/templates/takeover.json` | 10 more for the takeover space: access and ownership, API surface, runbook, data model, dependencies, code map, tests, agent instructions, ADR, threat model | [Taking over a vibe-coded application](#/spaces/takeover) |
 | `standard/writing.md` | Nothing made up, proofs, exact labels, gaps, links, glossary, numbering of findings, diagrams | below |
 | `standard/captures.md` | Capture safety on production, the session, masking, zone quality, production or demo | [Demo or production](#/capture/safety) |
 | `standard/quality.md` | Blocking gates and warnings, with the command that checks each one | [The checks](#/publish/checks) |
@@ -40,6 +42,15 @@ The Take over section makes a project transferable. Its seven required pages are
 technical architecture document, at least one end-to-end journey, operations, troubleshooting by symptom, the
 findings, and how the documentation itself is maintained.
 
+## Two audiences, layered on top
+
+A project may also declare **spaces** (ARCHITECTURE.md §6.1a): `business` and `takeover`, one source exported
+twice, one HTML file per audience, that must not see the rest. Spaces are optional and sit on top of the four
+sections above — a section still belongs to one audience, a page may belong to another — and bring their own page
+types (feature sheets and business rules for `business`; facts-built dossiers and a risk register for `takeover`).
+[Two spaces, one source](#/spaces/overview) explains the mechanism; [Documenting each
+feature](#/spaces/business) and [Taking over a vibe-coded application](#/spaces/takeover) apply it.
+
 ## Writing rules
 
 | Rule | In practice |
@@ -57,7 +68,10 @@ findings, and how the documentation itself is maintained.
 The standard is applied in phases: scope the work, set up the project (`init`, `doctor`), inventory the code,
 plan the site and write one reference page, capture, write in batches, consolidate the findings, write the
 journeys and troubleshooting, the production technical pages, check, then deliver. The
-[Claude Code skill](#/skill/phases) runs these phases with parallel agents; a team can follow them by hand.
+[Claude Code skill](#/skill/phases) runs these phases with parallel agents, each briefed from a page's own
+[context](#/skill/cost-and-speed) instead of the whole inventory; a team can follow the phases by hand. After
+delivery, [keeping up with the application](#/publish/sync) says exactly what to revisit, instead of rereading
+everything.
 
 ## Pitfalls and observed gaps
 
@@ -75,3 +89,4 @@ journeys and troubleshooting, the production technical pages, check, then delive
 - [Page examples](#/examples/screen): a page of each type, written to the standard.
 - [Audit and maturity levels](#/publish/audit): the standard, measured.
 - [The phases of the skill](#/skill/phases): the method, run by Claude Code.
+- [Two spaces, one source](#/spaces/overview): the business and takeover spaces, in full.

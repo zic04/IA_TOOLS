@@ -1,0 +1,52 @@
+{
+  "title": "Acme Orders documentation",
+  "sections": [
+    {
+      "id": "use",
+      "title": "Using Acme Orders",
+      "groups": [
+        {
+          "title": "Orders",
+          "pages": [
+            {
+              "id": "use/orders",
+              "title": "The orders list",
+              "menuTitle": "Orders",
+              "summary": "Filters and the order table.",
+              "template": "screen",
+              "routes": ["/orders"]
+            },
+            {
+              "id": "use/orders/detail",
+              "title": "Order details",
+              "menuTitle": "Details",
+              "level": 2,
+              "summary": "One order, seen in full.",
+              "routes": ["/orders/[id]"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "take-over",
+      "title": "Taking over Acme Orders",
+      "groups": [
+        {
+          "title": "Technical",
+          "pages": [
+            {
+              "id": "take-over/orders-api",
+              "title": "The orders API",
+              "menuTitle": "Orders API",
+              "summary": "The routes behind the orders screens.",
+              "template": "api-surface",
+              "routes": [],
+              "sources": ["backend/api/*.py"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

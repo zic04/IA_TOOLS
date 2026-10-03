@@ -1,5 +1,5 @@
-// view <page[~anchor]> [--theme light|dark] [--height 900] [--full] [--tour N] [--output <png>]
-// Screenshots a page of the BUILT site, to review it visually.
+// view <page[~anchor]> [--theme light|dark] [--height 900] [--full] [--tour N] [--output <png>] [--space <id>]
+// Screenshots a page of the BUILT site, to review it visually (--space: the export of that space, §6.1a).
 //   view use/orders/list
 //   view "use/orders/list~the-screen" --theme dark --height 1100
 //   view use/orders/list --full          the whole page, from its top, in one image
@@ -11,6 +11,8 @@ import { pathToFileURL } from "node:url";
 import { createI18n } from "../../engine/i18n.mjs";
 import { launchBrowser } from "../../engine/project/browser.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
+import { declaredSpaceIds, checkSpaceOption } from "../../engine/build/spaces.mjs";
+import { checkLanguageOption } from "../../engine/build/languages.mjs";
 import { builtSite } from "../common.mjs";
 
 export const options = {
@@ -19,23 +21,27 @@ export const options = {
   full: { type: "boolean" },
   tour: { type: "string" },
   output: { type: "string" },
+  space: { type: "string" },
 };
 
 export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
-  const hash = (positionals[0] || "").replace(/^\/+/, "");
+  // --lang (ARCHITECTURE.md §6.12): the built site is already multilingual; only the opened URL changes.
+  const lang = config.languages && ctx.globals.lang ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t }) : null;
+  const hash = (lang ? `${lang}/` : "") + (positionals[0] || "").replace(/^\/+/, "");
   const theme = values.theme || "light";
   if (!["light", "dark"].includes(theme)) throw new KitError(EXIT.USAGE, "option.value", { option: "theme", value: theme, expected: "light | dark" });
   const height = Number(values.height ?? 900);
   if (!Number.isInteger(height) || height < 200) throw new KitError(EXIT.USAGE, "option.value", { option: "height", value: values.height, expected: "integer ≥ 200" });
   const step = values.tour === undefined ? 0 : Number(values.tour);
   if (!Number.isInteger(step) || step < 0) throw new KitError(EXIT.USAGE, "option.value", { option: "tour", value: values.tour, expected: "integer ≥ 1" });
+  const space = values.space === undefined ? undefined : checkSpaceOption({ ids: declaredSpaceIds(project.root, config), space: values.space, t: ctx.t });
   const output = path.resolve(values.output ? process.cwd() : project.root, values.output || ".doc-kit/page.png");
   fs.mkdirSync(path.dirname(output), { recursive: true });
 
   // Label of the tour's "Next" button, in the site's language.
   const next = createI18n({ language: config.language, overrides: config.texts }).t("ui.tour.next");
-  const site = await builtSite(ctx);
+  const site = await builtSite(ctx, { space });
   const browser = await launchBrowser();
   const errors = [];
   try {
@@ -44,6 +50,9 @@ export async function run({ ctx, values, positionals }) {
     await page.goto(pathToFileURL(site.file).href + "#" + hash);
     await page.waitForTimeout(900);
     if (step > 0) {
+      // No annotated screen on the page (or a documentation without screenshots): say so at once, instead of
+      // waiting for a button that will never appear.
+      if (!(await page.locator("[data-action=visite]").count())) throw new KitError(EXIT.USAGE, "view.noTour", { page: hash });
       await page.locator("[data-action=visite]").first().click();
       await page.waitForTimeout(500);
       for (let i = 1; i < step; i++) {

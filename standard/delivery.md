@@ -9,7 +9,7 @@ Go through it before you hand a site over to its owner, or to the team that take
 | ☐ | Strict build without errors | `doc-kit build` | "site built", no ✖ line |
 | ☐ | All blocking checks green | `doc-kit check all` | Exit code 0 |
 | ☐ | Warnings handled or justified | `doc-kit audit` | The remaining warnings are explained on "Maintaining the docs" |
-| ☐ | Target maturity level reached (3 at least, 4 for a takeover) | `doc-kit audit` | Level shown; see [maturity.md](maturity.md) |
+| ☐ | Target maturity level reached (3 at least, 4 for a takeover); with spaces, each space's own level too | `doc-kit audit` | Level shown, per space when declared; see [maturity.md](maturity.md) |
 | ☐ | Visual review of at least one page per section, in light and dark themes, and of one guided tour | `doc-kit view <page> --theme dark`, `--tour 2` | Review images looked at, then deleted |
 
 ## 2. Safety
@@ -32,12 +32,15 @@ Go through it before you hand a site over to its owner, or to the team that take
 | ☐ | Findings consolidated: writers' candidates re-checked, deduplicated, numbered | `take-over/findings` |
 | ☐ | Proposed terms added to the glossary | `content/glossary.json` |
 | ☐ | Project memory up to date: takeover notes, the assistant's memory if there is one, the documentation's `CHANGELOG` | Depends on the project |
+| ☐ | Facts up to date: no stale `facts/<source>.json` (ARCHITECTURE.md §6.9) | `doc-kit audit` ("Facts and claims"); refresh with `doc-kit facts --source <name>` |
+| ☐ | **`sync.json` created**, so the next handover knows what changed since this one (ARCHITECTURE.md §6.10) | `doc-kit sync --mark --all` once every page above is checked, right before the export |
 
 ## 4. Export
 
 | ✓ | Item | Command or rule |
 |---|---|---|
 | ☐ | A **self-contained** copy of the project, without `node_modules/`, `.doc-kit/` or session | `doc-kit export <target>`; `--with-dist` to include the built site, `--zip` for an archive |
+| ☐ | **One export per space**, when the project declares spaces (ARCHITECTURE.md §6.1a) | `doc-kit build` writes every space's export by default (`spaces.export`); check each one opens and shows only its own space |
 | ☐ | A handover README at the root | What the site is, how to open it, how to rebuild it (`npm ci`, `npm run site`), how to retake the captures, where the writing guide is |
 | ☐ | The export rebuilds elsewhere | In the copy: `npm ci`, then `npm run site`; Node.js 20 or later; `npx playwright install chromium` if the browser is missing |
 | ☐ | The coverage check is documented as skipped outside the repository | It needs the application's code |

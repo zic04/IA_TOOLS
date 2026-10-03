@@ -1,0 +1,13 @@
+{
+  "source": "security",
+  "generator": "doc-kit 0.1.0",
+  "generated": "2026-09-30T09:00:00.000Z",
+  "commit": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
+  "app": "../../..",
+  "items": [
+    { "rule": "secret.default", "file": "lib/auth/index.ts", "line": 2, "severity": "medium", "owasp": "A07:2021" },
+    { "rule": "cors.wildcardCredentials", "file": "lib/http/cors.ts", "line": 9, "severity": "high", "owasp": "A05:2021" },
+    { "rule": "debug.enabled", "file": "jobs/runner.ts", "line": 4, "severity": "low", "owasp": "A05:2021" },
+    { "rule": "xss.dangerouslySetInnerHTML", "file": "components/orders/OrderNotes.tsx", "line": 18, "severity": "medium", "owasp": "A03:2021" }
+  ]
+}

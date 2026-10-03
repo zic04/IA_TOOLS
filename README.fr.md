@@ -46,7 +46,11 @@ propose l'étape suivante.
 
 Pas d'application sous la main ? Le kit en fournit une, fictive : **Acme Orders**. `node examples/demo-app/serve.mjs`
 la sert sur `http://127.0.0.1:4173` et accepte n'importe quels e-mail et mot de passe. La documentation vous guide
-dans [les cinq premières minutes](docs/fr/content/start/first-five-minutes.md).
+dans [les cinq premières minutes](docs/fr/content/start/first-five-minutes.md). Son projet de documentation,
+`examples/demo-docs`, montre les deux espaces (un espace Métier de fiches fonctionnalité et de règles métier, un
+espace Reprise avec propriété, surface d'API et points d'attention) et le cycle de mise à jour complet :
+`examples/demo-app-v2` est une seconde version de l'application (libellé renommé, écran modifié, route ajoutée)
+que `doc-kit sync` suit de bout en bout.
 
 ## Prérequis
 
@@ -79,7 +83,7 @@ doc-kit/
 ├─ standard/            le standard de documentation (anglais et français) et templates.json
 ├─ templates/           le squelette de projet écrit par `init`, et les 13 gabarits de page (en, fr)
 ├─ skill/doc-kit/       le skill Claude Code, installé par `doc-kit skill install`
-├─ examples/            Acme Orders : une application de démonstration fictive et son projet de documentation
+├─ examples/            Acme Orders : appli de démo fictive (+ une « version 2 » pour le cycle de mise à jour) et sa doc
 ├─ docs/                la documentation du kit, construite avec le kit (docs/en, docs/fr)
 ├─ ci/                  exemples pour GitHub Actions et Azure Pipelines
 └─ test/                tests unitaires, d'instantanés et de bout en bout

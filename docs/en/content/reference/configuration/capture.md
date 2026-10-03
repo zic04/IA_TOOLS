@@ -17,6 +17,7 @@
 | `capture.viewports` | object · `desktop` 1600 × 1000, `mobile` 390 × 844 | Named window sizes; an entry chooses one with `context` | `{ desktop: { width: 1440, height: 900 } }` |
 | `capture.webpQuality` | number 0 to 1 · `0.82` | Quality of the WebP encoding | `0.9` |
 | `capture.geolocation` | `{ latitude, longitude }` or `null` · `null` | Position given to the pages, with the permission | `{ latitude: 48.85, longitude: 2.35 }` |
+| `capture.languages` | object · `{}` | One entry per declared language (ARCHITECTURE.md §6.12): `{ locale, cookies, storage }`, each merged over the corresponding top-level setting above for `doc-kit capture --lang <l>`; `locale` defaults to that language's own locale | `{ fr: { locale: "fr-CA" } }` |
 
 - Each viewport is `{ width, height }`, both at least 200. The `mobile` context also emulates a touch screen.
 - Captures are taken at a device scale factor of 1, in the light colour scheme.
@@ -46,6 +47,8 @@ A cookie without `url` or `domain` is set for `app.url`. An entry's own `storage
 |---|---|---|---|
 | `capture.forbidden` | list of regular expressions · `[]` | Route paths never opened: an entry is refused, a request is aborted | `["^/orders/[^/]+/approval$"]` |
 | `capture.readOnly` | `"auto"`, `true` or `false` · `"auto"` | Aborts every request other than `GET`, `HEAD`, `OPTIONS`; `"auto"`: whenever a session is used, always on production | `true` |
+| `capture.sessionRefresh` | `{ method?, path, json?, reason }` or `null` · `null` | The only declared exception to read-only (ARCHITECTURE.md §6.3a): one request that renews a short-lived session, sent once before each capture run, outside any page. `method` defaults to `"POST"`; `path` starts with `/`, relative to `app.url`; `reason` (at least 20 characters) records the owner's written decision that the endpoint writes nothing else | `{ path: "/api/auth/refresh", reason: "Decision of 2026-10-01: rotates the token only, verified in the handler" }` |
+| `capture.compareThreshold` | number 0 to 1 · `0.005` | `capture --compare`: an image is replaced only when more than this share of its pixels differs; below it, only its zone file is refreshed | `0.01` |
 
 See [Demo or production](#/capture/safety) for why both exist.
 
