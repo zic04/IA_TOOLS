@@ -12,7 +12,7 @@ Les identifiants de type sont en anglais dans tous les projets : `screen`, `edit
 `architecture`, `variables`, `resources` (utilisés dans l'un ou l'autre espace, surtout en Reprise) ; `feature`,
 `business-rules`, `roles-matrix`, `process`, `release-notes` (espace Métier) ; `access-ownership`,
 `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`,
-`adr`, `threat-model`, `security-review`, `maintainability-review` (espace Reprise). Les libellés de section
+`adr`, `threat-model`, `security-review`, `maintainability-review`, `documentation-cost` (espace Reprise). Les libellés de section
 suivent la langue du projet.
 
 ## Comment le build s'en sert
@@ -60,7 +60,7 @@ Légende des tableaux ci-dessous : **✱** = obligatoire.
 | `process` | Processus | Un processus métier de bout en bout | 4 | 2 200 | `processus/commande-a-encaissement` |
 | `release-notes` | Processus | Ce qui a changé, version après version | 2 | 3 000 | `processus/notes-de-version` |
 
-### Les 12 types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13)
+### Les 13 types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13, §6.14)
 
 | Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
 |---|---|---|---|---|---|
@@ -76,6 +76,7 @@ Légende des tableaux ci-dessous : **✱** = obligatoire.
 | `threat-model` | Sécuriser | Le schéma de flux, les menaces, les mesures d'atténuation | 4 | 3 000 | `reprendre/modele-menaces` |
 | `security-review` | Sécuriser | Authentification, contrôle d'accès, constats OWASP | 7 | 3 000 | `reprendre/revue-de-securite` |
 | `maintainability-review` | Maintenir | Notes, points chauds, recommandations par effort | 5 | 2 200 | `reprendre/revue-de-maintenabilite` |
+| `documentation-cost` | Maintenir | Temps, agents, modèles et jetons consacrés à la documentation | 3 | 1 200 | `examples/documentation-cost` (doc du kit) |
 
 ---
 
@@ -451,7 +452,7 @@ encore une preuve `fichier:ligne` reçoit l'avertissement `business.technical` :
 
 # Les types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13)
 
-Ces 12 types forment le dossier dont une équipe a besoin pour reprendre une application, surtout une
+Ces 13 types forment le dossier dont une équipe a besoin pour reprendre une application, surtout une
 application largement écrite par des agents IA (« vibe-codée »). Chaque affirmation est appuyée par une preuve
 `fichier:ligne`, ou marquée `[[deduit]]` ou `[[inconnu]]` (voir [writing.fr.md](writing.fr.md)). Les deux
 derniers, `security-review` et `maintainability-review`, sont des revues optionnelles à la demande (§6.13) :

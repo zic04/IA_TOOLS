@@ -16,6 +16,17 @@ entries between a project's `kit` range and the installed version.
     `--csv` and `--json`;
   - the global `--profile` option prints a run's timings;
   - `init` writes the `usage/` folder, and an older project opts in by creating it.
+- **`::usage{view}`** (`::consommation`) and the `documentation-cost` page template (the 31st). They render:
+  - a summary: kit, agent and human time, the number of agents and the models used, tokens, and cost from
+    `llm.prices`;
+  - one row per version;
+  - the time per step, with each step's parts;
+  - tokens and cost per model;
+  - the ten slowest parts.
+- **Statistics hook**: `doc-kit skill install --hooks` registers `scripts/usage-hook.mjs` on `SubagentStop` in
+  `.claude/settings.json`. Each AI agent's tokens (input, output, cache), model and time are then appended to
+  `usage/` automatically. The settings already in the file are kept, and the hook is never added twice.
+- `llm.prices.<model>.cacheWrite` (default 1.25 × input); `cacheRead` defaults to 0.1 × input.
 
 ### Changed
 

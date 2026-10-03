@@ -28,7 +28,7 @@
       "shortTitle": "Write",
       "icon": "book",
       "subtitle": "Markdown with a few extensions, page templates, the table of contents, the glossary and the diagrams.",
-      "highlights": ["Every directive of the extended Markdown", "30 page templates, general, business and takeover", "Diagrams that follow the theme"],
+      "highlights": ["Every directive of the extended Markdown", "31 page templates, general, business and takeover", "Diagrams that follow the theme"],
       "groups": [
         {
           "title": "Pages",
@@ -286,7 +286,8 @@
             { "id": "examples/agent-instructions", "title": "Example · Agent instruction files", "menuTitle": "agent-instructions", "summary": "The AI assistants' own instruction files, each rule checked against the code, built from ::facts{source=\"agents\"}.", "template": "agent-instructions" },
             { "id": "examples/threat-model", "title": "Example · Threat model", "menuTitle": "threat-model", "summary": "The data flow diagram, trust boundaries and STRIDE threats of Acme Orders.", "template": "threat-model" },
             { "id": "examples/security-review", "title": "Example · Security review", "menuTitle": "security-review", "summary": "The static access matrix, the probe results, and findings tied to the OWASP Top 10, built from facts/api.json and facts/security.json.", "template": "security-review" },
-            { "id": "examples/maintainability-review", "title": "Example · Maintainability review", "menuTitle": "maintainability-review", "summary": "Ratings, hotspots and recommendations by effort, built from facts/quality.json.", "template": "maintainability-review" }
+            { "id": "examples/maintainability-review", "title": "Example · Maintainability review", "menuTitle": "maintainability-review", "summary": "Ratings, hotspots and recommendations by effort, built from facts/quality.json.", "template": "maintainability-review" },
+            { "id": "examples/documentation-cost", "title": "Example · Cost of the documentation", "menuTitle": "documentation-cost", "summary": "Time, AI agents, models and tokens spent on the documentation, per version and per block, built from ::usage.", "template": "documentation-cost" }
           ]
         }
       ]

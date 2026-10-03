@@ -28,7 +28,7 @@
       "shortTitle": "Rédiger",
       "icon": "book",
       "subtitle": "Du Markdown avec quelques extensions, des gabarits de page, le sommaire, le glossaire et les schémas.",
-      "highlights": ["Chaque directive du Markdown étendu", "30 gabarits de page, généraux, métier et reprise", "Des schémas qui suivent le thème"],
+      "highlights": ["Chaque directive du Markdown étendu", "31 gabarits de page, généraux, métier et reprise", "Des schémas qui suivent le thème"],
       "groups": [
         {
           "title": "Les pages",
@@ -286,7 +286,8 @@
             { "id": "examples/agent-instructions", "title": "Exemple · Fichiers d'instructions des agents", "menuTitle": "agent-instructions", "summary": "Les fichiers d'instructions des assistants IA eux-mêmes, chaque règle vérifiée face au code, construit à partir de ::facts{source=\"agents\"}.", "template": "agent-instructions" },
             { "id": "examples/threat-model", "title": "Exemple · Modèle de menaces", "menuTitle": "threat-model", "summary": "Le schéma de flux de données, les frontières de confiance et les menaces STRIDE d'Acme Orders.", "template": "threat-model" },
             { "id": "examples/security-review", "title": "Exemple · Revue de sécurité", "menuTitle": "security-review", "summary": "La matrice d'accès statique, les résultats de la sonde, et des constats rattachés à l'OWASP Top 10, construits à partir de facts/api.json et facts/security.json.", "template": "security-review" },
-            { "id": "examples/maintainability-review", "title": "Exemple · Revue de maintenabilité", "menuTitle": "maintainability-review", "summary": "Notes, points chauds et recommandations par effort, construits à partir de facts/quality.json.", "template": "maintainability-review" }
+            { "id": "examples/maintainability-review", "title": "Exemple · Revue de maintenabilité", "menuTitle": "maintainability-review", "summary": "Notes, points chauds et recommandations par effort, construits à partir de facts/quality.json.", "template": "maintainability-review" },
+            { "id": "examples/documentation-cost", "title": "Exemple · Coût de la documentation", "menuTitle": "documentation-cost", "summary": "Temps, agents IA, modèles et jetons consacrés à la documentation, par version et par bloc, construit à partir de ::usage.", "template": "documentation-cost" }
           ]
         }
       ]

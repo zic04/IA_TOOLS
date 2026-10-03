@@ -12,7 +12,7 @@ The type ids are English in every project: `screen`, `editor`, `recipe`, `techni
 `resources` (used in either space, mostly Take over); `feature`, `business-rules`, `roles-matrix`, `process`,
 `release-notes` (Business space); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`,
 `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`,
-`maintainability-review` (Takeover space). The section labels follow the language of the project.
+`maintainability-review`, `documentation-cost` (Takeover space). The section labels follow the language of the project.
 
 ## How the build uses them
 
@@ -59,7 +59,7 @@ Legend of the tables below: **✱** = required.
 | `process` | Process | An end-to-end business process | 4 | 2,200 | `process/order-to-cash` |
 | `release-notes` | Process | What changed, version by version | 2 | 3,000 | `process/release-notes` |
 
-### The 12 Takeover space types (ARCHITECTURE.md §6.9, §6.13)
+### The 13 Takeover space types (ARCHITECTURE.md §6.9, §6.13, §6.14)
 
 | Type | Usual part | Purpose | Required | `maxWords` | Example page (Acme Orders) |
 |---|---|---|---|---|---|
@@ -75,6 +75,7 @@ Legend of the tables below: **✱** = required.
 | `threat-model` | Secure | The data flow diagram, the threats, the mitigations | 4 | 3,000 | `take-over/threat-model` |
 | `security-review` | Secure | Authentication, access control, OWASP findings | 7 | 3,000 | `take-over/security-review` |
 | `maintainability-review` | Maintain | Ratings, hotspots, recommendations by effort | 5 | 2,200 | `take-over/maintainability-review` |
+| `documentation-cost` | Maintain | Time, agents, models and tokens spent on the documentation | 3 | 1,200 | `examples/documentation-cost` (kit docs) |
 
 ---
 
@@ -443,7 +444,7 @@ of the same feature.
 
 # Takeover space types (ARCHITECTURE.md §6.9, §6.13)
 
-These 12 types form the dossier a team needs to take an application over, especially one written largely by AI
+These 13 types form the dossier a team needs to take an application over, especially one written largely by AI
 assistants ("vibe-coded"). Every claim is backed by a `file:line` proof, or marked `[[deduced]]` or `[[unknown]]`
 (see [writing.md](writing.md)). The last two, `security-review` and `maintainability-review`, are optional
 reviews on demand (§6.13): see their own templates (`templates/pages/<language>/security-review.md`,

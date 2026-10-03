@@ -1,7 +1,7 @@
 ## In short
 
 A **page template** fixes the `##` sections of a type of page, their order and the page's maximum length. There
-are **30 types**, in three families: 13 general types (no spaces needed), 5 for the business space, 12 for the
+are **31 types**, in three families: 13 general types (no spaces needed), 5 for the business space, 13 for the
 takeover space. A page declares its type in the table of contents (`"template": "screen"`); the build then checks
 that its **required sections** are there, and `doc-kit audit` measures how complete it is.
 
@@ -61,6 +61,7 @@ Each type has a complete example, written for Acme Orders, in the **Examples** s
 | `threat-model` | The data flow diagram and STRIDE threats | 4 of 6 | 3,000 | [threat-model](#/examples/threat-model) |
 | `security-review` | The access matrix, probe results, OWASP findings | 7 of 10 | 3,000 | [security-review](#/examples/security-review) |
 | `maintainability-review` | Ratings, hotspots, recommendations by effort | 5 of 8 | 2,200 | [maintainability-review](#/examples/maintainability-review) |
+| `documentation-cost` | Time, agents, models and tokens spent on the documentation | 3 of 5 | 1,200 | [documentation-cost](#/examples/documentation-cost) |
 
 The sections themselves, type by type, are listed in `standard/templates.md`. The pages of this site are typed
 too: the reference pages are `technical`, the how-to pages `recipe`. The business and takeover types are explained

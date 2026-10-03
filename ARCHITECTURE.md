@@ -939,12 +939,24 @@ Two optional reviews of the documented application, asked at scoping: determinis
   `--by step`, each step is followed by its parts, with their share of the step. The overall total counts only the
   commands' own spans, so nothing is counted twice.
 - **`--profile`** (global) prints a run's spans to stderr, longest first, whether or not the project records them.
+- **`::usage{view}`** (`::consommation{vue}`) renders the statistics at build time (`engine/stats/render.mjs`). The
+  views are:
+  - `summary`: kit, agent and human time; the number of agents and the models used, with the agent count per
+    model; tokens; cost; runs; versions;
+  - `versions`: one row per version;
+  - `steps`: each step, with its parts under it;
+  - `models`: input, output and cache tokens per model, and their cost;
+  - `slowest`: the ten slowest parts.
+
+  With no view, every table is rendered. An unknown view is an error; a project with no statistics yet gets a
+  warning and a short note. Cost uses `llm.prices`: `cacheRead` defaults to 0.1 × input and `cacheWrite` to
+  1.25 × input. The `documentation-cost` page template lays these tables out.
 
 ## 7. Standard and page templates
 
 `standard/` is the quality standard. Every document exists in English (`.md`) and in French (`.fr.md`):
 - `structure`: recommended site structure;
-- `templates` (and `templates.json`, `templates/<group>.json`): the 30 page types;
+- `templates` (and `templates.json`, `templates/<group>.json`): the 31 page types;
 - `writing`: writing rules;
 - `captures`: capture safety;
 - `quality`: blocking gates and warnings;
@@ -952,13 +964,13 @@ Two optional reviews of the documented application, asked at scoping: determinis
 - `delivery`: handover checklist;
 - `config`: commented configuration examples, all fictional.
 
-The 30 page types are `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`, `resources` (`standard/templates.json`); `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` (`standard/templates/business.json`, §6.8); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`, `maintainability-review` (`standard/templates/takeover.json`, §6.9/§6.13). Each has a template in `templates/pages/en/<type>.md` and in `templates/pages/fr/<type>.md`.
+The 31 page types are `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`, `resources` (`standard/templates.json`); `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` (`standard/templates/business.json`, §6.8); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`, `maintainability-review`, `documentation-cost` (`standard/templates/takeover.json`, §6.9/§6.13/§6.14). Each has a template in `templates/pages/en/<type>.md` and in `templates/pages/fr/<type>.md`.
 
 ## 8. Skill
 
 The source lives in `skill/doc-kit/`:
 - `SKILL.md`: front matter `name: doc-kit` and `description`, about 250 lines, in English. It tells Claude to answer in the user's language.
-- `references/*.md`, in English: `method.md` (the phases in detail, both spaces, the update cycle), `pitfalls.md` (including vibe-coded application risks), `capture-safety.md`, `templates.md` (the 30 page types), `standard.md`, `agent-orchestration.md` (batches, waves, placeholders, the economy of the agents).
+- `references/*.md`, in English: `method.md` (the phases in detail, both spaces, the update cycle), `pitfalls.md` (including vibe-coded application risks), `capture-safety.md`, `templates.md` (the 31 page types), `standard.md`, `agent-orchestration.md` (batches, waves, placeholders, the economy of the agents).
 - `agents/*.md`: the three agent type definitions (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-reviewer`, §6.11), copied next to the skills folder by `skill install`, never inside the `doc-kit/` skill folder itself.
 - `assets/briefs/{en,fr}/*.md`: brief templates with parameters such as `{{product}}`, `{{docDir}}`, `{{code}}`…, filled by `scripts/brief.mjs` from `doc.config.mjs` and `--var` values.
 - `scripts/*.mjs`: `brief.mjs`, `consolidation.mjs`, `usage.mjs` and their shared `common.mjs` (Node ≥ 20, no dependency).

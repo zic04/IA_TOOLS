@@ -48,6 +48,7 @@ import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { generatorTag } from "../brand.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
+import { readUsage, USAGE_DIR } from "../stats/usage.mjs";
 
 export const SITE_DIR = path.join(KIT_ROOT, "engine", "site");
 const IMAGE_TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
@@ -98,6 +99,8 @@ export function build({ project, config, options = {} }) {
   const root = project.root;
   const draft = !!options.draft;
   const { content, images, diagrams, facts, translations } = config.paths;
+  // Production statistics (ARCHITECTURE.md §6.14), for ::usage: read once, whatever the language.
+  const usage = readUsage(path.join(root, USAGE_DIR));
   const siteDir = options.siteDir || SITE_DIR;
   const readFs = (p) => fs.readFileSync(path.join(root, p), "utf8");
   const existsFs = (p) => fs.existsSync(path.join(root, p));
@@ -255,6 +258,9 @@ export function build({ project, config, options = {} }) {
       icon,
       statuses: config.statuses,
       paths: { images, diagrams, facts },
+      usage,
+      llm: config.llm,
+      locale: lang,
     });
 
     const pages = {};

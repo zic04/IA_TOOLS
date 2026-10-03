@@ -2281,6 +2281,25 @@ figcaption,
   }
 }
 
+/* Production statistics (::usage, ARCHITECTURE.md §6.14): a share bar, and a step's parts indented under it. */
+.usage-bar {
+  --w: 0%; /* set per bar by the page (style="--w:…") */
+  display: inline-block;
+  vertical-align: middle;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--brand) var(--w), var(--brand-soft) var(--w));
+}
+tr.usage-part td:first-child {
+  padding-left: 28px;
+  color: var(--text-soft);
+}
+.usage-none {
+  color: var(--text-soft);
+  font-style: italic;
+}
+
 </style>
 </head>
 <body>

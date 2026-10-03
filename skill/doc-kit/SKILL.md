@@ -210,8 +210,11 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
   verification`, `production-technical`).
 - **Estimate before every wave**: `node scripts/brief.mjs <template> --estimate` for each brief of the wave (or
   `sync --estimate` for a maintenance wave), before launching a single agent.
-- **Log every agent as it ends**: `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> …`, from
-  what Claude Code reports — do this right after each completion notification, not in a batch at the end.
+- **Every agent is recorded automatically** when the statistics hook is installed (`doc-kit skill install --hooks`,
+  ARCHITECTURE.md §6.14): its tokens (input, output, cache), model and time go to the project's
+  `usage/<version>.jsonl`, read by `doc-kit stats` and the `documentation-cost` page. Without the hook, log each
+  agent yourself: `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> …`, right after each
+  completion notification, not in a batch at the end.
 - **Report at the end of each phase**: `node scripts/usage.mjs report`, compared with the wave's estimate.
 - **Never hand a writer the full inventory or table of contents**: give it `doc-kit context <page>` and the
   reference page instead; the inventory stays an orchestrator-only reading (phase 2 and phase 3 only).
