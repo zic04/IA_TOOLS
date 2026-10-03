@@ -39,6 +39,9 @@ entries between a project's `kit` range and the installed version.
   - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
   - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
 
+- **Parallel captures**: `capture.concurrency` (default 4, production always 1). Each capture runs in its own
+  browser context, and events and results stay in plan order. On the demo, 12 captures take 2.9 s instead of
+  7.3 s one at a time, and about 40 s before the condition-based waits.
 - **`capture.clock`**: a fixed date and time for every capture, so that "today" and relative dates stay the same
   from run to run.
 - **`capture --trace`**: a failed capture leaves its Playwright trace in `.doc-kit/traces/<id>.zip`, and the
