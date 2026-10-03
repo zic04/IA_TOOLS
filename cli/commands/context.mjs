@@ -18,7 +18,8 @@ import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
 import { checkLanguageOption, translatedToc, translatedGlossary, readSources, translationState } from "../../engine/build/languages.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { hashText } from "../../engine/sync/hash.mjs";
-import { normalizeToc, normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
+import { normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
+import { readToc, stripBom } from "../../engine/project/toc.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
@@ -30,21 +31,10 @@ export const options = {
   translate: { type: "string" },
 };
 
-const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
-
 /** Reads content/toc.json (or the legacy sommaire.json), normalised; null when missing or invalid. */
-function readToc(root, config) {
-  const { content } = config.paths;
-  const rel = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
-  if (!rel) return null;
-  let raw;
-  try {
-    raw = JSON.parse(stripBom(fs.readFileSync(path.join(root, rel), "utf8")));
-  } catch {
-    return null;
-  }
-  const toc = normalizeToc(raw).value;
-  return validate(toc, readSchema("toc")).errors.length ? null : toc;
+function readProjectToc(root, config) {
+  const { toc } = readToc(root, config.paths.content);
+  return toc && !validate(toc, readSchema("toc")).errors.length ? toc : null;
 }
 
 /** Reads content/glossary.json (or the legacy glossaire.json); [] when missing or invalid. */
@@ -111,7 +101,7 @@ export async function run({ ctx, values, positionals }) {
 
   const { project, config } = await ctx.loadProject();
   const root = project.root;
-  const toc = readToc(root, config);
+  const toc = readProjectToc(root, config);
   if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${CURRENT_FILES.toc}` });
   for (const id of positionals) if (!findPageEntry(toc, id)) throw new KitError(EXIT.USAGE, "context.unknownPage", { page: id });
 
@@ -165,7 +155,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
   const { content, translations } = config.paths;
   const templates = loadPageTemplates();
   const translationsConfig = { paths: { content: `${translations}/${lang}` } };
-  const rawTranslatedToc = readToc(root, translationsConfig);
+  const rawTranslatedToc = readProjectToc(root, translationsConfig);
   const tocL = rawTranslatedToc ? translatedToc({ source: toc, translated: rawTranslatedToc }).toc : null;
   const glossary = readGlossary(root, config);
   const glossaryLExists = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].some((f) => fs.existsSync(path.join(root, translations, lang, f)));

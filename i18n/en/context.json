@@ -48,7 +48,6 @@
   "cli.estimate.agent": "[{page}] {agent} ({model}): {input} input tokens, {output} output tokens",
   "cli.estimate.total": "Total: {input} input tokens, {output} output tokens",
   "cli.estimate.cost": "{cost} {currency}",
-  "cli.estimate.noPrices": "no price configured (llm.prices): cost not estimated",
 
   "cli.new.prefilled": { "one": "✔ {n} row prefilled from facts/{source}.json", "other": "✔ {n} rows prefilled from facts/{source}.json" },
   "cli.new.noFacts": "no facts to prefill from: {file}",

@@ -15,6 +15,7 @@ async function cli(args, { input, env = {} } = {}) {
     stdout: { write: (s) => (out += s) },
     stderr: { write: (s) => (err += s) },
     env,
+    chromium: async () => ({ ok: true, path: "/opt/chromium/chrome", command: "npx playwright install chromium" }),
     ...(input ? { stdin: Readable.from([input.map((l) => l + "\n").join("")]), interactive: true } : {}),
   });
   return { code, out, err };

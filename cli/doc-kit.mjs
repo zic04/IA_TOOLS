@@ -18,6 +18,7 @@ import { languageCounts } from "../engine/build/languages.mjs";
 import { createTimer, usageFolder, appendUsage } from "../engine/stats/usage.mjs";
 import { syncPath } from "../engine/sync/reference.mjs";
 import { WORK_DIR } from "./commands/audit.mjs";
+import { readToc } from "../engine/project/toc.mjs";
 import { SKILL_NAME } from "./commands/skill.mjs";
 
 const FOLDER = path.dirname(fileURLToPath(import.meta.url));
@@ -239,12 +240,8 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
  * not the guided mode's: a project that cannot be built never reaches this check anyway, since `doctor`/`build`
  * steps come first). */
 function safeToc(root, config) {
-  try {
-    const file = path.join(root, config.paths.content, "toc.json");
-    return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : { sections: [] };
-  } catch {
-    return { sections: [] };
-  }
+  // The shared reader (engine/project/toc.mjs): the legacy sommaire.json and French keys are read too.
+  return readToc(root, config.paths.content).toc || { sections: [] };
 }
 
 /** Commands offered once everything is in place, in this order; `translate status` only with `languages`

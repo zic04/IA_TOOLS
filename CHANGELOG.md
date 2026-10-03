@@ -90,6 +90,14 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Maintainability** (AUDIT.md M4, M7, M9 to M11):
+  - one table-of-contents reader, `engine/project/toc.mjs`, for `audit`, `context`, `translate` and the CLI.
+    `safeToc` now reads a legacy `sommaire.json`; it used to see no table of contents at all;
+  - the capture durations are in `engine/capture/timings.mjs`. `view` and `check tables` wait for the page to
+    settle, and `view --tour` for the step's card, instead of fixed delays;
+  - `doctor` checks Chromium through a seam (`ctx.chromium`), so its tests no longer depend on the browser
+    installed on the machine;
+  - dead code removed, and references to a document absent from the repository now point to ARCHITECTURE.md.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and

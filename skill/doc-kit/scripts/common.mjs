@@ -65,7 +65,6 @@ export function setMessageLanguage(language) {
   if (LANGUAGES.includes(language)) messageLanguage = language;
   return messageLanguage;
 }
-export const getMessageLanguage = () => messageLanguage;
 
 /** Adds the messages of a script (same keys in en and fr). */
 export function addMessages(table) {

@@ -1,4 +1,4 @@
-// `new --prefill` (ARCHITECTURE.md §6.11, cadrage §2.10): fills a freshly created page's main table from the
+// `new --prefill` (ARCHITECTURE.md §6.11): fills a freshly created page's main table from the
 // facts (`doc-kit facts`) instead of leaving every cell as a guidance placeholder. The template marks that table
 // with a line right before it, `<!-- doc-kit:prefill source="env" -->`; `new` always removes the marker, with or
 // without `--prefill` (like the capture variant markers of ARCHITECTURE.md §6.4).
@@ -23,12 +23,12 @@ const guidanceOf = (text) => (isFrench(text) ? (cell) => `<!-- consigne : ${cell
 /** The claim-status badge word of the template's own language (ARCHITECTURE.md §6.9: [[verified]] / [[verifie]]). */
 const verifiedOf = (text) => (isFrench(text) ? "verifie" : "verified");
 
-/** path:line[-line] proofs of an env variable's reads, or "—" without any (cadrage §2.10). */
+/** path:line[-line] proofs of an env variable's reads, or "—" without any (ARCHITECTURE.md §6.11). */
 const filesCell = (files) => (files?.length ? files.map((f) => `\`${f}\``).join(", ") : "—");
 
 /**
  * Key cells of one row, by column index (0-based); a column not returned here falls back to the example row's
- * own text, turned into a guidance comment (cadrage §2.10). `verified`: the claim-status badge word in the
+ * own text, turned into a guidance comment (ARCHITECTURE.md §6.11). `verified`: the claim-status badge word in the
  * template's own language. `.env.example` stands for the longer "this variable is only known from an example
  * env file" (a short, language-neutral notation, read the same in English and French).
  */
@@ -40,7 +40,7 @@ const KEY_CELLS = {
   agents: (item) => ({ 0: `\`${item.file}\``, 1: String(item.lines), 2: String(item.words), 3: String(item.hidden?.length || 0) }),
 };
 
-/** Only the direct dependencies are prefilled (cadrage §2.10): a dev or transitive package tells a reviewer little. */
+/** Only the direct dependencies are prefilled (ARCHITECTURE.md §6.11): a dev or transitive package tells a reviewer little. */
 const itemsFor = (source, items) => (source === "dependencies" ? items.filter((i) => i.direct === true) : items);
 
 /** Cells of a Markdown table row ("| a | b |" → ["a", "b"]), trimmed. */
@@ -54,7 +54,7 @@ const rowOf = (cells) => `| ${cells.join(" | ")} |`;
 
 /**
  * Fills the table right after the `doc-kit:prefill source="<source>"` marker, one row per item, then removes
- * the marker (ARCHITECTURE.md §6.11, cadrage §2.10).
+ * the marker (ARCHITECTURE.md §6.11).
  * @param {string} text
  * @param {{ source: string, items: object[], template?: string }} p   `template`: only for the error message
  * @returns {{ text: string, rows: number }}

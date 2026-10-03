@@ -16,6 +16,7 @@ import { validate } from "../project/validate.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { launchBrowser } from "../project/browser.mjs";
 import { firstLine } from "./actions.mjs";
+import { TIMINGS } from "./timings.mjs";
 
 export const BUILT_IN = Object.freeze({
   auth: ["manual", "none", "nextauth", "api-me"],
@@ -177,13 +178,13 @@ const NEVER = new Promise(() => {});
  * @param {(event: string) => void} [p.onStatus]   "notYet": the person pressed Enter but is not signed in
  * @returns {Promise<{ who?, details?, expires?, file: string }>}
  */
-export async function connect({ url, auth, file, headless = false, locale, waitForUser, onStatus = () => {}, timeout = 15 * 60_000, poll = 2000, launch = launchBrowser }) {
+export async function connect({ url, auth, file, headless = false, locale, waitForUser, onStatus = () => {}, timeout = TIMINGS.signIn, poll = TIMINGS.signInPoll, launch = launchBrowser }) {
   const browser = await launch(browserLaunch(auth, { headless, ...(headless ? {} : { args: ["--start-maximized"] }) }));
   try {
     const context = await browser.newContext({ viewport: headless ? { width: 1280, height: 800 } : null, ...(locale ? { locale } : {}) });
     const page = await context.newPage();
     try {
-      await page.goto(url + auth.options.start, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      await page.goto(url + auth.options.start, { waitUntil: "domcontentloaded", timeout: TIMINGS.start });
     } catch (e) {
       throw new KitError(EXIT.ENVIRONMENT, "connect.unreachable", { url, error: firstLine(e) }, { cause: e });
     }
@@ -244,7 +245,7 @@ export async function refreshSession({ file, appUrl, refresh, launch = launchBro
         ...(refresh.json ? { data: refresh.json } : {}), // sent as JSON (Content-Type: application/json)
         failOnStatusCode: false,
         maxRedirects: 0,
-        timeout: 30_000,
+        timeout: TIMINGS.start,
       });
     } catch (e) {
       return { ok: false, status: null, error: firstLine(e) };
@@ -266,11 +267,11 @@ export async function refreshSession({ file, appUrl, refresh, launch = launchBro
 export async function checkSession(page, { url, auth }) {
   let response;
   try {
-    response = await page.goto(url + auth.options.start, { waitUntil: "load", timeout: 30_000 });
+    response = await page.goto(url + auth.options.start, { waitUntil: "load", timeout: TIMINGS.start });
   } catch (e) {
     throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url, error: firstLine(e) }, { cause: e });
   }
-  await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => {});
+  await page.waitForLoadState("networkidle", { timeout: TIMINGS.sessionIdle }).catch(() => {});
   if (response && response.status() === 401) return null;
   return readSession(page, auth, url);
 }

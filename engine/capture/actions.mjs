@@ -1,6 +1,7 @@
 // Targets → Playwright locators, measured boxes, and the actions played before a capture.
 // Syntax: header of engine/capture/plans.mjs. Errors carry an i18n key (cli.capture.error.*) and variables.
 import { selectors } from "playwright";
+import { TIMINGS } from "./timings.mjs";
 
 /** Error of one capture, translated by the CLI (key `cli.capture.error.<key>`). */
 export class CaptureError extends Error {
@@ -87,7 +88,7 @@ export function describeTarget(t) {
  * Box of a zone (a target or { union }), in page pixels, with its margin.
  * @returns {Promise<{ x: number, y: number, width: number, height: number }>}
  */
-export async function zoneBox(page, zone, sel, { timeout = 8000 } = {}) {
+export async function zoneBox(page, zone, sel, { timeout = TIMINGS.element } = {}) {
   const targets = Array.isArray(zone.union) ? zone.union : [zone];
   let b = null;
   for (const t of targets) {
@@ -110,7 +111,7 @@ export async function frameClip(page, frame, sel) {
   const vp = page.viewportSize();
   if (!frame) return { x: 0, y: 0, width: vp.width, height: vp.height };
   const l = locate(page, frame, sel);
-  await l.waitFor({ state: "visible", timeout: 8000 });
+  await l.waitFor({ state: "visible", timeout: TIMINGS.element });
   await l.scrollIntoViewIfNeeded();
   const b = await l.boundingBox();
   if (!b) throw new Error(`no box: ${describeTarget(frame)}`);
@@ -145,10 +146,10 @@ export function measureZone(n, box, clip, zone = {}) {
 
 /** Plays one action. */
 export async function play(page, a, sel) {
-  const timeout = 8000;
+  const timeout = TIMINGS.element;
   if (a.wait !== undefined) {
     if (typeof a.wait === "number") await page.waitForTimeout(a.wait);
-    else await locate(page, a.wait, sel).waitFor({ state: "visible", timeout: 15000 });
+    else await locate(page, a.wait, sel).waitFor({ state: "visible", timeout: TIMINGS.waitTarget });
   } else if (a.click) await locate(page, a.click, sel).click({ timeout, ...(a.options || {}) });
   else if (a.hover) await locate(page, a.hover, sel).hover({ timeout });
   else if (a.type) await locate(page, a.type, sel).fill(String(a.value), { timeout });
@@ -160,7 +161,7 @@ export async function play(page, a, sel) {
     await page.mouse.move(x, y);
     for (let i = 0; i < steps; i++) {
       await page.mouse.wheel(0, direction * 360);
-      await page.waitForTimeout(350);
+      await page.waitForTimeout(TIMINGS.wheelStep);
     }
   } else if (a.eval !== undefined) await page.evaluate(a.eval);
   else throw new CaptureError("actionUnknown", { action: JSON.stringify(a) });

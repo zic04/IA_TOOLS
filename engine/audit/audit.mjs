@@ -12,12 +12,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { build, readProjectVersion, HOME_FILES } from "../build/build.mjs";
 import { loadPageTemplates, analysePage, guessTemplate, closestTemplate, headingsOf, sectionLabel, sectionCount, countGuidance } from "../build/page-templates.mjs";
-import { normalizeToc, normalizeZones, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
+import { normalizeZones } from "../project/legacy.mjs";
 import { languageCounts } from "../build/languages.mjs";
 import { createI18n, LANGUAGES } from "../i18n.mjs";
 import { generatorTag } from "../brand.mjs";
 import { measureCoverage, measureSecrets } from "./optional.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
+import { readToc } from "../project/toc.mjs";
+
+// Kept as an export of the audit module for the commands that import it from here.
+export { readToc };
 
 /** Ids of the Take over section; otherwise the last section (when there are at least two). */
 export const TAKEOVER_SECTION_IDS = ["take-over", "reprendre"];
@@ -96,17 +100,6 @@ const notMeasured = (kind, reason, error) => ({ kind, measured: false, reason, .
 const need = (threshold, total, n) => Math.max(0, Math.ceil(threshold * total - 1e-9) - n);
 
 /** Reads the table of contents (current or legacy name), normalised. */
-export function readToc(root, content) {
-  const rel = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
-  if (!rel) return { file: `${content}/${CURRENT_FILES.toc}`, toc: null };
-  try {
-    const raw = JSON.parse(fs.readFileSync(path.join(root, rel), "utf8"));
-    const n = normalizeToc(raw);
-    return { file: rel, toc: n.value, legacy: n.legacy || rel.endsWith(LEGACY_FILES.toc) };
-  } catch {
-    return { file: rel, toc: null };
-  }
-}
 
 /** Placeholders of the page summary written by `new` (both languages): a page that still has one is unfinished. */
 export const summaryPlaceholders = () => LANGUAGES.map((l) => createI18n({ language: l }).t("cli.new.summaryPlaceholder"));

@@ -26,7 +26,6 @@ import { BRAND } from "../../engine/brand.mjs";
 import {
   kitPackage,
   kitDependencies,
-  chromiumStatus,
   projectDependency,
   importConfig,
   sessionInfo,
@@ -110,7 +109,7 @@ export async function diagnose(ctx, { network = false } = {}) {
   else add("kitDeps", "ok", "env", "cli.doctor.kitDeps.ok", { list: deps.map((d) => `${d.name} ${d.found}`).join(", ") });
 
   if (!missing.some((d) => d.name === "playwright")) {
-    const chromium = await chromiumStatus();
+    const chromium = await ctx.chromium();
     if (chromium.ok) add("chromium", "ok", "env", "cli.doctor.chromium.ok", { path: chromium.path });
     else add("chromium", "fail", "env", "cli.doctor.chromium.fail", { install: chromium.command });
   }

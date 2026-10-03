@@ -7,7 +7,7 @@ import { createMarkdownEngine } from "../../engine/build/markdown.mjs";
 import { checkLanguageOption, translationState } from "../../engine/build/languages.mjs";
 import { statusOf, markFiles, resolveItems } from "../../engine/translate/status.mjs";
 import { fixAnchors } from "../../engine/translate/anchors.mjs";
-import { normalizeToc, CURRENT_FILES, LEGACY_FILES } from "../../engine/project/legacy.mjs";
+import { readToc } from "../../engine/project/toc.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { numbers } from "../../engine/build/format.mjs";
 
@@ -19,11 +19,10 @@ export const options = {
 };
 
 /** The table of contents (current or legacy file name); throws like `build` when it cannot be read. */
-function readToc(root, config) {
-  const { content } = config.paths;
-  const file = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => path.join(root, content, f)).find((f) => fs.existsSync(f));
-  if (!file) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${content}/${CURRENT_FILES.toc}` });
-  return normalizeToc(JSON.parse(fs.readFileSync(file, "utf8"))).value;
+function readProjectToc(root, config) {
+  const r = readToc(root, config.paths.content);
+  if (!r.toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: r.file });
+  return r.toc;
 }
 
 /** The target languages of this run: `--lang` (checked, never the source), else every language but the source. */
@@ -144,7 +143,7 @@ export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
   const root = project.root;
   if (!config.languages) throw new KitError(EXIT.USAGE, "translate.noLanguages");
-  const toc = readToc(root, config);
+  const toc = readProjectToc(root, config);
   if (positionals[0] === "status") return runStatus({ ctx, values, positionals: positionals.slice(1), config, root, toc });
   if (values.mark) return runMark({ ctx, values, positionals, config, root, toc });
   if (values["fix-anchors"]) return runFixAnchors({ ctx, values, positionals, config, root, toc });
