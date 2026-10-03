@@ -467,6 +467,7 @@ export const DEFAULT_ROUTING = Object.freeze({
   "findings-verification": "sonnet",
   "maintainability-review": "sonnet",
   "page-corrections": "sonnet",
+  "capture-plans": "sonnet",
   inventory: "opus",
   "code-health": "opus",
   "security-review": "opus",

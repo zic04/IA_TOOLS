@@ -44,6 +44,10 @@ entries between a project's `kit` range and the installed version.
   environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
   import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
   release notes.
+- **The `capture-plans` brief** (skill, sonnet): an agent drafts the capture plans of a set of screens from the
+  code and the facts. It writes the frame, 3 to 8 captioned zones on stable targets and masks, then checks every
+  entry with `capture --verify` and `--preview`. It never clicks in a live application, and the read-only capture
+  stays the only way a page is opened.
 - **`capture --verify`** replays the plans as tests. Each page is opened, its actions played, and its frame and
   zones located, read-only, but nothing is written. A screen that changed fails with the zone it could not find.
   Run it in CI against the demo, or before a release.

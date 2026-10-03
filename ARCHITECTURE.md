@@ -798,7 +798,7 @@ The kit calls no LLM. The skill drives Claude Code agents; the kit makes them re
 **Model routing**: each brief runs on its own model, chosen in this order:
 1. `llm.routing` in `doc.config.mjs` (`{ "<brief>": "<model>" }`);
 2. the skill's `DEFAULT_ROUTING` (`skill/doc-kit/scripts/common.mjs`): `haiku` for `triage` and `translate`;
-   `sonnet` for `findings-verification`, `maintainability-review` and `page-corrections`; `opus` for `inventory`,
+   `sonnet` for `findings-verification`, `maintainability-review`, `page-corrections` and `capture-plans`; `opus` for `inventory`,
    `code-health`, `security-review` and `production-technical`;
 3. the model of its agent type (`agents/<type>.md`).
 

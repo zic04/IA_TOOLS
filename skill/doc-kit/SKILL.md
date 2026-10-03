@@ -58,6 +58,7 @@ identical for a given template, so a wave shares its prompt cache).
 | Brief | Phase | Space | Agent type | Writes |
 |---|---|---|---|---|
 | `inventory` | 2 | both | `doc-kit-reviewer` (read-only) | nothing: the orchestrator saves its report |
+| `capture-plans` | 4 | business (screens) | `doc-kit-writer` (sonnet), one per set of screens | the first draft of a capture plan, checked with `capture --verify` and `--preview` |
 | `writing-batch` | 5 | business (screens) | `doc-kit-writer`, one per batch | its pages, capture plan, diagrams |
 | `functional-spec` | 5 | business (features) | `doc-kit-writer`, one per batch | feature/rules/roles/process pages |
 | `consolidation` | 6 | both | — (model of the consolidation file) | — |
@@ -105,7 +106,7 @@ like the skill.
   | Model | Briefs |
   |---|---|
   | `haiku` | `triage`, `translate` |
-  | `sonnet` | the writing briefs, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
+  | `sonnet` | the writing briefs, `capture-plans`, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
   | `opus` | `inventory`, `code-health`, `security-review`, `production-technical` |
 
   Pass the model to the agent launch: it overrides the agent type's own model. A high-severity finding may still
@@ -140,7 +141,9 @@ must reach 100 %. One approved reference page per space.
 ### 4 · Captures
 Skipped with `capture.mode: "none"`. Otherwise `doc-kit demo` or `doc-kit connect` + the PRODUCTION banner, then a
 trial `doc-kit capture "<prefix>-*" --preview` on the reference page. **Read** `references/capture-safety.md`
-first.
+first. The plans themselves are drafted by `capture-plans` agents, one per set of screens and all launched in
+parallel, or recorded by a person with `doc-kit record <route>`. They are checked with `doc-kit capture --verify`,
+which reads only and writes nothing, before any image is taken.
 
 ### 5 · Writing in batches
 One brief per batch, in parallel waves. **First**, for each page: `doc-kit context <page>` (the only reading an
