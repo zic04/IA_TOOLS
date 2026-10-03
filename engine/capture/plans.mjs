@@ -223,8 +223,27 @@ export function forbiddenMatchers(patterns = []) {
   });
 }
 
-/** The forbidden pattern matched by a route (its path only), or null. */
+/**
+ * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %61…), with repeated
+ * slashes collapsed and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
+ */
+export function pathForms(p) {
+  let decoded = p;
+  try {
+    decoded = decodeURIComponent(p);
+  } catch {
+    // malformed escape: the path as written
+  }
+  const forms = new Set();
+  for (const f of [p, decoded]) {
+    const collapsed = f.replace(/\/{2,}/g, "/");
+    for (const g of [f, collapsed, collapsed.length > 1 ? collapsed.replace(/\/$/, "") : collapsed]) forms.add(g);
+  }
+  return [...forms];
+}
+
+/** The forbidden pattern matched by a route (its path only, in any of its forms), or null. */
 export function forbiddenMatch(route, matchers) {
-  const p = routePath(route);
-  return matchers.find((m) => m.re.test(p))?.pattern ?? null;
+  const forms = pathForms(routePath(route));
+  return matchers.find((m) => forms.some((f) => m.re.test(f)))?.pattern ?? null;
 }

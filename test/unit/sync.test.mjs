@@ -61,13 +61,13 @@ function fakeExec({ rev = "c0ffee", changed = [], diffs = {}, showFiles = {} } =
     if (args[0] === "rev-parse" && args[1] === "--is-inside-work-tree") return { status: 0, stdout: "true\n" };
     if (args[0] === "rev-parse") return { status: 0, stdout: rev + "\n" };
     if (args[0] === "show") {
-      const [ref, file] = args[1].split(":");
+      const [ref, file] = args.at(-1).split(":");
       const key = `${ref}:${file.replace(/^\.\//, "")}`;
       return key in showFiles ? { status: 0, stdout: showFiles[key] } : { status: 1, stdout: "" };
     }
     if (args[0] === "diff" && args[1] === "--name-status") return { status: 0, stdout: changed.join("\n") };
     if (args[0] === "diff") {
-      const ref = args[2]; // ["diff", "--relative", ref, "--", …paths]
+      const ref = args[3]; // ["diff", "--relative", "--end-of-options", ref, "--", …paths]
       return { status: 0, stdout: diffs[ref] || "" };
     }
     return { status: 1, stdout: "" };
@@ -147,11 +147,23 @@ describe("engine/sync/git.mjs (read-only exec seam)", () => {
     };
     const git = createGit(exec, "/repo/app");
     git.show("abc123", "lib/orders.ts");
-    assert.deepEqual(calls.at(-1), ["show", "abc123:./lib/orders.ts"]);
+    assert.deepEqual(calls.at(-1), ["show", "--end-of-options", "abc123:./lib/orders.ts"]);
     git.changed("abc123");
     assert.ok(calls.at(-1).includes("--relative"), calls.at(-1).join(" "));
     git.diff("abc123", ["lib/orders.ts"]);
-    assert.deepEqual(calls.at(-1), ["diff", "--relative", "abc123", "--", "lib/orders.ts"]);
+    assert.deepEqual(calls.at(-1), ["diff", "--relative", "--end-of-options", "abc123", "--", "lib/orders.ts"]);
+  });
+
+  test("a reference that is not one (an option, a space, a colon) is refused before git runs (SECURITY.md)", () => {
+    const calls = [];
+    const git = createGit((bin, args) => (calls.push(args), { status: 0, stdout: "x" }), "/app");
+    for (const ref of ["--output=/tmp/pwned", "-p", "a b", "HEAD:secret", "", null]) {
+      assert.equal(git.show(ref, "f.ts"), null, String(ref));
+      assert.equal(git.changed(ref), null, String(ref));
+      assert.equal(git.diff(ref, ["f.ts"]), null, String(ref));
+    }
+    assert.deepEqual(calls, []);
+    for (const ref of ["abc123", "HEAD~2", "v1.0^", "main@{1}", "origin/main", "release-1.2"]) assert.notEqual(git.diff(ref, ["f.ts"]), null, ref);
   });
 
   test("no git / not a repository: every call degrades to null, never throws", () => {

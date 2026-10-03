@@ -9,7 +9,7 @@ export const TOOL_NAMES = Object.freeze(["gitleaks", "osv-scanner", "syft", "kni
 /** Command line of each tool, run from the application folder. `semgrep`: `options.semgrepConfig` (a local rules
  * folder, never --config auto, which downloads rules). */
 const ARGS = {
-  gitleaks: (dir) => ["detect", "--source", dir, "--no-git", "--report-format", "json", "--report-path", "-"],
+  gitleaks: (dir) => ["detect", "--source", dir, "--no-git", "--redact", "--report-format", "json", "--report-path", "-"],
   "osv-scanner": (dir) => ["--format", "json", dir],
   syft: (dir) => [dir, "-o", "json"],
   knip: () => ["--reporter", "json"],

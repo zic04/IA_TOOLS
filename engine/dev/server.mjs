@@ -140,6 +140,12 @@ export async function startDevServer({ root, loadConfig, describe, describeError
     `<!doctype html>\n<html lang="${escapeHtml(texts.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(texts.title)}</title></head><body><p style="font:15px system-ui;margin:40px">${escapeHtml(texts.waiting)}</p></body></html>`;
 
   const server = http.createServer((req, res) => {
+    // DNS rebinding (SECURITY.md): a page of another site whose name resolves to 127.0.0.1 sends its own Host.
+    if (!isLocalHost(req.headers.host, server.address().port, host)) {
+      res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("403");
+      return;
+    }
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === EVENTS_PATH) {
       res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", Connection: "keep-alive" });
@@ -203,6 +209,17 @@ export async function startDevServer({ root, loadConfig, describe, describeError
       await closed;
     },
   };
+}
+
+/**
+ * Is a request's Host header this local server (localhost, 127.0.0.1, [::1] or the address it listens on, with
+ * its port)? Anything else, a missing header included, is refused: protection against DNS rebinding.
+ */
+export function isLocalHost(header, port, host = "127.0.0.1") {
+  if (typeof header !== "string") return false;
+  const names = new Set(["localhost", "127.0.0.1", "[::1]", host.includes(":") ? `[${host}]` : host]);
+  const m = /^(\[[^\]]+\]|[^:]+)(?::(\d+))?$/.exec(header.trim().toLowerCase());
+  return !!m && names.has(m[1]) && Number(m[2]) === port;
 }
 
 /** Is a TCP port free on the host? */

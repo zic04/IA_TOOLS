@@ -51,5 +51,7 @@
   "render.facts.column.tests": "Tests",
   "render.facts.column.version": "Version",
   "render.facts.column.words": "Mots",
-  "render.facts.commitUnknown": "inconnu"
+  "render.facts.commitUnknown": "inconnu",
+  "cli.git.unsafeConfig": "git n'est pas lancé dans {folder} : sa configuration désigne un programme que git pourrait exécuter ({keys})",
+  "cli.git.unsafeConfig.help": "lisez ces clés dans le .git/config du dépôt et retirez-les si vous n'en êtes pas sûr, puis relancez la commande ; en attendant, le kit fonctionne sans git (les fichiers sont listés directement)"
 }

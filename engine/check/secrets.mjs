@@ -24,6 +24,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { sensitiveValues, GUID } from "../capture/masking.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
+import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../util/safe-git.mjs";
 
 /** A placeholder, a variable name or a masked value: not a secret. */
 export const PLACEHOLDER =
@@ -98,7 +99,7 @@ const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && n
 export const GENERIC = Object.freeze([
   {
     kind: "privateKey",
-    re: /-----BEGIN ([A-Z0-9 ]*?)PRIVATE KEY-----[ \t]*\r?\n(?<v>(?:[ \t]*(?:[A-Za-z0-9+/=]+|[A-Za-z-]+:[^\n]*)?[ \t]*\r?\n)+?)[ \t]*-----END \1PRIVATE KEY-----/g,
+    re: /-----BEGIN ([A-Z0-9 ]*?)PRIVATE KEY-----[ \t]*\r?\n(?<v>(?:[ \t]*(?:(?:[A-Za-z0-9+/=]+|[A-Za-z-]+:[^\n]*)[ \t]*)?\r?\n)+?)[ \t]*-----END \1PRIVATE KEY-----/g,
     accept: (m) => m.groups.v.replace(/^[A-Za-z-]+:.*$/gm, "").replace(/\s/g, "").length >= 40,
   },
   { kind: "jwt", re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
@@ -209,7 +210,11 @@ export function isStorageState(text) {
 
 /** Is a file tracked by git? (false when git is not available or the folder is not a repository) */
 export function trackedByGit(file) {
-  const r = spawnSync("git", ["ls-files", "--error-unmatch", path.basename(file)], { cwd: path.dirname(file), encoding: "utf8", windowsHide: true });
+  const cwd = path.dirname(file);
+  if (riskyGitConfig(cwd).length) return false;
+  const bin = resolveOnPath("git", { exclude: [cwd] });
+  if (!bin) return false;
+  const r = spawnSync(bin, safeGitArgs(["ls-files", "--error-unmatch", "--", path.basename(file)]), { cwd, encoding: "utf8", windowsHide: true });
   return r.status === 0;
 }
 
