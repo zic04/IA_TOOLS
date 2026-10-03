@@ -46,7 +46,8 @@ titles.
   (optional, third parties that receive personal data — payment, e-mail, analytics — from the code or
   `facts/dependencies.json`); `## Migrations` (optional, how schema changes are applied).
 - **`code-map`**: `## In short`; `## Context` (the application among the systems it talks to, a C4-style
-  "system context" diagram, `::diagram{id="code-context"}`); `## Containers` (the deployable units — front end,
+  container view, `::c4{}`, drawn from the facts with the evidence of each element; a hand-drawn
+  `::diagram{id="code-context"}` only when the facts miss a system); `## Containers` (the deployable units — front end,
   back end, database, queue, scheduled jobs — table `Container · Technology · Code`); `## Components` (optional,
   only for the container(s) a newcomer most needs oriented in: where the business logic and the data access
   live); `## Integrations` (optional, every external system called from the code, with the file that calls it);

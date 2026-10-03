@@ -6,9 +6,9 @@ Example: "A single repository: a front end and a back end, sharing one database.
 
 ## Context
 
-<!-- guidance: the application among the systems it talks to (users, other systems, external services); a system context diagram if one helps. -->
+<!-- guidance: the application among the systems it talks to (users, other systems, external services). `::c4` draws them from the facts (`doc-kit facts --source dependencies --source env --source db`), each with its evidence; add a hand-drawn `::diagram` only for a system the facts cannot see (an internal service called by URL, a queue). -->
 
-::diagram{id="code-context" title="The application and the systems it talks to."}
+::c4{}
 
 ## Containers
 
@@ -30,7 +30,7 @@ Example: "A single repository: a front end and a back end, sharing one database.
 
 ## Integrations
 
-<!-- guidance: optional. Every external system called from the code (payment, e-mail, another internal service), with the file that calls it. -->
+<!-- guidance: optional. Every external system called from the code (payment, e-mail, another internal service), with the file that calls it: start from the systems `::c4` found, then add the call site of each. -->
 
 | System | Called from | Proof |
 |---|---|---|

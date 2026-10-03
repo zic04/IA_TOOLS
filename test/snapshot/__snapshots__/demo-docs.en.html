@@ -2421,6 +2421,48 @@ tr.usage-part td:first-child {
   color: var(--text-soft);
 }
 
+/* Container view (::c4, engine/build/c4.mjs): theme colours, so it follows light and dark. */
+.c4 {
+  max-width: 100%;
+  height: auto;
+  font: 12px var(--font);
+}
+.c4 rect {
+  stroke-width: 1.5;
+}
+.c4-person rect {
+  fill: var(--brand-soft);
+  stroke: var(--brand);
+}
+.c4-container rect {
+  fill: var(--surface);
+  stroke: var(--brand);
+}
+.c4-database rect {
+  fill: var(--surface);
+  stroke: var(--violet);
+}
+.c4-external rect {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  stroke-dasharray: 5 3;
+}
+.c4-name {
+  fill: var(--text);
+  font-weight: 700;
+}
+.c4-tech {
+  fill: var(--text-soft);
+  font-size: 11px;
+}
+.c4-edge {
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+}
+.c4-arrow {
+  fill: var(--text-faint);
+}
+
 </style>
 </head>
 <body>

@@ -7,6 +7,7 @@ import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
 import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
+import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, expressRoutes, fastapiRoutes, nextHandlerGuards } from "../../engine/facts/api.mjs";
 import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
@@ -96,6 +97,7 @@ export const CHECKS = [
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
   ["env pydanticEnvNames", (s) => pydanticEnvNames(s)],
+  ...ENV_PATTERNS.map((re, i) => [`c4 environment variable ${i}`, (s) => re.test(s)]),
   ...Object.entries(DB_PATTERNS).map(([name, re]) => [
     `db ${name}`,
     (s) => {

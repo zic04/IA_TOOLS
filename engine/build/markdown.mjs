@@ -19,6 +19,7 @@ import { esc, attrs, plainText, slug } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { renderErd } from "./erd.mjs";
 import { renderModules, renderHotspots, renderHealth, limitOf } from "./developer.mjs";
+import { systemModel, renderC4 } from "./c4.mjs";
 import { renderChanges } from "../facts/changes.mjs";
 
 /** Spelling → canonical kind. */
@@ -46,6 +47,7 @@ const DIRECTIVES = {
   "points-chauds": "hotspots",
   health: "health",
   sante: "health",
+  c4: "c4",
 };
 /** Facts files read by the health summary (::health), in the order of its cards. */
 const HEALTH_SOURCES = ["quality", "security", "secrets", "tests", "modules", "history", "dependencies"];
@@ -240,7 +242,7 @@ export function createMarkdownEngine({
     }
   }
 
-  /** ::modules, ::hotspots and ::health (engine/build/developer.mjs): the developer overview, from the facts. */
+  /** ::modules, ::hotspots, ::health (engine/build/developer.mjs) and ::c4 (engine/build/c4.mjs), from the facts. */
   function developerView(tk) {
     const limit = limitOf(tk.a.limit);
     const need = (source) => {
@@ -258,6 +260,11 @@ export function createMarkdownEngine({
       const quality = need("quality");
       if (!history || !quality) return "";
       html = renderHotspots(history, quality, { t, esc, limit });
+    } else if (tk.kind === "c4") {
+      const dependencies = need("dependencies");
+      if (!dependencies) return "";
+      const model = systemModel({ dependencies, env: readFactsFile("env"), db: readFactsFile("db") });
+      html = renderC4(model, { t, esc, title: tk.a.title || t("render.c4.title") });
     } else {
       const facts = Object.fromEntries(HEALTH_SOURCES.map((source) => [source, readFactsFile(source)]));
       // Every card says "not measured" for a missing source; with none at all, the page has nothing to show.
@@ -284,7 +291,7 @@ export function createMarkdownEngine({
     renderer(tk) {
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
-      if (tk.kind === "modules" || tk.kind === "hotspots" || tk.kind === "health") return developerView(tk);
+      if (["modules", "hotspots", "health", "c4"].includes(tk.kind)) return developerView(tk);
       if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles")
         return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
       // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).

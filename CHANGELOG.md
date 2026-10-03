@@ -13,7 +13,10 @@ entries between a project's `kit` range and the installed version.
   - `::hotspots{limit}` (`::points-chauds`): the files that change most often and are the most complex (git
     history × quality measures), with their main author and the bus factor;
   - `::health{}` (`::sante`): the state of the application in one view, then its main risks.
-  The `code-map` and `maintainability-review` page templates use them instead of raw `::facts` tables.
+  - `::c4{title}`: the container view (users, front end, API, database, external systems such as Stripe or
+    OpenAI), deduced from the dependencies, the environment variables and the tables, each with its evidence.
+  The `code-map` and `maintainability-review` page templates use them instead of raw `::facts` tables and of a
+  hand-drawn context diagram.
 
 ### Fixed
 

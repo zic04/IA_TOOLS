@@ -8,6 +8,7 @@ import { parseNumstat, historyFacts, collectHistory } from "../../engine/facts/h
 import { cyclesOf, collectModules } from "../../engine/facts/modules.mjs";
 import { collectDb } from "../../engine/facts/db.mjs";
 import { renderErd, erdTables } from "../../engine/build/erd.mjs";
+import { systemModel, renderC4 } from "../../engine/build/c4.mjs";
 import {
   limitOf,
   renderModules,
@@ -378,6 +379,127 @@ describe("the developer views: ::modules, ::hotspots, ::health (engine/build/dev
       facts("modules", { items: [] });
       assert.equal(await cli(["build", "--project", dir, "--output", out]), 0, "an empty graph is only a warning");
       assert.match(fs.readFileSync(out, "utf8"), /No module found in facts\/modules\.json yet/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("::c4: containers, database and external systems from the facts (engine/build/c4.mjs)", () => {
+  const t = (key) => key;
+  const dep = (name, manifest, extra = {}) => ({
+    name,
+    manifest,
+    ecosystem: "npm",
+    direct: true,
+    dev: false,
+    ...extra,
+  });
+  const facts = {
+    dependencies: {
+      items: [
+        dep("react", "frontend/package.json"),
+        dep("@stripe/stripe-js", "frontend/package.json"),
+        dep("vite", "frontend/package.json", { dev: true }),
+        dep("fastapi", "api/requirements.txt"),
+        dep("sqlalchemy", "api/requirements.txt"),
+        dep("psycopg2-binary", "api/requirements.txt"),
+        dep("@aws-sdk/client-s3", "api/package.json"),
+        dep("@sentry/react", "frontend/package.json", { dev: true }),
+        dep("lodash", "package.json", { direct: false }),
+      ],
+    },
+    env: {
+      items: [
+        { name: "VITE_POSTHOG_KEY", files: ["frontend/src/analytics.ts:1"], example: false },
+        { name: "OPENAI_API_KEY", files: ["api/settings.py:3"], example: true },
+        { name: "DATABASE_URL", files: ["api/settings.py:2"], example: true },
+      ],
+    },
+    db: { items: [] },
+  };
+
+  test("a container per folder that names a framework, in reading order; dev dependencies never count", () => {
+    const model = systemModel(facts);
+    assert.deepEqual(
+      model.containers.map((c) => [c.kind, c.tech, c.path, c.evidence]),
+      [
+        ["web", "React", "frontend", "react (frontend/package.json)"],
+        ["api", "FastAPI", "api", "fastapi (api/requirements.txt)"],
+      ],
+    );
+    assert.deepEqual(model.database, {
+      tech: "PostgreSQL, SQLAlchemy",
+      evidence: "sqlalchemy (api/requirements.txt)",
+      source: "api/requirements.txt",
+    });
+    assert.deepEqual(
+      model.externals.map((x) => [x.name, x.evidence]),
+      [
+        ["Stripe", "@stripe/stripe-js (frontend/package.json)"],
+        ["OpenAI", "OPENAI_API_KEY (api/settings.py:3)"],
+        ["AWS", "@aws-sdk/client-s3 (api/package.json)"],
+        ["PostHog", "VITE_POSTHOG_KEY (frontend/src/analytics.ts:1)"],
+      ],
+      "a front-end prefix (VITE_) is read through; a dev-only package (@sentry/react) is no evidence",
+    );
+  });
+
+  test("a full-stack framework wins over its UI library; a database named only by its variable or its tables", () => {
+    const next = systemModel({
+      dependencies: { items: [dep("react", "package.json"), dep("next", "package.json")] },
+      env: { items: [{ name: "DATABASE_URL", files: ["lib/db.ts:2"] }] },
+      db: null,
+    });
+    assert.deepEqual(
+      next.containers.map((c) => [c.kind, c.tech, c.path]),
+      [["fullstack", "Next.js", "."]],
+    );
+    assert.deepEqual(next.database, { tech: "", evidence: "DATABASE_URL (lib/db.ts:2)", source: "lib/db.ts" });
+    const prisma = systemModel({
+      dependencies: { items: [] },
+      env: null,
+      db: { items: [{ file: "prisma/schema.prisma" }] },
+    });
+    assert.equal(prisma.database.evidence, "prisma/schema.prisma");
+    assert.deepEqual(systemModel({ dependencies: { items: [] } }), { containers: [], database: null, externals: [] });
+  });
+
+  test("the drawing: users → the front end → the API; each system from the container that holds its evidence", () => {
+    const html = renderC4(systemModel(facts), { t, esc, title: "Shop" });
+    assert.match(html, /<svg class="c4"[^>]*aria-label="Shop"/);
+    assert.equal((html.match(/<g class="c4-/g) || []).length, 8, "users, 2 containers, the database, 4 systems");
+    assert.equal((html.match(/class="c4-edge"/g) || []).length, 7, "users→web, web→api, 5 from a container");
+    const box = (label) => {
+      const m = new RegExp(`<rect x="([\\d.]+)" y="(\\d+)"[^>]*/><text class="c4-name"[^>]*>${label}<`).exec(html);
+      return { x: Number(m[1]), y: Number(m[2]) };
+    };
+    const web = box("render\\.c4\\.kind\\.web");
+    const stripe = box("Stripe");
+    assert.match(
+      html,
+      new RegExp(`x1="${(web.x + 85).toFixed(1)}" y1="${web.y + 64}" x2="${(stripe.x + 85).toFixed(1)}"`),
+    );
+    assert.match(
+      html,
+      /<td>render\.c4\.external<\/td><td>OpenAI<\/td><td><code>OPENAI_API_KEY \(api\/settings\.py:3\)<\/code>/,
+    );
+    assert.equal(renderC4({ containers: [], database: null, externals: [] }, { t, esc }), "");
+  });
+
+  test("in a page: facts/dependencies.json is required; facts naming nothing give a warning and a note", async () => {
+    const dir = demoCopy();
+    const cli = (args) => runCli(args, { stdout: { write: () => {} }, stderr: { write: () => {} }, env: {} });
+    try {
+      const out = path.join(dir, "dist", "x.html");
+      fs.appendFileSync(path.join(dir, "content", "use", "orders.md"), '\n\n::c4{title="Acme"}\n');
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 0, "the demo names nothing: a warning");
+      assert.match(fs.readFileSync(out, "utf8"), /No container, database or external system found/);
+      fs.writeFileSync(path.join(dir, "facts", "dependencies.json"), JSON.stringify(facts.dependencies));
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 0);
+      assert.match(fs.readFileSync(out, "utf8"), /svg class=\\"c4\\"/, "the view is in the page data");
+      fs.rmSync(path.join(dir, "facts", "dependencies.json"));
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 1, "facts.missing");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
