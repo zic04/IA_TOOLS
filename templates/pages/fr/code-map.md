@@ -6,9 +6,9 @@ Exemple : « Un seul dépôt : un front et un back, partageant une base de donn�
 
 ## Contexte
 
-<!-- consigne : l'application parmi les systèmes avec lesquels elle parle (utilisateurs, autres systèmes, services externes) ; un schéma de contexte s'il aide. -->
+<!-- consigne : l'application parmi les systèmes avec lesquels elle parle (utilisateurs, autres systèmes, services externes). `::c4` les dessine à partir des faits (`doc-kit facts --source dependencies --source env --source db`), chacun avec sa preuve ; n'ajouter un `::schema` dessiné à la main que pour un système que les faits ne voient pas (un service interne appelé par URL, une file d'attente). -->
 
-::schema{id="code-context" titre="L'application et les systèmes avec lesquels elle parle."}
+::c4{}
 
 ## Conteneurs
 
@@ -30,7 +30,7 @@ Exemple : « Un seul dépôt : un front et un back, partageant une base de donn�
 
 ## Intégrations
 
-<!-- consigne : facultatif. Chaque système externe appelé depuis le code (paiement, e-mail, un autre service interne), avec le fichier qui l'appelle. -->
+<!-- consigne : facultatif. Chaque système externe appelé depuis le code (paiement, e-mail, un autre service interne), avec le fichier qui l'appelle : partir des systèmes que `::c4` a trouvés, puis ajouter le point d'appel de chacun. -->
 
 | Système | Appelé depuis | Preuve |
 |---|---|---|

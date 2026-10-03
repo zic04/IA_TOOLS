@@ -53,7 +53,8 @@ titres.
   données personnelles — paiement, e-mail, analytique — depuis le code ou `facts/dependencies.json`) ;
   `## Migrations` (facultatif, comment les changements de schéma s'appliquent).
 - **`code-map`** : `## En bref` ; `## Contexte` (l'application parmi les systèmes avec qui elle parle, un
-  schéma de contexte système façon C4, `::diagram{id="code-context"}`) ; `## Conteneurs` (les unités déployables
+  vue des conteneurs façon C4, `::c4{}`, tirée des faits avec la preuve de chaque élément ; un
+  `::diagram{id="code-context"}` dessiné à la main seulement quand les faits ratent un système) ; `## Conteneurs` (les unités déployables
   — front end, back end, base de données, file d'attente, tâches planifiées — tableau `Conteneur · Technologie ·
   Code`) ; `## Composants` (facultatif, seulement pour le ou les conteneurs où un nouvel arrivant a le plus
   besoin de repères : où vit la logique métier, où vit l'accès aux données) ; `## Intégrations` (facultatif,
