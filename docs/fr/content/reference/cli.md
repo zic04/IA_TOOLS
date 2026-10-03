@@ -22,7 +22,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 |---|---|
 | [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
-| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes` |
+| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes`, `pack` |
 
 ## Les options globales
 
@@ -82,6 +82,7 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit optimize` | Recompresse les captures lourdes |
 | `doc-kit stats` | Temps, jetons et modèles par bloc et par version (`usage/`) |
 | `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats (`--record` : gardé pour `::changes`) |
+| `doc-kit pack` | Fichiers pour la prochaine IA : `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets retirés) |
 | `doc-kit hooks install` | Hooks git : faits et sync après chaque pull et changement de branche |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |

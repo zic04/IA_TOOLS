@@ -17,6 +17,26 @@ La copie contient les fichiers du projet (sans `node_modules/`, `.doc-kit/`, `.g
 figée comme `version.fallback`. Chaque chemin de la configuration qui pointe hors du projet est signalé. Voir
 [Exporter et transmettre](#/publish/export).
 
+## doc-kit pack
+
+```text
+doc-kit pack [--output <dossier>]
+```
+
+Écrit les fichiers dont la prochaine IA qui travaillera sur l'application a besoin, dans le projet de documentation
+(par défaut : le dossier du site construit), jamais dans l'application :
+
+| Fichier | Contenu |
+|---|---|
+| `llms.txt` | Le plan de la documentation ([llmstxt.org](https://llmstxt.org)) : un lien par page, avec son résumé |
+| `llms-full.txt` | Toutes les pages en Markdown, dans l'ordre de lecture, sans les commentaires de consigne |
+| `AGENTS.md` | L'application d'après les faits : pile technique (telle que `::c4` la voit), les `scripts` de ses `package.json` (lus, jamais exécutés), les **noms** des variables d'environnement, les tables, les routes d'API, les tests, l'outillage, les principaux risques et points chauds, les instructions d'agent déjà présentes. Les listes s'arrêtent après 40 lignes |
+| `CLAUDE.md` | `@AGENTS.md` : Claude Code lit `CLAUDE.md`, les autres agents `AGENTS.md` |
+
+Chaque fichier passe par les détecteurs de secrets de `doc-kit check secrets`. Une ligne où l'un d'eux se
+déclenche est remplacée par un avis et signalée, et la commande se termine avec le code 1 : corrigez la source (une
+page, un fichier de faits) et relancez-la. Relisez `AGENTS.md` avant de le copier dans le dépôt de l'application.
+
 ## doc-kit upgrade
 
 ```text
