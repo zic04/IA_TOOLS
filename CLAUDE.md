@@ -22,6 +22,7 @@ short:
 
 - `npm test`: unit, snapshot and security tests. Run it before every commit.
 - `npm run format` (then `npm run format:check`): Prettier, on the kit's JavaScript. Run it before every commit.
+- `npm run lint`: ESLint (M12). Run it before every commit; never raise its `--max-warnings` ceiling.
 - `npm run test:security`: the security rules alone.
 - `npm run test:e2e`: end-to-end tests, which need Chromium (`npx playwright install chromium`).
 

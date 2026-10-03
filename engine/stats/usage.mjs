@@ -85,7 +85,7 @@ export function appendUsage({ dir, version, command, phase, spans, date = new Da
 /** Every line of every usage file (invalid lines skipped), oldest first. */
 export function readUsage(dir) {
   const out = [];
-  let files = [];
+  let files;
   try {
     files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
   } catch {

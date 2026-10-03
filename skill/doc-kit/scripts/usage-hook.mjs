@@ -81,7 +81,7 @@ export async function recordAgent(input, { env = process.env, now = new Date() }
   if (!root) return null;
   const dir = path.join(root, "usage");
   if (!fs.existsSync(dir)) return null;
-  let text = "";
+  let text;
   try {
     text = fs.readFileSync(input.agent_transcript_path, "utf8");
   } catch {

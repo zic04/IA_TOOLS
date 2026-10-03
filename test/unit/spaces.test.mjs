@@ -17,17 +17,7 @@ import { reloadConfig } from "../../engine/dev/environment.mjs";
 import { exportProject } from "../../cli/commands/export.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
-import {
-  KIT_ROOT,
-  DEMO,
-  SPACES,
-  buildDemo,
-  buildSpaces,
-  spacesCopy,
-  demoCopy,
-  tempDir,
-  dataOf,
-} from "../tools/helpers.mjs";
+import { SPACES, buildDemo, buildSpaces, spacesCopy, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";

@@ -967,7 +967,6 @@ describe("dev server", () => {
   test("watchedPaths includes paths.translations when `languages` is declared, not otherwise", async () => {
     const config = await languagesConfig();
     assert.ok(watchedPaths(config).folders.includes("translations"));
-    const { SPACES } = await import("../tools/helpers.mjs");
     const { spacesConfig } = await import("../tools/helpers.mjs");
     const plain = await spacesConfig();
     assert.ok(!watchedPaths(plain).folders.includes("translations"));

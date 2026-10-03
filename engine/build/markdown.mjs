@@ -252,7 +252,7 @@ export function createMarkdownEngine({
       // Entity-relationship diagram from facts/db.json (doc-kit facts --source db).
       if (tk.kind === "erd") {
         const f = `${paths.facts}/db.json`;
-        let data = null;
+        let data;
         try {
           data = exists(f) ? JSON.parse(read(f)) : null;
         } catch {

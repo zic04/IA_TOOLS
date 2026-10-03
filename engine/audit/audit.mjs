@@ -137,7 +137,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const root = project.root;
   const language = config.language;
   const table = loadPageTemplates();
-  const { content, images } = config.paths;
+  const { content } = config.paths;
   const built = build({ project, config, options: {} });
   const tocInfo = readToc(root, content);
   const version = readProjectVersion(root, config.version);

@@ -190,7 +190,7 @@ export async function compareWithReference({
     for (const [file, entries] of Object.entries(reference?.labels || {})) {
       // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
       const abs2 = path.resolve(root, file);
-      let flatNow = {};
+      let flatNow;
       try {
         flatNow = fs.existsSync(abs2) ? flattenMessages(JSON.parse(fs.readFileSync(abs2, "utf8"))) : {};
       } catch {

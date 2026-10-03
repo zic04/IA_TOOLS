@@ -17,7 +17,7 @@ import { createPage } from "../../cli/commands/new.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { loadDictionary } from "../../engine/i18n.mjs";
-import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, demoCopy } from "../tools/helpers.mjs";
 
 async function withDir(make, fn) {
   const dir = make();

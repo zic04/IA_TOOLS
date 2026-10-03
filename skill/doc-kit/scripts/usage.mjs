@@ -29,7 +29,6 @@ import {
   addMessages,
   agentModel,
   checkLanguage,
-  citedPaths,
   findProject,
   flattenedPages,
   loadConfig,

@@ -135,7 +135,7 @@ export function readChanges(
   compare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }),
 ) {
   const dir = path.join(root, CHANGES_DIR);
-  let files = [];
+  let files;
   try {
     files = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
   } catch {
