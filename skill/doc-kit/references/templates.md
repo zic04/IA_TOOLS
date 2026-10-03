@@ -1,4 +1,4 @@
-# The 30 page templates (summary)
+# The 31 page templates (summary)
 
 The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations), `{{KIT_PATH}}/
 standard/templates.json` (the first 13 types) and its fragments `{{KIT_PATH}}/standard/templates/business.json`
@@ -89,6 +89,7 @@ from the matching facts source.
 | `threat-model` | STRIDE threats by trust boundary | In short · The data flow diagram · Trust boundaries · Threats | 3,000 | `api`, `dependencies` (grounding) |
 | `security-review` | authentication, access control, OWASP findings | In short · Scope and method · Authentication and sessions · Access control · Input handling · Secrets and configuration · Findings | 3,000 | `api`, `security`, `probe.json` |
 | `maintainability-review` | ratings, hotspots, recommendations | In short · Ratings · Hotspots · Tests · Recommendations | 2,200 | `quality` |
+| `documentation-cost` | time, agents, models, tokens per version and block | In short · Per version · Where the time goes | 1,200 | `usage/` (`::usage`) |
 
 `findings` becomes the project's **risk register** once a takeover space exists: each finding also carries Owner,
 Decision (fix, accept, transfer, avoid), Status and Due date, combined into one "Follow-up" column on a table row

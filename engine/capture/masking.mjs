@@ -8,7 +8,7 @@
 // of the capture are replaced entirely. Masking does not know production-only values: review every image.
 import fs from "node:fs";
 import path from "node:path";
-import { locate } from "./actions.mjs";
+import { locate, CaptureError, describeTarget } from "./actions.mjs";
 
 export const DOTS = "••••••••";
 export const GUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -77,10 +77,12 @@ export function maskText(text, source) {
 }
 
 /**
- * Masks the page: every text node and field value matching `source`, then the `masks` targets.
+ * Masks the page: every text node and field value matching `source`, then the `masks` targets. A target that
+ * matches nothing is an error (CaptureError "maskMissing"), unless `required` is false (the second pass, just
+ * before the shot).
  * @returns {Promise<number>} number of replacements in the text
  */
-export async function maskPage(page, { source, masks = [], selectors = {} }) {
+export async function maskPage(page, { source, masks = [], selectors = {}, required = true }) {
   let n = 0;
   if (source)
     n = await page.evaluate(
@@ -114,12 +116,21 @@ export async function maskPage(page, { source, masks = [], selectors = {} }) {
       { source, dots: DOTS }
     );
   // Every match of a mask target (unless it names one with nth or last).
-  for (const t of masks)
-    await locate(page, t, selectors, page, { all: true }).evaluateAll((els, dots) => {
+  // A mask target that matches nothing is an error, never a silent pass: what it should hide would be shown
+  // (ETUDE-CAPTURES.md C1).
+  for (const t of masks) {
+    const found = locate(page, t, selectors, page, { all: true });
+    if ((await found.count()) === 0) {
+      // The second pass, just before the shot: a target located by its text is already dots.
+      if (!required) continue;
+      throw new CaptureError("maskMissing", { target: describeTarget(t) });
+    }
+    await found.evaluateAll((els, dots) => {
       for (const el of els) {
         if ("value" in el && el.tagName !== "BUTTON") el.value = dots;
         else el.textContent = dots;
       }
     }, DOTS);
+  }
   return n;
 }

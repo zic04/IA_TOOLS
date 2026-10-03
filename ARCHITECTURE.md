@@ -433,7 +433,7 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
 
 Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is documented at the top of `engine/capture/plans.mjs`.
 
-- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (wait after loading, default 2500 ms), `actions`, `settle` (wait after the actions, default 600 ms), `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
+- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (minimum wait after loading, default 0: the kit waits until the page is stable — no request in flight and no DOM change for 150 ms, fonts and images ready, finite animations ended, capped at 10 s, `engine/capture/stable.mjs`), `actions`, `settle` (minimum wait after the actions, default 0: stable again). Captures run `capture.concurrency` at a time (default 4, always 1 for `capture.target: "production"`), each worker with its own browser contexts and guard state; results and messages keep the order of the plan. `capture.clock` (ISO date) fixes the page's clock; contexts use `reducedMotion: "reduce"`; `capture --trace` keeps the Playwright trace of a failed capture in `.doc-kit/traces/<id>.zip`, `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
 - **Actions:** `click` (+ `options`, Playwright click options), `hover`, `type` + `value`, `select` + `value`, `press`, `scroll`, `wait`, `wheel`, `eval`.
 - **Targets:** `{ role, name }`, `{ text }`, `{ field }`, `{ label }`, `{ placeholder }`, `{ css }`, `{ block }` (a container matching `capture.selectors.block` whose button or heading starts with the text). Exactly one kind per target.
 - **Target options:** `exact`, `nth`, `last`, `has`, `within`, `up`, `framed` (closest ancestor matching `capture.selectors.frame`, or with a border on its four sides), `margin`, `marginY` (vertical margin of a `frame`), `side`.
@@ -675,6 +675,7 @@ The takeover space is the dossier a team needs to take over an application, espe
 | `adr` | Status* · Context* · Decision* · Consequences* · How it was reconstructed* | 1500 |
 | `threat-model` | In short* · The data flow diagram* · Trust boundaries* · Threats* · Mitigations · Accepted risks | 3000 |
 
+- **`::erd{title, tables}`** (`::mcd`) draws the entity-relationship diagram from `facts/db.json` at build time (`engine/build/erd.mjs`): one box per table, columns merged from every place it is defined (10 shown, then "… n more"), one arrow per reference (`references`: a Prisma relation field, a SQLAlchemy `ForeignKey`, a SQL `REFERENCES`); inline SVG coloured by the theme (classes `erd-*`). `tables` limits it to some tables. No `facts/db.json`: `facts.missing` (error); no table: `erd.empty` (warning) and a note.
 - **Who owns what** (access-ownership): one row per asset (domain, repository, hosting, database, payment, e-mail, AI accounts, each secret): Asset · Owner · Where · How to hand it over · Status. The page is complete when "Unknown owners" is empty.
 - **The routes** (api-surface): Method · Route · Authentication · Role · Tenant isolation · Proof; built from `::facts{source="api"}` then completed by hand.
 - **Each rule** (agent-instructions): Rule · File:line · Status (confirmed, obsolete, contradicted by the code), with the proof.
@@ -689,10 +690,12 @@ The takeover space is the dossier a team needs to take over an application, espe
 | `dependencies` | Every `package.json`, `package-lock.json` (v2, v3), `pnpm-lock.yaml`, `yarn.lock` (v1, berry), `requirements*.txt`, `poetry.lock` and `pyproject.toml` found under the application, searched recursively (at most 4 folders deep: a vibe-coded application almost always splits a front end and an API into their own folders, each with its own manifest) | `{ name, version, ecosystem, direct, dev, manifest, license? }` |
 | `env` | `process.env.X`, `process.env["X"]`, a destructuring read (`const { X, Y } = process.env`), `import.meta.env.X`, `os.environ["X"]`, `os.environ.get("X")`, `os.getenv("X")`, a pydantic settings class (`class Settings(BaseSettings):`, `pydantic.BaseSettings` v1 or `pydantic_settings.BaseSettings` v2: one name per field, `env_prefix` + the field name upper-cased, replaced outright by `Field(..., alias=…)`, `validation_alias=…` or the v1 `env=…`); names of `.env.example`, `.env.sample`, `.env.template` (never the values, never `.env`) | `{ name, files: ["path:line"], example }` |
 | `api` | Next.js App Router (`route.ts|js`, exported methods), Next.js `pages/api`, FastAPI decorators (with `APIRouter(prefix)` and `include_router(prefix)` when found), Express (`app|router.<method>("/path")`) | `{ method, route, file, line, framework }` (`line`: the handler's decorator, export or call) |
-| `db` | `schema.prisma` (models, `@@map`, relations), SQLAlchemy (`__tablename__`, `Column`, `mapped_column`), SQL migrations (`CREATE TABLE`, `ENABLE ROW LEVEL SECURITY`, `CREATE POLICY`) | `{ table, columns, file, rls, policies }` |
+| `db` | `schema.prisma` (models, `@@map`, relations), SQLAlchemy (`__tablename__`, `Column`, `mapped_column`), SQL migrations (`CREATE TABLE`, `ENABLE ROW LEVEL SECURITY`, `CREATE POLICY`) | `{ table, columns, file, rls, policies, references }` |
 | `agents` | at any depth (each package of a monorepo may have its own): `AGENTS.md`, `AGENT.md`, `CLAUDE.md`, `GEMINI.md`, `.claude/**/*.md`, `.agents/**/*.md`, `.cursorrules`, `.cursor/rules/**`, `.github/copilot-instructions.md`, `.github/instructions/**/*.md`, `.windsurfrules`, `.windsurf/rules/**`, `.clinerules`, `.junie/guidelines.md`, `.kiro/steering/**/*.md`, `.aider.conf.yml`, prompt files (`**/*.prompt.md`) | `{ file, lines, words, hidden: [{ line, codepoint }] }` |
 | `secrets` | the patterns of `engine/check/secrets.mjs` over the application files (`git ls-files` when available; else every file but `node_modules`, `.git`, `dist`, `build`, `.next`, `.venv`, `venv`) | `{ file, rule }` — **never the value** |
 | `tests` | test files (`*.test.*`, `*.spec.*`, `test_*.py`, `*_test.py`, `tests/`), number of tests (`it(`, `test(`, `def test_`), coverage reports (`coverage/lcov.info`, `coverage/coverage-summary.json`, `coverage.xml`) | `{ file, tests }`, and `summary: { files, tests, coverage? }` |
+| `modules` | the application's own imports (JS/TS with `tsconfig` paths, Python relative and absolute), resolved like `sync` (`engine/sync/imports.mjs`); packages left out; at most 5,000 files | `{ file, imports, importedBy, cycle }` (fan-out, fan-in, the cycle id or `null`); `summary: { files, edges, cycles, orphans }` (`cycles`: the strongly connected components of more than one file) |
+| `history` | `git log --numstat --no-renames --relative` (2,000 most recent commits, read-only, hardened), limited to the files still tracked; author names only, never e-mails | `{ file, commits, churn, authors, owner, ownerShare, last }`, the 300 most often changed files first; `summary: { available, commits, authors, since, until, busFactor, files }` (`busFactor`: the fewest authors who made half of the commits) |
 
 - **Hidden characters** (`agents`): U+200B–U+200F, U+202A–U+202E, U+2060–U+2064, U+2066–U+2069, U+FEFF (except at the very start), U+E0000–U+E007F.
 - **`--network`** (`dependencies`): checks that each direct dependency exists in its public registry (npm, PyPI), `exists: true | false | null` (`null`: no answer); only the package name is sent; 5 s per request, 8 at a time. Without `--network`, `exists` is absent.
@@ -766,6 +769,11 @@ When the application changes, `doc-kit sync` says exactly what the documentation
 
   A marked page appears in one category at most among `review` and `unchanged`; a page may appear in `proofs.*`, `labels`, `captures` and `removed` as well. The diff of a page (`.doc-kit/sync/<page>.diff`) is `git diff <reference commit> -- <its changed files>` in the application (read-only git; no git or no reference commit: no diff file). The summary prints one line per category with its count, then the pages to review grouped by priority, then, when a facts file is older than the application's HEAD, a reminder to run `facts`. Without a reference (`sync.json` missing) and without `--since`: a message saying how to create it (`--mark --all`), exit code 0 (1 with `--check`).
 - **`--apply`** (mechanical changes only, never prose): rewrites moved proofs in the Markdown (the code span `path:42` → `path:57`; a range keeps its length; a proof cited several times is rewritten everywhere it is cited); with `--labels`, replaces the old label by the new one in the pages listed, **only** inside `**…**`, code spans, `[[menu …]]` and other badges, and between quotes (`"…"`, `«…»`, `“…”`); restamps the `unchanged` pages and the pages whose only changes were applied (version, date, hashes). It prints every file it changed, then the new report. The facts files are refreshed by `doc-kit facts` (§6.9), never here.
+- **`--apply --auto-intact`** also restamps the `review` pages whose priority is `probablyIntact`. It skips any
+  page that is still listed in `proofs.broken`, `captures` or `removed`, or in `labels` when `--labels` is
+  absent. It prints how many pages it marked and which ones. Those pages need no agent, so the update cycle
+  starts its triage only for the pages left (ETUDE-CAPTURES.md §7). `--auto-intact` without `--apply` is a usage
+  error.
 - **`--mark <page…>`** / **`--mark --all`** (all written pages; `--mark` is a switch, the page ids are positionals; `--mark` without any page: `sync.markNothing`, exit code 2; `--all` alone is accepted too): records the pages as checked now (hashes of the page, its dependencies, its proofs; the labels it cites; the inventory; the capture plan hashes; `app` = current commit, version, date). A page not written yet is refused (`sync.unwritten`, exit code 1). `--sources` (only with one page) adds declared sources. `--date YYYY-MM-DD` (same option as `build`) sets the date written instead of today's (tests, replayed runs).
 - **`--check`**: exit code 1 when any category but `unchanged` and `unmarked` is not empty (CI: "the documentation is behind the application"); `unmarked` is only a warning, so that a project adopts `sync` page by page.
 - **`--since <ref>`**: compares with a git commit of the application instead of `sync.json` (read-only: `git show <ref>:<file>` for the dependencies, the proofs and the message files, `git diff --name-status --find-renames <ref>`): the hashes and proofs of every written page are taken at `<ref>`. `new` and `removed` need a run of the adapters at `<ref>`, which never happens: with `--since`, both are empty and the summary says so.
@@ -786,6 +794,17 @@ When the application changes, `doc-kit sync` says exactly what the documentation
 ### 6.11 Economy of the agents (lot V7)
 
 The kit calls no LLM. The skill drives Claude Code agents; the kit makes them read less, run on the right model, share their prompt cache, and it estimates and measures what they consume.
+
+**Model routing**: each brief runs on its own model, chosen in this order:
+1. `llm.routing` in `doc.config.mjs` (`{ "<brief>": "<model>" }`);
+2. the skill's `DEFAULT_ROUTING` (`skill/doc-kit/scripts/common.mjs`): `haiku` for `triage` and `translate`;
+   `sonnet` for `findings-verification`, `maintainability-review` and `page-corrections`; `opus` for `inventory`,
+   `code-health`, `security-review` and `production-technical`;
+3. the model of its agent type (`agents/<type>.md`).
+
+`brief.mjs` prints that model, and `--estimate` prices with it. The orchestrator passes it when it launches the
+agent, with the brief's full text as the prompt. The common part comes first, so a wave shares its prompt cache.
+The agents of a wave are launched together, one page per agent for writing and updates, up to 8 at a time.
 
 **`doc-kit context <page…> [--budget <tokens>] [--update]`** writes `.doc-kit/context/<page id, "/" → "__">.md` (one file per page; `buildContext` in `engine/context/context.mjs` is pure and returns the text, the CLI writes it), the only reading an agent needs to write or update that page. A page unknown to the table of contents: `context.unknownPage`, exit code 2 (a declared page not written yet is accepted: the context serves to write it). Contents, in this order, in the site's language:
 1. the page: id, title, template, space, summary, routes, permissions, the path of its Markdown file; the id, title and summary of its `counterpart`; the header also gives the product (`product.name`) and the documented version (`readProjectVersion`, `engine/build/build.mjs`), when the caller passes them — the CLI always does;
@@ -920,11 +939,66 @@ Two optional reviews of the documented application, asked at scoping: determinis
 
 **Configuration**: `review: { guards: { role: [], user: [] }, params: {}, semgrep: null }` (regular expressions as strings; `params`: path parameter → example value; `semgrep`: local rules folder, relative to the project). **i18n fragment** `i18n/<language>/reviews.json`: `cli.probe.*` (with `cli.help.probe`), `cli.connect.as*`, the new `render.facts.column.*` and `cli.facts.*` keys.
 
+### 6.15 What changed, on every build (`changes`, `::changes`, `hooks`)
+
+- **`changes [--since <ref>] [--output <file>] [--record]`** (`engine/facts/changes.mjs`) compares the facts files
+  committed at `<ref>` (default `HEAD`; read with `git show <ref>:./<paths.facts>/<source>.json`, a reference
+  checked by `isSafeRef`) with the files on disk.
+  - Per source, items are compared by key: `api` method + route (`auth` watched); `db` table (columns, references,
+    rls); `env` name; `dependencies` name + manifest (version); `security` and `secrets` rule + file; `agents` file.
+    `tests` compares its count and `modules` its import cycles.
+  - It writes `.doc-kit/changes.md` (＋ added, － removed, ～ changed, per source) and `.doc-kit/changes.json`.
+  - `--record` also writes `changes/<documented version>.json` (`{ since, until, date, sources, total }`, committed).
+    `::changes{version, sources}` (`::changements`) renders the recorded versions, most recent first.
+  - Without git: `changes.noGit`, exit code 3.
+- **`hooks install | uninstall | status [--app <dir>]`** adds to `post-merge` and `post-checkout` (the latter only
+  on a branch switch) a marked block. The block runs `npx --no-install doc-kit facts`, then `sync`, from the
+  documentation folder, and swallows any failure.
+  - The hooks folder is `git rev-parse --git-path hooks`. Existing hooks are kept, and a hook that held only the
+    block is removed on uninstall.
+  - The documentation folder must be inside the repository (`hooks.outside`) and its path made of plain
+    characters (`hooks.unsafePath`): it is written into a shell script.
+- **CI** (`ci/github-actions.yml`, example c): on every push and pull request of the application, it runs `facts`,
+  then `changes --since origin/<base>`, then `sync --check`. It posts one comment on the pull request,
+  `changes.md` + `sync.md`, updated at each push, then builds and checks the site.
+
+### 6.14 Production statistics (`usage/`, `stats`, `--profile`)
+
+- **Where:** `usage/<version>.jsonl` in the documentation project, one JSON object per line, appended and never
+  rewritten, committed with the project (`engine/stats/usage.mjs`). Recording is on when the folder exists (`init`
+  writes it with a README); `DOC_KIT_STATS=0` turns it off for one run.
+- **What:** each recorded command appends its own span (`step`: setup, capture, facts, analysis, generate,
+  translate, update, build, check, audit; `exit`: its exit code) and the spans the engine measured inside it:
+  - each capture's parts: `navigate`, `wait`, `actions`, `settle`, `mask`, `measure`, `shot`, `encode`, and
+    `compare` or `write`;
+  - each `facts` source, and the external tools.
+
+  Every line carries `at`, `version` (the documented version), `run`, `command`, `phase` (`create` without
+  `sync.json`, `update` with it, `translate`) and `actor` (`kit`). Agents (`actor: "agent"`, with `model` and
+  `tokens: { in, out, cacheRead, cacheWrite }`) and people (`actor: "human"`) use the same format.
+- **Not recorded:** `dev`, `open`, `view`, `doctor`, `init`, `skill`, `stats`, `export`, `upgrade` and `migrate`.
+- **Read:** `stats [--by step|version|command|model|phase|page|actor] [--since <v>] [--csv] [--json]`. For
+  `--by step`, each step is followed by its parts, with their share of the step. The overall total counts only the
+  commands' own spans, so nothing is counted twice.
+- **`--profile`** (global) prints a run's spans to stderr, longest first, whether or not the project records them.
+- **`::usage{view}`** (`::consommation{vue}`) renders the statistics at build time (`engine/stats/render.mjs`). The
+  views are:
+  - `summary`: kit, agent and human time; the number of agents and the models used, with the agent count per
+    model; tokens; cost; runs; versions;
+  - `versions`: one row per version;
+  - `steps`: each step, with its parts under it;
+  - `models`: input, output and cache tokens per model, and their cost;
+  - `slowest`: the ten slowest parts.
+
+  With no view, every table is rendered. An unknown view is an error; a project with no statistics yet gets a
+  warning and a short note. Cost uses `llm.prices`: `cacheRead` defaults to 0.1 × input and `cacheWrite` to
+  1.25 × input. The `documentation-cost` page template lays these tables out.
+
 ## 7. Standard and page templates
 
 `standard/` is the quality standard. Every document exists in English (`.md`) and in French (`.fr.md`):
 - `structure`: recommended site structure;
-- `templates` (and `templates.json`, `templates/<group>.json`): the 30 page types;
+- `templates` (and `templates.json`, `templates/<group>.json`): the 31 page types;
 - `writing`: writing rules;
 - `captures`: capture safety;
 - `quality`: blocking gates and warnings;
@@ -932,13 +1006,13 @@ Two optional reviews of the documented application, asked at scoping: determinis
 - `delivery`: handover checklist;
 - `config`: commented configuration examples, all fictional.
 
-The 30 page types are `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`, `resources` (`standard/templates.json`); `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` (`standard/templates/business.json`, §6.8); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`, `maintainability-review` (`standard/templates/takeover.json`, §6.9/§6.13). Each has a template in `templates/pages/en/<type>.md` and in `templates/pages/fr/<type>.md`.
+The 31 page types are `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`, `resources` (`standard/templates.json`); `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` (`standard/templates/business.json`, §6.8); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`, `maintainability-review`, `documentation-cost` (`standard/templates/takeover.json`, §6.9/§6.13/§6.14). Each has a template in `templates/pages/en/<type>.md` and in `templates/pages/fr/<type>.md`.
 
 ## 8. Skill
 
 The source lives in `skill/doc-kit/`:
 - `SKILL.md`: front matter `name: doc-kit` and `description`, about 250 lines, in English. It tells Claude to answer in the user's language.
-- `references/*.md`, in English: `method.md` (the phases in detail, both spaces, the update cycle), `pitfalls.md` (including vibe-coded application risks), `capture-safety.md`, `templates.md` (the 30 page types), `standard.md`, `agent-orchestration.md` (batches, waves, placeholders, the economy of the agents).
+- `references/*.md`, in English: `method.md` (the phases in detail, both spaces, the update cycle), `pitfalls.md` (including vibe-coded application risks), `capture-safety.md`, `templates.md` (the 31 page types), `standard.md`, `agent-orchestration.md` (batches, waves, placeholders, the economy of the agents).
 - `agents/*.md`: the three agent type definitions (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-reviewer`, §6.11), copied next to the skills folder by `skill install`, never inside the `doc-kit/` skill folder itself.
 - `assets/briefs/{en,fr}/*.md`: brief templates with parameters such as `{{product}}`, `{{docDir}}`, `{{code}}`…, filled by `scripts/brief.mjs` from `doc.config.mjs` and `--var` values.
 - `scripts/*.mjs`: `brief.mjs`, `consolidation.mjs`, `usage.mjs` and their shared `common.mjs` (Node ≥ 20, no dependency).

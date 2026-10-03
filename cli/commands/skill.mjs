@@ -1,4 +1,4 @@
-// skill install [--target <skills folder>] [--force]
+// skill install [--target <skills folder>] [--force] [--hooks [--settings <file>]]
 // Installs the Claude Code skill of the kit (skill/doc-kit) into <skills folder>/doc-kit, and its three agent
 // types (ARCHITECTURE.md §6.11) into <skills folder>/../agents/ (Claude Code's own agents folder, next to the
 // skills folder: only doc-kit-triage.md, doc-kit-writer.md and doc-kit-reviewer.md are ever written there, no
@@ -23,7 +23,40 @@ import { shownPath } from "../common.mjs";
 export const options = {
   target: { type: "string" },
   force: { type: "boolean" },
+  hooks: { type: "boolean" },
+  settings: { type: "string" },
 };
+
+/** The hook script, inside the installed skill. */
+export const HOOK_SCRIPT = "scripts/usage-hook.mjs";
+
+/**
+ * Registers the statistics hook (SubagentStop → usage-hook.mjs, ARCHITECTURE.md §6.14) in a Claude Code settings
+ * file, merging with what is there: other hooks and settings are kept, and the doc-kit hook is replaced, never
+ * added twice. An unreadable file is refused rather than overwritten.
+ * @returns {{ file: string, added: boolean }} added: false when the same hook was already there
+ */
+export function installHooks({ settingsFile, skillFolder }) {
+  let settings = {};
+  if (fs.existsSync(settingsFile)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
+    } catch (e) {
+      throw new KitError(EXIT.CHECK, "skill.settingsInvalid", { file: settingsFile, error: e.message });
+    }
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new KitError(EXIT.CHECK, "skill.settingsInvalid", { file: settingsFile, error: "not an object" });
+  }
+  const command = `node "${slash(path.join(skillFolder, HOOK_SCRIPT))}"`;
+  const ours = (h) => typeof h?.command === "string" && h.command.includes("usage-hook.mjs");
+  settings.hooks = settings.hooks && typeof settings.hooks === "object" ? settings.hooks : {};
+  const groups = Array.isArray(settings.hooks.SubagentStop) ? settings.hooks.SubagentStop : [];
+  const already = groups.some((g) => (g.hooks || []).some((h) => ours(h) && h.command === command));
+  const kept = groups.map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !ours(h)) })).filter((g) => g.hooks.length);
+  settings.hooks.SubagentStop = [...kept, { matcher: "", hooks: [{ type: "command", command }] }];
+  fs.mkdirSync(path.dirname(settingsFile), { recursive: true });
+  fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n");
+  return { file: settingsFile, added: !already };
+}
 
 export const SKILL_NAME = "doc-kit";
 export const FINGERPRINT = ".doc-kit-skill.json";
@@ -187,12 +220,15 @@ export async function run({ ctx, values, positionals }) {
   if (action !== "install") throw new KitError(EXIT.USAGE, "skill.action", { action: action ?? "", command: BRAND.command });
   const skills = skillsFolder({ target: values.target, env: ctx.env });
   const r = installSkill({ skills, force: !!values.force });
+  // --hooks: the statistics hook in the project's Claude Code settings (or --settings <file>).
+  if (values.hooks || values.settings) r.hooks = installHooks({ settingsFile: path.resolve(process.cwd(), values.settings || path.join(".claude", "settings.json")), skillFolder: r.folder });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));
     return EXIT.OK;
   }
   ctx.print(`${ctx.paint.ok("✔")} ${ctx.t(r.replaced ? "cli.skill.updated" : "cli.skill.installed", { folder: shownPath(r.folder), n: r.files, kit: r.kitPath })}`);
   if (r.agents.files) ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.agents", { folder: shownPath(r.agents.folder), n: r.agents.files }))}`);
+  if (r.hooks) ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.hooks", { file: shownPath(r.hooks.file) }))}`);
   ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.restart"))}`);
   return EXIT.OK;
 }

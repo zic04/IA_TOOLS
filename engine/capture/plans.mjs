@@ -18,9 +18,10 @@
 //                                        passed as is
 //       storage: { tab: "lines" },        localStorage keys set before opening the page (on top of capture.storage;
 //                                        "{version}" is replaced by the application version; non-strings → JSON)
-//       delay: 2500,                      wait after loading, in ms (default 2500; 7000 for a map)
+//       delay: 0,                         minimum wait after loading, in ms (default 0: the kit waits until the page
+//                                        is stable — network quiet, fonts, DOM still; a map drawn on a canvas: 3000)
 //       actions: [ … ],                   steps played before the capture (below)
-//       settle: 600,                      wait after the actions, in ms (default 600)
+//       settle: 0,                        minimum wait after the actions, in ms (default 0: until stable again)
 //       frame: target,                    element whose box delimits the image (default: the whole viewport);
 //                                        margin: horizontal margin in px (default 34, room for the markers placed
 //                                        left of the zones), marginY: vertical margin (default 10)

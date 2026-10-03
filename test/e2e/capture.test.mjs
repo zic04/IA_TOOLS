@@ -206,6 +206,39 @@ describe("capture", () => {
     }
   });
 
+  test("capture.clock fixes the page's date; capture.scale 2 doubles the pixels, not the size; --trace keeps the trace of a failed capture only", async () => {
+    const other = demoCopy();
+    try {
+      fs.rmSync(path.join(other, "captures", "plans"), { recursive: true, force: true });
+      const plans = path.join(other, "captures", "plans");
+      fs.mkdirSync(plans, { recursive: true });
+      fs.writeFileSync(
+        path.join(plans, "a.mjs"),
+        `export const CAPTURES = [
+          { id: "dated", route: "/orders", actions: [{ eval: "document.querySelector('main').insertAdjacentHTML('afterbegin', '<p>Clock ' + new Date().toISOString().slice(0, 10) + '</p>')" }], zones: [{ text: "Clock 2026-01-15", caption: "The fixed date" }] },
+          { id: "broken", route: "/orders", zones: [{ text: "No such text anywhere", caption: "x" }] },
+        ];`
+      );
+      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      config.capture = { ...config.capture, plans: "captures/plans", clock: "2026-01-15T09:00:00Z", scale: 2 };
+      fs.writeFileSync(path.join(other, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
+      fs.mkdirSync(path.join(other, ".doc-kit"), { recursive: true });
+      fs.copyFileSync(path.join(dir, ".doc-kit", "session.json"), path.join(other, ".doc-kit", "session.json"));
+      const r = await cli(["capture", "--project", other, "--trace"]);
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.match(r.out, /✔ dated /);
+      assert.match(r.err, /✖ broken: [\s\S]*→ trace of the failure: npx playwright show-trace ".*broken\.zip"/);
+      const traces = path.join(other, ".doc-kit", "traces");
+      assert.deepEqual(fs.readdirSync(traces), ["broken.zip"], "only the failed capture leaves a trace");
+      assert.ok(fs.statSync(path.join(traces, "broken.zip")).size > 1000);
+      const z = JSON.parse(fs.readFileSync(path.join(other, "images", "zones", "dated.json"), "utf8"));
+      assert.equal(z.scale, 2);
+      assert.deepEqual(webpSize(fs.readFileSync(path.join(other, "images", "dated.webp"))), { width: z.width * 2, height: z.height * 2 });
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true });
+    }
+  });
+
   test("expired session → exit code 3 before the first capture, with what to do", async () => {
     const stale = path.join(work, "stale.json");
     const state = JSON.parse(fs.readFileSync(path.join(dir, ".doc-kit", "session.json"), "utf8"));
@@ -231,13 +264,26 @@ describe("capture", () => {
       path.join(plans, "a.mjs"),
       'export const CAPTURES = [{ id: "a-orders", route: "/orders", delay: 200 }, { id: "b-logout", route: "/logout", delay: 200 }, { id: "c-settings", route: "/settings", delay: 200 }];'
     );
-    const r = await cli(["capture", "--project", dir, "--plans", plans]);
-    assert.equal(r.code, 3, r.out + r.err);
-    assert.match(r.out, /✔ a-orders \(0 zones/);
-    assert.match(r.out, /1\/3 captures taken\./);
-    assert.match(r.err, /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/);
-    assert.ok(fs.existsSync(path.join(dir, "images", "a-orders.webp")));
-    assert.ok(!fs.existsSync(path.join(dir, "images", "c-settings.webp")));
+    // One capture at a time (capture.concurrency 1, in a copy of the project: a configuration module is imported
+    // once per process): the run stops at the sign-out, nothing after it is taken. In parallel, a capture already
+    // running in another context may still finish; the expiry reported is the first one in plan order.
+    const single = demoCopy();
+    try {
+      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      config.capture = { ...config.capture, concurrency: 1 };
+      fs.writeFileSync(path.join(single, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
+      fs.mkdirSync(path.join(single, ".doc-kit"), { recursive: true });
+      fs.copyFileSync(path.join(dir, ".doc-kit", "session.json"), path.join(single, ".doc-kit", "session.json"));
+      const r = await cli(["capture", "--project", single, "--plans", plans]);
+      assert.equal(r.code, 3, r.out + r.err);
+      assert.match(r.out, /✔ a-orders \(0 zones/);
+      assert.match(r.out, /1\/3 captures taken\./);
+      assert.match(r.err, /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/);
+      assert.ok(fs.existsSync(path.join(single, "images", "a-orders.webp")));
+      assert.ok(!fs.existsSync(path.join(single, "images", "c-settings.webp")));
+    } finally {
+      fs.rmSync(single, { recursive: true, force: true });
+    }
   });
 });
 
@@ -262,6 +308,10 @@ describe("in the page", () => {
     assert.equal(await page.getAttribute("#b", "title"), DOTS);
     assert.equal(await page.textContent("span.secret"), DOTS);
     assert.equal(await page.textContent("button.secret"), DOTS);
+    // A mask target that finds nothing stops the capture: what it should hide would be shown otherwise.
+    await assert.rejects(maskPage(page, { source: maskSource([], { guid: false, patterns: [] }), masks: [{ css: ".gone" }] }), (e) => e.key === "maskMissing" && /\.gone/.test(e.vars.target));
+    // The second pass (just before the shot) tolerates a target already turned into dots.
+    await maskPage(page, { source: null, masks: [{ text: "Robin's personal note" }, { css: ".gone" }], required: false });
     await page.close();
   });
 

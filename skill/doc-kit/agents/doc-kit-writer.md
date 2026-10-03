@@ -1,6 +1,6 @@
 ---
 name: doc-kit-writer
-description: Writes and updates doc-kit documentation pages, diagrams and capture plans from a brief, takes screenshots when the brief asks for them, and runs the kit's checks. Used for the doc-kit skill's writing briefs (writing-batch, journey, troubleshooting, production-technical, findings-verification, page-corrections, update).
+description: Writes and updates doc-kit documentation pages, diagrams and capture plans from a brief, takes screenshots when the brief asks for them, and runs the kit's checks. Used for the doc-kit skill's writing briefs (writing-batch, functional-spec, journey, troubleshooting, access-ownership, system-dossier, maintainability-review, page-corrections, translate, update); a brief may run it on another model (llm.routing).
 model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---

@@ -16,6 +16,9 @@
 // equivalence tests depend on it.
 import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "./text.mjs";
+import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
+import { renderErd } from "./erd.mjs";
+import { renderChanges } from "../facts/changes.mjs";
 
 /** Spelling → canonical kind. */
 export const DIRECTIVES = {
@@ -31,6 +34,12 @@ export const DIRECTIVES = {
   roles: "roles",
   facts: "facts",
   faits: "facts",
+  usage: "usage",
+  consommation: "usage",
+  erd: "erd",
+  mcd: "erd",
+  changes: "changes",
+  changements: "changes",
 };
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
 export const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
@@ -108,7 +117,7 @@ export function statusColour(c) {
  * @param {Record<string, [string, string]>} [p.statuses]  coloured [[status X]] badges
  * @param {{ images: string, diagrams: string, facts: string }} [p.paths]
  */
-export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" } }) {
+export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" }, usage = [], llm = {}, locale = "en", changes = [] }) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
   // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
@@ -184,6 +193,54 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
       if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles") return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).
+      if (tk.kind === "changes") {
+        const version = tk.a.version || null;
+        const sources = tk.a.sources ? tk.a.sources.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const html = changes.length ? renderChanges(changes, { t, esc, version, sources }) : "";
+        if (!html) {
+          signal(false, "changes.empty", { version: version || "—" });
+          return `<p class="usage-none">${esc(t("render.changes.empty"))}</p>`;
+        }
+        return `<div class="changes" data-generated="changes">${html}</div>`;
+      }
+      // Entity-relationship diagram from facts/db.json (doc-kit facts --source db).
+      if (tk.kind === "erd") {
+        const f = `${paths.facts}/db.json`;
+        let data = null;
+        try {
+          data = exists(f) ? JSON.parse(read(f)) : null;
+        } catch {
+          data = null;
+        }
+        if (!data) {
+          signal(true, "facts.missing", { source: "db", file: f });
+          return "";
+        }
+        const only = tk.a.tables ? tk.a.tables.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const title = tk.a.title || t("render.erd.title");
+        const svg = renderErd(data.items, { esc, title, only, more: (n) => t("render.erd.more", { n }) });
+        if (!svg) {
+          signal(false, "erd.empty", { file: f });
+          return `<p class="usage-none">${esc(t("render.erd.empty"))}</p>`;
+        }
+        const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
+        const caption = t("render.facts.caption", { source: "db", date: String(data.generated || "").slice(0, 10) || "—", commit });
+        return `<figure class="schema erd-figure">${svg}<figcaption>${esc(tk.a.title ? `${tk.a.title} · ${caption}` : caption)}</figcaption></figure>`;
+      }
+      // Production statistics (ARCHITECTURE.md §6.14): usage/<version>.jsonl, read by the build.
+      if (tk.kind === "usage") {
+        const view = tk.a.view || tk.a.vue;
+        if (view && !USAGE_VIEWS.includes(view)) {
+          signal(true, "usage.view", { view, expected: USAGE_VIEWS.join(", ") });
+          return "";
+        }
+        if (!usage.length) {
+          signal(false, "usage.empty", {});
+          return `<p class="usage-none">${esc(t("render.usage.empty"))}</p>`;
+        }
+        return renderUsage(usage, view, { t, esc, prices: llm.prices || {}, currency: llm.currency || null, locale });
+      }
       if (tk.kind === "facts") {
         const source = tk.a.source || "";
         const f = `${paths.facts}/${source}.json`;

@@ -131,6 +131,17 @@
       "maxWords": 2200,
       "template": "templates/pages/{language}/maintainability-review.md",
       "example": "docs/{language}/content/examples/maintainability-review.md"
+    },
+    "documentation-cost": {
+      "title": { "en": "Cost of the documentation", "fr": "Coût de la documentation" },
+      "sections": {
+        "en": ["In short", "Per version", "Where the time goes", "Models and agents", "What to optimise next"],
+        "fr": ["En bref", "Par version", "Où passe le temps", "Modèles et agents", "Quoi optimiser ensuite"]
+      },
+      "required": [0, 1, 2],
+      "maxWords": 1200,
+      "template": "templates/pages/{language}/documentation-cost.md",
+      "example": "docs/{language}/content/examples/documentation-cost.md"
     }
   }
 }

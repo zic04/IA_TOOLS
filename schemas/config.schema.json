@@ -134,6 +134,9 @@
         "setup": { "type": ["string", "null"], "default": null },
         "locale": { "type": ["string", "null"], "default": null },
         "timezone": { "type": "string", "minLength": 1, "default": "UTC" },
+        "scale": { "enum": [1, 2], "default": 1, "description": "Pixel density of the captures: 2 for images that stay sharp on high-density (Retina) screens, about 2.3 times heavier." },
+        "concurrency": { "type": "integer", "minimum": 1, "maximum": 16, "default": 4, "description": "Captures taken at the same time, each in its own browser context (production: always 1)." },
+        "clock": { "type": ["string", "null"], "default": null, "description": "A fixed date and time for every capture (ISO, e.g. 2026-01-15T09:00:00Z): \"today\", relative dates and countdowns are the same on every run. null: the real clock." },
         "viewports": {
           "type": "object",
           "default": { "desktop": { "width": 1600, "height": 1000 }, "mobile": { "width": 390, "height": 844 } },
@@ -307,9 +310,10 @@
       "type": "object",
       "additionalProperties": false,
       "default": {},
-      "description": "Prices per million tokens, by model (ARCHITECTURE.md §6.11), read by `sync --estimate`. No default value: prices change and differ by contract.",
+      "description": "Prices per million tokens, by model (ARCHITECTURE.md §6.11), read by `sync --estimate`. No default value: prices change and differ by contract. `routing`: the model of each brief (§6.11), over the kit's defaults.",
       "properties": {
         "currency": { "type": ["string", "null"], "default": null },
+        "routing": { "type": "object", "default": {}, "additionalProperties": { "type": "string", "minLength": 1 } },
         "prices": {
           "type": "object",
           "default": {},
@@ -320,7 +324,8 @@
             "properties": {
               "input": { "type": "number", "minimum": 0 },
               "output": { "type": "number", "minimum": 0 },
-              "cacheRead": { "type": "number", "minimum": 0 }
+              "cacheRead": { "type": "number", "minimum": 0 },
+              "cacheWrite": { "type": "number", "minimum": 0 }
             }
           }
         }

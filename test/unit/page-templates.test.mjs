@@ -43,16 +43,16 @@ describe("standard/templates.json and the page templates", () => {
       for (const label of Object.keys(table.aliases[language])) assert.ok(all.some((t) => table.types[t].sections[language].includes(label)), `alias of an unknown label: ${label}`);
   });
 
-  test("ARCHITECTURE.md §7: the 30 page types, in order (13 general + 5 business + 12 takeover, including security-review/maintainability-review)", () => {
+  test("ARCHITECTURE.md §7: the 31 page types, in order (13 general + 5 business + 13 takeover, including security-review/maintainability-review/documentation-cost)", () => {
     const expected = [
       "screen", "editor", "recipe", "technical", "technical-sub", "journey", "journey-step", "troubleshooting", "troubleshooting-area", "findings", "architecture", "variables", "resources",
       "feature", "business-rules", "roles-matrix", "process", "release-notes",
-      "access-ownership", "api-surface", "runbook", "data-model", "dependencies", "code-map", "tests-quality", "agent-instructions", "adr", "threat-model", "security-review", "maintainability-review",
+      "access-ownership", "api-surface", "runbook", "data-model", "dependencies", "code-map", "tests-quality", "agent-instructions", "adr", "threat-model", "security-review", "maintainability-review", "documentation-cost",
     ];
     assert.deepEqual(Object.keys(table.types), expected);
-    assert.equal(expected.length, 30);
+    assert.equal(expected.length, 31);
     const architecture = fs.readFileSync(path.join(KIT_ROOT, "ARCHITECTURE.md"), "utf8");
-    assert.match(architecture, /The 30 page types are /);
+    assert.match(architecture, /The 31 page types are /);
     assert.doesNotMatch(architecture, /\b28 page types\b/);
     for (const type of expected) assert.ok(architecture.includes(`\`${type}\``), `${type} missing from ARCHITECTURE.md §7's list`);
   });

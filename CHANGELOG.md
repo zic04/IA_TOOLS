@@ -6,7 +6,88 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Added
+
+- **Production statistics** (ARCHITECTURE.md §6.14):
+  - each command appends its time, and the time of its parts, to `usage/<version>.jsonl` in the project;
+  - captures are measured part by part: navigation, wait, actions, masking, measure, shot, encoding, comparison;
+  - `facts` is measured source by source;
+  - `doc-kit stats` groups the lines by step, version, command, model, phase, page or actor, with `--since`,
+    `--csv` and `--json`;
+  - the global `--profile` option prints a run's timings;
+  - `init` writes the `usage/` folder, and an older project opts in by creating it.
+- **`::usage{view}`** (`::consommation`) and the `documentation-cost` page template (the 31st). They render:
+  - a summary: kit, agent and human time, the number of agents and the models used, tokens, and cost from
+    `llm.prices`;
+  - one row per version;
+  - the time per step, with each step's parts;
+  - tokens and cost per model;
+  - the ten slowest parts.
+- **Statistics hook**: `doc-kit skill install --hooks` registers `scripts/usage-hook.mjs` on `SubagentStop` in
+  `.claude/settings.json`. Each AI agent's tokens (input, output, cache), model and time are then appended to
+  `usage/` automatically. The settings already in the file are kept, and the hook is never added twice.
+- `llm.prices.<model>.cacheWrite` (default 1.25 × input); `cacheRead` defaults to 0.1 × input.
+- **Model routing per brief**: `llm.routing` in `doc.config.mjs` overrides the skill's `DEFAULT_ROUTING`
+  (`haiku`: `triage`, `translate`; `sonnet`: the writing briefs, `findings-verification`,
+  `maintainability-review`; `opus`: `inventory`, `code-health`, `security-review`, `production-technical`).
+  `brief.mjs` prints the model to launch with, and `--estimate` prices with it.
+- **A shared prompt cache per wave**: an agent is launched with the brief's full text as its prompt, common part
+  first, instead of "Read <brief>". Every agent of a wave after the first reads that part from the cache.
+- **`sync --apply --auto-intact`** marks the pages whose only changes are probably intact without any agent. The
+  skill's update cycle uses it, and then works only on the pages still flagged:
+  - it stops when none is left;
+  - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
+  - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
+
+- **`doc-kit changes [--since <ref>]`**: what changed in the application since a git reference. It compares the
+  facts committed at `<ref>` with the facts on disk: routes and their authentication, tables and columns,
+  environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
+  import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
+  release notes.
+- **`changes --record`** keeps each version's changes in `changes/<version>.json`, which is committed. The
+  directive `::changes{version, sources}` (`::changements`) shows every recorded version in the site, most recent
+  first. The `release-notes` template starts from it.
+- **`doc-kit hooks install | uninstall | status`** installs git hooks (`post-merge` after a pull, `post-checkout`
+  after a branch switch) that run `facts` then `sync` in the background. They never block git and cost no tokens.
+  Existing hooks are kept: the kit only adds or removes its own block, in the folder git reports, so
+  `core.hooksPath` is respected.
+- **CI on every build of the application**: the new example (c) in `ci/github-actions.yml` runs `facts`,
+  `changes` against the base branch and `sync --check`. On a pull request it posts both reports as a single
+  comment, updated at each push, then builds the site.
+- **Developer overview**:
+  - `facts --source modules`: the import graph (JS/TS and Python), with fan-in, fan-out, import cycles and
+    orphan files;
+  - `facts --source history`: git history per file, with commits, lines changed, authors, main author and their
+    share, last change, and the bus factor. It uses read-only, hardened git and records author names only;
+  - `db` facts gain `references` (Prisma relations, SQLAlchemy `ForeignKey`, SQL `REFERENCES`);
+  - `::erd{title, tables}` (`::mcd`) draws the entity-relationship diagram from `facts/db.json` as inline SVG
+    that follows the theme;
+  - the `data-model`, `code-map` and `maintainability-review` templates use them.
+- **Parallel captures**: `capture.concurrency` (default 4, production always 1). Each capture runs in its own
+  browser context, and events and results stay in plan order. On the demo, 12 captures take 2.9 s instead of
+  7.3 s one at a time, and about 40 s before the condition-based waits.
+- **`capture.scale: 2`**: captures stay sharp on high-density (Retina) screens. The image holds twice the pixels;
+  the zone file keeps the size it is shown at and records `scale`; the viewer shows it at that size. Images are
+  about 2.3 times heavier, so the default stays 1.
+- **`capture.clock`**: a fixed date and time for every capture, so that "today" and relative dates stay the same
+  from run to run.
+- **`capture --trace`**: a failed capture leaves its Playwright trace in `.doc-kit/traces/<id>.zip`, and the
+  command prints how to open it.
+- The standard (`standard/captures.md`) documents a pinned Docker renderer, so that committed images are
+  identical across machines.
+
+### Changed
+
+- Captures run with `reducedMotion: "reduce"`.
+- **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
+  images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and
+  `settle` are now minimums, 0 by default; they were fixed waits of 2,500 and 600 ms. On the demo a capture takes
+  0.5–0.7 s instead of about 3.3 s.
+
 ### Security
+
+- A mask target that matches nothing stops its capture (`cli.capture.error.maskMissing`): what it should hide is
+  never shown. Masking also runs again just before the shot.
 
 Fixes from the audit of 2026-10-03 (AUDIT.md §3), each guarded by a test in `test/unit/security.test.mjs` so that it
 cannot come back (RULES.md).

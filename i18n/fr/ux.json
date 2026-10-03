@@ -290,7 +290,7 @@
   "cli.skill.agents": "types d'agent installés dans {folder} ({n} fichiers)",
   "cli.skill.restart": "Ouvrez une nouvelle session Claude Code pour le charger.",
   "cli.skill.action": "action inconnue : « {action} »",
-  "cli.skill.action.help": "{command} skill install [--target <dossier des skills>] [--force]",
+  "cli.skill.action.help": "{command} skill install [--target <dossier des skills>] [--force] [--hooks [--settings <fichier>]]",
   "cli.skill.foreign": "{folder} existe déjà et n'a pas été installé par cette commande",
   "cli.skill.foreign.help": "supprimez-le, ou ajoutez --force pour le remplacer",
   "cli.skill.sourceMissing": "le skill du kit est introuvable : {folder}",

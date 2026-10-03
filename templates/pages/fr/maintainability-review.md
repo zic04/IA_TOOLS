@@ -17,7 +17,9 @@ Exemple : « Globalement sain ; une fonction porte le plus de complexité et c'e
 
 ## Points chauds
 
-<!-- consigne : les fichiers ou fonctions qui combinent taille, complexité et faible couverture de tests — là où un changement risque le plus de casser quelque chose d'invisible. -->
+<!-- consigne : les fichiers ou fonctions qui combinent taille, complexité et faible couverture de tests — là où un changement risque le plus de casser quelque chose d'invisible. L'historique (`doc-kit facts --source history`) montre lesquels changent le plus souvent, et si une seule personne les connaît (part de l'auteur principal, bus factor). -->
+
+::faits{source="history" colonnes="file,commits,churn,authors,owner,ownerShare,last"}
 
 ## Duplication
 

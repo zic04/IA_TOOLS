@@ -82,7 +82,11 @@ Déclarée ou non, chaque campagne qui utilise une session affiche le résultat 
 | **Vérifier chaque aperçu** | Une zone mesurée sur le mauvais élément ne se voit qu'à l'image | `doc-kit capture "<motif>" --preview`, puis regarder `<id>.zones.png` dans `.doc-kit/` (zones en rouge) |
 | Identifiants stables | Ils sont cités dans le Markdown | kebab-case, préfixés par lot : `util-commandes-liste`, `cf-circuit-regles`, `prod-admin-utilisateurs` |
 | Carte cadrée de façon déterministe | La même image à chaque campagne | `view: { lon, lat, zoom }` dans le plan, avec `capture.map` dans la configuration |
-| Attente suffisante | L'écran a fini de charger | `delay` : 2 500 ms par défaut, 7 000 ms pour une carte |
+| Attente suffisante | L'écran a fini de charger | Le kit attend que la page soit stable (réseau calme, polices, DOM immobile, animations finies) ; `delay` n'ajoute qu'un minimum, par exemple 3 000 ms pour une carte dessinée dans un canvas |
+| Une date figée | « Aujourd'hui », les dates relatives et les comptes à rebours ne changent pas l'image d'une campagne à l'autre | `capture.clock: "2026-01-15T09:00:00Z"` dans la configuration |
+| Les mêmes pixels partout | Les polices et le lissage diffèrent d'un système à l'autre (4 à 14 % des pixels sur la démo) | Prendre les images versionnées dans un moteur de rendu figé : `docker run --rm --network host -v "$PWD:/w" -w /w mcr.microsoft.com/playwright:v1.60.0-noble npx doc-kit capture --compare` (Linux ; la version de Playwright du kit) |
+| Un échec expliqué | Une capture en échec montre pourquoi, étape par étape | `doc-kit capture --trace`, puis `npx playwright show-trace .doc-kit/traces/<id>.zip` |
+| Nettes sur tous les écrans | Une capture prise en densité 1 est floue sur un écran Retina | `capture.scale: 2` (images environ 2,3 fois plus lourdes) |
 | Images légères | Le site est un seul fichier | `doc-kit optimize` recompresse les images de plus de 200 Ko |
 
 Par exemple, dans un plan de captures d'Acme Orders, le client et la date de commande sont sur la même rangée et n'ont qu'une pastille :

@@ -2181,3 +2181,68 @@ figcaption,
     transition: none !important;
   }
 }
+
+/* Production statistics (::usage, ARCHITECTURE.md §6.14): a share bar, and a step's parts indented under it. */
+.usage-bar {
+  --w: 0%; /* set per bar by the page (style="--w:…") */
+  display: inline-block;
+  vertical-align: middle;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--brand) var(--w), var(--brand-soft) var(--w));
+}
+tr.usage-part td:first-child {
+  padding-left: 28px;
+  color: var(--text-soft);
+}
+.usage-none {
+  color: var(--text-soft);
+  font-style: italic;
+}
+
+/* Entity-relationship diagram (::erd, engine/build/erd.mjs): theme colours, so it follows light and dark. */
+.erd {
+  max-width: 100%;
+  height: auto;
+  font: 12px var(--font);
+}
+.erd-box {
+  fill: var(--surface);
+  stroke: var(--line);
+}
+.erd-head {
+  fill: var(--brand-soft);
+}
+.erd-name {
+  fill: var(--text);
+  font-weight: 700;
+}
+.erd-col {
+  fill: var(--text-soft);
+}
+.erd-more {
+  font-style: italic;
+}
+.erd-edge {
+  stroke: var(--text-faint);
+  stroke-width: 1.5;
+}
+.erd-arrow {
+  fill: var(--text-faint);
+}
+
+/* Recorded changes of the application (::changes, engine/facts/changes.mjs). */
+.changes-version {
+  border-left: 3px solid var(--brand);
+  padding: 2px 0 2px 14px;
+  margin: 14px 0;
+}
+.changes-source {
+  margin: 8px 0 2px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+.changes-list {
+  margin: 0;
+}

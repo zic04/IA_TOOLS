@@ -1,7 +1,7 @@
 ## En bref
 
 Un **gabarit de page** fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y
-a **30 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 pour l'espace métier, 12 pour
+a **31 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 pour l'espace métier, 13 pour
 l'espace reprise. Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
 ses **sections obligatoires** sont présentes, et `doc-kit audit` mesure à quel point elle est complète.
 
@@ -62,6 +62,7 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `threat-model` | Le schéma de flux de données et les menaces STRIDE | 4 sur 6 | 3 000 | [threat-model](#/examples/threat-model) |
 | `security-review` | La matrice d'accès, les résultats de la sonde, les constats OWASP | 7 sur 10 | 3 000 | [security-review](#/examples/security-review) |
 | `maintainability-review` | Notes, points chauds, recommandations par effort | 5 sur 8 | 2 200 | [maintainability-review](#/examples/maintainability-review) |
+| `documentation-cost` | Temps, agents, modèles et jetons consacrés à la documentation | 3 sur 5 | 1 200 | [documentation-cost](#/examples/documentation-cost) |
 
 Les sections elles-mêmes, type par type, sont listées dans `standard/templates.fr.md`. Les pages de ce site sont
 typées elles aussi : les pages de référence sont `technical`, les pages pratiques `recipe`. Les types métier et

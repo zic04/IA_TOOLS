@@ -453,6 +453,33 @@ export function frontMatterField(text, field) {
 /** The `agent: <type>` declared by a brief template ("" when absent: not a brief launched as an agent). */
 export const templateAgent = (template) => frontMatterField(template, "agent");
 
+/**
+ * Model of each brief by default (ETUDE-CAPTURES.md §7, G4): the cheapest model whose quality suffices for the
+ * task, instead of the agent type's own model. A brief absent here runs on its agent type's model
+ * (agents/<type>.md). `llm.routing` in doc.config.mjs overrides any entry ({ "<brief>": "<model>" }).
+ *   haiku   triage and translation: decisions and faithful rewriting from a single dossier
+ *   sonnet  writing, updates, corrections, verification of findings, maintainability review
+ *   opus    the few judgments every later page depends on (inventory, code health, security, production dossier)
+ */
+export const DEFAULT_ROUTING = Object.freeze({
+  triage: "haiku",
+  translate: "haiku",
+  "findings-verification": "sonnet",
+  "maintainability-review": "sonnet",
+  "page-corrections": "sonnet",
+  inventory: "opus",
+  "code-health": "opus",
+  "security-review": "opus",
+  "production-technical": "opus",
+});
+
+/** The model a brief runs on: llm.routing, then DEFAULT_ROUTING, then its agent type's model. */
+export function briefModel(name, agent, config = {}) {
+  const routed = config.llm?.routing?.[name];
+  if (typeof routed === "string" && routed) return routed;
+  return DEFAULT_ROUTING[name] || (agent ? agentModel(agent) : "");
+}
+
 /** The `model: <name>` declared by an agent definition file (agents/<type>.md), read once per process. */
 const agentModelCache = new Map();
 export function agentModel(type, agentsDir = AGENTS_DIR) {

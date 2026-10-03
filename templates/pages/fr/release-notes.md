@@ -4,7 +4,9 @@
 
 ## Dernière version
 
-<!-- consigne : la version actuelle et sa date, puis ce qui a changé, en langage métier (jamais un message de commit copié tel quel) : une ligne par changement, groupées en Ajouté, Modifié, Corrigé quand c'est utile. -->
+<!-- consigne : la version actuelle et sa date, puis ce qui a changé, en langage métier (jamais un message de commit copié tel quel) : une ligne par changement, groupées en Ajouté, Modifié, Corrigé quand c'est utile. Partez des changements techniques enregistrés par le kit (`doc-kit changes --since <version précédente> --record`) : nouvelles routes, tables, variables, dépendances. Ne gardez ::changements ci-dessous que si des lecteurs techniques en ont besoin. -->
+
+::changements{}
 
 ### vX.Y.Z — AAAA-MM-JJ
 

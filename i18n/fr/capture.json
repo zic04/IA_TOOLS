@@ -109,6 +109,8 @@
   "cli.capture.error.unionHere": "{ union } n'est permis que dans une zone",
   "cli.capture.error.actionUnknown": "action inconnue : {action}",
   "cli.capture.error.mask": "échec du masquage — {error}",
+  "cli.capture.error.maskMissing": "cible de masquage introuvable : {target} — la capture n'est pas prise, pour ne jamais montrer ce qu'elle devait cacher",
+  "cli.capture.error.maskMissing.help": "corrigez la cible dans le plan (masks), ou retirez-la si l'élément n'existe plus",
   "cli.capture.error.challenge": "arrêté par un contrôle anti-robot ({url}) : reconnectez-vous avec l'option browser de l'adaptateur à \"chrome\"",
   "cli.capture.error.generic": "{error}",
 

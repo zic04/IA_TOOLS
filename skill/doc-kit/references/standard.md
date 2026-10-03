@@ -5,7 +5,7 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 | File | Content |
 |---|---|
 | `structure` | recommended site structure |
-| `templates` (and `templates.json` + fragments `templates/business.json`, `templates/takeover.json`) | the 30 page types (see `references/templates.md`) |
+| `templates` (and `templates.json` + fragments `templates/business.json`, `templates/takeover.json`) | the 31 page types (see `references/templates.md`) |
 | `writing` | writing rules |
 | `captures` | capture safety (see `references/capture-safety.md`) |
 | `quality` | blocking gates and warnings |

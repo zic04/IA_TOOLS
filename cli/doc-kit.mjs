@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Command-line entry point: dispatches to cli/commands/<command>.mjs; without a command, the guided mode.
-// Global options: --project <dir>, --json, --verbose, --lang en|fr, --help, --version.
+// Global options: --project <dir>, --json, --verbose, --lang en|fr, --profile, --help, --version.
 // Exit codes: 0 OK · 1 failed check · 2 usage or configuration · 3 environment.
 import { parseArgs } from "node:util";
 import fs from "node:fs";
@@ -15,6 +15,8 @@ import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environme
 import { readSyncReference } from "../engine/sync/reference.mjs";
 import { readProjectVersion } from "../engine/build/build.mjs";
 import { languageCounts } from "../engine/build/languages.mjs";
+import { createTimer, usageFolder, appendUsage } from "../engine/stats/usage.mjs";
+import { syncPath } from "../engine/sync/reference.mjs";
 import { WORK_DIR } from "./commands/audit.mjs";
 import { SKILL_NAME } from "./commands/skill.mjs";
 
@@ -34,6 +36,7 @@ const GLOBALS = {
   json: { type: "boolean" },
   verbose: { type: "boolean" },
   lang: { type: "string" },
+  profile: { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
 };
@@ -106,7 +109,66 @@ export async function runCli(argv, io = {}) {
       ctx.error("option.invalid", { error: `--${k} (${name})` });
       return EXIT.USAGE;
     }
-  return runSafely(ctx, () => module.run({ ctx, values, positionals: rest }));
+  ctx.timer = createTimer();
+  const end = ctx.timer.start(STEP_OF[name] || name);
+  const code = await runSafely(ctx, () => module.run({ ctx, values, positionals: rest }));
+  end({ exit: code });
+  recordUsage(ctx, name);
+  return code;
+}
+
+/**
+ * The block each command measures (ETUDE-CAPTURES.md §6): the step a run counts under in usage/<version>.jsonl.
+ * Commands absent here (dev, open, view, doctor, init, skill, stats, export, upgrade, migrate) are not recorded.
+ */
+export const STEP_OF = Object.freeze({
+  connect: "setup",
+  demo: "setup",
+  capture: "capture",
+  facts: "facts",
+  inventory: "analysis",
+  probe: "analysis",
+  new: "generate",
+  context: "generate",
+  translate: "translate",
+  sync: "update",
+  changes: "update",
+  build: "build",
+  optimize: "build",
+  check: "check",
+  audit: "audit",
+});
+
+/**
+ * Appends the run's spans to the project's usage/<version>.jsonl (when the project records statistics), and prints
+ * them with --profile. Never fails the command: statistics are a by-product.
+ */
+function recordUsage(ctx, name) {
+  const spans = ctx.timer.spans;
+  if (ctx.globals.profile) printProfile(ctx, spans);
+  if (!(name in STEP_OF) || !ctx.project?.root || !ctx.config) return;
+  try {
+    const dir = usageFolder(ctx.project.root, ctx.env);
+    if (!dir) return;
+    const version = readProjectVersion(ctx.project.root, ctx.config.version);
+    const phase = name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
+    // The command's own span last in time, first in the file: easier to read.
+    appendUsage({ dir, version, command: name, phase, spans: [spans.at(-1), ...spans.slice(0, -1)] });
+  } catch {
+    // a read-only folder, a version file that cannot be read: the command's result stands
+  }
+}
+
+/** --profile: the spans of the run, longest first, with their share of the command's time. */
+function printProfile(ctx, spans) {
+  const total = spans.at(-1)?.ms || 0;
+  const rows = [...spans].sort((a, b) => b.ms - a.ms);
+  ctx.printErr(`\n${ctx.t("cli.profile.title", { ms: total })}`);
+  for (const s of rows) {
+    const label = s.sub ? `  ${s.step} › ${s.sub}${s.part ? ` › ${s.part}` : ""}` : s.step;
+    const share = total ? ` ${((s.ms / total) * 100).toFixed(0).padStart(3)} %` : "";
+    ctx.printErr(`${String(s.ms).padStart(8)} ms${share}  ${label}`);
+  }
 }
 
 /** Runs a command: a KitError becomes its message and exit code; any other error, an internal error. */

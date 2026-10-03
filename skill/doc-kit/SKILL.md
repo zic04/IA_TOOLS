@@ -93,8 +93,24 @@ like the skill.
 - `node scripts/consolidation.mjs init --project <docDir> --codes a,b,c` creates the consolidation file;
   `node scripts/consolidation.mjs duplicates --project <docDir>` lists candidates citing the same `file:line`, and
   existing findings already citing them.
-- Launch an agent of the type the brief names with: "Read `<brief>` and carry it out in full." Placeholders and
-  waves: `references/agent-orchestration.md`.
+- **Launch** an agent of the type the brief names, **on the model `brief.mjs` prints**. Give it the brief's full
+  text as its prompt, not a request to read the file. Every brief puts its common part first, so the agents of a
+  wave start with the same bytes, and all but the first read that part from the prompt cache. "Read `<brief>`"
+  would make each agent pay for it again as a tool result.
+- **Launch every agent of a wave in the same message** (parallel), with one page per agent for writing and
+  updates, and up to 8 at a time. A short history per agent costs far less than one agent working through a
+  list.
+- **Models** (`DEFAULT_ROUTING` in `scripts/common.mjs`, overridden per brief by `llm.routing` in `doc.config.mjs`):
+
+  | Model | Briefs |
+  |---|---|
+  | `haiku` | `triage`, `translate` |
+  | `sonnet` | the writing briefs, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
+  | `opus` | `inventory`, `code-health`, `security-review`, `production-technical` |
+
+  Pass the model to the agent launch: it overrides the agent type's own model. A high-severity finding may still
+  be verified on `opus`, one agent per finding.
+- Placeholders and waves: `references/agent-orchestration.md`.
 
 ## The phases
 
@@ -187,14 +203,21 @@ Checklist `{{KIT_PATH}}/standard/delivery.md`. Maintenance: see the cycle below.
 doc-kit facts [--network]          refresh the deterministic facts (zero tokens)
 doc-kit sync                       report: proofs moved/broken, labels changed, pages to review by priority,
                                     stale captures, new/removed coverage, never-marked pages
-doc-kit sync --apply [--labels]    mechanical fixes only (moved proofs, label replacements); never prose
+doc-kit sync --apply [--labels] --auto-intact
+                                   mechanical fixes only (moved proofs, label replacements), and the pages whose
+                                    only changes are probably intact marked without any agent; never prose
 doc-kit capture --stale --compare  retake only the captures sync flagged; unchanged pixels keep the old image
-doc-kit context <pages> --update   one context file per flagged page, for triage and for the writer
+doc-kit context <pages> --update   one context file per page still flagged, for triage and for the writer
 ```
-Then **triage** (`doc-kit-triage`, haiku, read-only): `intact` → `sync --mark`; `edit`/`rewrite` → a wave of
-**update** agents (`doc-kit-writer`, sonnet), each from its own context file, each ending with
-`sync --mark <page> --sources …`. Then `doc-kit check all`, and `doc-kit build`. `sync --check` gates CI (exit 1
-on anything but `unchanged`/`unmarked`).
+Then, **only for the pages still flagged** (none left: the cycle ends here, no agent at all):
+- **triage** (`doc-kit-triage`, haiku, read-only), **at most 5 pages per agent, all agents launched in the same
+  message** (parallel; a short history costs far less than one long one): `intact` → `sync --mark`;
+- `edit`/`rewrite` → **one page per update agent** (`doc-kit-writer`, sonnet), all launched in the same message,
+  up to 8 at a time, each from its own context file. A small change is an `Edit` of the lines concerned, never a
+  rewrite of the whole page; each agent ends with `sync --mark <page> --sources …`.
+
+Then `doc-kit check all`, and `doc-kit build`. `sync --check` gates CI (exit 1 on anything but
+`unchanged`/`unmarked`). `doc-kit stats --since <version>` shows what the update cost, per step and per model.
 
 ## The economical conduct
 
@@ -210,8 +233,11 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
   verification`, `production-technical`).
 - **Estimate before every wave**: `node scripts/brief.mjs <template> --estimate` for each brief of the wave (or
   `sync --estimate` for a maintenance wave), before launching a single agent.
-- **Log every agent as it ends**: `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> …`, from
-  what Claude Code reports — do this right after each completion notification, not in a batch at the end.
+- **Every agent is recorded automatically** when the statistics hook is installed (`doc-kit skill install --hooks`,
+  ARCHITECTURE.md §6.14): its tokens (input, output, cache), model and time go to the project's
+  `usage/<version>.jsonl`, read by `doc-kit stats` and the `documentation-cost` page. Without the hook, log each
+  agent yourself: `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> …`, right after each
+  completion notification, not in a batch at the end.
 - **Report at the end of each phase**: `node scripts/usage.mjs report`, compared with the wave's estimate.
 - **Never hand a writer the full inventory or table of contents**: give it `doc-kit context <page>` and the
   reference page instead; the inventory stays an orchestrator-only reading (phase 2 and phase 3 only).

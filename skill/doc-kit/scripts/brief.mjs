@@ -30,7 +30,7 @@ import {
   SKILL_ROOT,
   WORK_DIR,
   addMessages,
-  agentModel,
+  briefModel,
   appDirInfo,
   baseVariables,
   checkLanguage,
@@ -74,7 +74,7 @@ addMessages({
     written: "✔ brief written: {file}",
     unfilled: "placeholder(s) left unfilled: {list}",
     unfilled_todo: "add {vars} (or extra.briefs.<key> in doc.config.mjs), then run again",
-    launch: '  → launch it with the agent type {agent}: "Read {file} and carry it out in full."',
+    launch: "  → launch it with the agent type {agent} and the model {model}, the brief's full text as the prompt (the common part first: every agent of the wave after the first reads it from the prompt cache)",
     noAgent: "  → this brief template declares no agent type (add a front matter line \"agent: <type>\")",
     estimateTitle: "Estimate for {template} — agent {agent}, model {model}",
     estimateNoAgent: "Estimate for {template} — this brief declares no agent type",
@@ -115,7 +115,7 @@ addMessages({
     written: "✔ brief écrit : {file}",
     unfilled: "paramètre(s) non rempli(s) : {list}",
     unfilled_todo: "ajoutez {vars} (ou extra.briefs.<clé> dans doc.config.mjs), puis relancez",
-    launch: "  → lancez-le avec le type d'agent {agent} : « Lis {file} et exécute-le en entier. »",
+    launch: "  → lancez-le avec le type d'agent {agent} et le modèle {model}, le texte complet du brief comme consigne (la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt)",
     noAgent: "  → ce modèle de brief ne déclare aucun type d'agent (ajoutez une ligne d'en-tête « agent: <type> »)",
     estimateTitle: "Estimation pour {template} — agent {agent}, modèle {model}",
     estimateNoAgent: "Estimation pour {template} — ce brief ne déclare aucun type d'agent",
@@ -186,7 +186,7 @@ function appDirWarnings(docDir, config, given) {
  * model is set.
  */
 async function printEstimate({ name, agent, text, vars, docDir, config }) {
-  const model = agent ? agentModel(agent) : "";
+  const model = agent ? briefModel(name, agent, config) : "";
   console.log(t(agent ? "estimateTitle" : "estimateNoAgent", { template: name, agent, model }));
   if (!agent) console.log(t("noAgent"));
 
@@ -323,7 +323,7 @@ async function main() {
     warn(t("unfilled", { list: unfilled.join(", ") }), t("unfilled_todo", { vars: unfilled.map((v) => `--var ${v}=…`).join(" ") }));
     return 1;
   }
-  if (agent) console.log(t("launch", { file: output, agent }));
+  if (agent) console.log(t("launch", { file: output, agent, model: briefModel(base, agent, config) }));
   else console.log(t("noAgent"));
   return 0;
 }
