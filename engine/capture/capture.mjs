@@ -255,6 +255,7 @@ async function writePreview(page, clip, zones, file) {
  * @param {{ before: string, after: string }} [p.labels]  before/after sheet captions
  * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms, compared? } | { type: "failed", id, key, vars,
  *   trace? }
+ * @param {boolean} [p.verify]          open, play and locate every zone and the frame, but take and write nothing
  * @param {string|null} [p.trace]       folder where a failed capture leaves its Playwright trace (<id>.zip, opened
  *   with `npx playwright show-trace`); null: no trace (default)
  * @param {object} [p.timer]             engine/stats/usage.mjs createTimer(): each capture's parts are measured
@@ -289,6 +290,7 @@ export async function runCaptures({
   launch = launchBrowser,
   timer = null,
   trace = null,
+  verify = false,
 }) {
   await registerSelectors();
   const cap = capture || config.capture;
@@ -483,6 +485,13 @@ export async function runCaptures({
           throw new CaptureError("zone", { n: i + 1, target: describeTarget(z), caption: z.caption || "", error: firstLine(e) });
         }
         zones.push(measureZone(i + 1, box, clip, z));
+      }
+      // --verify: the page opened, the actions played and every zone and the frame were found; nothing is
+      // written (ETUDE-CAPTURES.md D6: the plans replayed as tests).
+      if (verify) {
+        w.span.close();
+        if (trace) await w.tracing.stop(null);
+        return { zones: zones.length, bytes: 0, verified: true };
       }
       // Masked again just before the shot: the application may have rendered data again while the zones were
       // being waited for (SECURITY.md, ETUDE-CAPTURES.md C7).

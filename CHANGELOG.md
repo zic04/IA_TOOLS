@@ -44,6 +44,18 @@ entries between a project's `kit` range and the installed version.
   environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
   import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
   release notes.
+- **The `capture-plans` brief** (skill, sonnet): an agent drafts the capture plans of a set of screens from the
+  code and the facts. It writes the frame, 3 to 8 captioned zones on stable targets and masks, then checks every
+  entry with `capture --verify` and `--preview`. It never clicks in a live application, and the read-only capture
+  stays the only way a page is opened.
+- **`capture --verify`** replays the plans as tests. Each page is opened, its actions played, and its frame and
+  zones located, read-only, but nothing is written. A screen that changed fails with the zone it could not find.
+  Run it in CI against the demo, or before a release.
+- **`doc-kit record <route> [--id] [--force]`**: writes a capture plan entry from what a person does in the
+  browser. Playwright's recorder (codegen) opens on the application with the saved session. Clicks, typing,
+  choices and keys become the entry's route and actions in `captures/plans/<id>.mjs`; the lines it cannot
+  translate stay at the top of the file as comments. It is refused on production and on `capture.forbidden`
+  routes, because the recorder is not read-only.
 - **`changes --record`** keeps each version's changes in `changes/<version>.json`, which is committed. The
   directive `::changes{version, sources}` (`::changements`) shows every recorded version in the site, most recent
   first. The `release-notes` template starts from it.

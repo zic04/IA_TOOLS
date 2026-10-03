@@ -125,6 +125,7 @@ export const STEP_OF = Object.freeze({
   connect: "setup",
   demo: "setup",
   capture: "capture",
+  record: "capture",
   facts: "facts",
   inventory: "analysis",
   probe: "analysis",

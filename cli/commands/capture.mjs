@@ -40,6 +40,7 @@ export const options = {
   compare: { type: "boolean" },
   stale: { type: "boolean" },
   trace: { type: "boolean" },
+  verify: { type: "boolean" },
 };
 
 /** Capture ids of `.doc-kit/sync-report.json` (ARCHITECTURE.md §6.10); missing report: capture.noSyncReport. */
@@ -178,10 +179,12 @@ export async function run({ ctx, values, positionals }) {
     ...(ctx.timer ? { timer: ctx.timer } : {}),
     // --trace: a failed capture leaves its Playwright trace (ETUDE-CAPTURES.md C3).
     ...(values.trace ? { trace: path.join(root, ".doc-kit", "traces") } : {}),
+    ...(values.verify ? { verify: true } : {}),
     onEvent: (e) => {
       if (ctx.json) return;
       if (e.type === "ok") {
-        ctx.print(ctx.t("cli.capture.ok", { id: e.id, n: e.zones, kb: Math.round(e.bytes / 1024), seconds: (e.ms / 1000).toFixed(1) }));
+        if (e.verified) ctx.print(ctx.t("cli.capture.verified", { id: e.id, n: e.zones, seconds: (e.ms / 1000).toFixed(1) }));
+        else ctx.print(ctx.t("cli.capture.ok", { id: e.id, n: e.zones, kb: Math.round(e.bytes / 1024), seconds: (e.ms / 1000).toFixed(1) }));
         if (compare && e.compared) {
           const percent = (e.compared.ratio * 100).toFixed(2);
           ctx.print(`  ${ctx.t(e.compared.changed ? "cli.capture.compare.changed" : "cli.capture.compare.unchanged", { id: e.id, percent })}`);
@@ -200,7 +203,7 @@ export async function run({ ctx, values, positionals }) {
       JSON.stringify({ ok: r.ok, failed: r.failed, readOnly, blocked: r.blocked.length, blockedRequests: blocked, refused, prefetched: r.prefetched.length, prefetchedRequests: prefetched, expired: r.expired, compared: r.compared }, null, 2)
     );
   } else {
-    ctx.print(`\n${ctx.t("cli.capture.summary", { ok: r.ok.length, n: selected.length })}` + (r.failed.length ? ` ${ctx.t("cli.capture.failures", { ids: r.failed.map((f) => f.id).join(", ") })}` : ""));
+    ctx.print(`\n${ctx.t(values.verify ? "cli.capture.verifySummary" : "cli.capture.summary", { ok: r.ok.length, n: selected.length })}` + (r.failed.length ? ` ${ctx.t("cli.capture.failures", { ids: r.failed.map((f) => f.id).join(", ") })}` : ""));
     if (compare) {
       const changed = r.compared.filter((c) => c.changed).length;
       ctx.print(ctx.t("cli.capture.compare.summary", { unchanged: r.compared.length - changed, changed, failed: r.failed.length }));

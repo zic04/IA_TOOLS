@@ -20,7 +20,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 
 | Sous-page | Commandes |
 |---|---|
-| [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `capture`, `inventory` |
+| [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
 | [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes` |
 
@@ -69,6 +69,7 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit connect` | Ouvre l'application pour que vous vous connectiez, puis enregistre la session |
 | `doc-kit probe` | Vérifie une instance locale ou de démo en cours d'exécution, en lecture seule : en-têtes, cookies, CORS, contrôle d'accès |
 | `doc-kit demo` | Lance le script des données de démo (`capture.setup`) |
+| `doc-kit record <route>` | Écrit une entrée de plan de capture à partir de ce que vous faites dans le navigateur |
 | `doc-kit capture [motifs…]` | Prend les captures des plans, en lecture seule avec une session |
 | `doc-kit inventory` | Liste ce que voient les adaptateurs de couverture |
 | `doc-kit dev` | Construit, sert et recharge le site pendant que vous écrivez |

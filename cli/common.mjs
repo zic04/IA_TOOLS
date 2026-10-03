@@ -53,7 +53,7 @@ export function defaultExec(bin, args = [], options = {}) {
  *   (bin, args, options) => { status, stdout, stderr } | null (null: the binary is not on the PATH); commit
  *   replaces the read-only git HEAD lookup of `facts` (dir) => string | null.
  */
-export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit } = {}) {
+export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit, codegen } = {}) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const warnedGit = new Set();
   const ctx = {
@@ -64,6 +64,8 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     signal,
     steps: steps ?? null,
     launch: launch ?? null,
+    /** Test seam of `record`: replaces Playwright's codegen ({ url, output, storage }) => status. */
+    codegen: codegen ?? null,
     fetch: fetchImpl,
     /** `exec`, with a warning (once per repository) when git is refused because of a risky configuration. */
     exec: (bin, args, options) => {

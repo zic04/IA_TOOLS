@@ -433,7 +433,7 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
 
 Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is documented at the top of `engine/capture/plans.mjs`.
 
-- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (minimum wait after loading, default 0: the kit waits until the page is stable — no request in flight and no DOM change for 150 ms, fonts and images ready, finite animations ended, capped at 10 s, `engine/capture/stable.mjs`), `actions`, `settle` (minimum wait after the actions, default 0: stable again). Captures run `capture.concurrency` at a time (default 4, always 1 for `capture.target: "production"`), each worker with its own browser contexts and guard state; results and messages keep the order of the plan. `capture.clock` (ISO date) fixes the page's clock; contexts use `reducedMotion: "reduce"`; `capture --trace` keeps the Playwright trace of a failed capture in `.doc-kit/traces/<id>.zip`, `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
+- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (minimum wait after loading, default 0: the kit waits until the page is stable — no request in flight and no DOM change for 150 ms, fonts and images ready, finite animations ended, capped at 10 s, `engine/capture/stable.mjs`), `actions`, `settle` (minimum wait after the actions, default 0: stable again). Captures run `capture.concurrency` at a time (default 4, always 1 for `capture.target: "production"`), each worker with its own browser contexts and guard state; results and messages keep the order of the plan. `capture.clock` (ISO date) fixes the page's clock; contexts use `reducedMotion: "reduce"`; `capture --trace` keeps the Playwright trace of a failed capture in `.doc-kit/traces/<id>.zip`; `capture --verify` opens, plays and locates the frame and every zone of each entry but takes and writes nothing (`cli.capture.verified`, exit code 1 when a zone or the frame is not found), `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
 - **Actions:** `click` (+ `options`, Playwright click options), `hover`, `type` + `value`, `select` + `value`, `press`, `scroll`, `wait`, `wheel`, `eval`.
 - **Targets:** `{ role, name }`, `{ text }`, `{ field }`, `{ label }`, `{ placeholder }`, `{ css }`, `{ block }` (a container matching `capture.selectors.block` whose button or heading starts with the text). Exactly one kind per target.
 - **Target options:** `exact`, `nth`, `last`, `has`, `within`, `up`, `framed` (closest ancestor matching `capture.selectors.frame`, or with a border on its four sides), `margin`, `marginY` (vertical margin of a `frame`), `side`.
@@ -798,7 +798,7 @@ The kit calls no LLM. The skill drives Claude Code agents; the kit makes them re
 **Model routing**: each brief runs on its own model, chosen in this order:
 1. `llm.routing` in `doc.config.mjs` (`{ "<brief>": "<model>" }`);
 2. the skill's `DEFAULT_ROUTING` (`skill/doc-kit/scripts/common.mjs`): `haiku` for `triage` and `translate`;
-   `sonnet` for `findings-verification`, `maintainability-review` and `page-corrections`; `opus` for `inventory`,
+   `sonnet` for `findings-verification`, `maintainability-review`, `page-corrections` and `capture-plans`; `opus` for `inventory`,
    `code-health`, `security-review` and `production-technical`;
 3. the model of its agent type (`agents/<type>.md`).
 
@@ -938,6 +938,25 @@ Two optional reviews of the documented application, asked at scoping: determinis
 **Briefs** (lean method, §6.11): `security-review` (agent `doc-kit-reviewer`) and `maintainability-review` (agent `doc-kit-writer`); their findings are candidates for the risk register (`findings-verification`).
 
 **Configuration**: `review: { guards: { role: [], user: [] }, params: {}, semgrep: null }` (regular expressions as strings; `params`: path parameter → example value; `semgrep`: local rules folder, relative to the project). **i18n fragment** `i18n/<language>/reviews.json`: `cli.probe.*` (with `cli.help.probe`), `cli.connect.as*`, the new `render.facts.column.*` and `cli.facts.*` keys.
+
+### 6.16 Recording a capture plan (`record`)
+
+**`record <route> [--id <id>] [--force]`** runs Playwright's codegen
+(`node <playwright>/cli.js codegen --target javascript --output <tmp> [--load-storage <session>] <url><route>`,
+without a shell) and translates its output (`engine/capture/record.mjs`):
+- the first `page.goto` on the application's origin gives the route;
+- `getByRole` (`name`, `exact`), `getByText`, `getByLabel`, `getByPlaceholder` and `locator` (css), with `.nth(n)`,
+  `.first()` or `.last()`, give the targets;
+- `click`, `dblclick`, `check` and `uncheck` become `click`; `fill` becomes `type` + `value`; `selectOption` becomes
+  `select` + `value`; `hover` becomes `hover`; `locator.press` becomes `click` then `press`; `keyboard.press`
+  becomes `press`;
+- any other line (a filter, a nested locator, a page on another origin) is listed at the top of the plan as a
+  comment.
+
+The plan is `captures/plans/<id>.mjs`. The id defaults to the route in kebab-case. An existing file raises
+`record.exists` (exit code 1) unless `--force` is given. The command is refused when `capture.target` is
+`"production"` (`record.production`) and on a `capture.forbidden` route (`record.forbidden`), because the recorder
+is a normal browser without the read-only guard. The `codegen` context seam replaces the recorder in tests.
 
 ### 6.15 What changed, on every build (`changes`, `::changes`, `hooks`)
 

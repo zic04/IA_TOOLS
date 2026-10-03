@@ -253,6 +253,7 @@ const TEMPLATE_VARIANTS = {
   "security-review": [["--var", "pages=take-over/security-review"], ["--var", "pages=take-over/security-review-2"]],
   "maintainability-review": [["--var", "pages=take-over/maintainability-review"], ["--var", "pages=take-over/maintainability-review-2"]],
   translate: [["--var", "lang=fr", "--var", "pages=use/orders", "--var", "contextFiles=.doc-kit/context/use__orders.fr.md"], ["--var", "lang=fr", "--var", "pages=use/settings", "--var", "contextFiles=.doc-kit/context/use__settings.fr.md"]],
+  "capture-plans": [["--var", "code=cp1", "--var", "pages=/orders"], ["--var", "code=cp2", "--var", "pages=/settings"]],
 };
 const AGENT_TYPES_KNOWN = new Set(["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"]);
 
@@ -284,7 +285,7 @@ describe("brief templates: agent type and common/variable split", () => {
   }
 
   test("newer briefs (triage, update, functional-spec, code-health, access-ownership, system-dossier, security-review, maintainability-review): the same placeholders in en and fr", () => {
-    for (const name of ["triage", "update", "functional-spec", "code-health", "access-ownership", "system-dossier", "security-review", "maintainability-review", "translate"]) {
+    for (const name of ["triage", "update", "functional-spec", "code-health", "access-ownership", "system-dossier", "security-review", "maintainability-review", "translate", "capture-plans"]) {
       const en = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "en", `${name}.md`), "utf8");
       const fr = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "fr", `${name}.md`), "utf8");
       const vars = (t) => [...new Set([...t.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((m) => m[1]))].sort();

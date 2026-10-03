@@ -20,7 +20,7 @@ options, in the language of the messages: `doc-kit init --help` shows `--lang` a
 
 | Sub-page | Commands |
 |---|---|
-| [Commands: start and capture](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `capture`, `inventory` |
+| [Commands: start and capture](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commands: write and check](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
 | [Commands: deliver and maintain](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes` |
 
@@ -68,6 +68,7 @@ exit code 2.
 | `doc-kit connect` | Opens the application so that you sign in, then saves the session |
 | `doc-kit probe` | Checks a running local or demo instance, read-only: headers, cookies, CORS, access control |
 | `doc-kit demo` | Runs the demo data script (`capture.setup`) |
+| `doc-kit record <route>` | Writes a capture plan entry from what you do in the browser |
 | `doc-kit capture [patterns…]` | Takes the captures of the plans, read-only with a session |
 | `doc-kit inventory` | Lists what the coverage adapters see |
 | `doc-kit dev` | Builds, serves and reloads the site while you write |
