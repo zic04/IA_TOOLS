@@ -261,13 +261,26 @@ describe("capture", () => {
       path.join(plans, "a.mjs"),
       'export const CAPTURES = [{ id: "a-orders", route: "/orders", delay: 200 }, { id: "b-logout", route: "/logout", delay: 200 }, { id: "c-settings", route: "/settings", delay: 200 }];'
     );
-    const r = await cli(["capture", "--project", dir, "--plans", plans]);
-    assert.equal(r.code, 3, r.out + r.err);
-    assert.match(r.out, /✔ a-orders \(0 zones/);
-    assert.match(r.out, /1\/3 captures taken\./);
-    assert.match(r.err, /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/);
-    assert.ok(fs.existsSync(path.join(dir, "images", "a-orders.webp")));
-    assert.ok(!fs.existsSync(path.join(dir, "images", "c-settings.webp")));
+    // One capture at a time (capture.concurrency 1, in a copy of the project: a configuration module is imported
+    // once per process): the run stops at the sign-out, nothing after it is taken. In parallel, a capture already
+    // running in another context may still finish; the expiry reported is the first one in plan order.
+    const single = demoCopy();
+    try {
+      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      config.capture = { ...config.capture, concurrency: 1 };
+      fs.writeFileSync(path.join(single, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
+      fs.mkdirSync(path.join(single, ".doc-kit"), { recursive: true });
+      fs.copyFileSync(path.join(dir, ".doc-kit", "session.json"), path.join(single, ".doc-kit", "session.json"));
+      const r = await cli(["capture", "--project", single, "--plans", plans]);
+      assert.equal(r.code, 3, r.out + r.err);
+      assert.match(r.out, /✔ a-orders \(0 zones/);
+      assert.match(r.out, /1\/3 captures taken\./);
+      assert.match(r.err, /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/);
+      assert.ok(fs.existsSync(path.join(single, "images", "a-orders.webp")));
+      assert.ok(!fs.existsSync(path.join(single, "images", "c-settings.webp")));
+    } finally {
+      fs.rmSync(single, { recursive: true, force: true });
+    }
   });
 });
 
