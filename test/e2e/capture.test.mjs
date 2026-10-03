@@ -389,6 +389,45 @@ describe("in the page", () => {
     await page.close();
   });
 
+  test("masking also reaches open shadow roots, iframes, alt/aria-label, a value split across elements and CSS content (SECURITY.md)", async () => {
+    const page = await browser.newPage();
+    const secret = "robin.owner@acme-internal.example";
+    await page.setContent(`<main>
+      <div id="host"></div>
+      <img id="img" alt="photo of ${secret}" src="data:,">
+      <button id="btn" aria-label="mail ${secret}">✉</button>
+      <p id="split">contact: robin.owner@<b>acme-internal</b>.example now</p>
+      <style>#css::after { content: "${secret}"; }</style><span id="css"></span>
+      <iframe id="frame" srcdoc="<p id='inner'>frame: ${secret}</p>"></iframe>
+    </main>
+    <script>
+      const root = document.getElementById("host").attachShadow({ mode: "open" });
+      root.innerHTML = "<p id='shadow'>shadow: ${secret}</p><input id='field' value='${secret}'>";
+    </script>`);
+    await page.frameLocator("#frame").locator("#inner").waitFor();
+    const n = await maskPage(page, { source: maskSource([secret], { guid: false }), masks: [] });
+    assert.ok(n >= 7, `replacements: ${n}`);
+    // Nothing the screenshot can show still holds the value, in the page, its shadow root or its frame.
+    const shown = await page.evaluate(() => {
+      const host = document.getElementById("host").shadowRoot;
+      const css = getComputedStyle(document.getElementById("css"), "::after").content;
+      return [
+        document.body.innerText,
+        host.textContent, // what a screenshot shows; the field's value is its property, read below
+        /** @type {HTMLInputElement} */ (host.getElementById("field")).value,
+        document.getElementById("img").getAttribute("alt"),
+        document.getElementById("btn").getAttribute("aria-label"),
+        css,
+      ].join("\n");
+    });
+    const inner = await page.frameLocator("#frame").locator("body").innerText();
+    assert.ok(!shown.includes(secret) && !shown.includes("robin.owner"), shown);
+    assert.ok(!inner.includes(secret), inner);
+    assert.equal(await page.textContent("#split"), `contact: ${DOTS} now`);
+    assert.ok(shown.includes(DOTS));
+    await page.close();
+  });
+
   test("targets: field, union, framed (border or capture.selectors.frame), up, within, has", async () => {
     const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
     await page.setContent(`<style>body{margin:0;font:16px sans-serif} .card{border:1px solid #888;padding:10px;margin:20px} label{display:block;height:30px}</style>
