@@ -2347,6 +2347,80 @@ tr.usage-part td:first-child {
   margin: 0;
 }
 
+/* Developer overview (::modules, ::hotspots, ::health, engine/build/developer.mjs). */
+.dev-summary {
+  color: var(--text-soft);
+}
+.dev-title {
+  margin: 18px 0 6px;
+  font-size: 0.95rem;
+}
+.dev-cycles,
+.dev-risks {
+  margin: 4px 0 12px;
+}
+.dev-list {
+  line-height: 1.9;
+}
+.dev-bar {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  --w: 0%; /* set per bar by the page (style="--w:…") */
+  background: linear-gradient(to right, var(--warn) var(--w), var(--warn-soft) var(--w));
+}
+.dev-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.dev-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 10px 14px;
+}
+.dev-card h4 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+.dev-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  padding: 2px 0;
+}
+.dev-row span,
+.dev-missing {
+  color: var(--text-soft);
+}
+.dev-missing {
+  font-size: 0.85rem;
+  font-style: italic;
+  margin: 0;
+}
+.dev-level {
+  display: inline-block;
+  min-width: 64px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.dev-critical .dev-level,
+.dev-high .dev-level {
+  color: var(--danger);
+}
+.dev-medium .dev-level {
+  color: var(--warn);
+}
+.dev-low .dev-level,
+.dev-info .dev-level {
+  color: var(--text-soft);
+}
+
 </style>
 </head>
 <body>

@@ -22,7 +22,7 @@ Exemple : « Un seul dépôt : un front et un back, partageant une base de donn�
 
 <!-- consigne : à l'intérieur du ou des conteneurs principaux, les modules qui comptent pour un nouvel arrivant : où vit la logique métier, où vit l'accès aux données. Le graphe des imports (`doc-kit facts --source modules`) liste d'abord les fichiers dont le plus d'autres dépendent, et les cycles d'imports à démêler. -->
 
-::faits{source="modules" colonnes="file,importedBy,imports,cycle"}
+::modules{}
 
 | Composant | Rôle | Code |
 |---|---|---|

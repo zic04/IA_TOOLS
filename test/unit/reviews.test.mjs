@@ -241,6 +241,33 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("code.eval: eval(, Python exec( and new Function( are reported; a regular expression's .exec( is not", () => {
+    const dir = tempDir("doc-kit-eval-");
+    try {
+      const write = (rel, text) => fs.writeFileSync(path.join(dir, rel), text);
+      write(
+        "parse.js",
+        "const m = /a(b)/.exec(text);\nconst n = pattern.exec(line);\nconst f = new Function('x', body);\n",
+      );
+      write("run.py", "exec(code)\nre.compile('x').match(s)\n");
+      write(
+        "shell.js",
+        "const cp = require('child_process');\ncp.exec(cmd);\ncp.execSync(cmd);\nconst m = re.exec(s);\nconst p = /(\\d+)/g.exec(s);\n",
+      );
+      write("calc.ts", "export const v = eval(input);\n");
+      const lines = (file) =>
+        collectSecurity(dir, () => null)
+          .filter((i) => i.rule === "code.eval" && i.file === file)
+          .map((i) => i.line);
+      assert.deepEqual(lines("parse.js"), [3], "new Function only, never the two regular expressions");
+      assert.deepEqual(lines("run.py"), [1]);
+      assert.deepEqual(lines("calc.ts"), [1]);
+      assert.deepEqual(lines("shell.js"), [2, 3, 4], "a file that loads child_process: every .exec( call counts");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECTURE.md §6.13)", () => {

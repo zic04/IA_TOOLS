@@ -6,6 +6,22 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Added
+
+- **Developer views** in the site, drawn from the facts at build time (`engine/build/developer.mjs`):
+  - `::modules{limit}`: the import graph, its cycles, the files most depended on and the orphan files;
+  - `::hotspots{limit}` (`::points-chauds`): the files that change most often and are the most complex (git
+    history × quality measures), with their main author and the bus factor;
+  - `::health{}` (`::sante`): the state of the application in one view, then its main risks.
+  The `code-map` and `maintainability-review` page templates use them instead of raw `::facts` tables.
+
+### Fixed
+
+- `facts --source security`: the `code.eval` rule reported every `pattern.exec(text)` of JavaScript (a regular
+  expression) as a high-severity code execution: 131 findings on the kit's own code, 24 after the fix. A method
+  `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression
+  literal); `eval(`, Python's `exec(` and `new Function(` are still reported.
+
 ## [0.3.0] - 2026-10-03
 
 ### Changed

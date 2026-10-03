@@ -1,6 +1,8 @@
 ## In short
 
-<!-- guidance: the overall state in one paragraph: the worst rating, and whether it is improving or worsening. Generate the facts first: `doc-kit facts --source quality`. -->
+<!-- guidance: the overall state in one paragraph: the worst rating, and whether it is improving or worsening. Generate the facts first: `doc-kit facts`. `::health` sums them up: ratings, security, tests, architecture, knowledge, dependencies, tooling, and the main risks. -->
+
+::health{}
 
 Example: "Mostly healthy; one function carries most of the complexity and is also today's biggest security gap."
 
@@ -17,9 +19,9 @@ Example: "Mostly healthy; one function carries most of the complexity and is als
 
 ## Hotspots
 
-<!-- guidance: the files or functions that combine size, complexity and low test coverage — where a change is most likely to break something unseen. The history (`doc-kit facts --source history`) shows which of them change most often, and whether a single person knows them (owner share, bus factor). -->
+<!-- guidance: the files or functions that combine size, complexity and low test coverage — where a change is most likely to break something unseen. `::hotspots` crosses the history and the measures (`doc-kit facts --source history --source quality`): the files that change most often and are the most complex, ranked, and whether a single person knows them (owner share, bus factor). -->
 
-::facts{source="history" columns="file,commits,churn,authors,owner,ownerShare,last"}
+::hotspots{}
 
 ## Duplication
 

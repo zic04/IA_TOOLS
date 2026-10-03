@@ -1,6 +1,8 @@
 ## En bref
 
-<!-- consigne : l'état global en un paragraphe : la pire note, et si elle s'améliore ou s'aggrave. Générer les faits d'abord : `doc-kit facts --source quality`. -->
+<!-- consigne : l'état global en un paragraphe : la pire note, et si elle s'améliore ou s'aggrave. Générer les faits d'abord : `doc-kit facts`. `::sante` les résume : notes, sécurité, tests, architecture, connaissance, dépendances, outillage, et les principaux risques. -->
+
+::sante{}
 
 Exemple : « Globalement sain ; une fonction porte le plus de complexité et c'est aussi aujourd'hui le plus gros manque de sécurité. »
 
@@ -17,9 +19,9 @@ Exemple : « Globalement sain ; une fonction porte le plus de complexité et c'e
 
 ## Points chauds
 
-<!-- consigne : les fichiers ou fonctions qui combinent taille, complexité et faible couverture de tests — là où un changement risque le plus de casser quelque chose d'invisible. L'historique (`doc-kit facts --source history`) montre lesquels changent le plus souvent, et si une seule personne les connaît (part de l'auteur principal, bus factor). -->
+<!-- consigne : les fichiers ou fonctions qui combinent taille, complexité et faible couverture de tests — là où un changement risque le plus de casser quelque chose d'invisible. `::points-chauds` croise l'historique et les mesures (`doc-kit facts --source history --source quality`) : les fichiers qui changent le plus souvent et sont les plus complexes, classés, et si une seule personne les connaît (part de l'auteur principal, bus factor). -->
 
-::faits{source="history" colonnes="file,commits,churn,authors,owner,ownerShare,last"}
+::points-chauds{}
 
 ## Duplication
 
