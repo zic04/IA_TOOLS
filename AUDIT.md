@@ -64,7 +64,8 @@ mise à jour ou build** de l'application.
 | M12 Version | **Corrigé** : 0.2.0 publiée (`package.json`, CHANGELOG `[0.2.0]`, plage `kit` des projets livrés en `^0.2.0`) | `doctor.test.mjs`, `upgrade.test.mjs` |
 | M13 Cycles entre dossiers | **Corrigé** : le bloc était plus large que build/sync/check (capture et facts y étaient aussi). `hash.mjs`, `text.mjs`, `page-templates.mjs` et l'état des fichiers traduits (`translations.mjs`) vont dans `engine/core/` ; la résolution des imports passe de `sync` à `facts` ; `readProjectVersion` passe de `build` à `project/version.mjs`. Ordre de bas en haut : core, capture, check, facts, sync, build ; règle RULES.md M14 | `layers.test.mjs` |
 | M8 Modules sans test direct | **Corrigé** : `text.test.mjs` (`esc`, `attrs`, `plainText`, `slug`, `normalize`, `escapeRegex`, et `numbers` de `format.mjs` en anglais et en français) ; `optimize.test.mjs` (options refusées, aucune image au-dessus du seuil) et e2e `optimize.test.mjs` (réencodage, gain d'au moins 20 %, WebP de mêmes dimensions). `check/tables.mjs` avait déjà son test direct (e2e `site.test.mjs`) | `text.test.mjs`, `optimize.test.mjs` |
-| M6, M14 | Ouverts | — |
+| M14 `catch` silencieux | **Corrigé** là où un fait manquant passait pour un fait vide : un manifeste illisible ou un `package.json` / `package-lock.json` non JSON (avant : aucune dépendance), un `coverage-summary.json` cassé (avant : pas de couverture). Ils vont dans `unreadable` du fichier de faits et `facts` les signale. Les autres `catch` relus (28 au lieu de ~39) rendent déjà un état distinct : `null` = registre sans réponse contre `false` = paquet absent (`network`), statut `null` et `failed` (`probe`), outil `installed`/`ok` (`tools`) ; ou portent sur une lecture facultative | `facts.test.mjs` › manifeste et couverture illisibles, CLI |
+| M6 | Ouvert | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

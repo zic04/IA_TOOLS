@@ -501,6 +501,42 @@ describe("engine/facts sources on their fixtures", () => {
     assert.deepEqual(summary, { files: 1, tests: 2 });
   });
 
+  test("a manifest or a coverage report that is there but broken is unreadable, not empty (AUDIT.md M14)", () => {
+    const dir = tempDir("facts-unreadable-");
+    try {
+      const write = (rel, text) => {
+        fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+        fs.writeFileSync(path.join(dir, rel), text);
+      };
+      write("package.json", '{ "dependencies": { "react": "^19.0.0" }, }');
+      write("api/package-lock.json", "null");
+      write("api/package.json", JSON.stringify({ dependencies: { express: "^5.0.0" } }));
+      const unreadable = [];
+      assert.deepEqual(
+        collectDependencies(dir, unreadable).map((d) => d.name),
+        ["express"],
+        "the readable manifests are still read",
+      );
+      assert.deepEqual(unreadable, [{ file: "package.json", reason: "json" }]);
+      // `null` is valid JSON with no dependencies: known and empty, not unreadable.
+      assert.deepEqual(collectDependencies(dir).length, 1, "without the list: same items, nothing thrown");
+
+      write("app.test.js", "test('a', () => {});\n");
+      write("coverage/coverage-summary.json", "{ not json");
+      const broken = collectTests(dir);
+      assert.deepEqual(broken.summary, { files: 1, tests: 1 }, "no coverage figure");
+      assert.deepEqual(broken.unreadable, [{ file: "coverage/coverage-summary.json", reason: "json" }]);
+      write("coverage/coverage-summary.json", JSON.stringify({ total: { lines: { pct: 42.5 } } }));
+      assert.deepEqual(collectTests(dir), {
+        items: [{ file: "app.test.js", tests: 1 }],
+        summary: { files: 1, tests: 1, coverage: 42.5 },
+        unreadable: [],
+      });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("listFiles / relPath: forward slashes, the usual build and dependency folders skipped", () => {
     assert.ok(listFiles(app("next-app")).every((f) => !f.includes("\\")));
     assert.equal(relPath(app("next-app"), path.join(app("next-app"), "lib", "db.ts")), "lib/db.ts");
@@ -687,6 +723,26 @@ describe("doc-kit facts (CLI)", () => {
     assert.ok(fs.existsSync(path.join(dir, "facts", "env.json")));
     assert.ok(fs.existsSync(path.join(dir, "facts", "dependencies.json")));
     assert.ok(!fs.existsSync(path.join(dir, "facts", "api.json")));
+  });
+
+  test("an unreadable manifest is written in `unreadable` and reported; a readable application has no such field", async () => {
+    const appDir = tempDir("doc-kit-facts-broken-app-");
+    dirs.push(appDir);
+    fs.writeFileSync(path.join(appDir, "package.json"), "{ broken");
+    const dir = mk(appDir);
+    const r = await cli(["facts", "--project", dir, "--source", "dependencies"], { commit: () => "c0ffee" });
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /⚠ package\.json: not valid JSON; its facts are unknown, not empty/);
+    const f = JSON.parse(fs.readFileSync(path.join(dir, "facts", "dependencies.json"), "utf8"));
+    assert.deepEqual(f.unreadable, [{ file: "package.json", reason: "json" }]);
+    assert.deepEqual(f.items, []);
+
+    const fine = mk(app("next-app"));
+    await cli(["facts", "--project", fine, "--source", "dependencies", "--source", "tests"], {
+      commit: () => "c0ffee",
+    });
+    for (const source of ["dependencies", "tests"])
+      assert.ok(!("unreadable" in JSON.parse(fs.readFileSync(path.join(fine, "facts", `${source}.json`), "utf8"))));
   });
 
   test("an unknown source is a usage error (exit code 2)", async () => {

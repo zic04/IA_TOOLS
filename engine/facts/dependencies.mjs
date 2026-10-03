@@ -5,7 +5,9 @@
 // item keeps the `manifest` it was read from, so the same package named by two manifests (a package.json and its
 // own package-lock.json, for instance) gives two items. No YAML or TOML parser is used: pnpm-lock.yaml, yarn.lock
 // and poetry.lock have a predictable enough shape for small, targeted regular expressions; a lock file that does
-// not match them simply contributes nothing (never an error).
+// not match them simply contributes nothing (never an error). A manifest that cannot be read, or a package.json /
+// package-lock.json that is not valid JSON, is listed in `unreadable` ({ file, reason: "read"|"json" }): its
+// dependencies are unknown, which is not the same as none (AUDIT.md M14).
 //   item: { name, version, ecosystem, direct, dev, manifest, license? }
 // `direct` is read from the manifest itself when it says so (package.json; a lock file's own "root" entry, when
 // the format carries one: package-lock.json v2/v3, pnpm-lock.yaml); formats with no such self-contained signal
@@ -24,23 +26,32 @@ const MANIFEST_NAME =
 /** How deep under the application a manifest may sit (ARCHITECTURE.md §6.9: a separate front end and API). */
 const MAX_DEPTH = 4;
 
-const readText = (abs) => {
+/** Text of a manifest, or null when it cannot be read (then listed in `unreadable`). */
+const readText = (abs, manifest, unreadable) => {
   try {
     return fs.readFileSync(abs, "utf8");
   } catch {
+    unreadable.push({ file: manifest, reason: "read" });
+    return null;
+  }
+};
+
+/** Parsed JSON manifest, or null when it cannot be read or is not valid JSON (then listed in `unreadable`). */
+const readJson = (abs, manifest, unreadable) => {
+  const text = readText(abs, manifest, unreadable);
+  if (text === null) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    unreadable.push({ file: manifest, reason: "json" });
     return null;
   }
 };
 
 /** Direct dependencies of one package.json: dependencies (dev: false) and devDependencies (dev: true). */
-function fromPackageJson(abs, manifest) {
-  const text = readText(abs);
-  let pkg;
-  try {
-    pkg = JSON.parse(text);
-  } catch {
-    return [];
-  }
+function fromPackageJson(abs, manifest, unreadable) {
+  const pkg = readJson(abs, manifest, unreadable);
+  if (pkg === null || typeof pkg !== "object") return [];
   const out = [];
   for (const [dev, deps] of [
     [false, pkg.dependencies],
@@ -55,14 +66,9 @@ function fromPackageJson(abs, manifest) {
  * One package-lock.json (npm v2/v3: a flat "packages" map keyed "node_modules/<name>", whose root entry `""`
  * lists the direct dependencies and devDependencies; v1: a nested "dependencies" tree, with no such signal).
  */
-function fromPackageLock(abs, manifest) {
-  const text = readText(abs);
-  let lock;
-  try {
-    lock = JSON.parse(text);
-  } catch {
-    return [];
-  }
+function fromPackageLock(abs, manifest, unreadable) {
+  const lock = readJson(abs, manifest, unreadable);
+  if (lock === null || typeof lock !== "object") return [];
   const out = [];
   if (lock.packages && typeof lock.packages === "object") {
     const root = lock.packages[""] || {};
@@ -143,8 +149,8 @@ function pnpmDirectNames(text) {
 }
 
 /** One pnpm-lock.yaml: package keys of the "packages:" section, "name@version:" (scoped names kept whole). */
-function fromPnpmLock(abs, manifest) {
-  const text = readText(abs);
+function fromPnpmLock(abs, manifest, unreadable) {
+  const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const { direct, dev } = pnpmDirectNames(text);
   const out = [];
@@ -168,8 +174,8 @@ function yarnSpecifierName(spec) {
 }
 
 /** One yarn.lock (classic v1 or berry): no self-contained direct/transitive signal, so every item is `direct: false`. */
-function fromYarnLock(abs, manifest) {
-  const text = readText(abs);
+function fromYarnLock(abs, manifest, unreadable) {
+  const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const out = [];
   const seen = new Set();
@@ -202,8 +208,8 @@ function fromYarnLock(abs, manifest) {
  * (`==` only) or `null` for a range or an unpinned entry; `spec` keeps the constraint as written, or `null` when
  * there is none.
  */
-function fromRequirements(abs, manifest) {
-  const text = readText(abs);
+function fromRequirements(abs, manifest, unreadable) {
+  const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const dev = /dev/i.test(manifest.split("/").pop());
   const out = [];
@@ -239,8 +245,8 @@ function fromRequirements(abs, manifest) {
 }
 
 /** One pyproject.toml: [tool.poetry.dependencies] and [tool.poetry.group.<name>.dependencies] (non-main groups are dev). */
-function fromPyproject(abs, manifest) {
-  const text = readText(abs);
+function fromPyproject(abs, manifest, unreadable) {
+  const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const out = [];
   let section = null;
@@ -268,8 +274,8 @@ function fromPyproject(abs, manifest) {
 }
 
 /** One poetry.lock: `[[package]]` blocks, `name`, `version` and `groups`; no self-contained direct/transitive signal. */
-function fromPoetryLock(abs, manifest) {
-  const text = readText(abs);
+function fromPoetryLock(abs, manifest, unreadable) {
+  const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const out = [];
   /** @type {{ name?: string, version?: string, dev?: boolean }|null} */
@@ -314,14 +320,16 @@ const READER_OF = {
 /**
  * The `dependencies` source: every manifest and lock file found under `appDir` (recursively, at most
  * {@link MAX_DEPTH} folders deep), each read independently.
+ * @param {string} appDir
+ * @param {Array<{ file: string, reason: "read"|"json" }>} [unreadable]  receives the manifests that could not be read
  * @returns {Array<{name,version,ecosystem,direct,dev,manifest,license?}>} sorted by manifest, then ecosystem, then name
  */
-export function collectDependencies(appDir) {
+export function collectDependencies(appDir, unreadable = []) {
   const items = [];
   for (const rel of listFiles(appDir, { maxDepth: MAX_DEPTH }).filter((f) => MANIFEST_NAME.test(f.split("/").pop()))) {
     const name = rel.split("/").pop().toLowerCase();
     const reader = READER_OF[name] || (/^requirements[^/]*\.txt$/i.test(name) ? fromRequirements : null);
-    if (reader) items.push(...reader(path.join(appDir, rel), rel));
+    if (reader) items.push(...reader(path.join(appDir, rel), rel, unreadable));
   }
   return items.sort(
     (a, b) =>
