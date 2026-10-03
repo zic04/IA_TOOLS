@@ -39,6 +39,14 @@ entries between a project's `kit` range and the installed version.
   - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
   - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
 
+- **`doc-kit changes [--since <ref>]`**: what changed in the application since a git reference. It compares the
+  facts committed at `<ref>` with the facts on disk: routes and their authentication, tables and columns,
+  environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
+  import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
+  release notes.
+- **CI on every build of the application**: the new example (c) in `ci/github-actions.yml` runs `facts`,
+  `changes` against the base branch and `sync --check`. On a pull request it posts both reports as a single
+  comment, updated at each push, then builds the site.
 - **Developer overview**:
   - `facts --source modules`: the import graph (JS/TS and Python), with fan-in, fan-out, import cycles and
     orphan files;

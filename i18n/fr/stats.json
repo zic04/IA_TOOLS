@@ -67,5 +67,19 @@
   "render.facts.column.imports": "Importe",
   "render.facts.column.importedBy": "Importé par",
   "render.facts.column.cycle": "Cycle",
-  "render.facts.column.references": "Références"
+  "render.facts.column.references": "Références",
+  "cli.changes.title": "Ce qui a changé dans l'application depuis {since} (version documentée {until})",
+  "cli.changes.none": "Rien n'a changé dans les faits (routes, tables, variables, dépendances, constats, secrets, cycles d'imports, tests).",
+  "cli.changes.source.api": "Routes",
+  "cli.changes.source.db": "Tables",
+  "cli.changes.source.env": "Variables d'environnement",
+  "cli.changes.source.dependencies": "Dépendances",
+  "cli.changes.source.security": "Constats de sécurité",
+  "cli.changes.source.secrets": "Secrets (fichiers et règles, jamais les valeurs)",
+  "cli.changes.source.agents": "Fichiers d'instructions des agents IA",
+  "cli.changes.source.tests": "Tests",
+  "cli.changes.source.modules": "Cycles d'imports",
+  "cli.changes.noGit": "git n'est pas disponible dans {folder} : les faits à la référence ne peuvent pas être lus",
+  "cli.changes.noGit.help": "lancez-la dans le dépôt qui contient le projet de documentation, avec les faits versionnés",
+  "cli.help.changes": "Usage : {command} changes [--since <référence git>] [--output <fichier>] [--json]\n\nCe qui a changé dans l'application depuis une référence (HEAD par défaut) : les fichiers de faits tels que versionnés à <référence> comparés à ceux du disque — routes et leur authentification, tables et colonnes, variables d'environnement, dépendances et versions, constats de sécurité, secrets (fichiers et règles, jamais les valeurs), fichiers d'instructions des agents IA, cycles d'imports, nombre de tests. Lancez d'abord {command} facts. Écrit {work}/changes.md (prêt pour un commentaire de pull request ou les notes de version) et {work}/changes.json, et affiche le Markdown.\n\n  --since    la référence git à comparer (un commit, un tag, origin/main)\n  --output   écrit le Markdown à cet endroit au lieu de {work}/changes.md"
 }

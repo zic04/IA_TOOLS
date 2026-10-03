@@ -21,8 +21,8 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 | Sous-page | Commandes |
 |---|---|
 | [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `capture`, `inventory` |
-| [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize` |
-| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate` |
+| [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
+| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes` |
 
 ## Les options globales
 
@@ -33,6 +33,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 | `--verbose` | Affiche aussi la correction de chaque avertissement, et la pile d'une erreur interne |
 | `--lang en\|fr` | Langue des messages pour cette exécution |
 | `--help`, `-h` | La liste des commandes ; après une commande (ou `doc-kit help <commande>`), son usage et ses options |
+| `--profile` | Affiche le temps de chaque étape de l'exécution, de la plus longue à la plus courte |
 | `--version`, `-v` | La version du kit |
 
 Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrête avec
@@ -78,6 +79,8 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit check [nom]` | Lance les contrôles |
 | `doc-kit audit` | Mesure le niveau de maturité |
 | `doc-kit optimize` | Recompresse les captures lourdes |
+| `doc-kit stats` | Temps, jetons et modèles par bloc et par version (`usage/`) |
+| `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |
 | `doc-kit migrate` | Réécrit au format courant les fichiers anciens à clés françaises |

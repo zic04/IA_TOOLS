@@ -132,6 +132,7 @@ export const STEP_OF = Object.freeze({
   context: "generate",
   translate: "translate",
   sync: "update",
+  changes: "update",
   build: "build",
   optimize: "build",
   check: "check",

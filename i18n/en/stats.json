@@ -67,5 +67,19 @@
   "render.facts.column.imports": "Imports",
   "render.facts.column.importedBy": "Imported by",
   "render.facts.column.cycle": "Cycle",
-  "render.facts.column.references": "References"
+  "render.facts.column.references": "References",
+  "cli.changes.title": "What changed in the application since {since} (documented version {until})",
+  "cli.changes.none": "Nothing changed in the facts (routes, tables, variables, dependencies, findings, secrets, import cycles, tests).",
+  "cli.changes.source.api": "Routes",
+  "cli.changes.source.db": "Tables",
+  "cli.changes.source.env": "Environment variables",
+  "cli.changes.source.dependencies": "Dependencies",
+  "cli.changes.source.security": "Security findings",
+  "cli.changes.source.secrets": "Secrets (files and rules, never values)",
+  "cli.changes.source.agents": "AI agent instruction files",
+  "cli.changes.source.tests": "Tests",
+  "cli.changes.source.modules": "Import cycles",
+  "cli.changes.noGit": "git is not available in {folder}: the facts at the reference cannot be read",
+  "cli.changes.noGit.help": "run it in the repository that holds the documentation project, with the facts committed",
+  "cli.help.changes": "Usage: {command} changes [--since <git ref>] [--output <file>] [--json]\n\nWhat changed in the application since a reference (default HEAD): the facts files as committed at <ref> against the ones on disk now — routes and their authentication, tables and columns, environment variables, dependencies and versions, security findings, secrets (files and rules, never values), AI agent instruction files, import cycles, number of tests. Run {command} facts first. Writes {work}/changes.md (ready for a pull request comment or the release notes) and {work}/changes.json, and prints the Markdown.\n\n  --since    the git reference to compare with (a commit, a tag, origin/main)\n  --output   write the Markdown there instead of {work}/changes.md"
 }

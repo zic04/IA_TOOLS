@@ -123,3 +123,84 @@ jobs:
 #           if-no-files-found: warn
 #
 #       # Never here: doc-kit connect, doc-kit capture, doc-kit demo. No session, no application credentials.
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+# (c) On every build of the APPLICATION (AUDIT.md §5) — save as .github/workflows/documentation-update.yml in the
+#     application's repository, next to (b). Unlike (b), it runs on every push and pull request of the application
+#     code, not only of the documentation:
+#     - `facts` refreshes what the code says (routes, tables, variables, dependencies, findings, history…);
+#     - `changes` compares it with the base branch: what changed in the application;
+#     - `sync` lists the pages to review, the stale captures, the new routes; `--check` fails when the documentation
+#       is behind (remove continue-on-error to block the merge);
+#     - on a pull request, one comment carries both reports, updated at each push.
+#     Still no capture here: a session is a secret that does not belong in a pipeline.
+#
+# name: documentation-update
+#
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#
+# permissions:
+#   contents: read
+#   pull-requests: write                     # the comment on the pull request
+#
+# jobs:
+#   update:
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: app/docs/manual
+#     steps:
+#       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+#         with:
+#           path: app
+#           fetch-depth: 0                   # sync, changes and the history need the git history
+#
+#       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+#         with:
+#           repository: <owner>/doc-kit
+#           ref: v0.1.0
+#           path: doc-kit
+#
+#       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+#         with:
+#           node-version: 22
+#
+#       - working-directory: doc-kit
+#         run: npm ci --ignore-scripts
+#
+#       - run: npm install --ignore-scripts
+#
+#       - name: What the code says now (zero tokens)
+#         run: npx doc-kit facts
+#
+#       - name: What changed since the base branch
+#         run: npx doc-kit changes --since "origin/${{ github.base_ref || 'main' }}"
+#
+#       - name: What the documentation must follow
+#         id: sync
+#         continue-on-error: true            # remove to block the merge when the documentation is behind
+#         run: npx doc-kit sync --check
+#
+#       - name: Comment on the pull request (one comment, updated at each push)
+#         if: github.event_name == 'pull_request'
+#         env:
+#           GH_TOKEN: ${{ github.token }}
+#         run: |
+#           { cat .doc-kit/changes.md; echo; cat .doc-kit/sync.md; } > comment.md
+#           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md --edit-last \
+#             || gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+#
+#       - name: Build and check the site
+#         run: npx doc-kit build && npx doc-kit check all
+#
+#       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+#         if: always()
+#         with:
+#           name: documentation-update
+#           path: |
+#             app/docs/manual/dist/
+#             app/docs/manual/.doc-kit/changes.md
+#             app/docs/manual/.doc-kit/sync.md
