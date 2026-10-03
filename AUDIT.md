@@ -58,7 +58,8 @@ mise à jour ou build** de l'application.
 | M2 Lint, formatage, types | **Corrigé** : formatage fait (Prettier épinglé, 120 colonnes, vérifié en CI, règle RULES.md M11, commit ignoré par `git blame`) ; ESLint fait (règles recommandées, 18 problèmes corrigés, tailles de M5 en avertissements plafonnés à 57, règle M12). contrôle des types fait (TypeScript 6 sur la JSDoc, mode non strict : 162 écarts JSDoc/code corrigés, aucun bug, règle M13). Le mode strict (≈2 700 paramètres sans type déclaré) reste une étape possible | CI › `format:check` |
 | M5 i18n du skill | **Corrigé** : les messages des scripts du skill sont dans `skill/doc-kit/i18n/{en,fr}.json` (une section commune, une par script), installés avec le skill ; `consolidation.mjs`, qui n'écrivait qu'en anglais, est traduit (33 messages) | `skill.test.mjs` › parité, clés utilisées, sortie en français |
 | S10 Fichier de session | **Corrigé** : créé en 0600 dès le premier octet (fichier temporaire puis renommage) ; la limite de Windows et le cas d'un fichier hors de `.doc-kit/` sont écrits dans SECURITY.md | `capture.test.mjs` › fichier de session |
-| S9, S11, S13 ; M6, M8, M12 à M14 | Ouverts | — |
+| S11 `check secrets` incomplet | **Corrigé** : il lit aussi les valeurs des attributs HTML du site (`href`, `title`, `data-*`…), le dossier des traductions et les fichiers de zones de chaque langue | `checks.test.mjs` › attribut, page traduite, zones traduites ; ReDoS |
+| S9, S13 ; M6, M8, M12 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

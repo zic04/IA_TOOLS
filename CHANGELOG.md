@@ -135,6 +135,10 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **`check secrets` reads more** (AUDIT.md S11): the attribute values of the site's HTML (`href`, `title`, `alt`,
+  `data-*`…), which it used to drop with the tags; the translations folder; and the zone files of every language
+  (`<images>/<lang>/zones`), not only the source's.
+
 - **The session file is private from its first byte** (AUDIT.md S10). It used to be written, then made readable by
   its owner only; for a moment, and on a failure of that second step, others could read it. It is now created with
   mode 0600 and replaces an older file in a single rename. SECURITY.md says what Windows does instead, and that a
