@@ -5,6 +5,7 @@
 ## Checklist (RULES.md)
 
 - [ ] `npm test` passes locally (the CI also runs end-to-end tests, the security rules and `npm audit`)
+- [ ] `npm run format:check` passes (M11)
 - [ ] Each fix or feature has its test; a security fix has the test that would have caught it
 - [ ] No shell, `exec`, `eval` or `new Function`; git only through `engine/util/safe-git.mjs` (S1–S3)
 - [ ] Nothing from the application folder is executed; any new external tool is described in SECURITY.md (S4)

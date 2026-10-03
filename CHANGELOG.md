@@ -112,6 +112,9 @@ entries between a project's `kit` range and the installed version.
     on every fixture.
   - `runCaptures()` too: from about 330 lines to 86, with one capture's steps in `engine/capture/take.mjs`
     and the worker pool in `runWorkers`. The images, zone files and reports are the same on the demo.
+  - the kit's JavaScript is formatted by Prettier (pinned dev dependency, 120 columns): `npm run format`, and
+    `npm run format:check` in the CI. The reformatting commit is listed in `.git-blame-ignore-revs`. Rule
+    RULES.md M11.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and

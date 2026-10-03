@@ -1,0 +1,4 @@
+# Commits that only reformat the code: `git blame` skips them (GitHub reads this file; locally:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# style: format the kit's JavaScript with Prettier
+2a43fcc61c599bd6cb1e830cbcd299297d34b528

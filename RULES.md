@@ -43,6 +43,7 @@ same change.
 | M8 | References point to versioned documents (ARCHITECTURE.md §, RULES.md), never to a document outside the repository. |
 | M9 | Every change gets a CHANGELOG entry under `[Unreleased]`; a release bumps `package.json`, moves the entries under its version and is tagged `vX.Y.Z`. Commits are small and say what they change. |
 | M10 | No dead surface: a name is exported only when another file imports it (the public entry points of `package.json` `exports` aside). Checked by `test/unit/exports.test.mjs`. |
+| M11 | The JavaScript is formatted by Prettier (`npm run format`, 120 columns); `npm run format:check` passes before every commit and in the CI. A commit that only reformats is listed in `.git-blame-ignore-revs`. |
 
 ## Before every release
 
