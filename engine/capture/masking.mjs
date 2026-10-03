@@ -102,7 +102,8 @@ export async function maskPage(page, { source, masks = [], selectors = {}, requi
           const v = replace(node.nodeValue);
           if (v !== node.nodeValue) node.nodeValue = v;
         }
-        for (const el of document.querySelectorAll("input, textarea")) {
+        for (const node of document.querySelectorAll("input, textarea")) {
+          const el = /** @type {HTMLInputElement} */ (node);
           if (!el.value) continue;
           const v = replace(el.value);
           if (v !== el.value) el.value = v;

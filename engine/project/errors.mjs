@@ -10,7 +10,7 @@ export class KitError extends Error {
    * @param {number} code      exit code
    * @param {string} key       i18n key, without "cli."
    * @param {object} [vars]
-   * @param {{ details?: object[], prefix?: string, cause?: Error }} [more]
+   * @param {{ details?: object[], prefix?: string, cause?: unknown }} [more]
    */
   constructor(code, key, vars = {}, { details = [], prefix = "", cause } = {}) {
     super(`${key} ${JSON.stringify(vars)}`, cause ? { cause } : undefined);

@@ -125,6 +125,7 @@ export async function startDevServer({
   // ─── Watching ──────────────────────────────────────────────────────────────
   let timer = null;
   let pending = new Set();
+  /** @type {Promise<any>} */
   let running = Promise.resolve();
   const schedule = (file) => {
     pending.add(file);
@@ -174,7 +175,7 @@ export async function startDevServer({
 
   const server = http.createServer((req, res) => {
     // DNS rebinding (SECURITY.md): a page of another site whose name resolves to 127.0.0.1 sends its own Host.
-    if (!isLocalHost(req.headers.host, server.address().port, host)) {
+    if (!isLocalHost(req.headers.host, /** @type {import("node:net").AddressInfo} */ (server.address()).port, host)) {
       res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("403");
       return;
@@ -223,7 +224,7 @@ export async function startDevServer({
       resolve();
     });
   });
-  const actual = server.address().port;
+  const actual = /** @type {import("node:net").AddressInfo} */ (server.address()).port;
   await rebuild([]);
 
   return {

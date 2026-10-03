@@ -113,6 +113,20 @@ function toAppRel(root, appDir, projRel) {
 const isLayout = (f) => /(^|\/)layout\.(tsx|ts|jsx|js)$/.test(f);
 
 /**
+ * Dependencies of one page: what pageDependencies() returns.
+ * @typedef {object} PageDependencies
+ * @property {any} page
+ * @property {string[]} routes
+ * @property {string[]} captures
+ * @property {string[]} factsSources
+ * @property {Array<{ path: string, kind: "direct"|"shared", via: string[], lines: Array<[number,number]> }>} files
+ * @property {Array<any>} proofs
+ * @property {boolean} truncated
+ * @property {string[]} routeFiles    R (ARCHITECTURE.md §2.3), for classifyMissingFile
+ * @property {string[]} routeFolders  D (ARCHITECTURE.md §2.3)
+ */
+
+/**
  * Dependencies of one page.
  * @param {object} p
  * @param {string} p.root
@@ -124,9 +138,8 @@ const isLayout = (f) => /(^|\/)layout\.(tsx|ts|jsx|js)$/.test(f);
  * @param {string} p.factsDir         projRel folder of the facts files (config.paths.facts)
  * @param {object[]} [p.plans]        loaded capture plan entries (engine/capture/plans.mjs, loadPlans().captures)
  * @param {string[]} [p.declared]     "file[:from[-to]]" recorded by --mark --sources (sync.json pages[id].declared)
- * @returns {Promise<{ page: object, routes: string[], captures: string[], factsSources: string[],
- *   files: Array<{ path: string, kind: "direct"|"shared", via: string[], lines: Array<[number,number]> }>,
- *   proofs: Array<object>, truncated: boolean }>}
+ * @param {number} [p._counterpartDepth]  internal: recursion depth of the counterpart's own dependencies
+ * @returns {Promise<PageDependencies>}
  */
 export async function pageDependencies({
   root,
@@ -153,7 +166,10 @@ export async function pageDependencies({
 
   /** path → { kind, via: Set, lines: Set<"from-to"> } */
   const acc = new Map();
-  const add = (p, { via, direct = false, lines } = {}) => {
+  const add = (
+    p,
+    { via, direct = false, lines } = /** @type {{ via?: string, direct?: boolean, lines?: any }} */ ({}),
+  ) => {
     if (!p) return;
     if (!acc.has(p)) acc.set(p, { direct: false, via: new Set(), lines: new Set() });
     const e = acc.get(p);
@@ -268,9 +284,9 @@ export async function pageDependencies({
     const direct = e.direct || pageFiles.has(p) || underD;
     return {
       path: p,
-      kind: direct ? "direct" : "shared",
+      kind: /** @type {"direct"|"shared"} */ (direct ? "direct" : "shared"),
       via: [...e.via],
-      lines: [...e.lines].map((s) => JSON.parse(s)),
+      lines: /** @type {Array<[number, number]>} */ ([...e.lines].map((s) => JSON.parse(s))),
     };
   });
 
@@ -292,6 +308,8 @@ export async function pageDependencies({
 /** Classifies a path by the ARCHITECTURE.md §2.3 rule, from the R/D of a (possibly stale) pageDependencies
  * result: direct when it is a route file, under a route folder, or `routeFiles` is empty (the route itself is
  * gone: a disappeared file then counts as direct). Used by the report for a file that no longer exists. */
+/** @param {string} p
+ * @param {{ routeFiles: string[], routeFolders: string[] }} deps */
 export function classifyMissingFile(p, { routeFiles: R, routeFolders: D }) {
   if (!R.length) return "direct";
   if (R.includes(p)) return "direct";

@@ -113,6 +113,7 @@ export function mergeFeatures(existing, candidates) {
   return [...existing, ...added];
 }
 
+/** @param {{ ctx: any, values: any, positionals?: string[] }} p */
 async function runFeatures({ ctx, values }) {
   const { project, config } = await ctx.loadProject();
   if (!config.coverage.length) throw new KitError(EXIT.USAGE, "check.coverage.none");

@@ -74,6 +74,7 @@ function outlinesOf(root, config, toc, lang) {
   return (id) => ({ source: source[id] || null, target: target[id] || null });
 }
 
+/** @param {{ ctx: any, values: any, positionals?: string[], config: any, root: string, toc: any }} p */
 async function runStatus({ ctx, values, config, root, toc }) {
   const results = targetLanguages(config, ctx).map((lang) => statusOf({ root, config, toc, lang }));
   const failed = results.some((r) => r.counts.stale > 0 || r.counts.missing > 0);
@@ -123,6 +124,7 @@ async function runFixAnchors({ ctx, values, positionals, config, root, toc }) {
             toc.sections.some((s) => (s.groups || []).some((g) => (g.pages || []).some((p) => p.id === e.id))),
         )
         .map((e) => ({ file: e.file, page: e.id }));
+  /** @type {any[]} */
   const out = [];
   let anyUnmapped = false;
   for (const lang of targetLanguages(config, ctx)) {

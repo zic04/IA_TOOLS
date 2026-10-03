@@ -94,7 +94,8 @@ const notMeasured = (kind, reason, error) => ({
 });
 
 /** Placeholders of the page summary written by `new` (both languages): a page that still has one is unfinished. */
-const summaryPlaceholders = () => LANGUAGES.map((l) => createI18n({ language: l }).t("cli.new.summaryPlaceholder"));
+const summaryPlaceholders = () =>
+  LANGUAGES.map((l) => createI18n({ language: /** @type {"en"|"fr"} */ (l) }).t("cli.new.summaryPlaceholder"));
 
 /**
  * `facts` (ARCHITECTURE.md §6.9, informative): the facts/<source>.json files (not the facts/tool-*.json reports
@@ -124,14 +125,15 @@ function collectFacts(root, factsPath, currentCommit) {
  * @param {object} p
  * @param {{ root: string }} p.project
  * @param {object} p.config  validated configuration
- * @param {{ coverage?: Function|null, secrets?: Function|null, tables?: Function|null, tablesReason?: string }} [p.measure]
+ * @param {{ coverage?: Function|null, secrets?: Function|null, tables?: Function|null, tablesReason?: string,
+ *   commit?: string|null }} [p.measure]
  *   coverage({ project, config }), secrets({ project, config, data, env }) and tables(html) return { measured, … }
  *   (optional.mjs). `null`: not measured. Default: coverage and secrets measured when the checks of the kit exist;
  *   tables not measured (they need a browser: the CLI passes them).
  * @param {Date} [p.now]
  * @param {object} [p.env]  environment (session file of the secrets check)
- * @param {string|null} [p.measure.commit]  the application's current HEAD (ARCHITECTURE.md §6.9: `facts.stale`),
- *   read by the CLI through the `commit` test seam; null when it cannot be known (no app.dir, no git).
+ *   `commit`: the application's current HEAD (ARCHITECTURE.md §6.9: `facts.stale`), read by the CLI through the
+ *   `commit` test seam; null when it cannot be known (no app.dir, no git).
  */
 export async function runAudit({ project, config, measure = {}, now = new Date(), env = process.env }) {
   const root = project.root;

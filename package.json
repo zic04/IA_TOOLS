@@ -21,7 +21,8 @@
     "test:security": "node --test test/unit/security.test.mjs",
     "format": "prettier --write \"**/*.{js,mjs}\"",
     "format:check": "prettier --check \"**/*.{js,mjs}\"",
-    "lint": "eslint . --max-warnings 57"
+    "lint": "eslint . --max-warnings 57",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "marked": "18.0.14",
@@ -32,8 +33,10 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
     "eslint": "10.12.0",
     "globals": "17.13.0",
-    "prettier": "3.9.9"
+    "prettier": "3.9.9",
+    "typescript": "6.0.3"
   }
 }

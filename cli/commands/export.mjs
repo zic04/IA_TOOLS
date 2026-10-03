@@ -133,6 +133,7 @@ export function exportProject({
   if (path.resolve(target) === path.resolve(root)) throw new KitError(EXIT.USAGE, "export.self", { folder: target });
   if (fs.existsSync(target) && (!fs.statSync(target).isDirectory() || fs.readdirSync(target).length))
     throw new KitError(EXIT.CHECK, "export.notEmpty", { folder: target });
+  /** @type {Array<{ key: string, vars: object }>} */
   const warnings = outsidePaths(root, config).map((w) => ({
     key: w.key.startsWith("coverage")
       ? "export.outside.coverage"

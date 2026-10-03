@@ -34,10 +34,14 @@ export function migrateProject(root, paths) {
   const writeJson = (p, value) => fs.writeFileSync(abs(p), JSON.stringify(value, null, 2) + "\n");
 
   const plan = [];
-  for (const [kind, normalize, schema] of [
+  for (const [
+    kind,
+    normalize,
+    schema,
+  ] of /** @type {Array<["toc"|"glossary", (raw: any) => { value: any }, string]>} */ ([
     ["toc", normalizeToc, "toc"],
     ["glossary", normalizeGlossary, "glossary"],
-  ]) {
+  ])) {
     const legacy = rel(paths.content, LEGACY_FILES[kind]);
     const current = rel(paths.content, CURRENT_FILES[kind]);
     if (!fs.existsSync(abs(legacy)) || fs.existsSync(abs(current))) continue;

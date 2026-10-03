@@ -7,13 +7,24 @@ export function estimateTokens(text) {
 }
 
 /**
+ * One part of a context file.
+ * @typedef {object} BudgetPart
+ * @property {"page"|"sections"|"shared"|"excerpt"|"facts"|"labels"} kind
+ * @property {number} [priority]
+ * @property {string} text
+ * @property {string} cutLine
+ * @property {string} [path]
+ * @property {[number, number]} [lines]
+ * @property {boolean} [cutDone]   set by fitBudget on a part it has already cut
+ */
+
+/**
  * Drops parts until the total fits the budget (ARCHITECTURE.md §6.11): `shared` excerpts
  * first (the longest first), then `excerpt` (direct excerpts, farthest from a cited line first — `priority` is
  * that distance), then `facts`, then `labels`; `page` and `sections` parts are never touched. A cut part keeps
  * its place (so the rest of the file stays in the same order): its `text` is replaced by its one-line `cutLine`,
  * which costs only a few tokens instead of the whole excerpt.
- * @param {Array<{ kind: "page"|"sections"|"shared"|"excerpt"|"facts"|"labels", priority?: number, text: string,
- *   cutLine: string, path?: string, lines?: [number, number] }>} parts
+ * @param {BudgetPart[]} parts
  * @param {number} budget
  * @returns {{ kept: object[], cut: Array<{ kind: string, cutLine: string, path?: string, lines?: [number, number] }> }}
  *   `kept`: same length and order as `parts`, cut ones with their `text` replaced; `cut`: the bookkeeping list

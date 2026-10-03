@@ -140,6 +140,10 @@ export function statusColour(c) {
  * @param {(name: string, cls?: string) => string} p.icon
  * @param {Record<string, [string, string]>} [p.statuses]  coloured [[status X]] badges
  * @param {{ images: string, diagrams: string, facts: string }} [p.paths]
+ * @param {any[]} [p.usage]      production statistics records (usage/<version>.jsonl)
+ * @param {any} [p.llm]          `config.llm`
+ * @param {string} [p.locale]    language of the page
+ * @param {any[]} [p.changes]    recorded changes of the application, by version
  */
 export function createMarkdownEngine({
   captures,
@@ -518,7 +522,7 @@ export function createMarkdownEngine({
       captures: 0,
       used: { images: new Set(), diagrams: new Set(), zones: 0 },
     };
-    let html = md.parse(source);
+    let html = /** @type {string} */ (md.parse(source)); // synchronous: no async extension is registered
     // A table's own data-generated (set above, ::facts/::faits) is carried onto its wrapping div, so that
     // `check tables` can tell a directive's table apart from one the writer wrote by hand in Markdown.
     html = html

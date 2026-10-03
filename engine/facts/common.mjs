@@ -36,10 +36,14 @@ export function withoutDocProjects(files) {
  * Every file under `dir`, skipping the named folders and the documentation projects below `dir` (a folder holding a
  * doc.config.mjs: the documentation often sits inside the application, e.g. docs/manual), relative to `dir`,
  * forward slashes, sorted.
- * @param {{ skip?: string[], maxDepth?: number }} [options]  maxDepth: folders at most this many levels below
- *   `dir` are walked (0: files directly in `dir` only); default: no limit.
+ * Options `{ skip?: string[], maxDepth?: number }`: `maxDepth`: folders at most this many levels below `dir` are
+ * walked (0: files directly in `dir` only); default: no limit.
+ * @param {string} dir
  */
-export function listFiles(dir, { skip = SKIP_DIRS, maxDepth = Infinity } = {}) {
+export function listFiles(
+  dir,
+  { skip = SKIP_DIRS, maxDepth = Infinity } = /** @type {{ skip?: string[], maxDepth?: number }} */ ({}),
+) {
   const skipped = new Set(skip);
   const out = [];
   const visit = (abs, rel, depth) => {
@@ -83,7 +87,8 @@ export function gitLsFiles(dir, exec) {
  * Files to read for a source that must cover the whole application (ARCHITECTURE.md §6.9, `secrets`): the files
  * tracked by git when available, else every file but SKIP_DIRS.
  */
-export const appFiles = (dir, { skip, exec } = {}) => (exec ? gitLsFiles(dir, exec) : null) ?? listFiles(dir, { skip });
+export const appFiles = (dir, { skip, exec } = /** @type {{ skip?: string[], exec?: any }} */ ({})) =>
+  (exec ? gitLsFiles(dir, exec) : null) ?? listFiles(dir, { skip });
 
 /**
  * Envelope of a facts file (ARCHITECTURE.md §6.9): `{ source, generator, generated, commit, app, items }`, same

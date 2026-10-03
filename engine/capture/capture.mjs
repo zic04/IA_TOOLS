@@ -187,6 +187,7 @@ async function redirectChain(route, url, { appOrigin, forbidden }) {
  * @param {boolean} [p.verify]          open, play and locate every zone and the frame, but take and write nothing
  * @param {string|null} [p.trace]       folder where a failed capture leaves its Playwright trace (<id>.zip, opened
  *   with `npx playwright show-trace`); null: no trace (default)
+ * @param {Function} [p.launch]         opens the browser (test seam; default: launchBrowser)
  * @param {object} [p.timer]             engine/stats/usage.mjs createTimer(): each capture's parts are measured
  *   (navigate, wait, actions, settle, mask, measure, shot, encode, compare, write) under step "capture"
  * @returns {Promise<{ ok: object[], failed: object[], blocked: string[], refused: string[], prefetched: string[],
@@ -369,6 +370,7 @@ async function runWorkers(rc, workers, entries, onEvent) {
     }
   };
   let next = 0;
+  /** @type {{ entry?: any, url?: string, fatal?: Error } | null} */
   let expired = null;
   async function work(w) {
     while (next < entries.length) {

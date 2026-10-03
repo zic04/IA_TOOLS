@@ -24,6 +24,7 @@ const jsonConfig = (config) =>
 
 /**
  * Runs the setup script; its output lines are passed to `line`.
+ * @param {{ root: string, config: any, script: string, env?: NodeJS.ProcessEnv, line?: (text: string, err?: boolean) => void }} p
  * @returns {Promise<number>} the script's exit code
  */
 function runSetup({ root, config, script, env = process.env, line = () => {} }) {

@@ -42,6 +42,7 @@ export function withoutLanguageTexts(texts) {
  * @returns {Array<{ file: string, kind: "toc"|"glossary"|"home"|"page", page?: string, section?: string }>}
  */
 export function translatableFiles({ toc, root, content }) {
+  /** @type {Array<{ file: string, kind: "toc"|"glossary"|"home"|"page", page?: string, section?: string }>} */
   const files = [
     { file: "toc.json", kind: "toc" },
     { file: "glossary.json", kind: "glossary" },
@@ -285,6 +286,7 @@ export function checkLanguageOption({ languages, lang, t }) {
  */
 export function checkIdClash({ toc, languages }) {
   if (!languages) return [];
+  /** @type {Array<{ kind: "languages", key: "languages.idClash", vars: { id: string, lang: string } }>} */
   const problems = [];
   const hit = (id) => languages.find((l) => l === id);
   for (const sec of toc.sections || []) {

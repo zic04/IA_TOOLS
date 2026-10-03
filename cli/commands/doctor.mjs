@@ -90,10 +90,10 @@ function otherVersion(root, config, documented) {
     versionFile ? path.dirname(versionFile) : null,
   ].filter(Boolean);
   for (const folder of [...new Set(folders)]) {
-    for (const [name, pattern] of [
+    for (const [name, pattern] of /** @type {Array<[string, RegExp]>} */ ([
       ...VERSION_FILES.map((f) => [f, new RegExp(VERSION_TEXT_PATTERN)]),
       ["CHANGELOG.md", CHANGELOG_VERSION],
-    ]) {
+    ])) {
       const file = path.join(folder, name);
       if (file === versionFile || !fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
       const version = pattern.exec(fs.readFileSync(file, "utf8"))?.[1];
@@ -105,7 +105,7 @@ function otherVersion(root, config, documented) {
 
 /**
  * Runs every check.
- * @returns {Promise<{ project: string|null, checks: Array<{ id, status, category, text, help? }>, code: number }>}
+ * @returns {Promise<{ project: string|null, checks: Array<{ id, status, category, text, help?, details?: string[] }>, code: number }>}
  */
 async function diagnose(ctx, { network = false } = {}) {
   const checks = [];
