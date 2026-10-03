@@ -1,5 +1,5 @@
 // Developer overview facts: history (git), modules (import graph and cycles), table references in db, and the
-// entity-relationship diagram drawn from them (::erd).
+// entity-relationship diagram drawn from them (::erd), and the developer views (::modules, ::hotspots, ::health).
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -8,6 +8,14 @@ import { parseNumstat, historyFacts, collectHistory } from "../../engine/facts/h
 import { cyclesOf, collectModules } from "../../engine/facts/modules.mjs";
 import { collectDb } from "../../engine/facts/db.mjs";
 import { renderErd, erdTables } from "../../engine/build/erd.mjs";
+import {
+  limitOf,
+  renderModules,
+  hotspots,
+  renderHotspots,
+  healthRisks,
+  renderHealth,
+} from "../../engine/build/developer.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { demoCopy, tempDir } from "../tools/helpers.mjs";
 
@@ -209,6 +217,167 @@ describe("db references and ::erd", () => {
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /erd-figure/);
       assert.match(html, /Orders data · db/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the developer views: ::modules, ::hotspots, ::health (engine/build/developer.mjs)", () => {
+  const t = (key, vars = {}) =>
+    `${key}${
+      Object.keys(vars).length
+        ? `(${Object.entries(vars)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(",")})`
+        : ""
+    }`;
+  const modules = {
+    items: [
+      { file: "src/a.ts", imports: 2, importedBy: 5, cycle: 0 },
+      { file: "src/b.ts", imports: 1, importedBy: 9, cycle: 0 },
+      { file: "src/c.ts", imports: 0, importedBy: 1, cycle: null },
+      { file: "src/lonely.ts", imports: 0, importedBy: 0, cycle: null },
+      { file: "src/main.ts", imports: 3, importedBy: 0, cycle: null },
+    ],
+    summary: { files: 5, edges: 6, cycles: [["src/a.ts", "src/b.ts"]], orphans: 1 },
+  };
+  const history = {
+    items: [
+      { file: "CHANGELOG.md", commits: 40, churn: 500, authors: 2, owner: "Ada", ownerShare: 90, last: "2026-10-01" },
+      { file: "src/a.ts", commits: 10, churn: 200, authors: 1, owner: "Ada", ownerShare: 100, last: "2026-10-01" },
+      { file: "src/b.ts", commits: 4, churn: 30, authors: 2, owner: "Bob", ownerShare: 50, last: "2026-09-01" },
+      { file: "src/c.ts", commits: 2, churn: 10, authors: 1, owner: "Bob", ownerShare: 100, last: "2026-08-01" },
+    ],
+    summary: { available: true, commits: 56, authors: 2, since: "2026-01-01", until: "2026-10-01", busFactor: 1 },
+  };
+  const quality = {
+    items: [
+      { file: "src/a.ts", lines: 300, functions: 5, longest: 80, complexity: 20, duplicated: 0, todo: 0 },
+      { file: "src/b.ts", lines: 100, functions: 2, longest: 30, complexity: 60, duplicated: 0, todo: 0 },
+      { file: "src/c.ts", lines: 120, functions: 0, longest: 0, complexity: 0, duplicated: 0, todo: 0 },
+    ],
+    summary: {
+      ratings: { duplication: "A", complexity: "D", size: "B", tests: "E" },
+      tooling: { linter: true, types: false, formatter: true, ci: false },
+    },
+  };
+
+  test("limitOf: a positive whole number, at most 100; anything else gives the default", () => {
+    assert.equal(limitOf("5"), 5);
+    assert.equal(limitOf("500"), 100);
+    for (const bad of [undefined, "", "0", "-3", "many"]) assert.equal(limitOf(bad), 10);
+  });
+
+  test("::modules: the counts, each cycle, the files most depended on (limit), the orphans", () => {
+    const html = renderModules(modules, { t, esc, limit: 2 });
+    assert.match(html, /render\.modules\.summary\(files=5,edges=6,cycles=1,orphans=1\)/);
+    assert.match(html, /<li><code>src\/a\.ts<\/code> ↔ <code>src\/b\.ts<\/code><\/li>/);
+    const central = [...html.matchAll(/<tr><td><code>([^<]+)<\/code><\/td><td>(\d+)<\/td>/g)].map((m) => [m[1], m[2]]);
+    assert.deepEqual(central, [
+      ["src/b.ts", "9"],
+      ["src/a.ts", "5"],
+    ]);
+    assert.match(html, /<code>src\/lonely\.ts<\/code>/);
+    assert.doesNotMatch(html, /src\/main\.ts/, "an entry point imports something: not an orphan, not depended on");
+    assert.equal(renderModules({ items: [] }, { t, esc }), "");
+  });
+
+  test("hotspots: commits × complexity of the measured source files only; lines when no function was measured", () => {
+    const list = hotspots(history, quality);
+    assert.deepEqual(
+      list.map((h) => [h.file, h.score]),
+      [
+        ["src/b.ts", 240],
+        ["src/a.ts", 200],
+        ["src/c.ts", 6],
+      ],
+      "CHANGELOG.md changes most but is not source code; src/c.ts weighs its 120 lines (3)",
+    );
+    const html = renderHotspots(history, quality, { t, esc, limit: 1 });
+    assert.equal((html.match(/<tr><td>/g) || []).length, 1);
+    assert.match(html, /<code>src\/b\.ts<\/code>.*Bob \(50 %\).*--w:100%/);
+    assert.match(html, /busFactor=1\)/);
+    const none = renderHotspots({ items: [], summary: { available: false, reason: "noGit" } }, quality, { t, esc });
+    assert.match(none, /render\.hotspots\.noHistory\(reason=noGit\)/);
+  });
+
+  test("health risks: most severe first, one per security rule, each detector on its own source", () => {
+    const facts = {
+      quality,
+      history,
+      modules,
+      security: {
+        items: [
+          { rule: "code.eval", file: "x.py", line: 3, severity: "high" },
+          { rule: "code.eval", file: "y.py", line: 9, severity: "high" },
+          { rule: "xss.innerHTML", file: "z.js", line: 1, severity: "medium" },
+        ],
+      },
+      secrets: { items: [{ file: ".env.prod", rule: "assignment" }] },
+      tests: { summary: { files: 3, tests: 10, coverage: 32 } },
+      dependencies: {
+        items: [
+          { name: "reqeusts", exists: false },
+          { name: "react", exists: true },
+        ],
+      },
+    };
+    assert.deepEqual(
+      healthRisks(facts).map((r) => [r.level, r.key]),
+      [
+        ["high", "security"],
+        ["high", "secrets"],
+        ["high", "unknownPackages"],
+        ["medium", "lowCoverage"],
+        ["medium", "busFactor"],
+        ["medium", "cycles"],
+        ["medium", "rating"],
+        ["medium", "rating"],
+        ["low", "tooling"],
+        ["low", "tooling"],
+      ],
+    );
+    assert.deepEqual(healthRisks(facts)[0].vars, { rule: "code.eval", n: 2, where: "x.py:3" });
+    assert.deepEqual(healthRisks(facts)[2].vars, { n: 1, names: "reqeusts" });
+    assert.equal(healthRisks(facts, 3).length, 3);
+    assert.deepEqual(healthRisks({ tests: { summary: { files: 0, tests: 0 } } }), [
+      { level: "high", key: "noTests", vars: {} },
+    ]);
+    assert.deepEqual(healthRisks({}), [], "no facts, no risk (and no crash)");
+  });
+
+  test("::health: a card per source, 'not measured' (with the source) when it is missing; names translated", () => {
+    const html = renderHealth({ quality, history, modules }, { t, esc });
+    assert.equal((html.match(/class="dev-card"/g) || []).length, 7);
+    for (const source of ["security", "tests", "dependencies"])
+      assert.match(html, new RegExp(`render\\.health\\.notMeasured\\(source=${source}\\)`));
+    assert.match(html, /render\.health\.risk\.rating\(name=render\.health\.rating\.complexity,grade=D\)/);
+    assert.match(html, /class="dev-risk dev-medium"/);
+    assert.match(renderHealth({}, { t, esc }), /render\.health\.noRisk/);
+  });
+
+  test("in a page: drawn from the facts; a missing facts file is facts.missing, an empty one a warning", async () => {
+    const dir = demoCopy();
+    const cli = (args) => runCli(args, { stdout: { write: () => {} }, stderr: { write: () => {} }, env: {} });
+    try {
+      const out = path.join(dir, "dist", "x.html");
+      const page = path.join(dir, "content", "use", "orders.md");
+      fs.appendFileSync(page, '\n\n::health{}\n\n::hotspots{limit="1"}\n\n::points-chauds{}\n\n::modules{}\n');
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 1, "no modules/history/quality: errors");
+      const facts = (source, data) =>
+        fs.writeFileSync(path.join(dir, "facts", `${source}.json`), JSON.stringify({ source, ...data }));
+      facts("modules", modules);
+      facts("history", history);
+      facts("quality", quality);
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 0);
+      const html = fs.readFileSync(out, "utf8");
+      for (const view of ["health", "hotspots", "modules"])
+        assert.match(html, new RegExp(`data-generated=\\\\?"${view}`));
+      assert.match(html, /Bus factor of 1/);
+      facts("modules", { items: [] });
+      assert.equal(await cli(["build", "--project", dir, "--output", out]), 0, "an empty graph is only a warning");
+      assert.match(fs.readFileSync(out, "utf8"), /No module found in facts\/modules\.json yet/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -52,6 +52,19 @@ function sqlConcatLines(text) {
   return [...flagged].sort((a, b) => a - b);
 }
 
+// code.eval: `eval(`, Python's `exec(` and `new Function(`, never a method call such as `pattern.exec(text)` (a
+// regular expression, the usual JavaScript `.exec(`). A method `.exec(` / `.execSync(` is a shell call only in a
+// file that loads child_process, where it is reported too, unless it follows a regular expression literal
+// (`/x/g.exec(`).
+const EVAL_CALL = /(?<![.\w$])(?:eval|exec)\s*\(|\bnew\s+Function\s*\(/g;
+const SHELL_METHOD = /(?<!\/[dgimsuyv]*)\.exec(?:Sync)?\s*\(/g;
+
+function codeEvalLines(text) {
+  const lines = matchLines(text, EVAL_CALL);
+  if (!text.includes("child_process")) return lines;
+  return [...new Set([...lines, ...matchLines(text, SHELL_METHOD)])].sort((a, b) => a - b);
+}
+
 // cors.wildcardCredentials: a wildcard origin together with credentials, within the same configuration block
 // (close enough in the text — a generous but simple window, ARCHITECTURE.md §6.13 is a heuristic by design).
 const WILDCARD_ORIGIN =
@@ -219,7 +232,7 @@ export const RULES = Object.freeze([
     rule: "code.eval",
     owasp: "A03:2021",
     severity: "high",
-    find: (t) => matchLines(t, /\b(?:eval|exec)\s*\(|\bnew\s+Function\s*\(/g),
+    find: codeEvalLines,
   },
   { rule: "sql.concat", owasp: "A03:2021", severity: "high", find: sqlConcatLines },
   { rule: "cors.wildcardCredentials", owasp: "A05:2021", severity: "high", find: corsWildcardCredentialsLines },

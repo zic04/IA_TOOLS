@@ -167,6 +167,10 @@ backed by a proof (`file:line`), or marked as deduced or unknown.
 | English | French | What it does |
 |---|---|---|
 | `::facts{source="…" columns="…"}` | `::faits{source="…" colonnes="…"}` | A table from `facts/<source>.json`, written by `doc-kit facts`: one row per item, one column per listed key (header translated when known), lists joined with commas, booleans `✔` / `—`. A caption gives the generation date and the application's commit. |
+| `::erd{title="…" tables="…"}` | `::mcd{…}` | The entity-relationship diagram, drawn from `facts/db.json`: one box per table, one arrow per reference. `tables` keeps only some tables. |
+| `::modules{limit="10"}` | `::modules{…}` (same spelling) | The import graph, from `facts/modules.json`: its size, each import cycle, the files most depended on (`limit` rows) and the orphan files. |
+| `::hotspots{limit="10"}` | `::points-chauds{…}` | The files that change most often **and** are the most complex (commits × complexity, `facts/history.json` × `facts/quality.json`), with their main author, and the bus factor. |
+| `::health{}` | `::sante{}` | The state of the application in one view: ratings, security, tests, architecture, knowledge, dependencies, tooling (a card says "not measured" when its facts are missing), then the ten main risks found in the facts. |
 | `[[verified …]]` | `[[verifie …]]` | A small badge: the claim was checked directly in the code. The text after the kind is optional: a bare `[[verified]]`, or `[[verified lib/orders.ts:42]]` with its proof. |
 | `[[deduced …]]` | `[[deduit …]]` | The claim follows from what was read, without a direct line-by-line check. |
 | `[[unknown …]]` | `[[inconnu …]]` | Nobody could tell, inside the time available for the takeover. |

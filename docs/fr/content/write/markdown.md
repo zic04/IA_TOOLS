@@ -173,6 +173,10 @@ application : chaque affirmation s'appuie sur une preuve (`file:line`), ou est m
 | Français | Anglais | Ce que ça fait |
 |---|---|---|
 | `::faits{source="…" colonnes="…"}` | `::facts{source="…" columns="…"}` | Un tableau à partir de `facts/<source>.json`, écrit par `doc-kit facts` : une ligne par élément, une colonne par clé listée (en-tête traduit quand il est connu), les listes jointes par des virgules, les booléens `✔` / `—`. Une légende donne la date de génération et le commit de l'application. |
+| `::mcd{titre="…" tables="…"}` | `::erd{…}` | Le schéma entité-relation, tiré de `facts/db.json` : une boîte par table, une flèche par référence. `tables` ne garde que certaines tables. |
+| `::modules{limit="10"}` | `::modules{…}` (même orthographe) | Le graphe des imports, tiré de `facts/modules.json` : sa taille, chaque cycle d'import, les fichiers dont le plus de code dépend (`limit` lignes) et les fichiers orphelins. |
+| `::points-chauds{limit="10"}` | `::hotspots{…}` | Les fichiers qui changent le plus souvent **et** sont les plus complexes (commits × complexité, `facts/history.json` × `facts/quality.json`), avec leur auteur principal, et le bus factor. |
+| `::sante{}` | `::health{}` | L'état de l'application en une vue : notes, sécurité, tests, architecture, connaissance, dépendances, outillage (une carte indique « non mesuré » quand ses faits manquent), puis les dix principaux risques trouvés dans les faits. |
 | `[[verifie …]]` | `[[verified …]]` | Une petite puce : l'affirmation a été vérifiée directement dans le code. Le texte après le mot est facultatif : un simple `[[verifie]]`, ou `[[verifie lib/orders.ts:42]]` avec sa preuve. |
 | `[[deduit …]]` | `[[deduced …]]` | L'affirmation découle de ce qui a été lu, sans vérification directe ligne par ligne. |
 | `[[inconnu …]]` | `[[unknown …]]` | Personne n'a pu le dire, dans le temps disponible pour la reprise. |

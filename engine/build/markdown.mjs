@@ -18,6 +18,7 @@ import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { renderErd } from "./erd.mjs";
+import { renderModules, renderHotspots, renderHealth, limitOf } from "./developer.mjs";
 import { renderChanges } from "../facts/changes.mjs";
 
 /** Spelling → canonical kind. */
@@ -40,7 +41,14 @@ const DIRECTIVES = {
   mcd: "erd",
   changes: "changes",
   changements: "changes",
+  modules: "modules",
+  hotspots: "hotspots",
+  "points-chauds": "hotspots",
+  health: "health",
+  sante: "health",
 };
+/** Facts files read by the health summary (::health), in the order of its cards. */
+const HEALTH_SOURCES = ["quality", "security", "secrets", "tests", "modules", "history", "dependencies"];
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
 const CLAIMS = {
   verified: "verified",
@@ -222,6 +230,47 @@ export function createMarkdownEngine({
     return text.includes("/") ? `<code>${esc(text)}</code>` : esc(text);
   }
 
+  /** A facts file of the project, parsed; null when it is missing or not valid JSON. */
+  function readFactsFile(source) {
+    const f = `${paths.facts}/${source}.json`;
+    try {
+      return exists(f) ? JSON.parse(read(f)) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** ::modules, ::hotspots and ::health (engine/build/developer.mjs): the developer overview, from the facts. */
+  function developerView(tk) {
+    const limit = limitOf(tk.a.limit);
+    const need = (source) => {
+      const data = readFactsFile(source);
+      if (!data) signal(true, "facts.missing", { source, file: `${paths.facts}/${source}.json` });
+      return data;
+    };
+    let html;
+    if (tk.kind === "modules") {
+      const modules = need("modules");
+      if (!modules) return "";
+      html = renderModules(modules, { t, esc, limit });
+    } else if (tk.kind === "hotspots") {
+      const history = need("history");
+      const quality = need("quality");
+      if (!history || !quality) return "";
+      html = renderHotspots(history, quality, { t, esc, limit });
+    } else {
+      const facts = Object.fromEntries(HEALTH_SOURCES.map((source) => [source, readFactsFile(source)]));
+      // Every card says "not measured" for a missing source; with none at all, the page has nothing to show.
+      if (Object.values(facts).every((d) => !d)) return need("quality") ?? "";
+      html = renderHealth(facts, { t, esc, limit });
+    }
+    if (!html) {
+      signal(false, "developer.empty", { kind: tk.kind });
+      return `<p class="usage-none">${esc(t(`render.${tk.kind}.empty`))}</p>`;
+    }
+    return html;
+  }
+
   const md = new Marked({ gfm: true });
 
   const directiveExtension = {
@@ -235,6 +284,7 @@ export function createMarkdownEngine({
     renderer(tk) {
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
+      if (tk.kind === "modules" || tk.kind === "hotspots" || tk.kind === "health") return developerView(tk);
       if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles")
         return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
       // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).
