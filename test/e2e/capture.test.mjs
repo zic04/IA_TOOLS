@@ -137,6 +137,23 @@ describe("capture", () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", "settings-profile.json"), "utf8")).zones[1].side, "right");
   });
 
+  test("--verify replays the plans as tests: every zone found, nothing written; a missing zone fails", async () => {
+    const image = path.join(dir, "images", "orders-list.webp");
+    const before = fs.statSync(image).mtimeMs;
+    const r = await cli(["capture", "--project", dir, "--verify"]);
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.match(r.out, /✔ orders-list: still valid \(3 zones found, [\d.]+ s\)/);
+    assert.match(r.out, /2\/2 plans still valid \(nothing written\)\./);
+    assert.equal(fs.statSync(image).mtimeMs, before, "no image rewritten");
+    const plans = path.join(work, "plans-verify");
+    fs.mkdirSync(plans, { recursive: true });
+    fs.writeFileSync(path.join(plans, "a.mjs"), 'export const CAPTURES = [{ id: "gone", route: "/orders", zones: [{ text: "A button that was renamed", caption: "x" }] }];');
+    const bad = await cli(["capture", "--project", dir, "--plans", plans, "--verify"]);
+    assert.equal(bad.code, 1);
+    assert.match(bad.err, /✖ gone: zone 1 .*A button that was renamed/);
+    assert.ok(!fs.existsSync(path.join(dir, "images", "gone.webp")));
+  });
+
   test("the captured project builds and passes every check", async () => {
     const r = await cli(["check", "all", "--project", dir]);
     assert.equal(r.code, 0, r.out + r.err);

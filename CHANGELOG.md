@@ -44,6 +44,9 @@ entries between a project's `kit` range and the installed version.
   environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
   import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
   release notes.
+- **`capture --verify`** replays the plans as tests. Each page is opened, its actions played, and its frame and
+  zones located, read-only, but nothing is written. A screen that changed fails with the zone it could not find.
+  Run it in CI against the demo, or before a release.
 - **`doc-kit record <route> [--id] [--force]`**: writes a capture plan entry from what a person does in the
   browser. Playwright's recorder (codegen) opens on the application with the saved session. Clicks, typing,
   choices and keys become the entry's route and actions in `captures/plans/<id>.mjs`; the lines it cannot
