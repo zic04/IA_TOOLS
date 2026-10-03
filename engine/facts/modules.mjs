@@ -12,7 +12,7 @@ import { jsSpecifiers, pySpecifiers, resolveJs, resolvePy, loadTsconfig } from "
 
 const CODE = /\.(m?[jt]sx?|cjs|py)$/;
 /** Files read at most (a large repository stays bounded). */
-export const MODULES_LIMIT = 5000;
+const MODULES_LIMIT = 5000;
 
 /** Strongly connected components of more than one file (Tarjan, iterative), each sorted, largest first. */
 export function cyclesOf(edges) {
@@ -62,7 +62,7 @@ export function cyclesOf(edges) {
 }
 
 /** Import graph of a list of files (relative to appDir): Map file → Set of local files it imports. */
-export function importGraph(appDir, files) {
+function importGraph(appDir, files) {
   const edges = new Map();
   const tsconfigs = new Map();
   for (const file of files) {

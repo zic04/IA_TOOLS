@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const DEFAULT_LOGO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../site/default-logo.svg");
+const DEFAULT_LOGO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../site/default-logo.svg");
 const XMLNS = 'xmlns="http://www.w3.org/2000/svg"';
 
 /**

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 /** Options put before every git command: no file system monitor, no pager, no external diff, no textconv. */
-export const GIT_HARDENING = Object.freeze(["-c", "core.fsmonitor=false", "-c", "core.pager=cat", "--no-pager"]);
+const GIT_HARDENING = Object.freeze(["-c", "core.fsmonitor=false", "-c", "core.pager=cat", "--no-pager"]);
 
 /** Subcommands that accept --no-ext-diff and --no-textconv. */
 const DIFF_LIKE = new Set(["diff", "show", "log"]);
@@ -54,7 +54,7 @@ export function parseGitConfig(text) {
 }
 
 /** The repository's git folder for `dir` (walking up; a `.git` file of a worktree or submodule is followed). */
-export function gitDirOf(dir) {
+function gitDirOf(dir) {
   let d = path.resolve(dir);
   for (;;) {
     const candidate = path.join(d, ".git");

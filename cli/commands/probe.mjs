@@ -14,7 +14,7 @@ export const options = {
 };
 
 /** The validated roles of `--as` (ARCHITECTURE.md §6.13), in the order given, de-duplicated. */
-export function rolesOf(values) {
+function rolesOf(values) {
   const roles = [...new Set(values.as || [])];
   for (const role of roles) if (!ROLE_PATTERN.test(role)) throw new KitError(EXIT.USAGE, "option.value", { option: "as", value: role, expected: "letters, digits and dashes, starting with a letter" });
   return roles;

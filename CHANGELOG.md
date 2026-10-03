@@ -100,7 +100,10 @@ entries between a project's `kit` range and the installed version.
     settle, and `view --tour` for the step's card, instead of fixed delays;
   - `doctor` checks Chromium through a seam (`ctx.chromium`), so its tests no longer depend on the browser
     installed on the machine;
-  - dead code removed, and references to a document absent from the repository now point to ARCHITECTURE.md.
+  - dead code removed, and references to a document absent from the repository now point to ARCHITECTURE.md;
+  - 109 exports that no other file used are internal again. A new rule (RULES.md M10) and its test,
+    `exports.test.mjs`, reject any export that no other file uses; it does the job of knip without adding a
+    dependency.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and

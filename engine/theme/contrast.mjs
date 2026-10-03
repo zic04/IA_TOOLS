@@ -4,7 +4,7 @@
 import { themeTokens } from "./tokens.mjs";
 
 /** #rgb, #rgba, #rrggbb, #rrggbbaa → [r, g, b] (0..255), or null. Opacity is ignored. */
-export function hexToRgb(hex) {
+function hexToRgb(hex) {
   const m = /^#([0-9a-f]{3,8})$/i.exec(String(hex).trim());
   if (!m || ![3, 4, 6, 8].includes(m[1].length)) return null;
   let h = m[1];
@@ -13,7 +13,7 @@ export function hexToRgb(hex) {
 }
 
 /** WCAG relative luminance of a hexadecimal colour. */
-export function luminance(hex) {
+function luminance(hex) {
   const rgb = hexToRgb(hex);
   if (!rgb) throw new Error(`hexadecimal colour expected: ${hex}`);
   const [r, g, b] = rgb.map((v) => {
@@ -42,7 +42,7 @@ export function resolve(tokens) {
 }
 
 /** Checked pairs [text, background, threshold]. */
-export const PAIRS = [
+const PAIRS = [
   ["text", "bg", 4.5],
   ["text", "surface", 4.5],
   ["text-soft", "surface", 4.5],

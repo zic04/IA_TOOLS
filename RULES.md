@@ -36,12 +36,13 @@ same change.
 | M1 | `engine/` never imports `cli/`, never calls `process.exit`, never writes to the console. Errors are `KitError` with an exit code and an i18n key. |
 | M2 | Every message exists in English and in French (`i18n/en`, `i18n/fr`). The parity test passes. |
 | M3 | Every feature or fix comes with its test; a security fix comes with the test that would have caught it. Never skip, disable or weaken a test to get to green. |
-| M4 | Tests do not depend on the machine: no real network, no real git, no installed Chromium in unit tests; use the context seams (`exec`, `fetch`, `launch`, `commit`). |
+| M4 | Tests do not depend on the machine: no real network, no real git, no installed Chromium in unit tests; use the context seams (`exec`, `fetch`, `launch`, `commit`, `chromium`). |
 | M5 | A new function stays under about 80 lines; a file under about 600. Past that, split it. Do not add to `build()`, `runAudit()` or `runCaptures()`: extract a step. |
 | M6 | One helper per job. Before writing a parser, a toc reader or a git call, look for the existing one (`engine/project`, `engine/util`). |
 | M7 | No magic delay: a Playwright timeout or wait is a named constant, and waiting on a condition beats a fixed sleep. |
 | M8 | References point to versioned documents (ARCHITECTURE.md §, RULES.md), never to a document outside the repository. |
 | M9 | Every change gets a CHANGELOG entry under `[Unreleased]`; a release bumps `package.json`, moves the entries under its version and is tagged `vX.Y.Z`. Commits are small and say what they change. |
+| M10 | No dead surface: a name is exported only when another file imports it (the public entry points of `package.json` `exports` aside). Checked by `test/unit/exports.test.mjs`. |
 
 ## Before every release
 

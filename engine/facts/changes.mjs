@@ -110,7 +110,7 @@ export function changesMarkdown(changes, { t, since, until }) {
 }
 
 /** Folder of the recorded changes (`changes --record`), one JSON file per documented version, committed. */
-export const CHANGES_DIR = "changes";
+const CHANGES_DIR = "changes";
 
 /** Writes changes/<version>.json ({ since, until, date, sources, total }); returns the file. */
 export function recordChanges(root, record) {

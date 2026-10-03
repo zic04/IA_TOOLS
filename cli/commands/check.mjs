@@ -65,7 +65,7 @@ export async function run({ ctx, values, positionals }) {
 }
 
 /** Prints problems { key, vars } (key under cli.): "✖ what" (or "⚠ what"), then "→ what to do". */
-export function printFindings(ctx, list, mark = "✖") {
+function printFindings(ctx, list, mark = "✖") {
   for (const p of list) {
     ctx.printErr(`${mark} ${ctx.t(`cli.${p.key}`, p.vars)}`);
     if (ctx.i18n.has(`cli.${p.key}.help`) && (mark === "✖" || ctx.verbose)) ctx.printErr(`  → ${ctx.t(`cli.${p.key}.help`, p.vars)}`);
@@ -140,7 +140,7 @@ async function checkSecretsCommand(ctx) {
 }
 
 /** Coverage report, family by family, with the missing items. */
-export async function checkCoverageCommand(ctx) {
+async function checkCoverageCommand(ctx) {
   const { project, config } = await ctx.loadProject();
   const res = await runCoverage({ root: project.root, config });
   if (!ctx.json) {

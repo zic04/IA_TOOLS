@@ -19,7 +19,7 @@ export const options = {
 };
 
 /** The role of `--as <role>` (the last one, when given more than once), validated; null without the option. */
-export function roleOf(values) {
+function roleOf(values) {
   if (!values.as?.length) return null;
   const role = values.as[values.as.length - 1];
   if (!ROLE_PATTERN.test(role)) throw new KitError(EXIT.USAGE, "option.value", { option: "as", value: role, expected: "letters, digits and dashes, starting with a letter" });

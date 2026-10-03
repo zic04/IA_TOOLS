@@ -146,7 +146,7 @@ function tocText(text, isUnwritten, planned) {
  * @returns {{ text: string, planned: Map<string, string> }}  planned: page id → normalised text of the entry of
  *   each page declared but not written yet
  */
-export function documentationTexts(root, content) {
+function documentationTexts(root, content) {
   const tools = adapterTools(root);
   const files = tools.walk(content).filter((f) => /\.(md|json)$/i.test(f));
   const texts = new Map(files.map((f) => [f, tools.read(path.join(content, f))]));

@@ -44,7 +44,7 @@ export const options = {
 };
 
 /** Capture ids of `.doc-kit/sync-report.json` (ARCHITECTURE.md §6.10); missing report: capture.noSyncReport. */
-export function staleIds(root) {
+function staleIds(root) {
   const file = path.join(root, ".doc-kit", "sync-report.json");
   if (!fs.existsSync(file)) throw new KitError(EXIT.USAGE, "capture.noSyncReport", { file: shown(file) });
   const report = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -52,7 +52,7 @@ export function staleIds(root) {
 }
 
 /** The production banner, in the warning colour: "PRODUCTION — read-only · N screenshots · <url>". */
-export function productionBanner(ctx, { n, url }) {
+function productionBanner(ctx, { n, url }) {
   return ctx.paint.warn(ctx.paint.bold(ctx.t("cli.capture.production", { n, url })));
 }
 

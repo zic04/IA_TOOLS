@@ -13,7 +13,7 @@ import { build } from "../build/build.mjs";
 import { CONFIG_FILE } from "../project/find.mjs";
 
 const CLIENT = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "client.js"), "utf8");
-export const EVENTS_PATH = "/__doc-kit/events";
+const EVENTS_PATH = "/__doc-kit/events";
 export const STATE_PATH = "/__doc-kit/state";
 
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);

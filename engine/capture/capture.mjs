@@ -32,7 +32,7 @@ import { trackNetwork, waitForStable } from "./stable.mjs";
 import { TIMINGS } from "./timings.mjs";
 import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
 
-export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
 /**
  * Effective read-only mode of a run (ARCHITECTURE.md §3): always on for a production target, even without a session
@@ -46,7 +46,7 @@ export function readOnlyMode(capture, hasSession) {
 }
 
 /** Raised when the application sends the browser to a sign-in page during the run. */
-export class SessionExpired extends Error {
+class SessionExpired extends Error {
   constructor(url) {
     super(`session expired: ${url}`);
     this.url = url;
@@ -129,7 +129,7 @@ export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigat
 }
 
 /** Longest redirect chain checked before a navigation; a longer one is refused like a forbidden route. */
-export const MAX_REDIRECTS = 10;
+const MAX_REDIRECTS = 10;
 
 /**
  * Fetches a navigation without following redirects, then each hop of its redirect chain on the application's
@@ -138,7 +138,7 @@ export const MAX_REDIRECTS = 10;
  * @returns {Promise<{ response?: object, forbidden?: string }>} the first response, for the browser to follow; or
  *   the forbidden path the chain leads to
  */
-export async function redirectChain(route, url, { appOrigin, forbidden }) {
+async function redirectChain(route, url, { appOrigin, forbidden }) {
   const response = await route.fetch({ maxRedirects: 0 });
   let current = response;
   let at = url;

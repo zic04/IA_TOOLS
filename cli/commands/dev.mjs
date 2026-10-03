@@ -14,7 +14,7 @@ export const options = {
   port: { type: "string" },
 };
 
-export const DEFAULT_PORT = 4400;
+const DEFAULT_PORT = 4400;
 
 /** First free port from `start` (at most `tries` attempts). */
 async function findPort(start, tries = 20) {

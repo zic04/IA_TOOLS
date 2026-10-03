@@ -13,7 +13,7 @@ import { locate, CaptureError, describeTarget } from "./actions.mjs";
 export const DOTS = "••••••••";
 export const GUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 /** Names of .env keys whose values are masked. */
-export const SENSITIVE_KEY = /URL|URI|HOST|DOMAIN|ENDPOINT|TENANT|CLIENT|AUDIENCE|ACCOUNT|EMAIL|MAIL|USER|LOGIN|SECRET|PASSWORD|PASSWD|PWD|TOKEN|KEY|DSN|CONNECTION/i;
+const SENSITIVE_KEY = /URL|URI|HOST|DOMAIN|ENDPOINT|TENANT|CLIENT|AUDIENCE|ACCOUNT|EMAIL|MAIL|USER|LOGIN|SECRET|PASSWORD|PASSWD|PWD|TOKEN|KEY|DSN|CONNECTION/i;
 const MIN_LENGTH = 7;
 
 /**

@@ -24,7 +24,7 @@ export function costOf(e, prices = {}) {
 }
 
 /** "1.2 s", "3 min 4 s", "1 h 2 min". */
-export function humanDuration(ms) {
+function humanDuration(ms) {
   if (ms < 1000) return `${Math.round(ms)} ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
   const m = Math.floor(ms / 60_000);

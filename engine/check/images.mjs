@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { normalizeZones } from "../project/legacy.mjs";
 
-export const IMAGE_EXTENSIONS = /\.(webp|png|jpe?g)$/i;
+const IMAGE_EXTENSIONS = /\.(webp|png|jpe?g)$/i;
 
 const unescape = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 

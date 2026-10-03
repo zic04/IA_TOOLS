@@ -25,7 +25,7 @@ const jsonConfig = (config) => JSON.stringify(config, (k, v) => (typeof v === "f
  * Runs the setup script; its output lines are passed to `line`.
  * @returns {Promise<number>} the script's exit code
  */
-export function runSetup({ root, config, script, env = process.env, line = () => {} }) {
+function runSetup({ root, config, script, env = process.env, line = () => {} }) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ["--input-type=module", "-e", RUNNER, script], {
       cwd: root,

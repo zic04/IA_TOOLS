@@ -66,7 +66,7 @@ const CHANGELOG_VERSION = /^#{1,3}\s*\[?v?(\d+\.\d+\.\d+[\w.+-]*)/m;
  * folder (app.dir) or next to the version file. Null when none says otherwise.
  * @returns {{ file: string, version: string }|null}  file relative to the project root
  */
-export function otherVersion(root, config, documented) {
+function otherVersion(root, config, documented) {
   const versionFile = config.version.file ? path.resolve(root, config.version.file) : null;
   const folders = [config.app.dir ? path.resolve(root, config.app.dir) : null, versionFile ? path.dirname(versionFile) : null].filter(Boolean);
   for (const folder of [...new Set(folders)]) {
@@ -84,7 +84,7 @@ export function otherVersion(root, config, documented) {
  * Runs every check.
  * @returns {Promise<{ project: string|null, checks: Array<{ id, status, category, text, help? }>, code: number }>}
  */
-export async function diagnose(ctx, { network = false } = {}) {
+async function diagnose(ctx, { network = false } = {}) {
   const checks = [];
   const add = (id, status, category, key, vars = {}, helpKey) => {
     const c = { id, status, category, text: ctx.t(key, vars) };

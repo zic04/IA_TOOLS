@@ -23,7 +23,7 @@ export const options = {
 };
 
 /** Runs Playwright's codegen (no shell): writes the recorded JavaScript to `output`; returns the exit status. */
-export function runCodegen({ url, output, storage }) {
+function runCodegen({ url, output, storage }) {
   const cli = path.join(path.dirname(createRequire(import.meta.url).resolve("playwright/package.json")), "cli.js");
   const args = [cli, "codegen", "--target", "javascript", "--output", output, ...(storage ? ["--load-storage", storage] : []), url];
   return spawnSync(process.execPath, args, { stdio: "inherit", windowsHide: false, shell: false }).status;

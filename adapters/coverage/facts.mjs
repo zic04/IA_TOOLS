@@ -18,7 +18,7 @@ function deduplicate(items) {
 const DEFAULT_FAMILY = Object.freeze({ env: "Environment variables", api: "API routes", db: "Tables", dependencies: "Dependencies", agents: "Agent instruction files" });
 
 /** The coverage item of one fact of `source`, or null when that source has nothing worth citing (e.g. a transitive dependency). */
-export function itemOf(source, fact) {
+function itemOf(source, fact) {
   if (source === "env") return { id: fact.name, match: [fact.name] };
   if (source === "api") return { id: `${fact.method} ${fact.route}`, match: routeMatches(fact.route).map((r) => `${fact.method} ${r}`) };
   if (source === "db") return { id: fact.table, match: [fact.table] };

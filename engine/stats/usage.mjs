@@ -64,7 +64,7 @@ export function createTimer(now = () => performance.now()) {
 }
 
 /** An identifier for one run of a command: date and time, plus a few random characters. */
-export function runId(date = new Date()) {
+function runId(date = new Date()) {
   return `r-${date.toISOString().replace(/[-:]/g, "").slice(0, 15)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 

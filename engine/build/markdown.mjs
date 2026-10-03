@@ -21,7 +21,7 @@ import { renderErd } from "./erd.mjs";
 import { renderChanges } from "../facts/changes.mjs";
 
 /** Spelling → canonical kind. */
-export const DIRECTIVES = {
+const DIRECTIVES = {
   capture: "capture",
   diagram: "diagram",
   schema: "diagram",
@@ -42,11 +42,11 @@ export const DIRECTIVES = {
   changements: "changes",
 };
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
-export const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
+const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
 /** Canonical claim status → CSS class of the badge. */
-export const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
-export const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
-export const BADGES = {
+const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
+const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
+const BADGES = {
   perm: "perm",
   droit: "perm",
   menu: "menu",
@@ -60,7 +60,7 @@ export const BADGES = {
   rule: "rule",
   regle: "rule",
 };
-export const CALLOUTS = {
+const CALLOUTS = {
   tip: "tip",
   astuce: "tip",
   warning: "warning",
@@ -76,11 +76,11 @@ export const CALLOUTS = {
   mecanisme: "how",
 };
 /** Canonical callout → CSS class (and icon name) of the generated markup. */
-export const CALLOUT_CLASSES = { tip: "astuce", warning: "attention", caution: "erreur", permissions: "droits", note: "note", recipe: "recette", how: "mecanisme" };
+const CALLOUT_CLASSES = { tip: "astuce", warning: "attention", caution: "erreur", permissions: "droits", note: "note", recipe: "recette", how: "mecanisme" };
 /** French attribute spellings → English. */
-export const ATTRIBUTES = { titre: "title", avant: "before", apres: "after", "libelle-avant": "before-label", "libelle-apres": "after-label", colonnes: "columns" };
+const ATTRIBUTES = { titre: "title", avant: "before", apres: "after", "libelle-avant": "before-label", "libelle-apres": "after-label", colonnes: "columns" };
 /** Zone side → CSS class suffix of the pin. */
-export const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
+const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
 
 const alternatives = (table) =>
   Object.keys(table)

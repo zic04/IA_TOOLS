@@ -51,7 +51,7 @@ export function isLocalAddress(value) {
 export const isUrlTemplate = (text) => /[a-z][a-z0-9+.-]*:\/\/\S*\{[^{}\s]+\}/i.test(String(text));
 
 /** The token around a match: up to white space, quotes, backticks, brackets, parentheses, pipes or angle brackets. */
-export function tokenAround(text, start, end) {
+function tokenAround(text, start, end) {
   const stop = /[\s"'`<>()[\]|]/;
   let a = start;
   let b = end;
@@ -64,7 +64,7 @@ export function tokenAround(text, start, end) {
  * Compiles masking.allow (JavaScript regular expressions, case-sensitive, searched in the value).
  * @throws {KitError} exit code 2 on an invalid expression
  */
-export function allowMatchers(patterns = []) {
+function allowMatchers(patterns = []) {
   return patterns.map((p, i) => {
     try {
       return new RegExp(p);
@@ -179,7 +179,7 @@ const htmlText = (html) =>
     .replace(/&amp;/g, "&");
 
 /** Texts of a built site (its embedded data), by place: pages, section introductions, home page, glossary. */
-export function siteTexts(data) {
+function siteTexts(data) {
   if (!data) return [];
   const out = [];
   for (const [id, p] of Object.entries(data.pages || {})) out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html)].join("\n") });
@@ -209,7 +209,7 @@ export function isStorageState(text) {
 }
 
 /** Is a file tracked by git? (false when git is not available or the folder is not a repository) */
-export function trackedByGit(file) {
+function trackedByGit(file) {
   const cwd = path.dirname(file);
   if (riskyGitConfig(cwd).length) return false;
   const bin = resolveOnPath("git", { exclude: [cwd] });

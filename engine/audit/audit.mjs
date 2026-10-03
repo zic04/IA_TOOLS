@@ -24,13 +24,13 @@ import { readToc } from "../project/toc.mjs";
 export { readToc };
 
 /** Ids of the Take over section; otherwise the last section (when there are at least two). */
-export const TAKEOVER_SECTION_IDS = ["take-over", "reprendre"];
+const TAKEOVER_SECTION_IDS = ["take-over", "reprendre"];
 /** The space of the takeover pages, when the table of contents declares it (§6.1a). */
-export const TAKEOVER_SPACE = "takeover";
+const TAKEOVER_SPACE = "takeover";
 /** Criteria that do not concern a space: met and shown n/a in its level (standard/maturity.md). */
 const NOT_CONCERNED = Object.freeze({ takeover: ["written2"], other: ["takeover4", "proofs4"] });
 /** Usual page types of the standard sections (standard/structure.md), used to guess the type of an untyped page. */
-export const SECTION_TYPES = Object.freeze({
+const SECTION_TYPES = Object.freeze({
   use: ["screen"],
   utiliser: ["screen"],
   administer: ["screen"],
@@ -43,16 +43,16 @@ const UNTYPED_UNDER = ["screen", "editor", "findings"];
 const TAKEOVER_TYPES = ["technical", "journey", "journey-step", "troubleshooting", "troubleshooting-area", "findings", "architecture", "variables", "resources"];
 
 /** An annotated screen: a `:::screen` (or `:::ecran`) block. */
-export const SCREEN = /^\s{0,3}:::(?:screen|ecran)\b/m;
+const SCREEN = /^\s{0,3}:::(?:screen|ecran)\b/m;
 /**
  * A `file:line` proof: a file name, then `:` and a number, in backticks (`lib/orders.ts:42`, `api.py:7-12`), or a
  * verified claim badge naming its source ([[verified lib/orders.ts:42]], [[verifie …]]).
  */
 export const PROOF = /`[^`\n]*?(?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile):\d+[^`\n]*`|\[\[(?:verified|verifie)\s[^\]\n]*?(?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile):\d+[^\]\n]*\]\]/;
 /** A numbered finding (standard/writing.md §9): C, I, M, P, N (en) or R (fr), then a number. */
-export const FINDING = /\b[CIMPNR]\d{1,3}\b/;
+const FINDING = /\b[CIMPNR]\d{1,3}\b/;
 /** A claim badge (ARCHITECTURE.md §6.9): [[verified]], [[deduced]], [[unknown]] (verifie, deduit, inconnu). */
-export const CLAIM = /\[\[(verified|verifie|deduced|deduit|unknown|inconnu)\b/g;
+const CLAIM = /\[\[(verified|verifie|deduced|deduit|unknown|inconnu)\b/g;
 /** Spelling of a claim badge → its status. */
 const CLAIM_STATUS = Object.freeze({ verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" });
 
@@ -102,14 +102,14 @@ const need = (threshold, total, n) => Math.max(0, Math.ceil(threshold * total - 
 /** Reads the table of contents (current or legacy name), normalised. */
 
 /** Placeholders of the page summary written by `new` (both languages): a page that still has one is unfinished. */
-export const summaryPlaceholders = () => LANGUAGES.map((l) => createI18n({ language: l }).t("cli.new.summaryPlaceholder"));
+const summaryPlaceholders = () => LANGUAGES.map((l) => createI18n({ language: l }).t("cli.new.summaryPlaceholder"));
 
 /**
  * `facts` (ARCHITECTURE.md §6.9, informative): the facts/<source>.json files (not the facts/tool-*.json reports
  * of `--tools`) and how many are stale — their `commit` differs from `currentCommit`, the application's current
  * HEAD. `currentCommit` is null when it cannot be known (no app.dir, no git): no file is then counted as stale.
  */
-export function collectFacts(root, factsPath, currentCommit) {
+function collectFacts(root, factsPath, currentCommit) {
   const dir = path.join(root, factsPath);
   const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("tool-")) : [];
   let stale = 0;

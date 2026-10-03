@@ -32,7 +32,7 @@ export const slash = (p) => String(p).split(path.sep).join("/");
  * Installed version of a package as Node would resolve it from `from` (node_modules of the folder and of its
  * parents), or null.
  */
-export function installedVersion(name, from) {
+function installedVersion(name, from) {
   for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
     const f = path.join(dir, "node_modules", name, "package.json");
     if (fs.existsSync(f)) {
@@ -53,7 +53,7 @@ export function kitDependencies(root = KIT_ROOT) {
 }
 
 /** Exact command that installs the Chromium of the kit's Playwright version. */
-export function chromiumInstallCommand(root = KIT_ROOT) {
+function chromiumInstallCommand(root = KIT_ROOT) {
   const pw = installedVersion("playwright", root);
   const cli = pw && path.join(pw.folder, "cli.js");
   return cli && fs.existsSync(cli) ? `node "${slash(cli)}" install chromium` : "npx playwright install chromium";
@@ -87,7 +87,7 @@ export function projectDependency(root) {
 }
 
 /** Is an import error caused by the missing kit package (npm install not run in the project)? */
-export function isMissingKitPackage(error) {
+function isMissingKitPackage(error) {
   const e = error?.cause || error;
   return e?.code === "ERR_MODULE_NOT_FOUND" && new RegExp(`['"]${BRAND.packageName}(/[^'"]*)?['"]`).test(String(e.message));
 }
