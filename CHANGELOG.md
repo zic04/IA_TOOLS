@@ -135,6 +135,13 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **`facts --network` keeps private package names private, and `probe` respects `capture.forbidden`** (AUDIT.md
+  S13). A package the application declares private is no longer sent to npm or PyPI: an npm scope with its own
+  registry in `.npmrc`, every npm package when `.npmrc` replaces the default registry, every pip package behind a
+  private index, and any package from a folder, a workspace, git or a URL. It is marked `private: true` in
+  `facts/dependencies.json`. `probe` never requests a route of `capture.forbidden` (the home page and the sampled API
+  route included) and lists them in `forbidden` in `facts/probe.json`.
+
 - **The generated site has a Content Security Policy** (AUDIT.md S9). Pages may hold HTML and diagrams are inlined
   unsanitised; the site now tells the browser to run only its own inline scripts, each allowed by its SHA-256 hash,
   and to load only embedded images and fonts, with no request, frame or form. A script, an inline event handler, a

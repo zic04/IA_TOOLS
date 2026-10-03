@@ -60,7 +60,8 @@ mise à jour ou build** de l'application.
 | S10 Fichier de session | **Corrigé** : créé en 0600 dès le premier octet (fichier temporaire puis renommage) ; la limite de Windows et le cas d'un fichier hors de `.doc-kit/` sont écrits dans SECURITY.md | `capture.test.mjs` › fichier de session |
 | S11 `check secrets` incomplet | **Corrigé** : il lit aussi les valeurs des attributs HTML du site (`href`, `title`, `data-*`…), le dossier des traductions et les fichiers de zones de chaque langue | `checks.test.mjs` › attribut, page traduite, zones traduites ; ReDoS |
 | S9 Pas de CSP | **Corrigé** : le site porte une politique (`<meta>`) calculée sur le HTML final : scripts du site seuls, par empreinte SHA-256 ; images et polices embarquées ; aucune requête, frame, formulaire ni `<base>`. `doc-kit dev` ajoute l'empreinte de son client et `connect-src 'self'` | `csp.test.mjs` ; e2e `site.test.mjs` › script injecté refusé, aucune violation pendant la navigation |
-| S13 ; M6, M8, M12 à M14 | Ouverts | — |
+| S13 Réseau et `probe` | **Corrigé** : `facts --network` n'envoie plus le nom d'un paquet privé (portée npm à registre propre dans `.npmrc`, registre npm remplacé, index pip privé, version locale, workspace, git ou URL) ; `probe` n'appelle jamais une route de `capture.forbidden` et la liste dans `forbidden`. Le mode `demo` reste une déclaration de l'utilisateur, écrite dans SECURITY.md | `facts.test.mjs` › paquets privés ; `reviews.test.mjs` › routes interdites ; ReDoS |
+| M6, M8, M12 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

@@ -12,6 +12,10 @@
     "one": "{n} route skipped (a path parameter is missing from review.params)",
     "other": "{n} routes skipped (a path parameter is missing from review.params)"
   },
+  "cli.probe.forbidden": {
+    "one": "{n} route not requested (capture.forbidden)",
+    "other": "{n} routes not requested (capture.forbidden)"
+  },
   "cli.probe.unprotected": "{method} {route}: answers an anonymous caller without being protected",
   "cli.probe.unreachable": "cannot reach {url}",
   "cli.probe.unreachable.help": "{error}",

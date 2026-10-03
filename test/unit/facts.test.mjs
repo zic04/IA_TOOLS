@@ -25,7 +25,7 @@ import { collectDb } from "../../engine/facts/db.mjs";
 import { collectAgents, hiddenCharacters } from "../../engine/facts/agents.mjs";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
-import { checkExistence } from "../../engine/facts/network.mjs";
+import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
 import { runTools, scrubGitleaks, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/capture/session.mjs";
@@ -565,6 +565,53 @@ describe("--network (simulated: never the real registry)", () => {
     assert.equal(out.find((i) => i.name === "left-pad-pro").exists, false);
     assert.equal(out.find((i) => i.name === "acme-internal").exists, null);
     assert.ok(!("exists" in out.find((i) => i.name === "scheduler")), "never checked for a transitive package");
+  });
+});
+
+describe("--network never sends a private package's name (AUDIT.md S13)", () => {
+  test("npm scope with its own registry, local/workspace/git versions, every pip package behind a private index", async () => {
+    const app = tempDir("doc-kit-network-");
+    try {
+      fs.writeFileSync(path.join(app, ".npmrc"), "@acme:registry=https://npm.acme.internal/\n");
+      fs.writeFileSync(
+        path.join(app, "requirements.txt"),
+        "--extra-index-url https://pypi.acme.internal/simple\nacme-billing==1.0\n",
+      );
+      const registries = privateRegistries(app);
+      assert.deepEqual([...registries.npmScopes], ["@acme"]);
+      assert.equal(registries.pipAll, true);
+      const items = [
+        { name: "next", version: "15.0.0", ecosystem: "npm", direct: true },
+        { name: "@acme/ui", version: "2.1.0", ecosystem: "npm", direct: true },
+        { name: "@types/node", version: "22.0.0", ecosystem: "npm", direct: true },
+        { name: "shared", version: "workspace:*", ecosystem: "npm", direct: true },
+        { name: "tooling", version: "file:../tooling", ecosystem: "npm", direct: true },
+        { name: "fork", version: "github:acme/fork", ecosystem: "npm", direct: true },
+        { name: "acme-billing", version: "1.0", ecosystem: "pip", direct: true },
+      ];
+      const sent = [];
+      const out = await checkExistence(
+        items,
+        async (url) => {
+          sent.push(url);
+          return { ok: true, status: 200 };
+        },
+        { registries },
+      );
+      assert.deepEqual(sent.sort(), ["https://registry.npmjs.org/%40types%2Fnode", "https://registry.npmjs.org/next"]);
+      for (const name of ["@acme/ui", "shared", "tooling", "fork", "acme-billing"]) {
+        const item = out.find((i) => i.name === name);
+        assert.equal(item.private, true, name);
+        assert.equal(item.exists, null, name);
+      }
+      // A .npmrc that replaces the default registry makes every npm package private.
+      fs.writeFileSync(path.join(app, ".npmrc"), "registry=https://npm.acme.internal/\n");
+      assert.equal(privateRegistries(app).npmAll, true);
+      fs.writeFileSync(path.join(app, ".npmrc"), "registry=https://registry.npmjs.org/\n");
+      assert.equal(privateRegistries(app).npmAll, false);
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
   });
 });
 

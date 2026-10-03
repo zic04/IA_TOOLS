@@ -32,6 +32,7 @@ import {
 } from "../../engine/review/probe.mjs";
 import { roleSessionFile, ROLE_PATTERN } from "../../engine/capture/session.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
+import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
 
 const APPS = path.join(KIT_ROOT, "test", "fixtures", "apps");
 const app = (name) => path.join(APPS, name);
@@ -662,6 +663,46 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
       "a failed request on a route: status null, no finding guessed",
     );
     assert.ok(!result.routes[0].finding);
+  });
+});
+
+describe("probe never requests a route of capture.forbidden (AUDIT.md S13)", () => {
+  test("a forbidden API route, and the sampled one, are listed in `forbidden` and never requested", async () => {
+    const apiItems = [
+      { method: "GET", route: "/api/orders", auth: "none" },
+      { method: "GET", route: "/api/admin/export", auth: "role" },
+    ];
+    const urls = [];
+    const fetchImpl = async (url) => {
+      urls.push(url);
+      return { status: 200, headers: { get: () => null, getSetCookie: () => [] }, json: async () => [] };
+    };
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      forbidden: forbiddenMatchers(["^/api/admin"]),
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
+    assert.ok(!urls.some((u) => u.includes("/api/admin")), urls.join("\n"));
+    assert.deepEqual(result.forbidden, [{ route: "/api/admin/export", pattern: "^/api/admin" }]);
+    assert.deepEqual(
+      result.routes.map((r) => r.route),
+      ["/api/orders"],
+    );
+    // "/" forbidden too: nothing at all is requested there.
+    urls.length = 0;
+    const strict = await runProbe({
+      url: "http://localhost:3000",
+      apiItems: [],
+      forbidden: forbiddenMatchers(["^/$"]),
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
+    assert.deepEqual(urls, []);
+    assert.deepEqual(strict.forbidden, [{ route: "/", pattern: "^/$" }]);
   });
 });
 

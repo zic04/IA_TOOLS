@@ -8,6 +8,7 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { roleSessionFile, ROLE_PATTERN } from "../../engine/capture/session.mjs";
 import { runProbe, probeAllowed, ProbeUnreachableError } from "../../engine/review/probe.mjs";
+import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
 
 export const options = {
   as: { type: "string", multiple: true },
@@ -55,6 +56,7 @@ export async function run({ ctx, values }) {
       sessionOf: (role) => sessionStateOf(project.root, role),
       apiItems,
       params: config.review?.params || {},
+      forbidden: forbiddenMatchers(config.capture.forbidden),
       fetch: ctx.fetch,
     });
   } catch (e) {
@@ -78,6 +80,7 @@ export async function run({ ctx, values }) {
   for (const r of findings) ctx.print(`⚠ ${ctx.t(`cli.${r.finding}`, { method: r.method, route: r.route })}`);
   if (!findings.length) ctx.print(ctx.t("cli.probe.noFinding"));
   if (result.skipped.length) ctx.print(ctx.t("cli.probe.skipped", { n: result.skipped.length }));
+  if (result.forbidden.length) ctx.print(ctx.t("cli.probe.forbidden", { n: result.forbidden.length }));
   ctx.print(ctx.t("cli.probe.written", { file: `${config.paths.facts}/probe.json` }));
   return EXIT.OK;
 }
