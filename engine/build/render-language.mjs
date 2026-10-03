@@ -88,7 +88,7 @@ export function renderLanguage(
     pages: r.order.length,
     captures: engine.usedCaptures.size,
     zones: engine.zoneCount,
-    schemas: engine.usedDiagrams.size,
+    diagrams: engine.usedDiagrams.size,
   };
   const data = languageData(r, { langToc, langGlossary, langI18n, sections, home, stats });
   return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages };
@@ -118,7 +118,7 @@ function renderSection(r, sec) {
   const { b, site } = r;
   if (r.isSource && sec.icon && !(site.iconKey(sec.icon) in site.ICONS))
     b.warnings.push({ kind: "toc", key: "toc.icon", vars: { section: sec.id, icon: sec.icon } });
-  const groups = sec.groups.map((g) => ({ titre: g.title || "", pages: g.pages.map((p) => renderPage(r, sec, g, p)) }));
+  const groups = sec.groups.map((g) => ({ title: g.title || "", pages: g.pages.map((p) => renderPage(r, sec, g, p)) }));
   const introRel = `${sec.id}/index.md`;
   let introRender = null;
   let introFallback = null;
@@ -130,14 +130,14 @@ function renderSection(r, sec) {
   }
   return {
     id: sec.id,
-    titre: sec.title,
-    titre_court: sec.shortTitle,
-    sous_titre: sec.subtitle,
-    icone: sec.icon === undefined ? undefined : site.iconKey(sec.icon),
-    vedette: !!sec.featured,
-    points: sec.highlights || [],
-    intro_html: introRender ? introRender.html : "",
-    groupes: groups,
+    title: sec.title,
+    shortTitle: sec.shortTitle,
+    subtitle: sec.subtitle,
+    icon: sec.icon === undefined ? undefined : site.iconKey(sec.icon),
+    featured: !!sec.featured,
+    highlights: sec.highlights || [],
+    introHtml: introRender ? introRender.html : "",
+    groups,
     ...(site.spaces ? { space: sec.space } : {}),
     ...(introFallback ? { fallback: introFallback } : {}),
   };
@@ -164,14 +164,14 @@ function renderPage(r, sec, g, p) {
   const verified = site.syncRef?.pages?.[p.id];
   r.pages[p.id] = {
     id: p.id,
-    titre: p.title,
-    titre_menu: p.menuTitle,
-    resume: p.summary || "",
+    title: p.title,
+    menuTitle: p.menuTitle,
+    summary: p.summary || "",
     section: sec.id,
-    groupe: g.title || "",
-    niveau: p.level || 1,
+    group: g.title || "",
+    level: p.level || 1,
     routes: p.routes || [],
-    droits: p.permissions || [],
+    permissions: p.permissions || [],
     html: out.html,
     toc: out.toc,
     captures: out.captures,
@@ -185,7 +185,7 @@ function renderPage(r, sec, g, p) {
   r.links[p.id] = out.links;
   r.order.push(p.id);
   indexPage(r.index, p.id, p.title, out.html);
-  const headings = out.toc.filter((x) => x.niveau === 2).map((x) => x.titre);
+  const headings = out.toc.filter((x) => x.level === 2).map((x) => x.title);
   if (!missing)
     for (const { strict, ...problem } of checkPage({
       pageId: p.id,
@@ -250,7 +250,7 @@ function checkLanguage(r, { langToc, features }) {
     b.warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: b.legacyFiles.join(", ") } });
 }
 
-/** The data object embedded in the site (#donnees), historical key names kept (see build.mjs). */
+/** The data object embedded in the site (#site-data), with the key names of toc.json (see build.mjs). */
 function languageData(r, { langToc, langGlossary, langI18n, sections, home, stats }) {
   const { b, site, lang, langT } = r;
   const { config, languages } = b;
@@ -270,9 +270,9 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
 
   return {
     meta: {
-      titre: langToc.title,
-      produit: config.product.name,
-      accroche: langToc.tagline,
+      title: langToc.title,
+      product: config.product.name,
+      tagline: langToc.tagline,
       version: site.version,
       date: siteDate(b.options.date, langI18n),
       stats,
@@ -284,25 +284,25 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
       ...(home.fallback ? { homeFallback: home.fallback } : {}),
     },
     ...(siteSpaces ? { spaces: siteSpaces } : {}),
-    icones: site.ICONS,
+    icons: site.ICONS,
     sections,
     pages: r.pages,
-    ordre: r.order,
-    recherche: r.index,
-    glossaire: langGlossary.map((g) => ({
-      terme: g.term,
+    order: r.order,
+    search: r.index,
+    glossary: langGlossary.map((g) => ({
+      term: g.term,
       def: g.def,
-      motif: g.pattern || escapeRegex(g.term),
+      pattern: g.pattern || escapeRegex(g.term),
       ...(g.technical ? { tech: g.technical } : {}),
     })),
-    parcours: (langToc.journeys || []).map((j) => ({
-      titre: j.title,
+    journeys: (langToc.journeys || []).map((j) => ({
+      title: j.title,
       desc: j.description,
-      etapes: j.steps,
+      steps: j.steps,
       ...(spaces ? { space: j.space ?? r.pages[j.steps[0]]?.space ?? null } : {}),
     })),
     suggestions: langToc.suggestions || [],
-    accueil_html: home.html,
+    homeHtml: home.html,
     i18n: embedded,
   };
 }

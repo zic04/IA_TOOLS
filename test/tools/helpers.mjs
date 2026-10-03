@@ -169,9 +169,9 @@ export function testEngine({ captures = {}, files = {}, language = "en", statuse
 }
 
 /** Embedded data of a built HTML file; with `lang` (ARCHITECTURE.md §6.12), the slice of that OTHER language
- * (`#donnees-<lang>`) instead of the source's (`#donnees`). */
+ * (`#site-data-<lang>`) instead of the source's (`#site-data`). */
 export function dataOf(html, lang) {
-  const id = lang ? `donnees-${lang}` : "donnees";
+  const id = lang ? `site-data-${lang}` : "site-data";
   const m = new RegExp(`<script type="application/json" id="${id}">([\\s\\S]*?)</script>`).exec(html);
   return JSON.parse(m[1]);
 }

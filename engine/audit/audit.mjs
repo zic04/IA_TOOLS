@@ -313,7 +313,7 @@ function readPage(
   const hasFile = fs.existsSync(abs);
   const source = hasFile ? fs.readFileSync(abs, "utf8") : "";
   const rendered = hasFile ? data.pages[p.id]?.toc : null;
-  const headings = rendered ? rendered.filter((x) => x.niveau === 2).map((x) => x.titre) : headingsOf(source);
+  const headings = rendered ? rendered.filter((x) => x.level === 2).map((x) => x.title) : headingsOf(source);
   const a = analysePage({ table, type: p.template, headings, source, language });
   // standard/maturity.md: a page is WRITTEN when its file exists and holds no template guidance. A page
   // without its file is "missing", one that still holds guidance is a "draft": `written` owns both, and no
@@ -451,8 +451,8 @@ async function measureIndicators({
       current: version,
     },
     upToDatePages,
-    glossary: count(data.glossaire.length),
-    tours: count(data.parcours.length),
+    glossary: count(data.glossary.length),
+    tours: count(data.journeys.length),
     blocking: {
       ...count(buildErrors.length + uncovered + (secrets.measured ? secrets.findings.length : 0)),
       build: buildErrors.length,

@@ -281,11 +281,11 @@ describe("combination with spaces", () => {
 });
 
 describe("mono-language build (--lang fr)", () => {
-  test("no selector, no #donnees-fr, the site is in French, a plain URL is not rewritten", async () => {
+  test("no selector, no #site-data-fr, the site is in French, a plain URL is not rewritten", async () => {
     const page = await open("use/orders", { file: "mono", locale: "en-US" });
     await page.waitForTimeout(80);
     assert.equal(await page.locator("#langues").count(), 0, "#langues removed");
-    assert.equal(await page.evaluate(() => !!document.getElementById("donnees-fr")), false);
+    assert.equal(await page.evaluate(() => !!document.getElementById("site-data-fr")), false);
     assert.equal(await page.evaluate(() => document.documentElement.lang), "fr");
     assert.match(await text(page, ".page-titre"), /La liste des commandes/);
     assert.equal(await page.evaluate(() => location.hash), "#/use/orders", "no language prefix added");

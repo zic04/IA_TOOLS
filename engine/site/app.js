@@ -1,12 +1,12 @@
 /* Documentation site — browser engine (inlined at build time, no dependency).
-   Data   : <script id="donnees"> (pages, outline, search index, glossary, i18n texts). The data keeps its
-            historical key names (titre, pages, ordre…), shared with the build.
+   Data   : <script id="site-data"> (pages, outline, search index, glossary, i18n texts), written by the build
+            (engine/build/render-language.mjs).
    Images : <script type="text/plain" id="img-ID"> (WebP data URI), read on demand.
    Texts  : none hard-coded; everything goes through t() (ui.* and home.* keys embedded by the build). */
 (function () {
   "use strict";
 
-  let D = JSON.parse(document.getElementById("donnees").textContent);
+  let D = JSON.parse(document.getElementById("site-data").textContent);
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
   // Icon names used by this file → keys of the embedded icon set.
@@ -22,7 +22,7 @@
     left: "gauche",
   };
   const icon = (name, cls = "ico") =>
-    `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${D.icones[ICON_KEYS[name] || name] || ""}</svg>`;
+    `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${D.icons[ICON_KEYS[name] || name] || ""}</svg>`;
   const esc = (s) =>
     String(s ?? "").replace(
       /[&<>"']/g,
@@ -67,10 +67,10 @@
     parentOf = {};
     childrenOf = {};
     for (const s of D.sections)
-      for (const g of s.groupes) {
+      for (const g of s.groups) {
         let parent = null;
         for (const pid of g.pages) {
-          if (D.pages[pid].niveau === 2 && parent) {
+          if (D.pages[pid].level === 2 && parent) {
             parentOf[pid] = parent;
             (childrenOf[parent] = childrenOf[parent] || []).push(pid);
           } else parent = pid;
@@ -101,7 +101,7 @@
   // ─── Spaces (one source, one site per audience) ───────────────────────────
   // The spaces apply when the build declares them (D.spaces). The current space, an id or null for "everything",
   // comes from the URL #/@<id>, else from the page or the section shown, else from the value remembered under
-  // __THEME_KEY__.space. The filter only changes what is shown: D.sections, D.ordre, D.parcours and D.suggestions
+  // __THEME_KEY__.space. The filter only changes what is shown: D.sections, D.order, D.journeys and D.suggestions
   // hold the part of the current space (the full lists stay in FULL), so that the menus, previous / next, the
   // home page and the full print follow it. An export (D.meta.space) holds one space, always current.
   let SPACES = D.spaces || null;
@@ -110,8 +110,8 @@
   const exported = SPACES && D.meta.space ? D.meta.space : null;
   let FULL = {
     sections: D.sections,
-    ordre: D.ordre,
-    parcours: D.parcours || [],
+    order: D.order,
+    journeys: D.journeys || [],
     suggestions: D.suggestions || [],
     byId: { ...sectionsById },
   };
@@ -124,12 +124,12 @@
     // its own space.
     const reduce = (s) => ({
       ...s,
-      ...(s.space === currentSpace ? {} : { vedette: false, sous_titre: "", points: [] }),
-      groupes: s.groupes.map((g) => ({ ...g, pages: g.pages.filter(inCurrentSpace) })).filter((g) => g.pages.length),
+      ...(s.space === currentSpace ? {} : { featured: false, subtitle: "", highlights: [] }),
+      groups: s.groups.map((g) => ({ ...g, pages: g.pages.filter(inCurrentSpace) })).filter((g) => g.pages.length),
     });
-    D.sections = currentSpace ? FULL.sections.map(reduce).filter((s) => s.groupes.length) : FULL.sections;
-    D.ordre = FULL.ordre.filter(inCurrentSpace);
-    D.parcours = currentSpace ? FULL.parcours.filter((j) => j.space === currentSpace) : FULL.parcours;
+    D.sections = currentSpace ? FULL.sections.map(reduce).filter((s) => s.groups.length) : FULL.sections;
+    D.order = FULL.order.filter(inCurrentSpace);
+    D.journeys = currentSpace ? FULL.journeys.filter((j) => j.space === currentSpace) : FULL.journeys;
     D.suggestions = FULL.suggestions.filter(inCurrentSpace);
     Object.assign(sectionsById, FULL.byId, Object.fromEntries(D.sections.map((s) => [s.id, s])));
     renderSpaces();
@@ -147,7 +147,7 @@
   }
   /** Where a section leads: its overview, or its first page of the current space when it belongs to another one. */
   const sectionLink = (s) =>
-    currentSpace && s.space !== currentSpace && s.groupes.length ? s.groupes[0].pages[0] : s.id;
+    currentSpace && s.space !== currentSpace && s.groups.length ? s.groups[0].pages[0] : s.id;
   const spaceIcon = (s) => (s.icon ? icon(s.icon) : "");
 
   // Selector: "everything", then one button per space (tooltip: its readers); the current one is pressed. In the
@@ -202,8 +202,8 @@
     if (!target) return "";
     const other = SPACES && target.space !== p.space ? spacesById[target.space] : null;
     const text = other
-      ? t("ui.counterpart", { space: other.shortTitle, title: target.titre })
-      : t("ui.counterpart.plain", { title: target.titre });
+      ? t("ui.counterpart", { space: other.shortTitle, title: target.title })
+      : t("ui.counterpart.plain", { title: target.title });
     return `<p class="pendant"><a href="#/${c.id}${c.anchor ? "~" + c.anchor : ""}">${icon("lien")}<span>${esc(text)}</span></a></p>`;
   }
   /** Home page, "everything" mode: one door per space. */
@@ -228,7 +228,7 @@
   // The languages apply when the build declares them (D.meta.languages). The current language comes from, in
   // this order: the URL prefix #/<lang>/…, else the value remembered under __THEME_KEY__.lang, else the first
   // of navigator.languages that matches a declared language, else the source. Switching parses and caches the
-  // other language's data (#donnees-<lang>, parsed once), rebuilds every derived structure (sections index,
+  // other language's data (#site-data-<lang>, parsed once), rebuilds every derived structure (sections index,
   // sub-pages, spaces, search index, glossary terms, image cache) from it, and re-applies the template texts
   // (data-t / data-t-<attribute> of template.html). The current space (ids, not texts) is kept.
   const LANGUAGES = D.meta.languages || null;
@@ -236,10 +236,10 @@
   const LANG_KEY = "__THEME_KEY__.lang";
   const DATA = { [SOURCE_LANG]: D };
   let currentLang = SOURCE_LANG;
-  /** Parses and caches the data of another language (#donnees-<lang>), once. */
+  /** Parses and caches the data of another language (#site-data-<lang>), once. */
   function dataOf(lang) {
     if (!(lang in DATA)) {
-      const el = document.getElementById("donnees-" + lang);
+      const el = document.getElementById("site-data-" + lang);
       DATA[lang] = el ? JSON.parse(el.textContent) : null;
     }
     return DATA[lang];
@@ -266,8 +266,8 @@
     spacesById = Object.fromEntries((SPACES || []).map((s) => [s.id, s]));
     FULL = {
       sections: D.sections,
-      ordre: D.ordre,
-      parcours: D.parcours || [],
+      order: D.order,
+      journeys: D.journeys || [],
       suggestions: D.suggestions || [],
       byId: { ...sectionsById },
     };
@@ -379,7 +379,7 @@
     $("#topnav").innerHTML = D.sections
       .map(
         (s) =>
-          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.vedette ? "vedette" : ""}">${esc(s.titre_court || s.titre)}</a>`,
+          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.featured ? "vedette" : ""}">${esc(s.shortTitle || s.title)}</a>`,
       )
       .join("");
   }
@@ -393,10 +393,10 @@
       D.sections
         .map((s, i) => {
           const open = openSections.has(s.id);
-          const groups = s.groupes
+          const groups = s.groups
             .map(
               (g) =>
-                (g.titre ? `<div class="lat-groupe">${esc(g.titre)}</div>` : "") +
+                (g.title ? `<div class="lat-groupe">${esc(g.title)}</div>` : "") +
                 g.pages
                   .map((pid) => {
                     const p = D.pages[pid];
@@ -417,7 +417,7 @@
                     const count = children
                       ? `<span class="lat-nb" title="${esc(t("ui.subPages", { n: children.length }))}">${children.length}</span>`
                       : "";
-                    return `<a class="${classes}" href="#/${pid}"><span>${esc(p.titre_menu || p.titre)}</span>${count}</a>`;
+                    return `<a class="${classes}" href="#/${pid}"><span>${esc(p.menuTitle || p.title)}</span>${count}</a>`;
                   })
                   .join(""),
             )
@@ -425,7 +425,7 @@
           // The overview of a section belongs to its own space: not offered from another one.
           const overview = !currentSpace || s.space === currentSpace;
           return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
-          <button type="button" aria-expanded="${open}"><span class="pastille-section">${icon(s.icone)}</span>${esc(s.titre)}${icon("chevron", "ico chevron")}</button>
+          <button type="button" aria-expanded="${open}"><span class="pastille-section">${icon(s.icon)}</span>${esc(s.title)}${icon("chevron", "ico chevron")}</button>
           <div class="lat-corps">${overview ? `<a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${s.id}">${esc(t("ui.sidebar.overview"))}</a>` : ""}${groups}</div>
         </div>`;
         })
@@ -450,7 +450,7 @@
     const badges = [];
     if (SPACES && spacesById[p.space]) badges.push(spaceBadge(p));
     (p.routes || []).forEach((r) => badges.push(`<span class="puce route">${icon("screen")}${esc(r)}</span>`));
-    (p.droits || []).forEach((d) => badges.push(`<span class="puce droit">${icon("lock")}${esc(d)}</span>`));
+    (p.permissions || []).forEach((d) => badges.push(`<span class="puce droit">${icon("lock")}${esc(d)}</span>`));
     if (p.captures)
       badges.push(
         `<span class="puce menu">${icon("screen")}${esc(t("ui.page.annotatedScreens", { n: p.captures }))}</span>`,
@@ -459,12 +459,12 @@
   }
 
   function footerNav(id) {
-    const i = D.ordre.indexOf(id);
-    const previous = i > 0 ? D.pages[D.ordre[i - 1]] : null;
-    const next = i >= 0 && i < D.ordre.length - 1 ? D.pages[D.ordre[i + 1]] : null;
+    const i = D.order.indexOf(id);
+    const previous = i > 0 ? D.pages[D.order[i - 1]] : null;
+    const next = i >= 0 && i < D.order.length - 1 ? D.pages[D.order[i + 1]] : null;
     return `<nav class="pied-nav" aria-label="${esc(t("ui.footer.neighbours"))}">
-      ${previous ? `<a href="#/${previous.id}"><small>${esc(t("ui.footer.previous"))}</small><span>${esc(previous.titre)}</span></a>` : ""}
-      ${next ? `<a class="suivant" href="#/${next.id}"><small>${esc(t("ui.footer.next"))}</small><span>${esc(next.titre)}</span></a>` : ""}
+      ${previous ? `<a href="#/${previous.id}"><small>${esc(t("ui.footer.previous"))}</small><span>${esc(previous.title)}</span></a>` : ""}
+      ${next ? `<a class="suivant" href="#/${next.id}"><small>${esc(t("ui.footer.next"))}</small><span>${esc(next.title)}</span></a>` : ""}
     </nav>`;
   }
 
@@ -514,7 +514,7 @@
   const siteFooter = () =>
     `<div class="pied-site">${esc(
       t("ui.footer.site", {
-        product: D.meta.produit,
+        product: D.meta.product,
         version: D.meta.version,
         date: D.meta.date,
         pages: D.meta.stats.pages,
@@ -534,9 +534,9 @@
     renderTopnav(p.section);
     renderSidebar(p.section, id);
     main.innerHTML = `<article class="article">
-      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(p.space)}<a href="#/${sectionLink(sec)}">${esc(sec.titre)}</a>${p.groupe ? `<span class="sep">›</span><span>${esc(p.groupe)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${parentOf[id]}">${esc(D.pages[parentOf[id]].titre_menu || D.pages[parentOf[id]].titre)}</a>` : ""}</nav>
-      <h1 class="page-titre">${esc(p.titre)}</h1>
-      ${p.resume ? `<p class="page-resume">${esc(p.resume)}</p>` : ""}
+      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(p.space)}<a href="#/${sectionLink(sec)}">${esc(sec.title)}</a>${p.group ? `<span class="sep">›</span><span>${esc(p.group)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${parentOf[id]}">${esc(D.pages[parentOf[id]].menuTitle || D.pages[parentOf[id]].title)}</a>` : ""}</nav>
+      <h1 class="page-titre">${esc(p.title)}</h1>
+      ${p.summary ? `<p class="page-resume">${esc(p.summary)}</p>` : ""}
       ${pageBadges(p)}
       ${counterpartLine(p)}
       ${p.fallback ? translationBanner(p.fallback) : ""}
@@ -546,7 +546,7 @@
     </article>`;
     renderToc(p);
     hydrate(main, p);
-    document.title = `${p.titre} — ${D.meta.titre}`;
+    document.title = `${p.title} — ${D.meta.title}`;
     scrollToAnchor(anchor, true);
   }
 
@@ -556,10 +556,10 @@
     renderTopnav(sec.id);
     renderSidebar(sec.id, null);
     toc.innerHTML = "";
-    const groups = sec.groupes
+    const groups = sec.groups
       .map(
         (g) =>
-          (g.titre ? `<div class="groupe-titre">${esc(g.titre)}</div>` : "") +
+          (g.title ? `<div class="groupe-titre">${esc(g.title)}</div>` : "") +
           `<div class="grille-cartes">${g.pages
             .filter((pid) => !parentOf[pid])
             .map((pid) => {
@@ -572,22 +572,22 @@
               ]
                 .filter(Boolean)
                 .join(" · ");
-              return `<a class="carte-lien" href="#/${pid}"><span class="titre">${esc(p.titre)}</span><span class="resume">${esc(p.resume || "")}</span>${counts ? `<span class="compte">${counts}</span>` : ""}</a>`;
+              return `<a class="carte-lien" href="#/${pid}"><span class="titre">${esc(p.title)}</span><span class="resume">${esc(p.summary || "")}</span>${counts ? `<span class="compte">${counts}</span>` : ""}</a>`;
             })
             .join("")}</div>`,
       )
       .join("");
     main.innerHTML = `<article class="article">
-      <nav class="ariane"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(sec.space)}<span>${esc(sec.titre)}</span></nav>
-      <h1 class="page-titre">${esc(sec.titre)}</h1>
-      <p class="page-resume">${esc(sec.sous_titre || "")}</p>
+      <nav class="ariane"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(sec.space)}<span>${esc(sec.title)}</span></nav>
+      <h1 class="page-titre">${esc(sec.title)}</h1>
+      <p class="page-resume">${esc(sec.subtitle || "")}</p>
       ${sec.fallback ? translationBanner(sec.fallback) : ""}
-      <div class="contenu">${sec.intro_html || ""}</div>
+      <div class="contenu">${sec.introHtml || ""}</div>
       ${groups}
       ${siteFooter()}
     </article>`;
     hydrate(main, null);
-    document.title = `${sec.titre} — ${D.meta.titre}`;
+    document.title = `${sec.title} — ${D.meta.title}`;
     window.scrollTo(0, 0);
   }
 
@@ -604,39 +604,39 @@
         ? spaceDoors()
         : D.sections
             .map((sec) => {
-              const n = sec.groupes.reduce((total, g) => total + g.pages.length, 0);
-              return `<a class="porte ${sec.vedette ? "vedette" : ""}" href="#/${sectionLink(sec)}">
-          ${sec.vedette ? `<span class="etiquette">${esc(t("home.featured"))}</span>` : ""}
-          <span class="icone">${icon(sec.icone)}</span>
-          <h2>${esc(sec.titre)}</h2>
-          <p>${esc(sec.sous_titre || "")}</p>
-          <ul>${(sec.points || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+              const n = sec.groups.reduce((total, g) => total + g.pages.length, 0);
+              return `<a class="porte ${sec.featured ? "vedette" : ""}" href="#/${sectionLink(sec)}">
+          ${sec.featured ? `<span class="etiquette">${esc(t("home.featured"))}</span>` : ""}
+          <span class="icone">${icon(sec.icon)}</span>
+          <h2>${esc(sec.title)}</h2>
+          <p>${esc(sec.subtitle || "")}</p>
+          <ul>${(sec.highlights || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
           <span class="aller">${esc(t("home.doorPages", { n }))}</span>
         </a>`;
             })
             .join("");
-    const journeyCount = (D.parcours || []).length;
-    const journeys = (D.parcours || [])
+    const journeyCount = (D.journeys || []).length;
+    const journeys = (D.journeys || [])
       .map(
         (
           j,
-        ) => `<div class="carte-lien"><span class="titre">${esc(j.titre)}</span><span class="resume">${esc(j.desc)}</span>
-        <ol>${j.etapes.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].titre)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`,
+        ) => `<div class="carte-lien"><span class="titre">${esc(j.title)}</span><span class="resume">${esc(j.desc)}</span>
+        <ol>${j.steps.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].title)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`,
       )
       .join("");
     // A space current: its first featured section, else its first own section.
     const first =
-      D.sections.find((x) => x.vedette) ||
+      D.sections.find((x) => x.featured) ||
       D.sections.find((x) => !currentSpace || x.space === currentSpace) ||
       D.sections[0];
     main.innerHTML = `
       <section class="heros">
         <div class="heros-interieur">
           <div class="sur-titre">${icon("book")} ${esc(t("home.eyebrow", { version: D.meta.version }))}</div>
-          <h1>${th("home.title", { accent: `<span>${esc(t("home.titleAccent", { product: D.meta.produit }))}</span>` })}</h1>
-          <p>${esc(D.meta.accroche)}</p>
+          <h1>${th("home.title", { accent: `<span>${esc(t("home.titleAccent", { product: D.meta.product }))}</span>` })}</h1>
+          <p>${esc(D.meta.tagline)}</p>
           <div class="actions">
-            <a class="bouton primaire" href="#/${sectionLink(first)}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.titre_court || first.titre }))}</a>
+            <a class="bouton primaire" href="#/${sectionLink(first)}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.shortTitle || first.title }))}</a>
             <a class="bouton" href="#/${sectionLink(D.sections[0])}">${icon("map")}${esc(t("home.gettingStarted"))}</a>
             <button class="bouton" type="button" data-action="recherche">${icon("search")}${esc(t("home.search"))}</button>
           </div>
@@ -644,7 +644,7 @@
             <div><strong>${s.pages}</strong>${esc(t("home.stats.pages", { n: s.pages }))}</div>
             <div><strong>${s.captures}</strong>${esc(t("home.stats.captures", { n: s.captures }))}</div>
             <div><strong>${s.zones}</strong>${esc(t("home.stats.zones", { n: s.zones }))}</div>
-            <div><strong>${s.schemas}</strong>${esc(t("home.stats.diagrams", { n: s.schemas }))}</div>
+            <div><strong>${s.diagrams}</strong>${esc(t("home.stats.diagrams", { n: s.diagrams }))}</div>
           </div>
           ${spaceStrip()}
         </div>
@@ -652,12 +652,12 @@
       <div class="accueil-corps">
         <div class="portes">${doors}</div>
         ${D.meta.homeFallback ? translationBanner(D.meta.homeFallback) : ""}
-        <div class="contenu">${D.accueil_html || ""}</div>
+        <div class="contenu">${D.homeHtml || ""}</div>
         ${journeys ? `<h2 class="accueil-section-titre">${esc(t("home.journeysTitle"))}</h2><p class="accueil-section-sous">${esc(t("home.journeysIntro", { n: journeyCount, count: TEXTS["home.number." + journeyCount] || journeyCount }))}</p><div class="parcours ${journeyCount === 4 ? "deux-colonnes" : ""}">${journeys}</div>` : ""}
         ${siteFooter()}
       </div>`;
     hydrate(main, null);
-    document.title = D.meta.titre;
+    document.title = D.meta.title;
     window.scrollTo(0, 0);
   }
 
@@ -681,7 +681,7 @@
     toc.innerHTML =
       `<div class="toc-titre">${esc(t("ui.toc.title"))}</div>` +
       p.toc
-        .map((h) => `<a class="h${h.niveau}" href="#/${p.id}~${h.id}" data-cible="${h.id}">${esc(h.titre)}</a>`)
+        .map((h) => `<a class="h${h.level}" href="#/${p.id}~${h.id}" data-cible="${h.id}">${esc(h.title)}</a>`)
         .join("");
   }
   let tocFrame = 0;
@@ -754,9 +754,9 @@
 
   // Glossary: the first occurrence of each term in the page gets a tooltip. Rebuilt by switchLanguage().
   function buildTerms() {
-    return (D.glossaire || []).map((g) => ({
+    return (D.glossary || []).map((g) => ({
       ...g,
-      re: new RegExp(`(^|[^\\p{L}\\p{N}_])(${g.motif})(?=$|[^\\p{L}\\p{N}_])`, "iu"),
+      re: new RegExp(`(^|[^\\p{L}\\p{N}_])(${g.pattern})(?=$|[^\\p{L}\\p{N}_])`, "iu"),
     }));
   }
   let TERMS = buildTerms();
@@ -784,7 +784,7 @@
         const span = document.createElement("span");
         span.className = "gl";
         span.tabIndex = 0;
-        span.dataset.terme = term.terme;
+        span.dataset.term = term.term;
         span.dataset.def = term.def;
         if (term.tech) span.dataset.tech = term.tech;
         word.parentNode.replaceChild(span, word);
@@ -803,7 +803,7 @@
     const tech = showTech
       ? `<div class="bulle-tech">${esc(t("ui.glossary.technical"))} ${esc(gl.dataset.tech)}</div>`
       : "";
-    return `<strong>${esc(gl.dataset.terme)}</strong> — ${esc(gl.dataset.def)}${tech}`;
+    return `<strong>${esc(gl.dataset.term)}</strong> — ${esc(gl.dataset.def)}${tech}`;
   }
 
   // ─── Tooltips (screen zones + glossary) ───────────────────────────────────
@@ -1087,9 +1087,9 @@
   const resultList = $("#recherche-resultats");
   // Rebuilt by switchLanguage() from the translated pages and search entries.
   function buildIndex() {
-    return D.recherche.map((e) => {
+    return D.search.map((e) => {
       const p = D.pages[e.p];
-      return { ...e, nt: norm(e.t), np: norm(p ? p.titre : ""), nx: norm(e.x) };
+      return { ...e, nt: norm(e.t), np: norm(p ? p.title : ""), nx: norm(e.x) };
     });
   }
   let INDEX = buildIndex();
@@ -1190,7 +1190,7 @@
         suggestions
           .map(
             (pid, i) =>
-              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${pid}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].titre)}</div><div class="titre">${esc(D.pages[pid].titre)}</div></a>`,
+              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${pid}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].title)}</div><div class="titre">${esc(D.pages[pid].title)}</div></a>`,
           )
           .join("");
       results = suggestions.map((pid) => ({ link: "#/" + pid }));
@@ -1216,7 +1216,7 @@
         const start = Math.max(0, pos - 50);
         const excerpt = (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
         return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
-          <div class="chemin">${spacePath(p)}${esc(sectionsById[p.section].titre)} › ${esc(p.titre)}</div>
+          <div class="chemin">${spacePath(p)}${esc(sectionsById[p.section].title)} › ${esc(p.title)}</div>
           <div class="titre">${mark(e.t, terms)}</div>
           <div class="extrait">${mark(excerpt, terms)}</div></a>`;
       })
@@ -1312,18 +1312,18 @@
     const outline = D.sections
       .map(
         (s) =>
-          `<h3>${esc(s.titre)}</h3><ol>${s.groupes
+          `<h3>${esc(s.title)}</h3><ol>${s.groups
             .flatMap((g) => g.pages)
-            .map((pid) => `<li>${esc(D.pages[pid].titre)}</li>`)
+            .map((pid) => `<li>${esc(D.pages[pid].title)}</li>`)
             .join("")}</ol>`,
       )
       .join("");
     target.innerHTML =
-      `<section class="page-imprimee article"><h1 class="page-titre">${esc(D.meta.titre)}</h1><p class="page-resume">${esc(D.meta.accroche)}</p><p>${esc(t("ui.print.version", { product: D.meta.produit, version: D.meta.version, date: D.meta.date }))}</p><div class="contenu">${outline}</div></section>` +
-      D.ordre
+      `<section class="page-imprimee article"><h1 class="page-titre">${esc(D.meta.title)}</h1><p class="page-resume">${esc(D.meta.tagline)}</p><p>${esc(t("ui.print.version", { product: D.meta.product, version: D.meta.version, date: D.meta.date }))}</p><div class="contenu">${outline}</div></section>` +
+      D.order
         .map((pid) => {
           const p = D.pages[pid];
-          return `<section class="page-imprimee article"><div class="ariane">${esc(sectionsById[p.section].titre)}${p.groupe ? " › " + esc(p.groupe) : ""}${parentOf[p.id] ? " › " + esc(D.pages[parentOf[p.id]].titre_menu || D.pages[parentOf[p.id]].titre) : ""}</div><h1 class="page-titre">${esc(p.titre)}</h1>${p.resume ? `<p class="page-resume">${esc(p.resume)}</p>` : ""}<div class="contenu">${p.html}</div></section>`;
+          return `<section class="page-imprimee article"><div class="ariane">${esc(sectionsById[p.section].title)}${p.group ? " › " + esc(p.group) : ""}${parentOf[p.id] ? " › " + esc(D.pages[parentOf[p.id]].menuTitle || D.pages[parentOf[p.id]].title) : ""}</div><h1 class="page-titre">${esc(p.title)}</h1>${p.summary ? `<p class="page-resume">${esc(p.summary)}</p>` : ""}<div class="contenu">${p.html}</div></section>`;
         })
         .join("");
     hydrateImages(target);

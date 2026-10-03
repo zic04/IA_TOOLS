@@ -226,21 +226,19 @@ function siteTexts(data) {
   if (!data) return [];
   const out = [];
   for (const [id, p] of Object.entries(data.pages || {}))
-    out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html), htmlAttributes(p.html)].join("\n") });
+    out.push({ where: id, text: [p.title, p.summary, htmlText(p.html), htmlAttributes(p.html)].join("\n") });
   for (const s of data.sections || [])
     out.push({
       where: s.id,
-      text: [s.titre, s.sous_titre, ...(s.points || []), htmlText(s.intro_html), htmlAttributes(s.intro_html)].join(
+      text: [s.title, s.subtitle, ...(s.highlights || []), htmlText(s.introHtml), htmlAttributes(s.introHtml)].join(
         "\n",
       ),
     });
   out.push({
     where: "home",
-    text: [data.meta?.titre, data.meta?.accroche, htmlText(data.accueil_html), htmlAttributes(data.accueil_html)].join(
-      "\n",
-    ),
+    text: [data.meta?.title, data.meta?.tagline, htmlText(data.homeHtml), htmlAttributes(data.homeHtml)].join("\n"),
   });
-  for (const g of data.glossaire || []) out.push({ where: `glossary › ${g.terme}`, text: `${g.terme}\n${g.def}` });
+  for (const g of data.glossary || []) out.push({ where: `glossary › ${g.term}`, text: `${g.term}\n${g.def}` });
   return out;
 }
 

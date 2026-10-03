@@ -328,7 +328,7 @@ describe("check tables: a table rendered by a directive is never reported", () =
     fs.writeFileSync(
       file,
       `<!doctype html><html><body>
-        <script type="application/json" id="donnees">${JSON.stringify({ ordre: ["page1"] })}</script>
+        <script type="application/json" id="site-data">${JSON.stringify({ order: ["page1"] })}</script>
         <main class="contenu" style="width:300px">
           <h2>Hand-written</h2>
           <div class="tableau" style="width:300px; overflow:auto;"><table style="width:2000px"><tr><td>wide, hand-written</td></tr></table></div>

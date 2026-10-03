@@ -212,8 +212,8 @@ describe("headings, anchors, links, tables, long code", () => {
     assert.match(r.html, /<h2 id="two-three">Two <em>three<\/em>/);
     assert.match(r.html, /<h4>Four<\/h4>/);
     assert.deepEqual(r.toc, [
-      { id: "one", titre: "One", niveau: 2 },
-      { id: "two-three", titre: "Two three", niveau: 2 },
+      { id: "one", title: "One", level: 2 },
+      { id: "two-three", title: "Two three", level: 2 },
     ]);
   });
 

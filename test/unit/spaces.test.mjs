@@ -184,7 +184,7 @@ describe("site data", () => {
       assert.equal("spaces" in data, false);
       assert.ok(data.sections.every((s) => !("space" in s)));
       assert.ok(Object.values(data.pages).every((p) => !("space" in p) && !("counterpart" in p)));
-      assert.ok(data.parcours.every((j) => !("space" in j) && !("hidden" in j)));
+      assert.ok(data.journeys.every((j) => !("space" in j) && !("hidden" in j)));
       assert.equal("space" in data.meta, false);
       assert.deepEqual(
         Object.keys(data.i18n).filter((k) => SPACE_TEXT_KEYS.includes(k)),
@@ -266,7 +266,7 @@ describe("site data", () => {
       );
       // A journey without "space" takes the space of its first step.
       assert.deepEqual(
-        data.parcours.map((j) => j.space),
+        data.journeys.map((j) => j.space),
         ["business", "takeover"],
       );
       assert.ok(
@@ -321,19 +321,19 @@ describe("exports", () => {
       "take-over/orders-api",
     ]);
     assert.deepEqual(
-      takeover.data.sections.map((s) => [s.id, s.groupes.map((g) => g.pages)]),
+      takeover.data.sections.map((s) => [s.id, s.groups.map((g) => g.pages)]),
       [
         ["use", [["use/api-limits"]]],
         ["take-over", [["take-over/architecture", "take-over/orders-api"]]],
       ],
     );
-    assert.equal(takeover.data.sections[0].intro_html, "");
+    assert.equal(takeover.data.sections[0].introHtml, "");
     assert.deepEqual(
-      [takeover.data.sections[0].sous_titre, takeover.data.sections[0].points, takeover.data.sections[0].vedette],
+      [takeover.data.sections[0].subtitle, takeover.data.sections[0].highlights, takeover.data.sections[0].featured],
       ["", [], false],
     );
     assert.equal(
-      takeover.data.sections[1].sous_titre,
+      takeover.data.sections[1].subtitle,
       "How Acme Orders is built and run.",
       "the sections of the space keep theirs",
     );
@@ -342,8 +342,8 @@ describe("exports", () => {
       business.data.spaces.map((s) => s.id),
       ["business"],
     );
-    assert.deepEqual(business.data.ordre, ["use/orders", "use/orders/detail", "use/settings"]);
-    assert.ok(business.data.recherche.every((e) => business.data.pages[e.p]));
+    assert.deepEqual(business.data.order, ["use/orders", "use/orders/detail", "use/settings"]);
+    assert.ok(business.data.search.every((e) => business.data.pages[e.p]));
     assert.deepEqual(business.data.suggestions, ["use/orders", "use/settings"]);
     assert.equal(r.data.meta.space, undefined, "the full site is unchanged");
   });
@@ -364,7 +364,7 @@ describe("exports", () => {
     assert.match(page, /<span class="lien-exclu">the architecture<\/span> \(see the Takeover documentation\)/);
     assert.match(page, /<span class="lien-exclu">the API quotas<\/span> \(see the Takeover documentation\)/);
     assert.match(page, /<a href="#\/use\/settings">the settings<\/a>/, "a link inside the space is kept");
-    assert.match(business.data.accueil_html, /<span class="lien-exclu">the architecture<\/span>/);
+    assert.match(business.data.homeHtml, /<span class="lien-exclu">the architecture<\/span>/);
     assert.match(
       takeover.data.pages["take-over/orders-api"].html,
       /<span class="lien-exclu">the orders list<\/span> \(see the Business documentation\)/,
@@ -378,20 +378,20 @@ describe("exports", () => {
 
   test("journeys: those of the space, steps of another space removed and counted (hidden)", async () => {
     const [business, takeover] = (await buildSpaces()).sites;
-    assert.deepEqual(business.data.parcours, [
+    assert.deepEqual(business.data.journeys, [
       {
-        titre: "Discover Acme Orders",
+        title: "Discover Acme Orders",
         desc: "The pages to read first.",
-        etapes: ["use/orders", "use/settings"],
+        steps: ["use/orders", "use/settings"],
         space: "business",
         hidden: 1,
       },
     ]);
-    assert.deepEqual(takeover.data.parcours, [
+    assert.deepEqual(takeover.data.journeys, [
       {
-        titre: "Take over Acme Orders",
+        title: "Take over Acme Orders",
         desc: "From the architecture to the API.",
-        etapes: ["take-over/architecture", "take-over/orders-api"],
+        steps: ["take-over/architecture", "take-over/orders-api"],
         space: "takeover",
       },
     ]);
@@ -404,9 +404,9 @@ describe("exports", () => {
     assert.deepEqual(images(r.html), ["orders-list", "settings-profile"]);
     assert.deepEqual(images(business.html), ["orders-list", "settings-profile"]);
     assert.deepEqual(images(takeover.html), [], "the takeover export embeds no screenshot");
-    assert.deepEqual(r.data.meta.stats, { pages: 6, captures: 2, zones: 5, schemas: 1 });
-    assert.deepEqual(business.data.meta.stats, { pages: 3, captures: 2, zones: 5, schemas: 0 });
-    assert.deepEqual(takeover.data.meta.stats, { pages: 3, captures: 0, zones: 0, schemas: 1 });
+    assert.deepEqual(r.data.meta.stats, { pages: 6, captures: 2, zones: 5, diagrams: 1 });
+    assert.deepEqual(business.data.meta.stats, { pages: 3, captures: 2, zones: 5, diagrams: 0 });
+    assert.deepEqual(takeover.data.meta.stats, { pages: 3, captures: 0, zones: 0, diagrams: 1 });
     assert.equal(takeover.stats.diagrams, 1);
     assert.equal(takeover.stats.bytes, Buffer.byteLength(takeover.html));
     assert.ok(takeover.stats.bytes < business.stats.bytes);
