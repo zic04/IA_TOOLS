@@ -174,6 +174,7 @@ export async function run({ ctx, values, positionals }) {
     ...(captureOptions ? { capture: captureOptions } : {}),
     ...(compareDir ? { compareDir } : {}),
     ...(ctx.launch ? { launch: ctx.launch } : {}),
+    ...(ctx.timer ? { timer: ctx.timer } : {}),
     onEvent: (e) => {
       if (ctx.json) return;
       if (e.type === "ok") {

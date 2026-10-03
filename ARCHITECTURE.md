@@ -433,7 +433,7 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
 
 Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is documented at the top of `engine/capture/plans.mjs`.
 
-- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (wait after loading, default 2500 ms), `actions`, `settle` (wait after the actions, default 600 ms), `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
+- **Entry fields:** `id`, `title`, `route`, `context` (a key of `capture.viewports`: `desktop` by default, `mobile` is a touch screen), `viewport`, `view` (map framing: `{ lon, lat, zoom }` converted to Web Mercator metres, or `{ x, y, z }` passed as is, in the URL parameters of `capture.map`), `storage`, `delay` (minimum wait after loading, default 0: the kit waits until the page is stable — no request in flight and no DOM change for 150 ms, fonts and images ready, finite animations ended, capped at 10 s, `engine/capture/stable.mjs`), `actions`, `settle` (minimum wait after the actions, default 0: stable again), `frame` (default margins: 34 px horizontally, 10 px vertically), `zones` (in the order of the markers; 3 to 12 recommended), `masks`.
 - **Actions:** `click` (+ `options`, Playwright click options), `hover`, `type` + `value`, `select` + `value`, `press`, `scroll`, `wait`, `wheel`, `eval`.
 - **Targets:** `{ role, name }`, `{ text }`, `{ field }`, `{ label }`, `{ placeholder }`, `{ css }`, `{ block }` (a container matching `capture.selectors.block` whose button or heading starts with the text). Exactly one kind per target.
 - **Target options:** `exact`, `nth`, `last`, `has`, `within`, `up`, `framed` (closest ancestor matching `capture.selectors.frame`, or with a border on its four sides), `margin`, `marginY` (vertical margin of a `frame`), `side`.
@@ -919,6 +919,26 @@ Two optional reviews of the documented application, asked at scoping: determinis
 **Briefs** (lean method, §6.11): `security-review` (agent `doc-kit-reviewer`) and `maintainability-review` (agent `doc-kit-writer`); their findings are candidates for the risk register (`findings-verification`).
 
 **Configuration**: `review: { guards: { role: [], user: [] }, params: {}, semgrep: null }` (regular expressions as strings; `params`: path parameter → example value; `semgrep`: local rules folder, relative to the project). **i18n fragment** `i18n/<language>/reviews.json`: `cli.probe.*` (with `cli.help.probe`), `cli.connect.as*`, the new `render.facts.column.*` and `cli.facts.*` keys.
+
+### 6.14 Production statistics (`usage/`, `stats`, `--profile`)
+
+- **Where:** `usage/<version>.jsonl` in the documentation project, one JSON object per line, appended and never
+  rewritten, committed with the project (`engine/stats/usage.mjs`). Recording is on when the folder exists (`init`
+  writes it with a README); `DOC_KIT_STATS=0` turns it off for one run.
+- **What:** each recorded command appends its own span (`step`: setup, capture, facts, analysis, generate,
+  translate, update, build, check, audit; `exit`: its exit code) and the spans the engine measured inside it:
+  - each capture's parts: `navigate`, `wait`, `actions`, `settle`, `mask`, `measure`, `shot`, `encode`, and
+    `compare` or `write`;
+  - each `facts` source, and the external tools.
+
+  Every line carries `at`, `version` (the documented version), `run`, `command`, `phase` (`create` without
+  `sync.json`, `update` with it, `translate`) and `actor` (`kit`). Agents (`actor: "agent"`, with `model` and
+  `tokens: { in, out, cacheRead, cacheWrite }`) and people (`actor: "human"`) use the same format.
+- **Not recorded:** `dev`, `open`, `view`, `doctor`, `init`, `skill`, `stats`, `export`, `upgrade` and `migrate`.
+- **Read:** `stats [--by step|version|command|model|phase|page|actor] [--since <v>] [--csv] [--json]`. For
+  `--by step`, each step is followed by its parts, with their share of the step. The overall total counts only the
+  commands' own spans, so nothing is counted twice.
+- **`--profile`** (global) prints a run's spans to stderr, longest first, whether or not the project records them.
 
 ## 7. Standard and page templates
 

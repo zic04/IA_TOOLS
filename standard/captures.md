@@ -82,7 +82,7 @@ Declared or not, every run that uses a session prints the outcome before the cap
 | **Check every preview** | A zone measured on the wrong element only shows on the image | `doc-kit capture "<pattern>" --preview`, then look at `<id>.zones.png` in `.doc-kit/` (zones in red) |
 | Stable ids | They are cited in the Markdown | kebab-case, prefixed by batch: `use-orders-list`, `cf-approval-chain-rules`, `prod-admin-users` |
 | A map framed deterministically | The same image at every run | `view: { lon, lat, zoom }` in the plan, with `capture.map` in the configuration |
-| Enough waiting | The screen has finished loading | `delay`: 2,500 ms by default, 7,000 ms for a map |
+| Enough waiting | The screen has finished loading | The kit waits until the page is stable (network quiet, fonts, DOM still, animations ended); `delay` only adds a minimum, e.g. 3,000 ms for a map drawn on a canvas |
 | Light images | The site is a single file | `doc-kit optimize` recompresses images above 200 KB |
 
 For example, in a capture plan of Acme Orders, the customer and the order date sit on the same row and get a single marker:

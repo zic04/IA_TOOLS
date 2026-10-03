@@ -82,7 +82,7 @@ Déclarée ou non, chaque campagne qui utilise une session affiche le résultat 
 | **Vérifier chaque aperçu** | Une zone mesurée sur le mauvais élément ne se voit qu'à l'image | `doc-kit capture "<motif>" --preview`, puis regarder `<id>.zones.png` dans `.doc-kit/` (zones en rouge) |
 | Identifiants stables | Ils sont cités dans le Markdown | kebab-case, préfixés par lot : `util-commandes-liste`, `cf-circuit-regles`, `prod-admin-utilisateurs` |
 | Carte cadrée de façon déterministe | La même image à chaque campagne | `view: { lon, lat, zoom }` dans le plan, avec `capture.map` dans la configuration |
-| Attente suffisante | L'écran a fini de charger | `delay` : 2 500 ms par défaut, 7 000 ms pour une carte |
+| Attente suffisante | L'écran a fini de charger | Le kit attend que la page soit stable (réseau calme, polices, DOM immobile, animations finies) ; `delay` n'ajoute qu'un minimum, par exemple 3 000 ms pour une carte dessinée dans un canvas |
 | Images légères | Le site est un seul fichier | `doc-kit optimize` recompresse les images de plus de 200 Ko |
 
 Par exemple, dans un plan de captures d'Acme Orders, le client et la date de commande sont sur la même rangée et n'ont qu'une pastille :

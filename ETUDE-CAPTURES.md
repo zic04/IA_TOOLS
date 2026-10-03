@@ -1,8 +1,8 @@
 # Étude — captures d'écran et statistiques de production
 
-*3 octobre 2026. Deux volets : ce que propose le marché, et une mesure du pipeline actuel du kit (Playwright 1.60,
+*3 octobre 2026. Trois volets : ce que propose le marché, et une mesure du pipeline actuel du kit (Playwright 1.60,
 application de démonstration). Elle se termine par l'architecture recommandée et un plan d'action chiffré, plus la
-conception des statistiques de temps, de jetons et de modèles demandée.*
+conception des statistiques de temps, de jetons et de modèles demandée, puis l'optimisation des agents IA (§ 7).*
 
 ---
 
@@ -25,6 +25,16 @@ conception des statistiques de temps, de jetons et de modèles demandée.*
   - des **sélecteurs qui se réparent** : une correction est proposée, jamais appliquée en silence ;
   - un **contrôle en deux temps** : on compare d'abord la structure de la page (arbre d'accessibilité), et on ne
     recapture l'image que si elle a changé.
+
+**Avancement**
+
+| Action | État |
+|---|---|
+| S1, S4 : fichier `usage/<version>.jsonl`, `doc-kit stats` (`--by`, `--since`, `--csv`, `--json`) | **Fait** |
+| S2 : chronométrage des commandes, des étapes de chaque capture et de chaque source des faits ; option `--profile` | **Fait** (les autres commandes : à affiner) |
+| A1 : attentes sur condition (`engine/capture/stable.mjs`) | **Fait** : 0,5 à 0,7 s par capture au lieu de 3,3 s sur la démo |
+| C1 : erreur si une cible de masquage ne trouve rien, et nouveau masquage avant la prise de vue | **Fait** |
+| Le reste des § 5, 6 et 7 | À faire |
 
 ---
 
@@ -276,6 +286,64 @@ durée et pages. Il produit aussi un rapport avec le coût. Mais :
 → B2 → S3 → S4 → S5 → A2 → B3 → la suite.
 
 ---
+
+## 7. Agents IA : paralléliser et choisir le bon modèle
+
+### Constat
+
+Le skill orchestre trois types d'agents :
+
+| Type | Modèle actuel | Usage |
+|---|---|---|
+| `doc-kit-triage` | haiku | Trier les pages à mettre à jour |
+| `doc-kit-writer` | sonnet | Rédiger et mettre à jour les pages |
+| `doc-kit-reviewer` | opus | Inventaire, santé du code, vérification des constats, sécurité, dossier technique |
+
+Les points faibles :
+- **Vagues en série** : W1 → W2 → … → W7. Chaque vague attend la fin de la précédente, même quand ses pages n'en
+  dépendent pas. Les dossiers confiés à opus, qui ne dépendent que des faits, partent souvent tard.
+- **Plusieurs pages par agent** : l'historique s'allonge à chaque page, donc le coût croît à peu près comme le
+  **carré** du nombre de pages. La règle mesurée est de 21 allers-retours par page, ce qui fait que l'estimation
+  actuelle est environ 10 fois trop basse.
+- **Le cache de prompt n'est pas vraiment partagé** : chaque agent commence par « lis le brief X », dont le nom
+  diffère d'un agent à l'autre, et le brief arrive comme résultat d'outil. Chaque agent repaie donc la partie
+  commune au plein tarif.
+- **Un seul agent de tri pour toutes les pages signalées** : son historique grossit avec chaque page.
+- **Opus partout pour la vérification des constats**, même les plus simples.
+- **Aucune API Batch**, alors que la traduction et le tri n'ont pas besoin d'outils. Le tarif Batch est 50 % moins
+  cher.
+- **Des appels à un modèle là où les faits suffisent** : `sync` sait déjà qu'une page est « probablement intacte »
+  et que ses preuves tiennent, mais la page repasse quand même par le tri.
+
+### Plan
+
+Économies estimées par rapport au coût actuel, à confirmer avec `doc-kit stats` (§ 6).
+
+| # | Action | Jetons | Temps |
+|---|---|---|---|
+| G1 | **Sauter sans IA ce qui n'a pas changé** : `sync --apply --auto-intact` marque les pages inchangées dont les preuves tiennent ; on ne traduit que les pages périmées ; pour une petite différence, on envoie seulement le diff et on modifie la page (`Edit`) au lieu de la réécrire | −40 à 70 % en maintenance | −50 % |
+| G2 | **Arrêter tôt** : si le tri dit « intact » partout, pas de vague de mise à jour. Le tri est découpé en lots de 5 pages au plus, sur haiku, en parallèle | coût du tri divisé | −60 % sur le tri |
+| G3 | **Une page par agent et `orchestration.maxParallel`** (8 à 10 par défaut) : des historiques courts, en parallèle | −20 à 35 % | −50 à 70 % par phase |
+| G4 | **Table de routage des modèles** `llm.routing` dans `doc.config.mjs`, lue par `brief.mjs` : | −30 à 50 % sur les phases opus ; traduction −60 à 70 % | — |
+|    | – **haiku** : tri, traduction (nouvel agent `doc-kit-translator`), glossaire, compléments des tableaux pré-remplis, pré-inventaire | | |
+|    | – **sonnet** : fonctionnalités, écrans, parcours, procédures, mises à jour, accès, maintenabilité, vérification des constats | | |
+|    | – **opus** seulement pour la synthèse de l'inventaire, la santé du code, la sécurité des pages sensibles (authentification, surface d'API, menaces) et un **échantillon de 20 %** des constats, plus tous les constats graves | | |
+| G5 | **Un vrai préfixe commun** : le brief est inséré directement dans la consigne de l'agent, partie commune d'abord, puis les variables, puis le contexte. Le cache sert enfin à toute la vague | −15 à 25 % en entrée | −10 % |
+| G6 | **Les vagues deviennent un graphe de dépendances** (`brief.mjs --plan` produit les dépendances) : les dossiers opus partent juste après les faits, chaque constat est vérifié dès que son lot est rendu, chaque page est traduite dès qu'elle est validée | 0 | −30 à 40 % de bout en bout |
+| G7 | **Paquets de contexte partagés** (`context --pack`) : un fichier commun à 10 pages n'est extrait qu'une fois, en tête, donc mis en cache | −10 à 20 % en entrée | — |
+| G8 | **Mode Batch** pour la traduction, le tri et l'échantillon de relecture (`translate --batch-export` / `--batch-import`, résultats en JSON) | **−50 % du prix** sur ces phases | hors du temps d'attente |
+| G9 | **Plus de génération sans IA** : `new --prefill` s'étend à la matrice des rôles, aux ressources, à la qualité des tests et à la carte du code. L'IA ne complète que les cellules à juger, sur haiku | −30 à 60 % sur ces pages | −40 % |
+| G10 | **Des estimations justes** : allers-retours × (préfixe au tarif du cache + croissance), calibrés sur `usage/`, avec le modèle de la table de routage. Écriture dans le cache comptée à 1,25×, lecture à 0,1× | — | — |
+| G11 | **Budgets par gabarit** : environ 8 000 jetons de contexte pour une mise à jour ou un tri, 16 000 pour une nouvelle page | −10 à 20 % | — |
+| G12 | **Jetons et modèle de chaque agent enregistrés** dans `usage/` par un hook Claude Code (§ 6, S3) : les gains ci-dessus deviennent mesurables | — | — |
+
+**Ce que chaque action demande :**
+- **Claude Code seul** (champ `model:` de chaque agent, plusieurs agents lancés en même temps) : G2 à G6.
+- **L'API Anthropic directement**, avec une clé : G8 (Batch) et le cache explicite d'une heure.
+- **Le kit seul, sans IA** : G1, G7, G9, G10, G11.
+
+**Ordre conseillé :** G12 et G1 + G2 (mesurer, puis supprimer le travail inutile), G3, G4 + G5, G6 et G9, puis G8 et
+G7, avec G10 tout au long.
 
 ## Sources
 

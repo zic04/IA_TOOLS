@@ -80,7 +80,8 @@ export async function run({ ctx, values }) {
   const written = {};
   for (const name of SOURCES) {
     if (!requested.includes(name)) continue;
-    let { items, extra } = await collect(name, appDir, ctx, config, values.network);
+    const end = ctx.timer?.start("facts", { sub: name });
+    let { items, extra } = await collect(name, appDir, ctx, config, values.network).finally(() => end?.());
     if (name === "dependencies" && values.network) items = await checkExistence(items, ctx.fetch);
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
@@ -92,7 +93,9 @@ export async function run({ ctx, values }) {
   if (values.tools) {
     // semgrep (ARCHITECTURE.md §6.13) only with a local rules folder (review.semgrep); never --config auto.
     const semgrepDir = config.review?.semgrep ? path.resolve(project.root, config.review.semgrep) : null;
+    const endTools = ctx.timer?.start("facts", { sub: "tools" });
     const results = runTools(appDir, ctx.exec, TOOL_NAMES);
+    endTools?.();
     if (semgrepDir) results.push(runTool("semgrep", appDir, ctx.exec, { semgrepConfig: semgrepDir }));
     tools = {};
     for (const r of results) {

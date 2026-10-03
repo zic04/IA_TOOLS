@@ -28,7 +28,7 @@ export const CAPTURES = [
     id: "orders-list",                 // images/orders-list.webp + images/zones/orders-list.json
     title: "Acme Orders › Commandes",  // écrit dans le fichier de zones
     route: "/orders",                  // relative à app.url
-    delay: 600,                        // attente après le chargement, en ms
+    delay: 600,                        // attente minimale après le chargement, en ms (par défaut : jusqu'à stabilité)
     frame: main,                       // ne garder que la zone principale
     zones: [
       union(field("Status"), field("Customer"), field("Date")),   // ① un repère sur trois champs
@@ -49,9 +49,9 @@ export const CAPTURES = [
 | `viewport` | `{ width, height }` | Taille pour cette capture seulement : `{ height: 2200 }` pour un panneau haut, `{ height: 150 }` pour un bandeau |
 | `view` | `{ lon, lat, zoom }` ou `{ x, y, z }` | Cadre une carte par les paramètres d'URL nommés dans `capture.map` |
 | `storage` | objet | Clés de `localStorage` posées avant l'ouverture de la page, en plus de `capture.storage` |
-| `delay` | ms · 2 500 | Attente après le chargement (7 000 pour une carte) |
+| `delay` | ms · 0 | Attente minimale après le chargement. Le kit attend déjà que la page soit stable : réseau calme, polices chargées, DOM immobile pendant 150 ms, animations finies. À n'indiquer que pour ce qu'il ne voit pas, comme une carte dessinée dans un canvas (3 000) |
 | `actions` | liste | Étapes jouées avant la capture ([Cibles et actions](#/capture/targets-actions)) |
-| `settle` | ms · 600 | Attente après les actions |
+| `settle` | ms · 0 | Attente minimale après les actions (la page est attendue jusqu'à être de nouveau stable) |
 | `frame` | une cible | L'élément dont la boîte devient l'image ; par défaut : toute la fenêtre |
 | `zones` | liste de cibles ou `{ union }` | Les éléments numérotés, dans l'ordre des pastilles ([Zones](#/capture/zones)) |
 | `masks` | liste de cibles | Éléments dont le texte est remplacé par des points ([Masquage](#/capture/masking)) |

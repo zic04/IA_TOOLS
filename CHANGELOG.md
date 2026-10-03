@@ -6,7 +6,28 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Added
+
+- **Production statistics** (ARCHITECTURE.md §6.14):
+  - each command appends its time, and the time of its parts, to `usage/<version>.jsonl` in the project;
+  - captures are measured part by part: navigation, wait, actions, masking, measure, shot, encoding, comparison;
+  - `facts` is measured source by source;
+  - `doc-kit stats` groups the lines by step, version, command, model, phase, page or actor, with `--since`,
+    `--csv` and `--json`;
+  - the global `--profile` option prints a run's timings;
+  - `init` writes the `usage/` folder, and an older project opts in by creating it.
+
+### Changed
+
+- **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
+  images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and
+  `settle` are now minimums, 0 by default; they were fixed waits of 2,500 and 600 ms. On the demo a capture takes
+  0.5–0.7 s instead of about 3.3 s.
+
 ### Security
+
+- A mask target that matches nothing stops its capture (`cli.capture.error.maskMissing`): what it should hide is
+  never shown. Masking also runs again just before the shot.
 
 Fixes from the audit of 2026-10-03 (AUDIT.md §3), each guarded by a test in `test/unit/security.test.mjs` so that it
 cannot come back (RULES.md).

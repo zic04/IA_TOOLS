@@ -109,6 +109,8 @@
   "cli.capture.error.unionHere": "{ union } is only allowed in a zone",
   "cli.capture.error.actionUnknown": "unknown action: {action}",
   "cli.capture.error.mask": "masking failed — {error}",
+  "cli.capture.error.maskMissing": "mask target not found: {target} — the capture is not taken, so that what it should hide is never shown",
+  "cli.capture.error.maskMissing.help": "fix the target in the plan (masks), or remove it if the element no longer exists",
   "cli.capture.error.challenge": "stopped by a bot challenge ({url}): sign in again with the adapter's browser option set to \"chrome\"",
   "cli.capture.error.generic": "{error}",
 

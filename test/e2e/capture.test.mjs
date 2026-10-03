@@ -262,6 +262,10 @@ describe("in the page", () => {
     assert.equal(await page.getAttribute("#b", "title"), DOTS);
     assert.equal(await page.textContent("span.secret"), DOTS);
     assert.equal(await page.textContent("button.secret"), DOTS);
+    // A mask target that finds nothing stops the capture: what it should hide would be shown otherwise.
+    await assert.rejects(maskPage(page, { source: maskSource([], { guid: false, patterns: [] }), masks: [{ css: ".gone" }] }), (e) => e.key === "maskMissing" && /\.gone/.test(e.vars.target));
+    // The second pass (just before the shot) tolerates a target already turned into dots.
+    await maskPage(page, { source: null, masks: [{ text: "Robin's personal note" }, { css: ".gone" }], required: false });
     await page.close();
   });
 

@@ -28,6 +28,7 @@ import { sensitiveValues, maskSource, maskPage } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
 import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
 import { forbiddenMatch } from "./plans.mjs";
+import { trackNetwork, waitForStable } from "./stable.mjs";
 import { checkSession, isSignInUrl, sessionStorageOf, browserLaunch } from "./session.mjs";
 
 export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
@@ -250,6 +251,8 @@ async function writePreview(page, clip, zones, file) {
  * @param {(entry: object) => string|null} [p.planHash]   hash of a plan entry, written to its zone file
  * @param {{ before: string, after: string }} [p.labels]  before/after sheet captions
  * @param {(event: object) => void} [p.onEvent]   { type: "ok", id, zones, bytes, ms, compared? } | { type: "failed", id, key, vars }
+ * @param {object} [p.timer]             engine/stats/usage.mjs createTimer(): each capture's parts are measured
+ *   (navigate, wait, actions, settle, mask, measure, shot, encode, compare, write) under step "capture"
  * @returns {Promise<{ ok: object[], failed: object[], blocked: string[], refused: string[], prefetched: string[],
  *   expired: object|null, who: string|null, compared: Array<{ id, ratio, changed }> }>}
  *   refused: navigations to forbidden routes (each one stopped its capture); prefetched: other requests to
@@ -278,6 +281,7 @@ export async function runCaptures({
   labels = { before: "Before", after: "After" },
   onEvent = () => {},
   launch = launchBrowser,
+  timer = null,
 }) {
   await registerSelectors();
   const cap = capture || config.capture;
@@ -309,6 +313,7 @@ export async function runCaptures({
   try {
     const encoder = await createWebpEncoder(browser);
     const pages = new Map();
+    const networks = new Map();
     async function pageFor(name) {
       if (pages.has(name)) return pages.get(name);
       const viewport = cap.viewports[name];
@@ -329,6 +334,7 @@ export async function runCaptures({
       if (guarded) await context.route("**/*", guard);
       if (cap.cookies.length) await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: appUrl })));
       const page = await context.newPage();
+      networks.set(page, trackNetwork(page));
       pages.set(name, page);
       return page;
     }
@@ -346,6 +352,19 @@ export async function runCaptures({
     async function takeOne(entry) {
       const name = entry.context || "desktop";
       const page = await pageFor(name);
+      const network = networks.get(page);
+      // One span per part of the capture (ETUDE-CAPTURES.md §6); the last one still open when an error is thrown
+      // is closed by the caller.
+      let open = null;
+      const part = (name) => {
+        open?.();
+        open = timer ? timer.start("capture", { sub: entry.id, part: name }) : null;
+      };
+      parts.close = () => {
+        open?.();
+        open = null;
+      };
+      part("navigate");
       current = { forbidden: null };
       const stop = () => new CaptureError("forbiddenHit", { path: current.forbidden });
       await page.setViewportSize({ ...cap.viewports[name], ...(entry.viewport || {}) });
@@ -381,7 +400,10 @@ export async function runCaptures({
       }
       await waitForChallenge(page);
       if (signedOut(page, response, entry)) throw new SessionExpired(page.url());
-      await page.waitForTimeout(entry.delay ?? 2500);
+      // On conditions (network quiet, fonts, DOM still, animations ended); `delay` is only a floor now.
+      part("wait");
+      await waitForStable(page, { network, min: entry.delay ?? 0 });
+      part("actions");
       for (const [i, a] of (entry.actions || []).entries()) {
         try {
           await play(page, a, sel);
@@ -391,7 +413,8 @@ export async function runCaptures({
           throw new CaptureError("action", { n: i + 1, kind: actionKind(a), error: firstLine(e) });
         }
       }
-      await page.waitForTimeout(entry.settle ?? 600);
+      part("settle");
+      if ((entry.actions || []).length || entry.settle) await waitForStable(page, { network, min: entry.settle ?? 0 });
       // A client-side navigation (history API) to a forbidden route: its payload was aborted, the page shown is
       // not the route of the plan.
       if (!current.forbidden && forbidden.length && onOrigin()) {
@@ -401,12 +424,9 @@ export async function runCaptures({
       if (current.forbidden) throw stop();
       if (signedOut(page, null, entry)) throw new SessionExpired(page.url());
 
-      try {
-        await maskPage(page, { source, masks: entry.masks || [], selectors: sel });
-      } catch (e) {
-        if (e instanceof CaptureError) throw e;
-        throw new CaptureError("mask", { error: firstLine(e) });
-      }
+      part("mask");
+      await mask(page, entry);
+      part("measure");
       let clip;
       try {
         clip = await frameClip(page, entry.frame, sel);
@@ -425,11 +445,18 @@ export async function runCaptures({
         }
         zones.push(measureZone(i + 1, box, clip, z));
       }
+      // Masked again just before the shot: the application may have rendered data again while the zones were
+      // being waited for (SECURITY.md, ETUDE-CAPTURES.md C7).
+      part("mask");
+      await mask(page, entry, { required: false });
+      part("shot");
       const png = await page.screenshot({ clip, animations: "disabled", caret: "hide" });
       if (preview && zones.length) await writePreview(page, clip, zones, path.join(previewDir, `${entry.id}.zones.png`));
+      part("encode");
       const webp = await encoder.encode(png, cap.webpQuality);
       const imageFile = path.join(imagesDir, `${entry.id}.webp`);
       let compared;
+      part(compare ? "compare" : "write");
       if (compare) {
         fs.mkdirSync(compareDir, { recursive: true });
         fs.writeFileSync(path.join(compareDir, `${entry.id}.webp`), webp);
@@ -455,7 +482,17 @@ export async function runCaptures({
         path.join(zonesDir, `${entry.id}.json`),
         JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry) }), null, 2) + "\n"
       );
+      parts.close();
       return { zones: zones.length, bytes: webp.length, ...(compared ? { compared } : {}) };
+    }
+    const parts = { close: () => {} };
+    async function mask(page, entry, { required = true } = {}) {
+      try {
+        await maskPage(page, { source, masks: entry.masks || [], selectors: sel, required });
+      } catch (e) {
+        if (e instanceof CaptureError) throw e;
+        throw new CaptureError("mask", { error: firstLine(e) });
+      }
     }
 
     for (const entry of entries) {
@@ -467,6 +504,7 @@ export async function runCaptures({
         if (r.compared) result.compared.push({ id: entry.id, ...r.compared });
         onEvent(event);
       } catch (e) {
+        parts.close();
         if (e instanceof SessionExpired) {
           result.expired = { id: entry.id, url: e.url };
           break;

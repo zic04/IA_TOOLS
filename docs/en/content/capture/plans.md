@@ -28,7 +28,7 @@ export const CAPTURES = [
     id: "orders-list",                 // images/orders-list.webp + images/zones/orders-list.json
     title: "Acme Orders › Orders",     // written in the zone file
     route: "/orders",                  // relative to app.url
-    delay: 600,                        // wait after loading, in ms
+    delay: 600,                        // minimum wait after loading, in ms (default: until stable)
     frame: main,                       // keep only the main area
     zones: [
       union(field("Status"), field("Customer"), field("Date")),   // ① one marker over three fields
@@ -49,9 +49,9 @@ export const CAPTURES = [
 | `viewport` | `{ width, height }` | Size for this capture only: `{ height: 2200 }` for a tall panel, `{ height: 150 }` for a strip |
 | `view` | `{ lon, lat, zoom }` or `{ x, y, z }` | Frames a map through the URL parameters named in `capture.map` |
 | `storage` | object | `localStorage` keys set before the page opens, on top of `capture.storage` |
-| `delay` | ms · 2,500 | Wait after loading (7,000 for a map) |
+| `delay` | ms · 0 | Minimum wait after loading. The kit already waits until the page is stable: network quiet, fonts loaded, DOM still for 150 ms, animations ended. Set it only for what it cannot see, such as a map drawn on a canvas (3,000) |
 | `actions` | list | Steps played before the screenshot ([Targets and actions](#/capture/targets-actions)) |
-| `settle` | ms · 600 | Wait after the actions |
+| `settle` | ms · 0 | Minimum wait after the actions (the page is waited for until stable again) |
 | `frame` | a target | The element whose box is the image; default: the whole viewport |
 | `zones` | list of targets or `{ union }` | The numbered elements, in the order of the markers ([Zones](#/capture/zones)) |
 | `masks` | list of targets | Elements whose text is replaced by dots ([Masking](#/capture/masking)) |

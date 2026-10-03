@@ -1,0 +1,8 @@
+{
+  "cli.profile.title": "Profil — {ms} ms au total (du plus long au plus court) :",
+  "cli.stats.off": "Les statistiques ne sont pas enregistrées pour ce projet : créez le dossier {folder}/ ({command} init l'écrit) et relancez les commandes ; chaque exécution ajoute alors ses temps à {folder}/<version>.jsonl.",
+  "cli.stats.empty": "Pas encore de statistiques : lancez capture, facts, build ou sync, puis revenez.",
+  "cli.stats.total": "{time} mesurés en {runs} exécutions · {tokens} jetons",
+  "cli.stats.header": "par {by} — temps, part, nombre",
+  "cli.help.stats": "Usage : {command} stats [--by step|version|command|model|phase|page|actor] [--since <version>] [--csv] [--json]\n\nAffiche les statistiques de production du projet, lues dans usage/<version>.jsonl : le temps passé dans chaque bloc (préparation, faits et chaque source, captures et chaque étape — navigation, actions, attente, masquage, prise de vue, encodage, comparaison —, génération, traduction, mise à jour, build, contrôles), les jetons et modèles des agents, par version de l'application. Chaque commande y ajoute ses temps quand le projet a un dossier usage/ (DOC_KIT_STATS=0 le désactive).\n\n  --by       regroupement (par défaut : step ; les étapes de chaque bloc sont listées dessous)\n  --since    seulement les versions à partir de celle-ci\n  --csv      toutes les lignes en CSV, pour un tableur\n  --json     les totaux en JSON\n\nToute commande affiche ses propres temps avec --profile."
+}
