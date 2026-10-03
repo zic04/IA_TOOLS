@@ -135,6 +135,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **The generated site has a Content Security Policy** (AUDIT.md S9). Pages may hold HTML and diagrams are inlined
+  unsanitised; the site now tells the browser to run only its own inline scripts, each allowed by its SHA-256 hash,
+  and to load only embedded images and fonts, with no request, frame or form. A script, an inline event handler, a
+  `javascript:` link, an iframe or an external image written in a page no longer runs or loads; a page that relied
+  on an embedded iframe or an external image must embed it differently. `doc-kit dev` allows its live-reload client.
+
 - **`check secrets` reads more** (AUDIT.md S11): the attribute values of the site's HTML (`href`, `title`, `alt`,
   `data-*`…), which it used to drop with the tags; the translations folder; and the zone files of every language
   (`<images>/<lang>/zones`), not only the source's.

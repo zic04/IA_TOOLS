@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "../build/build.mjs";
 import { CONFIG_FILE } from "../project/find.mjs";
+import { withContentSecurityPolicy } from "../build/csp.mjs";
 
 const CLIENT = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "client.js"), "utf8");
 const EVENTS_PATH = "/__doc-kit/events";
@@ -24,7 +25,9 @@ export function injectClient(html, settings) {
   const json = JSON.stringify(settings).replace(/</g, "\\u003c");
   const tag = `<script id="doc-kit-dev">window.__DOC_KIT_DEV__=${json};\n${CLIENT}</script>`;
   const i = html.lastIndexOf("</body>");
-  return i < 0 ? html + tag : html.slice(0, i) + tag + "\n" + html.slice(i);
+  const page = i < 0 ? html + tag : html.slice(0, i) + tag + "\n" + html.slice(i);
+  // The client is one more inline script, and it talks to this server: the policy is computed again.
+  return withContentSecurityPolicy(page, { dev: true });
 }
 
 /** Folders and files that trigger a rebuild, relative to the project, from the configuration. */

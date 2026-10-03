@@ -17,6 +17,7 @@
 // without `languages` (the marker then resolves to ""); a template without the marker at all is unaffected (the
 // replacement loop only ever acts on markers it finds in the template text).
 import { esc } from "./text.mjs";
+import { withContentSecurityPolicy } from "./csp.mjs";
 
 /**
  * Dates and versions of the screenshots used by the pages: { id: { captured?, version? } }, or null when no
@@ -75,10 +76,12 @@ export function assemble({ template, app, markers, t, icon, data, themeKey, text
     LANGUAGE_DATA: languageData,
     APP: app.replace(/__THEME_KEY__/g, () => themeKey),
   };
-  return template.replace(/\{\{(t:[\w.]+|ICON:[\w-]+|[A-Z_]+)\}\}/g, (m, key) => {
+  const html = template.replace(/\{\{(t:[\w.]+|ICON:[\w-]+|[A-Z_]+)\}\}/g, (m, key) => {
     if (key.startsWith("t:")) return esc(t(key.slice(2), textVars));
     if (key.startsWith("ICON:")) return icon(key.slice(5));
     if (!(key in values)) throw new Error(`unknown template marker: ${m}`);
     return values[key];
   });
+  // What the browser may run (AUDIT.md S9): computed on the final HTML, since the scripts' hashes depend on it.
+  return withContentSecurityPolicy(html);
 }

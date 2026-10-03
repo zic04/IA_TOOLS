@@ -59,7 +59,8 @@ mise à jour ou build** de l'application.
 | M5 i18n du skill | **Corrigé** : les messages des scripts du skill sont dans `skill/doc-kit/i18n/{en,fr}.json` (une section commune, une par script), installés avec le skill ; `consolidation.mjs`, qui n'écrivait qu'en anglais, est traduit (33 messages) | `skill.test.mjs` › parité, clés utilisées, sortie en français |
 | S10 Fichier de session | **Corrigé** : créé en 0600 dès le premier octet (fichier temporaire puis renommage) ; la limite de Windows et le cas d'un fichier hors de `.doc-kit/` sont écrits dans SECURITY.md | `capture.test.mjs` › fichier de session |
 | S11 `check secrets` incomplet | **Corrigé** : il lit aussi les valeurs des attributs HTML du site (`href`, `title`, `data-*`…), le dossier des traductions et les fichiers de zones de chaque langue | `checks.test.mjs` › attribut, page traduite, zones traduites ; ReDoS |
-| S9, S13 ; M6, M8, M12 à M14 | Ouverts | — |
+| S9 Pas de CSP | **Corrigé** : le site porte une politique (`<meta>`) calculée sur le HTML final : scripts du site seuls, par empreinte SHA-256 ; images et polices embarquées ; aucune requête, frame, formulaire ni `<base>`. `doc-kit dev` ajoute l'empreinte de son client et `connect-src 'self'` | `csp.test.mjs` ; e2e `site.test.mjs` › script injecté refusé, aucune violation pendant la navigation |
+| S13 ; M6, M8, M12 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

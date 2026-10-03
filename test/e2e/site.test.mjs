@@ -35,6 +35,10 @@ async function open(hash = "", { language = "en", colorScheme = "light", width =
   const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme });
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
+  // The site's own Content Security Policy must never refuse anything the site does (AUDIT.md S9).
+  page.on("console", (m) => {
+    if (m.type() === "error" && /Content Security Policy/i.test(m.text())) errors.push(m.text());
+  });
   await page.goto(pathToFileURL(files[language]).href + (hash ? "#/" + hash : ""));
   return page;
 }
@@ -56,6 +60,36 @@ async function hover(page, sel) {
   await page.waitForTimeout(250);
   await el.hover();
 }
+
+describe("content security policy (AUDIT.md S9)", () => {
+  test("a script slipped into the content does not run: inline handler, inline script, javascript: link", async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const refused = [];
+    page.on("console", (m) => /Content Security Policy/i.test(m.text()) && refused.push(m.text()));
+    await page.goto(pathToFileURL(files.en).href);
+    assert.match(
+      await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content"),
+      /script-src 'sha256-/,
+    );
+    // What an unsanitised Markdown page or SVG diagram could hold, put into the page the way the site renders HTML.
+    await page.evaluate(() => {
+      const main = document.getElementById("contenu-principal");
+      main.insertAdjacentHTML(
+        "beforeend",
+        '<img src="x:" onerror="window.__pwned = 1"><a id="js" href="javascript:window.__pwned=2">x</a>',
+      );
+      const s = document.createElement("script");
+      s.textContent = "window.__pwned = 3";
+      main.appendChild(s);
+    });
+    await page.locator("#js").click();
+    await page.waitForTimeout(200);
+    assert.equal(await page.evaluate(() => window.__pwned), undefined);
+    assert.ok(refused.length >= 2, refused.join("\n"));
+    await context.close();
+  });
+});
 
 describe("navigation", () => {
   test("home, section, page, sub-page, anchor, unknown page", async () => {
