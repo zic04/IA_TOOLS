@@ -93,8 +93,24 @@ like the skill.
 - `node scripts/consolidation.mjs init --project <docDir> --codes a,b,c` creates the consolidation file;
   `node scripts/consolidation.mjs duplicates --project <docDir>` lists candidates citing the same `file:line`, and
   existing findings already citing them.
-- Launch an agent of the type the brief names with: "Read `<brief>` and carry it out in full." Placeholders and
-  waves: `references/agent-orchestration.md`.
+- **Launch** an agent of the type the brief names, **on the model `brief.mjs` prints**. Give it the brief's full
+  text as its prompt, not a request to read the file. Every brief puts its common part first, so the agents of a
+  wave start with the same bytes, and all but the first read that part from the prompt cache. "Read `<brief>`"
+  would make each agent pay for it again as a tool result.
+- **Launch every agent of a wave in the same message** (parallel), with one page per agent for writing and
+  updates, and up to 8 at a time. A short history per agent costs far less than one agent working through a
+  list.
+- **Models** (`DEFAULT_ROUTING` in `scripts/common.mjs`, overridden per brief by `llm.routing` in `doc.config.mjs`):
+
+  | Model | Briefs |
+  |---|---|
+  | `haiku` | `triage`, `translate` |
+  | `sonnet` | the writing briefs, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
+  | `opus` | `inventory`, `code-health`, `security-review`, `production-technical` |
+
+  Pass the model to the agent launch: it overrides the agent type's own model. A high-severity finding may still
+  be verified on `opus`, one agent per finding.
+- Placeholders and waves: `references/agent-orchestration.md`.
 
 ## The phases
 

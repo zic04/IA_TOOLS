@@ -87,12 +87,16 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 **Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
 `brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
 inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief (ARCHITECTURE.md §6.11, "Economy of the
-agents"). Typical message:
+agents"). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
+prompt is **the brief's full text**, with its common part first and its variables last, followed by one line:
 
 ```
-Read <docDir>/.doc-kit/brief-writing-batch-u1.md and carry it out in full.
+<the content of <docDir>/.doc-kit/brief-writing-batch-u1.md>
 Your final report follows the format asked at the end of the brief.
 ```
+
+Every agent of a wave then starts with the same bytes, which the prompt cache serves to all but the first. Asking
+the agent to read the file instead makes each one pay for the brief again, as a tool result.
 
 **Economy**: before launching a wave, `node scripts/brief.mjs <template> --project <docDir> --var …… --estimate`
 for each of its briefs gives input and output tokens and the cost (`llm.prices` in `doc.config.mjs`); after each

@@ -27,6 +27,12 @@ entries between a project's `kit` range and the installed version.
   `.claude/settings.json`. Each AI agent's tokens (input, output, cache), model and time are then appended to
   `usage/` automatically. The settings already in the file are kept, and the hook is never added twice.
 - `llm.prices.<model>.cacheWrite` (default 1.25 × input); `cacheRead` defaults to 0.1 × input.
+- **Model routing per brief**: `llm.routing` in `doc.config.mjs` overrides the skill's `DEFAULT_ROUTING`
+  (`haiku`: `triage`, `translate`; `sonnet`: the writing briefs, `findings-verification`,
+  `maintainability-review`; `opus`: `inventory`, `code-health`, `security-review`, `production-technical`).
+  `brief.mjs` prints the model to launch with, and `--estimate` prices with it.
+- **A shared prompt cache per wave**: an agent is launched with the brief's full text as its prompt, common part
+  first, instead of "Read <brief>". Every agent of a wave after the first reads that part from the cache.
 - **`sync --apply --auto-intact`** marks the pages whose only changes are probably intact without any agent. The
   skill's update cycle uses it, and then works only on the pages still flagged:
   - it stops when none is left;

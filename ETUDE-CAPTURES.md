@@ -38,6 +38,8 @@ conception des statistiques de temps, de jetons et de modèles demandée, puis l
 | S5 : page « Coût de la documentation » (`::usage`, gabarit `documentation-cost`), avec le nombre d'agents et les modèles utilisés | **Fait** |
 | G1 : pages probablement intactes marquées sans agent (`sync --apply --auto-intact`) | **Fait** |
 | G2, G3 : on s'arrête quand plus aucune page n'est signalée ; tri par lots de 5 pages au plus ; une page par agent de mise à jour, en parallèle (consignes du skill) | **Fait** |
+| G4 : table de routage des modèles (`DEFAULT_ROUTING`, `llm.routing`) : traduction et tri sur haiku, opus réservé à l'inventaire, à la santé du code, à la sécurité et au dossier de production | **Fait** |
+| G5 : brief transmis en entier comme consigne, partie commune d'abord : cache partagé par la vague | **Fait** |
 | G8 : API Batch | **Écarté** (pas de clé API) |
 | Le reste des § 5, 6 et 7 | À faire |
 

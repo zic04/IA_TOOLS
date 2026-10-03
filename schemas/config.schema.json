@@ -307,9 +307,10 @@
       "type": "object",
       "additionalProperties": false,
       "default": {},
-      "description": "Prices per million tokens, by model (ARCHITECTURE.md §6.11), read by `sync --estimate`. No default value: prices change and differ by contract.",
+      "description": "Prices per million tokens, by model (ARCHITECTURE.md §6.11), read by `sync --estimate`. No default value: prices change and differ by contract. `routing`: the model of each brief (§6.11), over the kit's defaults.",
       "properties": {
         "currency": { "type": ["string", "null"], "default": null },
+        "routing": { "type": "object", "default": {}, "additionalProperties": { "type": "string", "minLength": 1 } },
         "prices": {
           "type": "object",
           "default": {},

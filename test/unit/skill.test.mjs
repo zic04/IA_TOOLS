@@ -184,7 +184,7 @@ describe("brief.mjs", () => {
       assert.doesNotMatch(vars.err, /appDir n'est pas configuré/);
       const r = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=configure/x"], app);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer : « Lis .* et exécute-le en entier\. »\n$/);
+      assert.match(r.out, /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt\)\n$/);
       const text = fs.readFileSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md"), "utf8");
       assert.match(text, /^agent: doc-kit-writer\n/m);
       assert.match(text, /\*\*AUCUNE CAPTURE DU TOUT\*\* \(`capture\.mode: "none"`/);
@@ -335,13 +335,26 @@ describe("brief.mjs --estimate", () => {
 });
 
 describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
+  test("model routing (G4): the brief's default model, then llm.routing; the estimate and the launch line name it", async () => {
+    const { briefModel, DEFAULT_ROUTING } = await import("../../skill/doc-kit/scripts/common.mjs");
+    assert.equal(briefModel("translate", "doc-kit-writer"), "haiku");
+    assert.equal(briefModel("triage", "doc-kit-triage"), "haiku");
+    assert.equal(briefModel("findings-verification", "doc-kit-reviewer"), "sonnet");
+    assert.equal(briefModel("security-review", "doc-kit-reviewer"), "opus");
+    assert.equal(briefModel("writing-batch", "doc-kit-writer"), "sonnet", "not routed: the agent type's model");
+    assert.equal(briefModel("translate", "doc-kit-writer", { llm: { routing: { translate: "sonnet" } } }), "sonnet");
+    assert.ok(Object.isFrozen(DEFAULT_ROUTING));
+  });
+
   test("accepted with prices per model, currency optional; rejected without output, or with an unknown key", () => {
     const base = { product: { name: "Acme Orders" } };
     const ok = prepareConfig({ ...base, llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } } }, { env: {} });
-    assert.deepEqual(ok.llm, { currency: "EUR", prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } });
+    assert.deepEqual(ok.llm, { currency: "EUR", routing: {}, prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } });
     const noCurrency = prepareConfig({ ...base, llm: { prices: { opus: { input: 15, output: 75 } } } }, { env: {} });
     assert.equal(noCurrency.llm.currency, null, "no default currency");
-    assert.deepEqual(prepareConfig(base, { env: {} }).llm, { currency: null, prices: {} }, "no price by default: prices change and differ by contract");
+    assert.deepEqual(prepareConfig(base, { env: {} }).llm, { currency: null, routing: {}, prices: {} }, "no price by default: prices change and differ by contract");
+    assert.deepEqual(prepareConfig({ ...base, llm: { routing: { translate: "sonnet" } } }, { env: {} }).llm.routing, { translate: "sonnet" });
+    assert.throws(() => prepareConfig({ ...base, llm: { routing: { translate: "" } } }, { env: {} }), /KitError|invalid/i, "an empty model name");
     assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: 3 } } } }, { env: {} }), /KitError|invalid/i, "output is required");
     assert.throws(() => prepareConfig({ ...base, llm: { bogus: 1 } }, { env: {} }), /KitError|invalid/i, "no unknown key");
     assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: -1, output: 1 } } } }, { env: {} }), /KitError|invalid/i, "no negative price");

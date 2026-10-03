@@ -792,6 +792,17 @@ When the application changes, `doc-kit sync` says exactly what the documentation
 
 The kit calls no LLM. The skill drives Claude Code agents; the kit makes them read less, run on the right model, share their prompt cache, and it estimates and measures what they consume.
 
+**Model routing**: each brief runs on its own model, chosen in this order:
+1. `llm.routing` in `doc.config.mjs` (`{ "<brief>": "<model>" }`);
+2. the skill's `DEFAULT_ROUTING` (`skill/doc-kit/scripts/common.mjs`): `haiku` for `triage` and `translate`;
+   `sonnet` for `findings-verification`, `maintainability-review` and `page-corrections`; `opus` for `inventory`,
+   `code-health`, `security-review` and `production-technical`;
+3. the model of its agent type (`agents/<type>.md`).
+
+`brief.mjs` prints that model, and `--estimate` prices with it. The orchestrator passes it when it launches the
+agent, with the brief's full text as the prompt. The common part comes first, so a wave shares its prompt cache.
+The agents of a wave are launched together, one page per agent for writing and updates, up to 8 at a time.
+
 **`doc-kit context <page…> [--budget <tokens>] [--update]`** writes `.doc-kit/context/<page id, "/" → "__">.md` (one file per page; `buildContext` in `engine/context/context.mjs` is pure and returns the text, the CLI writes it), the only reading an agent needs to write or update that page. A page unknown to the table of contents: `context.unknownPage`, exit code 2 (a declared page not written yet is accepted: the context serves to write it). Contents, in this order, in the site's language:
 1. the page: id, title, template, space, summary, routes, permissions, the path of its Markdown file; the id, title and summary of its `counterpart`; the header also gives the product (`product.name`) and the documented version (`readProjectVersion`, `engine/build/build.mjs`), when the caller passes them — the CLI always does;
 2. the required sections of its template (`standard/templates.json`, §6.4), in the site's language;
