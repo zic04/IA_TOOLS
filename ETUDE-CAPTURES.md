@@ -39,6 +39,7 @@ conception des statistiques de temps, de jetons et de modèles demandée, puis l
 | G1 : pages probablement intactes marquées sans agent (`sync --apply --auto-intact`) | **Fait** |
 | G2, G3 : on s'arrête quand plus aucune page n'est signalée ; tri par lots de 5 pages au plus ; une page par agent de mise à jour, en parallèle (consignes du skill) | **Fait** |
 | A2 : captures en parallèle (`capture.concurrency`, 4 par défaut, 1 en production) | **Fait** : 12 captures en 2,9 s au lieu de 7,3 s une par une, et d'environ 40 s avant les attentes sur condition |
+| B3 : images ×2 pour les écrans Retina (`capture.scale: 2`, 1 par défaut pour le poids) | **Fait** |
 | B1 : moteur de rendu figé (image Docker Playwright) | **Documenté** dans le standard (commande prête) ; pas encore de `capture --docker` intégré |
 | B2 : horloge figée (`capture.clock`), mouvements réduits | **Fait** |
 | C3 : trace Playwright des captures en échec (`capture --trace`) | **Fait** |

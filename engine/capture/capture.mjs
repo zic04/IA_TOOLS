@@ -164,13 +164,16 @@ export function storageValues(storage, version) {
  * plan entry, ARCHITECTURE.md §6.10) are omitted when absent, so that a run without `sync` support keeps
  * writing the same shape as before (test parity, byte-identical files).
  */
-export function zoneFile({ entry, clip, zones, version, captured, commit = null, plan = null }) {
+export function zoneFile({ entry, clip, zones, version, captured, commit = null, plan = null, scale = 1 }) {
   return {
     file: `${entry.id}.webp`,
     title: entry.title || "",
     route: entry.route,
     width: Math.round(clip.width),
     height: Math.round(clip.height),
+    // The image holds scale × width pixels (capture.scale, for high-density screens); width and height stay
+    // the size it is shown at.
+    ...(scale > 1 ? { scale } : {}),
     version,
     captured,
     zones,
@@ -347,7 +350,7 @@ export async function runCaptures({
       const mobile = name === "mobile";
       const context = await browser.newContext({
         viewport,
-        deviceScaleFactor: 1,
+        deviceScaleFactor: cap.scale ?? 1,
         locale: cap.locale,
         timezoneId: cap.timezone,
         colorScheme: "light",
@@ -516,7 +519,7 @@ export async function runCaptures({
       }
       fs.writeFileSync(
         path.join(zonesDir, `${entry.id}.json`),
-        JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry) }), null, 2) + "\n"
+        JSON.stringify(zoneFile({ entry, clip, zones, version, captured: date, commit, plan: planHash(entry), scale: cap.scale ?? 1 }), null, 2) + "\n"
       );
       w.span.close();
       if (trace) await w.tracing.stop(null);

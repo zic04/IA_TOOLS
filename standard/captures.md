@@ -86,6 +86,7 @@ Declared or not, every run that uses a session prints the outcome before the cap
 | A fixed date | "Today", relative dates and countdowns do not change the image from one run to the next | `capture.clock: "2026-01-15T09:00:00Z"` in the configuration |
 | The same pixels everywhere | Fonts and anti-aliasing differ from one system to another (4 to 14 % of the pixels on the demo) | Take the committed images in one pinned renderer: `docker run --rm --network host -v "$PWD:/w" -w /w mcr.microsoft.com/playwright:v1.60.0-noble npx doc-kit capture --compare` (Linux; the Playwright version of the kit) |
 | A failure explained | A capture that fails shows why, step by step | `doc-kit capture --trace`, then `npx playwright show-trace .doc-kit/traces/<id>.zip` |
+| Sharp on every screen | A capture taken at density 1 is blurred on a Retina screen | `capture.scale: 2` (images about 2.3 times heavier) |
 | Light images | The site is a single file | `doc-kit optimize` recompresses images above 200 KB |
 
 For example, in a capture plan of Acme Orders, the customer and the order date sit on the same row and get a single marker:

@@ -134,6 +134,7 @@
         "setup": { "type": ["string", "null"], "default": null },
         "locale": { "type": ["string", "null"], "default": null },
         "timezone": { "type": "string", "minLength": 1, "default": "UTC" },
+        "scale": { "enum": [1, 2], "default": 1, "description": "Pixel density of the captures: 2 for images that stay sharp on high-density (Retina) screens, about 2.3 times heavier." },
         "concurrency": { "type": "integer", "minimum": 1, "maximum": 16, "default": 4, "description": "Captures taken at the same time, each in its own browser context (production: always 1)." },
         "clock": { "type": ["string", "null"], "default": null, "description": "A fixed date and time for every capture (ISO, e.g. 2026-01-15T09:00:00Z): \"today\", relative dates and countdowns are the same on every run. null: the real clock." },
         "viewports": {

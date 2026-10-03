@@ -206,7 +206,7 @@ describe("capture", () => {
     }
   });
 
-  test("capture.clock fixes the page's date; --trace keeps the Playwright trace of a failed capture only", async () => {
+  test("capture.clock fixes the page's date; capture.scale 2 doubles the pixels, not the size; --trace keeps the trace of a failed capture only", async () => {
     const other = demoCopy();
     try {
       fs.rmSync(path.join(other, "captures", "plans"), { recursive: true, force: true });
@@ -220,7 +220,7 @@ describe("capture", () => {
         ];`
       );
       const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
-      config.capture = { ...config.capture, plans: "captures/plans", clock: "2026-01-15T09:00:00Z" };
+      config.capture = { ...config.capture, plans: "captures/plans", clock: "2026-01-15T09:00:00Z", scale: 2 };
       fs.writeFileSync(path.join(other, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
       fs.mkdirSync(path.join(other, ".doc-kit"), { recursive: true });
       fs.copyFileSync(path.join(dir, ".doc-kit", "session.json"), path.join(other, ".doc-kit", "session.json"));
@@ -231,6 +231,9 @@ describe("capture", () => {
       const traces = path.join(other, ".doc-kit", "traces");
       assert.deepEqual(fs.readdirSync(traces), ["broken.zip"], "only the failed capture leaves a trace");
       assert.ok(fs.statSync(path.join(traces, "broken.zip")).size > 1000);
+      const z = JSON.parse(fs.readFileSync(path.join(other, "images", "zones", "dated.json"), "utf8"));
+      assert.equal(z.scale, 2);
+      assert.deepEqual(webpSize(fs.readFileSync(path.join(other, "images", "dated.webp"))), { width: z.width * 2, height: z.height * 2 });
     } finally {
       fs.rmSync(other, { recursive: true, force: true });
     }

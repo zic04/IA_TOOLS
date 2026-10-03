@@ -42,6 +42,9 @@ entries between a project's `kit` range and the installed version.
 - **Parallel captures**: `capture.concurrency` (default 4, production always 1). Each capture runs in its own
   browser context, and events and results stay in plan order. On the demo, 12 captures take 2.9 s instead of
   7.3 s one at a time, and about 40 s before the condition-based waits.
+- **`capture.scale: 2`**: captures stay sharp on high-density (Retina) screens. The image holds twice the pixels;
+  the zone file keeps the size it is shown at and records `scale`; the viewer shows it at that size. Images are
+  about 2.3 times heavier, so the default stays 1.
 - **`capture.clock`**: a fixed date and time for every capture, so that "today" and relative dates stay the same
   from run to run.
 - **`capture --trace`**: a failed capture leaves its Playwright trace in `.doc-kit/traces/<id>.zip`, and the

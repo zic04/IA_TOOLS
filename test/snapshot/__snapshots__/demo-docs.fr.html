@@ -3196,7 +3196,10 @@ tr.usage-part td:first-child {
     const zones = $$(".ecran-cadre > .zone", fig)
       .map((z) => z.outerHTML)
       .join("");
-    scene.innerHTML = `<div class="vis-image"><img alt="${esc(fig.dataset.titre || "")}" src="${imageSrc(img.dataset.img)}">${zones}<div class="projecteur" hidden></div><div class="vis-carte" hidden></div></div>`;
+    // The CSS size of the capture (its zone file), not the image's own pixels: a capture taken at capture.scale 2
+    // stays sharp at the same size on a high-density screen.
+    const size = img.getAttribute("width") ? ` width="${esc(img.getAttribute("width"))}" height="${esc(img.getAttribute("height") || "")}"` : "";
+    scene.innerHTML = `<div class="vis-image"><img alt="${esc(fig.dataset.titre || "")}" src="${imageSrc(img.dataset.img)}"${size}>${zones}<div class="projecteur" hidden></div><div class="vis-carte" hidden></div></div>`;
     viewer.classList.add("ouverte");
     document.body.style.overflow = "hidden";
     hideBubble();
