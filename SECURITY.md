@@ -103,6 +103,17 @@ Limits: `facts --tools` runs third-party tools on the folder. **knip loads the a
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
 `.git/config` handed over with an application before running anything on it.
 
+### Files for the next AI (`pack`)
+
+`doc-kit pack` writes `llms.txt`, `llms-full.txt`, `AGENTS.md` and `CLAUDE.md` in the documentation project, never
+in the application. From the application it reads only the facts files and the `scripts` of its `package.json`
+files, parsed as JSON and never run. `AGENTS.md` names environment variables, never their values. Every file goes
+through the secret detectors of `check secrets`: a line where one fires is replaced by a notice and reported (exit
+code 1), so a secret pasted in a page never reaches the pack.
+
+Limits: the detectors are patterns. A secret they do not recognise (a short password, a token of an unknown
+shape) passes. Review the files before handing them to an agent, and `AGENTS.md` before committing it.
+
 ### Network
 
 The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on

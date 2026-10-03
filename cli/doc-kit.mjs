@@ -141,6 +141,7 @@ const STEP_OF = Object.freeze({
   changes: "update",
   build: "build",
   optimize: "build",
+  pack: "build",
   check: "check",
   audit: "audit",
 });

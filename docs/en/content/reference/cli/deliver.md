@@ -17,6 +17,26 @@ depends on it, `EXPORT.json`, a "Standalone copy" section in `README.md`, and th
 `version.fallback`. Every configuration path that points outside the project is reported. See
 [Export and hand over](#/publish/export).
 
+## doc-kit pack
+
+```text
+doc-kit pack [--output <dir>]
+```
+
+Writes the files the next AI working on the application needs, in the documentation project (default: the folder
+of the built site), never in the application:
+
+| File | What it holds |
+|---|---|
+| `llms.txt` | The outline of the documentation ([llmstxt.org](https://llmstxt.org)): one link per page, with its summary |
+| `llms-full.txt` | Every page as Markdown, in reading order, without the writers' guidance comments |
+| `AGENTS.md` | The application from the facts: stack (as `::c4` sees it), the `scripts` of its `package.json` files (read, never run), environment variable **names**, tables, API routes, tests, tooling, the main risks and hotspots, the agent instructions it already has. Lists stop after 40 lines |
+| `CLAUDE.md` | `@AGENTS.md`: Claude Code reads `CLAUDE.md`, other agents `AGENTS.md` |
+
+Every file goes through the secret detectors of `doc-kit check secrets`. A line where one fires is replaced by a
+notice and reported, and the command exits with code 1: fix the source (a page, a facts file) and run it again.
+Review `AGENTS.md` before copying it into the application's repository.
+
 ## doc-kit upgrade
 
 ```text

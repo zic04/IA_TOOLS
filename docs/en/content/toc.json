@@ -148,7 +148,7 @@
             { "id": "reference/cli", "title": "Command line", "menuTitle": "Command line", "summary": "Global options, exit codes, message format, and the list of commands.", "template": "technical" },
             { "id": "reference/cli/start-capture", "title": "Commands: start and capture", "menuTitle": "Start and capture", "level": 2, "summary": "init, doctor, connect, probe, demo, capture and inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commands: write and check", "menuTitle": "Write and check", "level": 2, "summary": "dev, new, build, view, open, check, audit and optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, upgrade, migrate, skill install and translate.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, pack, upgrade, migrate, skill install and translate.", "template": "technical-sub" }
           ]
         },
         {

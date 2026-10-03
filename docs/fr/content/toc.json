@@ -148,7 +148,7 @@
             { "id": "reference/cli", "title": "La ligne de commande", "menuTitle": "Ligne de commande", "summary": "Options globales, codes de sortie, forme des messages, et la liste des commandes.", "template": "technical" },
             { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, probe, demo, capture et inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commandes : rédiger et vérifier", "menuTitle": "Rédiger et vérifier", "level": 2, "summary": "dev, new, build, view, open, check, audit et optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, upgrade, migrate, skill install et translate.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, pack, upgrade, migrate, skill install et translate.", "template": "technical-sub" }
           ]
         },
         {

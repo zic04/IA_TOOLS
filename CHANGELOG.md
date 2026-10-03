@@ -18,6 +18,12 @@ entries between a project's `kit` range and the installed version.
   The `code-map` and `maintainability-review` page templates use them instead of raw `::facts` tables and of a
   hand-drawn context diagram.
 
+- **`doc-kit pack`**: the files the next AI working on the application needs, written in the documentation project:
+  `llms.txt` (the outline of the documentation), `llms-full.txt` (all of it as Markdown, without the guidance
+  comments), `AGENTS.md` (the application from the facts: stack, commands, environment variable names, data, API,
+  tests, tooling, risks, hotspots, existing agent instructions) and `CLAUDE.md` (`@AGENTS.md`). A line where a
+  secret detector fires is removed and reported (exit code 1).
+
 ### Fixed
 
 - `facts --source security`: the `code.eval` rule reported every `pattern.exec(text)` of JavaScript (a regular

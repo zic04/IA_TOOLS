@@ -1021,6 +1021,26 @@ is a normal browser without the read-only guard. The `codegen` context seam repl
   warning and a short note. Cost uses `llm.prices`: `cacheRead` defaults to 0.1 × input and `cacheWrite` to
   1.25 × input. The `documentation-cost` page template lays these tables out.
 
+### 6.17 Files for the next AI (`pack`)
+
+**`doc-kit pack [--output <dir>]`** (`cli/commands/pack.mjs`, `engine/pack/pack.mjs`) writes four files in the
+documentation project, by default in the folder of the built site (`config.output`), never in the application:
+
+- `llms.txt` ([llmstxt.org](https://llmstxt.org)): `# title`, `> tagline`, one `## section` per section, one link
+  per page (`<site file>#/<id>`) with its summary;
+- `llms-full.txt`: the Markdown of every page in reading order (home page, then for each section its introduction
+  when the file exists and its pages), under `# title (#/id)`, without HTML comments (the writers' guidance);
+- `AGENTS.md`, in the project's language: one section per subject that has facts: stack (the `::c4` model),
+  commands (the `scripts` of the `package.json` of the application root and of each container, read, never run),
+  environment variables (names and where they are read), tables, API routes (method, route, file:line,
+  authentication), tests, tooling, the main risks (`::health`), the ten main hotspots, the agent instructions
+  already in the application (`facts/agents.json`). A list stops after 40 lines, with a line giving how many more;
+- `CLAUDE.md`: `@AGENTS.md`.
+
+Every file goes through `scanText` with the project's detectors and ignore rules (`engine/check/secrets.mjs`): a
+line where one fires is replaced by `cli.pack.removed` and reported (`cli.pack.secret`); the command still writes
+the files and exits with code 1. No table of contents: `pack.noToc` (exit code 2).
+
 ## 7. Standard and page templates
 
 `standard/` is the quality standard. Every document exists in English (`.md`) and in French (`.fr.md`):
