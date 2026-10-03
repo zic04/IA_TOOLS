@@ -36,7 +36,7 @@ describe(":::rule container (and :::regle)", () => {
       anchor: "br-12",
     });
     // In the page outline: a heading niveau 3 with that id.
-    assert.ok(r.toc.some((x) => x.id === "br-12" && x.niveau === 3));
+    assert.ok(r.toc.some((x) => x.id === "br-12" && x.level === 3));
     // In the search index (search.mjs splits on <h[23] id="…">, exactly like a real heading).
     const index = indexPage([], "use/rules", "Rules", r.html);
     assert.ok(
@@ -189,8 +189,8 @@ describe("resolveBusinessRefs (second pass, once every page has rendered)", () =
 
   test("a rule cited on a page object that sits before its own definition in `pages` still resolves (object order is irrelevant: the pass runs once every page has rendered)", () => {
     const pages = {
-      "use/approval": { titre: "Approval", html: '<span class="ref-rule" data-ref-id="BR-12">BR-12</span>' },
-      "use/rules": { titre: "Rules", html: "defines it" },
+      "use/approval": { title: "Approval", html: '<span class="ref-rule" data-ref-id="BR-12">BR-12</span>' },
+      "use/rules": { title: "Rules", html: "defines it" },
     };
     const rules = new Map([["BR-12", { title: "Threshold rule", page: "use/rules", anchor: "br-12" }]]);
     const { problems } = resolveBusinessRefs({ pages, features: new Map(), rules, t });
@@ -200,10 +200,10 @@ describe("resolveBusinessRefs (second pass, once every page has rendered)", () =
 
   test('::features{} / ::rules{} / ::roles{}: table content, and the "cited by" column', () => {
     const pages = {
-      a: { titre: "A", html: '<div class="biz-directive" data-biz="features"></div>' },
-      b: { titre: "B", html: '<div class="biz-directive" data-biz="rules"></div>' },
+      a: { title: "A", html: '<div class="biz-directive" data-biz="features"></div>' },
+      b: { title: "B", html: '<div class="biz-directive" data-biz="rules"></div>' },
       c: {
-        titre: "C",
+        title: "C",
         html: '<div class="biz-directive" data-biz="roles"></div><span class="ref-rule" data-ref-id="BR-12">BR-12</span>',
       },
     };
@@ -255,7 +255,7 @@ describe("business.technical: a business page citing code", () => {
 describe("glossary `technical` (§6.8)", () => {
   test("site data glossaire[].tech: present with the field, absent without it", async () => {
     const r = await buildBusiness();
-    const byTerm = Object.fromEntries(r.data.glossaire.map((g) => [g.terme, g]));
+    const byTerm = Object.fromEntries(r.data.glossary.map((g) => [g.term, g]));
     assert.equal(byTerm.Order.tech, "table `orders`, column `status`");
     assert.ok(!("tech" in byTerm.Manager));
   });
@@ -283,11 +283,11 @@ describe("the fixture project: end-to-end resolution through a real build", () =
 
   test("glossary.tech: kept in the full site and the takeover export, dropped from the business export", async () => {
     const r = await buildBusiness();
-    assert.equal(r.data.glossaire[0].tech, "table `orders`, column `status`");
+    assert.equal(r.data.glossary[0].tech, "table `orders`, column `status`");
     const business = r.sites.find((s) => s.space === "business");
     const takeover = r.sites.find((s) => s.space === "takeover");
-    assert.ok(!("tech" in business.data.glossaire[0]));
-    assert.equal(takeover.data.glossaire[0].tech, "table `orders`, column `status`");
+    assert.ok(!("tech" in business.data.glossary[0]));
+    assert.equal(takeover.data.glossary[0].tech, "table `orders`, column `status`");
     assert.ok(!business.html.includes("table `orders`, column `status`"));
     assert.ok(takeover.html.includes("table `orders`, column `status`"));
   });

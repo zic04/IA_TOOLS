@@ -23,7 +23,7 @@ function withScreenshots(html, screenshots) {
   data.meta.screenshots = screenshots;
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   return html.replace(
-    /(<script type="application\/json" id="donnees">)[\s\S]*?(<\/script>)/,
+    /(<script type="application\/json" id="site-data">)[\s\S]*?(<\/script>)/,
     (m, a, b) => a + json + b,
   );
 }
@@ -208,7 +208,7 @@ describe("footer", () => {
 
   test("assemble: meta.screenshots from the zone files of the screenshots the pages use; nothing when unknown", () => {
     const data = () => ({
-      meta: { titre: "x" },
+      meta: { title: "x" },
       pages: { a: { html: '<img data-img="one"><img data-img="two">' }, b: { html: '<img data-img="three">' } },
     });
     const captures = {

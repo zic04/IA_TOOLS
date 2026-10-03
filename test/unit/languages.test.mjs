@@ -113,14 +113,14 @@ describe("configuration", () => {
 // ─── Equivalence: a project without `languages` is unaffected (§9) ─────────────────────────────────────────
 
 describe("equivalence: no `languages` declared", () => {
-  test("no meta.languages/language, no donnees-<lang>, no @ image, no ui.language/template.* text", async () => {
+  test("no meta.languages/language, no site-data-<lang>, no @ image, no ui.language/template.* text", async () => {
     const { buildSpaces } = await import("../tools/helpers.mjs");
     const r = await buildSpaces();
     assert.deepEqual(r.errors, []);
     assert.equal(r.data.meta.languages, undefined);
     assert.equal(r.data.meta.language, undefined);
     assert.deepEqual(r.languages, []);
-    assert.ok(!r.html.includes('id="donnees-'), "no donnees-<lang> block");
+    assert.ok(!r.html.includes('id="site-data-'), "no site-data-<lang> block");
     assert.ok(!/id="img-[^"]+@/.test(r.html), "no @<lang> image id");
     assert.ok(
       !Object.keys(r.data.i18n).some((k) => k.startsWith("ui.language.") || k.startsWith("template.")),
@@ -144,11 +144,11 @@ describe("multilingual build (draft)", () => {
     assert.equal(missingProblem.vars.lang, "fr");
   });
 
-  test("#donnees-fr: same top-level keys, same ordre, same page/section ids, meta.language fr, i18n in French", async () => {
+  test("#site-data-fr: same top-level keys, same order, same page/section ids, meta.language fr, i18n in French", async () => {
     const r = await buildLanguages({ draft: true });
     const dataFr = dataOf(r.html, "fr");
     assert.deepEqual(Object.keys(dataFr).sort(), Object.keys(r.data).sort());
-    assert.deepEqual(dataFr.ordre, r.data.ordre);
+    assert.deepEqual(dataFr.order, r.data.order);
     assert.deepEqual(Object.keys(dataFr.pages).sort(), Object.keys(r.data.pages).sort());
     assert.deepEqual(
       dataFr.sections.map((s) => s.id),
@@ -156,7 +156,7 @@ describe("multilingual build (draft)", () => {
     );
     assert.equal(dataFr.meta.language, "fr");
     assert.deepEqual(dataFr.meta.languages, ["en", "fr"]);
-    assert.equal(dataFr.sections.find((s) => s.id === "use").titre, "Utiliser Acme Orders");
+    assert.equal(dataFr.sections.find((s) => s.id === "use").title, "Utiliser Acme Orders");
     assert.ok("template.menu" in dataFr.i18n, "template.* embedded in a multilingual site");
   });
 
@@ -178,7 +178,7 @@ describe("multilingual build (draft)", () => {
     );
   });
 
-  test("invariant: #donnees-fr minus meta.languages/language equals #donnees of `build --lang fr`; mono output name; no @ variant", async () => {
+  test("invariant: #site-data-fr minus meta.languages/language equals #site-data of `build --lang fr`; mono output name; no @ variant", async () => {
     const r = await buildLanguages({ draft: true });
     const dataFr = dataOf(r.html, "fr");
     const clone = structuredClone(dataFr);
@@ -187,7 +187,7 @@ describe("multilingual build (draft)", () => {
     const mono = await buildLanguages({ draft: true, options: { lang: "fr" } });
     assert.deepEqual(mono.data, clone);
     assert.match(mono.output, /-fr\.html$/);
-    assert.ok(!mono.html.includes("donnees-fr"));
+    assert.ok(!mono.html.includes("site-data-fr"));
     assert.ok(!/id="img-[^"]+@/.test(mono.html), "no @ variant in a mono-language build");
     assert.ok(mono.html.includes('id="img-orders-list"'), "the fr image, embedded as the plain id");
     assert.deepEqual(
@@ -244,11 +244,11 @@ describe("multilingual build (draft)", () => {
 // ─── Exports per space, combined with languages ─────────────────────────────────────────────────────────────
 
 describe("exports (ARCHITECTURE.md §6.1a + §6.12)", () => {
-  test("each export embeds both languages (#donnees and #donnees-fr), pages filtered in both", async () => {
+  test("each export embeds both languages (#site-data and #site-data-fr), pages filtered in both", async () => {
     const r = await buildLanguages({ draft: true });
     const business = r.sites.find((s) => s.space === "business");
-    assert.ok(business.html.includes('id="donnees"'));
-    assert.ok(business.html.includes('id="donnees-fr"'));
+    assert.ok(business.html.includes('id="site-data"'));
+    assert.ok(business.html.includes('id="site-data-fr"'));
     const en = dataOf(business.html);
     const fr = dataOf(business.html, "fr");
     assert.ok(Object.keys(en.pages).every((id) => en.pages[id].space === "business"));
@@ -258,7 +258,7 @@ describe("exports (ARCHITECTURE.md §6.1a + §6.12)", () => {
   test("--lang fr --space business: mono-language export", async () => {
     const r = await buildLanguages({ draft: true, options: { lang: "fr", space: "business" } });
     assert.equal(r.sites.length, 1);
-    assert.ok(!r.sites[0].html.includes("donnees-fr"));
+    assert.ok(!r.sites[0].html.includes("site-data-fr"));
     const data = dataOf(r.sites[0].html);
     assert.equal(data.meta.language, undefined);
     assert.ok(Object.keys(data.pages).every((id) => data.pages[id].space === "business"));

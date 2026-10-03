@@ -13,6 +13,12 @@ entries between a project's `kit` range and the installed version.
   `build/`), and `translations.mjs` (the translated-file state, taken out of `build/languages.mjs`). The import
   resolver moves to `engine/facts/imports.mjs` and `readProjectVersion` to `engine/project/version.mjs`.
   `test/unit/layers.test.mjs` fails on a new folder cycle (RULES.md M14).
+- The data embedded in the generated site uses the key names of `toc.json` instead of French ones: `#site-data`
+  (was `#donnees`), `title`, `shortTitle`, `subtitle`, `menuTitle`, `summary`, `group(s)`, `level`, `permissions`,
+  `icon`, `featured`, `highlights`, `introHtml`, `homeHtml`, `order`, `search`, `journeys` (`steps`), `glossary`
+  (`term`, `pattern`), `icons`, `meta.title`, `meta.product`, `meta.tagline`, `meta.stats.diagrams`. Nothing
+  changes for a project: the site is self-contained. `test/tools/legacy-data.mjs` translates the data of an older
+  build, so the equivalence tools still compare with it.
 - `facts`: a manifest that cannot be read, a `package.json` / `package-lock.json` that is not valid JSON, or a broken
   `coverage/coverage-summary.json` is listed in the facts file's `unreadable` and reported as a warning, instead of
   being read as "no dependencies" or "no coverage".

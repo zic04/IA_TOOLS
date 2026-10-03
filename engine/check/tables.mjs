@@ -18,7 +18,7 @@ export async function checkTables({ file, width = 1440, topOfPage = "(top of pag
     const page = await (await browser.newContext({ viewport: { width, height: 900 } })).newPage();
     await page.goto(pathToFileURL(file).href);
     await waitForStable(page, { quietMs: TIMINGS.siteQuiet });
-    const ids = await page.evaluate(() => JSON.parse(document.getElementById("donnees").textContent).ordre);
+    const ids = await page.evaluate(() => JSON.parse(document.getElementById("site-data").textContent).order);
     const problems = [];
     for (const id of ids) {
       await page.evaluate((h) => (location.hash = h), "#/" + id);

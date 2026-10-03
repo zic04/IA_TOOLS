@@ -10,8 +10,9 @@
 //   Languages (§6.12, engine/build/languages.mjs): besides the source data, one data object per other declared
 //   language (`renderLanguage`, below), or with `options.lang` the single requested language instead of every one.
 //
-// The data embedded in the site (#donnees) keeps its historical key names (titre, pages, ordre…), so that
-// equivalence level 1 can compare a build with the older engine; only meta.generator and i18n are added. The data
+// The data embedded in the site (#site-data) uses the key names of toc.json (title, order, journeys…); the older
+// engine's French names (titre, ordre, parcours…) are translated by test/tools/legacy-data.mjs, so that
+// equivalence level 1 can still compare a build with that engine. The data
 // of the spaces (spaces, space, counterpart…) and of the languages (meta.languages, meta.language, fallback…) is
 // only emitted when declared: without them, the output is unchanged (§9).
 import fs from "node:fs";
@@ -344,7 +345,7 @@ function assembleOutputs(
       template,
       app,
       markers: {
-        TITLE: esc(mainData.meta.titre),
+        TITLE: esc(mainData.meta.title),
         PRODUCT: esc(config.product.name),
         LANG: esc(monoLang || config.language),
         GENERATOR: esc(generator),
@@ -398,7 +399,7 @@ function assembleOutputs(
   return {
     html,
     data: mainData,
-    stats: { ...stats, diagrams: stats.schemas, bytes: Buffer.byteLength(html) },
+    stats: { ...stats, bytes: Buffer.byteLength(html) },
     errors: b.errors,
     warnings,
     output,
@@ -442,7 +443,7 @@ function exportSpaces(b, { spaces, main, byLang, langTOf, assembleSite, output }
       space: s.id,
       html: siteHtml,
       data: x.data,
-      stats: { ...siteStats, diagrams: siteStats.schemas, bytes: Buffer.byteLength(siteHtml) },
+      stats: { ...siteStats, bytes: Buffer.byteLength(siteHtml) },
       output: siteOutput,
       excludedLinks: x.excludedLinks,
     });

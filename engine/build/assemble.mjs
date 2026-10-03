@@ -12,7 +12,7 @@
 // added and the output is unchanged.
 //
 // Languages (ARCHITECTURE.md §6.12): `languages` (one entry per OTHER declared language) fills the
-// {{LANGUAGE_DATA}} marker with one <script id="donnees-<lang>"> per entry, each with its own meta.screenshots
+// {{LANGUAGE_DATA}} marker with one <script id="site-data-<lang>"> per entry, each with its own meta.screenshots
 // (computed from its own `captures`, since a translated screenshot may carry its own date and version). Empty
 // without `languages` (the marker then resolves to ""); a template without the marker at all is unaffected (the
 // replacement loop only ever acts on markers it finds in the template text).
@@ -42,7 +42,7 @@ export function screenshotInfo(data, captures) {
   return Object.keys(info).length ? info : null;
 }
 
-/** Serialises site data the way `#donnees` is: "<" escaped, so that a "</script>" inside a page's HTML can
+/** Serialises site data the way `#site-data` is: "<" escaped, so that a "</script>" inside a page's HTML can
  * never close the embedding tag early. */
 const toJson = (data) => JSON.stringify(data).replace(/</g, "\\u003c");
 
@@ -68,7 +68,7 @@ export function assemble({ template, app, markers, t, icon, data, themeKey, text
     if (s && l.data.meta) l.data.meta.screenshots = s;
   }
   const languageData = languages
-    .map((l) => `<script type="application/json" id="donnees-${esc(l.id)}">${toJson(l.data)}</script>`)
+    .map((l) => `<script type="application/json" id="site-data-${esc(l.id)}">${toJson(l.data)}</script>`)
     .join("\n");
   const values = {
     ...markers,

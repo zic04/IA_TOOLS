@@ -88,7 +88,7 @@ function rulesTable(rules, citedBy, pages, t) {
       const cited = citedBy.get(id);
       const citedText = cited && cited.size ? [...cited].join(", ") : "—";
       const page = pages[r.page];
-      return `<tr><td><a href="#/${esc(r.page)}~${esc(r.anchor)}">${esc(id)}</a></td><td>${esc(r.title)}</td><td><a href="#/${esc(r.page)}">${esc(page ? page.titre : r.page)}</a></td><td>${esc(citedText)}</td></tr>`;
+      return `<tr><td><a href="#/${esc(r.page)}~${esc(r.anchor)}">${esc(id)}</a></td><td>${esc(r.title)}</td><td><a href="#/${esc(r.page)}">${esc(page ? page.title : r.page)}</a></td><td>${esc(citedText)}</td></tr>`;
     })
     .join("");
   return `<div class="tableau"><table><thead><tr><th>${esc(t("render.business.col.id"))}</th><th>${esc(t("render.business.col.rule"))}</th><th>${esc(t("render.business.col.definedIn"))}</th><th>${esc(t("render.business.col.citedBy"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -117,7 +117,7 @@ function rolesTable(features, t) {
  * Second pass, once every page is rendered: resolves the citation and generated-table placeholders left by the
  * Markdown engine (`[[feature …]]`, `[[rule …]]`, `::features{}`, `::rules{}`, `::roles{}`), so that a rule defined
  * in a page further down the table of contents is still found. Mutates `pages[*].html` in place.
- * @param {{ pages: Record<string, { html: string, titre: string }>, features: Map, rules: Map, t: Function }} p
+ * @param {{ pages: Record<string, { html: string, title: string }>, features: Map, rules: Map, t: Function }} p
  *   rules: engine.rules (id → { title, page, anchor }), collected while rendering (engine/build/markdown.mjs)
  * @returns {{ problems: Array<{ key: string, vars: object, strict: boolean }> }}  key: `feature.unknown` / `rule.unknown`
  */

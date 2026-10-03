@@ -107,7 +107,7 @@ const LINK = /<a\b([^>]*?)\bhref="#\/([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g;
 /**
  * Site data of the export of one space (a copy: `data` is not changed).
  * @param {object} p
- * @param {object} p.data   full site data (pages[].space, sections[].space, parcours[].space, spaces)
+ * @param {object} p.data   full site data (pages[].space, sections[].space, journeys[].space, spaces)
  * @param {string} p.space  id of the exported space
  * @param {{ pages: Record<string, object>, intros: Record<string, object>, home: object|null }} p.used
  *   what each rendered document uses ({ images: Set, diagrams: Set, zones }, engine/build/markdown.mjs)
@@ -117,26 +117,26 @@ const LINK = /<a\b([^>]*?)\bhref="#\/([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g;
 export function exportSite({ data, space, used, t }) {
   const d = structuredClone(data);
   delete d.meta.screenshots; // recomputed from the kept pages by assemble()
-  const keep = new Set(d.ordre.filter((id) => d.pages[id]?.space === space));
+  const keep = new Set(d.order.filter((id) => d.pages[id]?.space === space));
   d.sections = d.sections
     .map((s) => ({
       ...s,
-      groupes: s.groupes
+      groups: s.groups
         .map((g) => ({ ...g, pages: g.pages.filter((id) => keep.has(id)) }))
         .filter((g) => g.pages.length),
     }))
-    .filter((s) => s.groupes.length);
+    .filter((s) => s.groups.length);
   const sectionsKept = new Set(d.sections.map((s) => s.id));
   d.pages = Object.fromEntries(Object.entries(d.pages).filter(([id]) => keep.has(id)));
-  d.ordre = d.ordre.filter((id) => keep.has(id));
-  d.recherche = d.recherche.filter((e) => keep.has(e.p));
+  d.order = d.order.filter((id) => keep.has(id));
+  d.search = d.search.filter((e) => keep.has(e.p));
   d.suggestions = d.suggestions.filter((id) => keep.has(id));
-  d.parcours = d.parcours
+  d.journeys = d.journeys
     .filter((j) => j.space === space)
     .map((j) => {
-      const etapes = j.etapes.filter((id) => keep.has(id));
-      const hidden = j.etapes.length - etapes.length;
-      return { ...j, etapes, ...(hidden ? { hidden } : {}) };
+      const steps = j.steps.filter((id) => keep.has(id));
+      const hidden = j.steps.length - steps.length;
+      return { ...j, steps, ...(hidden ? { hidden } : {}) };
     });
 
   // Links to a page or a section of another space: their text, then "(see the {space} documentation)".
@@ -159,10 +159,10 @@ export function exportSite({ data, space, used, t }) {
   // A section kept for some of its pages loses its introduction, subtitle and highlights: they belong to its own
   // space, with its overview.
   for (const s of d.sections) {
-    if (s.space === space) s.intro_html = rewrite(s.intro_html);
-    else Object.assign(s, { sous_titre: "", points: [], vedette: false, intro_html: "" });
+    if (s.space === space) s.introHtml = rewrite(s.introHtml);
+    else Object.assign(s, { subtitle: "", highlights: [], featured: false, introHtml: "" });
   }
-  d.accueil_html = rewrite(d.accueil_html);
+  d.homeHtml = rewrite(d.homeHtml);
 
   // What is kept: its images (embedded) and its statistics.
   const images = new Set();
@@ -174,14 +174,14 @@ export function exportSite({ data, space, used, t }) {
     for (const id of u.diagrams) diagrams.add(id);
     zones += u.zones;
   };
-  for (const id of d.ordre) count(used.pages[id]);
+  for (const id of d.order) count(used.pages[id]);
   for (const s of d.sections) if (s.space === space) count(used.intros[s.id]);
   count(used.home);
-  d.meta.stats = { pages: d.ordre.length, captures: images.size, zones, schemas: diagrams.size };
+  d.meta.stats = { pages: d.order.length, captures: images.size, zones, diagrams: diagrams.size };
   d.meta.space = space;
   d.spaces = d.spaces.filter((s) => s.id === space);
   // The glossary is kept whole (§7), except its technical correspondence (§6.8): only the takeover export keeps it.
-  if (space !== "takeover") d.glossaire = d.glossaire.map(({ tech, ...rest }) => rest);
+  if (space !== "takeover") d.glossary = d.glossary.map(({ tech, ...rest }) => rest);
   return { data: d, images, excludedLinks };
 }
 

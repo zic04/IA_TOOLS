@@ -397,7 +397,7 @@ export function createMarkdownEngine({
         // splits on `<h[23] id="…">`) and as a link target for its citations: id in lower case, "BR-12 · title".
         const anchor = id.toLowerCase();
         ctx.slugs.add(anchor);
-        ctx.toc.push({ id: anchor, titre: plainText(`${id} · ${title}`), niveau: 3 });
+        ctx.toc.push({ id: anchor, title: plainText(`${id} · ${title}`), level: 3 });
         const heading = `<h3 id="${esc(anchor)}">${esc(id)} · ${esc(title)}<a class="ancre" href="#/${ctx.pageId}~${anchor}" aria-label="${esc(t("render.sectionLink"))}">#</a></h3>`;
         return `<div class="regle">${heading}${body}</div>`;
       }
@@ -482,7 +482,7 @@ export function createMarkdownEngine({
         let id = slug(plainText(html) || text);
         while (ctx.slugs.has(id)) id += "-2";
         ctx.slugs.add(id);
-        ctx.toc.push({ id, titre: plainText(html), niveau: Math.max(2, depth) });
+        ctx.toc.push({ id, title: plainText(html), level: Math.max(2, depth) });
         const n = Math.max(2, depth);
         return `<h${n} id="${id}">${html}<a class="ancre" href="#/${ctx.pageId}~${id}" aria-label="${esc(t("render.sectionLink"))}">#</a></h${n}>\n`;
       },

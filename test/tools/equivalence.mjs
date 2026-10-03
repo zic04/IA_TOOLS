@@ -28,6 +28,7 @@ import { parseArgs } from "node:util";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { diffHtml } from "./diff-html.mjs";
+import { DATA_SCRIPT, currentData } from "./legacy-data.mjs";
 
 const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const OLD_ENGINE_FILES = [
@@ -43,9 +44,9 @@ const NOT_COPIED = new Set(["node_modules", "dist", ".captures-tmp", ".doc-kit"]
 
 // ─── Extraction ──────────────────────────────────────────────────────────────
 export function extractData(html) {
-  const m = /<script type="application\/json" id="donnees">([\s\S]*?)<\/script>/.exec(html);
+  const m = DATA_SCRIPT.exec(html);
   if (!m) throw new Error("site data not found");
-  return JSON.parse(m[1]);
+  return currentData(JSON.parse(m[1]));
 }
 export function extractImages(html) {
   const images = {};
@@ -194,8 +195,8 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
 // ─── Comparison ──────────────────────────────────────────────────────────────
 async function routes(page) {
   return page.evaluate(() => {
-    const D = JSON.parse(document.getElementById("donnees").textContent);
-    return ["", ...D.sections.map((s) => s.id), ...D.ordre];
+    const D = JSON.parse((document.getElementById("site-data") || document.getElementById("donnees")).textContent);
+    return ["", ...D.sections.map((s) => s.id), ...(D.order || D.ordre)];
   });
 }
 async function go(page, route) {
@@ -247,12 +248,12 @@ async function level3(browser, reference, candidate) {
 
 /** Level-4 sample: home, 1 section, 10 pages, 1 guided tour, search. */
 function sample(D) {
-  const n = D.ordre.length;
+  const n = D.order.length;
   const pages = [];
-  for (let i = 0; i < 10 && i < n; i++) pages.push(D.ordre[Math.floor((i * n) / Math.min(10, n))]);
-  const tour = D.ordre.find((id) => D.pages[id].html.includes('data-action="visite"'));
-  const section = (D.sections.find((s) => s.vedette) || D.sections[0]).id;
-  const word = (D.pages[D.ordre[0]].titre.split(/\s+/).find((w) => w.length > 4) || "page").toLowerCase();
+  for (let i = 0; i < 10 && i < n; i++) pages.push(D.order[Math.floor((i * n) / Math.min(10, n))]);
+  const tour = D.order.find((id) => D.pages[id].html.includes('data-action="visite"'));
+  const section = (D.sections.find((s) => s.featured) || D.sections[0]).id;
+  const word = (D.pages[D.order[0]].title.split(/\s+/).find((w) => w.length > 4) || "page").toLowerCase();
   return [
     { name: "home", route: "" },
     { name: "section", route: section },
