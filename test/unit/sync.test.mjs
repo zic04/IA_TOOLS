@@ -35,7 +35,11 @@ function syncFixtureCopy() {
   const dir = tempDir("doc-kit-sync-");
   fs.cpSync(path.join(FIXTURES, "sync-docs"), path.join(dir, "sync-docs"), { recursive: true });
   fs.cpSync(path.join(FIXTURES, "sync-app"), path.join(dir, "sync-app"), { recursive: true });
-  return { root: path.join(dir, "sync-docs"), appDir: path.join(dir, "sync-app"), release: () => fs.rmSync(dir, { recursive: true, force: true }) };
+  return {
+    root: path.join(dir, "sync-docs"),
+    appDir: path.join(dir, "sync-app"),
+    release: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
 }
 
 /** Loaded, validated configuration of a (copied) sync-docs project. */
@@ -44,13 +48,19 @@ async function syncConfig(root) {
   return prepareConfig(mod.default, { env: {} });
 }
 
-const readToc = (root, config) => JSON.parse(fs.readFileSync(path.join(root, config.paths.content, "toc.json"), "utf8"));
+const readToc = (root, config) =>
+  JSON.parse(fs.readFileSync(path.join(root, config.paths.content, "toc.json"), "utf8"));
 
 /** Runs the CLI and captures its output; `io` adds the test seams (exec, commit). */
 async function cli(args, io = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: {}, ...io });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: {},
+    ...io,
+  });
   return { code, out, err };
 }
 
@@ -123,14 +133,22 @@ describe("engine/sync/git.mjs (read-only exec seam)", () => {
     const calls = [];
     const exec = (bin, args, options) => {
       calls.push([bin, args]);
-      return fakeExec({ rev: "abc123", changed: ["M\tfoo.ts", "R100\told.ts\tnew.ts"], diffs: { abc123: "@@ -1 +1 @@\n-old\n+new\n" }, showFiles: { "abc123:foo.ts": "hello\n" } })(bin, args, options);
+      return fakeExec({
+        rev: "abc123",
+        changed: ["M\tfoo.ts", "R100\told.ts\tnew.ts"],
+        diffs: { abc123: "@@ -1 +1 @@\n-old\n+new\n" },
+        showFiles: { "abc123:foo.ts": "hello\n" },
+      })(bin, args, options);
     };
     const git = createGit(exec, "/app");
     assert.equal(git.available(), true);
     assert.equal(git.head(), "abc123");
     assert.equal(git.show("abc123", "foo.ts"), "hello\n");
     assert.equal(git.show("abc123", "missing.ts"), null);
-    assert.deepEqual(git.changed("abc123"), [{ status: "M", path: "foo.ts" }, { status: "R", path: "new.ts", from: "old.ts" }]);
+    assert.deepEqual(git.changed("abc123"), [
+      { status: "M", path: "foo.ts" },
+      { status: "R", path: "new.ts", from: "old.ts" },
+    ]);
     assert.match(git.diff("abc123", ["foo.ts"]), /\+new/);
     assert.equal(git.diff("abc123", []), "");
     // Never a write command.
@@ -163,7 +181,8 @@ describe("engine/sync/git.mjs (read-only exec seam)", () => {
       assert.equal(git.diff(ref, ["f.ts"]), null, String(ref));
     }
     assert.deepEqual(calls, []);
-    for (const ref of ["abc123", "HEAD~2", "v1.0^", "main@{1}", "origin/main", "release-1.2"]) assert.notEqual(git.diff(ref, ["f.ts"]), null, ref);
+    for (const ref of ["abc123", "HEAD~2", "v1.0^", "main@{1}", "origin/main", "release-1.2"])
+      assert.notEqual(git.diff(ref, ["f.ts"]), null, ref);
   });
 
   test("no git / not a repository: every call degrades to null, never throws", () => {
@@ -186,34 +205,94 @@ describe("engine/sync/routes.mjs", () => {
     const config = await syncConfig(fx.root);
     const tools = adapterTools(fx.root);
     const spec = config.coverage[0];
-    const files1 = routeFiles({ spec, options: { app: "../sync-app/app", family: "Routes", exclude: ["^/$"], api: false, apiFamily: "API" }, item: { id: "/orders" }, route: "/orders", tools });
+    const files1 = routeFiles({
+      spec,
+      options: { app: "../sync-app/app", family: "Routes", exclude: ["^/$"], api: false, apiFamily: "API" },
+      item: { id: "/orders" },
+      route: "/orders",
+      tools,
+    });
     assert.deepEqual(files1.sort(), ["../sync-app/app/layout.tsx", "../sync-app/app/orders/page.tsx"]);
-    const files2 = routeFiles({ spec, options: { app: "../sync-app/app" }, item: { id: "/orders/[id]" }, route: "/orders/[id]", tools });
+    const files2 = routeFiles({
+      spec,
+      options: { app: "../sync-app/app" },
+      item: { id: "/orders/[id]" },
+      route: "/orders/[id]",
+      tools,
+    });
     assert.deepEqual(files2.sort(), ["../sync-app/app/layout.tsx", "../sync-app/app/orders/[id]/page.tsx"]);
   });
 
   test("react-router: the routes file itself ([].concat(options.file))", () => {
     const tools = adapterTools(fx.root);
-    assert.deepEqual(routeFiles({ spec: { adapter: "react-router" }, options: { file: "src/App.tsx" }, item: { id: "/x" }, route: "/x", tools }), ["src/App.tsx"]);
-    assert.deepEqual(routeFiles({ spec: { adapter: "react-router" }, options: { file: ["a.tsx", "b.tsx"] }, item: { id: "/x" }, route: "/x", tools }), ["a.tsx", "b.tsx"]);
+    assert.deepEqual(
+      routeFiles({
+        spec: { adapter: "react-router" },
+        options: { file: "src/App.tsx" },
+        item: { id: "/x" },
+        route: "/x",
+        tools,
+      }),
+      ["src/App.tsx"],
+    );
+    assert.deepEqual(
+      routeFiles({
+        spec: { adapter: "react-router" },
+        options: { file: ["a.tsx", "b.tsx"] },
+        item: { id: "/x" },
+        route: "/x",
+        tools,
+      }),
+      ["a.tsx", "b.tsx"],
+    );
   });
 
   test("fastapi: the file of the decorator matching the item's id", async () => {
     const tools = adapterTools(fx.root);
-    const files = routeFiles({ spec: { adapter: "fastapi" }, options: { app: "../sync-app/backend" }, item: { id: "GET /api/orders/{id}" }, route: "/api/orders/{id}", tools });
+    const files = routeFiles({
+      spec: { adapter: "fastapi" },
+      options: { app: "../sync-app/backend" },
+      item: { id: "GET /api/orders/{id}" },
+      route: "/api/orders/{id}",
+      tools,
+    });
     assert.deepEqual(files, ["../sync-app/backend/api/orders.py"]);
   });
 
   test("glob: the file itself", () => {
     const tools = adapterTools(fx.root);
-    assert.deepEqual(routeFiles({ spec: { adapter: "glob" }, options: { base: "public" }, item: { id: "orders.html" }, route: "/orders", tools }), ["public/orders.html"]);
+    assert.deepEqual(
+      routeFiles({
+        spec: { adapter: "glob" },
+        options: { base: "public" },
+        item: { id: "orders.html" },
+        route: "/orders",
+        tools,
+      }),
+      ["public/orders.html"],
+    );
   });
 
   test("an item with `files` already wins over derivation; an unknown adapter gives []", () => {
     const tools = adapterTools(fx.root);
-    assert.deepEqual(routeFiles({ spec: { adapter: "next-app-router" }, options: {}, item: { id: "/x", files: ["a.ts"] }, route: "/x", tools }), ["a.ts"]);
-    assert.deepEqual(routeFiles({ spec: { adapter: "openapi" }, options: {}, item: { id: "/x" }, route: "/x", tools }), []);
-    assert.deepEqual(routeFiles({ spec: { adapter: "i18n-registry" }, options: {}, item: { id: "/x" }, route: "/x", tools }), []);
+    assert.deepEqual(
+      routeFiles({
+        spec: { adapter: "next-app-router" },
+        options: {},
+        item: { id: "/x", files: ["a.ts"] },
+        route: "/x",
+        tools,
+      }),
+      ["a.ts"],
+    );
+    assert.deepEqual(
+      routeFiles({ spec: { adapter: "openapi" }, options: {}, item: { id: "/x" }, route: "/x", tools }),
+      [],
+    );
+    assert.deepEqual(
+      routeFiles({ spec: { adapter: "i18n-registry" }, options: {}, item: { id: "/x" }, route: "/x", tools }),
+      [],
+    );
   });
 
   test("matchRoute: normalised comparison, else id equality, else null", () => {
@@ -233,7 +312,10 @@ describe("engine/sync/imports.mjs", () => {
   after(() => fx.release());
 
   test("closure from the orders page: @/ alias, relative ../../.., ignored extensions and packages", () => {
-    const { files, truncated } = resolveImports({ appDir: fx.appDir, files: ["app/orders/page.tsx", "app/layout.tsx"] });
+    const { files, truncated } = resolveImports({
+      appDir: fx.appDir,
+      files: ["app/orders/page.tsx", "app/layout.tsx"],
+    });
     assert.equal(truncated, false);
     assert.ok(files.has("app/orders/page.tsx"));
     assert.ok(files.has("components/order-table.tsx"), "@/components/order-table resolved via tsconfig baseUrl/paths");
@@ -282,7 +364,7 @@ describe("engine/sync/imports.mjs", () => {
     try {
       fs.writeFileSync(
         path.join(dir, "tsconfig.json"),
-        '{\n  // a comment\n  "compilerOptions": {\n    "baseUrl": ".",\n    "paths": { "@/*": ["./src/*"], },\n  },\n}\n'
+        '{\n  // a comment\n  "compilerOptions": {\n    "baseUrl": ".",\n    "paths": { "@/*": ["./src/*"], },\n  },\n}\n',
       );
       fs.mkdirSync(path.join(dir, "src"));
       fs.writeFileSync(path.join(dir, "src", "x.ts"), "export const x = 1;\n");
@@ -309,28 +391,63 @@ describe("engine/sync/dependencies.mjs", () => {
   after(() => fx.release());
 
   test("use/orders: direct page, shared layout, direct proof (lib/orders.ts), shared import (order-table.tsx)", async () => {
-    const deps = await pageDependencies({ root: fx.root, config, toc, pageId: "use/orders", inventory, tools: adapterTools(fx.root), factsDir: config.paths.facts });
+    const deps = await pageDependencies({
+      root: fx.root,
+      config,
+      toc,
+      pageId: "use/orders",
+      inventory,
+      tools: adapterTools(fx.root),
+      factsDir: config.paths.facts,
+    });
     const byPath = Object.fromEntries(deps.files.map((f) => [f.path, f]));
     assert.equal(byPath["app/orders/page.tsx"].kind, "direct");
-    assert.equal(byPath["app/layout.tsx"].kind, "shared", "a layout is always shared (ARCHITECTURE.md §2.3), even though it is in R");
+    assert.equal(
+      byPath["app/layout.tsx"].kind,
+      "shared",
+      "a layout is always shared (ARCHITECTURE.md §2.3), even though it is in R",
+    );
     assert.ok(byPath["app/layout.tsx"].via.includes("layout"));
-    assert.equal(byPath["lib/orders.ts"].kind, "direct", "direct via the proof even though it sits outside app/orders/");
+    assert.equal(
+      byPath["lib/orders.ts"].kind,
+      "direct",
+      "direct via the proof even though it sits outside app/orders/",
+    );
     assert.ok(byPath["lib/orders.ts"].via.includes("proof") && byPath["lib/orders.ts"].via.includes("import"));
     assert.equal(byPath["components/order-table.tsx"].kind, "shared");
     assert.ok(!byPath["app/orders/orders.css"], "a stylesheet import is never a dependency");
-    assert.deepEqual(deps.proofs.map((p) => p.ref), ["lib/orders.ts:42"]);
+    assert.deepEqual(
+      deps.proofs.map((p) => p.ref),
+      ["lib/orders.ts:42"],
+    );
     assert.equal(deps.truncated, false);
   });
 
   test("use/orders/detail: page+layout direct, lib/orders.ts shared (reached only by import, no proof here)", async () => {
-    const deps = await pageDependencies({ root: fx.root, config, toc, pageId: "use/orders/detail", inventory, tools: adapterTools(fx.root), factsDir: config.paths.facts });
+    const deps = await pageDependencies({
+      root: fx.root,
+      config,
+      toc,
+      pageId: "use/orders/detail",
+      inventory,
+      tools: adapterTools(fx.root),
+      factsDir: config.paths.facts,
+    });
     const byPath = Object.fromEntries(deps.files.map((f) => [f.path, f]));
     assert.equal(byPath["app/orders/[id]/page.tsx"].kind, "direct");
     assert.equal(byPath["lib/orders.ts"].kind, "shared");
   });
 
   test("take-over/orders-api: `sources` glob (direct) + ::facts table (shared, doc: prefix)", async () => {
-    const deps = await pageDependencies({ root: fx.root, config, toc, pageId: "take-over/orders-api", inventory, tools: adapterTools(fx.root), factsDir: config.paths.facts });
+    const deps = await pageDependencies({
+      root: fx.root,
+      config,
+      toc,
+      pageId: "take-over/orders-api",
+      inventory,
+      tools: adapterTools(fx.root),
+      factsDir: config.paths.facts,
+    });
     const byPath = Object.fromEntries(deps.files.map((f) => [f.path, f]));
     assert.equal(byPath["backend/api/orders.py"].kind, "direct");
     assert.equal(byPath["backend/api/deps.py"].kind, "direct");
@@ -338,7 +455,7 @@ describe("engine/sync/dependencies.mjs", () => {
     assert.deepEqual(deps.factsSources, ["api"]);
   });
 
-  test("captureIds: :::screen{capture=\"…\"} and ::capture{id=\"…\"}, English and French", () => {
+  test('captureIds: :::screen{capture="…"} and ::capture{id="…"}, English and French', () => {
     assert.deepEqual(captureIds('Before.\n:::screen{capture="orders-list" title="x"}\nBody\n:::\n'), ["orders-list"]);
     assert.deepEqual(captureIds(':::ecran{capture="x" titre="y"}\n:::\n::capture{id="y" titre="z"}\n'), ["x", "y"]);
   });
@@ -353,7 +470,10 @@ describe("engine/sync/proofs.mjs", () => {
   test("extractProofs: single line, range, Dockerfile/Makefile, a URL is ignored; parity with PROOF", () => {
     const md = "`lib/orders.ts:42` and `api.py:7-12` and `Dockerfile:3` and `https://host.example.org:443/x` and ``.";
     const proofs = extractProofs(md);
-    assert.deepEqual(proofs.map((p) => p.ref), ["lib/orders.ts:42", "api.py:7-12", "Dockerfile:3"]);
+    assert.deepEqual(
+      proofs.map((p) => p.ref),
+      ["lib/orders.ts:42", "api.py:7-12", "Dockerfile:3"],
+    );
     assert.equal(proofs[1].from, 7);
     assert.equal(proofs[1].to, 12);
     assert.equal(proofs[0].to, undefined);
@@ -364,19 +484,43 @@ describe("engine/sync/proofs.mjs", () => {
   test("extractProofs: a badge shown in a code span is not a proof; the file is the last word before :line", () => {
     const md = "Write `[[verified lib/orders.ts:42]]` to mark a claim; see `the handler lib/orders.ts:7`.";
     const proofs = extractProofs(md);
-    assert.deepEqual(proofs.map((p) => [p.ref, p.file]), [["lib/orders.ts:7", "lib/orders.ts"]]);
+    assert.deepEqual(
+      proofs.map((p) => [p.ref, p.file]),
+      [["lib/orders.ts:7", "lib/orders.ts"]],
+    );
     assert.ok(proofs[0].span.includes(proofs[0].file), "the file stays a substring of its span (rewriteProof)");
   });
 
   test("resolveProofFile / extractProofs({ appDir }): as written, else the one file ending with it; two candidates are never guessed", () => {
     const dir = tempDir("sync-proof-paths-");
     try {
-      for (const f of ["api/app/routers/tokens.py", "api/app/models/token.py", "api/app/schemas/token.py", "web/components/tokens-table.tsx", "node_modules/x/tokens-table.tsx", "docs/manual/doc.config.mjs", "docs/manual/tokens-table.tsx"]) {
+      for (const f of [
+        "api/app/routers/tokens.py",
+        "api/app/models/token.py",
+        "api/app/schemas/token.py",
+        "web/components/tokens-table.tsx",
+        "node_modules/x/tokens-table.tsx",
+        "docs/manual/doc.config.mjs",
+        "docs/manual/tokens-table.tsx",
+      ]) {
         fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
         fs.writeFileSync(path.join(dir, f), "line 1\nline 2\n");
       }
-      const proofs = extractProofs("`api/app/routers/tokens.py:2` `tokens.py:1` `tokens-table.tsx:2` `schemas/token.py:1` `token.py:1` `missing.ts:1`", { appDir: dir });
-      assert.deepEqual(proofs.map((p) => p.path), ["api/app/routers/tokens.py", "api/app/routers/tokens.py", "web/components/tokens-table.tsx", "api/app/schemas/token.py", null, null]);
+      const proofs = extractProofs(
+        "`api/app/routers/tokens.py:2` `tokens.py:1` `tokens-table.tsx:2` `schemas/token.py:1` `token.py:1` `missing.ts:1`",
+        { appDir: dir },
+      );
+      assert.deepEqual(
+        proofs.map((p) => p.path),
+        [
+          "api/app/routers/tokens.py",
+          "api/app/routers/tokens.py",
+          "web/components/tokens-table.tsx",
+          "api/app/schemas/token.py",
+          null,
+          null,
+        ],
+      );
       assert.ok(recordProof(dir, proofs[2]), "recorded through its resolved path");
       assert.equal(recordProof(dir, proofs[4]), null, "ambiguous: not recorded");
     } finally {
@@ -388,7 +532,10 @@ describe("engine/sync/proofs.mjs", () => {
     const dir = tempDir();
     try {
       fs.writeFileSync(path.join(dir, "a.ts"), "l1\nl2\nl3\n");
-      assert.deepEqual(recordProof(dir, { file: "a.ts", from: 2, to: undefined }), { hash: hashText("l2"), text: "l2" });
+      assert.deepEqual(recordProof(dir, { file: "a.ts", from: 2, to: undefined }), {
+        hash: hashText("l2"),
+        text: "l2",
+      });
       assert.equal(recordProof(dir, { file: "a.ts", from: 99 }), null);
       assert.equal(recordProof(dir, { file: "missing.ts", from: 1 }), null);
     } finally {
@@ -399,17 +546,27 @@ describe("engine/sync/proofs.mjs", () => {
   test("locateProof: intact, moved (unique match), ambiguous, text not found, file deleted, renamed", () => {
     const recorded = { hash: hashText("if (x) {"), text: "if (x) {" };
     const proof = { file: "a.ts", from: 5, to: undefined };
-    assert.equal(locateProof({ current: "l1\nl2\nl3\nl4\nif (x) {\nl6\n", renamedTo: null, recorded, proof }).status, "intact");
+    assert.equal(
+      locateProof({ current: "l1\nl2\nl3\nl4\nif (x) {\nl6\n", renamedTo: null, recorded, proof }).status,
+      "intact",
+    );
     const moved = locateProof({ current: "if (x) {\nl2\n", renamedTo: null, recorded, proof });
     assert.deepEqual(moved, { status: "moved", newFile: "a.ts", newFrom: 1, newTo: 1 });
     const ambiguous = locateProof({ current: "if (x) {\nif (x) {\n", renamedTo: null, recorded, proof });
     assert.deepEqual(ambiguous, { status: "broken", reason: "ambiguous" });
     const notFound = locateProof({ current: "nothing here\n", renamedTo: null, recorded, proof });
     assert.deepEqual(notFound, { status: "broken", reason: "textNotFound" });
-    assert.deepEqual(locateProof({ current: null, renamedTo: null, recorded, proof }), { status: "broken", reason: "fileDeleted" });
+    assert.deepEqual(locateProof({ current: null, renamedTo: null, recorded, proof }), {
+      status: "broken",
+      reason: "fileDeleted",
+    });
     const renamed = locateProof({ current: "pad\nif (x) {\n", renamedTo: "b.ts", recorded, proof });
     assert.equal(renamed.newFile, "b.ts");
-    assert.deepEqual(locateProof({ current: "\n", renamedTo: null, recorded: { hash: "x", text: "" }, proof }), { status: "broken", reason: "textNotFound" }, "a blank cited line is always broken");
+    assert.deepEqual(
+      locateProof({ current: "\n", renamedTo: null, recorded: { hash: "x", text: "" }, proof }),
+      { status: "broken", reason: "textNotFound" },
+      "a blank cited line is always broken",
+    );
   });
 
   test("rewriteProof: only the file:from(-to) part changes, every occurrence of the span, range length kept", () => {
@@ -425,21 +582,34 @@ describe("engine/sync/proofs.mjs", () => {
 
 describe("engine/sync/labels.mjs", () => {
   test("flattenMessages: nested → dotted keys, strings only", () => {
-    assert.deepEqual(flattenMessages({ orders: { approve: "Approve", count: 3 }, flat: "x" }), { "orders.approve": "Approve", flat: "x" });
+    assert.deepEqual(flattenMessages({ orders: { approve: "Approve", count: 3 }, flat: "x" }), {
+      "orders.approve": "Approve",
+      flat: "x",
+    });
   });
 
   test("citedLabels: 2+ chars, verbatim, by at least one page; a one-character value is ignored", () => {
-    const pages = [{ id: "use/orders", markdown: "Click **Approve** to continue." }, { id: "use/other", markdown: "Nothing here." }];
+    const pages = [
+      { id: "use/orders", markdown: "Click **Approve** to continue." },
+      { id: "use/other", markdown: "Nothing here." },
+    ];
     const cited = citedLabels({ "orders.approve": "Approve", "orders.x": "A", "orders.unused": "Reject" }, pages);
     assert.deepEqual(cited, [{ key: "orders.approve", value: "Approve", pages: ["use/orders"] }]);
   });
 
   test("replaceLabel: bold, code span, [[menu …]], quotes — never in plain prose", () => {
-    const md = 'Approve is not touched here. **Approve** and `Approve` and [[menu Approve]] and "Approve" and «Approve».';
+    const md =
+      'Approve is not touched here. **Approve** and `Approve` and [[menu Approve]] and "Approve" and «Approve».';
     const { text, n } = replaceLabel(md, "Approve", "Validate");
     assert.equal(n, 5);
     assert.ok(text.startsWith("Approve is not touched here."), "plain prose is never rewritten");
-    assert.ok(text.includes("**Validate**") && text.includes("`Validate`") && text.includes("[[menu Validate]]") && text.includes('"Validate"') && text.includes("«Validate»"));
+    assert.ok(
+      text.includes("**Validate**") &&
+        text.includes("`Validate`") &&
+        text.includes("[[menu Validate]]") &&
+        text.includes('"Validate"') &&
+        text.includes("«Validate»"),
+    );
   });
 
   test("labelFiles: config.sync.labels glob (literal '../' prefix supported); else the i18n-registry adapters", async () => {
@@ -469,7 +639,17 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
   after(() => fx.release());
 
   test("marks every written page; the file conforms to the schema, keys sorted, declared accumulated", async () => {
-    const { reference, warnings } = await markPages({ root: fx.root, config, toc, all: true, date: "2026-10-02", commit: "c0ffee", version: "1.4.0", inventory, plans: [] });
+    const { reference, warnings } = await markPages({
+      root: fx.root,
+      config,
+      toc,
+      all: true,
+      date: "2026-10-02",
+      commit: "c0ffee",
+      version: "1.4.0",
+      inventory,
+      plans: [],
+    });
     assert.deepEqual(Object.keys(reference.pages).sort(), ["take-over/orders-api", "use/orders", "use/orders/detail"]);
     assert.deepEqual(warnings, []);
     const file = writeSyncReference(fx.root, config, reference);
@@ -483,13 +663,43 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
     assert.deepEqual(reread.pages["use/orders"].files, reference.pages["use/orders"].files);
 
     // --sources accumulates onto the page it marks.
-    const { reference: ref2 } = await markPages({ root: fx.root, config, toc, pages: ["use/orders"], sources: ["extra.txt:1-3"], date: "2026-10-03", commit: "c0ffee", version: "1.4.0", inventory, plans: [], reference });
+    const { reference: ref2 } = await markPages({
+      root: fx.root,
+      config,
+      toc,
+      pages: ["use/orders"],
+      sources: ["extra.txt:1-3"],
+      date: "2026-10-03",
+      commit: "c0ffee",
+      version: "1.4.0",
+      inventory,
+      plans: [],
+      reference,
+    });
     assert.deepEqual(ref2.pages["use/orders"].declared, ["extra.txt:1-3"]);
-    assert.deepEqual(ref2.pages["use/orders/detail"], reference.pages["use/orders/detail"], "an untouched page is kept exactly as it was");
+    assert.deepEqual(
+      ref2.pages["use/orders/detail"],
+      reference.pages["use/orders/detail"],
+      "an untouched page is kept exactly as it was",
+    );
   });
 
   test("a page not written yet is refused (sync.unwritten, exit code 1 at the CLI)", async () => {
-    await assert.rejects(() => markPages({ root: fx.root, config, toc, pages: ["use/nope"], date: "2026-10-02", commit: null, version: "1.0.0", inventory, plans: [] }), (e) => e.key === "sync.unwritten");
+    await assert.rejects(
+      () =>
+        markPages({
+          root: fx.root,
+          config,
+          toc,
+          pages: ["use/nope"],
+          date: "2026-10-02",
+          commit: null,
+          version: "1.0.0",
+          inventory,
+          plans: [],
+        }),
+      (e) => e.key === "sync.unwritten",
+    );
   });
 
   test("a proof whose file does not exist is not recorded and is reported as a warning", async () => {
@@ -497,7 +707,17 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
     const page = brokenToc.sections[0].groups[0].pages[0];
     page.id = "use/orders"; // unchanged, but we'll temporarily break the app side instead
     const noAppDir = { ...config, app: { ...config.app, dir: "../does-not-exist" } };
-    const { warnings } = await markPages({ root: fx.root, config: noAppDir, toc, pages: ["use/orders"], date: "2026-10-02", commit: null, version: "1.0.0", inventory, plans: [] });
+    const { warnings } = await markPages({
+      root: fx.root,
+      config: noAppDir,
+      toc,
+      pages: ["use/orders"],
+      date: "2026-10-02",
+      commit: null,
+      version: "1.0.0",
+      inventory,
+      plans: [],
+    });
     assert.ok(warnings.some((w) => w.key === "sync.proofUnresolved" && w.vars.page === "use/orders"));
   });
 });
@@ -510,9 +730,33 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     const config = await syncConfig(fx.root);
     const toc = readToc(fx.root, config);
     const inventory = await runCoverage({ root: fx.root, config });
-    const { reference } = await markPages({ root: fx.root, config, toc, all: true, date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] });
+    const { reference } = await markPages({
+      root: fx.root,
+      config,
+      toc,
+      all: true,
+      date: "2026-10-02",
+      commit: "c0ffee",
+      version: "1.0.0",
+      inventory,
+      plans: [],
+    });
     const compare = (overrides = {}) =>
-      compareWithReference({ root: fx.root, config, toc, reference, since: null, git: createGit(() => null, fx.appDir), inventory, plans: [], appDir: fx.appDir, version: "1.0.0", commit: "c0ffee", factsDir: config.paths.facts, ...overrides });
+      compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference,
+        since: null,
+        git: createGit(() => null, fx.appDir),
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+        ...overrides,
+      });
     return { fx, config, toc, inventory, reference, compare };
   }
 
@@ -532,7 +776,9 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     const { fx, compare } = await freshSetup();
     try {
       const file = path.join(fx.appDir, "lib/orders.ts");
-      const text = fs.readFileSync(file, "utf8").replace("export function checkOrder(order) {", "export function checkOrder(order) {\n  // inserted");
+      const text = fs
+        .readFileSync(file, "utf8")
+        .replace("export function checkOrder(order) {", "export function checkOrder(order) {\n  // inserted");
       fs.writeFileSync(file, text);
       const r = await compare();
       assert.equal(r.proofs.moved.length, 1);
@@ -569,7 +815,13 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
       fs.writeFileSync(file, JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
       const r = await compare();
       assert.equal(r.labels.length, 1);
-      assert.deepEqual(r.labels[0], { file: "../sync-app/messages/en.json", key: "orders.approve", old: "Approve", new: "Validate", pages: ["use/orders"] });
+      assert.deepEqual(r.labels[0], {
+        file: "../sync-app/messages/en.json",
+        key: "orders.approve",
+        old: "Approve",
+        new: "Validate",
+        pages: ["use/orders"],
+      });
     } finally {
       fx.release();
     }
@@ -579,14 +831,20 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     const { fx, config, compare } = await freshSetup();
     try {
       fs.mkdirSync(path.join(fx.appDir, "app/customers"), { recursive: true });
-      fs.writeFileSync(path.join(fx.appDir, "app/customers/page.tsx"), "export default function C() { return null; }\n");
+      fs.writeFileSync(
+        path.join(fx.appDir, "app/customers/page.tsx"),
+        "export default function C() { return null; }\n",
+      );
       const inv1 = await runCoverage({ root: fx.root, config });
       const r1 = await compare({ inventory: inv1 });
       const customers = r1.new.find((n) => n.id === "/customers");
       assert.equal(customers.suggest, null);
 
       fs.mkdirSync(path.join(fx.appDir, "app/orders/new"), { recursive: true });
-      fs.writeFileSync(path.join(fx.appDir, "app/orders/new/page.tsx"), "export default function N() { return null; }\n");
+      fs.writeFileSync(
+        path.join(fx.appDir, "app/orders/new/page.tsx"),
+        "export default function N() { return null; }\n",
+      );
       const inv2 = await runCoverage({ root: fx.root, config });
       const r2 = await compare({ inventory: inv2 });
       const ordersNew = r2.new.find((n) => n.id === "/orders/new");
@@ -613,12 +871,22 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
   test("(g) a shared file changes: a git diff with no cited token → probablyIntact; with one → shared; no git → shared", async () => {
     const { fx, compare } = await freshSetup();
     try {
-      fs.writeFileSync(path.join(fx.appDir, "app/layout.tsx"), 'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n');
-      const noToken = await compare({ git: createGit(fakeExec({ diffs: { c0ffee: "@@ -1 +1 @@\n-old\n+<html><body className=\"updated\">\n" } }), fx.appDir) });
+      fs.writeFileSync(
+        path.join(fx.appDir, "app/layout.tsx"),
+        'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n',
+      );
+      const noToken = await compare({
+        git: createGit(
+          fakeExec({ diffs: { c0ffee: '@@ -1 +1 @@\n-old\n+<html><body className="updated">\n' } }),
+          fx.appDir,
+        ),
+      });
       const p1 = noToken.review.find((r) => r.page === "use/orders");
       assert.equal(p1.priority, "probablyIntact");
 
-      const withToken = await compare({ git: createGit(fakeExec({ diffs: { c0ffee: "@@ -1 +1 @@\n-old\n+totally /orders unrelated\n" } }), fx.appDir) });
+      const withToken = await compare({
+        git: createGit(fakeExec({ diffs: { c0ffee: "@@ -1 +1 @@\n-old\n+totally /orders unrelated\n" } }), fx.appDir),
+      });
       const p2 = withToken.review.find((r) => r.page === "use/orders");
       assert.equal(p2.priority, "shared", "the page's own route is a cited token");
 
@@ -633,7 +901,20 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
   test("(h) unmarked: a written page absent from the reference", async () => {
     const { fx, config, toc, inventory, reference } = await freshSetup();
     try {
-      const r = await compareWithReference({ root: fx.root, config, toc, reference: { ...reference, pages: {} }, since: null, git: null, inventory, plans: [], appDir: fx.appDir, version: "1.0.0", commit: "c0ffee", factsDir: config.paths.facts });
+      const r = await compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference: { ...reference, pages: {} },
+        since: null,
+        git: null,
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+      });
       assert.deepEqual(r.unmarked.sort(), ["take-over/orders-api", "use/orders", "use/orders/detail"]);
       assert.equal(checkFails(r), false, "unmarked never fails --check");
     } finally {
@@ -665,14 +946,42 @@ describe("engine/sync/apply.mjs", () => {
       const config = await syncConfig(fx.root);
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
-      const { reference } = await markPages({ root: fx.root, config, toc, all: true, date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] });
+      const { reference } = await markPages({
+        root: fx.root,
+        config,
+        toc,
+        all: true,
+        date: "2026-10-02",
+        commit: "c0ffee",
+        version: "1.0.0",
+        inventory,
+        plans: [],
+      });
 
       const file = path.join(fx.appDir, "lib/orders.ts");
-      fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("export function checkOrder(order) {", "export function checkOrder(order) {\n  // inserted"));
+      fs.writeFileSync(
+        file,
+        fs
+          .readFileSync(file, "utf8")
+          .replace("export function checkOrder(order) {", "export function checkOrder(order) {\n  // inserted"),
+      );
       const messages = path.join(fx.appDir, "messages/en.json");
       fs.writeFileSync(messages, JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
 
-      const report = await compareWithReference({ root: fx.root, config, toc, reference, since: null, git: null, inventory, plans: [], appDir: fx.appDir, version: "1.0.0", commit: "c0ffee", factsDir: config.paths.facts });
+      const report = await compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference,
+        since: null,
+        git: null,
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+      });
       const applied = applyReport({ root: fx.root, config, toc, report, withLabels: true });
       assert.ok(applied.changed.includes("content/use/orders.md"));
       assert.equal(applied.rewritten.proofs, 1);
@@ -682,7 +991,20 @@ describe("engine/sync/apply.mjs", () => {
       assert.match(text, /\*\*Validate\*\*/);
       assert.doesNotMatch(text, /\*\*Approve\*\*/);
 
-      const report2 = await compareWithReference({ root: fx.root, config, toc, reference, since: null, git: null, inventory, plans: [], appDir: fx.appDir, version: "1.0.0", commit: "c0ffee", factsDir: config.paths.facts });
+      const report2 = await compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference,
+        since: null,
+        git: null,
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+      });
       assert.equal(report2.proofs.moved.length, 0, "the report, recomputed after writing, shows no more moved proof");
     } finally {
       fx.release();
@@ -695,9 +1017,35 @@ describe("engine/sync/apply.mjs", () => {
       const config = await syncConfig(fx.root);
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
-      const { reference } = await markPages({ root: fx.root, config, toc, all: true, date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] });
-      fs.writeFileSync(path.join(fx.appDir, "messages/en.json"), JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
-      const report = await compareWithReference({ root: fx.root, config, toc, reference, since: null, git: null, inventory, plans: [], appDir: fx.appDir, version: "1.0.0", commit: "c0ffee", factsDir: config.paths.facts });
+      const { reference } = await markPages({
+        root: fx.root,
+        config,
+        toc,
+        all: true,
+        date: "2026-10-02",
+        commit: "c0ffee",
+        version: "1.0.0",
+        inventory,
+        plans: [],
+      });
+      fs.writeFileSync(
+        path.join(fx.appDir, "messages/en.json"),
+        JSON.stringify({ orders: { approve: "Validate", new: "New order" } }),
+      );
+      const report = await compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference,
+        since: null,
+        git: null,
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+      });
       const applied = applyReport({ root: fx.root, config, toc, report, withLabels: false });
       assert.deepEqual(applied.changed, []);
       assert.equal(applied.rewritten.labels, 0);
@@ -724,7 +1072,9 @@ describe("CLI `sync`", () => {
   test("--mark --all --date, then a report shows unchanged; --json shape", async () => {
     const fx = syncFixtureCopy();
     try {
-      const mark = await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], { commit: () => "c0ffee" });
+      const mark = await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], {
+        commit: () => "c0ffee",
+      });
       assert.equal(mark.code, 0, mark.err);
       assert.match(mark.out, /3 pages marked as checked/);
       const raw = JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8"));
@@ -746,14 +1096,21 @@ describe("CLI `sync`", () => {
   test("--mark is a switch: --mark --all, --mark <page…> as positionals; --mark alone → sync.markNothing, exit code 2", async () => {
     const fx = syncFixtureCopy();
     try {
-      const all = await cli(["sync", "--mark", "--all", "--date", "2026-10-02", "--json", "--project", fx.root], { commit: () => "c0ffee" });
+      const all = await cli(["sync", "--mark", "--all", "--date", "2026-10-02", "--json", "--project", fx.root], {
+        commit: () => "c0ffee",
+      });
       assert.equal(all.code, 0, all.err);
       assert.equal(JSON.parse(all.out).marked.length, 3);
       fs.rmSync(path.join(fx.root, "sync.json"));
-      const two = await cli(["sync", "--mark", "use/orders", "use/orders/detail", "--json", "--project", fx.root], { commit: () => "c0ffee" });
+      const two = await cli(["sync", "--mark", "use/orders", "use/orders/detail", "--json", "--project", fx.root], {
+        commit: () => "c0ffee",
+      });
       assert.equal(two.code, 0, two.err);
       assert.deepEqual(JSON.parse(two.out).marked, ["use/orders", "use/orders/detail"]);
-      assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8")).pages).sort(), ["use/orders", "use/orders/detail"]);
+      assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8")).pages).sort(), [
+        "use/orders",
+        "use/orders/detail",
+      ]);
       const none = await cli(["sync", "--mark", "--project", fx.root], { commit: () => "c0ffee" });
       assert.equal(none.code, 2);
       assert.match(none.err, /--mark/);
@@ -786,11 +1143,19 @@ describe("CLI `sync`", () => {
   test("--since with a fake exec: review + an informational line, new/removed always empty", async () => {
     const fx = syncFixtureCopy();
     try {
-      const exec = fakeExec({ rev: "beforecommit", showFiles: { "beforecommit:app/layout.tsx": "export default function L({children}) { return <html>{children}</html>; }\n" } });
+      const exec = fakeExec({
+        rev: "beforecommit",
+        showFiles: {
+          "beforecommit:app/layout.tsx": "export default function L({children}) { return <html>{children}</html>; }\n",
+        },
+      });
       const r = await cli(["sync", "--since", "beforecommit", "--project", fx.root], { exec, commit: () => "c0ffee" });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /never reports new or removed/);
-      const j = await cli(["sync", "--since", "beforecommit", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" });
+      const j = await cli(["sync", "--since", "beforecommit", "--json", "--project", fx.root], {
+        exec,
+        commit: () => "c0ffee",
+      });
       const data = JSON.parse(j.out);
       assert.deepEqual(data.new, []);
       assert.deepEqual(data.removed, []);
@@ -804,7 +1169,10 @@ describe("CLI `sync`", () => {
     const fx = syncFixtureCopy();
     try {
       await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], { commit: () => "c0ffee" });
-      fs.writeFileSync(path.join(fx.appDir, "messages/en.json"), JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
+      fs.writeFileSync(
+        path.join(fx.appDir, "messages/en.json"),
+        JSON.stringify({ orders: { approve: "Validate", new: "New order" } }),
+      );
       const r = await cli(["sync", "--apply", "--labels", "--project", fx.root], { commit: () => "c0ffee" });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /content\/use\/orders\.md/);
@@ -818,15 +1186,28 @@ describe("CLI `sync`", () => {
     const fx = syncFixtureCopy();
     try {
       await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], { commit: () => "c0ffee" });
-      fs.writeFileSync(path.join(fx.appDir, "app/layout.tsx"), 'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n');
+      fs.writeFileSync(
+        path.join(fx.appDir, "app/layout.tsx"),
+        'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n',
+      );
       const exec = fakeExec({ diffs: { c0ffee: '@@ -1 +1 @@\n-old\n+<html><body className="updated">\n' } });
-      const before = JSON.parse((await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out);
-      assert.ok(before.review.some((r) => r.page === "use/orders" && r.priority === "probablyIntact"), JSON.stringify(before.review));
-      assert.equal((await cli(["sync", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" })).code, 2);
+      const before = JSON.parse(
+        (await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out,
+      );
+      assert.ok(
+        before.review.some((r) => r.page === "use/orders" && r.priority === "probablyIntact"),
+        JSON.stringify(before.review),
+      );
+      assert.equal(
+        (await cli(["sync", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" })).code,
+        2,
+      );
       const r = await cli(["sync", "--apply", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /page\(s\) probably intact marked without an agent: .*use\/orders/);
-      const after = JSON.parse((await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out);
+      const after = JSON.parse(
+        (await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out,
+      );
       assert.ok(!after.review.some((x) => x.page === "use/orders"), JSON.stringify(after.review));
       assert.ok(after.unchanged.includes("use/orders"));
     } finally {
@@ -859,7 +1240,12 @@ describe("engine/sync/estimate.mjs", () => {
     assert.equal(noPrices.agents[0].input, 1000 + 1800);
     assert.equal(noPrices.agents[0].output, Math.round(0.3 * 1.4 * 2500));
 
-    const priced = estimateUpdate({ contexts, templates, prices: { sonnet: { input: 3, output: 15 } }, currency: "EUR" });
+    const priced = estimateUpdate({
+      contexts,
+      templates,
+      prices: { sonnet: { input: 3, output: 15 } },
+      currency: "EUR",
+    });
     assert.ok(priced.agents[0].cost > 0);
     assert.equal(priced.total.cost, priced.agents[0].cost);
     assert.equal(priced.currency, "EUR");
@@ -869,11 +1255,14 @@ describe("engine/sync/estimate.mjs", () => {
 describe("engine/sync/api-links.mjs (the server code behind a screen)", () => {
   test("apiPathsIn: quoted and template literals starting with /, two segments at least, query dropped, ${…} kept as a parameter", async () => {
     const { apiPathsIn } = await import("../../engine/sync/api-links.mjs");
-    const src = 'api.get("/admin/groups"); api.put(`/admin/groups/${id}/members`, b); api.get(`/admin/groups/search?q=${q}`); go("/login"); x = "/";';
+    const src =
+      'api.get("/admin/groups"); api.put(`/admin/groups/${id}/members`, b); api.get(`/admin/groups/search?q=${q}`); go("/login"); x = "/";';
     assert.deepEqual(apiPathsIn(src), ["/admin/groups", "/admin/groups/:param/members", "/admin/groups/search"]);
     // A nested template glued to a segment ends the path there; one that forms a whole segment is a parameter.
-    assert.deepEqual(apiPathsIn('api.get(`/chat/feedback/list${f === "all" ? "" : `?vote=${f}`}`)'), ["/chat/feedback/list"]);
-    assert.deepEqual(apiPathsIn('fetch(`/orders/${o.id}/lines/${n}`)'), ["/orders/:param/lines/:param"]);
+    assert.deepEqual(apiPathsIn('api.get(`/chat/feedback/list${f === "all" ? "" : `?vote=${f}`}`)'), [
+      "/chat/feedback/list",
+    ]);
+    assert.deepEqual(apiPathsIn("fetch(`/orders/${o.id}/lines/${n}`)"), ["/orders/:param/lines/:param"]);
   });
 
   test("pathMatchesRoute: the written segments are the route's last ones (a client prefix such as /api is allowed); parameters match any segment", async () => {
@@ -893,8 +1282,11 @@ describe("engine/sync/api-links.mjs (the server code behind a screen)", () => {
       { method: "POST", route: "/api/orders/{order_id}/approve", file: "api/routers/orders.py", line: 40 },
       { method: "GET", route: "/api/users", file: "api/routers/users.py", line: 5 },
     ];
-    const texts = ['fetch("/api/orders")', 'post(`/orders/${o.id}/approve`)'];
-    assert.deepEqual(apiRoutesCalledBy(texts, items).map((i) => `${i.method} ${i.route}`), ["GET /api/orders", "POST /api/orders/{order_id}/approve"]);
+    const texts = ['fetch("/api/orders")', "post(`/orders/${o.id}/approve`)"];
+    assert.deepEqual(
+      apiRoutesCalledBy(texts, items).map((i) => `${i.method} ${i.route}`),
+      ["GET /api/orders", "POST /api/orders/{order_id}/approve"],
+    );
     assert.deepEqual(apiRoutesCalledBy(texts, undefined), []);
   });
 });
@@ -903,7 +1295,11 @@ describe("engine/sync/report.mjs: a file reached only through the page's proofs"
   test("touchedLines: the current file's lines of each hunk (context included); null without a diff", async () => {
     const { touchedLines } = await import("../../engine/sync/report.mjs");
     const patch = "diff --git a/x b/x\n@@ -7,7 +7,7 @@ import x\n-a\n+b\n@@ -53,78 +53,146 @@ const y\n@@ -10 +12 @@\n";
-    assert.deepEqual(touchedLines(patch), [[7, 13], [53, 198], [12, 12]]);
+    assert.deepEqual(touchedLines(patch), [
+      [7, 13],
+      [53, 198],
+      [12, 12],
+    ]);
     assert.deepEqual(touchedLines(""), []);
     assert.equal(touchedLines(null), null);
   });
@@ -911,11 +1307,20 @@ describe("engine/sync/report.mjs: a file reached only through the page's proofs"
 
 describe("a verified claim badge is a proof (sync and audit)", () => {
   test("extractProofs: [[verified file:line]] and [[verifie …]] are proofs, in order; one shown in a code span is not", async () => {
-    const md = "Approved by a manager [[verified lib/orders.ts:42]]; see `api/x.py:7`. Syntax: `[[verified a.ts:4]]`. Seuil [[verifie lib/config.ts:3-5 seuil par défaut]].";
+    const md =
+      "Approved by a manager [[verified lib/orders.ts:42]]; see `api/x.py:7`. Syntax: `[[verified a.ts:4]]`. Seuil [[verifie lib/config.ts:3-5 seuil par défaut]].";
     const proofs = extractProofs(md);
-    assert.deepEqual(proofs.map((p) => p.ref), ["lib/orders.ts:42", "api/x.py:7", "lib/config.ts:3-5"]);
+    assert.deepEqual(
+      proofs.map((p) => p.ref),
+      ["lib/orders.ts:42", "api/x.py:7", "lib/config.ts:3-5"],
+    );
     assert.equal(proofs[0].span, "[[verified lib/orders.ts:42]]");
-    assert.equal(rewriteProof(md, proofs[0], { newFile: "lib/orders.ts", newFrom: 57, newTo: 57 }).includes("[[verified lib/orders.ts:57]]"), true);
+    assert.equal(
+      rewriteProof(md, proofs[0], { newFile: "lib/orders.ts", newFrom: 57, newTo: 57 }).includes(
+        "[[verified lib/orders.ts:57]]",
+      ),
+      true,
+    );
     assert.ok(PROOF.test("[[verified lib/orders.ts:42]]") && PROOF.test("[[verifie seuil lib/c.ts:3]]"));
     assert.ok(!PROOF.test("[[verified the manager approves]]"), "a badge without a source is a claim, not a proof");
   });

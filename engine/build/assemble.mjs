@@ -27,7 +27,8 @@ import { esc } from "./text.mjs";
 export function screenshotInfo(data, captures) {
   if (!captures) return null;
   const used = new Set();
-  for (const page of Object.values(data.pages || {})) for (const m of String(page.html || "").matchAll(/data-img="([^"]+)"/g)) used.add(m[1]);
+  for (const page of Object.values(data.pages || {}))
+    for (const m of String(page.html || "").matchAll(/data-img="([^"]+)"/g)) used.add(m[1]);
   const info = {};
   for (const id of [...used].sort()) {
     const c = captures[id];
@@ -65,8 +66,15 @@ export function assemble({ template, app, markers, t, icon, data, themeKey, text
     const s = screenshotInfo(l.data, l.captures);
     if (s && l.data.meta) l.data.meta.screenshots = s;
   }
-  const languageData = languages.map((l) => `<script type="application/json" id="donnees-${esc(l.id)}">${toJson(l.data)}</script>`).join("\n");
-  const values = { ...markers, DATA: toJson(data), LANGUAGE_DATA: languageData, APP: app.replace(/__THEME_KEY__/g, () => themeKey) };
+  const languageData = languages
+    .map((l) => `<script type="application/json" id="donnees-${esc(l.id)}">${toJson(l.data)}</script>`)
+    .join("\n");
+  const values = {
+    ...markers,
+    DATA: toJson(data),
+    LANGUAGE_DATA: languageData,
+    APP: app.replace(/__THEME_KEY__/g, () => themeKey),
+  };
   return template.replace(/\{\{(t:[\w.]+|ICON:[\w-]+|[A-Z_]+)\}\}/g, (m, key) => {
     if (key.startsWith("t:")) return esc(t(key.slice(2), textVars));
     if (key.startsWith("ICON:")) return icon(key.slice(5));

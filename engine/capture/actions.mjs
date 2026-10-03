@@ -25,9 +25,12 @@ export function registerSelectors() {
       query(root, selector) {
         const bordered = (el) => {
           const s = getComputedStyle(el);
-          return ["Top", "Right", "Bottom", "Left"].every((k) => parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none");
+          return ["Top", "Right", "Bottom", "Left"].every(
+            (k) => parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none",
+          );
         };
-        for (let el = root; el && el.nodeType === 1; el = el.parentElement) if (selector ? el.matches(selector) : bordered(el)) return el;
+        for (let el = root; el && el.nodeType === 1; el = el.parentElement)
+          if (selector ? el.matches(selector) : bordered(el)) return el;
         return null;
       },
       queryAll(root, selector) {
@@ -65,11 +68,14 @@ export function locate(page, t, sel = {}, root = page, { all = false } = {}) {
   else if (t.block) {
     if (!sel.block) throw new CaptureError("blockSelector");
     const name = new RegExp("^\\s*" + escapeRegex(t.block));
-    l = base.locator(sel.block).filter({ has: page.getByRole("button", { name }).or(page.getByRole("heading", { name })) });
+    l = base
+      .locator(sel.block)
+      .filter({ has: page.getByRole("button", { name }).or(page.getByRole("heading", { name })) });
   } else throw new CaptureError("target", { target: JSON.stringify(t) });
   if (t.has !== undefined) l = l.filter({ hasText: t.has });
   // Which match: nth, last, or the first one (the last one for a block: nested containers match too).
-  if (!(all && t.nth === undefined && !t.last)) l = t.nth !== undefined ? l.nth(t.nth) : t.last || (t.block && t.last === undefined) ? l.last() : l.first();
+  if (!(all && t.nth === undefined && !t.last))
+    l = t.nth !== undefined ? l.nth(t.nth) : t.last || (t.block && t.last === undefined) ? l.last() : l.first();
   for (let i = 0; i < (t.up || 0); i++) l = l.locator("xpath=..");
   if (t.framed) l = l.locator(`${FRAME_ENGINE}=${sel.frame || ""}`);
   return l;
@@ -97,7 +103,12 @@ export async function zoneBox(page, zone, sel, { timeout = TIMINGS.element } = {
     const r = await l.boundingBox();
     if (!r) throw new Error(`no box: ${describeTarget(t)}`);
     b = b
-      ? { x: Math.min(b.x, r.x), y: Math.min(b.y, r.y), x2: Math.max(b.x2, r.x + r.width), y2: Math.max(b.y2, r.y + r.height) }
+      ? {
+          x: Math.min(b.x, r.x),
+          y: Math.min(b.y, r.y),
+          x2: Math.max(b.x2, r.x + r.width),
+          y2: Math.max(b.y2, r.y + r.height),
+        }
       : { x: r.x, y: r.y, x2: r.x + r.width, y2: r.y + r.height };
   }
   const m = zone.margin ?? 4;
@@ -168,7 +179,8 @@ export async function play(page, a, sel) {
 }
 
 /** Name of an action's kind, for messages. */
-export const actionKind = (a) => ["click", "hover", "type", "select", "press", "scroll", "wait", "wheel", "eval"].find((k) => k in a) || "?";
+export const actionKind = (a) =>
+  ["click", "hover", "type", "select", "press", "scroll", "wait", "wheel", "eval"].find((k) => k in a) || "?";
 
 /**
  * Route with the map framing of `view` (capture.map gives the URL parameter names).

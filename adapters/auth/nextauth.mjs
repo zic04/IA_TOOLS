@@ -18,6 +18,10 @@ export default {
     if (!s || !s.user) return null;
     const u = s.user;
     const roles = [].concat(u.roles ?? u.role ?? []).filter(Boolean);
-    return { who: u.name || u.email || null, details: roles.length ? roles.join(", ") : null, expires: s.expires || null };
+    return {
+      who: u.name || u.email || null,
+      details: roles.length ? roles.join(", ") : null,
+      expires: s.expires || null,
+    };
   },
 };

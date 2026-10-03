@@ -37,7 +37,12 @@ export default {
   async inventory({ options, tools }) {
     if (!tools.exists(options.app)) return { available: false, reason: "notFound", vars: { path: options.app } };
     const files = tools.walk(options.app);
-    const routes = new Set(files.filter((f) => PAGE.test(f)).map(routeOf).filter((r) => r !== null));
+    const routes = new Set(
+      files
+        .filter((f) => PAGE.test(f))
+        .map(routeOf)
+        .filter((r) => r !== null),
+    );
     const items = [...routes].sort().map((id) => ({ id, match: routeMatches(id) }));
     const families = [{ name: options.family, items: excludeItems(items, options.exclude) }];
     if (options.api) {
@@ -46,7 +51,8 @@ export default {
         const route = routeOf(f);
         if (route === null) continue;
         const source = tools.read(`${options.app}/${f}`);
-        for (const method of nextRouteMethods(source)) apiItems.push({ id: `${method} ${route}`, match: routeMatches(route).map((r) => `${method} ${r}`) });
+        for (const method of nextRouteMethods(source))
+          apiItems.push({ id: `${method} ${route}`, match: routeMatches(route).map((r) => `${method} ${r}`) });
       }
       families.push({ name: options.apiFamily, items: excludeItems(apiItems, options.exclude) });
     }

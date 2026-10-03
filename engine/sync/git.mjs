@@ -32,7 +32,8 @@ export function createGit(exec, dir) {
     // whenever the application sits inside a bigger repository (a monorepo).
     // A reference comes from sync.json or --since: anything that is not a plain reference (isSafeRef: an option
     // such as --output=<file>, a space, a colon) is refused, and --end-of-options keeps git from reading it as one.
-    show: (ref, p) => (isSafeRef(ref) ? run(["show", "--end-of-options", `${ref}:./${p.split(path.sep).join("/")}`]) : null),
+    show: (ref, p) =>
+      isSafeRef(ref) ? run(["show", "--end-of-options", `${ref}:./${p.split(path.sep).join("/")}`]) : null,
     // --relative: paths relative to `dir` too (name-status lines, and pathspecs below), for the same reason.
     changed: (ref) => {
       if (!isSafeRef(ref)) return null;
@@ -43,10 +44,13 @@ export function createGit(exec, dir) {
         .filter(Boolean)
         .map((line) => {
           const [status, ...rest] = line.split("\t");
-          return status[0] === "R" ? { status: "R", path: rest[1], from: rest[0] } : { status: status[0], path: rest[0] };
+          return status[0] === "R"
+            ? { status: "R", path: rest[1], from: rest[0] }
+            : { status: status[0], path: rest[0] };
         });
     },
-    diff: (ref, paths) => (!isSafeRef(ref) ? null : paths.length ? run(["diff", "--relative", "--end-of-options", ref, "--", ...paths]) : ""),
+    diff: (ref, paths) =>
+      !isSafeRef(ref) ? null : paths.length ? run(["diff", "--relative", "--end-of-options", ref, "--", ...paths]) : "",
     // `context --translate` (ARCHITECTURE.md §6.12): the commits of one file, most recent first, read-only, so
     // that the translator's dossier can show the diff since the commit whose content matches the recorded
     // fingerprint (findSourceCommit, engine/context/translate.mjs).

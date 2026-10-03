@@ -33,15 +33,23 @@ export default {
     family: { type: "string", minLength: 1, default: "Registry" },
   },
   async inventory({ options, tools }) {
-    for (const f of [options.source, options.messages]) if (!tools.exists(f)) return { available: false, reason: "notFound", vars: { path: f } };
+    for (const f of [options.source, options.messages])
+      if (!tools.exists(f)) return { available: false, reason: "notFound", vars: { path: f } };
     let text = tools.read(options.source);
     if (options.block) {
       const b = new RegExp(options.block, options.flags).exec(text);
-      if (!b) return { available: false, reason: "blockNotFound", vars: { block: options.block, path: options.source } };
+      if (!b)
+        return { available: false, reason: "blockNotFound", vars: { block: options.block, path: options.source } };
       text = b[1] ?? b[0];
     }
     const messages = tools.json(options.messages);
-    const ids = [...new Set([...text.matchAll(new RegExp(options.pattern, "g" + options.flags))].map((m) => m.groups?.id ?? m[1]).filter(Boolean))];
+    const ids = [
+      ...new Set(
+        [...text.matchAll(new RegExp(options.pattern, "g" + options.flags))]
+          .map((m) => m.groups?.id ?? m[1])
+          .filter(Boolean),
+      ),
+    ];
     const value = (k) => {
       const v = tools.i18nKey(messages, k);
       return typeof v === "string" && v.trim() ? v : undefined;

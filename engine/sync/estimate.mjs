@@ -24,8 +24,12 @@ export function estimateUpdate({ contexts, templates, prices = {}, currency = nu
     return { page, agent: "doc-kit-writer", model: "sonnet", input, output, cost };
   });
   const total = agents.reduce(
-    (t, a) => ({ input: t.input + a.input, output: t.output + a.output, cost: t.cost === null || a.cost === null ? null : t.cost + a.cost }),
-    { input: 0, output: 0, cost: price ? 0 : null }
+    (t, a) => ({
+      input: t.input + a.input,
+      output: t.output + a.output,
+      cost: t.cost === null || a.cost === null ? null : t.cost + a.cost,
+    }),
+    { input: 0, output: 0, cost: price ? 0 : null },
   );
   return { agents, total, currency };
 }

@@ -19,7 +19,8 @@ export const kitVersion = () => BRAND.version;
 export function findProject({ project, from = process.cwd() } = {}) {
   if (project) {
     const root = path.resolve(from, project);
-    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) throw new KitError(EXIT.USAGE, "project.folderMissing", { folder: root });
+    if (!fs.existsSync(root) || !fs.statSync(root).isDirectory())
+      throw new KitError(EXIT.USAGE, "project.folderMissing", { folder: root });
     const configFile = path.join(root, CONFIG_FILE);
     if (!fs.existsSync(configFile)) throw new KitError(EXIT.USAGE, "project.configMissing", { folder: root });
     return { root, configFile };

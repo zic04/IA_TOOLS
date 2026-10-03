@@ -4,7 +4,14 @@
 // `auth` (ARCHITECTURE.md §6.9/§6.13: "none" | "user" | "role" | "unknown"), for anonymous and every `--as <role>`.
 import { LOGIN_PATTERN } from "../capture/session.mjs";
 
-const SECURITY_HEADERS = Object.freeze(["content-security-policy", "strict-transport-security", "x-content-type-options", "x-frame-options", "referrer-policy", "permissions-policy"]);
+const SECURITY_HEADERS = Object.freeze([
+  "content-security-policy",
+  "strict-transport-security",
+  "x-content-type-options",
+  "x-frame-options",
+  "referrer-policy",
+  "permissions-policy",
+]);
 const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
 
 /** A loopback host: localhost, *.localhost, 127.x, [::1] (ARCHITECTURE.md §6.13). */
@@ -65,12 +72,19 @@ export function fillRoute(route, params) {
 
 /** `{ name, secure, httpOnly, sameSite }` of one `Set-Cookie` header value (never its value). */
 export function parseSetCookie(raw) {
-  const parts = String(raw).split(";").map((p) => p.trim());
+  const parts = String(raw)
+    .split(";")
+    .map((p) => p.trim());
   const eq = parts[0].indexOf("=");
   const name = eq >= 0 ? parts[0].slice(0, eq) : parts[0];
   const lower = parts.slice(1).map((p) => p.toLowerCase());
   const sameSite = parts.slice(1).find((p) => /^samesite=/i.test(p));
-  return { name, secure: lower.includes("secure"), httpOnly: lower.includes("httponly"), sameSite: sameSite ? sameSite.split("=")[1] : null };
+  return {
+    name,
+    secure: lower.includes("secure"),
+    httpOnly: lower.includes("httponly"),
+    sameSite: sameSite ? sameSite.split("=")[1] : null,
+  };
 }
 
 /** Every `Set-Cookie` value of a response (Node ≥ 20's `getSetCookie()`, else the single combined header). */
@@ -91,7 +105,10 @@ function headerSnapshot(res) {
  * A paced caller: never more than `maxPerSecond` calls, spaced evenly. `now`/`sleep` are test seams (a virtual
  * clock), so the tests measure the pacing without a real delay.
  */
-export function createThrottle(maxPerSecond = 4, { now = Date.now, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+export function createThrottle(
+  maxPerSecond = 4,
+  { now = Date.now, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {},
+) {
   const minInterval = 1000 / maxPerSecond;
   let last = -Infinity;
   return async function throttle() {
@@ -123,7 +140,10 @@ export function isProtectedResponse(status, location, baseUrl) {
   if (status >= 300 && status < 400 && location) {
     try {
       const target = new URL(location, baseUrl);
-      return target.origin !== new URL(baseUrl).origin || new RegExp(LOGIN_PATTERN, "i").test(target.pathname + target.search);
+      return (
+        target.origin !== new URL(baseUrl).origin ||
+        new RegExp(LOGIN_PATTERN, "i").test(target.pathname + target.search)
+      );
     } catch {
       return false;
     }
@@ -171,13 +191,32 @@ export class ProbeUnreachableError extends Error {}
  * @returns {Promise<object>} facts/probe.json (ARCHITECTURE.md §6.13)
  * @throws {ProbeUnreachableError} the instance cannot be reached at all
  */
-export async function runProbe({ url, roles = [], sessionOf = () => null, apiItems = [], params = {}, fetch: fetchImpl = fetch, maxPerSecond = 4, timeoutMs = 5000, now, sleep }) {
+export async function runProbe({
+  url,
+  roles = [],
+  sessionOf = () => null,
+  apiItems = [],
+  params = {},
+  fetch: fetchImpl = fetch,
+  maxPerSecond = 4,
+  timeoutMs = 5000,
+  now,
+  sleep,
+}) {
   const throttle = createThrottle(maxPerSecond, { now, sleep });
-  const identities = [{ name: "anonymous", cookie: "" }, ...roles.map((r) => ({ name: r, cookie: cookieHeaderFromStorageState(sessionOf(r), url) }))];
+  const identities = [
+    { name: "anonymous", cookie: "" },
+    ...roles.map((r) => ({ name: r, cookie: cookieHeaderFromStorageState(sessionOf(r), url) })),
+  ];
 
   async function get(target, identity) {
     await throttle();
-    return probeFetch(fetchImpl, url + target, { method: "GET", headers: identity.cookie ? { Cookie: identity.cookie } : {} }, timeoutMs);
+    return probeFetch(
+      fetchImpl,
+      url + target,
+      { method: "GET", headers: identity.cookie ? { Cookie: identity.cookie } : {} },
+      timeoutMs,
+    );
   }
 
   const getRoutes = apiItems.filter((i) => i.method === "GET");
@@ -198,11 +237,22 @@ export async function runProbe({ url, roles = [], sessionOf = () => null, apiIte
     }
     headers[target] = headerSnapshot(res);
     cookies[target] = setCookiesOf(res).map(parseSetCookie);
-    disclosure[target] = { server: res.headers.get("server") || null, poweredBy: res.headers.get("x-powered-by") || null };
+    disclosure[target] = {
+      server: res.headers.get("server") || null,
+      poweredBy: res.headers.get("x-powered-by") || null,
+    };
     try {
       await throttle();
-      const corsRes = await probeFetch(fetchImpl, url + target, { method: "GET", headers: { Origin: "https://probe.invalid" } }, timeoutMs);
-      cors[target] = { allowOrigin: corsRes.headers.get("access-control-allow-origin") || null, allowCredentials: corsRes.headers.get("access-control-allow-credentials") || null };
+      const corsRes = await probeFetch(
+        fetchImpl,
+        url + target,
+        { method: "GET", headers: { Origin: "https://probe.invalid" } },
+        timeoutMs,
+      );
+      cors[target] = {
+        allowOrigin: corsRes.headers.get("access-control-allow-origin") || null,
+        allowCredentials: corsRes.headers.get("access-control-allow-credentials") || null,
+      };
     } catch {
       cors[target] = null;
     }
@@ -238,11 +288,29 @@ export async function runProbe({ url, roles = [], sessionOf = () => null, apiIte
     const expected = item.auth === "user" || item.auth === "role" ? "protected" : "open";
     let finding;
     if (!failed) {
-      if (expected === "protected" && !isProtectedResponse(status.anonymous, anonLocation, url)) finding = "probe.unprotected";
+      if (expected === "protected" && !isProtectedResponse(status.anonymous, anonLocation, url))
+        finding = "probe.unprotected";
       else if (item.auth === "none" && publicData) finding = "probe.publicData";
     }
-    routes.push({ method: item.method, route: item.route, auth: item.auth, expected, status, ...(finding ? { finding } : {}) });
+    routes.push({
+      method: item.method,
+      route: item.route,
+      auth: item.auth,
+      expected,
+      status,
+      ...(finding ? { finding } : {}),
+    });
   }
 
-  return { url, date: new Date().toISOString(), identities: identities.map((i) => i.name), headers, cookies, cors, disclosure, routes, skipped };
+  return {
+    url,
+    date: new Date().toISOString(),
+    identities: identities.map((i) => i.name),
+    headers,
+    cookies,
+    cors,
+    disclosure,
+    routes,
+    skipped,
+  };
 }

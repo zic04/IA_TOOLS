@@ -6,7 +6,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { tempDir } from "../tools/helpers.mjs";
-import { jsSpecifiers, pySpecifiers, loadTsconfig, resolveJs, resolvePy, resolveImports } from "../../engine/sync/imports.mjs";
+import {
+  jsSpecifiers,
+  pySpecifiers,
+  loadTsconfig,
+  resolveJs,
+  resolvePy,
+  resolveImports,
+} from "../../engine/sync/imports.mjs";
 
 describe("jsSpecifiers", () => {
   test("import … from, bare import, require, dynamic import; one specifier per statement", () => {
@@ -36,7 +43,10 @@ describe("pySpecifiers", () => {
     assert.deepEqual(pySpecifiers("from ..pkg.sub import x"), [{ module: "pkg.sub", level: 2 }]);
     assert.deepEqual(pySpecifiers("from fastapi import APIRouter"), [{ module: "fastapi", level: 0 }]);
     assert.deepEqual(pySpecifiers("import os.path"), [{ module: "os.path", level: 0 }]);
-    assert.deepEqual(pySpecifiers("  from .a import b\nimport c\n"), [{ module: "a", level: 1 }, { module: "c", level: 0 }]);
+    assert.deepEqual(pySpecifiers("  from .a import b\nimport c\n"), [
+      { module: "a", level: 1 },
+      { module: "c", level: 0 },
+    ]);
   });
 });
 
@@ -45,7 +55,10 @@ describe("loadTsconfig", () => {
     const dir = tempDir("doc-kit-tsconfig-");
     try {
       fs.mkdirSync(path.join(dir, "apps", "web"), { recursive: true });
-      fs.writeFileSync(path.join(dir, "apps", "web", "tsconfig.json"), JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }));
+      fs.writeFileSync(
+        path.join(dir, "apps", "web", "tsconfig.json"),
+        JSON.stringify({ compilerOptions: { baseUrl: ".", paths: { "@/*": ["./src/*"] } } }),
+      );
       const cfg = loadTsconfig(dir, "apps/web/app/page.tsx");
       assert.deepEqual(cfg, { baseUrl: "apps/web", paths: { "@/*": ["./src/*"] } });
       assert.equal(loadTsconfig(dir, "elsewhere/x.ts"), null);
@@ -59,7 +72,10 @@ describe("loadTsconfig", () => {
     try {
       fs.writeFileSync(path.join(dir, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true } }));
       fs.mkdirSync(path.join(dir, "app"));
-      fs.writeFileSync(path.join(dir, "app", "jsconfig.json"), JSON.stringify({ compilerOptions: { paths: { "~/*": ["./*"] } } }));
+      fs.writeFileSync(
+        path.join(dir, "app", "jsconfig.json"),
+        JSON.stringify({ compilerOptions: { paths: { "~/*": ["./*"] } } }),
+      );
       assert.deepEqual(loadTsconfig(dir, "app/x.js"), { baseUrl: "app", paths: { "~/*": ["./*"] } });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -92,7 +108,10 @@ describe("resolveJs", () => {
     const dir = withFiles({ "src/components/order-table.tsx": "" });
     try {
       const tsconfig = { baseUrl: ".", paths: { "@/*": ["./src/*"] } };
-      assert.equal(resolveJs("@/components/order-table", "app/page.tsx", dir, tsconfig), "src/components/order-table.tsx");
+      assert.equal(
+        resolveJs("@/components/order-table", "app/page.tsx", dir, tsconfig),
+        "src/components/order-table.tsx",
+      );
       assert.equal(resolveJs("@/nope", "app/page.tsx", dir, tsconfig), null);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -143,10 +162,18 @@ describe("resolvePy", () => {
   test("absolute: from app.dir first, then from the importing file's own folder; package (no file) → null", () => {
     const dir = withFiles({ "models.py": "", "backend/api/models.py": "" });
     try {
-      assert.equal(resolvePy({ module: "models", level: 0 }, "backend/api/orders.py", dir), "models.py", "found from app.dir first");
+      assert.equal(
+        resolvePy({ module: "models", level: 0 }, "backend/api/orders.py", dir),
+        "models.py",
+        "found from app.dir first",
+      );
       const dir2 = withFiles({ "backend/api/models.py": "" });
       try {
-        assert.equal(resolvePy({ module: "models", level: 0 }, "backend/api/orders.py", dir2), "backend/api/models.py", "falls back to the importing file's own folder");
+        assert.equal(
+          resolvePy({ module: "models", level: 0 }, "backend/api/orders.py", dir2),
+          "backend/api/models.py",
+          "falls back to the importing file's own folder",
+        );
       } finally {
         fs.rmSync(dir2, { recursive: true, force: true });
       }

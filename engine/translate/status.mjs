@@ -27,7 +27,14 @@ export function statusOf({ root, config, toc, lang }) {
     const sourceText = fs.existsSync(srcAbs) ? fs.readFileSync(srcAbs, "utf8") : null;
     const state = translationState({ sourceText, translatedExists, recorded: recorded[f.file] });
     counts[state]++;
-    return { file: f.file, ...(f.page ? { page: f.page } : {}), ...(f.section ? { section: f.section } : {}), state, source: sourceText === null ? null : hashText(sourceText), recorded: recorded[f.file] ?? null };
+    return {
+      file: f.file,
+      ...(f.page ? { page: f.page } : {}),
+      ...(f.section ? { section: f.section } : {}),
+      state,
+      source: sourceText === null ? null : hashText(sourceText),
+      recorded: recorded[f.file] ?? null,
+    };
   });
   return { id: lang, counts, files };
 }
@@ -65,7 +72,11 @@ export function resolveItems({ toc, root, content, items }) {
 export function markFiles({ root, config, toc, lang, items = [], all = false }) {
   const { content, translations } = config.paths;
   const recorded = readSources(root, translations, lang);
-  const targets = all ? translatableFiles({ toc, root, content }).filter((f) => fs.existsSync(path.join(root, translations, lang, f.file))) : items;
+  const targets = all
+    ? translatableFiles({ toc, root, content }).filter((f) =>
+        fs.existsSync(path.join(root, translations, lang, f.file)),
+      )
+    : items;
   const written = [];
   const missing = [];
   for (const f of targets) {

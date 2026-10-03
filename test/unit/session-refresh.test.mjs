@@ -65,14 +65,22 @@ describe("refreshSession (ARCHITECTURE.md §6.3a)", () => {
     });
     try {
       const file = emptySessionFile();
-      const r = await refreshSession({ file, appUrl: url, refresh: { method: "POST", path: "/refresh", json: { grant: "refresh" }, reason: REASON }, launch });
+      const r = await refreshSession({
+        file,
+        appUrl: url,
+        refresh: { method: "POST", path: "/refresh", json: { grant: "refresh" }, reason: REASON },
+        launch,
+      });
       assert.deepEqual(r, { ok: true, status: 200 });
       assert.equal(received.method, "POST");
       assert.equal(received.path, "/refresh");
       assert.match(received.contentType, /application\/json/);
       assert.deepEqual(JSON.parse(received.body), { grant: "refresh" });
       const state = JSON.parse(fs.readFileSync(file, "utf8"));
-      assert.ok(state.cookies.some((c) => c.name === "session" && c.value === "renewed-token"), JSON.stringify(state.cookies));
+      assert.ok(
+        state.cookies.some((c) => c.name === "session" && c.value === "renewed-token"),
+        JSON.stringify(state.cookies),
+      );
     } finally {
       await new Promise((r) => server.close(r));
     }

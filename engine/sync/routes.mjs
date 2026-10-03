@@ -59,5 +59,7 @@ export function routeFiles({ spec, options, item, route, tools }) {
 /** The inventory item whose `match` contains `route` (normalised comparison), else whose `id === route`, else null. */
 export function matchRoute(route, items) {
   const n = normalize(route);
-  return items.find((it) => (it.match || []).some((m) => normalize(m) === n)) ?? items.find((it) => it.id === route) ?? null;
+  return (
+    items.find((it) => (it.match || []).some((m) => normalize(m) === n)) ?? items.find((it) => it.id === route) ?? null
+  );
 }

@@ -26,16 +26,29 @@ const dir = demoCopy();
 try {
   const plans = path.join(dir, "measure-plans");
   fs.mkdirSync(plans);
-  const { CAPTURES } = await import(pathToFileURL(path.join(KIT_ROOT, "examples", "demo-docs", "captures", "plans", "use.mjs")).href);
-  const entries = Array.from({ length: repeat }, (_, r) => CAPTURES.map((c) => ({ ...c, id: r ? `${c.id}-${r}` : c.id, delay: delay ?? undefined }))).flat();
+  const { CAPTURES } = await import(
+    pathToFileURL(path.join(KIT_ROOT, "examples", "demo-docs", "captures", "plans", "use.mjs")).href
+  );
+  const entries = Array.from({ length: repeat }, (_, r) =>
+    CAPTURES.map((c) => ({ ...c, id: r ? `${c.id}-${r}` : c.id, delay: delay ?? undefined })),
+  ).flat();
   fs.writeFileSync(path.join(plans, "use.mjs"), `export const CAPTURES = ${JSON.stringify(entries)};\n`);
   fs.rmSync(path.join(dir, "captures", "plans"), { recursive: true, force: true });
   const raw = structuredClone((await import(pathToFileURL(path.join(DEMO, "doc.config.mjs")).href)).default);
-  const config = { ...raw, app: { url: app.url }, auth: { adapter: "manual", loginPattern: "^/login" }, capture: { plans: "measure-plans", ...(concurrency ? { concurrency } : {}) } };
+  const config = {
+    ...raw,
+    app: { url: app.url },
+    auth: { adapter: "manual", loginPattern: "^/login" },
+    capture: { plans: "measure-plans", ...(concurrency ? { concurrency } : {}) },
+  };
   fs.writeFileSync(path.join(dir, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
   const auth = await loadAdapter("auth", { adapter: "manual", loginPattern: "^/login" }, dir, "auth");
   await connect({
-    url: app.url, auth, file: path.join(dir, ".doc-kit", "session.json"), headless: true, poll: 100,
+    url: app.url,
+    auth,
+    file: path.join(dir, ".doc-kit", "session.json"),
+    headless: true,
+    poll: 100,
     waitForUser: async (page) => {
       await page.waitForURL(/\/login/);
       await page.fill("#email", "robin@example.org");
@@ -44,7 +57,10 @@ try {
       await page.waitForURL(/\/orders$/);
     },
   });
-  const code = await runCli(["capture", "--project", dir, "--profile"], { stdout: process.stdout, stderr: process.stderr });
+  const code = await runCli(["capture", "--project", dir, "--profile"], {
+    stdout: process.stdout,
+    stderr: process.stderr,
+  });
   process.exitCode = code;
 } finally {
   await app.close();

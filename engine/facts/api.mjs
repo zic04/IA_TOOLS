@@ -117,7 +117,8 @@ function nextGuardsIn(body) {
  */
 export function nextHandlerGuards(source) {
   const spans = [];
-  for (const re of [EXPORT_FN_RE, EXPORT_CONST_RE]) for (const m of source.matchAll(re)) spans.push({ method: m[1], start: m.index });
+  for (const re of [EXPORT_FN_RE, EXPORT_CONST_RE])
+    for (const m of source.matchAll(re)) spans.push({ method: m[1], start: m.index });
   spans.sort((a, b) => a.start - b.start);
   const guards = new Map();
   for (let i = 0; i < spans.length; i++) {
@@ -137,7 +138,8 @@ export function pagesApiRouteOf(file) {
 /** HTTP methods a `pages/api` handler answers to (req.method checks), else "ALL" (one default export for every method). */
 function pagesApiMethods(source) {
   const methods = new Set();
-  for (const m of source.matchAll(/req\.method\s*===?\s*["'](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)["']/g)) methods.add(m[1]);
+  for (const m of source.matchAll(/req\.method\s*===?\s*["'](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)["']/g))
+    methods.add(m[1]);
   return methods.size ? [...methods] : ["ALL"];
 }
 
@@ -226,14 +228,21 @@ export function fastapiRoutes(sources, patterns = {}) {
       const head = /^\s*(\w+)(?:\.(\w+))?/.exec(args);
       if (!head) continue;
       const [, first, second] = head;
-      const file = second ? fileOfStem.get(first) : (varFiles.get(first) || []).length === 1 ? varFiles.get(first)[0] : null;
+      const file = second
+        ? fileOfStem.get(first)
+        : (varFiles.get(first) || []).length === 1
+          ? varFiles.get(first)[0]
+          : null;
       if (!file) continue;
       const prefix = /prefix\s*=\s*["']([^"']*)["']/.exec(args);
       if (prefix) extraPrefix.set(file, (extraPrefix.get(file) || "") + prefix[1]);
       const guards = dependsNames(args);
       if (guards.length) extraGuards.set(file, [...(extraGuards.get(file) || []), ...guards]);
     }
-  const methodRe = new RegExp(`@(\\w+)\\.(${HTTP_METHODS.map((m) => m.toLowerCase()).join("|")})\\(\\s*["']([^"']*)["']`, "g");
+  const methodRe = new RegExp(
+    `@(\\w+)\\.(${HTTP_METHODS.map((m) => m.toLowerCase()).join("|")})\\(\\s*["']([^"']*)["']`,
+    "g",
+  );
   // WebSocket routes (ARCHITECTURE.md §6.13): `@app.websocket(...)` / `@router.websocket(...)`, method "WS".
   const websocketRe = /@(\w+)\.websocket\(\s*["']([^"']*)["']/g;
   const items = [];
@@ -247,14 +256,26 @@ export function fastapiRoutes(sources, patterns = {}) {
       const base = obj === "app" ? "" : extra + (router?.prefix || "");
       const full = (base + route).replace(/\/{2,}/g, "/").replace(/(.)\/$/, "$1") || "/";
       const defMatch = /\bdef\s+\w+\s*\(/.exec(text.slice(m.index));
-      const sigGuards = defMatch ? dependsNames(balancedParens(text, m.index + defMatch.index + defMatch[0].length - 1)) : [];
+      const sigGuards = defMatch
+        ? dependsNames(balancedParens(text, m.index + defMatch.index + defMatch[0].length - 1))
+        : [];
       const guards = [...new Set([...sigGuards, ...(router?.guards || []), ...(extraGuards.get(file) || [])])];
-      items.push({ method, route: full, file, line: lineAt(text, m.index), framework: "fastapi", auth: classifyAuth(guards, patterns), guards });
+      items.push({
+        method,
+        route: full,
+        file,
+        line: lineAt(text, m.index),
+        framework: "fastapi",
+        auth: classifyAuth(guards, patterns),
+        guards,
+      });
     };
     for (const m of text.matchAll(methodRe)) push(m, m[1], m[2].toUpperCase(), m[3]);
     for (const m of text.matchAll(websocketRe)) push(m, m[1], "WS", m[2]);
   }
-  return items.sort((a, b) => a.route.localeCompare(b.route) || a.method.localeCompare(b.method) || a.file.localeCompare(b.file));
+  return items.sort(
+    (a, b) => a.route.localeCompare(b.route) || a.method.localeCompare(b.method) || a.file.localeCompare(b.file),
+  );
 }
 
 /**
@@ -275,7 +296,15 @@ export function expressRoutes(source, file, patterns = {}) {
       .slice(1, -1)
       .map((a) => /^([A-Za-z_][\w.]*)/.exec(a)?.[1])
       .filter(Boolean);
-    items.push({ method: m[1].toUpperCase(), route: routeMatch[1], file, line: lineAt(source, m.index), framework: "express", auth: classifyAuth(guards, patterns), guards });
+    items.push({
+      method: m[1].toUpperCase(),
+      route: routeMatch[1],
+      file,
+      line: lineAt(source, m.index),
+      framework: "express",
+      auth: classifyAuth(guards, patterns),
+      guards,
+    });
   }
   return items;
 }
@@ -305,22 +334,48 @@ export function collectApi(appDir, guards = {}) {
       const handlerGuards = nextHandlerGuards(source);
       for (const [method, line] of nextRouteHandlers(source)) {
         const g = handlerGuards.get(method) || [];
-        items.push({ method, route, file, line, framework: "next-app-router", auth: classifyAuth(g, patterns), guards: g });
+        items.push({
+          method,
+          route,
+          file,
+          line,
+          framework: "next-app-router",
+          auth: classifyAuth(g, patterns),
+          guards: g,
+        });
       }
     }
 
   const pagesApi = firstFolder(appDir, ["pages/api", "src/pages/api"]);
   if (pagesApi)
-    for (const rel of listFiles(path.join(appDir, pagesApi)).filter((f) => PAGE_FILE.test(f) || /\.(ts|tsx|js|jsx)$/.test(f))) {
+    for (const rel of listFiles(path.join(appDir, pagesApi)).filter(
+      (f) => PAGE_FILE.test(f) || /\.(ts|tsx|js|jsx)$/.test(f),
+    )) {
       const file = `${pagesApi}/${rel}`;
       const source = fs.readFileSync(path.join(appDir, file), "utf8");
       const g = nextGuardsIn(source);
       for (const method of pagesApiMethods(source))
-        items.push({ method, route: pagesApiRouteOf(rel), file, line: 1, framework: "next-pages-api", auth: classifyAuth(g, patterns), guards: g });
+        items.push({
+          method,
+          route: pagesApiRouteOf(rel),
+          file,
+          line: 1,
+          framework: "next-pages-api",
+          auth: classifyAuth(g, patterns),
+          guards: g,
+        });
     }
 
   const pyFiles = listFiles(appDir).filter((f) => f.endsWith(".py"));
-  const pySources = new Map(pyFiles.filter((f) => /APIRouter\(|@\w+\.(get|post|put|patch|delete|head|options|websocket)\(/.test(fs.readFileSync(path.join(appDir, f), "utf8"))).map((f) => [f, fs.readFileSync(path.join(appDir, f), "utf8")]));
+  const pySources = new Map(
+    pyFiles
+      .filter((f) =>
+        /APIRouter\(|@\w+\.(get|post|put|patch|delete|head|options|websocket)\(/.test(
+          fs.readFileSync(path.join(appDir, f), "utf8"),
+        ),
+      )
+      .map((f) => [f, fs.readFileSync(path.join(appDir, f), "utf8")]),
+  );
   items.push(...fastapiRoutes(pySources, patterns));
 
   for (const rel of listFiles(appDir).filter((f) => /\.(js|ts|mjs|cjs)$/.test(f) && !ROUTE_FILE.test(f))) {
@@ -329,5 +384,7 @@ export function collectApi(appDir, guards = {}) {
     items.push(...expressRoutes(text, rel, patterns));
   }
 
-  return items.sort((a, b) => a.route.localeCompare(b.route) || a.method.localeCompare(b.method) || a.file.localeCompare(b.file));
+  return items.sort(
+    (a, b) => a.route.localeCompare(b.route) || a.method.localeCompare(b.method) || a.file.localeCompare(b.file),
+  );
 }

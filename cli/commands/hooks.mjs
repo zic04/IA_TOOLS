@@ -24,7 +24,11 @@ export function hookBlock(hook, docRel) {
   // post-checkout: only a branch switch ($3 = 1), not a file checkout.
   const guard = hook === "post-checkout" ? '[ "$3" = "1" ] && ' : "";
   const dir = docRel.split(path.sep).join("/");
-  return [BEGIN, `${guard}( cd "$(git rev-parse --show-toplevel)/${dir}" && npx --no-install ${BRAND.command} facts >/dev/null 2>&1 && npx --no-install ${BRAND.command} sync >/dev/null 2>&1 ) || true`, END].join("\n");
+  return [
+    BEGIN,
+    `${guard}( cd "$(git rev-parse --show-toplevel)/${dir}" && npx --no-install ${BRAND.command} facts >/dev/null 2>&1 && npx --no-install ${BRAND.command} sync >/dev/null 2>&1 ) || true`,
+    END,
+  ].join("\n");
 }
 
 /** A hook's text with the kit's block added (or replaced), or removed (`block` null). */
@@ -38,7 +42,8 @@ export function withBlock(text, block) {
 
 export async function run({ ctx, values, positionals }) {
   const action = positionals[0];
-  if (!["install", "uninstall", "status"].includes(action)) throw new KitError(EXIT.USAGE, "hooks.action", { action: action ?? "", command: BRAND.command });
+  if (!["install", "uninstall", "status"].includes(action))
+    throw new KitError(EXIT.USAGE, "hooks.action", { action: action ?? "", command: BRAND.command });
   const { project, config } = await ctx.loadProject();
   const appDir = path.resolve(project.root, values.app || config.app?.dir || ".");
   const r = ctx.exec("git", ["rev-parse", "--show-toplevel"], { cwd: appDir });
@@ -50,7 +55,8 @@ export async function run({ ctx, values, positionals }) {
   const docRel = path.relative(top, project.root) || ".";
   if (docRel.startsWith("..")) throw new KitError(EXIT.USAGE, "hooks.outside", { folder: project.root, repo: top });
   // The path is written into a shell script: only plain characters, never a quote, $ or backtick.
-  if (!/^[\w./ -]+$/.test(docRel.split(path.sep).join("/"))) throw new KitError(EXIT.USAGE, "hooks.unsafePath", { folder: docRel });
+  if (!/^[\w./ -]+$/.test(docRel.split(path.sep).join("/")))
+    throw new KitError(EXIT.USAGE, "hooks.unsafePath", { folder: docRel });
 
   const report = [];
   for (const hook of HOOKS) {
@@ -75,7 +81,11 @@ export async function run({ ctx, values, positionals }) {
     ctx.print(JSON.stringify({ hooks: shownPath(hooksDir), report }, null, 2));
     return EXIT.OK;
   }
-  for (const x of report) ctx.print(`${x.installed ? ctx.paint.ok("✔") : ctx.paint.dim("·")} ${ctx.t(x.installed ? "cli.hooks.on" : "cli.hooks.off", { hook: x.hook, folder: shownPath(hooksDir) })}`);
-  if (action === "install") ctx.print(ctx.paint.dim(ctx.t("cli.hooks.what", { command: BRAND.command, work: WORK_DIR })));
+  for (const x of report)
+    ctx.print(
+      `${x.installed ? ctx.paint.ok("✔") : ctx.paint.dim("·")} ${ctx.t(x.installed ? "cli.hooks.on" : "cli.hooks.off", { hook: x.hook, folder: shownPath(hooksDir) })}`,
+    );
+  if (action === "install")
+    ctx.print(ctx.paint.dim(ctx.t("cli.hooks.what", { command: BRAND.command, work: WORK_DIR })));
   return EXIT.OK;
 }

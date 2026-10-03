@@ -38,18 +38,27 @@ before(() => {
     "src/App.tsx",
     `<Routes><Route path="/" element={<Home/>}/><Route path="/orders" /><Route path="/orders/:id" />
      <Route path="/admin" element={<Admin/>}><Route path="users" /><Route path='groups/:gid' /><Route path="*" /></Route>
-     { path: "/reports", element: <Reports/> }</Routes>`
+     { path: "/reports", element: <Reports/> }</Routes>`,
   );
   write(
     "src/registry.ts",
     `export const WIDGET_IDS = ["kpi", "map_view", "legacy_chart", "hidden"];
-     export const OTHER = ["not_a_widget"];`
+     export const OTHER = ["not_a_widget"];`,
   );
-  write("src/i18n/en.json", JSON.stringify({ widget: { kpi: { title: "Key figures" }, map: { title: "Map" }, fallback: { title: "Widget" } }, "flat.key": "Flat" }));
+  write(
+    "src/i18n/en.json",
+    JSON.stringify({
+      widget: { kpi: { title: "Key figures" }, map: { title: "Map" }, fallback: { title: "Widget" } },
+      "flat.key": "Flat",
+    }),
+  );
   write("specs/orders/create.md", "# Create");
   write("specs/settings.md", "# Settings");
   write("specs/notes.txt", "x");
-  write("docs/adapters/local.mjs", 'export default { name: "x", options: { level: { type: "integer", default: 1 } }, async inventory({ options }) { return { available: true, families: [{ name: "L", items: [{ id: "level-" + options.level }] }] }; } };');
+  write(
+    "docs/adapters/local.mjs",
+    'export default { name: "x", options: { level: { type: "integer", default: 1 } }, async inventory({ options }) { return { available: true, families: [{ name: "L", items: [{ id: "level-" + options.level }] }] }; } };',
+  );
   write("docs/adapters/broken.mjs", "export default { name: 'y' };");
 });
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -69,24 +78,36 @@ describe("coverage adapters", () => {
     assert.equal(r.available, true);
     assert.deepEqual(
       r.families[0].items.map((i) => i.id),
-      ["/docs/[[...slug]]", "/orders", "/orders/[id]", "/orders/[id]/edit", "/settings"]
+      ["/docs/[[...slug]]", "/orders", "/orders/[id]", "/orders/[id]/edit", "/settings"],
     );
     assert.equal(r.families[0].name, "Routes");
-    assert.deepEqual((await inventory({ adapter: "next-app-router", app: "../nope" })), { available: false, reason: "notFound", vars: { path: "../nope" } });
+    assert.deepEqual(await inventory({ adapter: "next-app-router", app: "../nope" }), {
+      available: false,
+      reason: "notFound",
+      vars: { path: "../nope" },
+    });
     const all = await inventory({ adapter: "next-app-router", app: "../app", exclude: [], family: "Pages" });
     assert.ok(all.families[0].items.some((i) => i.id === "/") && all.families[0].name === "Pages");
   });
 
   test("route forms: as is, :param, {param}, [param], static prefix", () => {
     assert.deepEqual(routeMatches("/orders"), ["/orders"]);
-    assert.deepEqual(routeMatches("/orders/[id]/edit"), ["/orders/[id]/edit", "/orders/:id/edit", "/orders/{id}/edit", "/orders/"]);
+    assert.deepEqual(routeMatches("/orders/[id]/edit"), [
+      "/orders/[id]/edit",
+      "/orders/:id/edit",
+      "/orders/{id}/edit",
+      "/orders/",
+    ]);
     assert.deepEqual(routeMatches("/orders/:id"), ["/orders/:id", "/orders/{id}", "/orders/[id]", "/orders/"]);
     assert.deepEqual(routeMatches("/[locale]"), ["/[locale]", "/:locale", "/{locale}"]);
   });
 
   test("react-router: absolute and relative paths (prefix), * left out, several syntaxes", async () => {
     const r = await inventory({ adapter: "react-router", file: "../src/App.tsx", prefix: "/admin" });
-    assert.deepEqual(r.families[0].items.map((i) => i.id), ["/admin", "/admin/groups/:gid", "/admin/users", "/orders", "/orders/:id", "/reports"]);
+    assert.deepEqual(
+      r.families[0].items.map((i) => i.id),
+      ["/admin", "/admin/groups/:gid", "/admin/users", "/orders", "/orders/:id", "/reports"],
+    );
     const missing = await inventory({ adapter: "react-router", file: ["../src/App.tsx", "../src/Other.tsx"] });
     assert.equal(missing.reason, "notFound");
   });
@@ -109,20 +130,51 @@ describe("coverage adapters", () => {
       { id: "map_view", label: "Map", match: ["Map"] },
       { id: "legacy_chart", label: "Widget", match: ["Widget"] },
     ]);
-    const flat = await inventory({ adapter: "i18n-registry", source: "../src/registry.ts", pattern: '"(not_a_widget|kpi)"', messages: "../src/i18n/en.json", key: "flat.key" });
-    assert.deepEqual(flat.families[0].items.map((i) => i.label), ["Flat", "Flat"]);
-    const noLabel = await inventory({ adapter: "i18n-registry", source: "../src/registry.ts", block: "OTHER = \\[([^\\]]+)\\]", messages: "../src/i18n/en.json", key: "nope.{id}" });
+    const flat = await inventory({
+      adapter: "i18n-registry",
+      source: "../src/registry.ts",
+      pattern: '"(not_a_widget|kpi)"',
+      messages: "../src/i18n/en.json",
+      key: "flat.key",
+    });
+    assert.deepEqual(
+      flat.families[0].items.map((i) => i.label),
+      ["Flat", "Flat"],
+    );
+    const noLabel = await inventory({
+      adapter: "i18n-registry",
+      source: "../src/registry.ts",
+      block: "OTHER = \\[([^\\]]+)\\]",
+      messages: "../src/i18n/en.json",
+      key: "nope.{id}",
+    });
     assert.deepEqual(noLabel.families[0].items, [{ id: "not_a_widget", label: null, match: [] }]);
-    const noBlock = await inventory({ adapter: "i18n-registry", source: "../src/registry.ts", block: "NOPE = \\[([^\\]]+)\\]", messages: "../src/i18n/en.json" });
+    const noBlock = await inventory({
+      adapter: "i18n-registry",
+      source: "../src/registry.ts",
+      block: "NOPE = \\[([^\\]]+)\\]",
+      messages: "../src/i18n/en.json",
+    });
     assert.equal(noBlock.reason, "blockNotFound");
   });
 
   test("glob: pattern, match template, exclusions; glob syntax", async () => {
-    const r = await inventory({ adapter: "glob", family: "Specs", base: "../specs", pattern: "**/*.md", match: "{name}", exclude: ["^settings"] });
+    const r = await inventory({
+      adapter: "glob",
+      family: "Specs",
+      base: "../specs",
+      pattern: "**/*.md",
+      match: "{name}",
+      exclude: ["^settings"],
+    });
     assert.deepEqual(r.families[0].items, [{ id: "orders/create.md", match: ["create"] }]);
     assert.equal(render("/{path}", "orders/[id].tsx"), "/orders/[id]");
     assert.equal(render("{dir}|{file}", "a/b/c.md"), "a/b|c.md");
-    assert.ok(globRegex("src/**/*.{ts,tsx}").test("src/a/b/c.tsx") && globRegex("src/**/*.{ts,tsx}").test("src/c.ts") && !globRegex("src/*.ts").test("src/a/c.ts"));
+    assert.ok(
+      globRegex("src/**/*.{ts,tsx}").test("src/a/b/c.tsx") &&
+        globRegex("src/**/*.{ts,tsx}").test("src/c.ts") &&
+        !globRegex("src/*.ts").test("src/a/c.ts"),
+    );
   });
 
   test("covered: normalised text (case, non-breaking spaces), empty match never covered", () => {
@@ -142,24 +194,59 @@ describe("loading adapters", () => {
   });
 
   test("unknown option (with suggestion), wrong type, missing required option → exit code 2 with the path", async () => {
-    await assert.rejects(loadAdapter("coverage", { adapter: "next-app-router", ap: "x" }, docs(), "coverage[1]"), (e) => e.code === 2 && e.key === "config.invalid" && e.details[0].path === "coverage[1].ap" && e.details[0].vars.closest === "app");
-    await assert.rejects(loadAdapter("coverage", { adapter: "local:adapters/local.mjs", level: "high" }, docs(), "coverage[0]"), (e) => e.details[0].path === "coverage[0].level" && e.details[0].key === "type");
-    await assert.rejects(loadAdapter("coverage", { adapter: "glob" }, docs(), "coverage[0]"), (e) => e.details[0].path === "coverage[0].pattern" && e.details[0].key === "required");
+    await assert.rejects(
+      loadAdapter("coverage", { adapter: "next-app-router", ap: "x" }, docs(), "coverage[1]"),
+      (e) =>
+        e.code === 2 &&
+        e.key === "config.invalid" &&
+        e.details[0].path === "coverage[1].ap" &&
+        e.details[0].vars.closest === "app",
+    );
+    await assert.rejects(
+      loadAdapter("coverage", { adapter: "local:adapters/local.mjs", level: "high" }, docs(), "coverage[0]"),
+      (e) => e.details[0].path === "coverage[0].level" && e.details[0].key === "type",
+    );
+    await assert.rejects(
+      loadAdapter("coverage", { adapter: "glob" }, docs(), "coverage[0]"),
+      (e) => e.details[0].path === "coverage[0].pattern" && e.details[0].key === "required",
+    );
   });
 
   test("unknown, missing, malformed adapters → exit code 2", async () => {
-    await assert.rejects(loadAdapter("coverage", { adapter: "nope" }, docs(), "coverage[0]"), (e) => e.code === 2 && e.key === "adapter.unknown" && /glob/.test(e.vars.known));
-    await assert.rejects(loadAdapter("auth", { adapter: "local:adapters/none.mjs" }, docs(), "auth"), (e) => e.key === "adapter.missing");
-    await assert.rejects(loadAdapter("coverage", { adapter: "local:adapters/broken.mjs" }, docs(), "coverage[0]"), (e) => e.key === "adapter.invalid" && e.vars.method === "inventory");
-    await assert.rejects(loadAdapter("auth", { adapter: "local:adapters/local.mjs" }, docs(), "auth"), (e) => e.key === "adapter.invalid" && e.vars.method === "session");
+    await assert.rejects(
+      loadAdapter("coverage", { adapter: "nope" }, docs(), "coverage[0]"),
+      (e) => e.code === 2 && e.key === "adapter.unknown" && /glob/.test(e.vars.known),
+    );
+    await assert.rejects(
+      loadAdapter("auth", { adapter: "local:adapters/none.mjs" }, docs(), "auth"),
+      (e) => e.key === "adapter.missing",
+    );
+    await assert.rejects(
+      loadAdapter("coverage", { adapter: "local:adapters/broken.mjs" }, docs(), "coverage[0]"),
+      (e) => e.key === "adapter.invalid" && e.vars.method === "inventory",
+    );
+    await assert.rejects(
+      loadAdapter("auth", { adapter: "local:adapters/local.mjs" }, docs(), "auth"),
+      (e) => e.key === "adapter.invalid" && e.vars.method === "session",
+    );
   });
 
   test("authentication adapters: common options (start, loginPattern, browser) and their own", async () => {
     const manual = await loadAdapter("auth", { adapter: "manual" }, docs(), "auth");
     assert.deepEqual(manual.options, { start: "/", loginPattern: LOGIN_PATTERN });
     const me = await loadAdapter("auth", { adapter: "api-me", proof: "oid", browser: "chrome" }, docs(), "auth");
-    assert.deepEqual(me.options, { start: "/", loginPattern: LOGIN_PATTERN, url: "/api/me", proof: "oid", who: "name", browser: "chrome" });
-    await assert.rejects(loadAdapter("auth", { adapter: "manual", browser: "firefox" }, docs(), "auth"), (e) => e.details[0].path === "auth.browser");
+    assert.deepEqual(me.options, {
+      start: "/",
+      loginPattern: LOGIN_PATTERN,
+      url: "/api/me",
+      proof: "oid",
+      who: "name",
+      browser: "chrome",
+    });
+    await assert.rejects(
+      loadAdapter("auth", { adapter: "manual", browser: "firefox" }, docs(), "auth"),
+      (e) => e.details[0].path === "auth.browser",
+    );
     assert.equal((await loadAdapter("auth", { adapter: "none" }, docs(), "auth")).adapter.none, true);
   });
 });
@@ -185,21 +272,35 @@ describe("authentication adapters on fake pages", () => {
 
   test("nextauth: { user, expires } → who, roles, expiry; {} → not signed in", async () => {
     const s = await load({ adapter: "nextauth" });
-    assert.deepEqual(await s(`${appUrl}/`, { user: { name: "Robin Demo", roles: ["admin", "editor"] }, expires: "2026-10-02T00:00:00.000Z" }), {
-      who: "Robin Demo",
-      details: "admin, editor",
-      expires: "2026-10-02T00:00:00.000Z",
-    });
+    assert.deepEqual(
+      await s(`${appUrl}/`, {
+        user: { name: "Robin Demo", roles: ["admin", "editor"] },
+        expires: "2026-10-02T00:00:00.000Z",
+      }),
+      {
+        who: "Robin Demo",
+        details: "admin, editor",
+        expires: "2026-10-02T00:00:00.000Z",
+      },
+    );
     assert.equal(await s(`${appUrl}/`, {}), null);
     assert.equal(await s(`${appUrl}/login`, { user: { name: "x" } }), null);
   });
 
   test("api-me: the proof field (dotted path) must be present; who field", async () => {
     const s = await load({ adapter: "api-me", proof: "user.oid", who: "user.display" });
-    assert.deepEqual(await s(`${appUrl}/`, { user: { oid: "o-1", display: "Robin" } }), { who: "Robin", details: null, expires: null });
+    assert.deepEqual(await s(`${appUrl}/`, { user: { oid: "o-1", display: "Robin" } }), {
+      who: "Robin",
+      details: null,
+      expires: null,
+    });
     assert.equal(await s(`${appUrl}/`, { user: { display: "Robin" } }), null);
     assert.equal(await s(`${appUrl}/`, null), null);
     const d = await load({ adapter: "api-me" });
-    assert.deepEqual(await d(`${appUrl}/`, { id: 7, email: "robin@example.org" }), { who: "robin@example.org", details: null, expires: null });
+    assert.deepEqual(await d(`${appUrl}/`, { id: 7, email: "robin@example.org" }), {
+      who: "robin@example.org",
+      details: null,
+      expires: null,
+    });
   });
 });

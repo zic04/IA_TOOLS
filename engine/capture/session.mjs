@@ -72,7 +72,8 @@ export async function loadAdapter(kind, spec, root, where) {
   }
   const adapter = mod.default;
   const method = kind === "auth" ? "session" : "inventory";
-  if (!adapter || typeof adapter[method] !== "function") throw new KitError(EXIT.USAGE, "adapter.invalid", { kind, name, method });
+  if (!adapter || typeof adapter[method] !== "function")
+    throw new KitError(EXIT.USAGE, "adapter.invalid", { kind, name, method });
 
   const declared = { ...(kind === "auth" ? COMMON_AUTH_OPTIONS : {}), ...(adapter.options || {}) };
   const required = [];
@@ -82,13 +83,20 @@ export async function loadAdapter(kind, spec, root, where) {
     if (isRequired) required.push(k);
     properties[k] = schema;
   }
-  const { value, errors } = validate(spec, { type: "object", additionalProperties: false, required, properties }, { applyDefaults: true });
+  const { value, errors } = validate(
+    spec,
+    { type: "object", additionalProperties: false, required, properties },
+    { applyDefaults: true },
+  );
   if (errors.length)
     throw new KitError(
       EXIT.USAGE,
       "config.invalid",
       { file: CONFIG, n: errors.length },
-      { details: errors.map((e) => ({ ...e, path: e.path === "(root)" ? where : `${where}.${e.path}` })), prefix: CONFIG }
+      {
+        details: errors.map((e) => ({ ...e, path: e.path === "(root)" ? where : `${where}.${e.path}` })),
+        prefix: CONFIG,
+      },
     );
   delete value.adapter;
   return { name, adapter, options: value };
@@ -101,7 +109,10 @@ export const loadAuth = (root, config) => loadAdapter("auth", config.auth, root,
 export const authBrowser = (auth) => auth.options.browser || auth.adapter.browser || "chromium";
 
 /** Launch options for the adapter's browser (Chrome: the installed Google Chrome, e.g. for bot challenges). */
-export const browserLaunch = (auth, options = {}) => ({ ...options, ...(auth && authBrowser(auth) === "chrome" ? { channel: "chrome" } : {}) });
+export const browserLaunch = (auth, options = {}) => ({
+  ...options,
+  ...(auth && authBrowser(auth) === "chrome" ? { channel: "chrome" } : {}),
+});
 
 /** Absolute path of the session file: <PREFIX>_SESSION / DOC_KIT_SESSION, else .doc-kit/session.json. */
 export function sessionFile(root, config, env = process.env) {
@@ -132,7 +143,8 @@ export function forgetSession(file) {
 async function saveSession(context, file) {
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
-  if (path.basename(dir) === ".doc-kit" && !fs.existsSync(path.join(dir, ".gitignore"))) fs.writeFileSync(path.join(dir, ".gitignore"), "*\n");
+  if (path.basename(dir) === ".doc-kit" && !fs.existsSync(path.join(dir, ".gitignore")))
+    fs.writeFileSync(path.join(dir, ".gitignore"), "*\n");
   await context.storageState({ path: file });
   try {
     fs.chmodSync(file, 0o600);
@@ -178,10 +190,24 @@ const NEVER = new Promise(() => {});
  * @param {(event: string) => void} [p.onStatus]   "notYet": the person pressed Enter but is not signed in
  * @returns {Promise<{ who?, details?, expires?, file: string }>}
  */
-export async function connect({ url, auth, file, headless = false, locale, waitForUser, onStatus = () => {}, timeout = TIMINGS.signIn, poll = TIMINGS.signInPoll, launch = launchBrowser }) {
+export async function connect({
+  url,
+  auth,
+  file,
+  headless = false,
+  locale,
+  waitForUser,
+  onStatus = () => {},
+  timeout = TIMINGS.signIn,
+  poll = TIMINGS.signInPoll,
+  launch = launchBrowser,
+}) {
   const browser = await launch(browserLaunch(auth, { headless, ...(headless ? {} : { args: ["--start-maximized"] }) }));
   try {
-    const context = await browser.newContext({ viewport: headless ? { width: 1280, height: 800 } : null, ...(locale ? { locale } : {}) });
+    const context = await browser.newContext({
+      viewport: headless ? { width: 1280, height: 800 } : null,
+      ...(locale ? { locale } : {}),
+    });
     const page = await context.newPage();
     try {
       await page.goto(url + auth.options.start, { waitUntil: "domcontentloaded", timeout: TIMINGS.start });
@@ -200,14 +226,15 @@ export async function connect({ url, auth, file, headless = false, locale, waitF
           () => {
             failed = true;
             pending = NEVER;
-          }
+          },
         );
     };
     arm();
     let session = null;
     const open = () => context.pages().filter((p) => !p.isClosed());
     while (!session) {
-      if (Date.now() > deadline) throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes: Math.round(timeout / 60_000) });
+      if (Date.now() > deadline)
+        throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes: Math.round(timeout / 60_000) });
       if (!browser.isConnected() || !open().length) throw new KitError(EXIT.ENVIRONMENT, "connect.closed");
       await Promise.race([pending, sleep(poll)]);
       if (failed && !auth.adapter.detects) throw new KitError(EXIT.USAGE, "connect.noTerminal");

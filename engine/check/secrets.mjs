@@ -69,7 +69,15 @@ function allowMatchers(patterns = []) {
     try {
       return new RegExp(p);
     } catch (e) {
-      throw new KitError(EXIT.USAGE, "config.invalid", { file: "doc.config.mjs", n: 1 }, { details: [{ path: `masking.allow[${i}]`, key: "regex", vars: { error: e.message } }], prefix: "doc.config.mjs" });
+      throw new KitError(
+        EXIT.USAGE,
+        "config.invalid",
+        { file: "doc.config.mjs", n: 1 },
+        {
+          details: [{ path: `masking.allow[${i}]`, key: "regex", vars: { error: e.message } }],
+          prefix: "doc.config.mjs",
+        },
+      );
     }
   });
 }
@@ -103,9 +111,20 @@ export const GENERIC = Object.freeze([
     accept: (m) => m.groups.v.replace(/^[A-Za-z-]+:.*$/gm, "").replace(/\s/g, "").length >= 40,
   },
   { kind: "jwt", re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
-  { kind: "connectionString", re: /\b(?:AccountKey|SharedAccessKey|Password|Pwd)\s*=\s*(?<v>[^;\s"'`]{6,})/gi, accept: (m) => isValue(m.groups.v) },
-  { kind: "credentialsUrl", re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi, accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v) },
-  { kind: "cloudKey", re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b/g },
+  {
+    kind: "connectionString",
+    re: /\b(?:AccountKey|SharedAccessKey|Password|Pwd)\s*=\s*(?<v>[^;\s"'`]{6,})/gi,
+    accept: (m) => isValue(m.groups.v),
+  },
+  {
+    kind: "credentialsUrl",
+    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
+    accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
+  },
+  {
+    kind: "cloudKey",
+    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b/g,
+  },
   {
     kind: "assignment",
     re: /\b(?:api[_-]?key|secret|token|password|passwd|client[_-]?secret|access[_-]?key)\b["']?\s*[:=]\s*["']?(?<v>[A-Za-z0-9_\-+/=.]{16,})/gi,
@@ -126,7 +145,12 @@ export function redact(value) {
  */
 export function detectors(root, masking) {
   const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const list = sensitiveValues(root, masking).map((v) => ({ kind: "env", key: v.key, file: v.file, re: new RegExp(escape(v.value), "gi") }));
+  const list = sensitiveValues(root, masking).map((v) => ({
+    kind: "env",
+    key: v.key,
+    file: v.file,
+    re: new RegExp(escape(v.value), "gi"),
+  }));
   if (masking.guid) list.push({ kind: "guid", re: new RegExp(GUID, "g"), allow: /^0{8}-0{4}-0{4}-0{4}-0{12}$/ });
   masking.patterns.forEach((p, i) => list.push({ kind: "pattern", index: i, re: new RegExp(p, "g") }));
   return [...list, ...GENERIC];
@@ -157,7 +181,12 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
       if ((d.allow && d.allow.test(m[0])) || (d.accept && !d.accept(m))) continue;
       const value = m.groups?.v ?? m[0];
       if (ignore(value.trim(), tokenAround(text, m.index, m.index + m[0].length))) continue;
-      out.push({ kind: d.kind, preview: redact(value.trim()), line: lineOf(m.index), ...(d.key ? { key: d.key, file: d.file } : {}) });
+      out.push({
+        kind: d.kind,
+        preview: redact(value.trim()),
+        line: lineOf(m.index),
+        ...(d.key ? { key: d.key, file: d.file } : {}),
+      });
     }
   }
   return out;
@@ -182,8 +211,10 @@ const htmlText = (html) =>
 function siteTexts(data) {
   if (!data) return [];
   const out = [];
-  for (const [id, p] of Object.entries(data.pages || {})) out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html)].join("\n") });
-  for (const s of data.sections || []) out.push({ where: s.id, text: [s.titre, s.sous_titre, ...(s.points || []), htmlText(s.intro_html)].join("\n") });
+  for (const [id, p] of Object.entries(data.pages || {}))
+    out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html)].join("\n") });
+  for (const s of data.sections || [])
+    out.push({ where: s.id, text: [s.titre, s.sous_titre, ...(s.points || []), htmlText(s.intro_html)].join("\n") });
   out.push({ where: "home", text: [data.meta?.titre, data.meta?.accroche, htmlText(data.accueil_html)].join("\n") });
   for (const g of data.glossaire || []) out.push({ where: `glossary › ${g.terme}`, text: `${g.terme}\n${g.def}` });
   return out;
@@ -214,7 +245,11 @@ function trackedByGit(file) {
   if (riskyGitConfig(cwd).length) return false;
   const bin = resolveOnPath("git", { exclude: [cwd] });
   if (!bin) return false;
-  const r = spawnSync(bin, safeGitArgs(["ls-files", "--error-unmatch", "--", path.basename(file)]), { cwd, encoding: "utf8", windowsHide: true });
+  const r = spawnSync(bin, safeGitArgs(["ls-files", "--error-unmatch", "--", path.basename(file)]), {
+    cwd,
+    encoding: "utf8",
+    windowsHide: true,
+  });
   return r.status === 0;
 }
 
@@ -248,9 +283,13 @@ export function checkSecrets({ root, config, data, session, tracked = trackedByG
     ...walk(path.join(root, config.paths.diagrams), (n) => n.endsWith(".svg")),
   ];
   const files = [...new Set(sources)];
-  for (const f of files) for (const x of scanText(fs.readFileSync(f, "utf8"), list, ignore)) findings.push({ where: `${rel(f)}:${x.line}`, ...x });
+  for (const f of files)
+    for (const x of scanText(fs.readFileSync(f, "utf8"), list, ignore))
+      findings.push({ where: `${rel(f)}:${x.line}`, ...x });
   const places = siteTexts(data);
-  for (const p of places) for (const x of scanText(p.text, list, ignore)) findings.push({ ...x, where: `site › ${p.where}`, line: undefined });
+  for (const p of places)
+    for (const x of scanText(p.text, list, ignore))
+      findings.push({ ...x, where: `site › ${p.where}`, line: undefined });
 
   const sessionDir = path.dirname(session);
   const skip = new Set(["node_modules", ".git", "dist"]);

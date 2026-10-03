@@ -30,9 +30,13 @@ export async function checkTables({ file, width = 1440, topOfPage = "(top of pag
             .map((t) => {
               let h = t.previousElementSibling;
               while (h && !/^H[23]$/.test(h.tagName)) h = h.previousElementSibling;
-              return { heading: h ? h.textContent.replace("#", "").trim() : top, wide: t.scrollWidth, visible: t.clientWidth };
+              return {
+                heading: h ? h.textContent.replace("#", "").trim() : top,
+                wide: t.scrollWidth,
+                visible: t.clientWidth,
+              };
             }),
-        topOfPage
+        topOfPage,
       );
       for (const w of wide) problems.push({ page: id, ...w });
     }

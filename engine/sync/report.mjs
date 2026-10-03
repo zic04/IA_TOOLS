@@ -26,7 +26,8 @@ function commonSegments(a, b) {
 }
 
 /** Absolute path of a dependency file ("doc:<path>" for a facts file, else relative to app.dir), or null. */
-const absOf = (root, appDir, p) => (p.startsWith("doc:") ? path.join(root, p.slice(4)) : appDir ? path.join(appDir, p) : null);
+const absOf = (root, appDir, p) =>
+  p.startsWith("doc:") ? path.join(root, p.slice(4)) : appDir ? path.join(appDir, p) : null;
 
 /** The tokens a page "names" (ARCHITECTURE.md §2.6, probablyIntact): cited label values, code span contents
  * and their identifiers (proofs excluded), its routes, and the texts of [[menu/perm/route]] badges. */
@@ -65,7 +66,10 @@ function priorityOf({ reasons: all, page, git, refCommit, labelValues }) {
   if (reasons.some((r) => r.kind === "direct")) return "direct";
   if (reasons.some((r) => r.change === "deleted")) return "shared";
   if (!git || !refCommit) return "shared";
-  const patch = git.diff(refCommit, reasons.map((r) => r.path));
+  const patch = git.diff(
+    refCommit,
+    reasons.map((r) => r.path),
+  );
   if (patch === null) return "shared";
   const changedLines = patch.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
   const tokens = citedTokens(page, labelValues);
@@ -152,7 +156,20 @@ function allLabelValues(reference) {
  * @param {string} p.factsDir          projRel facts folder
  * @returns {Promise<object>} SyncReport
  */
-export async function compareWithReference({ root, config, toc, reference, since = null, git, inventory, plans = [], appDir, version, commit, factsDir }) {
+export async function compareWithReference({
+  root,
+  config,
+  toc,
+  reference,
+  since = null,
+  git,
+  inventory,
+  plans = [],
+  appDir,
+  version,
+  commit,
+  factsDir,
+}) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
   const byId = new Map(written.map((p) => [p.id, p]));
@@ -203,7 +220,11 @@ export async function compareWithReference({ root, config, toc, reference, since
     // ─── Review: dependency hashes, against the reference OR against `since` (read via git show) ────────────
     const reasons = [];
     const recordedFiles = since
-      ? Object.fromEntries(deps.files.map((f) => [f.path, hashAtRef({ git, since, p: f.path, appDir, root })]).filter(([, h]) => h !== null))
+      ? Object.fromEntries(
+          deps.files
+            .map((f) => [f.path, hashAtRef({ git, since, p: f.path, appDir, root })])
+            .filter(([, h]) => h !== null),
+        )
       : recorded?.files || {};
     for (const [p, oldHash] of Object.entries(recordedFiles)) {
       const a = absOf(root, appDir, p);
@@ -224,8 +245,14 @@ export async function compareWithReference({ root, config, toc, reference, since
       if (!recordedProof) continue;
       const proofFile = proof.path || proof.file;
       const currentAbs = appDir ? path.join(appDir, proofFile) : null;
-      const renamed = appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === proofFile) : null;
-      const current = currentAbs && fs.existsSync(currentAbs) ? fs.readFileSync(currentAbs, "utf8") : renamed ? safeRead(path.join(appDir, renamed.path)) : null;
+      const renamed =
+        appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === proofFile) : null;
+      const current =
+        currentAbs && fs.existsSync(currentAbs)
+          ? fs.readFileSync(currentAbs, "utf8")
+          : renamed
+            ? safeRead(path.join(appDir, renamed.path))
+            : null;
       const r = locateProof({ current, renamedTo: renamed?.path ?? null, recorded: recordedProof, proof });
       if (r.status !== "intact") proofIssueFiles.add(proofFile);
       if (r.status === "moved") {
@@ -233,7 +260,16 @@ export async function compareWithReference({ root, config, toc, reference, since
         const newRef = r.newTo !== r.newFrom ? `${r.newFile}:${r.newFrom}-${r.newTo}` : `${r.newFile}:${r.newFrom}`;
         // newFrom/newTo are extra (beyond the documented shape): apply.mjs uses them directly, rather than
         // re-parsing newRef, to rewrite the exact span (ARCHITECTURE.md §2.8).
-        proofsMoved.push({ page: id, ref: proof.ref, newRef, file: proof.file, newFile: r.newFile, newFrom: r.newFrom, newTo: r.newTo, text: recordedProof.text });
+        proofsMoved.push({
+          page: id,
+          ref: proof.ref,
+          newRef,
+          file: proof.file,
+          newFile: r.newFile,
+          newFrom: r.newFrom,
+          newTo: r.newTo,
+          text: recordedProof.text,
+        });
       } else if (r.status === "broken") {
         hadProofIssue = true;
         proofsBroken.push({ page: id, ref: proof.ref, file: proof.file, text: recordedProof.text, reason: r.reason });
@@ -285,12 +321,15 @@ export async function compareWithReference({ root, config, toc, reference, since
       }
       if (!intact) continue;
       const isLayout = dep.via.includes("layout");
-      const reallyDirect = dep.via.some((v) => ["api", "declared", "sources"].includes(v) || (v === "route" && !isLayout));
+      const reallyDirect = dep.via.some(
+        (v) => ["api", "declared", "sources"].includes(v) || (v === "route" && !isLayout),
+      );
       if (dep.via.every((v) => v === "proof")) reason.proofsIntact = true;
       else if (!reallyDirect) reason.kind = "shared";
     }
 
-    if (reasons.length) review.push({ page: id, priority: priorityOf({ reasons, page, git, refCommit, labelValues }), reasons });
+    if (reasons.length)
+      review.push({ page: id, priority: priorityOf({ reasons, page, git, refCommit, labelValues }), reasons });
     else if (!hadProofIssue && !pagesWithLabelIssue.has(id)) unchanged.push(id);
   }
 
@@ -304,7 +343,9 @@ export async function compareWithReference({ root, config, toc, reference, since
     for (const a of inventory.adapters) for (const f of a.families || []) currentByKey[`${a.adapter}/${f.name}`] = f;
     for (const [key, family] of Object.entries(currentByKey)) {
       const oldIds = new Set(reference.inventory?.[key] || []);
-      for (const item of family.items) if (!oldIds.has(item.id)) newItems.push({ family: key, id: item.id, suggest: suggestFor(item.id, family, written) });
+      for (const item of family.items)
+        if (!oldIds.has(item.id))
+          newItems.push({ family: key, id: item.id, suggest: suggestFor(item.id, family, written) });
     }
     for (const [key, oldIds] of Object.entries(reference.inventory || {})) {
       const currentIds = new Set((currentByKey[key]?.items || []).map((i) => i.id));
@@ -334,13 +375,19 @@ export async function compareWithReference({ root, config, toc, reference, since
   return {
     generator: generatorTag(),
     date: new Date().toISOString().slice(0, 10),
-    reference: reference ? { commit: reference.app.commit, version: reference.app.version, date: reference.app.date } : null,
+    reference: reference
+      ? { commit: reference.app.commit, version: reference.app.version, date: reference.app.date }
+      : null,
     since,
     current: { commit, version },
     proofs: { moved: proofsMoved, broken: proofsBroken },
     labels: labelsOut,
     review,
-    captures: [...capturesReasons.entries()].map(([id, reasons]) => ({ id, pages: [...capturesPages.get(id)], reasons: [...reasons] })),
+    captures: [...capturesReasons.entries()].map(([id, reasons]) => ({
+      id,
+      pages: [...capturesPages.get(id)],
+      reasons: [...reasons],
+    })),
     new: newItems,
     removed: removedItems,
     unchanged,
@@ -356,7 +403,12 @@ export async function compareWithReference({ root, config, toc, reference, since
 
 /** Markdown of `.doc-kit/sync.md`: one summary line per category, then the pages to review by priority. */
 export function renderReport(report, t) {
-  const lines = [`# ${t("cli.sync.md.title")}`, "", t("cli.sync.title", { version: report.current.version, commit: report.current.commit || "—", date: report.date }), ""];
+  const lines = [
+    `# ${t("cli.sync.md.title")}`,
+    "",
+    t("cli.sync.title", { version: report.current.version, commit: report.current.commit || "—", date: report.date }),
+    "",
+  ];
   const cat = (key, n) => lines.push(`- ${t(`cli.sync.summary.${key}`, { n })}`);
   cat("proofsMoved", report.proofs.moved.length);
   cat("proofsBroken", report.proofs.broken.length);
@@ -380,20 +432,27 @@ export function renderReport(report, t) {
       lines.push("", `### ${t(`cli.sync.priority.${priority}`)}`);
       for (const r of pages) {
         lines.push(`- ${r.page}`);
-        for (const reason of r.reasons) lines.push(`  - ${t(`cli.sync.reason.${reason.change}`, { path: reason.path })}`);
+        for (const reason of r.reasons)
+          lines.push(`  - ${t(`cli.sync.reason.${reason.change}`, { path: reason.path })}`);
       }
     }
   }
   lines.push("", `## ${t("cli.sync.md.detailsTitle")}`);
   for (const m of report.proofs.moved) lines.push(`- ${t("cli.sync.proof.moved", m)}`);
   for (const b of report.proofs.broken) lines.push(`- ${t(`cli.sync.proof.broken.${b.reason}`, b)}`);
-  for (const l of report.labels) lines.push(`- ${t(l.new === null ? "cli.sync.label.removed" : "cli.sync.label.changed", { ...l, pages: l.pages.join(", ") })}`);
-  for (const c of report.captures) lines.push(`- ${t("cli.sync.capture.stale", { id: c.id, reasons: c.reasons.join(", ") })}`);
+  for (const l of report.labels)
+    lines.push(
+      `- ${t(l.new === null ? "cli.sync.label.removed" : "cli.sync.label.changed", { ...l, pages: l.pages.join(", ") })}`,
+    );
+  for (const c of report.captures)
+    lines.push(`- ${t("cli.sync.capture.stale", { id: c.id, reasons: c.reasons.join(", ") })}`);
   for (const n of report.new) lines.push(`- ${t(n.suggest ? "cli.sync.new.item" : "cli.sync.new.noSuggest", n)}`);
   for (const r of report.removed) lines.push(`- ${t("cli.sync.removed.item", { ...r, pages: r.pages.join(", ") })}`);
-  if (report.facts.stale.length) lines.push(`- ${t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") })}`);
+  if (report.facts.stale.length)
+    lines.push(`- ${t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") })}`);
   for (const page of report.truncated || []) lines.push(`- ${t("cli.sync.truncated", { page })}`);
-  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted"))) lines.push(`- ${t("cli.sync.noGit")}`);
+  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
+    lines.push(`- ${t("cli.sync.noGit")}`);
   return lines.join("\n") + "\n";
 }
 
@@ -417,5 +476,13 @@ export function writeReportFiles({ root, report, diffs = new Map(), t }) {
 
 /** Exit code 1 (ARCHITECTURE.md §6.10, "--check") on any category but `unchanged` and `unmarked`. */
 export function checkFails(report) {
-  return !!(report.proofs.moved.length || report.proofs.broken.length || report.labels.length || report.review.length || report.captures.length || report.new.length || report.removed.length);
+  return !!(
+    report.proofs.moved.length ||
+    report.proofs.broken.length ||
+    report.labels.length ||
+    report.review.length ||
+    report.captures.length ||
+    report.new.length ||
+    report.removed.length
+  );
 }

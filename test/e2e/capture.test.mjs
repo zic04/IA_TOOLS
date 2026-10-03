@@ -26,7 +26,11 @@ let work;
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { ...env } });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: { ...env },
+  });
   return { code, out, err };
 }
 
@@ -115,26 +119,39 @@ describe("capture", () => {
     const r = await cli(["capture", "--project", dir, "--preview"]);
     assert.equal(r.code, 0, r.out + r.err);
     assert.match(r.out, /^2 captures · http:\/\/127\.0\.0\.1:\d+ · session: .*session\.json · read-only: on\n/);
-    assert.match(r.out, /✔ orders-list \(3 zones, \d+ KB, [\d.]+ s\)\n✔ settings-profile \(2 zones, \d+ KB, [\d.]+ s\)\n/);
+    assert.match(
+      r.out,
+      /✔ orders-list \(3 zones, \d+ KB, [\d.]+ s\)\n✔ settings-profile \(2 zones, \d+ KB, [\d.]+ s\)\n/,
+    );
     assert.match(r.out, /2\/2 captures taken\.\n/);
     assert.match(r.out, /Read-only: 1 write request blocked — POST \/api\/presence\n$/);
     assert.ok(!app.state.writes.includes("POST /api/presence"), "the heartbeat never reached the server");
 
     const today = new Date().toISOString().slice(0, 10);
-    for (const [id, n] of [["orders-list", 3], ["settings-profile", 2]]) {
+    for (const [id, n] of [
+      ["orders-list", 3],
+      ["settings-profile", 2],
+    ]) {
       const z = JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", `${id}.json`), "utf8"));
       assert.equal(z.file, `${id}.webp`);
       assert.equal(z.version, "1.4.0");
       assert.ok(z.captured === today || z.captured <= today);
       assert.equal(z.zones.length, n);
-      for (const zone of z.zones) for (const k of ["x", "y", "w", "h"]) assert.ok(zone[k] >= -1 && zone[k] <= 101, `${id} ${k}=${zone[k]}`);
+      for (const zone of z.zones)
+        for (const k of ["x", "y", "w", "h"]) assert.ok(zone[k] >= -1 && zone[k] <= 101, `${id} ${k}=${zone[k]}`);
       const size = webpSize(fs.readFileSync(path.join(dir, "images", `${id}.webp`)));
       assert.deepEqual(size, { width: z.width, height: z.height });
       assert.ok(fs.statSync(path.join(dir, ".doc-kit", `${id}.zones.png`)).size > 1000);
     }
     const orders = JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", "orders-list.json"), "utf8"));
-    assert.deepEqual(orders.zones.map((z) => z.label), ["Filters", "Order summary", "New order"]);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", "settings-profile.json"), "utf8")).zones[1].side, "right");
+    assert.deepEqual(
+      orders.zones.map((z) => z.label),
+      ["Filters", "Order summary", "New order"],
+    );
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", "settings-profile.json"), "utf8")).zones[1].side,
+      "right",
+    );
   });
 
   test("--verify replays the plans as tests: every zone found, nothing written; a missing zone fails", async () => {
@@ -147,7 +164,10 @@ describe("capture", () => {
     assert.equal(fs.statSync(image).mtimeMs, before, "no image rewritten");
     const plans = path.join(work, "plans-verify");
     fs.mkdirSync(plans, { recursive: true });
-    fs.writeFileSync(path.join(plans, "a.mjs"), 'export const CAPTURES = [{ id: "gone", route: "/orders", zones: [{ text: "A button that was renamed", caption: "x" }] }];');
+    fs.writeFileSync(
+      path.join(plans, "a.mjs"),
+      'export const CAPTURES = [{ id: "gone", route: "/orders", zones: [{ text: "A button that was renamed", caption: "x" }] }];',
+    );
     const bad = await cli(["capture", "--project", dir, "--plans", plans, "--verify"]);
     assert.equal(bad.code, 1);
     assert.match(bad.err, /✖ gone: zone 1 .*A button that was renamed/);
@@ -171,11 +191,14 @@ describe("capture", () => {
         { id: "x-approval", route: "/orders/1042/approval", delay: 100 },
         { id: "y-detail", route: "/orders/1042", delay: 300, actions: [{ click: { text: "Approval chain" } }] },
         { id: "z-detail", route: "/orders/1042", delay: 500, zones: [{ text: "Approval chain", caption: "Approval" }] },
-      ];`
+      ];`,
     );
     let r = await cli(["capture", "--project", dir, "--plans", plans]);
     assert.equal(r.code, 1);
-    assert.match(r.err, /✖ x-approval: the route \/orders\/1042\/approval is forbidden \(capture\.forbidden: \^\/orders\/\\d\+\/approval\$\)/);
+    assert.match(
+      r.err,
+      /✖ x-approval: the route \/orders\/1042\/approval is forbidden \(capture\.forbidden: \^\/orders\/\\d\+\/approval\$\)/,
+    );
     assert.doesNotMatch(r.out, /captures? ·/, "nothing was opened");
 
     // The order page prefetches its approval chain (a fetch in the background): aborted, counted, not a failure.
@@ -186,12 +209,18 @@ describe("capture", () => {
     assert.doesNotMatch(r.err, /forbidden route/);
     assert.ok(fs.existsSync(path.join(dir, "images", "z-detail.webp")));
     const json = JSON.parse((await cli(["capture", "z-*", "--project", dir, "--plans", plans, "--json"])).out);
-    assert.deepEqual([json.ok.length, json.prefetched, json.prefetchedRequests, json.refused], [1, 1, ["GET /orders/1042/approval"], []]);
+    assert.deepEqual(
+      [json.ok.length, json.prefetched, json.prefetchedRequests, json.refused],
+      [1, 1, ["GET /orders/1042/approval"], []],
+    );
 
     // A click on the link navigates the page to the forbidden route: aborted, and the capture stops.
     r = await cli(["capture", "y-*", "--project", dir, "--plans", plans]);
     assert.equal(r.code, 1);
-    assert.match(r.err, /✖ y-detail: the page requested a forbidden route \(\/orders\/1042\/approval\): capture stopped/);
+    assert.match(
+      r.err,
+      /✖ y-detail: the page requested a forbidden route \(\/orders\/1042\/approval\): capture stopped/,
+    );
     assert.match(r.err, /✖ forbidden route: 1 request refused — GET \/orders\/1042\/approval/);
     assert.match(r.out, /0\/1 capture taken\. Failed: y-detail/);
     assert.match(r.out, /1 prefetch request to forbidden routes aborted/);
@@ -207,8 +236,13 @@ describe("capture", () => {
       fs.rmSync(path.join(open, "captures", "plans"), { recursive: true, force: true });
       const plans = path.join(open, "captures", "plans");
       fs.mkdirSync(plans, { recursive: true });
-      fs.writeFileSync(path.join(plans, "a.mjs"), 'export const CAPTURES = [{ id: "w-detail", route: "/orders/1043", delay: 500 }];');
-      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      fs.writeFileSync(
+        path.join(plans, "a.mjs"),
+        'export const CAPTURES = [{ id: "w-detail", route: "/orders/1043", delay: 500 }];',
+      );
+      const config = JSON.parse(
+        fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""),
+      );
       config.capture = { ...config.capture, plans: "captures/plans", forbidden: [] };
       fs.writeFileSync(path.join(open, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
       fs.mkdirSync(path.join(open, ".doc-kit"), { recursive: true });
@@ -234,9 +268,11 @@ describe("capture", () => {
         `export const CAPTURES = [
           { id: "dated", route: "/orders", actions: [{ eval: "document.querySelector('main').insertAdjacentHTML('afterbegin', '<p>Clock ' + new Date().toISOString().slice(0, 10) + '</p>')" }], zones: [{ text: "Clock 2026-01-15", caption: "The fixed date" }] },
           { id: "broken", route: "/orders", zones: [{ text: "No such text anywhere", caption: "x" }] },
-        ];`
+        ];`,
       );
-      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      const config = JSON.parse(
+        fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""),
+      );
       config.capture = { ...config.capture, plans: "captures/plans", clock: "2026-01-15T09:00:00Z", scale: 2 };
       fs.writeFileSync(path.join(other, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
       fs.mkdirSync(path.join(other, ".doc-kit"), { recursive: true });
@@ -250,7 +286,10 @@ describe("capture", () => {
       assert.ok(fs.statSync(path.join(traces, "broken.zip")).size > 1000);
       const z = JSON.parse(fs.readFileSync(path.join(other, "images", "zones", "dated.json"), "utf8"));
       assert.equal(z.scale, 2);
-      assert.deepEqual(webpSize(fs.readFileSync(path.join(other, "images", "dated.webp"))), { width: z.width * 2, height: z.height * 2 });
+      assert.deepEqual(webpSize(fs.readFileSync(path.join(other, "images", "dated.webp"))), {
+        width: z.width * 2,
+        height: z.height * 2,
+      });
     } finally {
       fs.rmSync(other, { recursive: true, force: true });
     }
@@ -263,7 +302,10 @@ describe("capture", () => {
     fs.writeFileSync(stale, JSON.stringify(state));
     const r = await cli(["capture", "orders-list", "--project", dir], { DOC_KIT_SESSION: stale });
     assert.equal(r.code, 3);
-    assert.match(r.err, /^✖ the session has expired \(sign-in page: http:\/\/127\.0\.0\.1:\d+\/login\?next=%2Forders\)\n {2}→ run doc-kit connect, then capture again\n$/);
+    assert.match(
+      r.err,
+      /^✖ the session has expired \(sign-in page: http:\/\/127\.0\.0\.1:\d+\/login\?next=%2Forders\)\n {2}→ run doc-kit connect, then capture again\n$/,
+    );
   });
 
   test("demo: runs capture.setup, which resets the demo app's data", async () => {
@@ -279,14 +321,16 @@ describe("capture", () => {
     fs.mkdirSync(plans, { recursive: true });
     fs.writeFileSync(
       path.join(plans, "a.mjs"),
-      'export const CAPTURES = [{ id: "a-orders", route: "/orders", delay: 200 }, { id: "b-logout", route: "/logout", delay: 200 }, { id: "c-settings", route: "/settings", delay: 200 }];'
+      'export const CAPTURES = [{ id: "a-orders", route: "/orders", delay: 200 }, { id: "b-logout", route: "/logout", delay: 200 }, { id: "c-settings", route: "/settings", delay: 200 }];',
     );
     // One capture at a time (capture.concurrency 1, in a copy of the project: a configuration module is imported
     // once per process): the run stops at the sign-out, nothing after it is taken. In parallel, a capture already
     // running in another context may still finish; the expiry reported is the first one in plan order.
     const single = demoCopy();
     try {
-      const config = JSON.parse(fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""));
+      const config = JSON.parse(
+        fs.readFileSync(path.join(dir, "doc.config.mjs"), "utf8").replace(/^export default |;\s*$/g, ""),
+      );
       config.capture = { ...config.capture, concurrency: 1 };
       fs.writeFileSync(path.join(single, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
       fs.mkdirSync(path.join(single, ".doc-kit"), { recursive: true });
@@ -295,7 +339,10 @@ describe("capture", () => {
       assert.equal(r.code, 3, r.out + r.err);
       assert.match(r.out, /✔ a-orders \(0 zones/);
       assert.match(r.out, /1\/3 captures taken\./);
-      assert.match(r.err, /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/);
+      assert.match(
+        r.err,
+        /✖ the session expired during the run, at “b-logout” \(sign-in page: .*\/login\)\n {2}→ run doc-kit connect/,
+      );
       assert.ok(fs.existsSync(path.join(single, "images", "a-orders.webp")));
       assert.ok(!fs.existsSync(path.join(single, "images", "c-settings.webp")));
     } finally {
@@ -318,7 +365,10 @@ describe("in the page", () => {
       <p id="a">API: https://orders.internal.example/api/v1 (tenant 7D3C5A1E-9B2F-4C6D-8E1A-2F3B4C5D6E7F)</p>
       <input id="b" value="acct-0042" title="https://orders.internal.example/api">
       <span class="secret">Robin's personal note</span><button class="secret">Keep me</button></main>`);
-    const n = await maskPage(page, { source: maskSource(["https://orders.internal.example/api"], { guid: true, patterns: ["acct-\\d+"] }), masks: [{ css: ".secret" }] });
+    const n = await maskPage(page, {
+      source: maskSource(["https://orders.internal.example/api"], { guid: true, patterns: ["acct-\\d+"] }),
+      masks: [{ css: ".secret" }],
+    });
     assert.equal(n, 4);
     assert.equal(await page.textContent("#a"), `API: ${DOTS}/v1 (tenant ${DOTS})`);
     assert.equal(await page.inputValue("#b"), DOTS);
@@ -326,9 +376,16 @@ describe("in the page", () => {
     assert.equal(await page.textContent("span.secret"), DOTS);
     assert.equal(await page.textContent("button.secret"), DOTS);
     // A mask target that finds nothing stops the capture: what it should hide would be shown otherwise.
-    await assert.rejects(maskPage(page, { source: maskSource([], { guid: false, patterns: [] }), masks: [{ css: ".gone" }] }), (e) => e.key === "maskMissing" && /\.gone/.test(e.vars.target));
+    await assert.rejects(
+      maskPage(page, { source: maskSource([], { guid: false, patterns: [] }), masks: [{ css: ".gone" }] }),
+      (e) => e.key === "maskMissing" && /\.gone/.test(e.vars.target),
+    );
     // The second pass (just before the shot) tolerates a target already turned into dots.
-    await maskPage(page, { source: null, masks: [{ text: "Robin's personal note" }, { css: ".gone" }], required: false });
+    await maskPage(page, {
+      source: null,
+      masks: [{ text: "Robin's personal note" }, { css: ".gone" }],
+      required: false,
+    });
     await page.close();
   });
 

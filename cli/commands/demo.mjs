@@ -19,7 +19,8 @@ if (typeof m.default === "function")
 `;
 
 /** Configuration as JSON (functions and regular expressions dropped). */
-const jsonConfig = (config) => JSON.stringify(config, (k, v) => (typeof v === "function" ? undefined : v instanceof RegExp ? String(v) : v));
+const jsonConfig = (config) =>
+  JSON.stringify(config, (k, v) => (typeof v === "function" ? undefined : v instanceof RegExp ? String(v) : v));
 
 /**
  * Runs the setup script; its output lines are passed to `line`.
@@ -52,7 +53,8 @@ function runSetup({ root, config, script, env = process.env, line = () => {} }) 
 
 export async function run({ ctx }) {
   const { project, config } = await ctx.loadProject();
-  if (config.capture.target === "production") throw new KitError(EXIT.USAGE, "demo.production", { file: "doc.config.mjs", url: config.app.url || "—" });
+  if (config.capture.target === "production")
+    throw new KitError(EXIT.USAGE, "demo.production", { file: "doc.config.mjs", url: config.app.url || "—" });
   if (!config.capture.setup) throw new KitError(EXIT.USAGE, "demo.noSetup");
   const script = path.resolve(project.root, config.capture.setup);
   if (!fs.existsSync(script)) throw new KitError(EXIT.USAGE, "demo.missing", { file: config.capture.setup });

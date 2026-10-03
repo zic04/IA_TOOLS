@@ -9,7 +9,17 @@ export const TOOL_NAMES = Object.freeze(["gitleaks", "osv-scanner", "syft", "kni
 /** Command line of each tool, run from the application folder. `semgrep`: `options.semgrepConfig` (a local rules
  * folder, never --config auto, which downloads rules). */
 const ARGS = {
-  gitleaks: (dir) => ["detect", "--source", dir, "--no-git", "--redact", "--report-format", "json", "--report-path", "-"],
+  gitleaks: (dir) => [
+    "detect",
+    "--source",
+    dir,
+    "--no-git",
+    "--redact",
+    "--report-format",
+    "json",
+    "--report-path",
+    "-",
+  ],
   "osv-scanner": (dir) => ["--format", "json", dir],
   syft: (dir) => [dir, "-o", "json"],
   knip: () => ["--reporter", "json"],
@@ -47,7 +57,12 @@ export function runTool(name, appDir, exec, options = {}) {
   const r = exec(name, ARGS[name](appDir, options), { cwd: appDir });
   if (r === null) return { tool: name, installed: false };
   const data = parseJson(r.stdout || "");
-  return { tool: name, installed: true, ok: r.status === 0, data: name === "gitleaks" && data !== null ? scrubGitleaks(data) : data };
+  return {
+    tool: name,
+    installed: true,
+    ok: r.status === 0,
+    data: name === "gitleaks" && data !== null ? scrubGitleaks(data) : data,
+  };
 }
 
 /** Runs every tool of `TOOL_NAMES` (or `only`), never throwing: a missing or failing tool is reported, not thrown. */

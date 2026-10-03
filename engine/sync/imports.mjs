@@ -27,7 +27,8 @@ export function jsSpecifiers(text) {
 /** `from .x import y` / `import a.b` specifiers of a Python source: { module, level } (level: number of leading dots). */
 export function pySpecifiers(text) {
   const out = [];
-  for (const m of text.matchAll(/^\s*from\s+(\.*)([\w.]*)\s+import\b/gm)) out.push({ module: m[2], level: m[1].length });
+  for (const m of text.matchAll(/^\s*from\s+(\.*)([\w.]*)\s+import\b/gm))
+    out.push({ module: m[2], level: m[1].length });
   for (const m of text.matchAll(/^\s*import\s+([\w.]+)/gm)) out.push({ module: m[1], level: 0 });
   return out;
 }

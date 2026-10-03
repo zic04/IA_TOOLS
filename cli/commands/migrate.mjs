@@ -5,7 +5,13 @@
 // read, never rewritten. Nothing is written when the normalised table of contents is invalid (exit code 1).
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeToc, normalizeGlossary, normalizeZones, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
+import {
+  normalizeToc,
+  normalizeGlossary,
+  normalizeZones,
+  LEGACY_FILES,
+  CURRENT_FILES,
+} from "../../engine/project/legacy.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { HOME_FILES } from "../../engine/build/build.mjs";
@@ -19,7 +25,11 @@ export const options = {};
 export function migrateProject(root, paths) {
   const converted = [];
   const errors = [];
-  const rel = (...p) => path.join(...p).split(path.sep).join("/");
+  const rel = (...p) =>
+    path
+      .join(...p)
+      .split(path.sep)
+      .join("/");
   const abs = (p) => path.join(root, p);
   const writeJson = (p, value) => fs.writeFileSync(abs(p), JSON.stringify(value, null, 2) + "\n");
 
@@ -39,7 +49,8 @@ export function migrateProject(root, paths) {
       continue;
     }
     const { value } = normalize(raw);
-    for (const e of validate(value, readSchema(schema)).errors) errors.push({ kind: "validate", key: e.key, vars: e.vars, file: legacy, path: e.path });
+    for (const e of validate(value, readSchema(schema)).errors)
+      errors.push({ kind: "validate", key: e.key, vars: e.vars, file: legacy, path: e.path });
     plan.push({ legacy, current, value });
   }
   if (errors.length) return { converted, errors };
@@ -55,7 +66,12 @@ export function migrateProject(root, paths) {
     converted.push({ from: oldHome, to: home });
   }
   const zones = rel(paths.images, "zones");
-  for (const f of fs.existsSync(abs(zones)) ? fs.readdirSync(abs(zones)).filter((x) => x.endsWith(".json")).sort() : []) {
+  for (const f of fs.existsSync(abs(zones))
+    ? fs
+        .readdirSync(abs(zones))
+        .filter((x) => x.endsWith(".json"))
+        .sort()
+    : []) {
     const file = rel(zones, f);
     let raw;
     try {

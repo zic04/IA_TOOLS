@@ -24,7 +24,7 @@ export async function createWebpEncoder(browser) {
           c.getContext("2d").drawImage(img, 0, 0);
           return c.toDataURL("image/webp", q).split(",")[1];
         },
-        { b64: png.toString("base64"), q: quality }
+        { b64: png.toString("base64"), q: quality },
       );
       return Buffer.from(b64, "base64");
     },
@@ -41,6 +41,7 @@ export function webpSize(buf) {
     const b = buf.readUInt32LE(21);
     return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 };
   }
-  if (chunk === "VP8X") return { width: (buf.readUIntLE(24, 3) & 0xffffff) + 1, height: (buf.readUIntLE(27, 3) & 0xffffff) + 1 };
+  if (chunk === "VP8X")
+    return { width: (buf.readUIntLE(24, 3) & 0xffffff) + 1, height: (buf.readUIntLE(27, 3) & 0xffffff) + 1 };
   return null;
 }

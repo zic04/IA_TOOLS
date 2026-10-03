@@ -74,25 +74,29 @@ addMessages({
     written: "✔ brief written: {file}",
     unfilled: "placeholder(s) left unfilled: {list}",
     unfilled_todo: "add {vars} (or extra.briefs.<key> in doc.config.mjs), then run again",
-    launch: "  → launch it with the agent type {agent} and the model {model}, the brief's full text as the prompt (the common part first: every agent of the wave after the first reads it from the prompt cache)",
-    noAgent: "  → this brief template declares no agent type (add a front matter line \"agent: <type>\")",
+    launch:
+      "  → launch it with the agent type {agent} and the model {model}, the brief's full text as the prompt (the common part first: every agent of the wave after the first reads it from the prompt cache)",
+    noAgent: '  → this brief template declares no agent type (add a front matter line "agent: <type>")',
     estimateTitle: "Estimate for {template} — agent {agent}, model {model}",
     estimateNoAgent: "Estimate for {template} — this brief declares no agent type",
     estimateInput: "  input:  {tokens} tokens (brief {brief} + {n} cited file(s) {files})",
     estimateOutput: "  output: {tokens} tokens ({n} page(s): {fresh} new, {update} update)",
     estimateOutputNone: "  output: 0 tokens (no page list to estimate from: {reason})",
-    estimateOutputNone_noPages: "the \"pages\" placeholder is empty or not used by this template",
+    estimateOutputNone_noPages: 'the "pages" placeholder is empty or not used by this template',
     estimateTotal: "  total:  {tokens} tokens",
     estimateCost: "  cost:   {cost} {currency}",
     estimateNoCost: "  cost:   not estimated (set llm.prices.{model} in doc.config.mjs)",
     appDirDerived: "appDir is not configured (app.dir in doc.config.mjs): {dir} is assumed ({how})",
-    appDirDerived_todo: "check it: set app.dir in doc.config.mjs (the application root, relative to the documentation folder), or pass --var appDir=<folder>",
+    appDirDerived_todo:
+      "check it: set app.dir in doc.config.mjs (the application root, relative to the documentation folder), or pass --var appDir=<folder>",
     how_git: "the folder that holds .git",
     how_parent: "two levels above the documentation folder",
     appDirMissing: "appDir not found: {dir}",
     appDirMissing_todo: "fix app.dir in doc.config.mjs, or pass --var appDir=<folder>",
-    separateFront: "the coverage source ({source}) is in a separate front end ({front}): the inventory of routes only sees the front end",
-    separateFront_todo: "the briefs point at {dir}: make sure the agents also read the back end there (API, permissions, writes while rendering)",
+    separateFront:
+      "the coverage source ({source}) is in a separate front end ({front}): the inventory of routes only sees the front end",
+    separateFront_todo:
+      "the briefs point at {dir}: make sure the agents also read the back end there (API, permissions, writes while rendering)",
   },
   fr: {
     usage: [
@@ -103,7 +107,8 @@ addMessages({
       "  node brief.mjs --list [--lang en|fr]",
     ].join("\n"),
     notABrief: "« {name} » n'est pas un brief",
-    notABrief_todo: "créez le fichier de consolidation avec : node consolidation.mjs init --project <dossierDoc> --codes a,b,c",
+    notABrief_todo:
+      "créez le fichier de consolidation avec : node consolidation.mjs init --project <dossierDoc> --codes a,b,c",
     unknownTemplate: "modèle inconnu : « {name} » (langue {lang})",
     unknownTemplate_todo: "modèles disponibles : {list}",
     none: "aucun",
@@ -115,7 +120,8 @@ addMessages({
     written: "✔ brief écrit : {file}",
     unfilled: "paramètre(s) non rempli(s) : {list}",
     unfilled_todo: "ajoutez {vars} (ou extra.briefs.<clé> dans doc.config.mjs), puis relancez",
-    launch: "  → lancez-le avec le type d'agent {agent} et le modèle {model}, le texte complet du brief comme consigne (la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt)",
+    launch:
+      "  → lancez-le avec le type d'agent {agent} et le modèle {model}, le texte complet du brief comme consigne (la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt)",
     noAgent: "  → ce modèle de brief ne déclare aucun type d'agent (ajoutez une ligne d'en-tête « agent: <type> »)",
     estimateTitle: "Estimation pour {template} — agent {agent}, modèle {model}",
     estimateNoAgent: "Estimation pour {template} — ce brief ne déclare aucun type d'agent",
@@ -127,13 +133,16 @@ addMessages({
     estimateCost: "  coût :   {cost} {currency}",
     estimateNoCost: "  coût :   non estimé (renseignez llm.prices.{model} dans doc.config.mjs)",
     appDirDerived: "appDir n'est pas configuré (app.dir dans doc.config.mjs) : {dir} est supposé ({how})",
-    appDirDerived_todo: "vérifiez-le : renseignez app.dir dans doc.config.mjs (la racine de l'application, relative au dossier de la documentation), ou passez --var appDir=<dossier>",
+    appDirDerived_todo:
+      "vérifiez-le : renseignez app.dir dans doc.config.mjs (la racine de l'application, relative au dossier de la documentation), ou passez --var appDir=<dossier>",
     how_git: "le dossier qui contient .git",
     how_parent: "deux niveaux au-dessus du dossier de la documentation",
     appDirMissing: "appDir introuvable : {dir}",
     appDirMissing_todo: "corrigez app.dir dans doc.config.mjs, ou passez --var appDir=<dossier>",
-    separateFront: "la source de couverture ({source}) est dans un front-end séparé ({front}) : l'inventaire des routes ne voit que le front-end",
-    separateFront_todo: "les briefs pointent vers {dir} : assurez-vous que les agents y lisent aussi le back-end (API, droits, écritures au rendu)",
+    separateFront:
+      "la source de couverture ({source}) est dans un front-end séparé ({front}) : l'inventaire des routes ne voit que le front-end",
+    separateFront_todo:
+      "les briefs pointent vers {dir} : assurez-vous que les agents y lisent aussi le back-end (API, droits, écritures au rendu)",
   },
 });
 
@@ -148,7 +157,12 @@ const briefLanguages = () => LANGUAGES.filter((l) => fs.existsSync(templatesDir(
 function listTemplates(lang) {
   const dir = templatesDir(lang);
   return fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).filter((n) => !NOT_A_BRIEF.has(n)).sort()
+    ? fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith(".md"))
+        .map((f) => f.slice(0, -3))
+        .filter((n) => !NOT_A_BRIEF.has(n))
+        .sort()
     : [];
 }
 
@@ -158,7 +172,11 @@ function findTemplate(name, lang) {
   if (NOT_A_BRIEF.has(base)) throw new ExitError(2, t("notABrief", { name: base }), t("notABrief_todo"));
   const file = path.join(templatesDir(lang), `${base}.md`);
   if (fs.existsSync(file)) return file;
-  throw new ExitError(2, t("unknownTemplate", { name, lang }), t("unknownTemplate_todo", { list: listTemplates(lang).join(", ") || t("none") }));
+  throw new ExitError(
+    2,
+    t("unknownTemplate", { name, lang }),
+    t("unknownTemplate_todo", { list: listTemplates(lang).join(", ") || t("none") }),
+  );
 }
 
 /** The project's language, read quietly (no project, or an unreadable configuration: null). */
@@ -174,9 +192,14 @@ async function projectLanguage(option) {
 /** Warnings about {{appDir}}: derived (not configured), missing, or a separate front end that hides the back end. */
 function appDirWarnings(docDir, config, given) {
   const info = appDirInfo(docDir, config, given);
-  if (info.from === "git" || info.from === "parent") warn(t("appDirDerived", { dir: info.dir, how: t(`how_${info.from}`) }), t("appDirDerived_todo"));
+  if (info.from === "git" || info.from === "parent")
+    warn(t("appDirDerived", { dir: info.dir, how: t(`how_${info.from}`) }), t("appDirDerived_todo"));
   else if (!info.exists) warn(t("appDirMissing", { dir: info.dir }), t("appDirMissing_todo"));
-  if (info.front) warn(t("separateFront", { source: info.source, front: path.relative(info.dir, info.front).replace(/\\/g, "/") }), t("separateFront_todo", { dir: info.dir }));
+  if (info.front)
+    warn(
+      t("separateFront", { source: info.source, front: path.relative(info.dir, info.front).replace(/\\/g, "/") }),
+      t("separateFront_todo", { dir: info.dir }),
+    );
 }
 
 /**
@@ -212,7 +235,14 @@ async function printEstimate({ name, agent, text, vars, docDir, config }) {
   }
   const briefTokens = Math.ceil(text.length / 4);
   const inputTokens = briefTokens + Math.ceil(filesChars / 4);
-  console.log(t("estimateInput", { tokens: inputTokens, brief: briefTokens, n: filesCounted, files: `${Math.ceil(filesChars / 4)} tokens` }));
+  console.log(
+    t("estimateInput", {
+      tokens: inputTokens,
+      brief: briefTokens,
+      n: filesCounted,
+      files: `${Math.ceil(filesChars / 4)} tokens`,
+    }),
+  );
 
   let outputTokens = 0;
   if (!pageIds.length) {
@@ -278,7 +308,8 @@ async function main() {
   if (o.list) {
     const langs = briefLanguages();
     console.log(t("languages", { list: langs.join(", ") }));
-    for (const lang of o.lang ? [o.lang] : langs) console.log(t("templates", { lang, list: listTemplates(lang).join(", ") || t("none") }));
+    for (const lang of o.lang ? [o.lang] : langs)
+      console.log(t("templates", { lang, list: listTemplates(lang).join(", ") || t("none") }));
     return 0;
   }
   if (positionals.length !== 1) throw new ExitError(2, t("oneTemplate"), t("usage").split("\n")[1].trim());
@@ -300,7 +331,10 @@ async function main() {
   if (o.vars) {
     console.log(t("placeholders", { file: path.basename(templateFile) }));
     for (const key of templateVariables(template)) {
-      const v = vars[key] == null || String(vars[key]).trim() === "" ? t("empty") : String(vars[key]).replace(/\s*\n\s*/g, " ⏎ ");
+      const v =
+        vars[key] == null || String(vars[key]).trim() === ""
+          ? t("empty")
+          : String(vars[key]).replace(/\s*\n\s*/g, " ⏎ ");
       console.log(`  ${key.padEnd(22)} ${v.length > 90 ? `${v.slice(0, 87)}…` : v}`);
     }
     return 0;
@@ -315,12 +349,17 @@ async function main() {
     return 0;
   }
 
-  const output = o.output ? path.resolve(o.output) : path.join(docDir, WORK_DIR, `brief-${base}${vars.code ? `-${vars.code}` : ""}.md`);
+  const output = o.output
+    ? path.resolve(o.output)
+    : path.join(docDir, WORK_DIR, `brief-${base}${vars.code ? `-${vars.code}` : ""}.md`);
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, text);
   console.log(t("written", { file: output }));
   if (unfilled.length) {
-    warn(t("unfilled", { list: unfilled.join(", ") }), t("unfilled_todo", { vars: unfilled.map((v) => `--var ${v}=…`).join(" ") }));
+    warn(
+      t("unfilled", { list: unfilled.join(", ") }),
+      t("unfilled_todo", { vars: unfilled.map((v) => `--var ${v}=…`).join(" ") }),
+    );
     return 1;
   }
   if (agent) console.log(t("launch", { file: output, agent, model: briefModel(base, agent, config) }));

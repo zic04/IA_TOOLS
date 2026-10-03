@@ -16,7 +16,10 @@ export default {
     if (!tools.exists(options.app)) return { available: false, reason: "notFound", vars: { path: options.app } };
     const files = tools.walk(options.app).filter((f) => f.endsWith(".py"));
     const sources = new Map(files.map((f) => [f, tools.read(`${options.app}/${f}`)]));
-    const items = fastapiRoutes(sources).map((r) => ({ id: `${r.method} ${r.route}`, match: routeMatches(r.route).map((x) => `${r.method} ${x}`) }));
+    const items = fastapiRoutes(sources).map((r) => ({
+      id: `${r.method} ${r.route}`,
+      match: routeMatches(r.route).map((x) => `${r.method} ${x}`),
+    }));
     return { available: true, families: [{ name: options.family, items: excludeItems(items, options.exclude) }] };
   },
 };

@@ -48,7 +48,11 @@ function pydanticEnvPrefix(body) {
 /** `Field(..., alias="X")`, `validation_alias="X"` or the pydantic v1 `env="X"`: replaces the derived name. */
 function pydanticFieldOverride(rest) {
   if (!rest) return null;
-  for (const re of [/\balias\s*=\s*["']([^"']+)["']/, /\bvalidation_alias\s*=\s*["']([^"']+)["']/, /\benv\s*=\s*["']([^"']+)["']/]) {
+  for (const re of [
+    /\balias\s*=\s*["']([^"']+)["']/,
+    /\bvalidation_alias\s*=\s*["']([^"']+)["']/,
+    /\benv\s*=\s*["']([^"']+)["']/,
+  ]) {
     const m = re.exec(rest);
     if (m) return m[1];
   }
@@ -123,5 +127,7 @@ export function collectEnv(appDir) {
       const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(raw);
       if (m) get(m[1]).example = true;
     }
-  return [...byName.values()].map((e) => ({ name: e.name, files: [...e.files].sort(), example: e.example })).sort((a, b) => a.name.localeCompare(b.name));
+  return [...byName.values()]
+    .map((e) => ({ name: e.name, files: [...e.files].sort(), example: e.example }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }

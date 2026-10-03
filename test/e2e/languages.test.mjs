@@ -57,10 +57,11 @@ const go = (page, hash) =>
         window.addEventListener("hashchange", () => setTimeout(r, 30), { once: true });
         location.hash = h;
       }),
-    "#/" + hash
+    "#/" + hash,
   );
 const text = (page, sel) => page.locator(sel).first().textContent();
-const pressed = (page, sel = "#langues .espace-choix") => page.locator(sel).evaluateAll((bs) => bs.map((b) => `${b.textContent}:${b.getAttribute("aria-pressed")}`));
+const pressed = (page, sel = "#langues .espace-choix") =>
+  page.locator(sel).evaluateAll((bs) => bs.map((b) => `${b.textContent}:${b.getAttribute("aria-pressed")}`));
 const remembered = (page) => page.evaluate((k) => localStorage.getItem(k), LANG_KEY);
 
 describe("selector", () => {
@@ -119,12 +120,20 @@ describe("URL grammar and initial language", () => {
     await ctx1.addInitScript((k) => localStorage.setItem(k, "en"), LANG_KEY);
     const page1 = await open("use/orders", { context: ctx1 });
     await page1.waitForTimeout(80);
-    assert.equal(await page1.evaluate(() => document.documentElement.lang), "en", "stored preference wins over the French browser");
+    assert.equal(
+      await page1.evaluate(() => document.documentElement.lang),
+      "en",
+      "stored preference wins over the French browser",
+    );
     await ctx1.close();
 
     const page2 = await open("use/orders", { locale: "fr-FR" });
     await page2.waitForTimeout(80);
-    assert.equal(await page2.evaluate(() => document.documentElement.lang), "fr", "no stored preference: navigator.languages (fr-FR) decides");
+    assert.equal(
+      await page2.evaluate(() => document.documentElement.lang),
+      "fr",
+      "no stored preference: navigator.languages (fr-FR) decides",
+    );
     await page2.context().close();
   });
 });
@@ -155,11 +164,17 @@ describe("template and UI texts re-applied", () => {
     const page = await open("en/use/settings", { locale: "en-US" });
     await page.waitForTimeout(80);
     assert.match(await text(page, ".lat-lien.actif"), /Settings/);
-    assert.equal(await page.locator("#recherche-champ").getAttribute("placeholder"), "Search for a feature, a setting, a screen…");
+    assert.equal(
+      await page.locator("#recherche-champ").getAttribute("placeholder"),
+      "Search for a feature, a setting, a screen…",
+    );
     await page.locator("#langues .espace-choix", { hasText: "Français" }).click();
     await page.waitForTimeout(100);
     assert.match(await text(page, ".lat-lien.actif"), /Réglages/);
-    assert.notEqual(await page.locator("#recherche-champ").getAttribute("placeholder"), "Search for a feature, a setting, a screen…");
+    assert.notEqual(
+      await page.locator("#recherche-champ").getAttribute("placeholder"),
+      "Search for a feature, a setting, a screen…",
+    );
     assert.equal(await page.locator("#bouton-theme").getAttribute("aria-label"), "Changer de thème");
     await page.locator("#langues .espace-choix", { hasText: "English" }).click();
     await page.waitForTimeout(100);
@@ -217,7 +232,11 @@ describe("images per language", () => {
   test("the translated screenshot resolves to its @fr element; the untranslated one resolves to the shared element", async () => {
     const page = await open("en/use/orders", { locale: "en-US" });
     await page.waitForTimeout(80);
-    assert.equal(await page.evaluate(() => !!document.getElementById("img-orders-list@fr")), true, "img-orders-list@fr embedded");
+    assert.equal(
+      await page.evaluate(() => !!document.getElementById("img-orders-list@fr")),
+      true,
+      "img-orders-list@fr embedded",
+    );
     const srcEn = await page.evaluate(() => document.querySelector('img[data-img="orders-list"]')?.getAttribute("src"));
     const enBlock = await page.evaluate(() => document.getElementById("img-orders-list").textContent.trim());
     assert.equal(srcEn, enBlock, "en: resolves to the plain img-orders-list element");
@@ -228,7 +247,9 @@ describe("images per language", () => {
     assert.equal(srcFr, frBlock, "fr: resolves to the img-orders-list@fr element");
     await go(page, "fr/use/settings");
     await page.waitForTimeout(80);
-    const settingsFr = await page.evaluate(() => document.querySelector('img[data-img="settings-profile"]')?.getAttribute("src"));
+    const settingsFr = await page.evaluate(() =>
+      document.querySelector('img[data-img="settings-profile"]')?.getAttribute("src"),
+    );
     const settingsBlock = await page.evaluate(() => document.getElementById("img-settings-profile").textContent.trim());
     const hasFrVariant = await page.evaluate(() => !!document.getElementById("img-settings-profile@fr"));
     assert.equal(hasFrVariant, false, "settings-profile has no fr variant embedded");
@@ -241,10 +262,7 @@ describe("combination with spaces", () => {
   test("#/fr/@business: the space is pressed, the menu is filtered, titles are in French", async () => {
     const page = await open("fr/@business", { locale: "en-US" });
     await page.waitForTimeout(80);
-    assert.deepEqual(
-      await pressed(page, "#espaces .espace-choix"),
-      ["Tout:false", "Métier:true", "Reprise:false"]
-    );
+    assert.deepEqual(await pressed(page, "#espaces .espace-choix"), ["Tout:false", "Métier:true", "Reprise:false"]);
     assert.match(await text(page, ".heros h1"), /Acme Orders/);
     await page.context().close();
   });
@@ -298,8 +316,13 @@ describe("mobile", () => {
     await page.locator("#menu-mobile").click();
     await page.waitForTimeout(80);
     assert.equal(await page.locator(".lat-langues").isVisible(), true);
-    const order = await page.evaluate(() => Array.from(document.querySelectorAll(".lateral > .espaces")).map((el) => el.className));
-    assert.ok(order[0].includes("lat-langues") && order[1].includes("lat-espaces") && !order[1].includes("lat-langues"), "languages above spaces: " + order.join(" | "));
+    const order = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".lateral > .espaces")).map((el) => el.className),
+    );
+    assert.ok(
+      order[0].includes("lat-langues") && order[1].includes("lat-espaces") && !order[1].includes("lat-langues"),
+      "languages above spaces: " + order.join(" | "),
+    );
     await page.context().close();
   });
 });
@@ -310,20 +333,33 @@ describe("keyboard and ARIA", () => {
     await page.locator("#langues .espace-choix", { hasText: "Français" }).focus();
     await page.keyboard.press("Enter");
     await page.waitForTimeout(100);
-    assert.equal(await page.locator("#langues .espace-choix", { hasText: "Français" }).getAttribute("aria-pressed"), "true");
+    assert.equal(
+      await page.locator("#langues .espace-choix", { hasText: "Français" }).getAttribute("aria-pressed"),
+      "true",
+    );
     await page.context().close();
   });
 });
 
 describe("accessibility: contrasts in both themes", () => {
   async function contrast(page, sel) {
-    return page.locator(sel).first().evaluate((el) => {
-      const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
-      const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
-      const cs = getComputedStyle(el);
-      const [a, b] = [lum(rgb(cs.color)), lum(rgb(cs.backgroundColor))].sort((x, y) => y - x);
-      return (a + 0.05) / (b + 0.05);
-    });
+    return page
+      .locator(sel)
+      .first()
+      .evaluate((el) => {
+        const rgb = (c) =>
+          c
+            .match(/[\d.]+/g)
+            .slice(0, 3)
+            .map(Number);
+        const lum = ([r, g, b]) =>
+          [r, g, b]
+            .map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+            .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const cs = getComputedStyle(el);
+        const [a, b] = [lum(rgb(cs.color)), lum(rgb(cs.backgroundColor))].sort((x, y) => y - x);
+        return (a + 0.05) / (b + 0.05);
+      });
   }
   for (const colorScheme of ["light", "dark"]) {
     test(`${colorScheme}: pressed language button and the translation banner are readable (WCAG >= 4.5)`, async () => {

@@ -52,7 +52,10 @@ export function trackNetwork(page) {
  * @param {import("playwright").Page} page
  * @param {{ network?: { idle: Function }, min?: number, quietMs?: number, max?: number, networkMax?: number }} [o]
  */
-export async function waitForStable(page, { network, min = 0, quietMs = STABLE.quietMs, max = STABLE.max, networkMax = STABLE.networkMax } = {}) {
+export async function waitForStable(
+  page,
+  { network, min = 0, quietMs = STABLE.quietMs, max = STABLE.max, networkMax = STABLE.networkMax } = {},
+) {
   const t0 = Date.now();
   const left = () => Math.max(0, max - (Date.now() - t0));
   if (network) await network.idle(quietMs, Math.min(networkMax, left()));
@@ -63,7 +66,21 @@ export async function waitForStable(page, { network, min = 0, quietMs = STABLE.q
         const remaining = () => Math.max(0, until - performance.now());
         const capped = (p) => Promise.race([p, new Promise((r) => setTimeout(r, remaining()))]);
         if (document.fonts && document.fonts.ready) await capped(document.fonts.ready);
-        await capped(Promise.all([...document.images].filter((i) => !i.complete).map((i) => new Promise((r) => (i.addEventListener("load", r, { once: true }), i.addEventListener("error", r, { once: true }))))));
+        await capped(
+          Promise.all(
+            [...document.images]
+              .filter((i) => !i.complete)
+              .map(
+                (i) =>
+                  new Promise(
+                    (r) => (
+                      i.addEventListener("load", r, { once: true }),
+                      i.addEventListener("error", r, { once: true })
+                    ),
+                  ),
+              ),
+          ),
+        );
         await new Promise((resolve) => {
           let timer;
           const done = () => {
@@ -80,11 +97,13 @@ export async function waitForStable(page, { network, min = 0, quietMs = STABLE.q
           timer = setTimeout(done, quietMs);
           const cap = setTimeout(done, remaining());
         });
-        const running = (document.getAnimations ? document.getAnimations() : []).filter((a) => a.playState === "running" && Number.isFinite(a.effect?.getComputedTiming?.().endTime));
+        const running = (document.getAnimations ? document.getAnimations() : []).filter(
+          (a) => a.playState === "running" && Number.isFinite(a.effect?.getComputedTiming?.().endTime),
+        );
         await capped(Promise.all(running.map((a) => a.finished.catch(() => {}))));
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       },
-      { quietMs, budget: left() }
+      { quietMs, budget: left() },
     )
     .catch(() => {});
   const rest = min - (Date.now() - t0);

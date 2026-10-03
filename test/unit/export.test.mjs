@@ -40,9 +40,22 @@ export default {
   coverage: [{ adapter: "next-app-router", app: "../../app" }],
   statuses: { open: ["st-0", "Open"], cancelled: ["#64748b", "Cancelled"] },
 };
-`
+`,
   );
-  fs.writeFileSync(path.join(docs, "package.json"), JSON.stringify({ name: "acme-orders-documentation", private: true, type: "module", scripts: { site: "doc-kit build" }, dependencies: { [BRAND.packageName]: "file:../../../kit" } }, null, 2));
+  fs.writeFileSync(
+    path.join(docs, "package.json"),
+    JSON.stringify(
+      {
+        name: "acme-orders-documentation",
+        private: true,
+        type: "module",
+        scripts: { site: "doc-kit build" },
+        dependencies: { [BRAND.packageName]: "file:../../../kit" },
+      },
+      null,
+      2,
+    ),
+  );
   fs.writeFileSync(path.join(docs, "package-lock.json"), "{}");
   fs.writeFileSync(path.join(docs, ".env.local"), "TOKEN=secret");
   fs.mkdirSync(path.join(docs, ".doc-kit"));
@@ -54,11 +67,24 @@ export default {
 
 describe("freezeFallback", () => {
   test("replaces, inserts in the version object, or adds the object; comments and nested braces kept", () => {
-    assert.equal(freezeFallback('export default {\n  version: { file: "x", fallback: "0.0.0" }, // v\n};', "1.2.3"), 'export default {\n  version: { file: "x", fallback: "1.2.3" }, // v\n};');
-    assert.equal(freezeFallback('export default { version: { file: "a" } };', "1.0.0"), 'export default { version: { fallback: "1.0.0", file: "a" } };');
-    assert.equal(freezeFallback('export default defineConfig({\n  product: { name: "A" },\n});', "2.0.0"), 'export default defineConfig({\n  version: { fallback: "2.0.0" },\n  product: { name: "A" },\n});');
-    const nested = 'export default { version: { pattern: "v\\\\d{1,3}", /* } */ file: "x" }, extra: { version: { fallback: "no" } } };';
-    assert.equal(freezeFallback(nested, "9.9.9"), 'export default { version: { fallback: "9.9.9", pattern: "v\\\\d{1,3}", /* } */ file: "x" }, extra: { version: { fallback: "no" } } };');
+    assert.equal(
+      freezeFallback('export default {\n  version: { file: "x", fallback: "0.0.0" }, // v\n};', "1.2.3"),
+      'export default {\n  version: { file: "x", fallback: "1.2.3" }, // v\n};',
+    );
+    assert.equal(
+      freezeFallback('export default { version: { file: "a" } };', "1.0.0"),
+      'export default { version: { fallback: "1.0.0", file: "a" } };',
+    );
+    assert.equal(
+      freezeFallback('export default defineConfig({\n  product: { name: "A" },\n});', "2.0.0"),
+      'export default defineConfig({\n  version: { fallback: "2.0.0" },\n  product: { name: "A" },\n});',
+    );
+    const nested =
+      'export default { version: { pattern: "v\\\\d{1,3}", /* } */ file: "x" }, extra: { version: { fallback: "no" } } };';
+    assert.equal(
+      freezeFallback(nested, "9.9.9"),
+      'export default { version: { fallback: "9.9.9", pattern: "v\\\\d{1,3}", /* } */ file: "x" }, extra: { version: { fallback: "no" } } };',
+    );
     assert.equal(closingBrace("{ '}' }", 0), 6);
     assert.equal(freezeFallback("module.exports = 1;", "1.0.0"), null);
   });
@@ -71,20 +97,46 @@ describe("export", () => {
     try {
       const r = await cli(["export", target, "--project", docs]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.err, /^⚠ version\.file points outside the project \(\.\.\/\.\.\/package\.json\): the copy shows the frozen version/m);
+      assert.match(
+        r.err,
+        /^⚠ version\.file points outside the project \(\.\.\/\.\.\/package\.json\): the copy shows the frozen version/m,
+      );
       assert.match(r.err, /^⚠ masking\.env\[0\] points outside the project \(\.\.\/\.\.\/\.env\)/m);
-      assert.match(r.err, /^⚠ coverage\[0\]\.app points outside the project \(\.\.\/\.\.\/app\): the coverage check cannot run in the copy\n {2}→ /m);
+      assert.match(
+        r.err,
+        /^⚠ coverage\[0\]\.app points outside the project \(\.\.\/\.\.\/app\): the coverage check cannot run in the copy\n {2}→ /m,
+      );
       assert.match(r.out, /not exported: \.env\.local, package-lock\.json/);
       assert.match(r.out, /engine \d+\.\d+\.\d+ vendored \(\d+ files\) · documented version 2\.4\.0/);
       assert.match(r.out, /npm install\n {2}npm run site\n$/);
 
       // Left out: secrets, session, dependencies, lock file.
-      for (const f of [".env.local", ".doc-kit", "node_modules", "package-lock.json"]) assert.ok(!fs.existsSync(path.join(target, f)), f);
-      for (const f of ["content/toc.json", "images/orders-list.webp", "images/zones/orders-list.json", "diagrams/flow.svg", "theme/logo.svg", ".gitignore"]) assert.ok(fs.existsSync(path.join(target, f)), f);
+      for (const f of [".env.local", ".doc-kit", "node_modules", "package-lock.json"])
+        assert.ok(!fs.existsSync(path.join(target, f)), f);
+      for (const f of [
+        "content/toc.json",
+        "images/orders-list.webp",
+        "images/zones/orders-list.json",
+        "diagrams/flow.svg",
+        "theme/logo.svg",
+        ".gitignore",
+      ])
+        assert.ok(fs.existsSync(path.join(target, f)), f);
       // The vendored engine: what builds, nothing else.
       const vendor = path.join(target, ...VENDOR.split("/"));
-      for (const f of ["engine/build/build.mjs", "cli/doc-kit.mjs", "i18n/en.json", "schemas/config.schema.json", "templates/project/en/doc.config.mjs", "templates/project/fr/doc.config.mjs", "standard/templates.json", "LICENSE"]) assert.ok(fs.existsSync(path.join(vendor, f)), f);
-      for (const f of ["test", "examples", "skill", "docs", "ci", "node_modules"]) assert.ok(!fs.existsSync(path.join(vendor, f)), f);
+      for (const f of [
+        "engine/build/build.mjs",
+        "cli/doc-kit.mjs",
+        "i18n/en.json",
+        "schemas/config.schema.json",
+        "templates/project/en/doc.config.mjs",
+        "templates/project/fr/doc.config.mjs",
+        "standard/templates.json",
+        "LICENSE",
+      ])
+        assert.ok(fs.existsSync(path.join(vendor, f)), f);
+      for (const f of ["test", "examples", "skill", "docs", "ci", "node_modules"])
+        assert.ok(!fs.existsSync(path.join(vendor, f)), f);
       const vendored = JSON.parse(fs.readFileSync(path.join(vendor, "package.json"), "utf8"));
       assert.equal(vendored.version, BRAND.version);
       assert.equal(vendored.scripts, undefined);
@@ -112,11 +164,28 @@ describe("export", () => {
       fs.symlinkSync(vendor, path.join(target, "node_modules", BRAND.packageName), "junction");
       fs.symlinkSync(path.join(KIT_ROOT, "node_modules"), path.join(vendor, "node_modules"), "junction");
       const out = path.join(target, "dist", "site.html");
-      const run = spawnSync(process.execPath, [path.join(vendor, "cli", "doc-kit.mjs"), "build", "--project", target, "--date", "2026-01-01", "--output", out], { encoding: "utf8" });
+      const run = spawnSync(
+        process.execPath,
+        [
+          path.join(vendor, "cli", "doc-kit.mjs"),
+          "build",
+          "--project",
+          target,
+          "--date",
+          "2026-01-01",
+          "--output",
+          out,
+        ],
+        { encoding: "utf8" },
+      );
       assert.equal(run.status, 0, run.stderr);
       const html = fs.readFileSync(out, "utf8");
       assert.ok(html.includes(`<meta name="generator" content="${generatorTag()}">`));
-      assert.equal(dataOf(html).meta.version, "2.4.0", "frozen version, the repository's package.json being out of reach");
+      assert.equal(
+        dataOf(html).meta.version,
+        "2.4.0",
+        "frozen version, the repository's package.json being out of reach",
+      );
       assert.equal(dataOf(html).meta.stats.pages, 11);
       // Same output as the kit itself on the same copy.
       const reference = await cli(["build", "--project", target, "--date", "2026-01-01", "--output", out + ".ref"]);
@@ -124,7 +193,11 @@ describe("export", () => {
       assert.equal(fs.readFileSync(out + ".ref", "utf8"), html);
     } finally {
       // The links are removed first: a cleanup never follows them into the kit.
-      for (const link of [path.join(target, "node_modules", BRAND.packageName), path.join(target, ...VENDOR.split("/"), "node_modules")]) if (fs.existsSync(link)) fs.unlinkSync(link);
+      for (const link of [
+        path.join(target, "node_modules", BRAND.packageName),
+        path.join(target, ...VENDOR.split("/"), "node_modules"),
+      ])
+        if (fs.existsSync(link)) fs.unlinkSync(link);
       fs.rmSync(repo, { recursive: true, force: true });
       fs.rmSync(path.dirname(target), { recursive: true, force: true });
     }
@@ -146,7 +219,10 @@ describe("export", () => {
       assert.ok(fs.existsSync(path.join(target, "dist", "Acme-Orders-Documentation.html")));
       assert.match(r.out, /✔ archive .*handover\.zip \(\d+\.\d MB\)/);
       const entries = readZip(path.join(parent, "handover.zip"));
-      const files = fs.readdirSync(target, { recursive: true }).map(String).filter((f) => fs.statSync(path.join(target, f)).isFile());
+      const files = fs
+        .readdirSync(target, { recursive: true })
+        .map(String)
+        .filter((f) => fs.statSync(path.join(target, f)).isFile());
       assert.equal(entries.length, files.length);
       assert.ok(entries.every((e) => e.name.startsWith("handover/")));
       const pkg = entries.find((e) => e.name === "handover/package.json");

@@ -9,7 +9,8 @@ import { listFiles } from "../facts/common.mjs";
  * Same file family as `PROOF` of engine/audit/audit.mjs (tested for parity: every PROOF_REF match is a PROOF
  * match too), with capturing groups: 1 = file, 2 = from line, 3 = to line (optional, a range).
  */
-export const PROOF_REF = /`([^`\n:]*?(?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile)):(\d+)(?:-(\d+))?[^`\n]*`/g;
+export const PROOF_REF =
+  /`([^`\n:]*?(?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile)):(\d+)(?:-(\d+))?[^`\n]*`/g;
 
 /**
  * Every `file:line` (or `file:line-line`) proof of a Markdown page. Ignored: a code span that is a URL (`://`),
@@ -36,7 +37,13 @@ export function extractProofs(markdown, { appDir } = {}) {
   for (const m of masked.matchAll(PROOF_BADGE)) {
     const ref = FILE_LINE.exec(m[1]);
     if (!ref) continue;
-    push(markdown.slice(m.index, m.index + m[0].length), m.index, ref[1], Number(ref[2]), ref[3] !== undefined ? Number(ref[3]) : undefined);
+    push(
+      markdown.slice(m.index, m.index + m[0].length),
+      m.index,
+      ref[1],
+      Number(ref[2]),
+      ref[3] !== undefined ? Number(ref[3]) : undefined,
+    );
   }
   return out.sort((a, b) => a.index - b.index);
 }
@@ -74,7 +81,10 @@ export function recordProof(appDir, proof) {
   const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
   if (proof.from > lines.length) return null;
   const to = proof.to ?? proof.from;
-  return { hash: hashText(lines.slice(proof.from - 1, to).join("\n")), text: lines[proof.from - 1].trim().slice(0, 120) };
+  return {
+    hash: hashText(lines.slice(proof.from - 1, to).join("\n")),
+    text: lines[proof.from - 1].trim().slice(0, 120),
+  };
 }
 
 /**
@@ -92,7 +102,8 @@ export function locateProof({ current, renamedTo, recorded, proof }) {
   if (!target) return { status: "broken", reason: "textNotFound" }; // a blank line cited: never matched back
   const lines = current.split(/\r?\n/);
   const to = proof.to ?? proof.from;
-  if (proof.from <= lines.length && hashText(lines.slice(proof.from - 1, to).join("\n")) === recorded.hash) return { status: "intact" };
+  if (proof.from <= lines.length && hashText(lines.slice(proof.from - 1, to).join("\n")) === recorded.hash)
+    return { status: "intact" };
   const matches = [];
   for (let i = 0; i < lines.length; i++) if (lines[i].trim().slice(0, 120) === target) matches.push(i);
   if (matches.length === 1) {

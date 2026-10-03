@@ -17,7 +17,17 @@ import { reloadConfig } from "../../engine/dev/environment.mjs";
 import { exportProject } from "../../cli/commands/export.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { KIT_ROOT, DEMO, SPACES, buildDemo, buildSpaces, spacesCopy, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
+import {
+  KIT_ROOT,
+  DEMO,
+  SPACES,
+  buildDemo,
+  buildSpaces,
+  spacesCopy,
+  demoCopy,
+  tempDir,
+  dataOf,
+} from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
@@ -50,14 +60,25 @@ describe("declaration and validation", () => {
     const r = await buildSpaces();
     assert.deepEqual(r.errors, []);
     assert.deepEqual(keys(r.warnings), ["space.excludedLinks", "space.excludedLinks"]);
-    assert.deepEqual(r.sites.map((s) => s.space), ["business", "takeover"]);
+    assert.deepEqual(
+      r.sites.map((s) => s.space),
+      ["business", "takeover"],
+    );
   });
 
   test("space.missing, space.unknown, space.duplicate, space.title: blocking, even a draft build", async () => {
     const cases = [
       [(t) => (delete t.sections[1].space, t), "space.missing", { section: "take-over", known: "business, takeover" }],
-      [(t) => ((t.sections[0].groups[1].pages[0].space = "tech"), t), "space.unknown", { where: "use/api-limits", space: "tech", known: "business, takeover" }],
-      [(t) => ((t.journeys[1].space = "ops"), t), "space.unknown", { where: "Take over Acme Orders", space: "ops", known: "business, takeover" }],
+      [
+        (t) => ((t.sections[0].groups[1].pages[0].space = "tech"), t),
+        "space.unknown",
+        { where: "use/api-limits", space: "tech", known: "business, takeover" },
+      ],
+      [
+        (t) => ((t.journeys[1].space = "ops"), t),
+        "space.unknown",
+        { where: "Take over Acme Orders", space: "ops", known: "business, takeover" },
+      ],
       [(t) => ((t.spaces = ["business", "takeover", "business"]), t), "space.duplicate", { space: "business" }],
       [(t) => ((t.spaces = ["business", "takeover", "ops"]), t), "space.title", { space: "ops" }],
     ];
@@ -67,7 +88,11 @@ describe("declaration and validation", () => {
         const r = await buildSpaces({ root, draft: true });
         assert.equal(r.html, null, key);
         assert.deepEqual(r.sites, []);
-        assert.deepEqual(r.errors.map((e) => [e.kind, e.key, e.vars]), [["space", key, vars]], key);
+        assert.deepEqual(
+          r.errors.map((e) => [e.kind, e.key, e.vars]),
+          [["space", key, vars]],
+          key,
+        );
       } finally {
         fs.rmSync(root, { recursive: true, force: true });
       }
@@ -79,12 +104,15 @@ describe("declaration and validation", () => {
     try {
       const r = await buildSpaces({ root });
       assert.equal(r.html, null);
-      assert.deepEqual(r.errors.map((e) => [e.key, e.vars.where]), [
-        ["space.undeclared", "use"],
-        ["space.undeclared", "use/api-limits"],
-        ["space.undeclared", "take-over"],
-        ["space.undeclared", "Take over Acme Orders"],
-      ]);
+      assert.deepEqual(
+        r.errors.map((e) => [e.key, e.vars.where]),
+        [
+          ["space.undeclared", "use"],
+          ["space.undeclared", "use/api-limits"],
+          ["space.undeclared", "take-over"],
+          ["space.undeclared", "Take over Acme Orders"],
+        ],
+      );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -95,9 +123,16 @@ describe("declaration and validation", () => {
     try {
       const r = await buildSpaces({ root });
       assert.deepEqual(r.errors, []);
-      assert.deepEqual(r.warnings.find((w) => w.key === "space.empty"), { kind: "space", key: "space.empty", vars: { space: "ops" } });
+      assert.deepEqual(
+        r.warnings.find((w) => w.key === "space.empty"),
+        { kind: "space", key: "space.empty", vars: { space: "ops" } },
+      );
       assert.equal(r.data.spaces.find((s) => s.id === "ops").pages, 0);
-      assert.equal(r.data.spaces.find((s) => s.id === "ops").shortTitle, "For the operators", "shortTitle defaults to the title");
+      assert.equal(
+        r.data.spaces.find((s) => s.id === "ops").shortTitle,
+        "For the operators",
+        "shortTitle defaults to the title",
+      );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -126,15 +161,27 @@ describe("declaration and validation", () => {
     const base = { product: { name: "Acme Orders" } };
     assert.throws(
       () => prepareConfig({ ...base, spaces: { output: "dist/export.html" } }, { env: {} }),
-      (e) => e.code === 2 && e.key === "config.invalid" && e.details.some((d) => d.path === "spaces.output" && d.key === "spaceOutput")
+      (e) =>
+        e.code === 2 &&
+        e.key === "config.invalid" &&
+        e.details.some((d) => d.path === "spaces.output" && d.key === "spaceOutput"),
     );
-    assert.throws(() => prepareConfig({ ...base, spaces: { export: "yes" } }, { env: {} }), (e) => e.code === 2 && e.details[0].path === "spaces.export");
-    assert.throws(() => prepareConfig({ ...base, spaces: { exprt: false } }, { env: {} }), (e) => e.details[0].path === "spaces.exprt");
+    assert.throws(
+      () => prepareConfig({ ...base, spaces: { export: "yes" } }, { env: {} }),
+      (e) => e.code === 2 && e.details[0].path === "spaces.export",
+    );
+    assert.throws(
+      () => prepareConfig({ ...base, spaces: { exprt: false } }, { env: {} }),
+      (e) => e.details[0].path === "spaces.exprt",
+    );
     const c = prepareConfig({ ...base, spaces: { output: "dist/acme-{space}.html" } }, { env: {} });
     assert.deepEqual(c.spaces, { export: true, output: "dist/acme-{space}.html" });
     assert.deepEqual(prepareConfig(base, { env: {} }).spaces, { export: true, output: null });
     const t = createI18n({ language: "en" }).t;
-    assert.equal(t("cli.validate.spaceOutput", { placeholder: "{space}" }), "the path of each export must contain {space}");
+    assert.equal(
+      t("cli.validate.spaceOutput", { placeholder: "{space}" }),
+      "the path of each export must contain {space}",
+    );
   });
 });
 
@@ -149,7 +196,10 @@ describe("site data", () => {
       assert.ok(Object.values(data.pages).every((p) => !("space" in p) && !("counterpart" in p)));
       assert.ok(data.parcours.every((j) => !("space" in j) && !("hidden" in j)));
       assert.equal("space" in data.meta, false);
-      assert.deepEqual(Object.keys(data.i18n).filter((k) => SPACE_TEXT_KEYS.includes(k)), []);
+      assert.deepEqual(
+        Object.keys(data.i18n).filter((k) => SPACE_TEXT_KEYS.includes(k)),
+        [],
+      );
       assert.deepEqual(r.sites, []);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -158,29 +208,81 @@ describe("site data", () => {
 
   test("declared: spaces with their default texts (en, fr), an overridden field, the space of each section, page and journey", async () => {
     for (const [language, business, takeover] of [
-      ["en", { title: "For the business", shortTitle: "Business", for: "Users, key users, product owners, support" }, { title: "For the takeover team", shortTitle: "Takeover" }],
-      ["fr", { title: "Pour le métier", shortTitle: "Métier", for: "Utilisateurs, référents, responsables produit, support" }, { title: "Pour l'équipe de reprise", shortTitle: "Reprise" }],
+      [
+        "en",
+        { title: "For the business", shortTitle: "Business", for: "Users, key users, product owners, support" },
+        { title: "For the takeover team", shortTitle: "Takeover" },
+      ],
+      [
+        "fr",
+        {
+          title: "Pour le métier",
+          shortTitle: "Métier",
+          for: "Utilisateurs, référents, responsables produit, support",
+        },
+        { title: "Pour l'équipe de reprise", shortTitle: "Reprise" },
+      ],
     ]) {
       const r = await buildSpaces({ language });
       const data = dataOf(r.html);
       const t = createI18n({ language }).t;
-      assert.deepEqual(data.spaces, [
-        { id: "business", ...business, subtitle: t("ui.spaces.business.subtitle"), icon: "livre", pages: 3, for: business.for },
-        // The subtitle of the takeover space is overridden by the table of contents.
-        { id: "takeover", ...takeover, subtitle: "Architecture, API and operations of Acme Orders.", icon: "reprendre", for: t("ui.spaces.takeover.for"), pages: 3 },
-      ].map((s) => ({ id: s.id, title: s.title, shortTitle: s.shortTitle, subtitle: s.subtitle, icon: s.icon, for: s.for, pages: s.pages })));
-      assert.deepEqual(data.sections.map((s) => [s.id, s.space]), [["use", "business"], ["take-over", "takeover"]]);
-      assert.deepEqual(Object.values(data.pages).map((p) => [p.id, p.space]), [
-        ["use/orders", "business"],
-        ["use/orders/detail", "business"],
-        ["use/settings", "business"],
-        ["use/api-limits", "takeover"],
-        ["take-over/architecture", "takeover"],
-        ["take-over/orders-api", "takeover"],
-      ]);
+      assert.deepEqual(
+        data.spaces,
+        [
+          {
+            id: "business",
+            ...business,
+            subtitle: t("ui.spaces.business.subtitle"),
+            icon: "livre",
+            pages: 3,
+            for: business.for,
+          },
+          // The subtitle of the takeover space is overridden by the table of contents.
+          {
+            id: "takeover",
+            ...takeover,
+            subtitle: "Architecture, API and operations of Acme Orders.",
+            icon: "reprendre",
+            for: t("ui.spaces.takeover.for"),
+            pages: 3,
+          },
+        ].map((s) => ({
+          id: s.id,
+          title: s.title,
+          shortTitle: s.shortTitle,
+          subtitle: s.subtitle,
+          icon: s.icon,
+          for: s.for,
+          pages: s.pages,
+        })),
+      );
+      assert.deepEqual(
+        data.sections.map((s) => [s.id, s.space]),
+        [
+          ["use", "business"],
+          ["take-over", "takeover"],
+        ],
+      );
+      assert.deepEqual(
+        Object.values(data.pages).map((p) => [p.id, p.space]),
+        [
+          ["use/orders", "business"],
+          ["use/orders/detail", "business"],
+          ["use/settings", "business"],
+          ["use/api-limits", "takeover"],
+          ["take-over/architecture", "takeover"],
+          ["take-over/orders-api", "takeover"],
+        ],
+      );
       // A journey without "space" takes the space of its first step.
-      assert.deepEqual(data.parcours.map((j) => j.space), ["business", "takeover"]);
-      assert.ok(SPACE_TEXT_KEYS.every((k) => !k.startsWith("ui.") || k in data.i18n), "the texts of the spaces are embedded");
+      assert.deepEqual(
+        data.parcours.map((j) => j.space),
+        ["business", "takeover"],
+      );
+      assert.ok(
+        SPACE_TEXT_KEYS.every((k) => !k.startsWith("ui.") || k in data.i18n),
+        "the texts of the spaces are embedded",
+      );
       assert.match(r.html, /id="espaces" role="group"/);
     }
     assert.deepEqual(Object.keys(SPACE_DEFAULTS), ["business", "takeover"]);
@@ -208,7 +310,6 @@ describe("site data", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
-
 });
 
 describe("exports", () => {
@@ -224,13 +325,33 @@ describe("exports", () => {
     assert.ok(!takeover.html.includes(MARKER.business), "no business text in the takeover export");
     for (const id of ["use/orders", "use/settings"]) assert.ok(!takeover.html.includes(id), id);
     assert.deepEqual(Object.keys(business.data.pages), ["use/orders", "use/orders/detail", "use/settings"]);
-    assert.deepEqual(Object.keys(takeover.data.pages), ["use/api-limits", "take-over/architecture", "take-over/orders-api"]);
-    assert.deepEqual(takeover.data.sections.map((s) => [s.id, s.groupes.map((g) => g.pages)]), [["use", [["use/api-limits"]]], ["take-over", [["take-over/architecture", "take-over/orders-api"]]]]);
+    assert.deepEqual(Object.keys(takeover.data.pages), [
+      "use/api-limits",
+      "take-over/architecture",
+      "take-over/orders-api",
+    ]);
+    assert.deepEqual(
+      takeover.data.sections.map((s) => [s.id, s.groupes.map((g) => g.pages)]),
+      [
+        ["use", [["use/api-limits"]]],
+        ["take-over", [["take-over/architecture", "take-over/orders-api"]]],
+      ],
+    );
     assert.equal(takeover.data.sections[0].intro_html, "");
-    assert.deepEqual([takeover.data.sections[0].sous_titre, takeover.data.sections[0].points, takeover.data.sections[0].vedette], ["", [], false]);
-    assert.equal(takeover.data.sections[1].sous_titre, "How Acme Orders is built and run.", "the sections of the space keep theirs");
+    assert.deepEqual(
+      [takeover.data.sections[0].sous_titre, takeover.data.sections[0].points, takeover.data.sections[0].vedette],
+      ["", [], false],
+    );
+    assert.equal(
+      takeover.data.sections[1].sous_titre,
+      "How Acme Orders is built and run.",
+      "the sections of the space keep theirs",
+    );
     assert.equal(business.data.meta.space, "business");
-    assert.deepEqual(business.data.spaces.map((s) => s.id), ["business"]);
+    assert.deepEqual(
+      business.data.spaces.map((s) => s.id),
+      ["business"],
+    );
     assert.deepEqual(business.data.ordre, ["use/orders", "use/orders/detail", "use/settings"]);
     assert.ok(business.data.recherche.every((e) => business.data.pages[e.p]));
     assert.deepEqual(business.data.suggestions, ["use/orders", "use/settings"]);
@@ -242,13 +363,22 @@ describe("exports", () => {
     const [business, takeover] = r.sites;
     assert.equal(business.excludedLinks, 3);
     assert.equal(takeover.excludedLinks, 2);
-    assert.deepEqual(r.warnings.map((w) => w.vars), [{ space: "business", n: 3 }, { space: "takeover", n: 2 }]);
+    assert.deepEqual(
+      r.warnings.map((w) => w.vars),
+      [
+        { space: "business", n: 3 },
+        { space: "takeover", n: 2 },
+      ],
+    );
     const page = business.data.pages["use/orders"].html;
     assert.match(page, /<span class="lien-exclu">the architecture<\/span> \(see the Takeover documentation\)/);
     assert.match(page, /<span class="lien-exclu">the API quotas<\/span> \(see the Takeover documentation\)/);
     assert.match(page, /<a href="#\/use\/settings">the settings<\/a>/, "a link inside the space is kept");
     assert.match(business.data.accueil_html, /<span class="lien-exclu">the architecture<\/span>/);
-    assert.match(takeover.data.pages["take-over/orders-api"].html, /<span class="lien-exclu">the orders list<\/span> \(see the Business documentation\)/);
+    assert.match(
+      takeover.data.pages["take-over/orders-api"].html,
+      /<span class="lien-exclu">the orders list<\/span> \(see the Business documentation\)/,
+    );
     assert.equal(business.data.pages["use/orders"].counterpart, undefined);
     assert.equal(takeover.data.pages["take-over/orders-api"].counterpart, undefined);
     // In French: the text of the replaced link.
@@ -258,8 +388,23 @@ describe("exports", () => {
 
   test("journeys: those of the space, steps of another space removed and counted (hidden)", async () => {
     const [business, takeover] = (await buildSpaces()).sites;
-    assert.deepEqual(business.data.parcours, [{ titre: "Discover Acme Orders", desc: "The pages to read first.", etapes: ["use/orders", "use/settings"], space: "business", hidden: 1 }]);
-    assert.deepEqual(takeover.data.parcours, [{ titre: "Take over Acme Orders", desc: "From the architecture to the API.", etapes: ["take-over/architecture", "take-over/orders-api"], space: "takeover" }]);
+    assert.deepEqual(business.data.parcours, [
+      {
+        titre: "Discover Acme Orders",
+        desc: "The pages to read first.",
+        etapes: ["use/orders", "use/settings"],
+        space: "business",
+        hidden: 1,
+      },
+    ]);
+    assert.deepEqual(takeover.data.parcours, [
+      {
+        titre: "Take over Acme Orders",
+        desc: "From the architecture to the API.",
+        etapes: ["take-over/architecture", "take-over/orders-api"],
+        space: "takeover",
+      },
+    ]);
   });
 
   test("images: only those of the kept pages; statistics recounted", async () => {
@@ -283,23 +428,41 @@ describe("exports", () => {
     const dist = (f) => path.join(SPACES, "dist", f);
     let r = await buildSpaces();
     assert.equal(r.output, dist("Acme-Orders-Documentation.html"));
-    assert.deepEqual(r.sites.map((s) => s.output), [dist("Acme-Orders-Documentation-business.html"), dist("Acme-Orders-Documentation-takeover.html")]);
+    assert.deepEqual(
+      r.sites.map((s) => s.output),
+      [dist("Acme-Orders-Documentation-business.html"), dist("Acme-Orders-Documentation-takeover.html")],
+    );
     r = await buildSpaces({ modify: (c) => ({ ...c, spaces: { output: "exports/acme-{space}.html" } }) });
-    assert.deepEqual(r.sites.map((s) => s.output), ["business", "takeover"].map((s) => path.join(SPACES, "exports", `acme-${s}.html`)));
+    assert.deepEqual(
+      r.sites.map((s) => s.output),
+      ["business", "takeover"].map((s) => path.join(SPACES, "exports", `acme-${s}.html`)),
+    );
     r = await buildSpaces({ options: { space: "takeover" } });
-    assert.deepEqual(r.sites.map((s) => [s.space, s.output]), [["takeover", dist("Acme-Orders-Documentation-takeover.html")]]);
+    assert.deepEqual(
+      r.sites.map((s) => [s.space, s.output]),
+      [["takeover", dist("Acme-Orders-Documentation-takeover.html")]],
+    );
     assert.ok(r.html, "the full site is still computed");
     const elsewhere = path.join(tempDir(), "it.html");
     r = await buildSpaces({ options: { space: "business", spaceOutput: elsewhere } });
     assert.equal(r.sites[0].output, elsewhere);
     r = await buildSpaces({ options: { output: path.join(SPACES, "out", "site.html") } });
-    assert.deepEqual(r.sites.map((s) => s.output), [path.join(SPACES, "out", "site-business.html"), path.join(SPACES, "out", "site-takeover.html")]);
+    assert.deepEqual(
+      r.sites.map((s) => s.output),
+      [path.join(SPACES, "out", "site-business.html"), path.join(SPACES, "out", "site-takeover.html")],
+    );
     // spaces.export false: the full site alone, unless an export is asked for.
     r = await buildSpaces({ modify: (c) => ({ ...c, spaces: { export: false } }) });
     assert.deepEqual(r.sites, []);
     r = await buildSpaces({ modify: (c) => ({ ...c, spaces: { export: false } }), options: { space: "business" } });
-    assert.deepEqual(r.sites.map((s) => s.space), ["business"]);
-    assert.equal(spaceOutput("/p", { spaces: { output: null } }, "x", path.resolve("/p/dist/Doc.v2.html")), path.resolve("/p/dist/Doc.v2-x.html"));
+    assert.deepEqual(
+      r.sites.map((s) => s.space),
+      ["business"],
+    );
+    assert.equal(
+      spaceOutput("/p", { spaces: { output: null } }, "x", path.resolve("/p/dist/Doc.v2.html")),
+      path.resolve("/p/dist/Doc.v2-x.html"),
+    );
   });
 });
 
@@ -308,24 +471,38 @@ describe("counterpart", () => {
     "use/orders": { id: "use/orders", toc: [{ id: "the-screen" }] },
     "take-over/api": { id: "take-over/api", toc: [{ id: "endpoints" }] },
   };
-  const check = (counterparts, unwritten) => checkLinks({ pages, links: {}, sections: ["use"], counterparts, unwritten });
+  const check = (counterparts, unwritten) =>
+    checkLinks({ pages, links: {}, sections: ["use"], counterparts, unwritten });
   test("a valid counterpart, with or without anchor: no problem", () => {
     assert.deepEqual(check({ "use/orders": "take-over/api", "take-over/api": "use/orders~the-screen" }), []);
   });
   test("an unknown page, the page itself, a section: link.counterpart", () => {
-    assert.deepEqual(check({ "use/orders": "take-over/nope" }), [{ kind: "link", key: "link.counterpart", vars: { page: "use/orders", link: "#/take-over/nope" } }]);
-    assert.deepEqual(check({ "use/orders": "use/orders" }).map((p) => p.key), ["link.counterpart"]);
-    assert.deepEqual(check({ "use/orders": "use" }).map((p) => p.key), ["link.counterpart"]);
+    assert.deepEqual(check({ "use/orders": "take-over/nope" }), [
+      { kind: "link", key: "link.counterpart", vars: { page: "use/orders", link: "#/take-over/nope" } },
+    ]);
+    assert.deepEqual(
+      check({ "use/orders": "use/orders" }).map((p) => p.key),
+      ["link.counterpart"],
+    );
+    assert.deepEqual(
+      check({ "use/orders": "use" }).map((p) => p.key),
+      ["link.counterpart"],
+    );
   });
   test("an unknown anchor: link.anchor (not checked while the target page is not written yet)", () => {
-    assert.deepEqual(check({ "use/orders": "take-over/api~nope" }), [{ kind: "link", key: "link.anchor", vars: { page: "use/orders", link: "#/take-over/api~nope" } }]);
+    assert.deepEqual(check({ "use/orders": "take-over/api~nope" }), [
+      { kind: "link", key: "link.anchor", vars: { page: "use/orders", link: "#/take-over/api~nope" } },
+    ]);
     assert.deepEqual(check({ "use/orders": "take-over/api~nope" }, new Set(["take-over/api"])), []);
   });
   test("in a build: strict error, a warning with --draft, reported by check links", async () => {
     const root = spacesCopy((t) => ((t.sections[0].groups[0].pages[0].counterpart = "take-over/nope"), t));
     try {
       const strict = await buildSpaces({ root });
-      assert.deepEqual(strict.errors.map((e) => e.key), ["link.counterpart"]);
+      assert.deepEqual(
+        strict.errors.map((e) => e.key),
+        ["link.counterpart"],
+      );
       const draft = await buildSpaces({ root, draft: true });
       assert.deepEqual(draft.errors, []);
       assert.ok(draft.warnings.some((w) => w.key === "link.counterpart"));
@@ -346,12 +523,22 @@ describe("CLI", () => {
       assert.equal(r.code, 0, r.err);
       const lines = r.out.trim().split("\n");
       assert.equal(lines.length, 3);
-      assert.match(lines[0], /^✔ dist\/Acme-Orders-Documentation\.html — .* 6 pages · 2 screenshots · 5 annotated elements · 1 diagram$/);
+      assert.match(
+        lines[0],
+        /^✔ dist\/Acme-Orders-Documentation\.html — .* 6 pages · 2 screenshots · 5 annotated elements · 1 diagram$/,
+      );
       assert.match(lines[1], /^✔ dist\/Acme-Orders-Documentation-business\.html — .* 3 pages · 2 screenshots/);
-      assert.match(lines[2], /^✔ dist\/Acme-Orders-Documentation-takeover\.html — .* 3 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings$/);
+      assert.match(
+        lines[2],
+        /^✔ dist\/Acme-Orders-Documentation-takeover\.html — .* 3 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings$/,
+      );
       assert.match(r.err, /⚠ export “business”: 3 links to another space replaced by their text/);
-      for (const f of ["", "-business", "-takeover"]) assert.ok(fs.existsSync(path.join(dir, "dist", `Acme-Orders-Documentation${f}.html`)), f);
-      assert.equal(dataOf(fs.readFileSync(path.join(dir, "dist", "Acme-Orders-Documentation-takeover.html"), "utf8")).meta.space, "takeover");
+      for (const f of ["", "-business", "-takeover"])
+        assert.ok(fs.existsSync(path.join(dir, "dist", `Acme-Orders-Documentation${f}.html`)), f);
+      assert.equal(
+        dataOf(fs.readFileSync(path.join(dir, "dist", "Acme-Orders-Documentation-takeover.html"), "utf8")).meta.space,
+        "takeover",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -377,7 +564,10 @@ describe("CLI", () => {
   test("unknown space (with the closest id), --space without spaces: usage errors, exit code 2", async () => {
     let r = await cli(["build", "--project", SPACES, "--space", "busines"]);
     assert.equal(r.code, 2);
-    assert.match(r.err, /^✖ --space: unknown space “busines”\n {2}→ declared spaces: business, takeover \(did you mean “business”\?\)/);
+    assert.match(
+      r.err,
+      /^✖ --space: unknown space “busines”\n {2}→ declared spaces: business, takeover \(did you mean “business”\?\)/,
+    );
     r = await cli(["build", "--project", SPACES, "--space", "busines", "--lang", "fr"]);
     assert.match(r.err, /espace inconnu « busines »[\s\S]*vouliez-vous dire « business »/);
     const noSpaces = noSpacesCopy();
@@ -385,11 +575,15 @@ describe("CLI", () => {
       r = await cli(["build", "--project", noSpaces, "--space", "business"]);
       assert.equal(r.code, 2);
       assert.match(r.err, /^✖ --space: the table of contents declares no space/);
-      for (const command of ["view", "open"]) assert.equal((await cli([command, "--project", noSpaces, "--space", "x"])).code, 2, command);
+      for (const command of ["view", "open"])
+        assert.equal((await cli([command, "--project", noSpaces, "--space", "x"])).code, 2, command);
     } finally {
       fs.rmSync(noSpaces, { recursive: true, force: true });
     }
-    assert.throws(() => checkSpaceOption({ ids: ["business"], space: "zzz", t: String }), (e) => e.code === 2 && e.key === "build.spaceUnknown" && e.vars.closest === "");
+    assert.throws(
+      () => checkSpaceOption({ ids: ["business"], space: "zzz", t: String }),
+      (e) => e.code === 2 && e.key === "build.spaceUnknown" && e.vars.closest === "",
+    );
   });
 
   test("--json: { ok, output, stats, sites: [{ space, output, stats, excludedLinks }], languages, errors, warnings }", async () => {
@@ -401,13 +595,18 @@ describe("CLI", () => {
       const json = JSON.parse(r.out);
       assert.deepEqual(Object.keys(json), ["ok", "output", "stats", "sites", "languages", "errors", "warnings"]);
       assert.deepEqual(json.languages, [], "no `languages` declared (ARCHITECTURE.md §6.12)");
-      assert.deepEqual(json.sites.map((s) => [s.space, path.basename(s.output), s.stats.pages, s.excludedLinks]), [
-        ["business", "Acme-Orders-Documentation-business.html", 3, 3],
-        ["takeover", "Acme-Orders-Documentation-takeover.html", 3, 2],
-      ]);
+      assert.deepEqual(
+        json.sites.map((s) => [s.space, path.basename(s.output), s.stats.pages, s.excludedLinks]),
+        [
+          ["business", "Acme-Orders-Documentation-business.html", 3, 3],
+          ["takeover", "Acme-Orders-Documentation-takeover.html", 3, 2],
+        ],
+      );
       assert.deepEqual(Object.keys(json.sites[0]), ["space", "output", "stats", "excludedLinks"]);
       // Without spaces: sites is [].
-      const plain = JSON.parse((await cli(["build", "--project", noSpaces, "--json", "--output", path.join(dir, "demo.html")])).out);
+      const plain = JSON.parse(
+        (await cli(["build", "--project", noSpaces, "--json", "--output", path.join(dir, "demo.html")])).out,
+      );
       assert.deepEqual(plain.sites, []);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -418,9 +617,15 @@ describe("CLI", () => {
   test("open --space: the export of that space", async () => {
     const dir = spacesCopy();
     try {
-      assert.equal((await cli(["open", "--project", dir, "--space", "takeover"], { DOC_KIT_NO_OPEN: "1" })).code, 1, "not built yet");
+      assert.equal(
+        (await cli(["open", "--project", dir, "--space", "takeover"], { DOC_KIT_NO_OPEN: "1" })).code,
+        1,
+        "not built yet",
+      );
       await cli(["build", "--project", dir]);
-      const r = await cli(["open", "take-over/architecture", "--project", dir, "--space", "takeover", "--json"], { DOC_KIT_NO_OPEN: "1" });
+      const r = await cli(["open", "take-over/architecture", "--project", dir, "--space", "takeover", "--json"], {
+        DOC_KIT_NO_OPEN: "1",
+      });
       assert.equal(r.code, 0, r.err);
       assert.match(JSON.parse(r.out).url, /Acme-Orders-Documentation-takeover\.html#\/take-over\/architecture$/);
     } finally {
@@ -433,13 +638,19 @@ describe("CLI", () => {
     const dir = path.join(root, "docs");
     fs.cpSync(spacesCopy(), dir, { recursive: true });
     const file = path.join(dir, "doc.config.mjs");
-    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("statuses:", 'spaces: { output: "../exports/acme-{space}.html" },\n  statuses:'));
+    fs.writeFileSync(
+      file,
+      fs
+        .readFileSync(file, "utf8")
+        .replace("statuses:", 'spaces: { output: "../exports/acme-{space}.html" },\n  statuses:'),
+    );
     try {
       assert.equal((await cli(["build", "--project", dir])).code, 0);
       assert.ok(fs.existsSync(path.join(root, "exports", "acme-business.html")));
       const { project, config } = await loadProject({ project: dir, env: {} });
       const r = exportProject({ project, config, target: path.join(root, "copy"), withDist: true });
-      for (const f of ["dist/Acme-Orders-Documentation.html", "dist/acme-business.html", "dist/acme-takeover.html"]) assert.ok(fs.existsSync(path.join(r.target, f)), f);
+      for (const f of ["dist/Acme-Orders-Documentation.html", "dist/acme-business.html", "dist/acme-takeover.html"])
+        assert.ok(fs.existsSync(path.join(r.target, f)), f);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -485,7 +696,8 @@ describe("audit", () => {
       t.sections.reverse();
       return t;
     });
-    for (const f of fs.readdirSync(path.join(dir, "content", "take-over"))) fs.renameSync(path.join(dir, "content", "take-over", f), path.join(dir, "content", f === "index.md" ? "x" : f));
+    for (const f of fs.readdirSync(path.join(dir, "content", "take-over")))
+      fs.renameSync(path.join(dir, "content", "take-over", f), path.join(dir, "content", f === "index.md" ? "x" : f));
     try {
       const toc = JSON.parse(fs.readFileSync(path.join(dir, "content", "toc.json"), "utf8"));
       toc.sections[0].groups[0].pages.forEach((p) => (p.file = p.id.replace("take-over/", "") + ".md"));
@@ -506,9 +718,16 @@ describe("audit", () => {
     try {
       const r = await audit(dir);
       assert.equal(r.takeoverSection, "take-over");
-      assert.deepEqual(r.spaces.map((s) => [s.id, s.title, s.pages]), [["business", "For the business", 3], ["takeover", "For the takeover team", 3]]);
+      assert.deepEqual(
+        r.spaces.map((s) => [s.id, s.title, s.pages]),
+        [
+          ["business", "For the business", 3],
+          ["takeover", "For the takeover team", 3],
+        ],
+      );
       const [business, takeover] = r.spaces;
-      const na = (s) => s.criteria.filter((c) => c.na && ["written2", "takeover4", "proofs4"].includes(c.id)).map((c) => c.id);
+      const na = (s) =>
+        s.criteria.filter((c) => c.na && ["written2", "takeover4", "proofs4"].includes(c.id)).map((c) => c.id);
       assert.deepEqual(na(business), ["takeover4", "proofs4"]);
       assert.deepEqual(na(takeover), ["written2"]);
       // The page indicators are those of the space; the project-wide ones are shared.
@@ -517,11 +736,17 @@ describe("audit", () => {
       assert.equal(business.indicators.annotated.n, 2);
       assert.equal(takeover.indicators.proofs.total, 3);
       assert.equal(business.indicators.glossary, r.indicators.glossary);
-      assert.deepEqual(business.criteria.map((c) => c.id), r.criteria.map((c) => c.id));
+      assert.deepEqual(
+        business.criteria.map((c) => c.id),
+        r.criteria.map((c) => c.id),
+      );
       assert.equal(business.level, 1, "the business space misses annotated2");
       assert.ok(takeover.level >= 2);
       const md = renderMarkdown(r, createI18n({ language: "en" }));
-      assert.match(md, /## Level by space\n\n\| Space \| Pages \| Level \| Missing for the next level \|\n\|---\|---\|---\|---\|\n\| For the business \(`business`\) \| 3 \| 1 Skeleton \| `annotated2` \|/);
+      assert.match(
+        md,
+        /## Level by space\n\n\| Space \| Pages \| Level \| Missing for the next level \|\n\|---\|---\|---\|---\|\n\| For the business \(`business`\) \| 3 \| 1 Skeleton \| `annotated2` \|/,
+      );
       assert.match(renderMarkdown(r, createI18n({ language: "fr" })), /## Niveau par espace/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -547,13 +772,25 @@ describe("legacy", () => {
     const { value, legacy } = normalizeToc({
       titre: "Docs",
       espaces: ["business", { id: "takeover", subtitle: "x" }],
-      sections: [{ id: "use", titre: "Use", espace: "business", groupes: [{ pages: [{ id: "use/a", titre: "A", espace: "takeover", pendant: "use/b~x" }] }] }],
+      sections: [
+        {
+          id: "use",
+          titre: "Use",
+          espace: "business",
+          groupes: [{ pages: [{ id: "use/a", titre: "A", espace: "takeover", pendant: "use/b~x" }] }],
+        },
+      ],
       parcours: [{ titre: "J", etapes: ["use/a"], espace: "takeover" }],
     });
     assert.equal(legacy, true);
     assert.deepEqual(value.spaces, ["business", { id: "takeover", subtitle: "x" }]);
     assert.equal(value.sections[0].space, "business");
-    assert.deepEqual(value.sections[0].groups[0].pages[0], { id: "use/a", title: "A", space: "takeover", counterpart: "use/b~x" });
+    assert.deepEqual(value.sections[0].groups[0].pages[0], {
+      id: "use/a",
+      title: "A",
+      space: "takeover",
+      counterpart: "use/b~x",
+    });
     assert.deepEqual(value.journeys[0], { title: "J", steps: ["use/a"], space: "takeover" });
   });
 
@@ -571,7 +808,10 @@ describe("legacy", () => {
       assert.deepEqual(r.errors, []);
       assert.ok(r.warnings.some((w) => w.key === "legacy.read"));
       const current = await buildSpaces();
-      assert.deepEqual(r.sites.map((s) => s.data.meta.stats), current.sites.map((s) => s.data.meta.stats));
+      assert.deepEqual(
+        r.sites.map((s) => s.data.meta.stats),
+        current.sites.map((s) => s.data.meta.stats),
+      );
       assert.deepEqual(dataOf(r.html).spaces, dataOf(current.html).spaces);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

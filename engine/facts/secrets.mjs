@@ -8,7 +8,20 @@ import path from "node:path";
 import { GENERIC, ignoreRules, scanText } from "../check/secrets.mjs";
 import { appFiles } from "./common.mjs";
 
-const BINARY_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".pdf", ".zip"]);
+const BINARY_EXT = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".pdf",
+  ".zip",
+]);
 const MAX_SIZE = 2 * 1024 * 1024;
 
 /**

@@ -36,7 +36,8 @@ export async function checkExistence(items, fetchImpl, { concurrency = 8, timeou
   const results = new Map();
   const queue = [...direct];
   async function worker() {
-    for (let item = queue.shift(); item; item = queue.shift()) results.set(item, await existsInRegistry(item, fetchImpl, timeoutMs));
+    for (let item = queue.shift(); item; item = queue.shift())
+      results.set(item, await existsInRegistry(item, fetchImpl, timeoutMs));
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, direct.length) }, worker));
   return items.map((i) => (i.direct ? { ...i, exists: results.get(i) } : i));

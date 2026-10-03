@@ -30,7 +30,11 @@ export async function run({ ctx }) {
       };
   // Facts (§6.9): the application's current HEAD, read read-only, to tell a stale facts file; null without app.dir.
   const commit = config.app.dir ? ctx.commit(path.resolve(project.root, config.app.dir)) : null;
-  const result = await runAudit({ project, config, measure: { tables, tablesReason: noBrowser ? "disabled" : undefined, commit } });
+  const result = await runAudit({
+    project,
+    config,
+    measure: { tables, tablesReason: noBrowser ? "disabled" : undefined, commit },
+  });
 
   const dir = path.join(project.root, WORK_DIR);
   fs.mkdirSync(dir, { recursive: true });

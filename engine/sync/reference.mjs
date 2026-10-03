@@ -33,7 +33,8 @@ export function readSyncReference(root, config) {
     return { reference: null, problem: { key: "sync.invalid", vars: { file: rel, error: e.message } } };
   }
   const { value, errors } = validate(raw, readSchema("sync"), { applyDefaults: true });
-  if (errors.length) return { reference: null, problem: { key: "sync.invalid", vars: { file: rel, error: errors[0].key } } };
+  if (errors.length)
+    return { reference: null, problem: { key: "sync.invalid", vars: { file: rel, error: errors[0].key } } };
   return { reference: value };
 }
 
@@ -103,7 +104,20 @@ function allFlatLabels(root, config) {
  * @param {object|null} p.reference   the current sync.json, or null
  * @returns {Promise<{ reference: object, warnings: Array<{ key: string, vars: object }> }>}
  */
-export async function markPages({ root, config, toc, pages = [], all = false, sources = [], date, commit, version, inventory, plans = [], reference }) {
+export async function markPages({
+  root,
+  config,
+  toc,
+  pages = [],
+  all = false,
+  sources = [],
+  date,
+  commit,
+  version,
+  inventory,
+  plans = [],
+  reference,
+}) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
   const targets = all ? [...writtenIds] : [...new Set(pages)];
@@ -120,11 +134,25 @@ export async function markPages({ root, config, toc, pages = [], all = false, so
     const page = written.find((p) => p.id === id);
     const prevDeclared = reference?.pages?.[id]?.declared || [];
     const declared = sources.length ? [...new Set([...prevDeclared, ...sources])] : prevDeclared;
-    const deps = await pageDependencies({ root, config, toc, pageId: id, inventory, tools, factsDir: config.paths.facts, plans, declared });
+    const deps = await pageDependencies({
+      root,
+      config,
+      toc,
+      pageId: id,
+      inventory,
+      tools,
+      factsDir: config.paths.facts,
+      plans,
+      declared,
+    });
 
     const files = {};
     for (const f of deps.files) {
-      const abs = f.path.startsWith("doc:") ? path.join(root, f.path.slice(4)) : appDir ? path.join(appDir, f.path) : null;
+      const abs = f.path.startsWith("doc:")
+        ? path.join(root, f.path.slice(4))
+        : appDir
+          ? path.join(appDir, f.path)
+          : null;
       if (abs && fs.existsSync(abs)) files[f.path] = hashText(fs.readFileSync(abs));
     }
 
@@ -134,7 +162,14 @@ export async function markPages({ root, config, toc, pages = [], all = false, so
       else warnings.push({ key: "sync.proofUnresolved", vars: { page: id, ref: proof.ref } });
     }
 
-    newPages[id] = { verified: date, version, source: hashText(page.markdown), files, declared, captures: deps.captures };
+    newPages[id] = {
+      verified: date,
+      version,
+      source: hashText(page.markdown),
+      files,
+      declared,
+      captures: deps.captures,
+    };
   }
 
   // Labels (no page attribution in sync.json): the current, full set of entries cited by any written page.
@@ -146,12 +181,23 @@ export async function markPages({ root, config, toc, pages = [], all = false, so
 
   // Inventory: every item id of every coverage adapter family (facts sources are coverage adapters too, §6.9).
   const newInventory = {};
-  for (const a of inventory.adapters) for (const f of a.families || []) newInventory[`${a.adapter}/${f.name}`] = f.items.map((i) => i.id);
+  for (const a of inventory.adapters)
+    for (const f of a.families || []) newInventory[`${a.adapter}/${f.name}`] = f.items.map((i) => i.id);
 
   // Captures cited by a marked page: the hash of the plan entry.
-  for (const plan of plans) if (targets.some((id) => newPages[id]?.captures.includes(plan.id))) newCaptures[plan.id] = { plan: hashPlanEntry(plan), route: plan.route };
+  for (const plan of plans)
+    if (targets.some((id) => newPages[id]?.captures.includes(plan.id)))
+      newCaptures[plan.id] = { plan: hashPlanEntry(plan), route: plan.route };
 
-  const ref = { generator: generatorTag(), app: { commit, version, date }, pages: newPages, proofs: newProofs, labels: newLabels, inventory: newInventory, captures: newCaptures };
+  const ref = {
+    generator: generatorTag(),
+    app: { commit, version, date },
+    pages: newPages,
+    proofs: newProofs,
+    labels: newLabels,
+    inventory: newInventory,
+    captures: newCaptures,
+  };
   return { reference: ref, warnings };
 }
 

@@ -73,7 +73,10 @@ export async function run({ ctx, values, positionals }) {
   const root = project.root;
   // --lang (ARCHITECTURE.md §6.12): the source language captures normally; another declared language captures
   // into <images>/<lang>/, with capture.languages.<lang> merged over the defaults.
-  const lang = config.languages && ctx.globals.lang ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t }) : null;
+  const lang =
+    config.languages && ctx.globals.lang
+      ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t })
+      : null;
   const otherLang = lang && lang !== config.languages[0] ? lang : null;
   const plans = values.plans || config.capture.plans;
   const folder = path.resolve(root, plans);
@@ -87,14 +90,21 @@ export async function run({ ctx, values, positionals }) {
     return EXIT.OK;
   }
   const selected = selectCaptures(pool, positionals);
-  if (!selected.length) throw new KitError(EXIT.USAGE, "capture.noMatch", { patterns: positionals.join(" "), n: pool.length });
+  if (!selected.length)
+    throw new KitError(EXIT.USAGE, "capture.noMatch", { patterns: positionals.join(" "), n: pool.length });
   for (const e of selected)
     if (!config.capture.viewports[e.context || "desktop"])
-      throw new KitError(EXIT.USAGE, "capture.context", { id: e.id, context: e.context || "desktop", known: Object.keys(config.capture.viewports).join(", ") });
+      throw new KitError(EXIT.USAGE, "capture.context", {
+        id: e.id,
+        context: e.context || "desktop",
+        known: Object.keys(config.capture.viewports).join(", "),
+      });
 
   // Routes that write on the server while rendering: never opened, whatever the method.
   const forbidden = forbiddenMatchers(config.capture.forbidden);
-  const refusedEntries = selected.map((e) => ({ id: e.id, route: e.route, pattern: forbiddenMatch(e.route, forbidden) })).filter((x) => x.pattern);
+  const refusedEntries = selected
+    .map((e) => ({ id: e.id, route: e.route, pattern: forbiddenMatch(e.route, forbidden) }))
+    .filter((x) => x.pattern);
   if (refusedEntries.length) {
     if (ctx.json) ctx.print(JSON.stringify({ forbidden: refusedEntries }, null, 2));
     else {
@@ -110,7 +120,8 @@ export async function run({ ctx, values, positionals }) {
 
   const file = sessionFile(root, config, ctx.env);
   const useSession = !values["no-session"] && !auth.adapter.none;
-  if (useSession && !fs.existsSync(file)) throw new KitError(EXIT.ENVIRONMENT, "capture.noSession", { file: shown(file) });
+  if (useSession && !fs.existsSync(file))
+    throw new KitError(EXIT.ENVIRONMENT, "capture.noSession", { file: shown(file) });
   const session = useSession ? file : null;
   const readOnly = readOnlyMode(config.capture, !!session);
 
@@ -146,7 +157,7 @@ export async function run({ ctx, values, positionals }) {
         url,
         session: session ? shown(file) : ctx.t("cli.capture.withoutSession"),
         readOnly: ctx.t(readOnly ? "cli.capture.on" : "cli.capture.off"),
-      })
+      }),
     );
     if (session && !readOnly) ctx.printErr(`⚠ ${ctx.t("cli.capture.readOnlyDisabled")}`);
   }
@@ -183,11 +194,22 @@ export async function run({ ctx, values, positionals }) {
     onEvent: (e) => {
       if (ctx.json) return;
       if (e.type === "ok") {
-        if (e.verified) ctx.print(ctx.t("cli.capture.verified", { id: e.id, n: e.zones, seconds: (e.ms / 1000).toFixed(1) }));
-        else ctx.print(ctx.t("cli.capture.ok", { id: e.id, n: e.zones, kb: Math.round(e.bytes / 1024), seconds: (e.ms / 1000).toFixed(1) }));
+        if (e.verified)
+          ctx.print(ctx.t("cli.capture.verified", { id: e.id, n: e.zones, seconds: (e.ms / 1000).toFixed(1) }));
+        else
+          ctx.print(
+            ctx.t("cli.capture.ok", {
+              id: e.id,
+              n: e.zones,
+              kb: Math.round(e.bytes / 1024),
+              seconds: (e.ms / 1000).toFixed(1),
+            }),
+          );
         if (compare && e.compared) {
           const percent = (e.compared.ratio * 100).toFixed(2);
-          ctx.print(`  ${ctx.t(e.compared.changed ? "cli.capture.compare.changed" : "cli.capture.compare.unchanged", { id: e.id, percent })}`);
+          ctx.print(
+            `  ${ctx.t(e.compared.changed ? "cli.capture.compare.changed" : "cli.capture.compare.unchanged", { id: e.id, percent })}`,
+          );
         }
       } else {
         ctx.printErr(`✖ ${e.id}: ${ctx.t(`cli.capture.error.${e.key}`, e.vars)}`);
@@ -200,19 +222,51 @@ export async function run({ ctx, values, positionals }) {
   const prefetched = summarizeRequests(r.prefetched);
   if (ctx.json) {
     ctx.print(
-      JSON.stringify({ ok: r.ok, failed: r.failed, readOnly, blocked: r.blocked.length, blockedRequests: blocked, refused, prefetched: r.prefetched.length, prefetchedRequests: prefetched, expired: r.expired, compared: r.compared }, null, 2)
+      JSON.stringify(
+        {
+          ok: r.ok,
+          failed: r.failed,
+          readOnly,
+          blocked: r.blocked.length,
+          blockedRequests: blocked,
+          refused,
+          prefetched: r.prefetched.length,
+          prefetchedRequests: prefetched,
+          expired: r.expired,
+          compared: r.compared,
+        },
+        null,
+        2,
+      ),
     );
   } else {
-    ctx.print(`\n${ctx.t(values.verify ? "cli.capture.verifySummary" : "cli.capture.summary", { ok: r.ok.length, n: selected.length })}` + (r.failed.length ? ` ${ctx.t("cli.capture.failures", { ids: r.failed.map((f) => f.id).join(", ") })}` : ""));
+    ctx.print(
+      `\n${ctx.t(values.verify ? "cli.capture.verifySummary" : "cli.capture.summary", { ok: r.ok.length, n: selected.length })}` +
+        (r.failed.length ? ` ${ctx.t("cli.capture.failures", { ids: r.failed.map((f) => f.id).join(", ") })}` : ""),
+    );
     if (compare) {
       const changed = r.compared.filter((c) => c.changed).length;
-      ctx.print(ctx.t("cli.capture.compare.summary", { unchanged: r.compared.length - changed, changed, failed: r.failed.length }));
+      ctx.print(
+        ctx.t("cli.capture.compare.summary", {
+          unchanged: r.compared.length - changed,
+          changed,
+          failed: r.failed.length,
+        }),
+      );
     }
-    if (values.preview && r.ok.some((x) => x.zones)) ctx.print(ctx.t("cli.capture.previews", { folder: shown(path.join(root, ".doc-kit")) }));
-    if (refused.length) ctx.printErr(`✖ ${ctx.t("cli.capture.refused", { n: r.refused.length, list: refused.join(", ") })}`);
-    if (prefetched.length) ctx.print(ctx.t("cli.capture.prefetched", { n: r.prefetched.length, list: prefetched.join(", ") }));
-    if (r.expired) ctx.error(session ? "capture.expiredDuring" : "capture.signInRequired", { id: r.expired.id, url: r.expired.url });
-    ctx.print(readOnly ? ctx.t("cli.capture.readOnly", { n: r.blocked.length, list: blocked.length ? ` — ${blocked.join(", ")}` : "" }) : ctx.t("cli.capture.readOnlyOff"));
+    if (values.preview && r.ok.some((x) => x.zones))
+      ctx.print(ctx.t("cli.capture.previews", { folder: shown(path.join(root, ".doc-kit")) }));
+    if (refused.length)
+      ctx.printErr(`✖ ${ctx.t("cli.capture.refused", { n: r.refused.length, list: refused.join(", ") })}`);
+    if (prefetched.length)
+      ctx.print(ctx.t("cli.capture.prefetched", { n: r.prefetched.length, list: prefetched.join(", ") }));
+    if (r.expired)
+      ctx.error(session ? "capture.expiredDuring" : "capture.signInRequired", { id: r.expired.id, url: r.expired.url });
+    ctx.print(
+      readOnly
+        ? ctx.t("cli.capture.readOnly", { n: r.blocked.length, list: blocked.length ? ` — ${blocked.join(", ")}` : "" })
+        : ctx.t("cli.capture.readOnlyOff"),
+    );
   }
   if (r.expired) return EXIT.ENVIRONMENT;
   return r.failed.length ? EXIT.CHECK : EXIT.OK;

@@ -29,12 +29,14 @@ function byKey(items, source) {
     const k = d.key(it);
     const prev = map.get(k);
     if (!prev) map.set(k, { ...it });
-    else for (const f of d.watch) if (Array.isArray(it[f])) prev[f] = [...new Set([...(prev[f] || []), ...it[f]])].sort();
+    else
+      for (const f of d.watch) if (Array.isArray(it[f])) prev[f] = [...new Set([...(prev[f] || []), ...it[f]])].sort();
   }
   return map;
 }
 
-const same = (a, b) => JSON.stringify(Array.isArray(a) ? [...a].sort() : a) === JSON.stringify(Array.isArray(b) ? [...b].sort() : b);
+const same = (a, b) =>
+  JSON.stringify(Array.isArray(a) ? [...a].sort() : a) === JSON.stringify(Array.isArray(b) ? [...b].sort() : b);
 
 /** Differences of one source between two facts files (objects with `items`), or null when neither exists. */
 export function diffSource(source, before, after) {
@@ -47,7 +49,9 @@ export function diffSource(source, before, after) {
   for (const [k, item] of b) {
     if (!a.has(k)) continue;
     const old = a.get(k);
-    for (const f of DIFFS[source].watch) if (!same(old[f], item[f])) out.changed.push({ key: k, field: f, before: old[f] ?? null, after: item[f] ?? null });
+    for (const f of DIFFS[source].watch)
+      if (!same(old[f], item[f]))
+        out.changed.push({ key: k, field: f, before: old[f] ?? null, after: item[f] ?? null });
   }
   out.added.sort();
   out.removed.sort();
@@ -59,7 +63,9 @@ function summaryChanges(source, before, after) {
   if (source === "tests") {
     const x = before?.summary?.tests ?? null;
     const y = after?.summary?.tests ?? null;
-    return x === y ? null : { added: [], removed: [], changed: [{ key: "tests", field: "count", before: x, after: y }] };
+    return x === y
+      ? null
+      : { added: [], removed: [], changed: [{ key: "tests", field: "count", before: x, after: y }] };
   }
   if (source === "modules") {
     const key = (c) => c.join(" ⇄ ");
@@ -81,7 +87,9 @@ export function diffFacts(before, after) {
   const sources = {};
   let total = 0;
   for (const source of [...Object.keys(DIFFS), "tests", "modules"]) {
-    const d = DIFFS[source] ? diffSource(source, before[source], after[source]) : summaryChanges(source, before[source], after[source]);
+    const d = DIFFS[source]
+      ? diffSource(source, before[source], after[source])
+      : summaryChanges(source, before[source], after[source]);
     if (!d || (!d.added.length && !d.removed.length && !d.changed.length)) continue;
     sources[source] = d;
     total += d.added.length + d.removed.length + d.changed.length;
@@ -122,7 +130,10 @@ export function recordChanges(root, record) {
 }
 
 /** Every recorded version (invalid files skipped), the most recent version first. */
-export function readChanges(root, compare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) {
+export function readChanges(
+  root,
+  compare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }),
+) {
   const dir = path.join(root, CHANGES_DIR);
   let files = [];
   try {
@@ -156,13 +167,24 @@ export function renderChanges(records, { t, esc, version = null, sources = null 
       .filter(([source]) => !sources || sources.includes(source))
       .map(([source, d]) => {
         const li = [
-          ...(d.added || []).map((k) => `<li class="changes-added"><span aria-hidden="true">＋</span> <code>${esc(k)}</code></li>`),
-          ...(d.removed || []).map((k) => `<li class="changes-removed"><span aria-hidden="true">－</span> <code>${esc(k)}</code></li>`),
-          ...(d.changed || []).map((c) => `<li class="changes-changed"><span aria-hidden="true">～</span> <code>${esc(c.key)}</code> · ${esc(c.field)} : ${esc(show(c.before))} → ${esc(show(c.after))}</li>`),
+          ...(d.added || []).map(
+            (k) => `<li class="changes-added"><span aria-hidden="true">＋</span> <code>${esc(k)}</code></li>`,
+          ),
+          ...(d.removed || []).map(
+            (k) => `<li class="changes-removed"><span aria-hidden="true">－</span> <code>${esc(k)}</code></li>`,
+          ),
+          ...(d.changed || []).map(
+            (c) =>
+              `<li class="changes-changed"><span aria-hidden="true">～</span> <code>${esc(c.key)}</code> · ${esc(c.field)} : ${esc(show(c.before))} → ${esc(show(c.after))}</li>`,
+          ),
         ];
         return `<p class="changes-source">${esc(t(`cli.changes.source.${source}`))}</p><ul class="changes-list">${li.join("")}</ul>`;
       });
-    const head = t("render.changes.version", { until: r.until, since: r.since, date: String(r.date || "").slice(0, 10) || "—" });
+    const head = t("render.changes.version", {
+      until: r.until,
+      since: r.since,
+      date: String(r.date || "").slice(0, 10) || "—",
+    });
     return `<div class="changes-version"><p class="changes-head"><strong>${esc(head)}</strong></p>${parts.length ? parts.join("") : `<p class="usage-none">${esc(t("cli.changes.none"))}</p>`}</div>`;
   });
   return blocks.join("\n");

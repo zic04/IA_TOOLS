@@ -7,7 +7,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { CaptureError, firstLine, zoneBox, frameClip, measureZone, play, actionKind, describeTarget, routeWithView } from "./actions.mjs";
+import {
+  CaptureError,
+  firstLine,
+  zoneBox,
+  frameClip,
+  measureZone,
+  play,
+  actionKind,
+  describeTarget,
+  routeWithView,
+} from "./actions.mjs";
 import { maskPage } from "./masking.mjs";
 import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
 import { forbiddenMatch } from "./plans.mjs";
@@ -25,7 +35,12 @@ export class SessionExpired extends Error {
 
 /** localStorage values: "{version}" substituted; other types written as JSON. */
 export function storageValues(storage, version) {
-  return Object.fromEntries(Object.entries(storage).map(([k, v]) => [k, (typeof v === "string" ? v : JSON.stringify(v)).replaceAll("{version}", version)]));
+  return Object.fromEntries(
+    Object.entries(storage).map(([k, v]) => [
+      k,
+      (typeof v === "string" ? v : JSON.stringify(v)).replaceAll("{version}", version),
+    ]),
+  );
 }
 
 /**
@@ -107,7 +122,11 @@ function startSpans(rc, entry, w) {
 /** Has the application sent the browser to its sign-in page (or answered 401)? */
 function signedOut(rc, page, response, entry) {
   const { auth, appUrl } = rc;
-  return rc.checksSignIn && !isSignInUrl(appUrl + entry.route, appUrl, auth.options.loginPattern) && (response?.status() === 401 || isSignInUrl(page.url(), appUrl, auth.options.loginPattern));
+  return (
+    rc.checksSignIn &&
+    !isSignInUrl(appUrl + entry.route, appUrl, auth.options.loginPattern) &&
+    (response?.status() === 401 || isSignInUrl(page.url(), appUrl, auth.options.loginPattern))
+  );
 }
 
 /** Viewport, localStorage (the session's own, then capture.storage, then the entry's), then the entry's route. */
@@ -130,7 +149,10 @@ async function openRoute(rc, page, entry, { name, current, stop }) {
 
   let response;
   try {
-    response = await page.goto(appUrl + routeWithView(entry.route, entry.view, cap.map), { waitUntil: "load", timeout: TIMINGS.page });
+    response = await page.goto(appUrl + routeWithView(entry.route, entry.view, cap.map), {
+      waitUntil: "load",
+      timeout: TIMINGS.page,
+    });
   } catch (e) {
     if (current.forbidden) throw stop();
     throw new CaptureError("navigation", { route: entry.route, error: firstLine(e) });
@@ -192,7 +214,12 @@ async function measureEntry(rc, page, entry) {
       box = await zoneBox(page, z, rc.sel);
     } catch (e) {
       if (e instanceof CaptureError) throw e;
-      throw new CaptureError("zone", { n: i + 1, target: describeTarget(z), caption: z.caption || "", error: firstLine(e) });
+      throw new CaptureError("zone", {
+        n: i + 1,
+        target: describeTarget(z),
+        caption: z.caption || "",
+        error: firstLine(e),
+      });
     }
     zones.push(measureZone(i + 1, box, clip, z));
   }
@@ -208,15 +235,31 @@ async function writeEntry(rc, page, entry, { clip, zones, part }) {
   await mask(rc, page, entry, { required: false });
   part("shot");
   const png = await page.screenshot({ clip, animations: "disabled", caret: "hide" });
-  if (rc.preview && zones.length) await writePreview(page, clip, zones, path.join(rc.previewDir, `${entry.id}.zones.png`));
+  if (rc.preview && zones.length)
+    await writePreview(page, clip, zones, path.join(rc.previewDir, `${entry.id}.zones.png`));
   part("encode");
   const webp = await encoder.encode(png, cap.webpQuality);
   const imageFile = path.join(imagesDir, `${entry.id}.webp`);
   part(rc.compare ? "compare" : "write");
-  const compared = rc.compare ? await compareAndWrite(rc, entry, { webp, imageFile, zones }) : (fs.writeFileSync(imageFile, webp), undefined);
+  const compared = rc.compare
+    ? await compareAndWrite(rc, entry, { webp, imageFile, zones })
+    : (fs.writeFileSync(imageFile, webp), undefined);
   fs.writeFileSync(
     path.join(rc.zonesDir, `${entry.id}.json`),
-    JSON.stringify(zoneFile({ entry, clip, zones, version: rc.version, captured: rc.date, commit: rc.commit, plan: rc.planHash(entry), scale: cap.scale ?? 1 }), null, 2) + "\n"
+    JSON.stringify(
+      zoneFile({
+        entry,
+        clip,
+        zones,
+        version: rc.version,
+        captured: rc.date,
+        commit: rc.commit,
+        plan: rc.planHash(entry),
+        scale: cap.scale ?? 1,
+      }),
+      null,
+      2,
+    ) + "\n",
   );
   return { bytes: webp.length, compared };
 }
@@ -238,7 +281,13 @@ async function compareAndWrite(rc, entry, { webp, imageFile, zones }) {
   const outcome = compareOutcome({ ratio, sameSize, threshold: rc.compareThreshold });
   if (outcome === "changed") {
     fs.writeFileSync(imageFile, webp);
-    const sheet = await beforeAfterSheet(encoder.page, { before, after: webp, zonesBefore: previousZones(rc, entry.id), zonesAfter: zones, labels: rc.labels });
+    const sheet = await beforeAfterSheet(encoder.page, {
+      before,
+      after: webp,
+      zonesBefore: previousZones(rc, entry.id),
+      zonesAfter: zones,
+      labels: rc.labels,
+    });
     fs.writeFileSync(path.join(compareDir, `${entry.id}.png`), sheet);
   }
   return { ratio, changed: outcome === "changed" };
@@ -266,7 +315,12 @@ async function mask(rc, page, entry, { required = true } = {}) {
 async function isChallenge(page) {
   const title = await page.title().catch(() => "");
   if (/just a moment|attention required|checking your browser/i.test(title)) return true;
-  return (await page.locator("#challenge-form, #challenge-running, #cf-challenge-running").count().catch(() => 0)) > 0;
+  return (
+    (await page
+      .locator("#challenge-form, #challenge-running, #cf-challenge-running")
+      .count()
+      .catch(() => 0)) > 0
+  );
 }
 
 /** Waits for a bot challenge to clear by itself (20 s at most). */
@@ -293,12 +347,13 @@ async function writePreview(page, clip, zones, file) {
         d.style.cssText = `position:fixed;z-index:2147483647;pointer-events:none;box-sizing:border-box;border:2px solid #e0443e;background:rgba(224,68,62,.08);left:${clip.x + (z.x / 100) * clip.width}px;top:${clip.y + (z.y / 100) * clip.height}px;width:${(z.w / 100) * clip.width}px;height:${(z.h / 100) * clip.height}px`;
         const b = document.createElement("b");
         b.textContent = String(z.n);
-        b.style.cssText = "position:absolute;top:-10px;left:-10px;background:#e0443e;color:#fff;border-radius:50%;width:20px;height:20px;font:700 12px/20px sans-serif;text-align:center";
+        b.style.cssText =
+          "position:absolute;top:-10px;left:-10px;background:#e0443e;color:#fff;border-radius:50%;width:20px;height:20px;font:700 12px/20px sans-serif;text-align:center";
         d.appendChild(b);
         document.body.appendChild(d);
       }
     },
-    { zones, clip }
+    { zones, clip },
   );
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await page.screenshot({ clip, path: file });

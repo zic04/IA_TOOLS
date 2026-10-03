@@ -49,7 +49,9 @@ const GLOBALS = {
  */
 export async function runCli(argv, io = {}) {
   const modules = Object.fromEntries(
-    await Promise.all(COMMANDS.map(async (c) => [c, await import(pathToFileURL(path.join(FOLDER, "commands", `${c}.mjs`)).href)]))
+    await Promise.all(
+      COMMANDS.map(async (c) => [c, await import(pathToFileURL(path.join(FOLDER, "commands", `${c}.mjs`)).href)]),
+    ),
   );
   const all = { ...GLOBALS };
   for (const m of Object.values(modules)) Object.assign(all, m.options || {});
@@ -153,7 +155,8 @@ function recordUsage(ctx, name) {
     const dir = usageFolder(ctx.project.root, ctx.env);
     if (!dir) return;
     const version = readProjectVersion(ctx.project.root, ctx.config.version);
-    const phase = name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
+    const phase =
+      name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
     // The command's own span last in time, first in the file: easier to read.
     appendUsage({ dir, version, command: name, phase, spans: [spans.at(-1), ...spans.slice(0, -1)] });
   } catch {
@@ -229,9 +232,16 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   // What the documentation must follow since the last check (ARCHITECTURE.md §6.10): no git here, only the
   // documented version against the one sync.json last saw.
   const { reference } = readSyncReference(root, config);
-  if (reference && reference.app.version !== readProjectVersion(root, config.version)) return { step: "sync", folder: root, root, config };
+  if (reference && reference.app.version !== readProjectVersion(root, config.version))
+    return { step: "sync", folder: root, root, config };
   // Languages (ARCHITECTURE.md §6.12): a translation behind or missing, shown as "translate status".
-  if (config.languages && config.languages.slice(1).some((lang) => { const c = languageCounts({ root, config, toc: safeToc(root, config), lang }); return c.stale > 0 || c.missing > 0; }))
+  if (
+    config.languages &&
+    config.languages.slice(1).some((lang) => {
+      const c = languageCounts({ root, config, toc: safeToc(root, config), lang });
+      return c.stale > 0 || c.missing > 0;
+    })
+  )
     return { step: "translate", folder: root, root, config };
   return { step: "menu", folder: root, root, config };
 }
@@ -254,9 +264,21 @@ async function guided({ ctx, modules, values }) {
   if (s.config && !values.lang) ctx.setLanguage(s.config.language);
   const menu = menuFor(s.config);
   const command = (step) =>
-    step === "init" ? `${BRAND.command} init ${shownPath(s.folder)}` : step === "install" ? "npm install" : step === "translate" ? `${BRAND.command} translate status` : `${BRAND.command} ${step}`;
+    step === "init"
+      ? `${BRAND.command} init ${shownPath(s.folder)}`
+      : step === "install"
+        ? "npm install"
+        : step === "translate"
+          ? `${BRAND.command} translate status`
+          : `${BRAND.command} ${step}`;
   if (ctx.json) {
-    ctx.print(JSON.stringify({ step: s.step, folder: s.folder, next: s.step === "menu" ? menu.map(command) : [command(s.step)] }, null, 2));
+    ctx.print(
+      JSON.stringify(
+        { step: s.step, folder: s.folder, next: s.step === "menu" ? menu.map(command) : [command(s.step)] },
+        null,
+        2,
+      ),
+    );
     return EXIT.OK;
   }
   const p = ctx.paint;
@@ -283,11 +305,19 @@ ${ctx.t("cli.guided.next", { command: next })}`);
   if (s.step === "menu") {
     step = await prompt.choose(
       ctx.t("cli.guided.ask.menu"),
-      [...menu.map((m) => ({ value: m, label: `${p.cmd(command(m))}  ${p.dim(ctx.t(`cli.guided.menu.${m}`))}` })), { value: "quit", label: ctx.t("cli.guided.menu.quit") }],
-      "dev"
+      [
+        ...menu.map((m) => ({ value: m, label: `${p.cmd(command(m))}  ${p.dim(ctx.t(`cli.guided.menu.${m}`))}` })),
+        { value: "quit", label: ctx.t("cli.guided.menu.quit") },
+      ],
+      "dev",
     );
     if (step === "quit") return EXIT.OK;
-  } else if (!(await prompt.confirm(ctx.t(s.step === "connect" ? "cli.guided.ask.connect" : "cli.guided.ask.run", { command: command(s.step) }), true))) {
+  } else if (
+    !(await prompt.confirm(
+      ctx.t(s.step === "connect" ? "cli.guided.ask.connect" : "cli.guided.ask.run", { command: command(s.step) }),
+      true,
+    ))
+  ) {
     ctx.print(ctx.t("cli.guided.later", { command: command(s.step) }));
     return EXIT.OK;
   }
@@ -310,7 +340,11 @@ ${ctx.t("cli.guided.next", { command: next })}`);
   const globals = Object.fromEntries(Object.entries(values).filter(([k]) => k in GLOBALS));
   // A production capture was confirmed right after its banner: capture does not ask a second time.
   const confirmed = production && step === "capture" ? { yes: true } : {};
-  return module.run({ ctx, values: { ...globals, ...confirmed }, positionals: step === "init" ? [s.folder] : step === "translate" ? ["status"] : [] });
+  return module.run({
+    ctx,
+    values: { ...globals, ...confirmed },
+    positionals: step === "init" ? [s.folder] : step === "translate" ? ["status"] : [],
+  });
 }
 
 /** Is this file the program being run? Real paths: npm links the kit (symlink, Windows junction) into projects. */

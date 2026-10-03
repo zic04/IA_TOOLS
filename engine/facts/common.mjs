@@ -6,7 +6,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 /** Folders never walked: dependencies, version control, build and cache output. */
-export const SKIP_DIRS = Object.freeze(["node_modules", ".git", "dist", "build", ".next", ".venv", "venv", "coverage", "__pycache__"]);
+export const SKIP_DIRS = Object.freeze([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  ".venv",
+  "venv",
+  "coverage",
+  "__pycache__",
+]);
 
 /** A path relative to `base`, forward slashes (ARCHITECTURE.md §6.9: "paths relative to the application"). */
 export const relPath = (base, abs) => path.relative(base, abs).split(path.sep).join("/");
@@ -16,7 +26,9 @@ const DOC_PROJECT_FILE = "doc.config.mjs";
 
 /** The files of a list (relative, forward slashes) that do not sit in a documentation project below its root. */
 export function withoutDocProjects(files) {
-  const projects = files.filter((f) => f.endsWith("/" + DOC_PROJECT_FILE)).map((f) => f.slice(0, -DOC_PROJECT_FILE.length));
+  const projects = files
+    .filter((f) => f.endsWith("/" + DOC_PROJECT_FILE))
+    .map((f) => f.slice(0, -DOC_PROJECT_FILE.length));
   return projects.length ? files.filter((f) => !projects.some((p) => f.startsWith(p))) : files;
 }
 
@@ -57,7 +69,14 @@ export function listFiles(dir, { skip = SKIP_DIRS, maxDepth = Infinity } = {}) {
  */
 export function gitLsFiles(dir, exec) {
   const r = exec("git", ["ls-files"], { cwd: dir });
-  return r && r.status === 0 ? withoutDocProjects(r.stdout.split(/\r?\n/).filter(Boolean).map((f) => f.split(path.sep).join("/"))) : null;
+  return r && r.status === 0
+    ? withoutDocProjects(
+        r.stdout
+          .split(/\r?\n/)
+          .filter(Boolean)
+          .map((f) => f.split(path.sep).join("/")),
+      )
+    : null;
 }
 
 /**

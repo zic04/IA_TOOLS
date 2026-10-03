@@ -39,18 +39,35 @@ describe("hooks", () => {
       let out = "";
       const io = { stdout: { write: (s) => (out += s) }, stderr: { write: () => {} }, env: {}, exec };
       assert.equal(await runCli(["hooks", "install", "--project", docs, "--app", repo], io), 0);
-      for (const hook of HOOKS) assert.match(fs.readFileSync(path.join(repo, ".git", "hooks", hook), "utf8"), /# >>> doc-kit/);
-      assert.match(fs.readFileSync(path.join(repo, ".git", "hooks", "post-merge"), "utf8"), /^#!\/bin\/sh\necho mine\n/);
-      if (process.platform !== "win32") assert.equal(fs.statSync(path.join(repo, ".git", "hooks", "post-checkout")).mode & 0o111, 0o111);
+      for (const hook of HOOKS)
+        assert.match(fs.readFileSync(path.join(repo, ".git", "hooks", hook), "utf8"), /# >>> doc-kit/);
+      assert.match(
+        fs.readFileSync(path.join(repo, ".git", "hooks", "post-merge"), "utf8"),
+        /^#!\/bin\/sh\necho mine\n/,
+      );
+      if (process.platform !== "win32")
+        assert.equal(fs.statSync(path.join(repo, ".git", "hooks", "post-checkout")).mode & 0o111, 0o111);
       assert.match(out, /post-merge: refreshes the facts and the sync report/);
       out = "";
       assert.equal(await runCli(["hooks", "status", "--project", docs, "--app", repo, "--json"], io), 0);
-      assert.deepEqual(JSON.parse(out).report.map((r) => r.installed), [true, true]);
+      assert.deepEqual(
+        JSON.parse(out).report.map((r) => r.installed),
+        [true, true],
+      );
       assert.equal(await runCli(["hooks", "uninstall", "--project", docs, "--app", repo], io), 0);
-      assert.equal(fs.readFileSync(path.join(repo, ".git", "hooks", "post-merge"), "utf8").trim(), "#!/bin/sh\necho mine");
+      assert.equal(
+        fs.readFileSync(path.join(repo, ".git", "hooks", "post-merge"), "utf8").trim(),
+        "#!/bin/sh\necho mine",
+      );
       assert.ok(!fs.existsSync(path.join(repo, ".git", "hooks", "post-checkout")));
       assert.equal(await runCli(["hooks", "nope", "--project", docs], io), 2);
-      const elsewhere = { ...io, exec: (bin, args) => (args.join(" ") === "rev-parse --show-toplevel" ? { status: 0, stdout: path.join(repo, "other") + "\n" } : exec(bin, args)) };
+      const elsewhere = {
+        ...io,
+        exec: (bin, args) =>
+          args.join(" ") === "rev-parse --show-toplevel"
+            ? { status: 0, stdout: path.join(repo, "other") + "\n" }
+            : exec(bin, args),
+      };
       assert.equal(await runCli(["hooks", "install", "--project", docs, "--app", repo], elsewhere), 2);
     } finally {
       fs.rmSync(repo, { recursive: true, force: true });

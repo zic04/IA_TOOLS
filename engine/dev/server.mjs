@@ -16,7 +16,8 @@ const CLIENT = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.
 const EVENTS_PATH = "/__doc-kit/events";
 export const STATE_PATH = "/__doc-kit/state";
 
-const escapeHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const escapeHtml = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /** Inserts the live-reload client before </body> (or at the end). `</script` cannot appear in the JSON. */
 export function injectClient(html, settings) {
@@ -31,7 +32,15 @@ export function watchedPaths(config) {
   return {
     // Languages (ARCHITECTURE.md §6.12): paths.translations too, so that editing a translated page rebuilds
     // the draft site, like editing the source.
-    folders: [...new Set([config.paths.content, config.paths.images, config.paths.diagrams, "theme", ...(config.languages ? [config.paths.translations] : [])])],
+    folders: [
+      ...new Set([
+        config.paths.content,
+        config.paths.images,
+        config.paths.diagrams,
+        "theme",
+        ...(config.languages ? [config.paths.translations] : []),
+      ]),
+    ],
     files: [CONFIG_FILE],
   };
 }
@@ -51,7 +60,17 @@ export function watchedPaths(config) {
  * @returns {Promise<{ url: string, port: number, state: object, spaces: string[], rebuild: () => Promise<object>, close: () => Promise<void> }>}
  *   spaces: the ids of the exports served at /space/<id> (last successful build)
  */
-export async function startDevServer({ root, loadConfig, describe, describeError, texts, port = 0, host = "127.0.0.1", debounce = 150, onEvent = () => {} }) {
+export async function startDevServer({
+  root,
+  loadConfig,
+  describe,
+  describeError,
+  texts,
+  port = 0,
+  host = "127.0.0.1",
+  debounce = 150,
+  onEvent = () => {},
+}) {
   const clients = new Set();
   const watchers = [];
   let html = null; // last successful build
@@ -81,7 +100,15 @@ export async function startDevServer({ root, loadConfig, describe, describeError
       }
       state.errors = r.errors.map(describe);
       state.warnings = r.warnings.length;
-      event = { type: "build", ok, ms: Date.now() - started, stats: r.stats, errors: r.errors, warnings: r.warnings, changed };
+      event = {
+        type: "build",
+        ok,
+        ms: Date.now() - started,
+        stats: r.stats,
+        errors: r.errors,
+        warnings: r.warnings,
+        changed,
+      };
     } catch (e) {
       state.errors = [describeError(e)];
       event = { type: "error", ok: false, error: e, changed, ms: Date.now() - started };
@@ -119,7 +146,13 @@ export async function startDevServer({ root, loadConfig, describe, describeError
       const dir = path.join(root, folder);
       if (!fs.existsSync(dir)) continue;
       try {
-        const w = fs.watch(dir, { recursive: true }, (type, name) => schedule(`${folder}/${String(name || "").split(path.sep).join("/")}`));
+        const w = fs.watch(dir, { recursive: true }, (type, name) =>
+          schedule(
+            `${folder}/${String(name || "")
+              .split(path.sep)
+              .join("/")}`,
+          ),
+        );
         w.on("error", () => {});
         watchers.push(w);
       } catch {
@@ -148,7 +181,11 @@ export async function startDevServer({ root, loadConfig, describe, describeError
     }
     const url = new URL(req.url, "http://localhost");
     if (url.pathname === EVENTS_PATH) {
-      res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", Connection: "keep-alive" });
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
       res.write("retry: 1000\n\n");
       send(res, publicState());
       clients.add(res);

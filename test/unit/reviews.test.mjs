@@ -8,7 +8,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
-import { collectApi, classifyAuth, resolveGuardPatterns, DEFAULT_ROLE_GUARD, DEFAULT_USER_GUARD } from "../../engine/facts/api.mjs";
+import {
+  collectApi,
+  classifyAuth,
+  resolveGuardPatterns,
+  DEFAULT_ROLE_GUARD,
+  DEFAULT_USER_GUARD,
+} from "../../engine/facts/api.mjs";
 import { collectSecurity, RULES } from "../../engine/facts/security.mjs";
 import { collectQuality, rating } from "../../engine/facts/quality.mjs";
 import {
@@ -34,7 +40,12 @@ const app = (name) => path.join(APPS, name);
 async function cli(args, io = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: {}, ...io });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: {},
+    ...io,
+  });
   return { code, out, err };
 }
 
@@ -59,7 +70,8 @@ function project(appDir, overrides = {}) {
 describe("api: auth/guards on the enriched fixtures (ARCHITECTURE.md §6.13)", () => {
   test("FastAPI: no guard (none), Depends(get_current_user) (user), Depends(require_admin) (role)", () => {
     const items = collectApi(app("fastapi-app"));
-    const byRoute = (method, route) => items.find((i) => i.method === method && i.route === route && i.framework === "fastapi");
+    const byRoute = (method, route) =>
+      items.find((i) => i.method === method && i.route === route && i.framework === "fastapi");
     assert.equal(byRoute("GET", "/api/orders").auth, "none");
     assert.deepEqual(byRoute("GET", "/api/orders").guards, []);
     assert.equal(byRoute("GET", "/api/orders/{order_id}").auth, "user");
@@ -70,7 +82,8 @@ describe("api: auth/guards on the enriched fixtures (ARCHITECTURE.md §6.13)", (
 
   test("Express: requireSession (user), requireAdmin (role), requireAuth (unknown), no middleware (none)", () => {
     const items = collectApi(app("express-app"));
-    const byRoute = (method, route) => items.find((i) => i.method === method && i.route === route && i.framework === "express");
+    const byRoute = (method, route) =>
+      items.find((i) => i.method === method && i.route === route && i.framework === "express");
     assert.equal(byRoute("GET", "/orders").auth, "user");
     assert.deepEqual(byRoute("GET", "/orders").guards, ["requireSession"]);
     assert.equal(byRoute("POST", "/orders").auth, "role");
@@ -82,7 +95,8 @@ describe("api: auth/guards on the enriched fixtures (ARCHITECTURE.md §6.13)", (
 
   test("Next.js App Router: no guard (none), a role check next to a session call (role), currentUser() alone (unknown)", () => {
     const items = collectApi(app("next-app"));
-    const byRoute = (method, route) => items.find((i) => i.method === method && i.route === route && i.framework === "next-app-router");
+    const byRoute = (method, route) =>
+      items.find((i) => i.method === method && i.route === route && i.framework === "next-app-router");
     assert.equal(byRoute("GET", "/api/orders").auth, "none");
     assert.equal(byRoute("POST", "/api/orders").auth, "role");
     assert.ok(byRoute("POST", "/api/orders").guards.includes("getServerSession"));
@@ -120,7 +134,12 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
 
   test("every declared rule fires exactly once, at the real code line — never on a comment", () => {
     const expected = {
-      "xss.dangerouslySetInnerHTML": { file: "frontend/components/Comment.tsx", line: 3, severity: "medium", owasp: "A03:2021" },
+      "xss.dangerouslySetInnerHTML": {
+        file: "frontend/components/Comment.tsx",
+        line: 3,
+        severity: "medium",
+        owasp: "A03:2021",
+      },
       "xss.innerHTML": { file: "frontend/widgets/panel.js", line: 3, severity: "medium", owasp: "A03:2021" },
       "code.eval": { file: "backend/tools.py", line: 3, severity: "high", owasp: "A03:2021" },
       "sql.concat": { file: "backend/reports.py", line: 4, severity: "high", owasp: "A03:2021" },
@@ -132,7 +151,11 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
       "redirect.open": { file: "backend/views.py", line: 6, severity: "medium", owasp: "A01:2021" },
       "auth.noRateLimit": { file: "backend/auth.py", line: 7, severity: "info", owasp: "A07:2021" },
     };
-    assert.deepEqual(RULES.map((r) => r.rule).sort(), Object.keys(expected).sort(), "RULES matches the contract exactly");
+    assert.deepEqual(
+      RULES.map((r) => r.rule).sort(),
+      Object.keys(expected).sort(),
+      "RULES matches the contract exactly",
+    );
     for (const [rule, exp] of Object.entries(expected)) {
       assert.equal(by(rule).length, 1, `${rule}: exactly one finding`);
       assert.deepEqual(by(rule)[0], { rule, ...exp });
@@ -140,15 +163,19 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
   });
 
   test("a risk-free file (backend/health.py) raises nothing", () => {
-    assert.deepEqual(items.filter((i) => i.file === "backend/health.py"), []);
+    assert.deepEqual(
+      items.filter((i) => i.file === "backend/health.py"),
+      [],
+    );
   });
 
   test("never a value: no finding ever carries the matched text, only rule/file/line/severity/owasp(/sanitized)", () => {
     for (const i of items) {
       const keys = Object.keys(i).sort();
       assert.ok(
-        ["file", "line", "owasp", "rule", "severity"].every((k) => keys.includes(k)) && keys.every((k) => ["file", "line", "owasp", "rule", "severity", "sanitized"].includes(k)),
-        keys.join(",")
+        ["file", "line", "owasp", "rule", "severity"].every((k) => keys.includes(k)) &&
+          keys.every((k) => ["file", "line", "owasp", "rule", "severity", "sanitized"].includes(k)),
+        keys.join(","),
       );
     }
   });
@@ -158,14 +185,33 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
     try {
       fs.writeFileSync(
         path.join(dir, "a.tsx"),
-        'export function C({ html }) {\n  return <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />;\n}\n'
+        "export function C({ html }) {\n  return <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />;\n}\n",
       );
-      fs.writeFileSync(path.join(dir, "b.js"), "function f(el, html) {\n  el.innerHTML = DOMPurify.sanitize(html);\n}\n");
+      fs.writeFileSync(
+        path.join(dir, "b.js"),
+        "function f(el, html) {\n  el.innerHTML = DOMPurify.sanitize(html);\n}\n",
+      );
       fs.writeFileSync(path.join(dir, "c.js"), "function g(el, html) {\n  el.innerHTML = html;\n}\n"); // not sanitized: unchanged
       const found = collectSecurity(dir, () => null);
-      assert.deepEqual(found.find((i) => i.file === "a.tsx"), { rule: "xss.dangerouslySetInnerHTML", file: "a.tsx", line: 2, severity: "low", owasp: "A03:2021", sanitized: true });
-      assert.deepEqual(found.find((i) => i.file === "b.js"), { rule: "xss.innerHTML", file: "b.js", line: 2, severity: "low", owasp: "A03:2021", sanitized: true });
-      assert.deepEqual(found.find((i) => i.file === "c.js"), { rule: "xss.innerHTML", file: "c.js", line: 2, severity: "medium", owasp: "A03:2021" });
+      assert.deepEqual(
+        found.find((i) => i.file === "a.tsx"),
+        {
+          rule: "xss.dangerouslySetInnerHTML",
+          file: "a.tsx",
+          line: 2,
+          severity: "low",
+          owasp: "A03:2021",
+          sanitized: true,
+        },
+      );
+      assert.deepEqual(
+        found.find((i) => i.file === "b.js"),
+        { rule: "xss.innerHTML", file: "b.js", line: 2, severity: "low", owasp: "A03:2021", sanitized: true },
+      );
+      assert.deepEqual(
+        found.find((i) => i.file === "c.js"),
+        { rule: "xss.innerHTML", file: "c.js", line: 2, severity: "medium", owasp: "A03:2021" },
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -184,10 +230,12 @@ describe("security: every rule, on test/fixtures/apps/security-app (ARCHITECTURE
           "TOKEN_TEMPLATE = `deadbeef${real_token.slice(-4)}`", // 5: interpolated with a variable slice -> excluded
           'PASSWORD_DEFAULT = "changeme"', // 6: 8 chars, but a common placeholder word -> excluded
           "",
-        ].join("\n")
+        ].join("\n"),
       );
       const found = collectSecurity(dir, () => null).filter((i) => i.rule === "secret.default");
-      assert.deepEqual(found, [{ rule: "secret.default", file: "settings.py", line: 3, severity: "medium", owasp: "A07:2021" }]);
+      assert.deepEqual(found, [
+        { rule: "secret.default", file: "settings.py", line: 3, severity: "medium", owasp: "A07:2021" },
+      ]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -232,7 +280,7 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
         "};",
         "",
         "[1, 2].map((x) => x + 1);", // inline callback, not assigned to a name: never counted
-      ].join("\n")
+      ].join("\n"),
     );
     const { items } = await collectQuality(dir);
     const a = items.find((i) => i.file === "a.js");
@@ -259,13 +307,16 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
         "export function after() {", // 11
         "  return 1;", // 12
         "}", // 13
-      ].join("\n")
+      ].join("\n"),
     );
     const { items } = await collectQuality(dir);
     const big = items.find((i) => i.file === "big.tsx");
     assert.equal(big.functions, 3, "BigComponent, its onClick handler, and after — found and bounded independently");
     assert.equal(big.longest, 9, "BigComponent: lines 1-9, not swallowing after() nor running to end of file");
-    assert.ok(big.longest < big.lines, `longest (${big.longest}) must stay under the file's own line count (${big.lines})`);
+    assert.ok(
+      big.longest < big.lines,
+      `longest (${big.longest}) must stay under the file's own line count (${big.lines})`,
+    );
   });
 
   test("Python: def, indentation-bound extent, elif/and/or branches", async () => {
@@ -273,7 +324,18 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
     write(
       dir,
       "b.py",
-      ["def f(x):", "    if x > 0 and x < 10:", "        return 1", "    elif x == 0 or x == -1:", "        return 0", "    return -1", "", "def g():", "    return 1", ""].join("\n")
+      [
+        "def f(x):",
+        "    if x > 0 and x < 10:",
+        "        return 1",
+        "    elif x == 0 or x == -1:",
+        "        return 0",
+        "    return -1",
+        "",
+        "def g():",
+        "    return 1",
+        "",
+      ].join("\n"),
     );
     const { items } = await collectQuality(dir);
     const b = items.find((i) => i.file === "b.py");
@@ -283,7 +345,14 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
 
   test("duplication: a 6-line block repeated twice is flagged in both files; a single short block is not", async () => {
     const dir = fixture();
-    const block = ["const alpha = 1;", "const bravo = 2;", "const charlie = 3;", "const delta = 4;", "const echo = 5;", "const foxtrot = 6;"].join("\n");
+    const block = [
+      "const alpha = 1;",
+      "const bravo = 2;",
+      "const charlie = 3;",
+      "const delta = 4;",
+      "const echo = 5;",
+      "const foxtrot = 6;",
+    ].join("\n");
     write(dir, "x.js", block + "\nconst onlyHere = 7;\n");
     write(dir, "y.js", "const prelude = 0;\n" + block + "\n");
     write(dir, "z.js", "const tiny = 1;\n"); // far too short to ever duplicate
@@ -372,7 +441,10 @@ describe("probe: refused outside local/demo (ARCHITECTURE.md §6.13)", () => {
     assert.equal(probeAllowed({ capture: { target: "production" }, app: { url: "http://localhost:3000" } }), false);
     assert.equal(probeAllowed({ capture: { target: "demo" }, app: { url: "https://demo.example.com" } }), true);
     assert.equal(probeAllowed({ capture: { target: "local" }, app: { url: "http://localhost:3000" } }), true);
-    assert.equal(probeAllowed({ capture: { target: "local" }, app: { url: "https://acme-orders.example.com" } }), false);
+    assert.equal(
+      probeAllowed({ capture: { target: "local" }, app: { url: "https://acme-orders.example.com" } }),
+      false,
+    );
   });
 });
 
@@ -405,13 +477,23 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
     const calls = [];
     const fetchImpl = async (url, init) => {
       calls.push({ url, method: init.method, headers: init.headers });
-      if (url === "http://localhost:3000/") return fakeResponse({ headers: { "content-security-policy": "default-src 'self'" }, setCookies: ["sid=abc; Secure; HttpOnly; SameSite=Lax"] });
+      if (url === "http://localhost:3000/")
+        return fakeResponse({
+          headers: { "content-security-policy": "default-src 'self'" },
+          setCookies: ["sid=abc; Secure; HttpOnly; SameSite=Lax"],
+        });
       if (url.endsWith("/api/orders")) return fakeResponse({ status: 200, body: [{ id: 1, email: "a@b.com" }] });
       if (url.endsWith("/api/admin/users")) return fakeResponse({ status: 200 });
       if (url.endsWith("/api/me")) return fakeResponse({ status: 401 });
       return fakeResponse({ status: 404 });
     };
-    const result = await runProbe({ url: "http://localhost:3000", apiItems, fetch: fetchImpl, now: () => 0, sleep: async () => {} });
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
     assert.equal(result.identities.length, 1);
     assert.equal(result.identities[0], "anonymous");
     const byRoute = (route) => result.routes.find((r) => r.route === route);
@@ -432,7 +514,11 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
     assert.equal(isProtectedResponse(401, null, "http://localhost:3000"), true);
     assert.equal(isProtectedResponse(403, null, "http://localhost:3000"), true);
     assert.equal(isProtectedResponse(302, "/login", "http://localhost:3000"), true);
-    assert.equal(isProtectedResponse(302, "https://idp.example.com/authorize", "http://localhost:3000"), true, "leaving the origin is a sign-in redirect too");
+    assert.equal(
+      isProtectedResponse(302, "https://idp.example.com/authorize", "http://localhost:3000"),
+      true,
+      "leaving the origin is a sign-in redirect too",
+    );
     assert.equal(isProtectedResponse(302, "/dashboard", "http://localhost:3000"), false);
     assert.equal(isProtectedResponse(200, null, "http://localhost:3000"), false);
   });
@@ -448,7 +534,15 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
       seenCookies.push(init.headers.Cookie || null);
       return fakeResponse({ status: init.headers.Cookie?.includes("manager-token") ? 200 : 403 });
     };
-    const result = await runProbe({ url: "http://localhost:3000", roles: ["manager", "never-connected"], sessionOf: (r) => sessions[r] || null, apiItems, fetch: fetchImpl, now: () => 0, sleep: async () => {} });
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      roles: ["manager", "never-connected"],
+      sessionOf: (r) => sessions[r] || null,
+      apiItems,
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
     const r = result.routes[0];
     assert.equal(r.status.manager, 200, "the saved cookie reached the request");
     assert.equal(r.status["never-connected"], 403, "no session file: behaves as anonymous (no cookie)");
@@ -457,8 +551,16 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
 
   test("a route whose parameter is not in review.params is skipped and listed, never guessed", async () => {
     const apiItems = [{ method: "GET", route: "/api/orders/{order_id}", auth: "user" }];
-    const fetchImpl = async (url) => (url === "http://localhost:3000/" ? fakeResponse({}) : fakeResponse({ status: 200 }));
-    const result = await runProbe({ url: "http://localhost:3000", apiItems, params: {}, fetch: fetchImpl, now: () => 0, sleep: async () => {} });
+    const fetchImpl = async (url) =>
+      url === "http://localhost:3000/" ? fakeResponse({}) : fakeResponse({ status: 200 });
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      params: {},
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
     assert.equal(result.routes.length, 0);
     assert.deepEqual(result.skipped, [{ method: "GET", route: "/api/orders/{order_id}", params: ["order_id"] }]);
   });
@@ -469,20 +571,46 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
       { method: "POST", route: "/api/orders", auth: "role" },
     ];
     const fetchImpl = async () => fakeResponse({ status: 200 });
-    const result = await runProbe({ url: "http://localhost:3000", apiItems, fetch: fetchImpl, now: () => 0, sleep: async () => {} });
-    assert.deepEqual(result.routes.map((r) => r.method), ["GET"]);
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
+    assert.deepEqual(
+      result.routes.map((r) => r.method),
+      ["GET"],
+    );
   });
 
   test("never a response body stored: a secret marker in the body never reaches the result", async () => {
     const apiItems = [{ method: "GET", route: "/api/orders", auth: "none" }];
-    const fetchImpl = async (url) => (url === "http://localhost:3000/" ? fakeResponse({}) : fakeResponse({ status: 200, body: [{ email: "x@y.com", secretMarker: "sk-TOTALLY-SECRET-12345" }] }));
-    const result = await runProbe({ url: "http://localhost:3000", apiItems, fetch: fetchImpl, now: () => 0, sleep: async () => {} });
-    assert.ok(!JSON.stringify(result).includes("TOTALLY-SECRET"), "the body is read only to decide publicData, never kept");
+    const fetchImpl = async (url) =>
+      url === "http://localhost:3000/"
+        ? fakeResponse({})
+        : fakeResponse({ status: 200, body: [{ email: "x@y.com", secretMarker: "sk-TOTALLY-SECRET-12345" }] });
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      fetch: fetchImpl,
+      now: () => 0,
+      sleep: async () => {},
+    });
+    assert.ok(
+      !JSON.stringify(result).includes("TOTALLY-SECRET"),
+      "the body is read only to decide publicData, never kept",
+    );
   });
 
   test("probeFetch: refuses any method but GET/HEAD — a safety rule, never relaxed", async () => {
-    await assert.rejects(() => probeFetch(async () => fakeResponse({}), "http://localhost:3000/", { method: "POST" }), /not allowed/);
-    await assert.doesNotReject(() => probeFetch(async () => fakeResponse({}), "http://localhost:3000/", { method: "HEAD" }));
+    await assert.rejects(
+      () => probeFetch(async () => fakeResponse({}), "http://localhost:3000/", { method: "POST" }),
+      /not allowed/,
+    );
+    await assert.doesNotReject(() =>
+      probeFetch(async () => fakeResponse({}), "http://localhost:3000/", { method: "HEAD" }),
+    );
   });
 
   test("createThrottle: never more than maxPerSecond calls, spaced evenly (a virtual clock, no real delay)", async () => {
@@ -497,15 +625,20 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
       await throttle();
       stamps.push(clock);
     }
-    for (let i = 1; i < stamps.length; i++) assert.ok(stamps[i] - stamps[i - 1] >= 250, `call ${i}: ${stamps[i] - stamps[i - 1]}ms apart`);
+    for (let i = 1; i < stamps.length; i++)
+      assert.ok(stamps[i] - stamps[i - 1] >= 250, `call ${i}: ${stamps[i] - stamps[i - 1]}ms apart`);
   });
 
-  test("ProbeUnreachableError when the very first request (to \"/\") fails; a failure on a single route never aborts the run", async () => {
+  test('ProbeUnreachableError when the very first request (to "/") fails; a failure on a single route never aborts the run', async () => {
     const apiItems = [{ method: "GET", route: "/api/orders", auth: "none" }];
     const unreachable = async () => {
       throw new Error("ECONNREFUSED");
     };
-    await assert.rejects(() => runProbe({ url: "http://localhost:3000", apiItems, fetch: unreachable, now: () => 0, sleep: async () => {} }), ProbeUnreachableError);
+    await assert.rejects(
+      () =>
+        runProbe({ url: "http://localhost:3000", apiItems, fetch: unreachable, now: () => 0, sleep: async () => {} }),
+      ProbeUnreachableError,
+    );
 
     // Calls to the sample API route happen twice before the access-control loop (its own header/CORS checks on
     // "/api/orders"): only the THIRD call to that exact URL is the actual access-control check, which fails.
@@ -516,8 +649,18 @@ describe("probe: the expected/observed matrix, with a simulated fetch (ARCHITECT
       if (callsByUrl[url] === 3) throw new Error("timeout");
       return fakeResponse({ status: 200 });
     };
-    const result = await runProbe({ url: "http://localhost:3000", apiItems, fetch: flaky, now: () => 0, sleep: async () => {} });
-    assert.equal(result.routes[0].status.anonymous, null, "a failed request on a route: status null, no finding guessed");
+    const result = await runProbe({
+      url: "http://localhost:3000",
+      apiItems,
+      fetch: flaky,
+      now: () => 0,
+      sleep: async () => {},
+    });
+    assert.equal(
+      result.routes[0].status.anonymous,
+      null,
+      "a failed request on a route: status null, no finding guessed",
+    );
     assert.ok(!result.routes[0].finding);
   });
 });
@@ -548,7 +691,12 @@ describe("probe: cookieHeaderFromStorageState, routeParams/fillRoute, parseSetCo
   });
 
   test("parseSetCookie: Secure, HttpOnly, SameSite, and a cookie with none of these attributes", () => {
-    assert.deepEqual(parseSetCookie("sid=abc; Secure; HttpOnly; SameSite=Strict"), { name: "sid", secure: true, httpOnly: true, sameSite: "Strict" });
+    assert.deepEqual(parseSetCookie("sid=abc; Secure; HttpOnly; SameSite=Strict"), {
+      name: "sid",
+      secure: true,
+      httpOnly: true,
+      sameSite: "Strict",
+    });
     assert.deepEqual(parseSetCookie("plain=1"), { name: "plain", secure: false, httpOnly: false, sameSite: null });
   });
 });
@@ -560,7 +708,10 @@ describe("review configuration (ARCHITECTURE.md §6.13)", () => {
   });
 
   test("an unknown review key is a validation error (exit code 2)", () => {
-    assert.throws(() => prepareConfig({ product: { name: "Acme Orders" }, review: { bogus: 1 } }, { env: {} }), /invalid/i);
+    assert.throws(
+      () => prepareConfig({ product: { name: "Acme Orders" }, review: { bogus: 1 } }, { env: {} }),
+      /invalid/i,
+    );
   });
 });
 
@@ -600,18 +751,32 @@ describe("connect --as / probe (CLI)", () => {
     dirs.push(dir);
     const { connect } = await import("../../engine/capture/session.mjs");
     const file = roleSessionFile(dir, "manager");
-    const auth = { adapter: { session: async () => ({ who: "manager@acme-orders.example" }), detects: false }, options: { start: "/" } };
+    const auth = {
+      adapter: { session: async () => ({ who: "manager@acme-orders.example" }), detects: false },
+      options: { start: "/" },
+    };
     const fakePage = { goto: async () => {}, isClosed: () => false };
     const launch = async () => ({
       isConnected: () => true,
       newContext: async () => ({
         newPage: async () => fakePage,
         pages: () => [fakePage],
-        storageState: async ({ path: p }) => fs.writeFileSync(p, JSON.stringify({ cookies: [{ name: "sid", value: "x", domain: "localhost", path: "/" }], origins: [] })),
+        storageState: async ({ path: p }) =>
+          fs.writeFileSync(
+            p,
+            JSON.stringify({ cookies: [{ name: "sid", value: "x", domain: "localhost", path: "/" }], origins: [] }),
+          ),
       }),
       close: async () => {},
     });
-    const result = await connect({ url: "http://localhost:9999", auth, file, headless: true, waitForUser: async () => {}, launch });
+    const result = await connect({
+      url: "http://localhost:9999",
+      auth,
+      file,
+      headless: true,
+      waitForUser: async () => {},
+      launch,
+    });
     assert.equal(result.file, file);
     assert.equal(result.who, "manager@acme-orders.example");
     assert.ok(fs.existsSync(file));
@@ -619,7 +784,10 @@ describe("connect --as / probe (CLI)", () => {
   });
 
   test("probe: refused (exit code 2) with capture.target production, or a non-loopback URL without demo", async () => {
-    const prodDir = mk(app("express-app"), { app: { url: "https://acme-orders.example.com" }, capture: { target: "production" } });
+    const prodDir = mk(app("express-app"), {
+      app: { url: "https://acme-orders.example.com" },
+      capture: { target: "production" },
+    });
     const r1 = await cli(["probe", "--project", prodDir]);
     assert.equal(r1.code, 2);
     assert.match(r1.err, /local|demo|probe/i);
@@ -646,13 +814,18 @@ describe("connect --as / probe (CLI)", () => {
 
   test("probe --as <role> with an invalid role name → usage error (exit code 2)", async () => {
     const dir = mk(app("express-app"), { app: { url: "http://localhost:4100" } });
-    const r = await cli(["probe", "--project", dir, "--as", "has space"], { fetch: async () => ({ status: 200, headers: { get: () => null, getSetCookie: () => [] } }) });
+    const r = await cli(["probe", "--project", dir, "--as", "has space"], {
+      fetch: async () => ({ status: 200, headers: { get: () => null, getSetCookie: () => [] } }),
+    });
     assert.equal(r.code, 2);
   });
 
   test("facts --source security --source quality (CLI)", async () => {
     const dir = mk(app("security-app"));
-    const r = await cli(["facts", "--project", dir, "--source", "security", "--source", "quality"], { commit: () => null, exec: () => null });
+    const r = await cli(["facts", "--project", dir, "--source", "security", "--source", "quality"], {
+      commit: () => null,
+      exec: () => null,
+    });
     assert.equal(r.code, 0, r.err);
     const security = JSON.parse(fs.readFileSync(path.join(dir, "facts", "security.json"), "utf8"));
     assert.equal(security.source, "security");
@@ -680,7 +853,10 @@ describe("connect --as / probe (CLI)", () => {
       if (bin === "semgrep") return { status: 0, stdout: JSON.stringify({ results: [] }) };
       return null;
     };
-    const r = await cli(["facts", "--project", semgrepDir, "--source", "env", "--tools"], { commit: () => null, exec: exec2 });
+    const r = await cli(["facts", "--project", semgrepDir, "--source", "env", "--tools"], {
+      commit: () => null,
+      exec: exec2,
+    });
     assert.equal(r.code, 0, r.err);
     const semgrepCall = execCalls2.find((c) => c.bin === "semgrep");
     assert.ok(semgrepCall, "semgrep ran once review.semgrep was configured");

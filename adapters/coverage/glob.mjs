@@ -9,7 +9,12 @@ import { excludeItems } from "../../engine/check/coverage.mjs";
 export function render(template, file) {
   const noExt = file.replace(/\.[^./]+$/, "");
   const slash = noExt.lastIndexOf("/");
-  const vars = { path: noExt, name: noExt.slice(slash + 1), dir: slash < 0 ? "" : noExt.slice(0, slash), file: file.slice(file.lastIndexOf("/") + 1) };
+  const vars = {
+    path: noExt,
+    name: noExt.slice(slash + 1),
+    dir: slash < 0 ? "" : noExt.slice(0, slash),
+    file: file.slice(file.lastIndexOf("/") + 1),
+  };
   return template.replace(/\{(path|name|dir|file)\}/g, (m, k) => vars[k]);
 }
 

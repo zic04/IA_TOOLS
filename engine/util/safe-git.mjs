@@ -24,14 +24,17 @@ export function safeGitArgs(args) {
  * control character, which would change the meaning of the command.
  */
 export function isSafeRef(ref) {
-  return typeof ref === "string" && ref.length > 0 && ref.length <= 256 && /^[A-Za-z0-9_][A-Za-z0-9_./@{}~^-]*$/.test(ref);
+  return (
+    typeof ref === "string" && ref.length > 0 && ref.length <= 256 && /^[A-Za-z0-9_][A-Za-z0-9_./@{}~^-]*$/.test(ref)
+  );
 }
 
 /**
  * Keys of a git configuration whose value is a command that a read-only git command may run (a pager never runs:
  * --no-pager). The values used by Git LFS (`git-lfs clean -- %f` and the like) are allowed.
  */
-const RISKY_KEY = /^(core\.fsmonitor|diff\.external|diff\..+\.(textconv|command)|filter\..+\.(clean|smudge|process)|include\.path|includeif\..+\.path)$/;
+const RISKY_KEY =
+  /^(core\.fsmonitor|diff\.external|diff\..+\.(textconv|command)|filter\..+\.(clean|smudge|process)|include\.path|includeif\..+\.path)$/;
 const LFS_FILTER = /^filter\.lfs\.(clean|smudge|process)$/;
 const LFS_VALUE = /^git-lfs (clean|smudge|filter-process)\b/;
 
@@ -48,7 +51,8 @@ export function parseGitConfig(text) {
       continue;
     }
     const kv = /^([A-Za-z][A-Za-z0-9-]*)\s*(?:=\s*(.*))?$/.exec(line);
-    if (kv && section) out.push([`${section}.${kv[1].toLowerCase()}`, (kv[2] ?? "true").trim().replace(/^"(.*)"$/, "$1")]);
+    if (kv && section)
+      out.push([`${section}.${kv[1].toLowerCase()}`, (kv[2] ?? "true").trim().replace(/^"(.*)"$/, "$1")]);
   }
   return out;
 }

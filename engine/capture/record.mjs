@@ -14,7 +14,9 @@ export const RECORD_PATTERNS = Object.freeze({
   // page.<locator chain>.<action>(<args>);
   call: /^await page\.(.+)\.(click|dblclick|check|uncheck|fill|selectOption|press|hover)\((.*)\);?$/,
   keyboard: new RegExp(`^await page\\.keyboard\\.press\\((?:${STR})\\);?$`),
-  locator: new RegExp(`^(getByRole|getByText|getByLabel|getByPlaceholder|locator)\\((?:${STR})(?:,\\s*\\{([^{}]*)\\})?\\)`),
+  locator: new RegExp(
+    `^(getByRole|getByText|getByLabel|getByPlaceholder|locator)\\((?:${STR})(?:,\\s*\\{([^{}]*)\\})?\\)`,
+  ),
   name: new RegExp(`name:\\s*(?:${STR})`),
   exact: /exact:\s*true/,
   nth: /^\.nth\((\d+)\)/,
@@ -103,7 +105,8 @@ export function codegenToEntry(code, { appUrl, id, route = null }) {
     const [, , action, args] = m;
     const arg = RECORD_PATTERNS.arg.exec(args.trim());
     const value = arg ? unquote(arg, 1) : null;
-    if (action === "click" || action === "dblclick" || action === "check" || action === "uncheck") actions.push({ click: target });
+    if (action === "click" || action === "dblclick" || action === "check" || action === "uncheck")
+      actions.push({ click: target });
     else if (action === "hover") actions.push({ hover: target });
     else if (action === "fill" && value !== null) actions.push({ type: target, value });
     else if (action === "selectOption" && value !== null) actions.push({ select: target, value });
@@ -116,6 +119,8 @@ export function codegenToEntry(code, { appUrl, id, route = null }) {
 
 /** The plan file for one recorded entry: a module exporting CAPTURES, the untranslated lines as comments. */
 export function planModule(entry, skipped = []) {
-  const notes = skipped.length ? `// Not translated (to rewrite by hand, or leave out):\n${skipped.map((l) => `//   ${l}`).join("\n")}\n` : "";
+  const notes = skipped.length
+    ? `// Not translated (to rewrite by hand, or leave out):\n${skipped.map((l) => `//   ${l}`).join("\n")}\n`
+    : "";
   return `// Recorded with doc-kit record. Add the zones (the numbered markers) and the frame, then check the preview:\n//   doc-kit capture ${entry.id} --preview\n${notes}export const CAPTURES = [\n  ${JSON.stringify(entry, null, 2).replace(/\n/g, "\n  ")},\n];\n`;
 }

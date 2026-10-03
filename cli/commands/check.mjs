@@ -27,9 +27,15 @@ export async function run({ ctx, values, positionals }) {
   const name = positionals[0] || "all";
   if (!AVAILABLE.includes(name)) throw new KitError(EXIT.USAGE, "check.unknown", { name, known: AVAILABLE.join(", ") });
   const width = values.width === undefined ? 1440 : Number(values.width);
-  if (!Number.isInteger(width) || width < 320) throw new KitError(EXIT.USAGE, "option.value", { option: "width", value: values.width, expected: "integer ≥ 320" });
+  if (!Number.isInteger(width) || width < 320)
+    throw new KitError(EXIT.USAGE, "option.value", { option: "width", value: values.width, expected: "integer ≥ 320" });
   const threshold = values.threshold === undefined ? 200 : Number(values.threshold);
-  if (!(threshold > 0)) throw new KitError(EXIT.USAGE, "option.value", { option: "threshold", value: values.threshold, expected: "number > 0 (KB)" });
+  if (!(threshold > 0))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "threshold",
+      value: values.threshold,
+      expected: "number > 0 (KB)",
+    });
   const all = name === "all";
 
   const result = {};
@@ -68,7 +74,8 @@ export async function run({ ctx, values, positionals }) {
 function printFindings(ctx, list, mark = "✖") {
   for (const p of list) {
     ctx.printErr(`${mark} ${ctx.t(`cli.${p.key}`, p.vars)}`);
-    if (ctx.i18n.has(`cli.${p.key}.help`) && (mark === "✖" || ctx.verbose)) ctx.printErr(`  → ${ctx.t(`cli.${p.key}.help`, p.vars)}`);
+    if (ctx.i18n.has(`cli.${p.key}.help`) && (mark === "✖" || ctx.verbose))
+      ctx.printErr(`  → ${ctx.t(`cli.${p.key}.help`, p.vars)}`);
   }
 }
 
@@ -83,7 +90,10 @@ async function checkLinksCommand(ctx) {
   if (!ctx.json) {
     ctx.printProblems({ errors: problems });
     if (problems.length) ctx.printErr(ctx.t("cli.check.links.failed", { n: problems.length }));
-    else ctx.print(ctx.t("cli.check.links.ok", { pages: numbers(ctx.i18n).count("cli.build.count.pages", r.stats.pages) }));
+    else
+      ctx.print(
+        ctx.t("cli.check.links.ok", { pages: numbers(ctx.i18n).count("cli.build.count.pages", r.stats.pages) }),
+      );
   }
   return { ok: problems.length === 0, pages: r.stats.pages, problems };
 }
@@ -133,7 +143,12 @@ async function checkSecretsCommand(ctx) {
     if (res.findings.length) ctx.printErr(ctx.t("cli.check.secrets.failed", { n: res.findings.length }));
     else {
       const { count } = numbers(ctx.i18n);
-      ctx.print(ctx.t("cli.check.secrets.ok", { files: count("cli.check.count.sourceFiles", res.files), places: count("cli.check.count.places", res.places) }));
+      ctx.print(
+        ctx.t("cli.check.secrets.ok", {
+          files: count("cli.check.count.sourceFiles", res.files),
+          places: count("cli.check.count.places", res.places),
+        }),
+      );
     }
   }
   return { ok: res.findings.length === 0, ...res };
@@ -154,8 +169,14 @@ async function checkCoverageCommand(ctx) {
         ctx.print(ctx.t("cli.check.coverage.family", { mark, name: f.name, covered: f.covered, total: f.total }));
         for (const it of f.items.filter((x) => !x.covered))
           ctx.print(
-            ctx.t(it.label === undefined ? "cli.check.coverage.missing" : it.label === null ? "cli.check.coverage.missingNoLabel" : "cli.check.coverage.missingLabel", { id: it.id, label: it.label }) +
-              (it.plannedBy ? ctx.t("cli.check.coverage.plannedSuffix", { page: it.plannedBy }) : "")
+            ctx.t(
+              it.label === undefined
+                ? "cli.check.coverage.missing"
+                : it.label === null
+                  ? "cli.check.coverage.missingNoLabel"
+                  : "cli.check.coverage.missingLabel",
+              { id: it.id, label: it.label },
+            ) + (it.plannedBy ? ctx.t("cli.check.coverage.plannedSuffix", { page: it.plannedBy }) : ""),
           );
       }
     }
@@ -163,7 +184,14 @@ async function checkCoverageCommand(ctx) {
     // Only the written pages cover an element; what the plan promises beyond them is said apart.
     if (res.planned > res.covered) {
       const { number } = numbers(ctx.i18n);
-      ctx.print(ctx.t("cli.check.coverage.planned", { n: res.planned - res.covered, count: number(res.planned - res.covered), planned: number(res.planned), total: number(res.total) }));
+      ctx.print(
+        ctx.t("cli.check.coverage.planned", {
+          n: res.planned - res.covered,
+          count: number(res.planned - res.covered),
+          planned: number(res.planned),
+          total: number(res.total),
+        }),
+      );
     }
     if (res.missing) ctx.printErr(`  → ${ctx.t("cli.check.coverage.advice")}`);
   }
@@ -183,7 +211,9 @@ async function checkTablesCommand(ctx, width) {
     if (!ctx.json) {
       for (const p of r.problems) ctx.printErr("✖ " + ctx.t("cli.check.tables.problem", p));
       const { count, number } = numbers(ctx.i18n);
-      ctx.print(`\n${ctx.t("cli.check.tables.summary", { pages: count("cli.build.count.pages", r.pages), width: number(width), n: r.problems.length, count: number(r.problems.length) })}`);
+      ctx.print(
+        `\n${ctx.t("cli.check.tables.summary", { pages: count("cli.build.count.pages", r.pages), width: number(width), n: r.problems.length, count: number(r.problems.length) })}`,
+      );
     }
     return r;
   } finally {

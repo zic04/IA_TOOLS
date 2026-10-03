@@ -61,8 +61,10 @@ export async function run({ ctx, values, positionals = [] }) {
   if (values.date !== undefined) checkDate(values.date);
   // `--all` alone is accepted too (sync --all), as it was first documented.
   const pages = values.mark ? positionals : [];
-  if ((values.mark || values.all) && values.since !== undefined) throw new KitError(EXIT.USAGE, "option.invalid", { error: "--mark/--since" });
-  if (values["auto-intact"] && !values.apply) throw new KitError(EXIT.USAGE, "option.invalid", { error: "--auto-intact (--apply)" });
+  if ((values.mark || values.all) && values.since !== undefined)
+    throw new KitError(EXIT.USAGE, "option.invalid", { error: "--mark/--since" });
+  if (values["auto-intact"] && !values.apply)
+    throw new KitError(EXIT.USAGE, "option.invalid", { error: "--auto-intact (--apply)" });
   if (values.mark && !values.all && !pages.length) throw new KitError(EXIT.USAGE, "sync.markNothing");
   const marking = !!(values.all || values.mark);
   const onePage = marking && !values.all && pages.length === 1;
@@ -111,14 +113,28 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
 async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values }) {
   const { reference } = readSyncReference(root, config);
   const since = values.since ?? null;
-  if (since !== null && !isSafeRef(since)) throw new KitError(EXIT.USAGE, "option.invalid", { error: `--since ${since}` });
+  if (since !== null && !isSafeRef(since))
+    throw new KitError(EXIT.USAGE, "option.invalid", { error: `--since ${since}` });
   if (!reference && !since) {
     ctx.print(ctx.t("cli.sync.noReference"));
     ctx.print(`  → ${ctx.t("cli.sync.noReference.help")}`);
     return values.check ? EXIT.CHECK : EXIT.OK;
   }
 
-  let report = await compareWithReference({ root, config, toc, reference, since, git, inventory, plans, appDir, version, commit, factsDir: config.paths.facts });
+  let report = await compareWithReference({
+    root,
+    config,
+    toc,
+    reference,
+    since,
+    git,
+    inventory,
+    plans,
+    appDir,
+    version,
+    commit,
+    factsDir: config.paths.facts,
+  });
 
   if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
 
@@ -127,7 +143,14 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     if (!ctx.json) {
       for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
       if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
-      else ctx.print(ctx.t("cli.sync.applied.summary", { proofs: applied.rewritten.proofs, labels: applied.rewritten.labels, pages: applied.changed.length }));
+      else
+        ctx.print(
+          ctx.t("cli.sync.applied.summary", {
+            proofs: applied.rewritten.proofs,
+            labels: applied.rewritten.labels,
+            pages: applied.changed.length,
+          }),
+        );
     }
 
     const anyIssue = new Set([
@@ -136,7 +159,10 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
       ...report.captures.flatMap((c) => c.pages),
       ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
     ]);
-    const touched = new Set([...report.proofs.moved.map((m) => m.page), ...(values.labels ? report.labels.flatMap((l) => l.pages) : [])]);
+    const touched = new Set([
+      ...report.proofs.moved.map((m) => m.page),
+      ...(values.labels ? report.labels.flatMap((l) => l.pages) : []),
+    ]);
     const restamp = new Set(report.unchanged);
     for (const id of touched) if (!anyIssue.has(id)) restamp.add(id);
     // --auto-intact (ETUDE-CAPTURES.md §7, G1): a page whose only changes are "probably intact" — shared files
@@ -170,7 +196,20 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
         reference: before,
       });
       writeSyncReference(root, config, next);
-      report = await compareWithReference({ root, config, toc, reference: next, since, git, inventory, plans, appDir, version, commit, factsDir: config.paths.facts });
+      report = await compareWithReference({
+        root,
+        config,
+        toc,
+        reference: next,
+        since,
+        git,
+        inventory,
+        plans,
+        appDir,
+        version,
+        commit,
+        factsDir: config.paths.facts,
+      });
       if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
     }
   }
@@ -179,7 +218,10 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
   const refCommit = since || reference?.app?.commit || null;
   if (git && refCommit)
     for (const r of report.review) {
-      const d = git.diff(refCommit, r.reasons.map((x) => x.path));
+      const d = git.diff(
+        refCommit,
+        r.reasons.map((x) => x.path),
+      );
       if (d) diffs.set(r.page, d);
     }
   writeReportFiles({ root, report, diffs, t: ctx.t });
@@ -202,14 +244,24 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     if (report.estimate)
       ctx.print(
         ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +
-          (report.estimate.total.cost !== null ? " · " + ctx.t("cli.estimate.cost", { cost: report.estimate.total.cost.toFixed(2), currency: report.estimate.currency || "" }) : "")
+          (report.estimate.total.cost !== null
+            ? " · " +
+              ctx.t("cli.estimate.cost", {
+                cost: report.estimate.total.cost.toFixed(2),
+                currency: report.estimate.currency || "",
+              })
+            : ""),
       );
   }
 
   if (values.check) {
     const failed = checkFails(report);
     if (!ctx.json) {
-      ctx.print(failed ? `${ctx.paintErr.fail("✖")} ${ctx.t("cli.sync.check.failed")}` : `${ctx.paint.ok("✔")} ${ctx.t("cli.sync.check.ok")}`);
+      ctx.print(
+        failed
+          ? `${ctx.paintErr.fail("✖")} ${ctx.t("cli.sync.check.failed")}`
+          : `${ctx.paint.ok("✔")} ${ctx.t("cli.sync.check.ok")}`,
+      );
       if (failed) ctx.print(`  → ${ctx.t("cli.sync.check.failed.help", { work: WORK_DIR })}`);
     }
     return failed ? EXIT.CHECK : EXIT.OK;
@@ -238,18 +290,46 @@ async function buildEstimate({ root, config, toc, report, inventory, plans }) {
     const entry = findEntry(toc, r.page);
     let tokens = 2000; // fallback: a page's context is usually a few thousand tokens
     if (contextMod?.buildContext) {
-      const deps = await pageDependencies({ root, config, toc, pageId: r.page, inventory, tools, factsDir: config.paths.facts, plans });
-      const built = contextMod.buildContext({ root, config, toc, pageId: r.page, deps, labels: {}, facts: {}, glossary: [], templates, report, update: true, budget: Infinity, t: (k) => k, appDir });
+      const deps = await pageDependencies({
+        root,
+        config,
+        toc,
+        pageId: r.page,
+        inventory,
+        tools,
+        factsDir: config.paths.facts,
+        plans,
+      });
+      const built = contextMod.buildContext({
+        root,
+        config,
+        toc,
+        pageId: r.page,
+        deps,
+        labels: {},
+        facts: {},
+        glossary: [],
+        templates,
+        report,
+        update: true,
+        budget: Infinity,
+        t: (k) => k,
+        appDir,
+      });
       tokens = built.tokens;
     }
     contexts.push({ page: r.page, tokens, template: entry?.template });
   }
-  return estimateUpdate({ contexts, templates, prices: config.llm?.prices || {}, currency: config.llm?.currency ?? null });
+  return estimateUpdate({
+    contexts,
+    templates,
+    prices: config.llm?.prices || {},
+    currency: config.llm?.currency ?? null,
+  });
 }
 
 function findEntry(toc, id) {
   for (const sec of toc.sections || [])
-    for (const g of sec.groups || [])
-      for (const p of g.pages || []) if (p.id === id) return p;
+    for (const g of sec.groups || []) for (const p of g.pages || []) if (p.id === id) return p;
   return null;
 }

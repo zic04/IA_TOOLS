@@ -36,7 +36,8 @@ const HIDDEN_RANGES = [
   [0xfeff, 0xfeff],
   [0xe0000, 0xe007f],
 ];
-const isHidden = (codepoint, atStart) => !(codepoint === 0xfeff && atStart) && HIDDEN_RANGES.some(([a, b]) => codepoint >= a && codepoint <= b);
+const isHidden = (codepoint, atStart) =>
+  !(codepoint === 0xfeff && atStart) && HIDDEN_RANGES.some(([a, b]) => codepoint >= a && codepoint <= b);
 
 /** Hidden characters of a text: { line, codepoint: "U+XXXX" }, in reading order. */
 export function hiddenCharacters(text) {
@@ -60,7 +61,12 @@ export function collectAgents(appDir) {
   const items = [];
   for (const rel of listFiles(appDir).filter((f) => PATTERNS.some((re) => re.test(f)))) {
     const text = fs.readFileSync(path.join(appDir, rel), "utf8");
-    items.push({ file: rel, lines: text.split(/\r?\n/).length, words: text.split(/\s+/).filter(Boolean).length, hidden: hiddenCharacters(text) });
+    items.push({
+      file: rel,
+      lines: text.split(/\r?\n/).length,
+      words: text.split(/\s+/).filter(Boolean).length,
+      hidden: hiddenCharacters(text),
+    });
   }
   return items.sort((a, b) => a.file.localeCompare(b.file));
 }

@@ -36,7 +36,8 @@ const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templ
 const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
 const SKIPPED_FOLDERS = new Set(["node_modules", ".doc-kit", ".git"]);
 /** Files never exported, at any depth: environment files, keys and certificates, credentials of tools. */
-const SECRET_FILE = /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
+const SECRET_FILE =
+  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
 
 /** Text of a small file (a browser session is a few hundred kilobytes at most); "" when it is larger or unreadable. */
 function readSmall(file) {
@@ -89,7 +90,8 @@ function outsidePaths(root, config) {
     if (typeof value === "string") {
       if (/[\\/]/.test(value)) check(key, value);
     } else if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${key}[${i}]`));
-    else if (value && typeof value === "object") for (const [k, v] of Object.entries(value)) if (k !== "adapter") walk(v, `${key}.${k}`);
+    else if (value && typeof value === "object")
+      for (const [k, v] of Object.entries(value)) if (k !== "adapter") walk(v, `${key}.${k}`);
   };
   config.coverage.forEach((entry, i) => walk(entry, `coverage[${i}]`));
   return out;
@@ -118,14 +120,31 @@ function copyTree(from, to, keep) {
  * Exports the project.
  * @returns {{ target, files: number, vendored: number, skipped: string[], warnings: object[], version, zip?: object }}
  */
-export function exportProject({ project, config, target, withDist = false, zip = false, now = new Date(), env = process.env }) {
+export function exportProject({
+  project,
+  config,
+  target,
+  withDist = false,
+  zip = false,
+  now = new Date(),
+  env = process.env,
+}) {
   const root = project.root;
   if (path.resolve(target) === path.resolve(root)) throw new KitError(EXIT.USAGE, "export.self", { folder: target });
-  if (fs.existsSync(target) && (!fs.statSync(target).isDirectory() || fs.readdirSync(target).length)) throw new KitError(EXIT.CHECK, "export.notEmpty", { folder: target });
-  const warnings = outsidePaths(root, config).map((w) => ({ key: w.key.startsWith("coverage") ? "export.outside.coverage" : w.key === "version.file" ? "export.outside.version" : "export.outside.other", vars: { key: w.key, path: w.path } }));
+  if (fs.existsSync(target) && (!fs.statSync(target).isDirectory() || fs.readdirSync(target).length))
+    throw new KitError(EXIT.CHECK, "export.notEmpty", { folder: target });
+  const warnings = outsidePaths(root, config).map((w) => ({
+    key: w.key.startsWith("coverage")
+      ? "export.outside.coverage"
+      : w.key === "version.file"
+        ? "export.outside.version"
+        : "export.outside.other",
+    vars: { key: w.key, path: w.path },
+  }));
   const version = readProjectVersion(root, config.version);
   const output = path.resolve(root, config.output);
-  if (withDist && !fs.existsSync(output)) warnings.push({ key: "export.noDist", vars: { file: slash(path.relative(root, output)), command: BRAND.command } });
+  if (withDist && !fs.existsSync(output))
+    warnings.push({ key: "export.noDist", vars: { file: slash(path.relative(root, output)), command: BRAND.command } });
 
   // 1. The project's own files.
   const targetAbs = path.resolve(target);
@@ -144,7 +163,11 @@ export function exportProject({ project, config, target, withDist = false, zip =
       skipped.push(slash(rel));
       return false;
     }
-    if (SECRET_FILE.test(d.name) || path.join(root, rel) === session || (d.name.endsWith(".json") && isStorageState(readSmall(path.join(root, rel))))) {
+    if (
+      SECRET_FILE.test(d.name) ||
+      path.join(root, rel) === session ||
+      (d.name.endsWith(".json") && isStorageState(readSmall(path.join(root, rel))))
+    ) {
       skipped.push(slash(rel));
       return false;
     }
@@ -152,10 +175,16 @@ export function exportProject({ project, config, target, withDist = false, zip =
   });
   // An output outside dist/ (custom `output`, or `spaces.output` for the exports per space, ARCHITECTURE.md §6.1a)
   // is included with --with-dist too.
-  const outputs = [output, ...(declaredSpaceIds(root, config) || []).map((space) => spaceOutput(root, config, space, output))];
+  const outputs = [
+    output,
+    ...(declaredSpaceIds(root, config) || []).map((space) => spaceOutput(root, config, space, output)),
+  ];
   for (const file of withDist ? outputs.filter((f) => fs.existsSync(f)) : []) {
     const rel = path.relative(root, file);
-    const dest = rel.startsWith("..") || path.isAbsolute(rel) ? path.join(targetAbs, "dist", path.basename(file)) : path.join(targetAbs, rel);
+    const dest =
+      rel.startsWith("..") || path.isAbsolute(rel)
+        ? path.join(targetAbs, "dist", path.basename(file))
+        : path.join(targetAbs, rel);
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(file, dest);
@@ -169,7 +198,11 @@ export function exportProject({ project, config, target, withDist = false, zip =
   for (const folder of VENDORED_FOLDERS) {
     const src = path.join(KIT_ROOT, folder);
     if (!fs.existsSync(src)) continue;
-    vendored += copyTree(src, path.join(vendor, folder), (rel, d) => d.name !== "node_modules" && d.name !== ".DS_Store").length;
+    vendored += copyTree(
+      src,
+      path.join(vendor, folder),
+      (rel, d) => d.name !== "node_modules" && d.name !== ".DS_Store",
+    ).length;
   }
   for (const f of VENDORED_FILES) {
     const src = path.join(KIT_ROOT, f);
@@ -185,7 +218,9 @@ export function exportProject({ project, config, target, withDist = false, zip =
 
   // 3. package.json → the vendored engine.
   const pkgFile = path.join(targetAbs, "package.json");
-  const pkg = fs.existsSync(pkgFile) ? JSON.parse(fs.readFileSync(pkgFile, "utf8")) : { name: `${config.product.slug}-documentation`, version: "1.0.0", private: true, type: "module" };
+  const pkg = fs.existsSync(pkgFile)
+    ? JSON.parse(fs.readFileSync(pkgFile, "utf8"))
+    : { name: `${config.product.slug}-documentation`, version: "1.0.0", private: true, type: "module" };
   if (pkg.devDependencies?.[BRAND.packageName]) delete pkg.devDependencies[BRAND.packageName];
   pkg.dependencies = { ...(pkg.dependencies || {}), [BRAND.packageName]: `file:./${VENDOR}` };
   fs.writeFileSync(pkgFile, JSON.stringify(pkg, null, 2) + "\n");
@@ -201,7 +236,12 @@ export function exportProject({ project, config, target, withDist = false, zip =
   const info = {
     kit: { name: BRAND.packageName, version: BRAND.version },
     date: now.toISOString(),
-    source: { product: config.product.name, path: slash(root), version, commit: commit?.status === 0 ? commit.stdout : null },
+    source: {
+      product: config.product.name,
+      path: slash(root),
+      version,
+      commit: commit?.status === 0 ? commit.stdout : null,
+    },
     withDist,
   };
   fs.writeFileSync(path.join(targetAbs, "EXPORT.json"), JSON.stringify(info, null, 2) + "\n");
@@ -211,7 +251,10 @@ export function exportProject({ project, config, target, withDist = false, zip =
   const current = fs.existsSync(readme) ? fs.readFileSync(readme, "utf8") : `# ${config.product.name}\n`;
   const start = current.indexOf(README_START);
   const end = current.indexOf(README_END);
-  const next = start >= 0 && end > start ? current.slice(0, start) + section + current.slice(end + README_END.length + 1) : `${current.replace(/\s*$/, "")}\n\n${section}`;
+  const next =
+    start >= 0 && end > start
+      ? current.slice(0, start) + section + current.slice(end + README_END.length + 1)
+      : `${current.replace(/\s*$/, "")}\n\n${section}`;
   fs.writeFileSync(readme, next);
   for (const f of ["EXPORT.json", "README.md", "package.json"]) if (!files.includes(f)) files.push(f);
 
@@ -224,7 +267,14 @@ export async function run({ ctx, values, positionals }) {
   if (!positionals[0]) throw new KitError(EXIT.USAGE, "export.noTarget", { command: BRAND.command });
   const { project, config } = await loadProjectFriendly(ctx);
   const target = path.resolve(process.cwd(), positionals[0]);
-  const r = exportProject({ project, config, target, withDist: !!values["with-dist"], zip: !!values.zip, env: ctx.env });
+  const r = exportProject({
+    project,
+    config,
+    target,
+    withDist: !!values["with-dist"],
+    zip: !!values.zip,
+    env: ctx.env,
+  });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));
     return EXIT.OK;
@@ -235,8 +285,13 @@ export async function run({ ctx, values, positionals }) {
     if (ctx.i18n.has(`cli.${w.key}.help`)) ctx.printErr(`  → ${ctx.t(`cli.${w.key}.help`, w.vars)}`);
   }
   if (r.skipped.length) ctx.print(`${p.dim("·")} ${ctx.t("cli.export.skipped", { list: r.skipped.join(", ") })}`);
-  ctx.print(`${p.ok("✔")} ${ctx.t("cli.export.done", { folder: shownPath(r.target), files: r.files, vendored: r.vendored, kit: BRAND.version, version: r.version })}`);
-  if (r.zip) ctx.print(`${p.ok("✔")} ${ctx.t("cli.export.zip", { file: shownPath(r.zip.file), mb: (r.zip.bytes / 1024 / 1024).toFixed(1) })}`);
+  ctx.print(
+    `${p.ok("✔")} ${ctx.t("cli.export.done", { folder: shownPath(r.target), files: r.files, vendored: r.vendored, kit: BRAND.version, version: r.version })}`,
+  );
+  if (r.zip)
+    ctx.print(
+      `${p.ok("✔")} ${ctx.t("cli.export.zip", { file: shownPath(r.zip.file), mb: (r.zip.bytes / 1024 / 1024).toFixed(1) })}`,
+    );
   ctx.print(`\n${p.bold(ctx.t("cli.export.next"))}`);
   for (const c of [`cd ${shownPath(r.target)}`, "npm install", "npm run site"]) ctx.print(`  ${p.cmd(c)}`);
   return EXIT.OK;

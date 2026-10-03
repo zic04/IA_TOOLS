@@ -47,7 +47,8 @@
     var close = document.createElement("button");
     close.type = "button";
     close.textContent = texts.close;
-    close.style.cssText = "font:inherit;padding:2px 10px;border-radius:6px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer";
+    close.style.cssText =
+      "font:inherit;padding:2px 10px;border-radius:6px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer";
     close.addEventListener("click", function () {
       dismissed = signature;
       hide();

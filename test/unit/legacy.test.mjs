@@ -22,7 +22,24 @@ const LEGACY_TOC = {
       sous_titre: "Sub",
       vedette: true,
       points: ["a"],
-      groupes: [{ titre: "G", pages: [{ id: "use/a", titre: "A", titre_menu: "A", resume: "R", niveau: 2, droits: ["x"], routes: ["/"], gabarit: "screen", fichier: "a.md" }] }],
+      groupes: [
+        {
+          titre: "G",
+          pages: [
+            {
+              id: "use/a",
+              titre: "A",
+              titre_menu: "A",
+              resume: "R",
+              niveau: 2,
+              droits: ["x"],
+              routes: ["/"],
+              gabarit: "screen",
+              fichier: "a.md",
+            },
+          ],
+        },
+      ],
     },
   ],
   parcours: [{ titre: "J", desc: "D", etapes: ["use/a"] }],
@@ -34,7 +51,16 @@ describe("normalisation", () => {
     const { value, legacy } = normalizeToc(LEGACY_TOC);
     assert.equal(legacy, true);
     assert.deepEqual(Object.keys(value), ["title", "product", "tagline", "sections", "journeys", "suggestions"]);
-    assert.deepEqual(Object.keys(value.sections[0]), ["id", "title", "shortTitle", "icon", "subtitle", "featured", "highlights", "groups"]);
+    assert.deepEqual(Object.keys(value.sections[0]), [
+      "id",
+      "title",
+      "shortTitle",
+      "icon",
+      "subtitle",
+      "featured",
+      "highlights",
+      "groups",
+    ]);
     assert.deepEqual(value.sections[0].groups[0].pages[0], {
       id: "use/a",
       title: "A",
@@ -56,9 +82,26 @@ describe("normalisation", () => {
   });
 
   test("glossary and zones (with the pin side)", () => {
-    assert.deepEqual(normalizeGlossary([{ terme: "A", motif: "as?", def: "D" }]), { value: [{ term: "A", pattern: "as?", def: "D" }], legacy: true });
-    const z = normalizeZones({ fichier: "a.webp", titre: "T", route: "/", largeur: 10, hauteur: 5, zones: [{ n: 1, x: 1, y: 2, l: 3, h: 4, libelle: "L", cote: "coin" }] });
-    assert.deepEqual(z.value, { file: "a.webp", title: "T", route: "/", width: 10, height: 5, zones: [{ n: 1, x: 1, y: 2, w: 3, h: 4, label: "L", side: "corner" }] });
+    assert.deepEqual(normalizeGlossary([{ terme: "A", motif: "as?", def: "D" }]), {
+      value: [{ term: "A", pattern: "as?", def: "D" }],
+      legacy: true,
+    });
+    const z = normalizeZones({
+      fichier: "a.webp",
+      titre: "T",
+      route: "/",
+      largeur: 10,
+      hauteur: 5,
+      zones: [{ n: 1, x: 1, y: 2, l: 3, h: 4, libelle: "L", cote: "coin" }],
+    });
+    assert.deepEqual(z.value, {
+      file: "a.webp",
+      title: "T",
+      route: "/",
+      width: 10,
+      height: 5,
+      zones: [{ n: 1, x: 1, y: 2, w: 3, h: 4, label: "L", side: "corner" }],
+    });
   });
 
   test("capture plan entry: fields, actions, targets, unions", () => {
@@ -78,7 +121,11 @@ describe("normalisation", () => {
         { touche: "Escape" },
       ],
       cadre: { css: "main", marge: 0, margeV: 0 },
-      zones: [{ texte: "Total", parent: 1, cote: "coin" }, { union: [{ champ: "A" }, { champ: "B", dans: { bloc: "Panel" } }] }, { texte: "X", encadre: true, dernier: true, filtre: "y" }],
+      zones: [
+        { texte: "Total", parent: 1, cote: "coin" },
+        { union: [{ champ: "A" }, { champ: "B", dans: { bloc: "Panel" } }] },
+        { texte: "X", encadre: true, dernier: true, filtre: "y" },
+      ],
       masques: [{ css: ".secret" }],
     });
     assert.equal(legacy, true);
@@ -98,7 +145,11 @@ describe("normalisation", () => {
         { press: "Escape" },
       ],
       frame: { css: "main", margin: 0, marginY: 0 },
-      zones: [{ text: "Total", up: 1, side: "corner" }, { union: [{ field: "A" }, { field: "B", within: { block: "Panel" } }] }, { text: "X", framed: true, last: true, has: "y" }],
+      zones: [
+        { text: "Total", up: 1, side: "corner" },
+        { union: [{ field: "A" }, { field: "B", within: { block: "Panel" } }] },
+        { text: "X", framed: true, last: true, has: "y" },
+      ],
       masks: [{ css: ".secret" }],
     });
   });
@@ -129,19 +180,31 @@ describe("legacy project: build and migrate", () => {
       steps: "etapes",
     };
     const back = (v) =>
-      Array.isArray(v) ? v.map(back) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [fr[k] || k, back(x)])) : v;
+      Array.isArray(v)
+        ? v.map(back)
+        : v && typeof v === "object"
+          ? Object.fromEntries(Object.entries(v).map(([k, x]) => [fr[k] || k, back(x)]))
+          : v;
     fs.writeFileSync(path.join(c, "sommaire.json"), JSON.stringify(back(toc)));
     fs.unlinkSync(path.join(c, "toc.json"));
     const g = JSON.parse(fs.readFileSync(path.join(c, "glossary.json"), "utf8"));
     // "technical" (ARCHITECTURE.md §6.8) has no French spelling yet: passed through unchanged, like any other
     // field the legacy renamer does not know (engine/project/legacy.mjs, `rename`).
-    fs.writeFileSync(path.join(c, "glossaire.json"), JSON.stringify(g.map(({ term, pattern, ...rest }) => ({ terme: term, motif: pattern, ...rest }))));
+    fs.writeFileSync(
+      path.join(c, "glossaire.json"),
+      JSON.stringify(g.map(({ term, pattern, ...rest }) => ({ terme: term, motif: pattern, ...rest }))),
+    );
     fs.unlinkSync(path.join(c, "glossary.json"));
     fs.renameSync(path.join(c, "home.md"), path.join(c, "accueil.md"));
     for (const f of fs.readdirSync(path.join(dir, "images/zones"))) {
       const p = path.join(dir, "images/zones", f);
       const z = JSON.parse(fs.readFileSync(p, "utf8"));
-      const zones = z.zones.map(({ w, label, side, ...r }) => ({ ...r, l: w, libelle: label, ...(side ? { cote: { right: "droit" }[side] } : {}) }));
+      const zones = z.zones.map(({ w, label, side, ...r }) => ({
+        ...r,
+        l: w,
+        libelle: label,
+        ...(side ? { cote: { right: "droit" }[side] } : {}),
+      }));
       fs.writeFileSync(
         p,
         JSON.stringify({
@@ -153,7 +216,7 @@ describe("legacy project: build and migrate", () => {
           ...(z.version ? { version: z.version } : {}),
           ...(z.captured ? { capture: z.captured } : {}),
           zones,
-        })
+        }),
       );
     }
     return dir;
@@ -168,7 +231,10 @@ describe("legacy project: build and migrate", () => {
       assert.equal(legacy.html, current.html);
       // Plus the two spaces' own warning (ARCHITECTURE.md §6.1a, business.md/takeover.md link each other):
       // identical on both sides, so still only one difference between the legacy copy and the current project.
-      assert.deepEqual(legacy.warnings.map((w) => w.key), ["legacy.read", "space.excludedLinks", "space.excludedLinks"]);
+      assert.deepEqual(
+        legacy.warnings.map((w) => w.key),
+        ["legacy.read", "space.excludedLinks", "space.excludedLinks"],
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -182,13 +248,22 @@ describe("legacy project: build and migrate", () => {
       assert.deepEqual(r.errors, []);
       assert.deepEqual(
         r.converted.map((c) => c.to),
-        ["content/toc.json", "content/glossary.json", "content/home.md", "images/zones/orders-list.json", "images/zones/settings-profile.json"]
+        [
+          "content/toc.json",
+          "content/glossary.json",
+          "content/home.md",
+          "images/zones/orders-list.json",
+          "images/zones/settings-profile.json",
+        ],
       );
       assert.ok(!fs.existsSync(path.join(dir, "content/sommaire.json")));
       const after = await buildDemo({ root: dir });
       // The two spaces' own warning (ARCHITECTURE.md §6.1a), present on every build of this demo; migrating
       // the legacy files introduces none of its own.
-      assert.deepEqual(after.warnings.map((w) => w.key), ["space.excludedLinks", "space.excludedLinks"]);
+      assert.deepEqual(
+        after.warnings.map((w) => w.key),
+        ["space.excludedLinks", "space.excludedLinks"],
+      );
       assert.equal(after.html, (await buildDemo()).html);
       assert.deepEqual(migrateProject(dir, paths).converted, []);
     } finally {

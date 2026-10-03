@@ -30,7 +30,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { diffHtml } from "./diff-html.mjs";
 
 const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const OLD_ENGINE_FILES = ["generer.mjs", "config.mjs", "modele", "outils", "verifier-couverture.mjs", "node_modules", "package-lock.json"];
+const OLD_ENGINE_FILES = [
+  "generer.mjs",
+  "config.mjs",
+  "modele",
+  "outils",
+  "verifier-couverture.mjs",
+  "node_modules",
+  "package-lock.json",
+];
 const NOT_COPIED = new Set(["node_modules", "dist", ".captures-tmp", ".doc-kit"]);
 
 // ─── Extraction ──────────────────────────────────────────────────────────────
@@ -62,14 +70,18 @@ export function differences(a, b, at = "", max = 20, out = []) {
     out.push(`${at || "(root)"}: ${short(a)} ≠ ${short(b)}`);
     return out;
   }
-  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) differences(a[k], b[k], at ? `${at}.${k}` : k, max, out);
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)]))
+    differences(a[k], b[k], at ? `${at}.${k}` : k, max, out);
   return out;
 }
 
 // ─── Preparation ─────────────────────────────────────────────────────────────
 function copy(source, target) {
   removeDir(target);
-  fs.cpSync(source, target, { recursive: true, filter: (src) => !(path.dirname(src) === source && NOT_COPIED.has(path.basename(src))) });
+  fs.cpSync(source, target, {
+    recursive: true,
+    filter: (src) => !(path.dirname(src) === source && NOT_COPIED.has(path.basename(src))),
+  });
 }
 function removeDir(dir) {
   if (!fs.existsSync(dir)) return;
@@ -88,7 +100,11 @@ function removeDir(dir) {
 }
 /** Environment without the variables that would change the version or the paths. */
 function cleanEnv(prefixes) {
-  return Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("DOC_KIT_") && !prefixes.some((p) => k.startsWith(p + "_"))));
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([k]) => !k.startsWith("DOC_KIT_") && !prefixes.some((p) => k.startsWith(p + "_")),
+    ),
+  );
 }
 
 /** Converts the site assets of the pre-kit engine (modele/) to the kit's template markers. */
@@ -104,7 +120,9 @@ export function convertOldSite(modelDir, targetDir) {
     .replace(/\{\{DONNEES\}\}/g, "{{DATA}}")
     .replace(/\{\{ICONE_([A-Z]+)\}\}/g, (m, name) => `{{ICON:${name.toLowerCase()}}}`);
   fs.writeFileSync(path.join(targetDir, "template.html"), template);
-  const app = fs.readFileSync(path.join(modelDir, "app.js"), "utf8").replace(/memo\.ecrire\("[^"]+", t\)/, 'memo.ecrire("__THEME_KEY__", t)');
+  const app = fs
+    .readFileSync(path.join(modelDir, "app.js"), "utf8")
+    .replace(/memo\.ecrire\("[^"]+", t\)/, 'memo.ecrire("__THEME_KEY__", t)');
   fs.writeFileSync(path.join(targetDir, "app.js"), app);
   fs.copyFileSync(path.join(modelDir, "style.css"), path.join(targetDir, "style.css"));
 }
@@ -128,7 +146,11 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
   copy(source, old);
   fs.cpSync(path.join(source, "node_modules"), path.join(old, "node_modules"), { recursive: true });
   const fixedDate = pathToFileURL(path.join(KIT_ROOT, "test/tools/fixed-date.mjs")).href;
-  const r1 = spawnSync(process.execPath, ["--import", fixedDate, "generer.mjs"], { cwd: old, env: { ...env, DOC_KIT_FIXED_DATE: date }, encoding: "utf8" });
+  const r1 = spawnSync(process.execPath, ["--import", fixedDate, "generer.mjs"], {
+    cwd: old,
+    env: { ...env, DOC_KIT_FIXED_DATE: date },
+    encoding: "utf8",
+  });
   log("old", r1);
   if (r1.status !== 0) throw new Error(`old engine build failed (${r1.status})`);
 
@@ -161,7 +183,12 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
   fs.writeFileSync(step4File, step4.html);
 
   const output = conf.output || `dist/${conf.product.name}-Documentation.html`;
-  return { reference: path.join(old, output), kit: path.join(kit, output), migrated: path.join(migrated, output), step4: step4File };
+  return {
+    reference: path.join(old, output),
+    kit: path.join(kit, output),
+    migrated: path.join(migrated, output),
+    step4: step4File,
+  };
 }
 
 // ─── Comparison ──────────────────────────────────────────────────────────────
@@ -179,7 +206,7 @@ async function go(page, route) {
         window.addEventListener("hashchange", () => setTimeout(r, 20), { once: true });
         location.hash = h;
       }),
-    "#/" + route
+    "#/" + route,
   );
 }
 async function texts(page) {
@@ -209,7 +236,9 @@ async function level3(browser, reference, candidate) {
       if (ta[k] !== tb[k]) {
         let i = 0;
         while (i < ta[k].length && ta[k][i] === tb[k][i]) i++;
-        gaps.push(`#/${r} › ${k}: «…${ta[k].slice(Math.max(0, i - 40), i + 60)}…» ≠ «…${tb[k].slice(Math.max(0, i - 40), i + 60)}…»`);
+        gaps.push(
+          `#/${r} › ${k}: «…${ta[k].slice(Math.max(0, i - 40), i + 60)}…» ≠ «…${tb[k].slice(Math.max(0, i - 40), i + 60)}…»`,
+        );
       }
   }
   await Promise.all([pa.context().close(), pb.context().close()]);
@@ -277,14 +306,23 @@ async function comparePixels(page, a, b) {
       };
       const [ia, ib] = await Promise.all([load(a), load(b)]);
       if (ia.width !== ib.width || ia.height !== ib.height)
-        return { total: ia.width * ia.height, different: ia.width * ia.height, sizes: `${ia.width}×${ia.height} ≠ ${ib.width}×${ib.height}` };
+        return {
+          total: ia.width * ia.height,
+          different: ia.width * ia.height,
+          sizes: `${ia.width}×${ia.height} ≠ ${ib.width}×${ib.height}`,
+        };
       let different = 0;
       for (let i = 0; i < ia.data.length; i += 4)
-        if (ia.data[i] !== ib.data[i] || ia.data[i + 1] !== ib.data[i + 1] || ia.data[i + 2] !== ib.data[i + 2] || ia.data[i + 3] !== ib.data[i + 3])
+        if (
+          ia.data[i] !== ib.data[i] ||
+          ia.data[i + 1] !== ib.data[i + 1] ||
+          ia.data[i + 2] !== ib.data[i + 2] ||
+          ia.data[i + 3] !== ib.data[i + 3]
+        )
           different++;
       return { total: ia.width * ia.height, different };
     },
-    [a.toString("base64"), b.toString("base64")]
+    [a.toString("base64"), b.toString("base64")],
   );
 }
 
@@ -309,13 +347,21 @@ async function level4(browser, reference, candidate, D, tolerance, report) {
   return results;
 }
 
-export async function compare({ reference, candidate, levels = ["bytes", "1", "2", "3", "4"], tolerance = 0.001, report = null }) {
+export async function compare({
+  reference,
+  candidate,
+  levels = ["bytes", "1", "2", "3", "4"],
+  tolerance = 0.001,
+  report = null,
+}) {
   const ha = fs.readFileSync(reference, "utf8");
   const hb = fs.readFileSync(candidate, "utf8");
   const summary = {};
   if (levels.includes("bytes")) {
     const d = diffHtml(ha, hb);
-    summary.bytes = d.identical ? { ok: true } : { ok: false, position: d.position, reference: d.reference, candidate: d.candidate };
+    summary.bytes = d.identical
+      ? { ok: true }
+      : { ok: false, position: d.position, reference: d.reference, candidate: d.candidate };
   }
   const Da = extractData(ha);
   const Db = extractData(hb);
@@ -338,7 +384,11 @@ export async function compare({ reference, candidate, levels = ["bytes", "1", "2
     const ia = extractImages(ha);
     const ib = extractImages(hb);
     const d = [...new Set([...Object.keys(ia), ...Object.keys(ib)])].filter((k) => ia[k] !== ib[k]);
-    summary.level2 = { ok: d.length === 0 && JSON.stringify(Object.keys(ia)) === JSON.stringify(Object.keys(ib)), images: Object.keys(ia).length, differences: d };
+    summary.level2 = {
+      ok: d.length === 0 && JSON.stringify(Object.keys(ia)) === JSON.stringify(Object.keys(ib)),
+      images: Object.keys(ia).length,
+      differences: d,
+    };
   }
   if (levels.includes("3") || levels.includes("4")) {
     const { chromium } = await import("playwright");
@@ -392,7 +442,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     },
   });
   if (positionals[0] === "prepare") {
-    console.log(JSON.stringify(await prepare({ source: v.source, name: v.name, config: v.config, work: v.work, date: v.date, overlay: v.overlay }), null, 2));
+    console.log(
+      JSON.stringify(
+        await prepare({
+          source: v.source,
+          name: v.name,
+          config: v.config,
+          work: v.work,
+          date: v.date,
+          overlay: v.overlay,
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (positionals[0] === "compare") {
     const summary = await compare({
       reference: v.reference,

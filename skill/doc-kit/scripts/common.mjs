@@ -38,7 +38,8 @@ const MESSAGES = {
   },
   fr: {
     noConfigIn: "doc.config.mjs introuvable dans {dir}",
-    noConfigIn_todo: "indiquez le dossier de la documentation (celui qui contient doc.config.mjs) avec --project <dossierDoc>",
+    noConfigIn_todo:
+      "indiquez le dossier de la documentation (celui qui contient doc.config.mjs) avec --project <dossierDoc>",
     noConfigUp: "aucun doc.config.mjs trouvé depuis le dossier courant en remontant",
     noConfigUp_todo: "lancez la commande dans le dossier de la documentation, ou ajoutez --project <dossierDoc>",
     configUnreadable: "doc.config.mjs illisible : {error}",
@@ -73,7 +74,12 @@ export function addMessages(table) {
 
 /** A message in the current language, with its {variables}; the English text when the key is missing. */
 export function t(key, vars = {}) {
-  const text = extraMessages[messageLanguage][key] ?? MESSAGES[messageLanguage][key] ?? extraMessages.en[key] ?? MESSAGES.en[key] ?? key;
+  const text =
+    extraMessages[messageLanguage][key] ??
+    MESSAGES[messageLanguage][key] ??
+    extraMessages.en[key] ??
+    MESSAGES.en[key] ??
+    key;
   return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 }
 
@@ -102,7 +108,10 @@ export class ExitError extends Error {
 }
 
 const isKitRoot = (dir) =>
-  Boolean(dir) && ["ARCHITECTURE.md", path.join("cli", "doc-kit.mjs"), path.join("engine", "brand.mjs")].some((f) => fs.existsSync(path.join(dir, f)));
+  Boolean(dir) &&
+  ["ARCHITECTURE.md", path.join("cli", "doc-kit.mjs"), path.join("engine", "brand.mjs")].some((f) =>
+    fs.existsSync(path.join(dir, f)),
+  );
 
 /**
  * The kit's location: the path written at install time, else the source tree that contains this skill,
@@ -162,26 +171,40 @@ export async function loadConfig(docDir) {
   } catch (e) {
     const notFound = e?.code === "ERR_MODULE_NOT_FOUND" || /Cannot find (package|module)/.test(String(e?.message));
     if (!notFound) {
-      throw new ExitError(2, t("configUnreadable", { error: String(e?.message).split("\n")[0] }), t("configUnreadable_todo"));
+      throw new ExitError(
+        2,
+        t("configUnreadable", { error: String(e?.message).split("\n")[0] }),
+        t("configUnreadable_todo"),
+      );
     }
-    const source = fs.readFileSync(file, "utf8").replace(
-      /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?/g,
-      (whole, names, specifier) =>
+    const source = fs
+      .readFileSync(file, "utf8")
+      .replace(/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["'];?/g, (whole, names, specifier) =>
         isBareSpecifier(specifier)
           ? names
               .split(",")
               .map((n) => n.trim())
               .filter(Boolean)
-              .map((n) => `const ${n.split(/\s+as\s+/).pop().trim()} = (c) => c;`)
+              .map(
+                (n) =>
+                  `const ${n
+                    .split(/\s+as\s+/)
+                    .pop()
+                    .trim()} = (c) => c;`,
+              )
               .join(" ")
           : whole,
-    );
+      );
     const tmp = path.join(docDir, `.doc-kit-config-${process.pid}.mjs`);
     fs.writeFileSync(tmp, source);
     try {
       mod = await import(pathToFileURL(tmp).href);
     } catch (e2) {
-      throw new ExitError(2, t("configUnreadable", { error: String(e2?.message).split("\n")[0] }), t("configUnreadableDeps_todo"));
+      throw new ExitError(
+        2,
+        t("configUnreadable", { error: String(e2?.message).split("\n")[0] }),
+        t("configUnreadableDeps_todo"),
+      );
     } finally {
       fs.rmSync(tmp, { force: true });
     }
@@ -275,7 +298,8 @@ const isInside = (dir, p) => {
  * @returns {{ dir: string, from: "given"|"config"|"git"|"parent", exists: boolean, front: string, source: string }}
  */
 export function appDirInfo(docDir, config, given = "") {
-  const configured = typeof config.app?.dir === "string" && config.app.dir.trim() ? path.resolve(docDir, config.app.dir) : "";
+  const configured =
+    typeof config.app?.dir === "string" && config.app.dir.trim() ? path.resolve(docDir, config.app.dir) : "";
   let dir = given ? path.resolve(docDir, given) : configured;
   let from = given ? "given" : "config";
   if (!dir) {
@@ -428,7 +452,10 @@ export function fill(template, vars) {
     }
     // Multi-line value (a list read with --var key=@file): an indented bullet list.
     if (v.includes("\n")) {
-      const lines = v.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+      const lines = v
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
       return `\n${lines.map((l) => `  ${l.startsWith("- ") ? l : `- ${l}`}`).join("\n")}`;
     }
     return v;
@@ -526,7 +553,8 @@ export async function flattenedPages(docDir, config, kitRoot) {
   const legacy = await importKitModule(kitRoot, "engine/project/legacy.mjs");
   const toc = legacy?.normalizeToc ? legacy.normalizeToc(raw).value : raw;
   const pages = [];
-  for (const sec of toc?.sections || []) for (const g of sec.groups || []) for (const p of g.pages || []) if (p && p.id) pages.push(p);
+  for (const sec of toc?.sections || [])
+    for (const g of sec.groups || []) for (const p of g.pages || []) if (p && p.id) pages.push(p);
   return pages;
 }
 
@@ -565,7 +593,8 @@ export function parseOptions(options, usage) {
 
 /** Checks a language option. */
 export function checkLanguage(value, label = "--lang") {
-  if (value != null && !LANGUAGES.includes(value)) throw new ExitError(2, t("language", { value }), t("language_todo", { label }));
+  if (value != null && !LANGUAGES.includes(value))
+    throw new ExitError(2, t("language", { value }), t("language_todo", { label }));
   return value;
 }
 

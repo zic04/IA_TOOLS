@@ -57,7 +57,15 @@ export function historyFacts(commits, { tracked = null, limit = HISTORY_FILES } 
   const items = [...byFile.values()]
     .map((e) => {
       const [owner, n] = [...e.byAuthor.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
-      return { file: e.file, commits: e.commits, churn: e.churn, authors: e.byAuthor.size, owner, ownerShare: Math.round((n / e.commits) * 100), last: e.last.slice(0, 10) };
+      return {
+        file: e.file,
+        commits: e.commits,
+        churn: e.churn,
+        authors: e.byAuthor.size,
+        owner,
+        ownerShare: Math.round((n / e.commits) * 100),
+        last: e.last.slice(0, 10),
+      };
     })
     .sort((a, b) => b.commits - a.commits || b.churn - a.churn || a.file.localeCompare(b.file))
     .slice(0, limit);
@@ -69,10 +77,20 @@ export function historyFacts(commits, { tracked = null, limit = HISTORY_FILES } 
     covered += n;
     busFactor++;
   }
-  const dates = commits.map((c) => c.date).filter(Boolean).sort();
+  const dates = commits
+    .map((c) => c.date)
+    .filter(Boolean)
+    .sort();
   return {
     items,
-    summary: { commits: commits.length, authors: commitsByAuthor.size, since: (dates[0] || "").slice(0, 10), until: (dates.at(-1) || "").slice(0, 10), busFactor, files: byFile.size },
+    summary: {
+      commits: commits.length,
+      authors: commitsByAuthor.size,
+      since: (dates[0] || "").slice(0, 10),
+      until: (dates.at(-1) || "").slice(0, 10),
+      busFactor,
+      files: byFile.size,
+    },
   };
 }
 
@@ -82,7 +100,11 @@ export function historyFacts(commits, { tracked = null, limit = HISTORY_FILES } 
  * @param {Function} exec  the CLI context's exec seam
  */
 export function collectHistory(appDir, exec) {
-  const r = exec("git", ["log", "--numstat", "--no-renames", "--relative", `-n${HISTORY_LIMIT}`, "--format=@@%H%x09%an%x09%aI", "--", "."], { cwd: appDir });
+  const r = exec(
+    "git",
+    ["log", "--numstat", "--no-renames", "--relative", `-n${HISTORY_LIMIT}`, "--format=@@%H%x09%an%x09%aI", "--", "."],
+    { cwd: appDir },
+  );
   if (!r || r.status !== 0) return { items: [], summary: { available: false } };
   const tracked = gitLsFiles(appDir, exec);
   const { items, summary } = historyFacts(parseNumstat(r.stdout), { tracked });

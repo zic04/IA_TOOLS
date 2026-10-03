@@ -9,7 +9,15 @@
 // check the access control of that role; the plain session file (without --as) is unchanged.
 import path from "node:path";
 import readline from "node:readline";
-import { loadAuth, connect, sessionFile, roleSessionFile, ROLE_PATTERN, forgetSession, authBrowser } from "../../engine/capture/session.mjs";
+import {
+  loadAuth,
+  connect,
+  sessionFile,
+  roleSessionFile,
+  ROLE_PATTERN,
+  forgetSession,
+  authBrowser,
+} from "../../engine/capture/session.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 
 export const options = {
@@ -22,7 +30,12 @@ export const options = {
 function roleOf(values) {
   if (!values.as?.length) return null;
   const role = values.as[values.as.length - 1];
-  if (!ROLE_PATTERN.test(role)) throw new KitError(EXIT.USAGE, "option.value", { option: "as", value: role, expected: "letters, digits and dashes, starting with a letter" });
+  if (!ROLE_PATTERN.test(role))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "as",
+      value: role,
+      expected: "letters, digits and dashes, starting with a letter",
+    });
   return role;
 }
 
@@ -82,10 +95,12 @@ export async function run({ ctx, values }) {
   }
   const url = (values.url || config.app.url || "").replace(/\/+$/, "");
   if (!url) throw new KitError(EXIT.USAGE, "connect.noUrl");
-  if (!/^https?:\/\//.test(url)) throw new KitError(EXIT.USAGE, "option.value", { option: "url", value: url, expected: "http(s)://…" });
+  if (!/^https?:\/\//.test(url))
+    throw new KitError(EXIT.USAGE, "option.value", { option: "url", value: url, expected: "http(s)://…" });
 
   const browser = authBrowser(auth) === "chrome" ? "Chrome" : "Chromium";
-  if (config.capture.target === "production" && !ctx.json) ctx.print(ctx.paint.warn(ctx.paint.bold(ctx.t("cli.connect.production", { url }))));
+  if (config.capture.target === "production" && !ctx.json)
+    ctx.print(ctx.paint.warn(ctx.paint.bold(ctx.t("cli.connect.production", { url }))));
   ctx.print(ctx.t("cli.connect.open", { browser, url }));
   ctx.print(ctx.t(auth.adapter.detects ? "cli.connect.detecting" : "cli.connect.pressEnter"));
   const enter = enterKey();
@@ -105,7 +120,15 @@ export async function run({ ctx, values }) {
     enter.close();
   }
   if (ctx.json) {
-    ctx.print(JSON.stringify({ file: s.file, who: s.who ?? null, details: s.details ?? null, expires: s.expires ?? null, role }));
+    ctx.print(
+      JSON.stringify({
+        file: s.file,
+        who: s.who ?? null,
+        details: s.details ?? null,
+        expires: s.expires ?? null,
+        role,
+      }),
+    );
     return 0;
   }
   if (s.who) ctx.print(ctx.t("cli.connect.who", { who: s.who }) + (s.details ? ` · ${s.details}` : ""));

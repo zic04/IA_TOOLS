@@ -51,11 +51,12 @@ const go = (page, hash) =>
         window.addEventListener("hashchange", () => setTimeout(r, 30), { once: true });
         location.hash = h;
       }),
-    "#/" + hash
+    "#/" + hash,
   );
 const text = (page, sel) => page.locator(sel).first().textContent();
 const texts = (page, sel) => page.locator(sel).allTextContents();
-const pressed = (page, sel = "#espaces .espace-choix") => page.locator(sel).evaluateAll((bs) => bs.map((b) => `${b.textContent}:${b.getAttribute("aria-pressed")}`));
+const pressed = (page, sel = "#espaces .espace-choix") =>
+  page.locator(sel).evaluateAll((bs) => bs.map((b) => `${b.textContent}:${b.getAttribute("aria-pressed")}`));
 const remembered = (page) => page.evaluate((k) => localStorage.getItem(k), SPACE_KEY);
 
 describe("selector", () => {
@@ -65,7 +66,10 @@ describe("selector", () => {
     assert.equal(await bar.getAttribute("role"), "group");
     assert.equal(await bar.getAttribute("aria-label"), "Spaces");
     assert.deepEqual(await pressed(page), ["Everything:true", "Business:false", "Takeover:false"]);
-    assert.equal(await page.locator("#espaces .espace-choix").nth(1).getAttribute("title"), "Users, key users, product owners, support");
+    assert.equal(
+      await page.locator("#espaces .espace-choix").nth(1).getAttribute("title"),
+      "Users, key users, product owners, support",
+    );
     await page.locator("#espaces .espace-choix", { hasText: "Business" }).click();
     await page.waitForTimeout(80);
     assert.equal(await page.evaluate(() => location.hash), "#/@business");
@@ -93,7 +97,11 @@ describe("selector", () => {
     assert.equal(await remembered(page), "takeover");
     await page.close();
     page = await open("", { context });
-    assert.deepEqual(await pressed(page), ["Everything:false", "Business:false", "Takeover:true"], "the home page opens on the remembered space");
+    assert.deepEqual(
+      await pressed(page),
+      ["Everything:false", "Business:false", "Takeover:true"],
+      "the home page opens on the remembered space",
+    );
     await go(page, "use/orders");
     assert.deepEqual(await pressed(page), ["Everything:false", "Business:true", "Takeover:false"]);
     assert.equal(await remembered(page), "business");
@@ -120,15 +128,24 @@ describe("filter", () => {
     await go(page, "@");
     await go(page, "nowhere");
     assert.deepEqual(await texts(page, "#lateral .lat-espace"), ["For the business", "For the takeover team"]);
-    assert.deepEqual(await texts(page, "#lateral .lat-section > button"), ["Using Acme Orders", "Taking over Acme Orders"]);
+    assert.deepEqual(await texts(page, "#lateral .lat-section > button"), [
+      "Using Acme Orders",
+      "Taking over Acme Orders",
+    ]);
     assert.equal(await page.locator('#lateral a[href="#/use/api-limits"]').count(), 1);
 
     await go(page, "use/api-limits");
     assert.deepEqual(await texts(page, "#topnav a"), ["Use", "Take over"]);
     // "Use" leads to its first takeover page: its overview belongs to the business space.
     assert.equal(await page.locator("#topnav a").first().getAttribute("href"), "#/use/api-limits");
-    assert.equal(await page.locator('#lateral .lat-section[data-section="use"] a', { hasText: "Section overview" }).count(), 0);
-    assert.equal(await page.locator('#lateral .lat-section[data-section="take-over"] a', { hasText: "Section overview" }).count(), 1);
+    assert.equal(
+      await page.locator('#lateral .lat-section[data-section="use"] a', { hasText: "Section overview" }).count(),
+      0,
+    );
+    assert.equal(
+      await page.locator('#lateral .lat-section[data-section="take-over"] a', { hasText: "Section overview" }).count(),
+      1,
+    );
     assert.equal(await page.locator(".pied-nav a").count(), 1);
     assert.match(await text(page, ".pied-nav a.suivant"), /Architecture of Acme Orders/);
     await page.context().close();
@@ -144,10 +161,19 @@ describe("filter", () => {
     const n = await page.evaluate(() => {
       const items = Array.from(document.querySelectorAll("#recherche-resultats > *"));
       const at = items.findIndex((x) => x.classList.contains("recherche-groupe"));
-      return { before: items.slice(0, at).map((a) => a.getAttribute("href")), after: items.slice(at + 1).map((a) => a.getAttribute("href")) };
+      return {
+        before: items.slice(0, at).map((a) => a.getAttribute("href")),
+        after: items.slice(at + 1).map((a) => a.getAttribute("href")),
+      };
     });
-    assert.ok(n.before.length > 0 && n.before.every((h) => /^#\/use\/(orders|settings)/.test(h)), JSON.stringify(n.before));
-    assert.ok(n.after.length > 0 && n.after.every((h) => /^#\/(take-over\/|use\/api-limits)/.test(h)), JSON.stringify(n.after));
+    assert.ok(
+      n.before.length > 0 && n.before.every((h) => /^#\/use\/(orders|settings)/.test(h)),
+      JSON.stringify(n.before),
+    );
+    assert.ok(
+      n.after.length > 0 && n.after.every((h) => /^#\/(take-over\/|use\/api-limits)/.test(h)),
+      JSON.stringify(n.after),
+    );
     assert.equal(await heading.textContent(), `In Takeover (${n.after.length})`);
     // Keyboard selection skips the heading.
     await page.keyboard.press("ArrowDown");
@@ -184,7 +210,10 @@ describe("page", () => {
     const page = await open("use/orders");
     assert.equal((await text(page, ".page-meta .puce.espace")).trim(), "Business");
     assert.equal(await page.locator(".page-meta .puce").first().getAttribute("title"), "For the business");
-    assert.deepEqual((await texts(page, ".ariane a, .ariane span:not(.sep)")).map((x) => x.trim()), ["Home", "Business", "Using Acme Orders", "Getting started"]);
+    assert.deepEqual(
+      (await texts(page, ".ariane a, .ariane span:not(.sep)")).map((x) => x.trim()),
+      ["Home", "Business", "Using Acme Orders", "Getting started"],
+    );
     assert.equal(await page.locator(".ariane a").nth(1).getAttribute("href"), "#/@business");
     const counterpart = page.locator(".pendant a");
     assert.equal((await counterpart.textContent()).trim(), "Same topic, for Takeover: The orders API →");
@@ -207,7 +236,10 @@ describe("home page", () => {
   test("everything: one door per space, then the home page and every journey", async () => {
     const page = await open("@");
     assert.deepEqual(await texts(page, ".portes .porte h2"), ["For the business", "For the takeover team"]);
-    assert.deepEqual(await texts(page, ".portes .porte-pour"), ["Readers: Users, key users, product owners, support", "Readers: Developers, operators, security"]);
+    assert.deepEqual(await texts(page, ".portes .porte-pour"), [
+      "Readers: Users, key users, product owners, support",
+      "Readers: Developers, operators, security",
+    ]);
     assert.deepEqual(await texts(page, ".portes .aller"), ["3 pages ›", "3 pages ›"], "pages of each space");
     assert.equal(await page.locator(".portes .porte").first().getAttribute("href"), "#/@business");
     assert.equal(await page.locator(".parcours .carte-lien").count(), 2);
@@ -227,7 +259,11 @@ describe("home page", () => {
     assert.deepEqual(await texts(page, ".portes .porte h2"), ["Using Acme Orders", "Taking over Acme Orders"]);
     assert.equal(await page.locator(".portes .porte .etiquette").count(), 0);
     assert.equal(await page.locator(".heros .bouton.primaire").getAttribute("href"), "#/take-over");
-    assert.deepEqual(await texts(page, ".portes .aller"), ["1 page ›", "2 pages ›"], "pages of each section in the space");
+    assert.deepEqual(
+      await texts(page, ".portes .aller"),
+      ["1 page ›", "2 pages ›"],
+      "pages of each section in the space",
+    );
     await page.locator(".espace-bandeau a").click();
     await page.waitForTimeout(80);
     assert.equal(await page.locator(".portes .porte").count(), 2);
@@ -254,7 +290,10 @@ describe("exports", () => {
     await page.keyboard.type("architecture");
     await page.waitForTimeout(80);
     // Only the business page whose text names the architecture (its link replaced): no takeover page.
-    assert.deepEqual(await page.locator(".resultat").evaluateAll((rs) => rs.map((r) => r.getAttribute("href").split("~")[0])), ["#/use/orders"]);
+    assert.deepEqual(
+      await page.locator(".resultat").evaluateAll((rs) => rs.map((r) => r.getAttribute("href").split("~")[0])),
+      ["#/use/orders"],
+    );
     await page.context().close();
 
     const takeover = await open("take-over/orders-api", { file: "takeover" });
@@ -284,7 +323,10 @@ describe("accessibility", () => {
         const under = background(node.parentElement);
         return [r * a + under[0] * (1 - a), g * a + under[1] * (1 - a), b * a + under[2] * (1 - a)];
       };
-      const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+      const lum = ([r, g, b]) =>
+        [r, g, b]
+          .map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+          .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
       const [x, y] = [lum(parse(getComputedStyle(el).color).slice(0, 3)), lum(background(el))].sort((p, q) => q - p);
       return (x + 0.05) / (y + 0.05);
     }, selector);
@@ -293,21 +335,29 @@ describe("accessibility", () => {
     test(`contrasts ≥ 4.5 of the selector, the badge, the counterpart, the strip, the doors, the search headings (${colorScheme})`, async () => {
       const page = await open("use/orders", { colorScheme });
       const checks = {};
-      for (const sel of ['#espaces .espace-choix[aria-pressed="true"]', '#espaces .espace-choix[aria-pressed="false"]', ".page-meta .puce.espace", ".pendant a"]) checks[sel] = await contrastOf(page, sel);
+      for (const sel of [
+        '#espaces .espace-choix[aria-pressed="true"]',
+        '#espaces .espace-choix[aria-pressed="false"]',
+        ".page-meta .puce.espace",
+        ".pendant a",
+      ])
+        checks[sel] = await contrastOf(page, sel);
       await page.keyboard.press("Control+k");
       await page.keyboard.type("orders");
       await page.waitForTimeout(80);
       checks[".recherche-groupe"] = await contrastOf(page, ".recherche-groupe");
       await page.keyboard.press("Escape");
       await go(page, "@business");
-      for (const sel of [".espace-bandeau span", ".espace-bandeau a", ".espace-bandeau strong"]) checks[sel] = await contrastOf(page, sel);
+      for (const sel of [".espace-bandeau span", ".espace-bandeau a", ".espace-bandeau strong"])
+        checks[sel] = await contrastOf(page, sel);
       await go(page, "@");
       checks[".porte-pour"] = await contrastOf(page, ".porte-pour");
       await page.context().close();
       const exported = await open("", { file: "business", colorScheme });
       checks[".espace-unique"] = await contrastOf(exported, ".espace-unique");
       await exported.context().close();
-      for (const [sel, ratio] of Object.entries(checks)) assert.ok(ratio >= 4.5, `${colorScheme} ${sel}: ${ratio && ratio.toFixed(2)}`);
+      for (const [sel, ratio] of Object.entries(checks))
+        assert.ok(ratio >= 4.5, `${colorScheme} ${sel}: ${ratio && ratio.toFixed(2)}`);
     });
   }
 
@@ -333,7 +383,11 @@ describe("accessibility", () => {
     assert.ok(await side.isVisible());
     assert.equal(await side.getAttribute("role"), "group");
     assert.equal(await side.getAttribute("aria-label"), "Spaces");
-    assert.deepEqual(await pressed(narrow, "#lateral .espace-choix"), ["Everything:false", "Business:true", "Takeover:false"]);
+    assert.deepEqual(await pressed(narrow, "#lateral .espace-choix"), [
+      "Everything:false",
+      "Business:true",
+      "Takeover:false",
+    ]);
     await narrow.locator("#lateral .espace-choix", { hasText: "Takeover" }).click();
     await narrow.waitForTimeout(80);
     assert.equal(await narrow.evaluate(() => location.hash), "#/@takeover");

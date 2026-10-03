@@ -31,7 +31,12 @@ export function loadPageTemplates(kitRoot = KIT_ROOT) {
       const table = JSON.parse(fs.readFileSync(f, "utf8"));
       table.aliases ??= {};
       const dir = path.join(kitRoot, "standard", "templates");
-      const fragments = fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => x.endsWith(".json")).sort() : [];
+      const fragments = fs.existsSync(dir)
+        ? fs
+            .readdirSync(dir)
+            .filter((x) => x.endsWith(".json"))
+            .sort()
+        : [];
       for (const name of fragments) {
         const fragment = JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"));
         for (const [type, def] of Object.entries(fragment.types || {})) {
@@ -66,7 +71,8 @@ function sectionLabels(table, type, index, language) {
 }
 
 /** Number of sections of a type (the en and fr lists have the same length). */
-export const sectionCount = (table, type) => (table.types[type].sections?.en || Object.values(table.types[type].sections || {})[0] || []).length;
+export const sectionCount = (table, type) =>
+  (table.types[type].sections?.en || Object.values(table.types[type].sections || {})[0] || []).length;
 
 /** Word limit of a page: the `maxWords` of its template, otherwise DEFAULT_MAX_WORDS. */
 export const maxWordsOf = (table, type) => table?.types?.[type]?.maxWords ?? DEFAULT_MAX_WORDS;
@@ -87,7 +93,13 @@ export function headingsOf(source) {
     }
     if (fence) continue;
     const m = /^\s{0,3}#{1,2}[ \t]+(.+?)[ \t]*#*[ \t]*$/.exec(line);
-    if (m) out.push(m[1].replace(/\*\*|__|`/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").trim());
+    if (m)
+      out.push(
+        m[1]
+          .replace(/\*\*|__|`/g, "")
+          .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+          .trim(),
+      );
   }
   return out;
 }
@@ -153,11 +165,35 @@ export function analysePage({ table, type, headings, source = "", language = "en
   const words = countWords(source);
   const guidance = countGuidance(source);
   const def = type ? table?.types?.[type] : undefined;
-  if (!def) return { known: false, sections: 0, present: [], missing: [], conformant: false, completeness: 0, words, maxWords: DEFAULT_MAX_WORDS, guidance };
+  if (!def)
+    return {
+      known: false,
+      sections: 0,
+      present: [],
+      missing: [],
+      conformant: false,
+      completeness: 0,
+      words,
+      maxWords: DEFAULT_MAX_WORDS,
+      guidance,
+    };
   const present = presentSections({ table, type, headings, language });
-  const missing = (def.required || []).filter((i) => !present.includes(i)).map((i) => sectionLabel(table, type, i, language)).filter(Boolean);
+  const missing = (def.required || [])
+    .filter((i) => !present.includes(i))
+    .map((i) => sectionLabel(table, type, i, language))
+    .filter(Boolean);
   const sections = sectionCount(table, type);
-  return { known: true, sections, present, missing, conformant: missing.length === 0, completeness: sections ? present.length / sections : 1, words, maxWords: maxWordsOf(table, type), guidance };
+  return {
+    known: true,
+    sections,
+    present,
+    missing,
+    conformant: missing.length === 0,
+    completeness: sections ? present.length / sections : 1,
+    words,
+    maxWords: maxWordsOf(table, type),
+    guidance,
+  };
 }
 
 /**
@@ -171,13 +207,21 @@ export function checkPage({ pageId, template, headings, source = "", templates, 
   const problems = [];
   if (template && templates?.types) {
     if (!templates.types[template])
-      problems.push({ key: "template.unknown", vars: { page: pageId, template, known: Object.keys(templates.types).join(", ") }, strict: true });
+      problems.push({
+        key: "template.unknown",
+        vars: { page: pageId, template, known: Object.keys(templates.types).join(", ") },
+        strict: true,
+      });
     else
       for (const index of templates.types[template].required || []) {
         const labels = sectionLabels(templates, template, index, language).map(comparable);
         if (!labels.length) continue;
         if (!labels.some((l) => headings.some((h) => comparable(h).startsWith(l))))
-          problems.push({ key: "template.missingSection", vars: { page: pageId, template, section: sectionLabel(templates, template, index, language) }, strict: true });
+          problems.push({
+            key: "template.missingSection",
+            vars: { page: pageId, template, section: sectionLabel(templates, template, index, language) },
+            strict: true,
+          });
       }
   }
   const n = countGuidance(source);
@@ -225,7 +269,12 @@ export function closestTemplate({ table, headings, language = "en" }) {
     const hit = required.filter((i) => present.includes(i)).length;
     if (hit * 2 < required.length || hit === required.length) continue;
     const ratio = hit / required.length;
-    if (!best || ratio > best.ratio) best = { type, ratio, missing: required.filter((i) => !present.includes(i)).map((i) => sectionLabel(table, type, i, language)) };
+    if (!best || ratio > best.ratio)
+      best = {
+        type,
+        ratio,
+        missing: required.filter((i) => !present.includes(i)).map((i) => sectionLabel(table, type, i, language)),
+      };
   }
   return best && { type: best.type, missing: best.missing };
 }

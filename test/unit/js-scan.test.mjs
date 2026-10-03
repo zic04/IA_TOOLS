@@ -32,6 +32,9 @@ describe("js-scan", () => {
     assert.equal(metadataTitle("export const metadata = {\n  /* { */\n  title: 'Acme Orders',\n};"), "Acme Orders");
     // A template literal nested in a substitution: the former export copy ended the outer one at the inner "`".
     const src = 'export default {\n  version: { file: `v${`}`}.txt`, fallback: "0.9.0" },\n};\n';
-    assert.equal(freezeFallback(src, "1.2.0"), 'export default {\n  version: { file: `v${`}`}.txt`, fallback: "1.2.0" },\n};\n');
+    assert.equal(
+      freezeFallback(src, "1.2.0"),
+      'export default {\n  version: { file: `v${`}`}.txt`, fallback: "1.2.0" },\n};\n',
+    );
   });
 });

@@ -46,7 +46,14 @@ export function labelFiles(root, config) {
     }
     return [...out].sort();
   }
-  return [...new Set((config.coverage || []).filter((c) => c.adapter === "i18n-registry").map((c) => c.messages).filter(Boolean))];
+  return [
+    ...new Set(
+      (config.coverage || [])
+        .filter((c) => c.adapter === "i18n-registry")
+        .map((c) => c.messages)
+        .filter(Boolean),
+    ),
+  ];
 }
 
 /** Entries of a flattened message file cited verbatim (2+ characters) by at least one written page. */

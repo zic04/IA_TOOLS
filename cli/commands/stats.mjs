@@ -23,7 +23,8 @@ export function duration(ms) {
 
 export async function run({ ctx, values }) {
   const by = values.by ?? "step";
-  if (!GROUPINGS.includes(by)) throw new KitError(EXIT.USAGE, "option.value", { option: "by", value: by, expected: GROUPINGS.join(" | ") });
+  if (!GROUPINGS.includes(by))
+    throw new KitError(EXIT.USAGE, "option.value", { option: "by", value: by, expected: GROUPINGS.join(" | ") });
   const { project } = await ctx.loadProject();
   const dir = usageFolder(project.root, ctx.env);
   if (!dir) {
@@ -45,14 +46,24 @@ export async function run({ ctx, values }) {
     return EXIT.OK;
   }
   const p = ctx.paint;
-  ctx.print(p.bold(ctx.t("cli.stats.total", { time: duration(report.total.ms), runs: report.total.runs, tokens: report.total.tokens.toLocaleString("en-US") })));
+  ctx.print(
+    p.bold(
+      ctx.t("cli.stats.total", {
+        time: duration(report.total.ms),
+        runs: report.total.runs,
+        tokens: report.total.tokens.toLocaleString("en-US"),
+      }),
+    ),
+  );
   ctx.print(p.dim(ctx.t("cli.stats.header", { by })));
   const width = Math.max(...report.groups.map((g) => g.key.length), 10);
   for (const g of report.groups) {
     const share = `${(g.share * 100).toFixed(0).padStart(3)} %`;
     const bar = "█".repeat(Math.round(g.share * 20));
     const tokens = g.tokens ? `  ${g.tokens.toLocaleString("en-US")} tok` : "";
-    ctx.print(`${(g.key.includes(" › ") ? "  " : "") + g.key.padEnd(width)}  ${duration(g.ms).padStart(10)}  ${share}  ${String(g.count).padStart(4)}×  ${bar}${tokens}`);
+    ctx.print(
+      `${(g.key.includes(" › ") ? "  " : "") + g.key.padEnd(width)}  ${duration(g.ms).padStart(10)}  ${share}  ${String(g.count).padStart(4)}×  ${bar}${tokens}`,
+    );
   }
   return EXIT.OK;
 }

@@ -42,7 +42,14 @@ const DIRECTIVES = {
   changements: "changes",
 };
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
-const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
+const CLAIMS = {
+  verified: "verified",
+  verifie: "verified",
+  deduced: "deduced",
+  deduit: "deduced",
+  unknown: "unknown",
+  inconnu: "unknown",
+};
 /** Canonical claim status → CSS class of the badge. */
 const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
 const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
@@ -76,9 +83,24 @@ const CALLOUTS = {
   mecanisme: "how",
 };
 /** Canonical callout → CSS class (and icon name) of the generated markup. */
-const CALLOUT_CLASSES = { tip: "astuce", warning: "attention", caution: "erreur", permissions: "droits", note: "note", recipe: "recette", how: "mecanisme" };
+const CALLOUT_CLASSES = {
+  tip: "astuce",
+  warning: "attention",
+  caution: "erreur",
+  permissions: "droits",
+  note: "note",
+  recipe: "recette",
+  how: "mecanisme",
+};
 /** French attribute spellings → English. */
-const ATTRIBUTES = { titre: "title", avant: "before", apres: "after", "libelle-avant": "before-label", "libelle-apres": "after-label", colonnes: "columns" };
+const ATTRIBUTES = {
+  titre: "title",
+  avant: "before",
+  apres: "after",
+  "libelle-avant": "before-label",
+  "libelle-apres": "after-label",
+  colonnes: "columns",
+};
 /** Zone side → CSS class suffix of the pin. */
 const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
 
@@ -87,7 +109,9 @@ const alternatives = (table) =>
     .sort((a, b) => b.length - a.length)
     .join("|");
 const RE_DIRECTIVE = new RegExp(`^::(${alternatives(DIRECTIVES)})\\{([^}\\n]*)\\}[ \\t]*(?:\\n+|$)`);
-const RE_CONTAINER = new RegExp(`^:::(${alternatives(CONTAINERS)})(?:\\{([^}\\n]*)\\})?[ \\t]*\\n([\\s\\S]*?)\\n:::[ \\t]*(?:\\n+|$)`);
+const RE_CONTAINER = new RegExp(
+  `^:::(${alternatives(CONTAINERS)})(?:\\{([^}\\n]*)\\})?[ \\t]*\\n([\\s\\S]*?)\\n:::[ \\t]*(?:\\n+|$)`,
+);
 // Lazy content up to the first "]]" not followed by "]": accepts /orders/[id].
 const RE_BADGE = new RegExp(`^\\[\\[(${alternatives(BADGES)})\\s+([^\\n]+?)\\]\\](?!\\])`);
 // Claim badges (§6.9): the text after the kind is optional ([[verified]] alone, or [[verified lib/orders.ts:42]]).
@@ -117,7 +141,20 @@ export function statusColour(c) {
  * @param {Record<string, [string, string]>} [p.statuses]  coloured [[status X]] badges
  * @param {{ images: string, diagrams: string, facts: string }} [p.paths]
  */
-export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" }, usage = [], llm = {}, locale = "en", changes = [] }) {
+export function createMarkdownEngine({
+  captures,
+  exists,
+  read,
+  report,
+  t,
+  icon,
+  statuses = {},
+  paths = { images: "images", diagrams: "diagrams", facts: "facts" },
+  usage = [],
+  llm = {},
+  locale = "en",
+  changes = [],
+}) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
   // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
@@ -125,7 +162,8 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
   const rules = new Map();
   let zoneCount = 0;
   let ctx = null;
-  const signal = (strict, key, vars = {}) => report(strict, { kind: key.split(".")[0], key, vars: { page: ctx?.pageId, ...vars } });
+  const signal = (strict, key, vars = {}) =>
+    report(strict, { kind: key.split(".")[0], key, vars: { page: ctx?.pageId, ...vars } });
   const STATUSES = Object.fromEntries(Object.entries(statuses).map(([k, [c, label]]) => [k, [statusColour(c), label]]));
 
   function captureImage(id, alt) {
@@ -137,7 +175,8 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
         html: `<div class="encadre attention">${icon("attention")}<div class="encadre-corps"><div class="encadre-titre">${esc(t("render.captureToProduce"))}</div><p><code>${esc(id)}</code></p></div></div>`,
       };
     }
-    if (!exists(`${paths.images}/${c.file}`)) signal(true, "capture.fileMissing", { file: `${paths.images}/${c.file}` });
+    if (!exists(`${paths.images}/${c.file}`))
+      signal(true, "capture.fileMissing", { file: `${paths.images}/${c.file}` });
     usedCaptures.add(id);
     ctx.used.images.add(id);
     ctx.captures++;
@@ -152,7 +191,7 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     return (c.zones || [])
       .map(
         (z) =>
-          `<div class="zone${z.side ? " cote-" + (SIDE_CLASSES[z.side] || z.side) : ""}" data-n="${z.n}" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%"><span class="pastille">${z.n}</span></div>`
+          `<div class="zone${z.side ? " cote-" + (SIDE_CLASSES[z.side] || z.side) : ""}" data-n="${z.n}" style="left:${z.x}%;top:${z.y}%;width:${z.w}%;height:${z.h}%"><span class="pastille">${z.n}</span></div>`,
       )
       .join("");
   }
@@ -192,11 +231,17 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
     renderer(tk) {
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
-      if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles") return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles")
+        return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
       // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).
       if (tk.kind === "changes") {
         const version = tk.a.version || null;
-        const sources = tk.a.sources ? tk.a.sources.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const sources = tk.a.sources
+          ? tk.a.sources
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean)
+          : null;
         const html = changes.length ? renderChanges(changes, { t, esc, version, sources }) : "";
         if (!html) {
           signal(false, "changes.empty", { version: version || "—" });
@@ -217,7 +262,12 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
           signal(true, "facts.missing", { source: "db", file: f });
           return "";
         }
-        const only = tk.a.tables ? tk.a.tables.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const only = tk.a.tables
+          ? tk.a.tables
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean)
+          : null;
         const title = tk.a.title || t("render.erd.title");
         const svg = renderErd(data.items, { esc, title, only, more: (n) => t("render.erd.more", { n }) });
         if (!svg) {
@@ -225,7 +275,11 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
           return `<p class="usage-none">${esc(t("render.erd.empty"))}</p>`;
         }
         const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
-        const caption = t("render.facts.caption", { source: "db", date: String(data.generated || "").slice(0, 10) || "—", commit });
+        const caption = t("render.facts.caption", {
+          source: "db",
+          date: String(data.generated || "").slice(0, 10) || "—",
+          commit,
+        });
         return `<figure class="schema erd-figure">${svg}<figcaption>${esc(tk.a.title ? `${tk.a.title} · ${caption}` : caption)}</figcaption></figure>`;
       }
       // Production statistics (ARCHITECTURE.md §6.14): usage/<version>.jsonl, read by the build.
@@ -255,12 +309,20 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
           return "";
         }
         const items = Array.isArray(data.items) ? data.items : [];
-        const requested = tk.a.columns ? tk.a.columns.split(",").map((c) => c.trim()).filter(Boolean) : Object.keys(items[0] || {});
+        const requested = tk.a.columns
+          ? tk.a.columns
+              .split(",")
+              .map((c) => c.trim())
+              .filter(Boolean)
+          : Object.keys(items[0] || {});
         // No items: nothing to validate a column name against (an empty facts file is not a column error).
         const known = new Set(items.flatMap((it) => Object.keys(it)));
-        if (items.length) for (const c of requested) if (!known.has(c)) signal(true, "facts.column", { source, column: c });
+        if (items.length)
+          for (const c of requested) if (!known.has(c)) signal(true, "facts.column", { source, column: c });
         const header = requested.map((c) => `<th>${esc(factsLabel(c))}</th>`).join("");
-        const rows = items.map((it) => `<tr>${requested.map((c) => `<td>${factsCell(it[c])}</td>`).join("")}</tr>`).join("");
+        const rows = items
+          .map((it) => `<tr>${requested.map((c) => `<td>${factsCell(it[c])}</td>`).join("")}</tr>`)
+          .join("");
         const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
         const date = String(data.generated || "").slice(0, 10) || "—";
         const caption = `<caption>${esc(t("render.facts.caption", { source, date, commit }))}</caption>`;
@@ -277,7 +339,9 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
         }
         usedDiagrams.add(tk.a.id);
         ctx.used.diagrams.add(tk.a.id);
-        const svg = read(f).replace(/<\?xml[^>]*>/, "").trim();
+        const svg = read(f)
+          .replace(/<\?xml[^>]*>/, "")
+          .trim();
         return `<figure class="schema">${svg}${tk.a.title ? `<figcaption>${esc(tk.a.title)}</figcaption>` : ""}</figure>`;
       }
       if (tk.kind === "capture") {
@@ -314,7 +378,8 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       return tk;
     },
     renderer(tk) {
-      if (tk.kind === "steps") return this.parser.parse(tk.tokens).replace(/^<ol(?: start="\d+")?>/, '<ol class="etapes">');
+      if (tk.kind === "steps")
+        return this.parser.parse(tk.tokens).replace(/^<ol(?: start="\d+")?>/, '<ol class="etapes">');
       if (tk.kind === "rule") {
         const { id, title } = tk.a;
         const body = this.parser.parse(tk.tokens);
@@ -339,11 +404,15 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       const items = list ? list.items : [];
       if (!img.ok) return img.html;
       const zones = img.c.zones || [];
-      if (items.length !== zones.length) signal(true, "screen.legend", { id, zones: zones.length, items: items.length });
+      if (items.length !== zones.length)
+        signal(true, "screen.legend", { id, zones: zones.length, items: items.length });
       zoneCount += items.length;
       ctx.used.zones += items.length;
       const legend = items
-        .map((it, i) => `<li data-n="${i + 1}"><span class="n">${i + 1}</span><div>${this.parser.parse(it.tokens)}</div></li>`)
+        .map(
+          (it, i) =>
+            `<li data-n="${i + 1}"><span class="n">${i + 1}</span><div>${this.parser.parse(it.tokens)}</div></li>`,
+        )
         .join("");
       return `<figure class="ecran" data-capture="${esc(id)}" data-titre="${esc(tk.a.title || "")}">
       <div class="ecran-barre"><span class="ecran-points"><i></i><i></i><i></i></span><span class="ecran-titre">${esc(tk.a.title || "")}</span>
@@ -367,9 +436,15 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       const v = tk.value;
       // Business space citations (§6.8): the sheet or the rule may not have rendered yet, so a placeholder is left
       // for engine/build/business.mjs (resolveBusinessRefs), once every page has rendered.
-      if (tk.kind === "feature" || tk.kind === "rule") return `<span class="ref-${tk.kind}" data-ref-id="${esc(v)}">${esc(v)}</span>`;
-      if (tk.kind === "key") return v.split("+").map((k) => `<kbd>${esc(k.trim())}</kbd>`).join("+");
-      if (tk.kind === "perm") return `<span class="puce droit" title="${esc(t("render.permission"))}">${icon("droits")}${esc(v)}</span>`;
+      if (tk.kind === "feature" || tk.kind === "rule")
+        return `<span class="ref-${tk.kind}" data-ref-id="${esc(v)}">${esc(v)}</span>`;
+      if (tk.kind === "key")
+        return v
+          .split("+")
+          .map((k) => `<kbd>${esc(k.trim())}</kbd>`)
+          .join("+");
+      if (tk.kind === "perm")
+        return `<span class="puce droit" title="${esc(t("render.permission"))}">${icon("droits")}${esc(v)}</span>`;
       if (tk.kind === "route") return `<span class="puce route">${esc(v)}</span>`;
       if (tk.kind === "status") {
         const [c, label] = STATUSES[v] || ["var(--line-strong)", v];
@@ -435,16 +510,29 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
    * and diagram ids, legend items), so that an export per space recounts its own (engine/build/spaces.mjs).
    */
   function render(source, pageId) {
-    ctx = { pageId, slugs: new Set(), toc: [], links: [], captures: 0, used: { images: new Set(), diagrams: new Set(), zones: 0 } };
+    ctx = {
+      pageId,
+      slugs: new Set(),
+      toc: [],
+      links: [],
+      captures: 0,
+      used: { images: new Set(), diagrams: new Set(), zones: 0 },
+    };
     let html = md.parse(source);
     // A table's own data-generated (set above, ::facts/::faits) is carried onto its wrapping div, so that
     // `check tables` can tell a directive's table apart from one the writer wrote by hand in Markdown.
     html = html
-      .replace(/<table( data-generated="[^"]*")?>/g, (m, generated) => `<div class="tableau"${generated || ""}><table${generated || ""}>`)
+      .replace(
+        /<table( data-generated="[^"]*")?>/g,
+        (m, generated) => `<div class="tableau"${generated || ""}><table${generated || ""}>`,
+      )
       .replace(/<\/table>/g, "</table></div>");
     // Long code (URLs, paths): clean break opportunities after / . _ ? = , (never inside an HTML entity),
     // so that it wraps in a table cell without widening it or crushing the other columns.
-    html = html.replace(/<code>([^<]{28,})<\/code>/g, (m, c) => "<code>" + c.replace(/([/._?=,])(?=\S)/g, "$1<wbr>") + "</code>");
+    html = html.replace(
+      /<code>([^<]{28,})<\/code>/g,
+      (m, c) => "<code>" + c.replace(/([/._?=,])(?=\S)/g, "$1<wbr>") + "</code>",
+    );
     const r = { html, toc: ctx.toc, links: ctx.links, captures: ctx.captures, used: ctx.used };
     ctx = null;
     return r;

@@ -29,7 +29,13 @@ before(() => {
   write("openapi.json", JSON.stringify(OPENAPI3));
   write("swagger.json", JSON.stringify(SWAGGER2));
   write("openapi.yaml", "openapi: 3.0.0\npaths: {}\n");
-  write("features.json", JSON.stringify([{ id: "F-01", title: "Order approval", routes: ["/orders/[id]"] }, { id: "F-02", title: "Exports" }]));
+  write(
+    "features.json",
+    JSON.stringify([
+      { id: "F-01", title: "Order approval", routes: ["/orders/[id]"] },
+      { id: "F-02", title: "Exports" },
+    ]),
+  );
 });
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -39,7 +45,7 @@ async function inventory(spec) {
 }
 
 describe("openapi", () => {
-  test("OpenAPI 3: one item per operation, id \"METHOD /path\", label the summary or operationId", async () => {
+  test('OpenAPI 3: one item per operation, id "METHOD /path", label the summary or operationId', async () => {
     const r = await inventory({ adapter: "openapi", file: "openapi.json" });
     assert.equal(r.available, true);
     assert.equal(r.families[0].name, "API");
@@ -47,7 +53,12 @@ describe("openapi", () => {
     assert.equal(byId["GET /orders/{id}"].label, "Read an order");
     assert.equal(byId["PUT /orders/{id}"].label, "updateOrder");
     assert.ok(!("label" in byId["GET /orders"]));
-    assert.deepEqual(byId["GET /orders/{id}"].match, ["GET /orders/{id}", "GET /orders/:id", "GET /orders/[id]", "GET /orders/"]);
+    assert.deepEqual(byId["GET /orders/{id}"].match, [
+      "GET /orders/{id}",
+      "GET /orders/:id",
+      "GET /orders/[id]",
+      "GET /orders/",
+    ]);
   });
 
   test("Swagger 2: the same shape", async () => {
@@ -56,18 +67,30 @@ describe("openapi", () => {
     assert.equal(r.families[0].items.find((i) => i.id === "GET /orders/{id}").label, "Read an order (v2)");
   });
 
-  test("a YAML document: unavailable with reason \"yaml\", never parsed", async () => {
-    assert.deepEqual(await inventory({ adapter: "openapi", file: "openapi.yaml" }), { available: false, reason: "yaml" });
+  test('a YAML document: unavailable with reason "yaml", never parsed', async () => {
+    assert.deepEqual(await inventory({ adapter: "openapi", file: "openapi.yaml" }), {
+      available: false,
+      reason: "yaml",
+    });
   });
 
   test("prefix and exclude", async () => {
-    const r = await inventory({ adapter: "openapi", file: "openapi.json", prefix: "/api", exclude: ["^GET /api/orders$"] });
+    const r = await inventory({
+      adapter: "openapi",
+      file: "openapi.json",
+      prefix: "/api",
+      exclude: ["^GET /api/orders$"],
+    });
     const ids = r.families[0].items.map((i) => i.id);
     assert.deepEqual(ids.sort(), ["GET /api/orders/{id}", "PUT /api/orders/{id}"]);
   });
 
-  test("a missing file: unavailable with reason \"notFound\"", async () => {
-    assert.deepEqual(await inventory({ adapter: "openapi", file: "nope.json" }), { available: false, reason: "notFound", vars: { path: "nope.json" } });
+  test('a missing file: unavailable with reason "notFound"', async () => {
+    assert.deepEqual(await inventory({ adapter: "openapi", file: "nope.json" }), {
+      available: false,
+      reason: "notFound",
+      vars: { path: "nope.json" },
+    });
   });
 });
 
@@ -77,17 +100,27 @@ describe("features", () => {
     assert.equal(r.families[0].name, "Features");
     assert.deepEqual(
       r.families[0].items.map((i) => ({ id: i.id, label: i.label, match: i.match })),
-      [{ id: "F-01", label: "Order approval", match: ["F-01"] }, { id: "F-02", label: "Exports", match: ["F-02"] }]
+      [
+        { id: "F-01", label: "Order approval", match: ["F-01"] },
+        { id: "F-02", label: "Exports", match: ["F-02"] },
+      ],
     );
   });
 
-  test("another file, default \"features.json\" otherwise", async () => {
+  test('another file, default "features.json" otherwise', async () => {
     write("other-features.json", JSON.stringify([{ id: "F-09" }]));
     const r = await inventory({ adapter: "features", file: "other-features.json" });
-    assert.deepEqual(r.families[0].items.map((i) => i.id), ["F-09"]);
+    assert.deepEqual(
+      r.families[0].items.map((i) => i.id),
+      ["F-09"],
+    );
   });
 
-  test("a missing file: unavailable with reason \"notFound\"", async () => {
-    assert.deepEqual(await inventory({ adapter: "features", file: "nope.json" }), { available: false, reason: "notFound", vars: { path: "nope.json" } });
+  test('a missing file: unavailable with reason "notFound"', async () => {
+    assert.deepEqual(await inventory({ adapter: "features", file: "nope.json" }), {
+      available: false,
+      reason: "notFound",
+      vars: { path: "nope.json" },
+    });
   });
 });

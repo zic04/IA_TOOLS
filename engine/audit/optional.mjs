@@ -46,19 +46,26 @@ export async function measureCoverage({ project, config }) {
 /** Normalises a coverage result (see measureCoverage). Exported for the tests. */
 export function readCoverage(r) {
   if (!r || typeof r !== "object" || r.available === false) return { measured: false, reason: "noAdapter" };
-  const counted = (n, total, missing = []) => (total > 0 ? { measured: true, n, total, missing } : { measured: false, reason: "noAdapter" });
+  const counted = (n, total, missing = []) =>
+    total > 0 ? { measured: true, n, total, missing } : { measured: false, reason: "noAdapter" };
   const groups = [r, ...(Array.isArray(r.adapters) ? r.adapters : [])].filter((g) => g && g.available !== false);
   const items = groups.flatMap((g) => (Array.isArray(g.families) ? g.families : []).flatMap((f) => f.items || []));
   if (items.length) {
     const uncovered = items.filter((i) => !(i.covered ?? i.cited));
-    const out = counted(items.length - uncovered.length, items.length, uncovered.map((i) => String(i.id ?? "?")));
+    const out = counted(
+      items.length - uncovered.length,
+      items.length,
+      uncovered.map((i) => String(i.id ?? "?")),
+    );
     // What the plan promises: the elements cited only by the entry of a page declared but not written yet.
     const planned = uncovered.filter((i) => i.plannedBy).map((i) => [String(i.id ?? "?"), String(i.plannedBy)]);
-    if (out.measured && planned.length) Object.assign(out, { planned: out.n + planned.length, plannedBy: Object.fromEntries(planned) });
+    if (out.measured && planned.length)
+      Object.assign(out, { planned: out.n + planned.length, plannedBy: Object.fromEntries(planned) });
     return out;
   }
   const covered = r.covered ?? r.cited;
-  if (typeof covered === "number" && typeof r.total === "number") return counted(covered, r.total, Array.isArray(r.missing) ? r.missing.map(String) : []);
+  if (typeof covered === "number" && typeof r.total === "number")
+    return counted(covered, r.total, Array.isArray(r.missing) ? r.missing.map(String) : []);
   return { measured: false, reason: Array.isArray(r.adapters) ? "noAdapter" : "format" };
 }
 
@@ -72,8 +79,16 @@ export async function measureSecrets({ project, config, data, env = process.env 
     const secrets = await optionalModule("engine/check/secrets.mjs");
     const session = await optionalModule("engine/capture/session.mjs");
     if (!isFn(secrets?.checkSecrets) || !isFn(session?.sessionFile)) return { measured: false, reason: "unavailable" };
-    const r = secrets.checkSecrets({ root: project.root, config, data, session: session.sessionFile(project.root, config, env) });
-    return { measured: true, findings: (r.findings || []).map((f) => ({ where: String(f.where ?? ""), kind: String(f.kind ?? "") })) };
+    const r = secrets.checkSecrets({
+      root: project.root,
+      config,
+      data,
+      session: session.sessionFile(project.root, config, env),
+    });
+    return {
+      measured: true,
+      findings: (r.findings || []).map((f) => ({ where: String(f.where ?? ""), kind: String(f.kind ?? "") })),
+    };
   } catch (e) {
     return { measured: false, reason: "error", error: e.message };
   }

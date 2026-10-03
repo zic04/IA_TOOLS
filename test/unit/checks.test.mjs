@@ -8,13 +8,25 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { checkImages, embeddedCaptures } from "../../engine/check/images.mjs";
-import { scanText, detectors, redact, isStorageState, isLocalAddress, isUrlTemplate, ignoreRules } from "../../engine/check/secrets.mjs";
+import {
+  scanText,
+  detectors,
+  redact,
+  isStorageState,
+  isLocalAddress,
+  isUrlTemplate,
+  ignoreRules,
+} from "../../engine/check/secrets.mjs";
 import { DEMO, demoCopy } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { ...env } });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: { ...env },
+  });
   return { code, out, err };
 }
 
@@ -40,9 +52,22 @@ const rm = (dir) => fs.rmSync(dir, { recursive: true, force: true });
 
 describe("check coverage and inventory", () => {
   test("per family n/N and the missing items, exit code 1; inventory lists what the adapters see", async () => {
-    const dir = await project((c) => ({ ...c, coverage: [{ adapter: "next-app-router", app: "app" }, { adapter: "glob", family: "Specs", base: "specs", pattern: "*.md" }, { adapter: "react-router", file: "nope.tsx" }] }));
+    const dir = await project((c) => ({
+      ...c,
+      coverage: [
+        { adapter: "next-app-router", app: "app" },
+        { adapter: "glob", family: "Specs", base: "specs", pattern: "*.md" },
+        { adapter: "react-router", file: "nope.tsx" },
+      ],
+    }));
     try {
-      for (const p of ["app/orders/page.tsx", "app/settings/page.tsx", "app/(admin)/audit/page.tsx", "app/orders/[id]/page.tsx"]) write(dir, p, "x");
+      for (const p of [
+        "app/orders/page.tsx",
+        "app/settings/page.tsx",
+        "app/(admin)/audit/page.tsx",
+        "app/orders/[id]/page.tsx",
+      ])
+        write(dir, p, "x");
       write(dir, "specs/refunds.md", "x");
       const r = await cli(["check", "coverage", "--project", dir]);
       assert.equal(r.code, 1);
@@ -54,7 +79,10 @@ describe("check coverage and inventory", () => {
       assert.match(r.out, /3\/5 elements covered\.\n$/);
       assert.match(r.err, /→ cite each missing element/);
 
-      fs.appendFileSync(path.join(dir, "content/use/settings.md"), "\nAudit: [[route /audit]]; one order: /orders/:id; refunds.\n");
+      fs.appendFileSync(
+        path.join(dir, "content/use/settings.md"),
+        "\nAudit: [[route /audit]]; one order: /orders/:id; refunds.\n",
+      );
       const ok = await cli(["check", "coverage", "--project", dir]);
       assert.equal(ok.code, 0, ok.out + ok.err);
       assert.match(ok.out, /✔ Routes: 4\/4/);
@@ -62,8 +90,18 @@ describe("check coverage and inventory", () => {
       const inv = await cli(["inventory", "--project", dir, "--json"]);
       assert.equal(inv.code, 0);
       const j = JSON.parse(inv.out);
-      assert.deepEqual(j.adapters.map((a) => [a.adapter, a.available]), [["next-app-router", true], ["glob", true], ["react-router", false]]);
-      assert.deepEqual(j.adapters[0].families[0].items.map((i) => i.id), ["/audit", "/orders", "/orders/[id]", "/settings"]);
+      assert.deepEqual(
+        j.adapters.map((a) => [a.adapter, a.available]),
+        [
+          ["next-app-router", true],
+          ["glob", true],
+          ["react-router", false],
+        ],
+      );
+      assert.deepEqual(
+        j.adapters[0].families[0].items.map((i) => i.id),
+        ["/audit", "/orders", "/orders/[id]", "/settings"],
+      );
       const text = await cli(["inventory", "--project", dir, "--lang", "fr"]);
       assert.match(text.out, /next-app-router › Routes : 4 éléments, 4 déjà cité\(s\)\n {2}✔ \/audit\n/);
     } finally {
@@ -85,16 +123,33 @@ describe("check coverage and inventory", () => {
       // A new page declared with routes, still a template; another page cites a route in a guidance-filled page.
       const tocFile = path.join(dir, "content", "toc.json");
       const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
-      toc.sections[0].groups[0].pages.push({ id: "use/reports", title: "Reports", template: "screen", routes: ["/reports"] });
+      toc.sections[0].groups[0].pages.push({
+        id: "use/reports",
+        title: "Reports",
+        template: "screen",
+        routes: ["/reports"],
+      });
       fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
-      write(dir, "content/use/reports.md", "## What it is for\n\n<!-- guidance: the business need. -->\n\nThe exports are in [[route /exports]].\n");
+      write(
+        dir,
+        "content/use/reports.md",
+        "## What it is for\n\n<!-- guidance: the business need. -->\n\nThe exports are in [[route /exports]].\n",
+      );
       const covered = async () => {
         const j = JSON.parse((await cli(["inventory", "--project", dir, "--json"])).out);
         return Object.fromEntries(j.adapters[0].families[0].items.map((i) => [i.id, i.covered]));
       };
-      assert.deepEqual(await covered(), { "/exports": false, "/reports": false }, "the template's examples cover nothing");
+      assert.deepEqual(
+        await covered(),
+        { "/exports": false, "/reports": false },
+        "the template's examples cover nothing",
+      );
       write(dir, "content/use/reports.md", "## What it is for\n\nThe exports are in [[route /exports]].\n");
-      assert.deepEqual(await covered(), { "/exports": true, "/reports": true }, "once written, its text and its routes count");
+      assert.deepEqual(
+        await covered(),
+        { "/exports": true, "/reports": true },
+        "once written, its text and its routes count",
+      );
     } finally {
       rm(dir);
     }
@@ -106,15 +161,26 @@ describe("check coverage and inventory", () => {
       write(dir, "app/reports/page.tsx", "x");
       const tocFile = path.join(dir, "content", "toc.json");
       const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
-      toc.sections[0].groups[0].pages.push({ id: "use/reports", title: "Reports", template: "screen", routes: ["/reports"] });
+      toc.sections[0].groups[0].pages.push({
+        id: "use/reports",
+        title: "Reports",
+        template: "screen",
+        routes: ["/reports"],
+      });
       fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
       const j = JSON.parse((await cli(["inventory", "--project", dir, "--json"])).out);
-      assert.deepEqual(j.adapters[0].families[0].items.find((i) => i.id === "/reports"), { id: "/reports", match: ["/reports"], covered: false, plannedBy: "use/reports" });
+      assert.deepEqual(
+        j.adapters[0].families[0].items.find((i) => i.id === "/reports"),
+        { id: "/reports", match: ["/reports"], covered: false, plannedBy: "use/reports" },
+      );
       assert.deepEqual([j.covered, j.planned, j.total], [0, 1, 1]);
       const r = await cli(["check", "coverage", "--project", dir, "--lang", "fr"]);
       assert.equal(r.code, 1);
       assert.match(r.out, / {4}manque : \/reports — prévu dans use\/reports, pas encore écrite\n/);
-      assert.match(r.out, /0\/1 élément couvert\.\n {2}1 élément de plus n'est cité que par l'entrée d'une page pas encore écrite \(1\/1 une fois écrite\)\n/);
+      assert.match(
+        r.out,
+        /0\/1 élément couvert\.\n {2}1 élément de plus n'est cité que par l'entrée d'une page pas encore écrite \(1\/1 une fois écrite\)\n/,
+      );
     } finally {
       rm(dir);
     }
@@ -145,7 +211,10 @@ describe("check images", () => {
       assert.match(r.err, /✖ zone file without its image: images\/zones\/gone\.json \(expects images\/gone\.webp\)/);
       assert.match(r.err, /✖ \[use\/orders\/detail\] screenshot not found: “nowhere”/);
       assert.match(r.err, /⚠ heavy image: images\/orders-list\.webp \(\d+ KB, threshold 0\.001 KB\)/);
-      assert.match(r.err, /⚠ images\/zones\/orders-list\.json: captured on version 1\.3\.0, the application is at version 1\.4\.0/);
+      assert.match(
+        r.err,
+        /⚠ images\/zones\/orders-list\.json: captured on version 1\.3\.0, the application is at version 1\.4\.0/,
+      );
       assert.match(r.err, /3 images checked \(2 cited\) — 3 errors, 4 warnings\./);
       assert.equal((await cli(["check", "images", "--project", dir, "--threshold", "0"])).code, 2);
     } finally {
@@ -154,8 +223,21 @@ describe("check images", () => {
   });
 
   test("embedded captures are read from the image blocks only", () => {
-    assert.deepEqual([...embeddedCaptures('<script type="text/plain" id="img-a&amp;b">data:x</script> id="img-ID"> <script type="text/plain" id="img-ID"> (comment)')], ["a&b"]);
-    const r = checkImages({ root: DEMO, config: { paths: { images: "images" } }, html: "", warnings: [], version: "1.4.0" });
+    assert.deepEqual(
+      [
+        ...embeddedCaptures(
+          '<script type="text/plain" id="img-a&amp;b">data:x</script> id="img-ID"> <script type="text/plain" id="img-ID"> (comment)',
+        ),
+      ],
+      ["a&b"],
+    );
+    const r = checkImages({
+      root: DEMO,
+      config: { paths: { images: "images" } },
+      html: "",
+      warnings: [],
+      version: "1.4.0",
+    });
     assert.equal(r.errors.filter((e) => e.key === "check.images.orphan").length, 2);
   });
 });
@@ -165,15 +247,24 @@ describe("check secrets", () => {
     const r = await cli(["check", "secrets", "--project", DEMO]);
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /^✔ No secret found \(\d+ source files, \d+ places of the site\)\.\n$/);
-    assert.match((await cli(["check", "secrets", "--project", DEMO, "--lang", "fr"])).out, /^✔ Aucun secret trouvé \(\d+ fichiers sources, \d+ emplacements du site\)\.\n$/);
+    assert.match(
+      (await cli(["check", "secrets", "--project", DEMO, "--lang", "fr"])).out,
+      /^✔ Aucun secret trouvé \(\d+ fichiers sources, \d+ emplacements du site\)\.\n$/,
+    );
   });
 
   test(".env values, GUIDs, patterns, tokens in the sources and the site; the value itself is never printed", async () => {
     const dir = await project((c) => ({ ...c, masking: { env: ["app.env"], patterns: ["ACME-\\d{6}"] } }));
     try {
       write(dir, "app.env", "API_URL=https://orders.internal.example/api\nPORT=3000\n");
-      fs.appendFileSync(path.join(dir, "content/use/settings.md"), "\nThe API is https://orders.internal.example/api; tenant 7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f; nil 00000000-0000-0000-0000-000000000000.\n");
-      fs.appendFileSync(path.join(dir, "content/use/orders.md"), "\nLicence ACME-123456. api_key: abcdefghijklmnop1234\n");
+      fs.appendFileSync(
+        path.join(dir, "content/use/settings.md"),
+        "\nThe API is https://orders.internal.example/api; tenant 7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f; nil 00000000-0000-0000-0000-000000000000.\n",
+      );
+      fs.appendFileSync(
+        path.join(dir, "content/use/orders.md"),
+        "\nLicence ACME-123456. api_key: abcdefghijklmnop1234\n",
+      );
       const r = await cli(["check", "secrets", "--project", dir]);
       assert.equal(r.code, 1);
       assert.match(r.err, /✖ content\/use\/settings\.md:\d+: value of API_URL \(app\.env\) \(http… \(35\)\)/);
@@ -194,10 +285,19 @@ describe("check secrets", () => {
     const publicKey = ["AI", "za", "SyDemoPublicMapKey".padEnd(35, "0")].join("");
     const dir = await project((c) => ({
       ...c,
-      masking: { env: ["app.env"], exclude: "^ACME-0+$", patterns: ["ACME-\\d{6}"], allow: [`^${publicKey}$`, "^7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f$"] },
+      masking: {
+        env: ["app.env"],
+        exclude: "^ACME-0+$",
+        patterns: ["ACME-\\d{6}"],
+        allow: [`^${publicKey}$`, "^7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f$"],
+      },
     }));
     try {
-      write(dir, "app.env", "API_HOST=0.0.0.0\nDB_HOST=192.168.10.20:5432\nCACHE_URL=http://[::1]:6379\nTILES_URL=https://tiles.example.org/{z}/{x}/{y}.png?key=pk.demo42\nAPI_URL=https://orders.internal.example/api\n");
+      write(
+        dir,
+        "app.env",
+        "API_HOST=0.0.0.0\nDB_HOST=192.168.10.20:5432\nCACHE_URL=http://[::1]:6379\nTILES_URL=https://tiles.example.org/{z}/{x}/{y}.png?key=pk.demo42\nAPI_URL=https://orders.internal.example/api\n",
+      );
       fs.appendFileSync(
         path.join(dir, "content/use/settings.md"),
         [
@@ -208,19 +308,30 @@ describe("check secrets", () => {
           "| `DB_HOST` | `192.168.10.20:5432` |",
           "| `CACHE_URL` | `http://[::1]:6379` |",
           "",
-          "Tiles: `https://tiles.example.org/{z}/{x}/{y}.png?key=pk.demo42`, or `https://maps.example.org/{z}/{x}/{y}.png?key=" + publicKey + "`.",
+          "Tiles: `https://tiles.example.org/{z}/{x}/{y}.png?key=pk.demo42`, or `https://maps.example.org/{z}/{x}/{y}.png?key=" +
+            publicKey +
+            "`.",
           `Public map key, documented by its provider: ${publicKey}. Public tenant: 7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f.`,
           "Licences ACME-000000 (none) and ACME-123456. Other tenant 1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d.",
           "API: https://orders.internal.example/api. Database: postgres://app:pa55word@10.0.0.5/orders.",
           "",
-        ].join("\n")
+        ].join("\n"),
       );
       const r = await cli(["check", "secrets", "--project", dir, "--json"]);
       assert.equal(r.code, 1, r.err);
       const res = JSON.parse(r.out).secrets;
       const sources = res.findings.filter((f) => !f.where.startsWith("site"));
-      assert.deepEqual(sources.map((f) => f.kind + (f.key ? `:${f.key}` : "")).sort(), ["credentialsUrl", "env:API_URL", "guid", "pattern"]);
-      assert.deepEqual(res.ignored, { local: 6, template: 4, exclude: 2, allow: 4 }, "each one in the sources and in the site");
+      assert.deepEqual(sources.map((f) => f.kind + (f.key ? `:${f.key}` : "")).sort(), [
+        "credentialsUrl",
+        "env:API_URL",
+        "guid",
+        "pattern",
+      ]);
+      assert.deepEqual(
+        res.ignored,
+        { local: 6, template: 4, exclude: 2, allow: 4 },
+        "each one in the sources and in the site",
+      );
       assert.doesNotMatch(r.out, /orders\.internal\.example|pa55word|1b2c3d4e/);
     } finally {
       rm(dir);
@@ -236,9 +347,33 @@ describe("check secrets", () => {
   });
 
   test("local addresses and URL templates", () => {
-    for (const v of ["0.0.0.0", "0.0.0.0:8000", "::", "::1", "[::1]:6379", "localhost:3000", "127.0.0.1", "10.1.2.3", "172.20.0.4:5432", "192.168.1.10", "169.254.169.254", "10.0.0.0/8", "http://0.0.0.0:8000/api", "https://192.168.1.10/admin"])
+    for (const v of [
+      "0.0.0.0",
+      "0.0.0.0:8000",
+      "::",
+      "::1",
+      "[::1]:6379",
+      "localhost:3000",
+      "127.0.0.1",
+      "10.1.2.3",
+      "172.20.0.4:5432",
+      "192.168.1.10",
+      "169.254.169.254",
+      "10.0.0.0/8",
+      "http://0.0.0.0:8000/api",
+      "https://192.168.1.10/admin",
+    ])
       assert.ok(isLocalAddress(v), v);
-    for (const v of ["8.8.8.8", "172.32.0.1", "192.169.0.1", "https://orders.internal.example/api", "postgres://app:pw@10.0.0.5/x", "0.0.0.0.example.org", "10.0.0.5.nip.io", ""])
+    for (const v of [
+      "8.8.8.8",
+      "172.32.0.1",
+      "192.169.0.1",
+      "https://orders.internal.example/api",
+      "postgres://app:pw@10.0.0.5/x",
+      "0.0.0.0.example.org",
+      "10.0.0.5.nip.io",
+      "",
+    ])
       assert.ok(!isLocalAddress(v), v);
     assert.ok(isUrlTemplate("https://tiles.example.org/{z}/{x}/{y}.png?key=abc"));
     assert.ok(isUrlTemplate("url=https://a.example.org/wmts?TILEMATRIX={z}&TILEROW={y}"));
@@ -249,7 +384,10 @@ describe("check secrets", () => {
     assert.equal(rules("dev.localhost.example"), "exclude");
     assert.equal(rules("pk.public"), "allow");
     assert.equal(rules("pk.public2"), null);
-    assert.throws(() => ignoreRules({ allow: ["["] }), (e) => e.code === 2 && e.details[0].path === "masking.allow[0]");
+    assert.throws(
+      () => ignoreRules({ allow: ["["] }),
+      (e) => e.code === 2 && e.details[0].path === "masking.allow[0]",
+    );
   });
 
   test("a session file outside the session folder is reported", async () => {
@@ -259,7 +397,10 @@ describe("check secrets", () => {
       write(dir, ".doc-kit/session.json", JSON.stringify({ cookies: [], origins: [] }));
       const r = await cli(["check", "secrets", "--project", dir]);
       assert.equal(r.code, 1);
-      assert.match(r.err, /✖ session file outside the session folder: old-session\.json\n {2}→ delete it: .*connect keeps it in \.doc-kit\//);
+      assert.match(
+        r.err,
+        /✖ session file outside the session folder: old-session\.json\n {2}→ delete it: .*connect keeps it in \.doc-kit\//,
+      );
       assert.doesNotMatch(r.err, /\.doc-kit\/session\.json/);
     } finally {
       rm(dir);
@@ -270,19 +411,41 @@ describe("check secrets", () => {
     const list = detectors(DEMO, { env: [], exclude: null, guid: true, patterns: [] });
     const kinds = (t) => scanText(t, list).map((f) => f.kind);
     // A page that explains the format of a key: header lines, an elided body, no key material.
-    assert.deepEqual(kinds("The file starts with `-----BEGIN PRIVATE KEY-----` and ends with `-----END PRIVATE KEY-----`."), []);
+    assert.deepEqual(
+      kinds("The file starts with `-----BEGIN PRIVATE KEY-----` and ends with `-----END PRIVATE KEY-----`."),
+      [],
+    );
     assert.deepEqual(kinds("```\n-----BEGIN PRIVATE KEY-----\nMIIEvQ...\n-----END PRIVATE KEY-----\n```"), []);
     assert.deepEqual(kinds("-----BEGIN RSA PRIVATE KEY-----\n-----END RSA PRIVATE KEY-----"), []);
     // A block holding base64 material (random, fictional) is a secret, encrypted headers included.
     const material = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3";
-    assert.deepEqual(kinds(`-----BEGIN PRIVATE KEY-----\n${material}\n${material.slice(0, 20)}==\n-----END PRIVATE KEY-----`), ["privateKey"]);
-    assert.deepEqual(kinds(`-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n\n${material}\n-----END RSA PRIVATE KEY-----`), ["privateKey"]);
-    assert.deepEqual(kinds(`-----BEGIN EC PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n${material}\n-----END EC PRIVATE KEY-----`), ["privateKey"]);
+    assert.deepEqual(
+      kinds(`-----BEGIN PRIVATE KEY-----\n${material}\n${material.slice(0, 20)}==\n-----END PRIVATE KEY-----`),
+      ["privateKey"],
+    );
+    assert.deepEqual(
+      kinds(`-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n\n${material}\n-----END RSA PRIVATE KEY-----`),
+      ["privateKey"],
+    );
+    assert.deepEqual(
+      kinds(`-----BEGIN EC PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n${material}\n-----END EC PRIVATE KEY-----`),
+      ["privateKey"],
+    );
     // Placeholders and names of variables.
-    assert.deepEqual(kinds("client_secret = AZURE_CLIENT_SECRET · token: process.env.API_TOKEN_VALUE · Password=<secret> · Password=******** · api_key: your-api-key-goes-here"), []);
+    assert.deepEqual(
+      kinds(
+        "client_secret = AZURE_CLIENT_SECRET · token: process.env.API_TOKEN_VALUE · Password=<secret> · Password=******** · api_key: your-api-key-goes-here",
+      ),
+      [],
+    );
     assert.deepEqual(kinds("postgres://app:password@db.example.org/x · https://user:${PASS}@host"), []);
     // French placeholders (the kit documents projects in English and French).
-    assert.deepEqual(kinds("postgresql://utilisateur:motdepasse@hote:5432/base · Password=mot_de_passe · https://u:VotreSecret@exemple.org"), []);
+    assert.deepEqual(
+      kinds(
+        "postgresql://utilisateur:motdepasse@hote:5432/base · Password=mot_de_passe · https://u:VotreSecret@exemple.org",
+      ),
+      [],
+    );
     assert.deepEqual(kinds("api_key: aaaaaaaaaaaaaaaaaaaa"), []);
   });
 
@@ -294,10 +457,15 @@ describe("check secrets", () => {
     assert.deepEqual(kinds("postgres://app:pa55word@db.example.org/x"), ["credentialsUrl"]);
     assert.deepEqual(kinds("AKIAABCDEFGHIJKLMNOP"), ["cloudKey"]);
     assert.deepEqual(kinds("https://x.example.org/f?sv=1&sig=abcdefghijklmnopqrstuvwxyz"), ["signedUrl"]);
-    assert.deepEqual(kinds("password: (masked) · Password=<your password> · postgresql://<user>:<password>@<host>"), []);
+    assert.deepEqual(
+      kinds("password: (masked) · Password=<your password> · postgresql://<user>:<password>@<host>"),
+      [],
+    );
     assert.equal(scanText("a\nb\n7d3c5a1e-9b2f-4c6d-8e1a-2f3b4c5d6e7f", list)[0].line, 3);
     assert.equal(redact("https://orders.internal.example/api"), "http… (35)");
-    assert.ok(isStorageState('{"cookies":[],"origins":[]}') && !isStorageState('{"cookies":[]}') && !isStorageState("x"));
+    assert.ok(
+      isStorageState('{"cookies":[],"origins":[]}') && !isStorageState('{"cookies":[]}') && !isStorageState("x"),
+    );
   });
 });
 
@@ -334,10 +502,16 @@ describe("commands that stop before opening a browser", () => {
       write(dir, "captures/plans/a.mjs", 'export const CAPTURES = [{ id: "a-orders", route: "/orders" }];');
       let r = await cli(["capture", "--project", dir]);
       assert.equal(r.code, 2);
-      assert.match(r.err, /^✖ this documentation takes no screenshot \(capture\.mode: "none" in doc\.config\.mjs\): each screen is described by a table of its elements\n {2}→ to capture the application, set capture\.mode: "app" in doc\.config\.mjs, then doc-kit connect and doc-kit capture\n$/);
+      assert.match(
+        r.err,
+        /^✖ this documentation takes no screenshot \(capture\.mode: "none" in doc\.config\.mjs\): each screen is described by a table of its elements\n {2}→ to capture the application, set capture\.mode: "app" in doc\.config\.mjs, then doc-kit connect and doc-kit capture\n$/,
+      );
       r = await cli(["connect", "--project", dir, "--lang", "fr"]);
       assert.equal(r.code, 2);
-      assert.match(r.err, /^✖ cette documentation ne prend aucune capture \(capture\.mode : "none" dans doc\.config\.mjs\) : pas de session à ouvrir\n/);
+      assert.match(
+        r.err,
+        /^✖ cette documentation ne prend aucune capture \(capture\.mode : "none" dans doc\.config\.mjs\) : pas de session à ouvrir\n/,
+      );
       write(dir, ".doc-kit/session.json", "{}");
       r = await cli(["connect", "--forget", "--project", dir]);
       assert.equal(r.code, 0);
@@ -348,21 +522,38 @@ describe("commands that stop before opening a browser", () => {
   });
 
   test("capture: no session → exit code 3; forbidden route → exit code 1 before anything opens; unknown pattern, plans, context → 2", async () => {
-    const dir = await project((c) => ({ ...c, app: { url: "http://127.0.0.1:9" }, capture: { forbidden: ["^/settings$"] } }));
+    const dir = await project((c) => ({
+      ...c,
+      app: { url: "http://127.0.0.1:9" },
+      capture: { forbidden: ["^/settings$"] },
+    }));
     try {
-      write(dir, "captures/plans/a.mjs", 'export const CAPTURES = [{ id: "a-orders", route: "/orders" }, { id: "a-settings", route: "/settings?tab=1" }, { id: "b-tall", route: "/x", context: "tablet" }];');
+      write(
+        dir,
+        "captures/plans/a.mjs",
+        'export const CAPTURES = [{ id: "a-orders", route: "/orders" }, { id: "a-settings", route: "/settings?tab=1" }, { id: "b-tall", route: "/x", context: "tablet" }];',
+      );
       let r = await cli(["capture", "a-orders", "--project", dir]);
       assert.equal(r.code, 3);
-      assert.match(r.err, /✖ no session: .*session\.json\n {2}→ sign in with doc-kit connect; for a public application/);
+      assert.match(
+        r.err,
+        /✖ no session: .*session\.json\n {2}→ sign in with doc-kit connect; for a public application/,
+      );
       r = await cli(["capture", "a-*", "--project", dir, "--no-session"]);
       assert.equal(r.code, 1);
-      assert.match(r.err, /✖ a-settings: the route \/settings\?tab=1 is forbidden \(capture\.forbidden: \^\/settings\$\)\n {2}→ a write made by the server while it renders a page cannot be blocked by the browser/);
+      assert.match(
+        r.err,
+        /✖ a-settings: the route \/settings\?tab=1 is forbidden \(capture\.forbidden: \^\/settings\$\)\n {2}→ a write made by the server while it renders a page cannot be blocked by the browser/,
+      );
       r = await cli(["capture", "zzz-*", "--project", dir]);
       assert.equal(r.code, 2);
       assert.match(r.err, /no capture matches “zzz-\*” \(3 in the plans\)/);
       r = await cli(["capture", "b-*", "--project", dir]);
       assert.equal(r.code, 2);
-      assert.match(r.err, /b-tall: unknown context “tablet”\n {2}→ known contexts \(capture\.viewports\): desktop, mobile/);
+      assert.match(
+        r.err,
+        /b-tall: unknown context “tablet”\n {2}→ known contexts \(capture\.viewports\): desktop, mobile/,
+      );
       r = await cli(["capture", "--project", dir, "--plans", "captures/nope"]);
       assert.equal(r.code, 2);
       assert.match(r.err, /plans folder not found: captures\/nope/);
@@ -371,12 +562,26 @@ describe("commands that stop before opening a browser", () => {
       assert.equal(r.code, 2);
       assert.match(r.err, /duplicate capture id “a-orders” \(a\.mjs and c\.mjs\)/);
       // Invalid entries: all of them, in every file, each one named by file › id (index) › path.
-      write(dir, "captures/plans/c.mjs", 'export const CAPTURES = [{ id: "c-ok", route: "/" }, { id: "c-bad", route: "/", zones: [{ css: "a", margn: 2 }] }];');
-      write(dir, "captures/plans/d.mjs", 'export const CAPTURES = [{ id: "d-bad", route: "/", actions: [{ wheel: { x: 1, y: 1, direction: 0 } }] }];');
+      write(
+        dir,
+        "captures/plans/c.mjs",
+        'export const CAPTURES = [{ id: "c-ok", route: "/" }, { id: "c-bad", route: "/", zones: [{ css: "a", margn: 2 }] }];',
+      );
+      write(
+        dir,
+        "captures/plans/d.mjs",
+        'export const CAPTURES = [{ id: "d-bad", route: "/", actions: [{ wheel: { x: 1, y: 1, direction: 0 } }] }];',
+      );
       r = await cli(["capture", "a-orders", "--project", dir]);
       assert.equal(r.code, 2);
-      assert.match(r.err, /^✖ capture plans captures\/plans: 2 errors\n {2}→ fix the entries listed below \(file › id \(CAPTURES\[index\]\) › field\): one invalid entry stops the command/);
-      assert.match(r.err, /\n✖ captures\/plans\/c\.mjs › c-bad \(CAPTURES\[1\]\) › zones\[0\]\.margn: unknown key\n {2}→ did you mean “margin”\?/);
+      assert.match(
+        r.err,
+        /^✖ capture plans captures\/plans: 2 errors\n {2}→ fix the entries listed below \(file › id \(CAPTURES\[index\]\) › field\): one invalid entry stops the command/,
+      );
+      assert.match(
+        r.err,
+        /\n✖ captures\/plans\/c\.mjs › c-bad \(CAPTURES\[1\]\) › zones\[0\]\.margn: unknown key\n {2}→ did you mean “margin”\?/,
+      );
       assert.match(r.err, /\n✖ captures\/plans\/d\.mjs › d-bad \(CAPTURES\[0\]\) › actions\[0\]\.wheel\.direction: /);
     } finally {
       rm(dir);
@@ -388,7 +593,8 @@ describe("commands that stop before opening a browser", () => {
     const typo = await project((c) => ({ ...c, auth: { adapter: "manual", loginPatern: "x" } }));
     const noUrl = await project((c) => ({ ...c, auth: { adapter: "manual", loginPattern: "x" } }));
     try {
-      for (const dir of [typo, noUrl]) write(dir, "captures/plans/a.mjs", 'export const CAPTURES = [{ id: "a", route: "/" }];');
+      for (const dir of [typo, noUrl])
+        write(dir, "captures/plans/a.mjs", 'export const CAPTURES = [{ id: "a", route: "/" }];');
       let r = await cli(["capture", "--project", typo]);
       assert.equal(r.code, 2);
       assert.match(r.err, /› auth\.loginPatern: unknown key\n {2}→ did you mean “loginPattern”\?/);
@@ -411,10 +617,17 @@ describe("commands that stop before opening a browser", () => {
     const dir = await project((c) => ({ ...c, app: { url: "http://127.0.0.1:9" }, capture: { setup: "setup.mjs" } }));
     try {
       // realpath: on macOS the temporary folder (/var/…) is a link to /private/var/…, which process.cwd() returns.
-      write(dir, "setup.mjs", 'import fs from "node:fs"; export default async ({ config, root, url }) => { console.log(`ready ${config.product.name} ${url} ${fs.realpathSync(root) === process.cwd()}`); };');
+      write(
+        dir,
+        "setup.mjs",
+        'import fs from "node:fs"; export default async ({ config, root, url }) => { console.log(`ready ${config.product.name} ${url} ${fs.realpathSync(root) === process.cwd()}`); };',
+      );
       let r = await cli(["demo", "--project", dir]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^Preparing the demo data: setup\.mjs…\n {2}ready Acme Orders http:\/\/127\.0\.0\.1:9 true\n✔ Demo data ready \(setup\.mjs\)\.\n$/);
+      assert.match(
+        r.out,
+        /^Preparing the demo data: setup\.mjs…\n {2}ready Acme Orders http:\/\/127\.0\.0\.1:9 true\n✔ Demo data ready \(setup\.mjs\)\.\n$/,
+      );
       write(dir, "setup.mjs", 'console.error("cannot reach the app"); process.exit(4);');
       r = await cli(["demo", "--project", dir]);
       assert.equal(r.code, 1);

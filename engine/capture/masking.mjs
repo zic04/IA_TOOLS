@@ -13,7 +13,8 @@ import { locate, CaptureError, describeTarget } from "./actions.mjs";
 export const DOTS = "••••••••";
 export const GUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 /** Names of .env keys whose values are masked. */
-const SENSITIVE_KEY = /URL|URI|HOST|DOMAIN|ENDPOINT|TENANT|CLIENT|AUDIENCE|ACCOUNT|EMAIL|MAIL|USER|LOGIN|SECRET|PASSWORD|PASSWD|PWD|TOKEN|KEY|DSN|CONNECTION/i;
+const SENSITIVE_KEY =
+  /URL|URI|HOST|DOMAIN|ENDPOINT|TENANT|CLIENT|AUDIENCE|ACCOUNT|EMAIL|MAIL|USER|LOGIN|SECRET|PASSWORD|PASSWD|PWD|TOKEN|KEY|DSN|CONNECTION/i;
 const MIN_LENGTH = 7;
 
 /**
@@ -47,7 +48,8 @@ export function sensitiveValues(root, masking) {
     const file = path.resolve(root, f);
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
     for (const { key, value } of parseEnv(fs.readFileSync(file, "utf8"))) {
-      if (!SENSITIVE_KEY.test(key) || value.length < MIN_LENGTH || (exclude && exclude.test(value)) || seen.has(value)) continue;
+      if (!SENSITIVE_KEY.test(key) || value.length < MIN_LENGTH || (exclude && exclude.test(value)) || seen.has(value))
+        continue;
       seen.add(value);
       out.push({ key, value, file: f });
     }
@@ -113,7 +115,7 @@ export async function maskPage(page, { source, masks = [], selectors = {}, requi
           }
         return count;
       },
-      { source, dots: DOTS }
+      { source, dots: DOTS },
     );
   // Every match of a mask target (unless it names one with nth or last).
   // A mask target that matches nothing is an error, never a silent pass: what it should hide would be shown

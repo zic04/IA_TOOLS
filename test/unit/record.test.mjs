@@ -38,7 +38,10 @@ describe("engine/capture/record.mjs", () => {
       { press: "Enter" },
       { press: "Escape" },
     ]);
-    assert.deepEqual(skipped, ["await page.getByRole('row').filter({ hasText: 'x' }).click();", "await page.goto('https://elsewhere.test/');"]);
+    assert.deepEqual(skipped, [
+      "await page.getByRole('row').filter({ hasText: 'x' }).click();",
+      "await page.goto('https://elsewhere.test/');",
+    ]);
     assert.equal(codegenToEntry("", { appUrl: "http://a.test", id: "x", route: "/r" }).entry.route, "/r");
   });
 
@@ -92,13 +95,29 @@ describe("doc-kit record", () => {
       const dir = demoCopy();
       try {
         const file = path.join(dir, "doc.config.mjs");
-        fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(/capture:\s*\{/, `capture: { ${Object.entries(capture).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(", ")}, `));
+        fs.writeFileSync(
+          file,
+          fs.readFileSync(file, "utf8").replace(
+            /capture:\s*\{/,
+            `capture: { ${Object.entries(capture)
+              .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+              .join(", ")}, `,
+          ),
+        );
         let opened = false;
         let err = "";
-        const io = { stdout: { write: () => {} }, stderr: { write: (s) => (err += s) }, env: {}, codegen: () => (opened = true) };
+        const io = {
+          stdout: { write: () => {} },
+          stderr: { write: (s) => (err += s) },
+          env: {},
+          codegen: () => (opened = true),
+        };
         assert.equal(await runCli(["record", "/orders/7/approval", "--project", dir], io), 2, err);
         assert.equal(opened, false);
-        assert.match(err, capture.target ? /refused when capture\.target is "production"/ : /matches capture\.forbidden/);
+        assert.match(
+          err,
+          capture.target ? /refused when capture\.target is "production"/ : /matches capture\.forbidden/,
+        );
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }

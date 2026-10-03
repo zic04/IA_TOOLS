@@ -112,16 +112,56 @@ export function build({ project, config, options = {} }) {
   const templates = loadPageTemplates(KIT_ROOT);
   const { reference: syncRef, problem: syncProblem } = readSyncReference(root, config);
   if (syncProblem) report(false, { kind: "sync", ...syncProblem });
-  const site = { usage, changes, ICONS, icon, iconKey, spaces, syncRef, templates, version, sourceLangId: languages ? languages[0] : null, recordedByLang: {} };
+  const site = {
+    usage,
+    changes,
+    ICONS,
+    icon,
+    iconKey,
+    spaces,
+    syncRef,
+    templates,
+    version,
+    sourceLangId: languages ? languages[0] : null,
+    recordedByLang: {},
+  };
 
   // ─── Source language, then the other declared languages (§6.12) ─────────────
   const { glossary, glossaryFile } = loadGlossary(b);
   const sourceCaptures = loadSourceZones(b);
-  const sourcePass = renderLanguage(b, site, { lang: config.language, isSource: true, langToc: toc, langGlossary: glossary, langCaptures: sourceCaptures, langT: i18n.t, langI18n: i18n, reportLang: report });
-  const { byLang, capturesByLang, toRender } = renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptures, sourcePass });
+  const sourcePass = renderLanguage(b, site, {
+    lang: config.language,
+    isSource: true,
+    langToc: toc,
+    langGlossary: glossary,
+    langCaptures: sourceCaptures,
+    langT: i18n.t,
+    langI18n: i18n,
+    reportLang: report,
+  });
+  const { byLang, capturesByLang, toRender } = renderTranslations(b, site, {
+    toc,
+    glossary,
+    glossaryFile,
+    sourceCaptures,
+    sourcePass,
+  });
 
   // ─── Assembly ──────────────────────────────────────────────────────────────
-  return assembleOutputs(b, { i18n, logo, icon, version, spaces, toc, sourcePass, sourceCaptures, byLang, capturesByLang, toRender, output });
+  return assembleOutputs(b, {
+    i18n,
+    logo,
+    icon,
+    version,
+    spaces,
+    toc,
+    sourcePass,
+    sourceCaptures,
+    byLang,
+    capturesByLang,
+    toRender,
+    output,
+  });
 }
 
 /** `texts` keys the kit does not know: a warning each, with the closest known key. */
@@ -129,7 +169,11 @@ function checkTexts(b) {
   const reference = createI18n({ language: "en" });
   for (const key of Object.keys(b.config.texts))
     if (!reference.has(key))
-      b.warnings.push({ kind: "texts", key: "texts.unknown", vars: { key, closest: closest(key, Object.keys(reference.keys)) || "—" } });
+      b.warnings.push({
+        kind: "texts",
+        key: "texts.unknown",
+        vars: { key, closest: closest(key, Object.keys(reference.keys)) || "—" },
+      });
 }
 
 /** The source table of contents (current or legacy file name), normalised and valid; null after an error. */
@@ -150,11 +194,16 @@ function loadToc(b) {
   const toc = nt.value;
   const vt = validate(toc, readSchema("toc"));
   if (vt.errors.length) {
-    for (const e of vt.errors) b.errors.push({ kind: "validate", key: e.key, vars: e.vars, file: tocFile, path: e.path });
+    for (const e of vt.errors)
+      b.errors.push({ kind: "validate", key: e.key, vars: e.vars, file: tocFile, path: e.path });
     return null;
   }
   if (toc.product && toc.product !== b.config.product.name)
-    b.warnings.push({ kind: "toc", key: "toc.productDeprecated", vars: { toc: toc.product, config: b.config.product.name } });
+    b.warnings.push({
+      kind: "toc",
+      key: "toc.productDeprecated",
+      vars: { toc: toc.product, config: b.config.product.name },
+    });
   return toc;
 }
 
@@ -209,7 +258,8 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
       if (p.blocking) errors.push(problem);
       else warnings.push(problem);
     }
-    if (!translatedTocRaw) report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: "toc.json" } });
+    if (!translatedTocRaw)
+      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: "toc.json" } });
 
     const rawGlossary = readTranslatedJson(b, lang, CURRENT_FILES.glossary);
     const translatedGlossaryRaw = rawGlossary ? normalizeGlossary(rawGlossary).value : null;
@@ -217,14 +267,25 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
     if (translatedGlossaryRaw) {
       const { glossary: merged, problem } = translatedGlossary({ source: glossary, translated: translatedGlossaryRaw });
       langGlossary = merged;
-      if (problem) report(true, { kind: "translation", key: "translation.glossary.structure", vars: { lang, ...problem } });
-    } else if (glossaryFile) report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: CURRENT_FILES.glossary } });
+      if (problem)
+        report(true, { kind: "translation", key: "translation.glossary.structure", vars: { lang, ...problem } });
+    } else if (glossaryFile)
+      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: CURRENT_FILES.glossary } });
 
     const langCaptures = { ...sourceCaptures, ...readZoneFolder(b, `${b.paths.images}/${lang}/zones`).captures };
     capturesByLang[lang] = langCaptures;
     const langI18n = createI18n({ language: lang, overrides: config.texts });
     const reportLang = (strict, s) => report(strict, { ...s, vars: { ...s.vars, lang } });
-    byLang[lang] = renderLanguage(b, site, { lang, isSource: false, langToc, langGlossary, langCaptures, langT: langI18n.t, langI18n, reportLang });
+    byLang[lang] = renderLanguage(b, site, {
+      lang,
+      isSource: false,
+      langToc,
+      langGlossary,
+      langCaptures,
+      langT: langI18n.t,
+      langI18n,
+      reportLang,
+    });
     mapCounterpartAnchors(b, lang, byLang[lang], sourcePass.data);
   }
   return { byLang, capturesByLang, toRender };
@@ -256,7 +317,10 @@ function mapCounterpartAnchors(b, lang, pass, sourceData) {
  * embedded once each; a language variant only for the ids that language uses, and only when a file exists for
  * it (its name may itself differ, taken from that language's own zone file when it has one).
  */
-function assembleOutputs(b, { i18n, logo, icon, version, spaces, toc, sourcePass, sourceCaptures, byLang, capturesByLang, toRender, output }) {
+function assembleOutputs(
+  b,
+  { i18n, logo, icon, version, spaces, toc, sourcePass, sourceCaptures, byLang, capturesByLang, toRender, output },
+) {
   const { root, config, options, languages, warnings } = b;
   const imageFile = (id, lang) => {
     const file = (lang ? capturesByLang[lang]?.[id] : sourceCaptures[id])?.file;
@@ -301,7 +365,9 @@ function assembleOutputs(b, { i18n, logo, icon, version, spaces, toc, sourcePass
         LOGO: logo.inline,
         FAVICON: esc(logo.favicon(brand)),
         VERSION: esc(version),
-        IMAGES: imageIds.flatMap((id) => [imageBlock(id), ...otherLanguages.map((l) => imageBlock(id, l.id))].filter(Boolean)).join("\n"),
+        IMAGES: imageIds
+          .flatMap((id) => [imageBlock(id), ...otherLanguages.map((l) => imageBlock(id, l.id))].filter(Boolean))
+          .join("\n"),
       },
       t: mainT,
       icon,
@@ -313,11 +379,21 @@ function assembleOutputs(b, { i18n, logo, icon, version, spaces, toc, sourcePass
     });
 
   const languagesSummary = languages
-    ? languages.map((id, i) => (i === 0 ? { id, source: true, current: 0, stale: 0, unmarked: 0, missing: 0 } : { id, source: false, ...languageCounts({ root, config, toc, lang: id }) }))
+    ? languages.map((id, i) =>
+        i === 0
+          ? { id, source: true, current: 0, stale: 0, unmarked: 0, missing: 0 }
+          : { id, source: false, ...languageCounts({ root, config, toc, lang: id }) },
+      )
     : [];
   // Mono-language: that language's data alone, no other language embedded.
   const main = monoLang
-    ? { data: monoData, used: byLang[monoLang].used, t: mainT, imageIds: [...byLang[monoLang].engine.usedCaptures], otherLanguages: [] }
+    ? {
+        data: monoData,
+        used: byLang[monoLang].used,
+        t: mainT,
+        imageIds: [...byLang[monoLang].engine.usedCaptures],
+        otherLanguages: [],
+      }
     : {
         data: sourcePass.data,
         used: sourcePass.used,
@@ -326,8 +402,20 @@ function assembleOutputs(b, { i18n, logo, icon, version, spaces, toc, sourcePass
         otherLanguages: toRender.map((lang) => ({ id: lang, data: byLang[lang].data, captures: capturesByLang[lang] })),
       };
   const html = assembleSite(main.data, main.imageIds, main.otherLanguages);
-  const sites = spaces && (config.spaces.export !== false || options.space) ? exportSpaces(b, { spaces, main, byLang, langTOf, assembleSite, output }) : [];
-  return { html, data: mainData, stats: { ...stats, diagrams: stats.schemas, bytes: Buffer.byteLength(html) }, errors: b.errors, warnings, output, sites, languages: languagesSummary };
+  const sites =
+    spaces && (config.spaces.export !== false || options.space)
+      ? exportSpaces(b, { spaces, main, byLang, langTOf, assembleSite, output })
+      : [];
+  return {
+    html,
+    data: mainData,
+    stats: { ...stats, diagrams: stats.schemas, bytes: Buffer.byteLength(html) },
+    errors: b.errors,
+    warnings,
+    output,
+    sites,
+    languages: languagesSummary,
+  };
 }
 
 /** A copy of a language's data without the language switcher's meta (a mono-language file). */
@@ -351,11 +439,26 @@ function exportSpaces(b, { spaces, main, byLang, langTOf, assembleSite, output }
     });
     const kept = new Set(x.images);
     for (const xl of xLangs) for (const id of xl.images) kept.add(id);
-    const siteHtml = assembleSite(x.data, main.imageIds.filter((id) => kept.has(id)), xLangs);
+    const siteHtml = assembleSite(
+      x.data,
+      main.imageIds.filter((id) => kept.has(id)),
+      xLangs,
+    );
     const siteStats = x.data.meta.stats;
-    const siteOutput = options.space && options.spaceOutput ? path.resolve(root, options.spaceOutput) : spaceOutput(root, config, s.id, output);
-    sites.push({ space: s.id, html: siteHtml, data: x.data, stats: { ...siteStats, diagrams: siteStats.schemas, bytes: Buffer.byteLength(siteHtml) }, output: siteOutput, excludedLinks: x.excludedLinks });
-    if (x.excludedLinks) warnings.push({ kind: "space", key: "space.excludedLinks", vars: { space: s.id, n: x.excludedLinks } });
+    const siteOutput =
+      options.space && options.spaceOutput
+        ? path.resolve(root, options.spaceOutput)
+        : spaceOutput(root, config, s.id, output);
+    sites.push({
+      space: s.id,
+      html: siteHtml,
+      data: x.data,
+      stats: { ...siteStats, diagrams: siteStats.schemas, bytes: Buffer.byteLength(siteHtml) },
+      output: siteOutput,
+      excludedLinks: x.excludedLinks,
+    });
+    if (x.excludedLinks)
+      warnings.push({ kind: "space", key: "space.excludedLinks", vars: { space: s.id, n: x.excludedLinks } });
   }
   return sites;
 }

@@ -17,8 +17,18 @@ export async function run({ ctx, values }) {
   const { project, config } = await ctx.loadProject();
   const thresholdKb = Number(values.threshold ?? 200);
   const quality = Number(values.quality ?? 0.68);
-  if (!(thresholdKb > 0)) throw new KitError(EXIT.USAGE, "option.value", { option: "threshold", value: values.threshold, expected: "number > 0 (KB)" });
-  if (!(quality > 0 && quality <= 1)) throw new KitError(EXIT.USAGE, "option.value", { option: "quality", value: values.quality, expected: "number between 0 and 1" });
+  if (!(thresholdKb > 0))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "threshold",
+      value: values.threshold,
+      expected: "number > 0 (KB)",
+    });
+  if (!(quality > 0 && quality <= 1))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "quality",
+      value: values.quality,
+      expected: "number between 0 and 1",
+    });
   const folder = path.join(project.root, config.paths.images);
   const threshold = thresholdKb * 1024;
   const heavy = (fs.existsSync(folder) ? fs.readdirSync(folder) : [])
@@ -45,7 +55,7 @@ export async function run({ ctx, values }) {
             c.getContext("2d").drawImage(img, 0, 0);
             return c.toDataURL("image/webp", q).split(",")[1];
           },
-          { b64, q: quality }
+          { b64, q: quality },
         );
         const buf = Buffer.from(encoded, "base64");
         if (buf.length < size * 0.8) {
@@ -60,6 +70,9 @@ export async function run({ ctx, values }) {
     }
   }
   if (ctx.json) ctx.print(JSON.stringify({ heavy: heavy.length, lighter, saved }, null, 2));
-  else ctx.print(`\n${ctx.t("cli.optimize.summary", { n: heavy.length, threshold: thresholdKb, saved: (saved / 1024 / 1024).toFixed(1) })}`);
+  else
+    ctx.print(
+      `\n${ctx.t("cli.optimize.summary", { n: heavy.length, threshold: thresholdKb, saved: (saved / 1024 / 1024).toFixed(1) })}`,
+    );
   return 0;
 }

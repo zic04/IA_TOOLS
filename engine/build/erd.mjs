@@ -73,11 +73,18 @@ export function renderErd(items, { esc, title = "", only = null, more = (n) => `
       const target = boxes.get(ref);
       const from = border(b, target.x + target.w / 2, target.y + target.h / 2);
       const to = border(target, b.x + b.w / 2, b.y + b.h / 2);
-      edges.push(`<line class="erd-edge" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}" marker-end="url(#erd-arrow)"/>`);
+      edges.push(
+        `<line class="erd-edge" x1="${from.x.toFixed(1)}" y1="${from.y.toFixed(1)}" x2="${to.x.toFixed(1)}" y2="${to.y.toFixed(1)}" marker-end="url(#erd-arrow)"/>`,
+      );
     }
   const shapes = [...boxes.values()].map((b) => {
-    const rows = b.t.columns.slice(0, MAX_ROWS).map((c, i) => `<text class="erd-col" x="${b.x + 10}" y="${b.y + HEAD_H + 14 + i * ROW_H}">${esc(c)}</text>`);
-    if (b.t.columns.length > MAX_ROWS) rows.push(`<text class="erd-col erd-more" x="${b.x + 10}" y="${b.y + HEAD_H + 14 + MAX_ROWS * ROW_H}">${esc(more(b.t.columns.length - MAX_ROWS))}</text>`);
+    const rows = b.t.columns
+      .slice(0, MAX_ROWS)
+      .map((c, i) => `<text class="erd-col" x="${b.x + 10}" y="${b.y + HEAD_H + 14 + i * ROW_H}">${esc(c)}</text>`);
+    if (b.t.columns.length > MAX_ROWS)
+      rows.push(
+        `<text class="erd-col erd-more" x="${b.x + 10}" y="${b.y + HEAD_H + 14 + MAX_ROWS * ROW_H}">${esc(more(b.t.columns.length - MAX_ROWS))}</text>`,
+      );
     return `<g class="erd-table"><rect class="erd-box" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6"/><path class="erd-head" d="M${b.x} ${b.y + HEAD_H}V${b.y + 6}a6 6 0 0 1 6 -6H${b.x + b.w - 6}a6 6 0 0 1 6 6V${b.y + HEAD_H}Z"/><text class="erd-name" x="${b.x + 10}" y="${b.y + 19}">${esc(b.t.table)}</text>${rows.join("")}</g>`;
   });
   return `<svg class="erd" xmlns="http://www.w3.org/2000/svg" viewBox="${-pad} ${-pad} ${width + 2 * pad} ${height + 2 * pad}" width="${width + 2 * pad}" role="img" aria-label="${esc(title)}"><defs><marker id="erd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="erd-arrow" d="M0 0L10 5L0 10z"/></marker></defs>${edges.join("")}${shapes.join("")}</svg>`;

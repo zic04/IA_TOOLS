@@ -4,7 +4,16 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { createTimer, appendUsage, readUsage, summarize, usageCsv, compareVersions, usageFolder, usageFile } from "../../engine/stats/usage.mjs";
+import {
+  createTimer,
+  appendUsage,
+  readUsage,
+  summarize,
+  usageCsv,
+  compareVersions,
+  usageFolder,
+  usageFile,
+} from "../../engine/stats/usage.mjs";
 import { duration } from "../../cli/commands/stats.mjs";
 import { renderUsage, costOf, USAGE_VIEWS } from "../../engine/stats/render.mjs";
 import { transcriptUsage, recordAgent, projectFor } from "../../skill/doc-kit/scripts/usage-hook.mjs";
@@ -46,14 +55,50 @@ describe("engine/stats/usage.mjs", () => {
   test("appendUsage / readUsage: one file per version, lines appended, broken lines skipped, oldest first", () => {
     const dir = tempDir("doc-kit-usage-");
     try {
-      appendUsage({ dir, version: "1.4.0", command: "capture", phase: "create", spans: [{ step: "capture", ms: 900 }], date: new Date("2026-10-03T10:00:00Z"), run: "r1" });
-      appendUsage({ dir, version: "1.4.0", command: "build", phase: "create", spans: [{ step: "build", ms: 300 }], date: new Date("2026-10-03T09:00:00Z"), run: "r2" });
-      appendUsage({ dir, version: "2.0/beta", command: "sync", phase: "update", spans: [{ step: "update", ms: 50 }], date: new Date("2026-10-04T09:00:00Z"), run: "r3" });
-      fs.appendFileSync(usageFile(dir, "1.4.0"), "not json\n{\"no\":\"ms\"}\n");
+      appendUsage({
+        dir,
+        version: "1.4.0",
+        command: "capture",
+        phase: "create",
+        spans: [{ step: "capture", ms: 900 }],
+        date: new Date("2026-10-03T10:00:00Z"),
+        run: "r1",
+      });
+      appendUsage({
+        dir,
+        version: "1.4.0",
+        command: "build",
+        phase: "create",
+        spans: [{ step: "build", ms: 300 }],
+        date: new Date("2026-10-03T09:00:00Z"),
+        run: "r2",
+      });
+      appendUsage({
+        dir,
+        version: "2.0/beta",
+        command: "sync",
+        phase: "update",
+        spans: [{ step: "update", ms: 50 }],
+        date: new Date("2026-10-04T09:00:00Z"),
+        run: "r3",
+      });
+      fs.appendFileSync(usageFile(dir, "1.4.0"), 'not json\n{"no":"ms"}\n');
       assert.deepEqual(fs.readdirSync(dir).sort(), ["1.4.0.jsonl", "2.0_beta.jsonl"]);
       const all = readUsage(dir);
-      assert.deepEqual(all.map((e) => e.run), ["r2", "r1", "r3"]);
-      assert.deepEqual(all[1], { at: "2026-10-03T10:00:00.000Z", version: "1.4.0", run: "r1", command: "capture", phase: "create", actor: "kit", step: "capture", ms: 900 });
+      assert.deepEqual(
+        all.map((e) => e.run),
+        ["r2", "r1", "r3"],
+      );
+      assert.deepEqual(all[1], {
+        at: "2026-10-03T10:00:00.000Z",
+        version: "1.4.0",
+        run: "r1",
+        command: "capture",
+        phase: "create",
+        actor: "kit",
+        step: "capture",
+        ms: 900,
+      });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -72,15 +117,21 @@ describe("engine/stats/usage.mjs", () => {
     ];
     const r = summarize(entries, "step");
     assert.deepEqual(r.total, { ms: 3500, tokens: 1250, runs: 1 });
-    assert.deepEqual(r.groups.map((g) => [g.key, g.ms, Math.round(g.share * 100)]), [
-      ["generate", 2000, 57],
-      ["capture", 1000, 29],
-      ["capture › wait", 800, 80],
-      ["capture › shot", 100, 10],
-      ["facts", 500, 14],
-      ["facts › api", 300, 60],
-    ]);
-    assert.deepEqual(summarize(entries, "model").groups.map((g) => g.key), ["sonnet", "—"]);
+    assert.deepEqual(
+      r.groups.map((g) => [g.key, g.ms, Math.round(g.share * 100)]),
+      [
+        ["generate", 2000, 57],
+        ["capture", 1000, 29],
+        ["capture › wait", 800, 80],
+        ["capture › shot", 100, 10],
+        ["facts", 500, 14],
+        ["facts › api", 300, 60],
+      ],
+    );
+    assert.deepEqual(
+      summarize(entries, "model").groups.map((g) => g.key),
+      ["sonnet", "—"],
+    );
     assert.throws(() => summarize(entries, "colour"));
   });
 
@@ -92,8 +143,24 @@ describe("engine/stats/usage.mjs", () => {
   });
 
   test("usageCsv: fixed columns, quoted cells", () => {
-    const csv = usageCsv([{ at: "t", version: "1", run: "r", command: "capture", phase: "create", step: "capture", sub: "a,b", part: "wait", ms: 5, pages: ["x", "y"] }]);
-    assert.equal(csv, 'at,version,run,command,phase,actor,step,sub,part,ms,model,tokensIn,tokensOut,cacheRead,cacheWrite,pages\nt,1,r,capture,create,kit,capture,"a,b",wait,5,,,,,,x y\n');
+    const csv = usageCsv([
+      {
+        at: "t",
+        version: "1",
+        run: "r",
+        command: "capture",
+        phase: "create",
+        step: "capture",
+        sub: "a,b",
+        part: "wait",
+        ms: 5,
+        pages: ["x", "y"],
+      },
+    ]);
+    assert.equal(
+      csv,
+      'at,version,run,command,phase,actor,step,sub,part,ms,model,tokensIn,tokensOut,cacheRead,cacheWrite,pages\nt,1,r,capture,create,kit,capture,"a,b",wait,5,,,,,,x y\n',
+    );
   });
 
   test("usageFolder: only when usage/ exists, and not with DOC_KIT_STATS=0", () => {
@@ -136,11 +203,18 @@ describe("recording by the CLI", () => {
       assert.match(b.err, /Profile — \d+ ms in all \(longest first\):\n +\d+ ms +100 % {2}build/);
       assert.equal((await cli(["check", "links", "--project", dir])).code, 0);
       assert.equal((await cli(["doctor", "--project", dir])).code >= 0, true); // not recorded
-      const lines = fs.readFileSync(path.join(dir, "usage", "1.4.0.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-      assert.deepEqual(lines.map((l) => [l.command, l.step, l.version, l.phase, l.exit]), [
-        ["build", "build", "1.4.0", "update", 0],
-        ["check", "check", "1.4.0", "update", 0],
-      ]);
+      const lines = fs
+        .readFileSync(path.join(dir, "usage", "1.4.0.jsonl"), "utf8")
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l));
+      assert.deepEqual(
+        lines.map((l) => [l.command, l.step, l.version, l.phase, l.exit]),
+        [
+          ["build", "build", "1.4.0", "update", 0],
+          ["check", "check", "1.4.0", "update", 0],
+        ],
+      );
       assert.notEqual(lines[0].run, lines[1].run);
 
       const r = await cli(["stats", "--project", dir]);
@@ -154,7 +228,13 @@ describe("recording by the CLI", () => {
 
       // Turned off for one run.
       await cli(["build", "--project", dir, "--date", "2026-01-01"], { DOC_KIT_STATS: "0" });
-      assert.equal(fs.readFileSync(path.join(dir, "usage", "1.4.0.jsonl"), "utf8").trim().split("\n").length, 2);
+      assert.equal(
+        fs
+          .readFileSync(path.join(dir, "usage", "1.4.0.jsonl"), "utf8")
+          .trim()
+          .split("\n").length,
+        2,
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -164,10 +244,51 @@ describe("recording by the CLI", () => {
 describe("::usage (engine/stats/render.mjs)", () => {
   const entries = [
     { at: "1", version: "1.0.0", run: "r1", phase: "create", actor: "kit", step: "capture", ms: 3000 },
-    { at: "1", version: "1.0.0", run: "r1", phase: "create", actor: "kit", step: "capture", sub: "a", part: "wait", ms: 2000 },
-    { at: "2", version: "1.0.0", run: "r2", phase: "create", actor: "agent", step: "generate", ms: 60_000, model: "sonnet", tokens: { in: 1_000_000, out: 100_000 }, pages: ["use/orders"] },
-    { at: "3", version: "1.0.0", run: "r3", phase: "create", actor: "agent", step: "generate", ms: 30_000, model: "sonnet", tokens: { in: 500_000, out: 0 } },
-    { at: "4", version: "1.1.0", run: "r4", phase: "update", actor: "agent", step: "update", ms: 10_000, model: "haiku", tokens: { in: 200_000, out: 0, cacheRead: 1_000_000 } },
+    {
+      at: "1",
+      version: "1.0.0",
+      run: "r1",
+      phase: "create",
+      actor: "kit",
+      step: "capture",
+      sub: "a",
+      part: "wait",
+      ms: 2000,
+    },
+    {
+      at: "2",
+      version: "1.0.0",
+      run: "r2",
+      phase: "create",
+      actor: "agent",
+      step: "generate",
+      ms: 60_000,
+      model: "sonnet",
+      tokens: { in: 1_000_000, out: 100_000 },
+      pages: ["use/orders"],
+    },
+    {
+      at: "3",
+      version: "1.0.0",
+      run: "r3",
+      phase: "create",
+      actor: "agent",
+      step: "generate",
+      ms: 30_000,
+      model: "sonnet",
+      tokens: { in: 500_000, out: 0 },
+    },
+    {
+      at: "4",
+      version: "1.1.0",
+      run: "r4",
+      phase: "update",
+      actor: "agent",
+      step: "update",
+      ms: 10_000,
+      model: "haiku",
+      tokens: { in: 200_000, out: 0, cacheRead: 1_000_000 },
+    },
     { at: "5", version: "1.1.0", run: "r5", phase: "update", actor: "human", step: "review", ms: 600_000 },
   ];
   const t = (k, v) => (v ? `${k}${JSON.stringify(v)}` : k);
@@ -182,7 +303,12 @@ describe("::usage (engine/stats/render.mjs)", () => {
   });
 
   test("summary: times per actor, the number of agents and the models with their agent count, tokens, cost", () => {
-    const html = renderUsage(entries, "summary", { t, esc, prices: { sonnet: { input: 3, output: 15 } }, currency: "€" });
+    const html = renderUsage(entries, "summary", {
+      t,
+      esc,
+      prices: { sonnet: { input: 3, output: 15 } },
+      currency: "€",
+    });
     assert.match(html, /render\.usage\.agents<\/td><td>3</);
     assert.match(html, /render\.usage\.modelsUsed<\/td><td>sonnet × 2, haiku × 1</);
     assert.match(html, /render\.usage\.humanTime<\/td><td>10 min 0 s</);
@@ -196,11 +322,23 @@ describe("::usage (engine/stats/render.mjs)", () => {
     assert.match(versions, /<td>1\.0\.0<\/td><td>render\.usage\.phase\.create<\/td><td>3<\/td>/);
     assert.match(versions, /<td>1\.1\.0<\/td><td>render\.usage\.phase\.update<\/td><td>2<\/td><td>10 min 10 s<\/td>/);
     const steps = renderUsage(entries, "steps", { t, esc });
-    assert.match(steps, /<tr class="usage-part"><td>↳ wait<\/td><td>2\.0 s<\/td><td><span class="usage-bar" style="--w:67%"><\/span> 67 %/);
-    assert.match(renderUsage(entries, "models", { t, esc }), /<td>sonnet<\/td><td>2<\/td><td>1,500,000<\/td><td>100,000<\/td>/);
-    assert.match(renderUsage(entries, "slowest", { t, esc }), /<td>capture › wait<\/td><td>2\.0 s<\/td><td>2\.0 s<\/td><td>1<\/td>/);
+    assert.match(
+      steps,
+      /<tr class="usage-part"><td>↳ wait<\/td><td>2\.0 s<\/td><td><span class="usage-bar" style="--w:67%"><\/span> 67 %/,
+    );
+    assert.match(
+      renderUsage(entries, "models", { t, esc }),
+      /<td>sonnet<\/td><td>2<\/td><td>1,500,000<\/td><td>100,000<\/td>/,
+    );
+    assert.match(
+      renderUsage(entries, "slowest", { t, esc }),
+      /<td>capture › wait<\/td><td>2\.0 s<\/td><td>2\.0 s<\/td><td>1<\/td>/,
+    );
     const all = renderUsage(entries, undefined, { t, esc });
-    assert.deepEqual([...all.matchAll(/data-view="(\w+)"/g)].map((m) => m[1]), [...USAGE_VIEWS]);
+    assert.deepEqual(
+      [...all.matchAll(/data-view="(\w+)"/g)].map((m) => m[1]),
+      [...USAGE_VIEWS],
+    );
     assert.match(renderUsage([], "models", { t, esc }), /render\.usage\.noModels/);
   });
 
@@ -214,7 +352,15 @@ describe("::usage (engine/stats/render.mjs)", () => {
       assert.match(none.err, /::usage: no statistics yet/);
       fs.mkdirSync(path.join(dir, "usage"));
       fs.writeFileSync(path.join(dir, "usage", "1.4.0.jsonl"), entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
-      const ok = await cli(["build", "--project", dir, "--date", "2026-01-01", "--output", path.join(dir, "dist", "x.html")]);
+      const ok = await cli([
+        "build",
+        "--project",
+        dir,
+        "--date",
+        "2026-01-01",
+        "--output",
+        path.join(dir, "dist", "x.html"),
+      ]);
       assert.equal(ok.code, 0, ok.err);
       assert.match(fs.readFileSync(path.join(dir, "dist", "x.html"), "utf8"), /data-view=\\?"summary\\?"/);
       fs.appendFileSync(page, '\n::usage{view="colour"}\n');
@@ -228,16 +374,42 @@ describe("::usage (engine/stats/render.mjs)", () => {
 });
 
 describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install --hooks)", () => {
-  const transcript = [
-    { timestamp: "2026-10-03T10:00:00.000Z", type: "user", message: { role: "user", content: "go" } },
-    { timestamp: "2026-10-03T10:00:05.000Z", message: { id: "m1", model: "claude-sonnet-x", usage: { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 1000, cache_creation_input_tokens: 50 } } },
-    // the same message again (one line per content block): counted once
-    { timestamp: "2026-10-03T10:00:05.500Z", message: { id: "m1", model: "claude-sonnet-x", usage: { input_tokens: 100, output_tokens: 20 } } },
-    { timestamp: "2026-10-03T10:01:00.000Z", message: { id: "m2", model: "claude-sonnet-x", usage: { input_tokens: 10, output_tokens: 5 } } },
-  ].map((l) => JSON.stringify(l)).join("\n") + "\nnot json\n";
+  const transcript =
+    [
+      { timestamp: "2026-10-03T10:00:00.000Z", type: "user", message: { role: "user", content: "go" } },
+      {
+        timestamp: "2026-10-03T10:00:05.000Z",
+        message: {
+          id: "m1",
+          model: "claude-sonnet-x",
+          usage: {
+            input_tokens: 100,
+            output_tokens: 20,
+            cache_read_input_tokens: 1000,
+            cache_creation_input_tokens: 50,
+          },
+        },
+      },
+      // the same message again (one line per content block): counted once
+      {
+        timestamp: "2026-10-03T10:00:05.500Z",
+        message: { id: "m1", model: "claude-sonnet-x", usage: { input_tokens: 100, output_tokens: 20 } },
+      },
+      {
+        timestamp: "2026-10-03T10:01:00.000Z",
+        message: { id: "m2", model: "claude-sonnet-x", usage: { input_tokens: 10, output_tokens: 5 } },
+      },
+    ]
+      .map((l) => JSON.stringify(l))
+      .join("\n") + "\nnot json\n";
 
   test("transcriptUsage: tokens once per message id, the model most messages name, first → last timestamp", () => {
-    assert.deepEqual(transcriptUsage(transcript), { tokens: { in: 110, out: 25, cacheRead: 1000, cacheWrite: 50 }, model: "claude-sonnet-x", ms: 60_000, messages: 2 });
+    assert.deepEqual(transcriptUsage(transcript), {
+      tokens: { in: 110, out: 25, cacheRead: 1000, cacheWrite: 50 },
+      model: "claude-sonnet-x",
+      ms: 60_000,
+      messages: 2,
+    });
     assert.deepEqual(transcriptUsage("").messages, 0);
   });
 
@@ -252,10 +424,28 @@ describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install -
       assert.equal(await recordAgent(input, { env: {} }), null, "no usage/ folder");
       fs.mkdirSync(path.join(docs, "usage"));
       const line = await recordAgent(input, { env: {}, now: new Date("2026-10-03T10:02:00Z") });
-      assert.deepEqual(line, { at: "2026-10-03T10:02:00.000Z", version: "1.4.0", run: "agent-a1", command: "agent", phase: "update", actor: "agent", step: "generate", sub: "doc-kit-writer", ms: 60_000, model: "claude-sonnet-x", tokens: { in: 110, out: 25, cacheRead: 1000, cacheWrite: 50 } });
-      assert.deepEqual(readUsage(path.join(docs, "usage")).map((e) => e.sub), ["doc-kit-writer"]);
+      assert.deepEqual(line, {
+        at: "2026-10-03T10:02:00.000Z",
+        version: "1.4.0",
+        run: "agent-a1",
+        command: "agent",
+        phase: "update",
+        actor: "agent",
+        step: "generate",
+        sub: "doc-kit-writer",
+        ms: 60_000,
+        model: "claude-sonnet-x",
+        tokens: { in: 110, out: 25, cacheRead: 1000, cacheWrite: 50 },
+      });
+      assert.deepEqual(
+        readUsage(path.join(docs, "usage")).map((e) => e.sub),
+        ["doc-kit-writer"],
+      );
       assert.equal(await recordAgent(input, { env: { DOC_KIT_STATS: "0" } }), null);
-      assert.equal(await recordAgent({ ...input, agent_transcript_path: path.join(app, "missing.jsonl") }, { env: {} }), null);
+      assert.equal(
+        await recordAgent({ ...input, agent_transcript_path: path.join(app, "missing.jsonl") }, { env: {} }),
+        null,
+      );
       assert.equal(projectFor(path.join(app, "src"), {}), null, "a folder below the app does not see docs/manual");
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
@@ -267,15 +457,27 @@ describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install -
     try {
       const file = path.join(dir, ".claude", "settings.json");
       fs.mkdirSync(path.dirname(file));
-      fs.writeFileSync(file, JSON.stringify({ model: "x", hooks: { SubagentStop: [{ matcher: "", hooks: [{ type: "command", command: "other.sh" }] }], Stop: [] } }));
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          model: "x",
+          hooks: { SubagentStop: [{ matcher: "", hooks: [{ type: "command", command: "other.sh" }] }], Stop: [] },
+        }),
+      );
       assert.equal(installHooks({ settingsFile: file, skillFolder: "/skills/doc-kit" }).added, true);
       assert.equal(installHooks({ settingsFile: file, skillFolder: "/skills/doc-kit" }).added, false);
       const s = JSON.parse(fs.readFileSync(file, "utf8"));
       assert.equal(s.model, "x");
       assert.deepEqual(s.hooks.Stop, []);
-      assert.deepEqual(s.hooks.SubagentStop.flatMap((g) => g.hooks.map((h) => h.command)), ["other.sh", 'node "/skills/doc-kit/scripts/usage-hook.mjs"']);
+      assert.deepEqual(
+        s.hooks.SubagentStop.flatMap((g) => g.hooks.map((h) => h.command)),
+        ["other.sh", 'node "/skills/doc-kit/scripts/usage-hook.mjs"'],
+      );
       fs.writeFileSync(file, "{ broken");
-      assert.throws(() => installHooks({ settingsFile: file, skillFolder: "/s" }), (e) => e.key === "skill.settingsInvalid");
+      assert.throws(
+        () => installHooks({ settingsFile: file, skillFolder: "/s" }),
+        (e) => e.key === "skill.settingsInvalid",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
