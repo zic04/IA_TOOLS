@@ -97,6 +97,12 @@ describe("selector", () => {
     assert.equal(await remembered(page), "takeover");
     await page.close();
     page = await open("", { context });
+    // Chromium hands a localStorage write to the other pages of the context asynchronously (another renderer
+    // process): the next visit is the first page load that sees it. A real visit comes long after.
+    for (let i = 0; i < 20 && (await remembered(page)) !== "takeover"; i++) {
+      await page.waitForTimeout(50);
+      await page.reload();
+    }
     assert.deepEqual(
       await pressed(page),
       ["Everything:false", "Business:false", "Takeover:true"],
