@@ -3,7 +3,7 @@
 import { maxWordsOf, DEFAULT_MAX_WORDS } from "../build/page-templates.mjs";
 
 /** Fixed overhead of a brief (rules, safety, syntax, standard: ARCHITECTURE.md §8), in tokens. */
-export const BRIEF_TOKENS = 1800;
+const BRIEF_TOKENS = 1800;
 
 /**
  * @param {object} p

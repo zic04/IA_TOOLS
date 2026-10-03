@@ -11,7 +11,7 @@
 import { TIMINGS } from "./timings.mjs";
 
 /** Defaults: quiet period, overall cap, cap of the network part. */
-export const STABLE = Object.freeze({ quietMs: TIMINGS.quiet, max: TIMINGS.stableMax, networkMax: TIMINGS.networkMax });
+const STABLE = Object.freeze({ quietMs: TIMINGS.quiet, max: TIMINGS.stableMax, networkMax: TIMINGS.networkMax });
 
 /**
  * Counts a page's requests in flight. Call once per page, before its first navigation.

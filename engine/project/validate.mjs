@@ -38,7 +38,7 @@ export function clone(v) {
 }
 
 /** Edit distance (for "did you mean…" suggestions). */
-export function editDistance(a, b) {
+function editDistance(a, b) {
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const current = [i];

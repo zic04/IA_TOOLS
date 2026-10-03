@@ -28,7 +28,7 @@ export const options = {
 };
 
 /** The hook script, inside the installed skill. */
-export const HOOK_SCRIPT = "scripts/usage-hook.mjs";
+const HOOK_SCRIPT = "scripts/usage-hook.mjs";
 
 /**
  * Registers the statistics hook (SubagentStop → usage-hook.mjs, ARCHITECTURE.md §6.14) in a Claude Code settings
@@ -61,7 +61,7 @@ export function installHooks({ settingsFile, skillFolder }) {
 export const SKILL_NAME = "doc-kit";
 export const FINGERPRINT = ".doc-kit-skill.json";
 export const SKILL_SOURCE = path.join(KIT_ROOT, "skill", SKILL_NAME);
-export const AGENTS_SUBDIR = "agents";
+const AGENTS_SUBDIR = "agents";
 const PLACEHOLDER = "{{KIT_PATH}}";
 /** Files where the placeholder is replaced. */
 const SUBSTITUTED = /^(SKILL\.md|references\/[^/]+\.md|scripts\/[^/]+\.mjs)$/;
@@ -98,7 +98,7 @@ export function agentFileNames(source = SKILL_SOURCE) {
 }
 
 /** SHA-256 of a folder's files (names and contents). */
-export function folderHash(dir) {
+function folderHash(dir) {
   const h = crypto.createHash("sha256");
   for (const f of listFiles(dir)) {
     h.update(f + "\0");

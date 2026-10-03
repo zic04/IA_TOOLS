@@ -135,7 +135,7 @@ export function pagesApiRouteOf(file) {
 }
 
 /** HTTP methods a `pages/api` handler answers to (req.method checks), else "ALL" (one default export for every method). */
-export function pagesApiMethods(source) {
+function pagesApiMethods(source) {
   const methods = new Set();
   for (const m of source.matchAll(/req\.method\s*===?\s*["'](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)["']/g)) methods.add(m[1]);
   return methods.size ? [...methods] : ["ALL"];

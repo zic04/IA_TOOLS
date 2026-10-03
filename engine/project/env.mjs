@@ -4,7 +4,7 @@
 //   URL → app.url · PLANS → capture.plans · READONLY → capture.readOnly · VERSION → version.fallback
 import { KitError, EXIT } from "./errors.mjs";
 
-export const MAPPINGS = [
+const MAPPINGS = [
   { name: "URL", path: ["app", "url"], convert: (v) => v.replace(/\/+$/, "") },
   { name: "PLANS", path: ["capture", "plans"] },
   { name: "READONLY", path: ["capture", "readOnly"], convert: readOnly },

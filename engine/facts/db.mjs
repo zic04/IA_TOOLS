@@ -23,7 +23,7 @@ export const DB_PATTERNS = Object.freeze({
 const findFirst = (appDir, name) => listFiles(appDir).find((f) => f === name || f.endsWith("/" + name)) ?? null;
 
 /** Tables of a Prisma schema: `model X { … }`, columns = field names, table = `@@map("…")` or the model name. */
-export function collectPrisma(appDir) {
+function collectPrisma(appDir) {
   const rel = findFirst(appDir, "schema.prisma");
   if (!rel) return [];
   const text = fs.readFileSync(path.join(appDir, rel), "utf8");
@@ -62,7 +62,7 @@ export function collectPrisma(appDir) {
 }
 
 /** Tables of SQLAlchemy models: `class X(Base): __tablename__ = "…"`, columns = Column(…) / mapped_column(…) names. */
-export function collectSqlAlchemy(appDir) {
+function collectSqlAlchemy(appDir) {
   const items = [];
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".py"))) {
     const text = fs.readFileSync(path.join(appDir, rel), "utf8");
@@ -81,7 +81,7 @@ export function collectSqlAlchemy(appDir) {
 }
 
 /** Tables of SQL migrations: CREATE TABLE (columns), ENABLE ROW LEVEL SECURITY (rls), CREATE POLICY … ON (policies). */
-export function collectSqlMigrations(appDir) {
+function collectSqlMigrations(appDir) {
   const items = new Map();
   const get = (table, file) => items.get(table) || items.set(table, { table, columns: [], file, rls: false, policies: [], references: [] }).get(table);
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".sql"))) {

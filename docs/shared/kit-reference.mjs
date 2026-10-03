@@ -11,7 +11,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** Dotted paths of the configuration keys: nested `properties` only (map values and array items are not keys). */
-export function configKeys(schema, prefix = "") {
+function configKeys(schema, prefix = "") {
   const out = [];
   for (const [key, def] of Object.entries(schema.properties || {})) {
     const p = prefix ? `${prefix}.${key}` : key;

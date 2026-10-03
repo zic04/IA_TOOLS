@@ -13,7 +13,7 @@ import { recordProof } from "./proofs.mjs";
 import { citedLabels, labelFiles, flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
-export const SYNC_FILE = "sync.json";
+const SYNC_FILE = "sync.json";
 
 /** Absolute path of sync.json (config.paths.sync, default the project root). */
 export const syncPath = (root, config) => path.join(root, config.paths.sync, SYNC_FILE);

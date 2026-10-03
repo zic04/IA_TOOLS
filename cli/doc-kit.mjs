@@ -30,7 +30,7 @@ export const COMMANDS = fs
   .map((f) => f.slice(0, -4))
   .sort();
 /** Commands announced but not delivered yet ({ name: "release" }); empty when every command exists. */
-export const LATER = {};
+const LATER = {};
 
 const GLOBALS = {
   project: { type: "string" },
@@ -122,7 +122,7 @@ export async function runCli(argv, io = {}) {
  * The block each command measures (ETUDE-CAPTURES.md §6): the step a run counts under in usage/<version>.jsonl.
  * Commands absent here (dev, open, view, doctor, init, skill, stats, export, upgrade, migrate) are not recorded.
  */
-export const STEP_OF = Object.freeze({
+const STEP_OF = Object.freeze({
   connect: "setup",
   demo: "setup",
   capture: "capture",
@@ -246,7 +246,7 @@ function safeToc(root, config) {
 
 /** Commands offered once everything is in place, in this order; `translate status` only with `languages`
  * declared (ARCHITECTURE.md §6.12) — built by a function, not a constant, since it depends on the project. */
-export const MENU = ["dev", "audit", "build", "doctor"];
+const MENU = ["dev", "audit", "build", "doctor"];
 export const menuFor = (config) => [...MENU, ...(config?.languages ? ["translate"] : [])];
 
 async function guided({ ctx, modules, values }) {

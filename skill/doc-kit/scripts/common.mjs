@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-export const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SKILL_ROOT = path.resolve(HERE, "..");
 export const WORK_DIR = ".doc-kit";
 export const LANGUAGES = ["en", "fr"];
@@ -442,7 +442,7 @@ export function fill(template, vars) {
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
 
 /** A field of a `---\nkey: value\n---` front matter block at the start of `text` ("" when absent). */
-export function frontMatterField(text, field) {
+function frontMatterField(text, field) {
   const m = FRONT_MATTER.exec(String(text ?? ""));
   if (!m) return "";
   const line = new RegExp(`^${field}:\\s*(\\S+)\\s*$`, "m").exec(m[1]);
@@ -496,7 +496,7 @@ export function agentModel(type, agentsDir = AGENTS_DIR) {
  * Dynamically imports a module of the kit's engine, by path relative to the kit root. The installed skill does
  * not carry `engine/`: callers degrade gracefully (null) when the kit root is unknown or the file is missing.
  */
-export async function importKitModule(kitRoot, relPath) {
+async function importKitModule(kitRoot, relPath) {
   if (!kitRoot) return null;
   const file = path.join(kitRoot, ...relPath.split("/"));
   if (!fs.existsSync(file)) return null;

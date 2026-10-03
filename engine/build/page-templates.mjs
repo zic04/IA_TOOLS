@@ -14,7 +14,7 @@ import { KIT_ROOT } from "../project/find.mjs";
 /** Word limit of a page that declares no template (standard/structure.md, "Sub-pages"). */
 export const DEFAULT_MAX_WORDS = 2000;
 /** Opening of a guidance comment, in both languages of the templates. */
-export const GUIDANCE = /<!--\s*(?:guidance|consigne)\s*:/gi;
+const GUIDANCE = /<!--\s*(?:guidance|consigne)\s*:/gi;
 
 const cache = new Map();
 
@@ -60,7 +60,7 @@ export function sectionLabel(table, type, index, language) {
 }
 
 /** Accepted labels of a section: its label, then its aliases in that language. */
-export function sectionLabels(table, type, index, language) {
+function sectionLabels(table, type, index, language) {
   const label = sectionLabel(table, type, index, language);
   return [label, ...(table.aliases?.[language]?.[label] || [])].filter(Boolean);
 }
@@ -209,7 +209,7 @@ export function guessTemplate({ table, headings, language = "en", level = 1, par
 }
 
 /** Sub-page types and the type of their parent page. */
-export const SUB_TYPES = Object.freeze({ "journey-step": "journey", "troubleshooting-area": "troubleshooting" });
+const SUB_TYPES = Object.freeze({ "journey-step": "journey", "troubleshooting-area": "troubleshooting" });
 
 /**
  * The type an untyped page is closest to (most required sections present, at least half of them), with the

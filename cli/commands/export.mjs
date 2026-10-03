@@ -32,8 +32,8 @@ export const options = {
 
 export const VENDOR = "vendor/doc-kit";
 /** What the vendored engine contains (ARCHITECTURE.md §0: no tests, examples, skill, docs, ci). */
-export const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templates", "standard"];
-export const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
+const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templates", "standard"];
+const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
 const SKIPPED_FOLDERS = new Set(["node_modules", ".doc-kit", ".git"]);
 /** Files never exported, at any depth: environment files, keys and certificates, credentials of tools. */
 const SECRET_FILE = /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
@@ -72,7 +72,7 @@ export function freezeFallback(source, version) {
 }
 
 /** Configuration paths that point outside the project: [{ key, path }]. */
-export function outsidePaths(root, config) {
+function outsidePaths(root, config) {
   const out = [];
   const check = (key, value) => {
     if (typeof value !== "string" || !value || /^https?:/.test(value)) return;

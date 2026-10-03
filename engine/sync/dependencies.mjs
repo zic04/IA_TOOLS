@@ -21,7 +21,7 @@ function readCached(abs) {
 
 /** Loaded coverage adapters of a project (name, options), in `config.coverage` order; cached per process. */
 const adapterCache = new Map();
-export async function loadCoverageAdapters(root, config) {
+async function loadCoverageAdapters(root, config) {
   const key = root;
   if (!adapterCache.has(key)) adapterCache.set(key, new Map());
   const byRoot = adapterCache.get(key);

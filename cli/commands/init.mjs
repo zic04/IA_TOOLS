@@ -53,7 +53,7 @@ export const options = {
  * @returns {string[]}
  * @throws {KitError} init.languagesInvalid { value, reason } (exit code 2)
  */
-export function parseLanguages(value, t) {
+function parseLanguages(value, t) {
   const list = value
     .split(",")
     .map((s) => s.trim())
@@ -69,11 +69,11 @@ export function parseLanguages(value, t) {
   return list;
 }
 
-export const DEFAULT_DIR = "docs/manual";
-export const FRAMEWORKS = ["next", "react-router", "none"];
-export const AUTH_ADAPTERS = ["manual", "none", "nextauth"];
+const DEFAULT_DIR = "docs/manual";
+const FRAMEWORKS = ["next", "react-router", "none"];
+const AUTH_ADAPTERS = ["manual", "none", "nextauth"];
 /** Where the screenshots are taken (capture.target, ARCHITECTURE.md §3). */
-export const CAPTURE_TARGETS = ["local", "demo", "production"];
+const CAPTURE_TARGETS = ["local", "demo", "production"];
 const SUBFOLDERS = ["frontend", "front", "web", "client", "ui", "app", "apps/web"];
 const BACKENDS = ["", "backend", "back", "api", "server"];
 const GENERIC_NAMES = /^(app|web|client|frontend|front|ui|site|www|my-app|project|monorepo|root)$/i;
@@ -161,7 +161,7 @@ export function metadataTitle(source) {
  * package.json, then the folder name.
  * @returns {{ name: string, source: { kind: "layout"|"package"|"folder", file?: string, field?: string } }}
  */
-export function detectName(appDir, packageDir) {
+function detectName(appDir, packageDir) {
   const rel = (p) => slash(path.relative(appDir, p)) || ".";
   if (packageDir)
     for (const f of LAYOUT_FILES) {
@@ -190,7 +190,7 @@ export function detectName(appDir, packageDir) {
  * a version, then the front end's package.json, then the pyproject.toml of a Python-only application.
  * @returns {{ file: string, pattern: string, value: string|null }}  file relative to appDir (forward slashes)
  */
-export function detectVersion(appDir, packageDir, python) {
+function detectVersion(appDir, packageDir, python) {
   const rel = (p) => slash(path.relative(appDir, p)) || ".";
   const read = (file, pattern) => {
     try {
@@ -213,7 +213,7 @@ export function detectVersion(appDir, packageDir, python) {
 }
 
 /** The application's local .env files (.env, .env.local) at its root and in its front-end folder, relative to appDir. */
-export function detectEnvFiles(appDir, packageDir) {
+function detectEnvFiles(appDir, packageDir) {
   return [...new Set([appDir, packageDir].filter(Boolean))].flatMap((dir) => ENV_FILES.map((f) => path.join(dir, f)).filter(isFile)).map((f) => slash(path.relative(appDir, f)));
 }
 
@@ -285,14 +285,14 @@ export function detectApp(appDir) {
 }
 
 /** Relative path between two folders, with forward slashes ("." when equal); absolute across drives. */
-export function relativeSlash(from, to) {
+function relativeSlash(from, to) {
   const rel = path.relative(from, to);
   if (path.isAbsolute(rel)) return slash(to);
   return slash(rel) || ".";
 }
 
 /** Option of each coverage adapter that receives the routes source (adapters/coverage/<name>.mjs). */
-export const COVERAGE_OPTION = { "next-app-router": "app", "react-router": "file" };
+const COVERAGE_OPTION = { "next-app-router": "app", "react-router": "file" };
 
 /** JavaScript literal of the coverage array, paths relative to the documentation folder. */
 export function coverageLiteral(framework, appPathFromDocs) {
@@ -332,7 +332,7 @@ function withoutCaptureScripts(text) {
  *   raw: variables inserted as they are (JavaScript literals such as {{coverage}}); mode: capture mode (§6.4 variants)
  * @returns {string[]} written files, relative to target, with forward slashes, sorted
  */
-export function scaffold({ target, language, vars, raw = ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly"], kitVersion = BRAND.version, mode = "app" }) {
+function scaffold({ target, language, vars, raw = ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly"], kitVersion = BRAND.version, mode = "app" }) {
   if (fs.existsSync(target) && fs.readdirSync(target).length) throw new KitError(EXIT.CHECK, "init.notEmpty", { folder: target });
   const written = [];
   for (const layer of ["common", language]) {
@@ -397,7 +397,7 @@ async function runIn(ctx, folder, run, values) {
  * The follow-up steps offered once the project is written (ARCHITECTURE.md §2.1). Each returns an exit code or
  * throws a KitError; the tests replace them through the context (`steps` of createContext): no npm, no browser.
  */
-export const FOLLOW_UP_STEPS = {
+const FOLLOW_UP_STEPS = {
   /** npm install in the new project, when the kit is not linked yet (doc.config.mjs imports doc-kit/config). */
   async install(ctx, folder) {
     if (projectDependency(folder).ok) return EXIT.OK;

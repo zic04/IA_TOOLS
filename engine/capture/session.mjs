@@ -18,7 +18,7 @@ import { launchBrowser } from "../project/browser.mjs";
 import { firstLine } from "./actions.mjs";
 import { TIMINGS } from "./timings.mjs";
 
-export const BUILT_IN = Object.freeze({
+const BUILT_IN = Object.freeze({
   auth: ["manual", "none", "nextauth", "api-me"],
   coverage: ["next-app-router", "react-router", "i18n-registry", "glob", "openapi", "features", "fastapi", "facts"],
 });
@@ -26,7 +26,7 @@ export const BUILT_IN = Object.freeze({
 export const LOGIN_PATTERN = "login|signin|sign-in|oauth|authorize";
 
 /** Options accepted by every authentication adapter (an adapter may change their defaults). */
-export const COMMON_AUTH_OPTIONS = Object.freeze({
+const COMMON_AUTH_OPTIONS = Object.freeze({
   start: { type: "string", pattern: "^/", default: "/" },
   loginPattern: { type: "string", minLength: 1, default: LOGIN_PATTERN },
   browser: { enum: ["chromium", "chrome"] },
@@ -129,7 +129,7 @@ export function forgetSession(file) {
 }
 
 /** Writes the session (storageState); a .doc-kit/ folder gets a .gitignore that ignores everything. */
-export async function saveSession(context, file) {
+async function saveSession(context, file) {
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true });
   if (path.basename(dir) === ".doc-kit" && !fs.existsSync(path.join(dir, ".gitignore"))) fs.writeFileSync(path.join(dir, ".gitignore"), "*\n");
@@ -154,7 +154,7 @@ export function sessionStorageOf(file, origin) {
 }
 
 /** Asks the adapter whether the page is signed in; navigation errors count as "not yet". */
-export async function readSession(page, auth, appUrl) {
+async function readSession(page, auth, appUrl) {
   try {
     return (await auth.adapter.session(page, auth.options, { appUrl, isSignInUrl })) || null;
   } catch {

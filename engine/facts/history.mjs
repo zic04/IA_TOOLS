@@ -8,9 +8,9 @@
 import { gitLsFiles } from "./common.mjs";
 
 /** Most recent commits read. */
-export const HISTORY_LIMIT = 2000;
+const HISTORY_LIMIT = 2000;
 /** Files kept, the most often changed first. */
-export const HISTORY_FILES = 300;
+const HISTORY_FILES = 300;
 
 /**
  * Parses `git log --numstat --no-renames --format=@@%H%x09%an%x09%aI` output.

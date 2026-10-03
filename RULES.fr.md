@@ -36,12 +36,13 @@ ou son test est mis à jour dans la même modification.
 | M1 | `engine/` n'importe jamais `cli/`, n'appelle jamais `process.exit` et n'écrit jamais dans la console. Les erreurs sont des `KitError`, avec un code de sortie et une clé i18n. |
 | M2 | Chaque message existe en anglais et en français (`i18n/en`, `i18n/fr`), et le test de parité passe. |
 | M3 | Chaque fonctionnalité ou correction arrive avec son test ; une correction de sécurité arrive avec le test qui l'aurait détectée. On ne saute, ne désactive ni n'affaiblit jamais un test pour passer au vert. |
-| M4 | Les tests ne dépendent pas de la machine : pas de vrai réseau, pas de vrai git, pas de Chromium installé dans les tests unitaires. On utilise les points d'injection du contexte (`exec`, `fetch`, `launch`, `commit`). |
+| M4 | Les tests ne dépendent pas de la machine : pas de vrai réseau, pas de vrai git, pas de Chromium installé dans les tests unitaires. On utilise les points d'injection du contexte (`exec`, `fetch`, `launch`, `commit`, `chromium`). |
 | M5 | Une nouvelle fonction reste sous 80 lignes environ, un fichier sous 600 environ ; au-delà, on découpe. On n'ajoute rien à `build()`, `runAudit()` ni `runCaptures()` : on en extrait une étape. |
 | M6 | Un seul utilitaire par tâche. Avant d'écrire un analyseur, un lecteur de sommaire ou un appel git, on cherche celui qui existe (`engine/project`, `engine/util`). |
 | M7 | Pas de délai magique : un délai ou une attente Playwright est une constante nommée, et attendre une condition vaut mieux qu'une pause fixe. |
 | M8 | Les références pointent vers des documents versionnés (ARCHITECTURE.md §, RULES.md), jamais vers un document hors du dépôt. |
 | M9 | Chaque modification a son entrée dans le CHANGELOG, sous `[Unreleased]`. Une version incrémente `package.json`, range les entrées sous son numéro et pose le tag `vX.Y.Z`. Les commits sont petits et disent ce qu'ils changent. |
+| M10 | Pas de surface morte : un nom n'est exporté que si un autre fichier l'importe (hors points d'entrée publics de `exports` dans `package.json`). Vérifié par `test/unit/exports.test.mjs`. |
 
 ## Avant chaque version
 

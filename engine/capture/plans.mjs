@@ -85,8 +85,8 @@ import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 
-export const TARGET_KINDS = ["role", "text", "field", "label", "placeholder", "css", "block"];
-export const ACTION_KINDS = ["click", "hover", "type", "select", "press", "scroll", "wait", "wheel", "eval"];
+const TARGET_KINDS = ["role", "text", "field", "label", "placeholder", "css", "block"];
+const ACTION_KINDS = ["click", "hover", "type", "select", "press", "scroll", "wait", "wheel", "eval"];
 const TARGET_ACTIONS = ["click", "hover", "type", "select", "scroll"];
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof RegExp);
@@ -137,7 +137,7 @@ export function validateEntry(entry) {
 }
 
 /** How an entry is named in messages: its id when it has one, and its index in CAPTURES. */
-export function entryLabel(entry, index) {
+function entryLabel(entry, index) {
   const id = isObject(entry) && typeof entry.id === "string" && entry.id ? entry.id : null;
   return id ? `${id} (CAPTURES[${index}])` : `CAPTURES[${index}]`;
 }
@@ -228,7 +228,7 @@ export function forbiddenMatchers(patterns = []) {
  * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %61…), with repeated
  * slashes collapsed and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
  */
-export function pathForms(p) {
+function pathForms(p) {
   let decoded = p;
   try {
     decoded = decodeURIComponent(p);

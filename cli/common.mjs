@@ -18,7 +18,7 @@ import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-
 import { chromiumStatus } from "../engine/dev/environment.mjs";
 
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
-export function createPaint(enabled) {
+function createPaint(enabled) {
   const wrap = (open, close) => (s) => (enabled ? `\x1b[${open}m${s}\x1b[${close}m` : String(s));
   return { ok: wrap(32, 39), warn: wrap(33, 39), fail: wrap(31, 39), dim: wrap(2, 22), bold: wrap(1, 22), cmd: wrap(36, 39) };
 }
@@ -271,7 +271,7 @@ export async function builtSite(ctx, { space, requireExisting = false } = {}) {
  * `prompt.cancelled` (exit code 2).
  * @returns {{ ask, choose, confirm, close }}
  */
-export function createPrompter(ctx) {
+function createPrompter(ctx) {
   const terminal = !!(ctx.stdin?.isTTY && ctx.stdout?.isTTY);
   const rl = readline.createInterface({ input: ctx.stdin, output: terminal ? ctx.stdout : undefined, terminal });
   const queue = [];

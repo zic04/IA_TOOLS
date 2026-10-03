@@ -51,7 +51,7 @@ function problemText(f, p) {
  * Text of an action. When every element must be handled (`need` ≥ `n`), the `.all` form of the sentence says so
  * once ("Document the 4 elements…") instead of "4, at least 4".
  */
-export function actionText(f, a) {
+function actionText(f, a) {
   const key = `cli.audit.action.${a.key}`;
   const all = a.vars?.need !== undefined && a.vars?.n !== undefined && a.vars.need >= a.vars.n && f.has(`${key}.all`);
   const text = f.tv(all ? `${key}.all` : key, a.vars);
@@ -59,7 +59,7 @@ export function actionText(f, a) {
 }
 
 /** Text of an item of an action (without its id), or "" when the id says it all. */
-export function itemText(f, item) {
+function itemText(f, item) {
   if (item.problem) return problemText(f, item.problem);
   if (!item.key) return "";
   const vars = { ...item.vars, id: item.id };

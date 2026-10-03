@@ -12,7 +12,7 @@ export const SKIP_DIRS = Object.freeze(["node_modules", ".git", "dist", "build",
 export const relPath = (base, abs) => path.relative(base, abs).split(path.sep).join("/");
 
 /** A folder holding this file is a documentation project of the kit, not code of the application: never read. */
-export const DOC_PROJECT_FILE = "doc.config.mjs";
+const DOC_PROJECT_FILE = "doc.config.mjs";
 
 /** The files of a list (relative, forward slashes) that do not sit in a documentation project below its root. */
 export function withoutDocProjects(files) {
