@@ -17,7 +17,7 @@ Reminders:
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.1.0", // accepted kit versions; outside this range, every command stops with exit code 3
+  kit: "^0.2.0", // accepted kit versions; outside this range, every command stops with exit code 3
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en", // language of the site and of the CLI messages
   output: "dist/Acme-Orders-Documentation.html",
@@ -113,7 +113,7 @@ doc-kit connect --forget                             # deletes the session
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Deliveries", slug: "acme-deliveries" },
   language: "en",
   output: "dist/Acme-Deliveries-Documentation.html",

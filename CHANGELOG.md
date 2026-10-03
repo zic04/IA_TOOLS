@@ -6,6 +6,8 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-03
+
 ### Added
 
 - **Production statistics** (ARCHITECTURE.md §6.14):

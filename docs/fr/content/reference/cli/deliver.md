@@ -30,7 +30,7 @@ Amène un projet à la version installée du kit, même quand sa plage `kit` ref
 2. Exécute **en mémoire** les migrations du kit (`engine/migrations/<version>.mjs`) plus récentes que la version de
    base de la plage, et affiche le diff de chaque fichier qu'elles modifient, y compris `kit` porté à
    `^<version installée>`.
-3. Avec `--apply`, écrit les modifications : `1 fichier mis à jour ; le projet exige désormais le kit ^0.1.0.`
+3. Avec `--apply`, écrit les modifications : `1 fichier mis à jour ; le projet exige désormais le kit ^0.2.0.`
 :::
 
 Sans `--apply`, rien n'est écrit : `Rien n'a été écrit (simulation). Pour appliquer : doc-kit upgrade --apply`. Code

@@ -3,7 +3,7 @@
 // Each space's pages carry a marker text (marker-business-7q, marker-takeover-9z), so that a test can prove that
 // an export holds nothing of the other space.
 export default {
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en",
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },

@@ -1,6 +1,6 @@
 {
   "name": "doc-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Product documentation as one self-contained HTML file: extended Markdown, annotated screenshots, guided tours, search, light and dark themes.",
   "license": "MIT",
   "type": "module",

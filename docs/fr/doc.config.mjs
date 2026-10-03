@@ -8,7 +8,7 @@
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.1.0",
+  kit: "^0.2.0",
   product: { name: "doc-kit", slug: "doc-kit" },
   language: "fr",
   // La version documentée est celle du kit.
