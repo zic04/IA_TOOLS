@@ -98,5 +98,19 @@
   "cli.hooks.outside.help": "the hooks run the kit from the repository: keep the documentation inside it (docs/manual)",
   "cli.help.hooks": "Usage: {command} hooks install | uninstall | status [--app <dir>]\n\nLocal updates without CI: git hooks in the application's repository (post-merge after a git pull, post-checkout after a branch switch) that run {command} facts then {command} sync from the documentation project, quietly, never failing git, zero tokens. An existing hook is kept: the kit only adds, or removes, its own block. The hooks folder comes from git (core.hooksPath and worktrees are honoured).\n\n  --app   the application's folder (default: app.dir)",
   "cli.hooks.unsafePath": "the documentation folder “{folder}” has characters that cannot go into a hook safely",
-  "cli.hooks.unsafePath.help": "rename it with letters, digits, dots, dashes, underscores, slashes and spaces only"
+  "cli.hooks.unsafePath.help": "rename it with letters, digits, dots, dashes, underscores, slashes and spaces only",
+  "cli.record.open": "Recorder open on {url}: click, type and choose what the capture must show, then close the browser.",
+  "cli.record.written": "✔ {file} written: {n} step(s) recorded",
+  "cli.record.skipped": "⚠ {n} line(s) not translated: they are kept as comments at the top of the file",
+  "cli.record.next": "Next: add the zones and the frame, then {command} capture {id} --preview",
+  "cli.record.route": "give the route to open, starting with /",
+  "cli.record.route.help": "{command} record /orders [--id orders-list]",
+  "cli.record.production": "record is refused when capture.target is \"production\": the recorder is a normal browser, not the read-only capture",
+  "cli.record.production.help": "record on the local application or the demo, then capture production read-only",
+  "cli.record.forbidden": "{route} matches capture.forbidden ({pattern}): never opened",
+  "cli.record.exists": "{file} already exists",
+  "cli.record.exists.help": "choose another --id, or add --force to replace it",
+  "cli.record.nothing": "nothing was recorded",
+  "cli.record.nothing.help": "click at least once in the application before closing the browser",
+  "cli.help.record": "Usage: {command} record <route> [--id <id>] [--force]\n\nWrites a capture plan entry by doing it: opens Playwright's recorder on the application (signed in with the saved session), you click, type and choose what the capture must show, then close the browser. The steps become captures/plans/<id>.mjs (route and actions); the lines that cannot be translated are kept as comments. Add the zones and the frame, then check with {command} capture <id> --preview.\n\nThe recorder is a normal browser, not the read-only capture: refused when capture.target is \"production\" and on a capture.forbidden route.\n\n  --id      the capture id (default: from the route)\n  --force   replace an existing plan file"
 }

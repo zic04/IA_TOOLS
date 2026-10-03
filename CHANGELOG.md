@@ -44,6 +44,11 @@ entries between a project's `kit` range and the installed version.
   environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
   import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
   release notes.
+- **`doc-kit record <route> [--id] [--force]`**: writes a capture plan entry from what a person does in the
+  browser. Playwright's recorder (codegen) opens on the application with the saved session. Clicks, typing,
+  choices and keys become the entry's route and actions in `captures/plans/<id>.mjs`; the lines it cannot
+  translate stay at the top of the file as comments. It is refused on production and on `capture.forbidden`
+  routes, because the recorder is not read-only.
 - **`changes --record`** keeps each version's changes in `changes/<version>.json`, which is committed. The
   directive `::changes{version, sources}` (`::changements`) shows every recorded version in the site, most recent
   first. The `release-notes` template starts from it.

@@ -939,6 +939,25 @@ Two optional reviews of the documented application, asked at scoping: determinis
 
 **Configuration**: `review: { guards: { role: [], user: [] }, params: {}, semgrep: null }` (regular expressions as strings; `params`: path parameter → example value; `semgrep`: local rules folder, relative to the project). **i18n fragment** `i18n/<language>/reviews.json`: `cli.probe.*` (with `cli.help.probe`), `cli.connect.as*`, the new `render.facts.column.*` and `cli.facts.*` keys.
 
+### 6.16 Recording a capture plan (`record`)
+
+**`record <route> [--id <id>] [--force]`** runs Playwright's codegen
+(`node <playwright>/cli.js codegen --target javascript --output <tmp> [--load-storage <session>] <url><route>`,
+without a shell) and translates its output (`engine/capture/record.mjs`):
+- the first `page.goto` on the application's origin gives the route;
+- `getByRole` (`name`, `exact`), `getByText`, `getByLabel`, `getByPlaceholder` and `locator` (css), with `.nth(n)`,
+  `.first()` or `.last()`, give the targets;
+- `click`, `dblclick`, `check` and `uncheck` become `click`; `fill` becomes `type` + `value`; `selectOption` becomes
+  `select` + `value`; `hover` becomes `hover`; `locator.press` becomes `click` then `press`; `keyboard.press`
+  becomes `press`;
+- any other line (a filter, a nested locator, a page on another origin) is listed at the top of the plan as a
+  comment.
+
+The plan is `captures/plans/<id>.mjs`. The id defaults to the route in kebab-case. An existing file raises
+`record.exists` (exit code 1) unless `--force` is given. The command is refused when `capture.target` is
+`"production"` (`record.production`) and on a `capture.forbidden` route (`record.forbidden`), because the recorder
+is a normal browser without the read-only guard. The `codegen` context seam replaces the recorder in tests.
+
 ### 6.15 What changed, on every build (`changes`, `::changes`, `hooks`)
 
 - **`changes [--since <ref>] [--output <file>] [--record]`** (`engine/facts/changes.mjs`) compares the facts files

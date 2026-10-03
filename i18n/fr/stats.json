@@ -98,5 +98,19 @@
   "cli.hooks.outside.help": "les hooks lancent le kit depuis le dépôt : gardez la documentation dedans (docs/manual)",
   "cli.help.hooks": "Usage : {command} hooks install | uninstall | status [--app <dossier>]\n\nMises à jour locales sans CI : des hooks git dans le dépôt de l'application (post-merge après un git pull, post-checkout après un changement de branche) qui lancent {command} facts puis {command} sync depuis le projet de documentation, en silence, sans jamais faire échouer git, zéro jeton. Un hook existant est conservé : le kit n'ajoute, ou ne retire, que son propre bloc. Le dossier des hooks vient de git (core.hooksPath et worktrees respectés).\n\n  --app   le dossier de l'application (par défaut : app.dir)",
   "cli.hooks.unsafePath": "le dossier de documentation « {folder} » contient des caractères qui ne peuvent pas aller sans risque dans un hook",
-  "cli.hooks.unsafePath.help": "renommez-le avec seulement des lettres, chiffres, points, tirets, soulignés, barres obliques et espaces"
+  "cli.hooks.unsafePath.help": "renommez-le avec seulement des lettres, chiffres, points, tirets, soulignés, barres obliques et espaces",
+  "cli.record.open": "Enregistreur ouvert sur {url} : cliquez, saisissez et choisissez ce que la capture doit montrer, puis fermez le navigateur.",
+  "cli.record.written": "✔ {file} écrit : {n} étape(s) enregistrée(s)",
+  "cli.record.skipped": "⚠ {n} ligne(s) non traduite(s) : elles sont gardées en commentaire en tête du fichier",
+  "cli.record.next": "Ensuite : ajoutez les zones et le cadre, puis {command} capture {id} --preview",
+  "cli.record.route": "indiquez la route à ouvrir, qui commence par /",
+  "cli.record.route.help": "{command} record /commandes [--id commandes-liste]",
+  "cli.record.production": "record est refusé quand capture.target vaut \"production\" : l'enregistreur est un navigateur normal, pas la capture en lecture seule",
+  "cli.record.production.help": "enregistrez sur l'application locale ou la démo, puis capturez la production en lecture seule",
+  "cli.record.forbidden": "{route} correspond à capture.forbidden ({pattern}) : jamais ouverte",
+  "cli.record.exists": "{file} existe déjà",
+  "cli.record.exists.help": "choisissez un autre --id, ou ajoutez --force pour le remplacer",
+  "cli.record.nothing": "rien n'a été enregistré",
+  "cli.record.nothing.help": "cliquez au moins une fois dans l'application avant de fermer le navigateur",
+  "cli.help.record": "Usage : {command} record <route> [--id <id>] [--force]\n\nÉcrit une entrée de plan de capture en la faisant : ouvre l'enregistreur de Playwright sur l'application (connecté avec la session enregistrée), vous cliquez, saisissez et choisissez ce que la capture doit montrer, puis fermez le navigateur. Les étapes deviennent captures/plans/<id>.mjs (route et actions) ; les lignes qui ne peuvent pas être traduites sont gardées en commentaire. Ajoutez les zones et le cadre, puis vérifiez avec {command} capture <id> --preview.\n\nL'enregistreur est un navigateur normal, pas la capture en lecture seule : refusé quand capture.target vaut \"production\" et sur une route de capture.forbidden.\n\n  --id      l'identifiant de la capture (par défaut : tiré de la route)\n  --force   remplace un fichier de plan existant"
 }
