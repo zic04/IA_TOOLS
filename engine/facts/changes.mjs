@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 // What changed in the application between two states of its facts (AUDIT.md §5, "what changed" on every build):
 // routes, tables and columns, environment variables, dependencies, security findings, secrets, import cycles and
 // tests, from facts/<source>.json as committed at a git reference against the files on disk now. Pure functions;
@@ -104,4 +107,63 @@ export function changesMarkdown(changes, { t, since, until }) {
     lines.push("");
   }
   return lines.join("\n");
+}
+
+/** Folder of the recorded changes (`changes --record`), one JSON file per documented version, committed. */
+export const CHANGES_DIR = "changes";
+
+/** Writes changes/<version>.json ({ since, until, date, sources, total }); returns the file. */
+export function recordChanges(root, record) {
+  const dir = path.join(root, CHANGES_DIR);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `${String(record.until || "unversioned").replace(/[^\w.+-]/g, "_")}.json`);
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + "\n");
+  return file;
+}
+
+/** Every recorded version (invalid files skipped), the most recent version first. */
+export function readChanges(root, compare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })) {
+  const dir = path.join(root, CHANGES_DIR);
+  let files = [];
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const f of files) {
+    try {
+      const r = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+      if (r && typeof r === "object" && r.sources && typeof r.sources === "object") out.push(r);
+    } catch {
+      // a broken file is skipped
+    }
+  }
+  return out.sort((a, b) => compare(b.until, a.until));
+}
+
+/**
+ * HTML of recorded changes (`::changes{version, sources}`): one block per version, most recent first, one list
+ * per source with ＋ added, － removed, ～ changed.
+ * @param {object[]} records   readChanges()
+ * @param {{ t: Function, esc: Function, version?: string, sources?: string[]|null }} o
+ */
+export function renderChanges(records, { t, esc, version = null, sources = null }) {
+  const kept = version ? records.filter((r) => r.until === version) : records;
+  const show = (v) => (Array.isArray(v) ? v.join(", ") || "—" : v === null || v === undefined ? "—" : String(v));
+  const blocks = kept.map((r) => {
+    const parts = Object.entries(r.sources)
+      .filter(([source]) => !sources || sources.includes(source))
+      .map(([source, d]) => {
+        const li = [
+          ...(d.added || []).map((k) => `<li class="changes-added"><span aria-hidden="true">＋</span> <code>${esc(k)}</code></li>`),
+          ...(d.removed || []).map((k) => `<li class="changes-removed"><span aria-hidden="true">－</span> <code>${esc(k)}</code></li>`),
+          ...(d.changed || []).map((c) => `<li class="changes-changed"><span aria-hidden="true">～</span> <code>${esc(c.key)}</code> · ${esc(c.field)} : ${esc(show(c.before))} → ${esc(show(c.after))}</li>`),
+        ];
+        return `<p class="changes-source">${esc(t(`cli.changes.source.${source}`))}</p><ul class="changes-list">${li.join("")}</ul>`;
+      });
+    const head = t("render.changes.version", { until: r.until, since: r.since, date: String(r.date || "").slice(0, 10) || "—" });
+    return `<div class="changes-version"><p class="changes-head"><strong>${esc(head)}</strong></p>${parts.length ? parts.join("") : `<p class="usage-none">${esc(t("cli.changes.none"))}</p>`}</div>`;
+  });
+  return blocks.join("\n");
 }

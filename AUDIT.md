@@ -47,7 +47,7 @@ mise à jour ou build** de l'application.
 | S14 Actions épinglées, `--ignore-scripts` | **Corrigé** | CI |
 | M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
 | § 4 : graphe des modules et cycles, historique git (fichiers à risque, propriétaires, bus factor), schéma entité-relation | **Fait** (`facts --source modules`, `--source history`, `::erd`) | `overview.test.mjs` |
-| § 5 : « ce qui a changé » entre deux versions (`doc-kit changes`) et recette CI à chaque build de l'application, avec commentaire de PR | **Fait** | `changes.test.mjs` |
+| § 5 : « ce qui a changé » entre deux versions (`doc-kit changes`), historique par version dans le site (`--record`, `::changes`), recette CI à chaque build avec commentaire de PR, hooks git locaux (`doc-kit hooks install`) | **Fait** | `changes.test.mjs`, `hooks.test.mjs` |
 | S6, S9 à S11, S13 ; M2 à M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en

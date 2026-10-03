@@ -939,6 +939,29 @@ Two optional reviews of the documented application, asked at scoping: determinis
 
 **Configuration**: `review: { guards: { role: [], user: [] }, params: {}, semgrep: null }` (regular expressions as strings; `params`: path parameter → example value; `semgrep`: local rules folder, relative to the project). **i18n fragment** `i18n/<language>/reviews.json`: `cli.probe.*` (with `cli.help.probe`), `cli.connect.as*`, the new `render.facts.column.*` and `cli.facts.*` keys.
 
+### 6.15 What changed, on every build (`changes`, `::changes`, `hooks`)
+
+- **`changes [--since <ref>] [--output <file>] [--record]`** (`engine/facts/changes.mjs`) compares the facts files
+  committed at `<ref>` (default `HEAD`; read with `git show <ref>:./<paths.facts>/<source>.json`, a reference
+  checked by `isSafeRef`) with the files on disk.
+  - Per source, items are compared by key: `api` method + route (`auth` watched); `db` table (columns, references,
+    rls); `env` name; `dependencies` name + manifest (version); `security` and `secrets` rule + file; `agents` file.
+    `tests` compares its count and `modules` its import cycles.
+  - It writes `.doc-kit/changes.md` (＋ added, － removed, ～ changed, per source) and `.doc-kit/changes.json`.
+  - `--record` also writes `changes/<documented version>.json` (`{ since, until, date, sources, total }`, committed).
+    `::changes{version, sources}` (`::changements`) renders the recorded versions, most recent first.
+  - Without git: `changes.noGit`, exit code 3.
+- **`hooks install | uninstall | status [--app <dir>]`** adds to `post-merge` and `post-checkout` (the latter only
+  on a branch switch) a marked block. The block runs `npx --no-install doc-kit facts`, then `sync`, from the
+  documentation folder, and swallows any failure.
+  - The hooks folder is `git rev-parse --git-path hooks`. Existing hooks are kept, and a hook that held only the
+    block is removed on uninstall.
+  - The documentation folder must be inside the repository (`hooks.outside`) and its path made of plain
+    characters (`hooks.unsafePath`): it is written into a shell script.
+- **CI** (`ci/github-actions.yml`, example c): on every push and pull request of the application, it runs `facts`,
+  then `changes --since origin/<base>`, then `sync --check`. It posts one comment on the pull request,
+  `changes.md` + `sync.md`, updated at each push, then builds and checks the site.
+
 ### 6.14 Production statistics (`usage/`, `stats`, `--profile`)
 
 - **Where:** `usage/<version>.jsonl` in the documentation project, one JSON object per line, appended and never

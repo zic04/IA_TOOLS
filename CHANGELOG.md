@@ -44,6 +44,13 @@ entries between a project's `kit` range and the installed version.
   environment variables, dependencies and versions, security findings, secrets (never values), AI agent files,
   import cycles and the number of tests. It writes `.doc-kit/changes.md`, ready for a pull request comment or the
   release notes.
+- **`changes --record`** keeps each version's changes in `changes/<version>.json`, which is committed. The
+  directive `::changes{version, sources}` (`::changements`) shows every recorded version in the site, most recent
+  first. The `release-notes` template starts from it.
+- **`doc-kit hooks install | uninstall | status`** installs git hooks (`post-merge` after a pull, `post-checkout`
+  after a branch switch) that run `facts` then `sync` in the background. They never block git and cost no tokens.
+  Existing hooks are kept: the kit only adds or removes its own block, in the folder git reports, so
+  `core.hooksPath` is respected.
 - **CI on every build of the application**: the new example (c) in `ci/github-actions.yml` runs `facts`,
   `changes` against the base branch and `sync --check`. On a pull request it posts both reports as a single
   comment, updated at each push, then builds the site.

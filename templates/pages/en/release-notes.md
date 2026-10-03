@@ -4,7 +4,9 @@
 
 ## Latest version
 
-<!-- guidance: the current version and its date, then what changed, in business language (never a commit message copied as is): one line per change, grouped as Added, Changed, Fixed when useful. -->
+<!-- guidance: the current version and its date, then what changed, in business language (never a commit message copied as is): one line per change, grouped as Added, Changed, Fixed when useful. Start from the technical changes the kit recorded (`doc-kit changes --since <previous version> --record`): new routes, tables, variables, dependencies. Keep ::changes below only if technical readers need it. -->
+
+::changes{}
 
 ### vX.Y.Z — YYYY-MM-DD
 

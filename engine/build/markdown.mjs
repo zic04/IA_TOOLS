@@ -18,6 +18,7 @@ import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "./text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { renderErd } from "./erd.mjs";
+import { renderChanges } from "../facts/changes.mjs";
 
 /** Spelling → canonical kind. */
 export const DIRECTIVES = {
@@ -37,6 +38,8 @@ export const DIRECTIVES = {
   consommation: "usage",
   erd: "erd",
   mcd: "erd",
+  changes: "changes",
+  changements: "changes",
 };
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
 export const CLAIMS = { verified: "verified", verifie: "verified", deduced: "deduced", deduit: "deduced", unknown: "unknown", inconnu: "unknown" };
@@ -114,7 +117,7 @@ export function statusColour(c) {
  * @param {Record<string, [string, string]>} [p.statuses]  coloured [[status X]] badges
  * @param {{ images: string, diagrams: string, facts: string }} [p.paths]
  */
-export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" }, usage = [], llm = {}, locale = "en" }) {
+export function createMarkdownEngine({ captures, exists, read, report, t, icon, statuses = {}, paths = { images: "images", diagrams: "diagrams", facts: "facts" }, usage = [], llm = {}, locale = "en", changes = [] }) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
   // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
@@ -190,6 +193,17 @@ export function createMarkdownEngine({ captures, exists, read, report, t, icon, 
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
       if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles") return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).
+      if (tk.kind === "changes") {
+        const version = tk.a.version || null;
+        const sources = tk.a.sources ? tk.a.sources.split(",").map((x) => x.trim()).filter(Boolean) : null;
+        const html = changes.length ? renderChanges(changes, { t, esc, version, sources }) : "";
+        if (!html) {
+          signal(false, "changes.empty", { version: version || "—" });
+          return `<p class="usage-none">${esc(t("render.changes.empty"))}</p>`;
+        }
+        return `<div class="changes" data-generated="changes">${html}</div>`;
+      }
       // Entity-relationship diagram from facts/db.json (doc-kit facts --source db).
       if (tk.kind === "erd") {
         const f = `${paths.facts}/db.json`;

@@ -81,5 +81,22 @@
   "cli.changes.source.modules": "Cycles d'imports",
   "cli.changes.noGit": "git n'est pas disponible dans {folder} : les faits à la référence ne peuvent pas être lus",
   "cli.changes.noGit.help": "lancez-la dans le dépôt qui contient le projet de documentation, avec les faits versionnés",
-  "cli.help.changes": "Usage : {command} changes [--since <référence git>] [--output <fichier>] [--json]\n\nCe qui a changé dans l'application depuis une référence (HEAD par défaut) : les fichiers de faits tels que versionnés à <référence> comparés à ceux du disque — routes et leur authentification, tables et colonnes, variables d'environnement, dépendances et versions, constats de sécurité, secrets (fichiers et règles, jamais les valeurs), fichiers d'instructions des agents IA, cycles d'imports, nombre de tests. Lancez d'abord {command} facts. Écrit {work}/changes.md (prêt pour un commentaire de pull request ou les notes de version) et {work}/changes.json, et affiche le Markdown.\n\n  --since    la référence git à comparer (un commit, un tag, origin/main)\n  --output   écrit le Markdown à cet endroit au lieu de {work}/changes.md"
+  "cli.help.changes": "Usage : {command} changes [--since <référence git>] [--output <fichier>] [--record] [--json]\n\nCe qui a changé dans l'application depuis une référence (HEAD par défaut) : les fichiers de faits tels que versionnés à <référence> comparés à ceux du disque — routes et leur authentification, tables et colonnes, variables d'environnement, dépendances et versions, constats de sécurité, secrets (fichiers et règles, jamais les valeurs), fichiers d'instructions des agents IA, cycles d'imports, nombre de tests. Lancez d'abord {command} facts. Écrit {work}/changes.md (prêt pour un commentaire de pull request ou les notes de version) et {work}/changes.json, et affiche le Markdown.\n\n  --since    la référence git à comparer (un commit, un tag, origin/main)\n  --output   écrit le Markdown à cet endroit au lieu de {work}/changes.md\n  --record   les garde aussi dans changes/<version documentée>.json (à versionner) : la directive ::changes affiche dans le site chaque version enregistrée, la plus récente d'abord",
+  "cli.changes.recorded": "✔ enregistré dans {file} (affiché par ::changes dans le site)",
+  "render.changes.version": "Version {until} — depuis {since} · {date}",
+  "render.changes.empty": "Aucun changement enregistré pour l'instant : lancez doc-kit changes --record à chaque version.",
+  "cli.build.changes.empty": "[{page}] ::changes : rien d'enregistré (version {version})",
+  "cli.build.changes.empty.help": "lancez {command} changes --since <version précédente> --record, puis versionnez le dossier changes/",
+  "cli.hooks.on": "{hook} : rafraîchit les faits et le rapport sync ({folder})",
+  "cli.hooks.off": "{hook} : non installé ({folder})",
+  "cli.hooks.what": "Après chaque git pull et changement de branche : {command} facts, puis {command} sync (zéro jeton, ne bloque jamais git). Lisez {work}/sync.md pour voir quoi revoir.",
+  "cli.hooks.action": "action inconnue : « {action} »",
+  "cli.hooks.action.help": "{command} hooks install | uninstall | status [--app <dossier>]",
+  "cli.hooks.noRepo": "aucun dépôt git trouvé pour {folder}",
+  "cli.hooks.noRepo.help": "lancez-la dans le dépôt de l'application, ou indiquez --app <dossier>",
+  "cli.hooks.outside": "le projet de documentation {folder} est hors du dépôt {repo}",
+  "cli.hooks.outside.help": "les hooks lancent le kit depuis le dépôt : gardez la documentation dedans (docs/manual)",
+  "cli.help.hooks": "Usage : {command} hooks install | uninstall | status [--app <dossier>]\n\nMises à jour locales sans CI : des hooks git dans le dépôt de l'application (post-merge après un git pull, post-checkout après un changement de branche) qui lancent {command} facts puis {command} sync depuis le projet de documentation, en silence, sans jamais faire échouer git, zéro jeton. Un hook existant est conservé : le kit n'ajoute, ou ne retire, que son propre bloc. Le dossier des hooks vient de git (core.hooksPath et worktrees respectés).\n\n  --app   le dossier de l'application (par défaut : app.dir)",
+  "cli.hooks.unsafePath": "le dossier de documentation « {folder} » contient des caractères qui ne peuvent pas aller sans risque dans un hook",
+  "cli.hooks.unsafePath.help": "renommez-le avec seulement des lettres, chiffres, points, tirets, soulignés, barres obliques et espaces"
 }

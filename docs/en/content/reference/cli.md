@@ -79,7 +79,8 @@ exit code 2.
 | `doc-kit audit` | Measures the maturity level |
 | `doc-kit optimize` | Recompresses heavy captures |
 | `doc-kit stats` | Time, tokens and models per block and per version (`usage/`) |
-| `doc-kit changes` | What changed in the application since a git reference: routes, tables, variables, dependencies, findings |
+| `doc-kit changes` | What changed in the application since a git reference: routes, tables, variables, dependencies, findings (`--record`: kept for `::changes`) |
+| `doc-kit hooks install` | Git hooks: facts and sync after each pull and branch switch |
 | `doc-kit export <target>` | Writes a self-contained copy of the project |
 | `doc-kit upgrade` | Shows the changes since the project's kit version, applies the migrations |
 | `doc-kit migrate` | Rewrites legacy French-keyed files in the current format |

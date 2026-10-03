@@ -4,9 +4,9 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { diffFacts, diffSource, changesMarkdown } from "../../engine/facts/changes.mjs";
+import { diffFacts, diffSource, changesMarkdown, recordChanges, readChanges, renderChanges } from "../../engine/facts/changes.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { demoCopy } from "../tools/helpers.mjs";
+import { demoCopy, tempDir } from "../tools/helpers.mjs";
 
 const before = {
   api: { items: [{ method: "GET", route: "/orders", auth: "user" }, { method: "POST", route: "/orders/approve", auth: "role" }] },
@@ -17,7 +17,7 @@ const before = {
   modules: { items: [], summary: { cycles: [] } },
 };
 const after = {
-  api: { items: [{ method: "GET", route: "/orders", auth: "none" }, { method: "GET", route: "/invoices", auth: "user" }] },
+  api: { items: [{ method: "GET", route: "/orders", auth: "none", file: "app/orders/route.ts" }, { method: "GET", route: "/invoices", auth: "user", file: "app/invoices/route.ts" }] },
   db: { items: [{ table: "orders", columns: ["id", "total", "status"], references: [] }, { table: "orders", columns: ["id"], references: ["customers"], file: "x.sql" }, { table: "invoices", columns: ["id"] }] },
   env: { items: [{ name: "DATABASE_URL" }, { name: "STRIPE_KEY" }] },
   dependencies: { items: [{ name: "next", version: "15.1.0", manifest: "package.json" }, { name: "stripe", version: "18.0.0", manifest: "package.json" }] },
@@ -77,6 +77,59 @@ describe("doc-kit changes", () => {
       assert.equal(JSON.parse(fs.readFileSync(path.join(dir, ".doc-kit", "changes.json"), "utf8")).since, "v1.0.0");
       assert.equal(await runCli(["changes", "--project", dir, "--since", "--output=/tmp/x"], io), 2);
       assert.equal(await runCli(["changes", "--project", dir], { ...io, exec: () => null }), 3, "no git");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("changes --record and ::changes", () => {
+  test("recordChanges / readChanges: one file per version, most recent first; renderChanges filters by version and source", () => {
+    const root = tempDir("doc-kit-changes-");
+    try {
+      recordChanges(root, { since: "v1.0.0", until: "1.1.0", date: "2026-09-01T00:00:00Z", ...diffFacts(before, after) });
+      recordChanges(root, { since: "v1.1.0", until: "1.10.0", date: "2026-10-01T00:00:00Z", sources: {}, total: 0 });
+      fs.writeFileSync(path.join(root, "changes", "broken.json"), "{");
+      const records = readChanges(root);
+      assert.deepEqual(records.map((r) => r.until), ["1.10.0", "1.1.0"], "numeric order of versions");
+      const t = (k, v) => (v ? `${k}${JSON.stringify(v)}` : k);
+      const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      const html = renderChanges(records, { t, esc });
+      assert.equal((html.match(/class="changes-version"/g) || []).length, 2);
+      assert.match(html, /cli\.changes\.none/, "a version without change says so");
+      const only = renderChanges(records, { t, esc, version: "1.1.0", sources: ["env"] });
+      assert.match(only, /<code>STRIPE_KEY<\/code>/);
+      assert.doesNotMatch(only, /GET \/invoices/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("CLI --record, then ::changes in a page", async () => {
+    const dir = demoCopy();
+    try {
+      // Only sources whose shape the demo pages' own ::facts tables accept.
+      for (const source of ["api", "env", "dependencies"]) fs.writeFileSync(path.join(dir, "facts", `${source}.json`), JSON.stringify(after[source]));
+      const exec = (bin, args) => {
+        if (bin !== "git") return null;
+        if (args[0] === "rev-parse") return { status: 0, stdout: "true\n" };
+        if (args[0] === "show") {
+          const source = /facts\/(\w+)\.json$/.exec(args.at(-1))?.[1];
+          return ["api", "env", "dependencies"].includes(source) ? { status: 0, stdout: JSON.stringify(before[source]) } : { status: 128, stdout: "" };
+        }
+        return { status: 1, stdout: "" };
+      };
+      let err = "";
+      const io = { stdout: { write: () => {} }, stderr: { write: (s) => (err += s) }, env: {}, exec };
+      const fail = (code) => assert.equal(code, 0, err);
+      assert.equal(await runCli(["changes", "--project", dir, "--since", "v1.0.0", "--record"], io), 0);
+      assert.match(err, /recorded in changes\/1\.4\.0\.json/);
+      fs.appendFileSync(path.join(dir, "content", "use", "orders.md"), '\n\n::changes{sources="api,env"}\n');
+      const out = path.join(dir, "dist", "x.html");
+      fail(await runCli(["build", "--project", dir, "--date", "2026-01-01", "--output", out], io));
+      const html = fs.readFileSync(out, "utf8");
+      assert.match(html, /changes-version/);
+      assert.match(html, /STRIPE_KEY/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

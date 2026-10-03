@@ -80,7 +80,8 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit audit` | Mesure le niveau de maturité |
 | `doc-kit optimize` | Recompresse les captures lourdes |
 | `doc-kit stats` | Temps, jetons et modèles par bloc et par version (`usage/`) |
-| `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats |
+| `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats (`--record` : gardé pour `::changes`) |
+| `doc-kit hooks install` | Hooks git : faits et sync après chaque pull et changement de branche |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |
 | `doc-kit migrate` | Réécrit au format courant les fichiers anciens à clés françaises |

@@ -179,6 +179,9 @@ jobs:
 #       - name: What changed since the base branch
 #         run: npx doc-kit changes --since "origin/${{ github.base_ref || 'main' }}"
 #
+#       # At a release (a tag), keep the version's changes for the ::changes page, then commit changes/:
+#       # - run: npx doc-kit changes --since "$(git describe --tags --abbrev=0 HEAD^)" --record
+#
 #       - name: What the documentation must follow
 #         id: sync
 #         continue-on-error: true            # remove to block the merge when the documentation is behind

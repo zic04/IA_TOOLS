@@ -1,20 +1,22 @@
-// changes [--since <git ref>] [--output <file>] [--json]
+// changes [--since <git ref>] [--output <file>] [--record] [--json]
 // What changed in the application since a reference (AUDIT.md §5): the facts files (doc-kit facts) as committed at
 // <ref> (default HEAD) against the ones on disk now — routes, tables, environment variables, dependencies, security
 // findings, secrets, import cycles, tests. Writes .doc-kit/changes.md (ready for a pull request comment or the
 // release notes) and .doc-kit/changes.json; prints the Markdown. Read-only git, in the documentation project.
+// --record also keeps them in changes/<documented version>.json (committed), which ::changes renders in the site.
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
-import { diffFacts, changesMarkdown, DIFFS } from "../../engine/facts/changes.mjs";
+import { diffFacts, changesMarkdown, recordChanges, DIFFS } from "../../engine/facts/changes.mjs";
 import { readProjectVersion } from "../../engine/build/build.mjs";
 import { WORK_DIR } from "./audit.mjs";
 
 export const options = {
   since: { type: "string" },
   output: { type: "string" },
+  record: { type: "boolean" },
 };
 
 const SOURCES = [...Object.keys(DIFFS), "tests", "modules"];
@@ -49,6 +51,10 @@ export async function run({ ctx, values }) {
   fs.writeFileSync(path.join(work, "changes.json"), JSON.stringify({ since, until, ...changes }, null, 2) + "\n");
   const output = values.output ? path.resolve(process.cwd(), values.output) : path.join(work, "changes.md");
   fs.writeFileSync(output, markdown + "\n");
+  if (values.record) {
+    const file = recordChanges(root, { since, until, date: new Date().toISOString(), ...changes });
+    if (!ctx.json) ctx.printErr(ctx.t("cli.changes.recorded", { file: path.relative(root, file).split(path.sep).join("/") }));
+  }
   if (ctx.json) ctx.print(JSON.stringify({ since, until, ...changes }, null, 2));
   else ctx.print(markdown);
   return EXIT.OK;
