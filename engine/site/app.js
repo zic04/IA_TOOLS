@@ -717,9 +717,14 @@
   }
 
   // ─── Tooltips (screen zones + glossary) ───────────────────────────────────
+  let bubbleTarget = null;
   function showBubble(html, target) {
     bubble.innerHTML = html;
     bubble.classList.add("visible");
+    bubbleTarget = target;
+    placeBubble(target);
+  }
+  function placeBubble(target) {
     const r = target.getBoundingClientRect();
     const b = bubble.getBoundingClientRect();
     let top = r.bottom + 10;
@@ -730,6 +735,16 @@
   }
   function hideBubble() {
     bubble.classList.remove("visible");
+    bubbleTarget = null;
+  }
+  // A scroll (the page following the keyboard focus, a wheel) moves the bubble with its target; it closes only
+  // when the target leaves the window. Hiding it on every scroll closed the bubble a zone had just opened with
+  // Enter whenever focusing that zone had scrolled the page.
+  function followBubble() {
+    if (!bubbleTarget || !bubble.classList.contains("visible")) return;
+    const r = bubbleTarget.getBoundingClientRect();
+    if (!bubbleTarget.isConnected || r.bottom < 0 || r.top > window.innerHeight) hideBubble();
+    else placeBubble(bubbleTarget);
   }
 
   function legendText(fig, n) {
@@ -784,7 +799,7 @@
       hideBubble();
     }
   });
-  window.addEventListener("scroll", hideBubble, { passive: true });
+  window.addEventListener("scroll", followBubble, { passive: true });
 
   // ─── Viewer: enlarge + guided tour ────────────────────────────────────────
   const viewer = $("#visionneuse");

@@ -27,6 +27,8 @@ cannot come back (RULES.md).
   browser session, keys, certificates and tool credentials.
 - **`doc-kit dev`** refuses a request whose `Host` is not the server itself (DNS rebinding).
 - `facts --tools` passes `--redact` to gitleaks.
+- Site: a zone bubble opened with Enter no longer closes when focusing the zone scrolled the page; the bubble now
+  follows its target on scroll and closes only when the target leaves the window.
 - The kit's CI runs in `.github/workflows/ci.yml` (tests on three systems, security rules, `npm audit`); the CI
   examples pin actions by commit and install without scripts.
 
