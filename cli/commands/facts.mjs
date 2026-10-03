@@ -48,8 +48,10 @@ export const SOURCES = Object.freeze([
 /** Collects one source; `tests` and `quality` return an extra `summary`. */
 async function collect(name, appDir, ctx, config, network) {
   switch (name) {
-    case "dependencies":
-      return { items: collectDependencies(appDir) };
+    case "dependencies": {
+      const unreadable = [];
+      return { items: collectDependencies(appDir, unreadable), unreadable };
+    }
     case "env":
       return { items: collectEnv(appDir) };
     case "api":
@@ -68,8 +70,8 @@ async function collect(name, appDir, ctx, config, network) {
       return { items, extra: { summary } };
     }
     case "tests": {
-      const { items, summary } = collectTests(appDir);
-      return { items, extra: { summary } };
+      const { items, summary, unreadable } = collectTests(appDir);
+      return { items, extra: { summary }, unreadable };
     }
     case "modules": {
       const { items, summary } = collectModules(appDir);
@@ -82,6 +84,30 @@ async function collect(name, appDir, ctx, config, network) {
     default:
       return { items: [] };
   }
+}
+
+/** --tools: runs the external tools and writes one `tool-<name>.json` each; returns them keyed by tool. */
+function writeTools({ ctx, project, config, appDir, factsDir, generated }) {
+  // semgrep (ARCHITECTURE.md §6.13) only with a local rules folder (review.semgrep); never --config auto.
+  const semgrepDir = config.review?.semgrep ? path.resolve(project.root, config.review.semgrep) : null;
+  const endTools = ctx.timer?.start("facts", { sub: "tools" });
+  const results = runTools(appDir, ctx.exec, TOOL_NAMES);
+  endTools?.();
+  if (semgrepDir) results.push(runTool("semgrep", appDir, ctx.exec, { semgrepConfig: semgrepDir }));
+  const tools = {};
+  for (const r of results) {
+    const file = {
+      tool: r.tool,
+      generator: generatorTag(),
+      generated,
+      installed: r.installed,
+      ...(r.installed ? { ok: r.ok, data: r.data } : {}),
+    };
+    fs.writeFileSync(path.join(factsDir, `tool-${r.tool}.json`), JSON.stringify(file, null, 2) + "\n");
+    tools[r.tool] = file;
+    if (!ctx.json) ctx.print(ctx.t(r.installed ? "cli.facts.tool.ran" : "cli.facts.tool.missing", { tool: r.tool }));
+  }
+  return tools;
 }
 
 export async function run({ ctx, values }) {
@@ -105,40 +131,27 @@ export async function run({ ctx, values }) {
   for (const name of SOURCES) {
     if (!requested.includes(name)) continue;
     const end = ctx.timer?.start("facts", { sub: name });
-    let { items, extra } = await collect(name, appDir, ctx, config, values.network).finally(() => end?.());
+    let {
+      items,
+      extra,
+      unreadable = [],
+    } = await collect(name, appDir, ctx, config, values.network).finally(() => end?.());
+    // A file that is there but cannot be read: its facts are unknown, not empty (AUDIT.md M14).
+    if (unreadable.length) extra = { ...extra, unreadable };
     if (name === "dependencies" && values.network)
       items = await checkExistence(items, ctx.fetch, { registries: privateRegistries(appDir) });
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
     written[name] = file;
-    if (!ctx.json)
-      ctx.print(
-        ctx.t("cli.facts.written", { source: name, n: items.length, file: `${config.paths.facts}/${name}.json` }),
-      );
+    if (ctx.json) continue;
+    ctx.print(
+      ctx.t("cli.facts.written", { source: name, n: items.length, file: `${config.paths.facts}/${name}.json` }),
+    );
+    for (const u of unreadable)
+      ctx.print(ctx.t("cli.facts.unreadable", { file: u.file, reason: ctx.t(`cli.facts.unreadable.${u.reason}`) }));
   }
 
-  let tools;
-  if (values.tools) {
-    // semgrep (ARCHITECTURE.md §6.13) only with a local rules folder (review.semgrep); never --config auto.
-    const semgrepDir = config.review?.semgrep ? path.resolve(project.root, config.review.semgrep) : null;
-    const endTools = ctx.timer?.start("facts", { sub: "tools" });
-    const results = runTools(appDir, ctx.exec, TOOL_NAMES);
-    endTools?.();
-    if (semgrepDir) results.push(runTool("semgrep", appDir, ctx.exec, { semgrepConfig: semgrepDir }));
-    tools = {};
-    for (const r of results) {
-      const file = {
-        tool: r.tool,
-        generator: generatorTag(),
-        generated,
-        installed: r.installed,
-        ...(r.installed ? { ok: r.ok, data: r.data } : {}),
-      };
-      fs.writeFileSync(path.join(factsDir, `tool-${r.tool}.json`), JSON.stringify(file, null, 2) + "\n");
-      tools[r.tool] = file;
-      if (!ctx.json) ctx.print(ctx.t(r.installed ? "cli.facts.tool.ran" : "cli.facts.tool.missing", { tool: r.tool }));
-    }
-  }
+  const tools = values.tools ? writeTools({ ctx, project, config, appDir, factsDir, generated }) : undefined;
 
   if (ctx.json) ctx.print(JSON.stringify({ app, commit, sources: written, ...(tools ? { tools } : {}) }, null, 2));
   return EXIT.OK;

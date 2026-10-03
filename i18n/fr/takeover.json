@@ -18,6 +18,9 @@
   "cli.facts.noApp.help": "renseignez app.dir dans doc.config.mjs, vers la racine de l'application (un dossier existant)",
   "cli.facts.tool.missing": "{tool} : non installé",
   "cli.facts.tool.ran": "{tool} : exécuté",
+  "cli.facts.unreadable": "⚠ {file} : {reason} ; ses faits sont inconnus, pas vides",
+  "cli.facts.unreadable.json": "JSON non valide",
+  "cli.facts.unreadable.read": "illisible",
   "cli.facts.unknownSource": "source inconnue : « {name} »",
   "cli.facts.unknownSource.help": "sources connues : {known}",
   "cli.facts.written": {
