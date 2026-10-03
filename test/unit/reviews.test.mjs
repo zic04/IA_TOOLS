@@ -761,11 +761,11 @@ describe("connect --as / probe (CLI)", () => {
       newContext: async () => ({
         newPage: async () => fakePage,
         pages: () => [fakePage],
-        storageState: async ({ path: p }) =>
-          fs.writeFileSync(
-            p,
-            JSON.stringify({ cookies: [{ name: "sid", value: "x", domain: "localhost", path: "/" }], origins: [] }),
-          ),
+        // Playwright's storageState() returns the state; the kit writes it itself (a private file, SECURITY.md).
+        storageState: async () => ({
+          cookies: [{ name: "sid", value: "x", domain: "localhost", path: "/" }],
+          origins: [],
+        }),
       }),
       close: async () => {},
     });

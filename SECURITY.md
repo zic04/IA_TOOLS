@@ -23,8 +23,12 @@ share. Its safety rests on the rules below. Know their limits.
 `.doc-kit/session.json`, or in the file named by `<PREFIX>_SESSION` / `DOC_KIT_SESSION`. **As long as it is valid,
 this file gives access to the application with the rights of the person who signed in.**
 
-- `.doc-kit/` gets its own `.gitignore` that ignores everything; the file is made readable by its owner only where
-  the system allows it.
+- `.doc-kit/` gets its own `.gitignore` that ignores everything. A file named by `<PREFIX>_SESSION` /
+  `DOC_KIT_SESSION` outside `.doc-kit/` gets none: keep it out of the repository yourself (`doctor` reports it if git
+  tracks it).
+- The file is created readable by its owner only (mode 0600) from its first byte, and replaces an older one in a
+  single rename. Windows ignores that mode: there the file takes the rights of its folder, so keep the project in a
+  folder only you can read (your user profile).
 - `doc-kit doctor` reports a session file tracked by git; `doc-kit check secrets` reports a session file found
   anywhere else in the project, or tracked by git.
 - `doc-kit export` never copies a `.doc-kit/` folder (at any depth), the file named by `<PREFIX>_SESSION` /

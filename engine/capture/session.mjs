@@ -145,11 +145,22 @@ async function saveSession(context, file) {
   fs.mkdirSync(dir, { recursive: true });
   if (path.basename(dir) === ".doc-kit" && !fs.existsSync(path.join(dir, ".gitignore")))
     fs.writeFileSync(path.join(dir, ".gitignore"), "*\n");
-  await context.storageState({ path: file });
+  writePrivateFile(file, JSON.stringify(await context.storageState(), null, 2));
+}
+
+/**
+ * Writes a secret file (a session) readable by its owner only, from its first byte (SECURITY.md): the text goes to a
+ * new file created with mode 0600 next to it, then replaces it in one rename, so that the file is never readable by
+ * others, even for a moment, and an older file with wider rights is replaced rather than rewritten in place. Windows
+ * ignores the mode: the file takes the rights of its folder there (SECURITY.md says so).
+ */
+export function writePrivateFile(file, text) {
+  const temp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.tmp`);
   try {
-    fs.chmodSync(file, 0o600);
-  } catch {
-    /* not supported on every system */
+    fs.writeFileSync(temp, text, { mode: 0o600, flag: "wx" });
+    fs.renameSync(temp, file);
+  } finally {
+    fs.rmSync(temp, { force: true });
   }
 }
 

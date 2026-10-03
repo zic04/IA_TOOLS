@@ -26,7 +26,13 @@ import {
 import { compareOutcome } from "../../engine/capture/compare.mjs";
 import { parseEnv, sensitiveValues, maskSource, maskText, DOTS } from "../../engine/capture/masking.mjs";
 import { webpSize } from "../../engine/capture/webp.mjs";
-import { isSignInUrl, sessionFile, sessionStorageOf, forgetSession } from "../../engine/capture/session.mjs";
+import {
+  isSignInUrl,
+  sessionFile,
+  sessionStorageOf,
+  forgetSession,
+  writePrivateFile,
+} from "../../engine/capture/session.mjs";
 import * as targets from "../../engine/capture/targets.mjs";
 import { loadDictionary } from "../../engine/i18n.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
@@ -747,6 +753,27 @@ describe("i18n keys of the capture engine, the adapters and the checks", () => {
       assert.deepEqual(vars(b[k]), vars(a[k]), k);
       assert.equal(typeof b[k], typeof a[k], k);
       assert.ok(k.startsWith("cli."), k);
+    }
+  });
+});
+
+describe("session file (SECURITY.md, AUDIT.md S10)", () => {
+  test("written readable by its owner only from its first byte, replacing an older file with wider rights", () => {
+    const dir = tempDir();
+    try {
+      const file = path.join(dir, "session.json");
+      fs.writeFileSync(file, "old", { mode: 0o644 });
+      writePrivateFile(file, '{"cookies":[]}');
+      assert.equal(fs.readFileSync(file, "utf8"), '{"cookies":[]}');
+      // Windows ignores the mode (the file takes its folder's rights there, as SECURITY.md says): the rights are
+      // checked where the system applies them.
+      if (process.platform !== "win32") assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+      writePrivateFile(path.join(dir, "new.json"), "{}");
+      if (process.platform !== "win32") assert.equal(fs.statSync(path.join(dir, "new.json")).mode & 0o777, 0o600);
+      // No temporary file is left behind.
+      assert.deepEqual(fs.readdirSync(dir).sort(), ["new.json", "session.json"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });
