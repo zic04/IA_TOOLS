@@ -1,6 +1,6 @@
 // Search index: one entry per section (h2/h3) of each page, plus one "page" entry.
 // Embedded format: { p: page id, a: anchor | null, t: title, x: text (at most 4,000 characters) }.
-import { plainText } from "./text.mjs";
+import { plainText } from "../core/text.mjs";
 
 /** Adds the entries of a rendered page to `index`. */
 export function indexPage(index, pageId, pageTitle, html) {

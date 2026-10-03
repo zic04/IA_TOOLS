@@ -18,7 +18,7 @@ import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
-import { loadPageTemplates, captureVariant } from "../../engine/build/page-templates.mjs";
+import { loadPageTemplates, captureVariant } from "../../engine/core/page-templates.mjs";
 import { PREFILL_SOURCES, prefillTemplate, stripPrefillMarkers } from "../../engine/context/prefill.mjs";
 
 export const options = {

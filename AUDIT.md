@@ -61,7 +61,9 @@ mise à jour ou build** de l'application.
 | S11 `check secrets` incomplet | **Corrigé** : il lit aussi les valeurs des attributs HTML du site (`href`, `title`, `data-*`…), le dossier des traductions et les fichiers de zones de chaque langue | `checks.test.mjs` › attribut, page traduite, zones traduites ; ReDoS |
 | S9 Pas de CSP | **Corrigé** : le site porte une politique (`<meta>`) calculée sur le HTML final : scripts du site seuls, par empreinte SHA-256 ; images et polices embarquées ; aucune requête, frame, formulaire ni `<base>`. `doc-kit dev` ajoute l'empreinte de son client et `connect-src 'self'` | `csp.test.mjs` ; e2e `site.test.mjs` › script injecté refusé, aucune violation pendant la navigation |
 | S13 Réseau et `probe` | **Corrigé** : `facts --network` n'envoie plus le nom d'un paquet privé (portée npm à registre propre dans `.npmrc`, registre npm remplacé, index pip privé, version locale, workspace, git ou URL) ; `probe` n'appelle jamais une route de `capture.forbidden` et la liste dans `forbidden`. Le mode `demo` reste une déclaration de l'utilisateur, écrite dans SECURITY.md | `facts.test.mjs` › paquets privés ; `reviews.test.mjs` › routes interdites ; ReDoS |
-| M6, M8, M12 à M14 | Ouverts | — |
+| M12 Version | **Corrigé** : 0.2.0 publiée (`package.json`, CHANGELOG `[0.2.0]`, plage `kit` des projets livrés en `^0.2.0`) | `doctor.test.mjs`, `upgrade.test.mjs` |
+| M13 Cycles entre dossiers | **Corrigé** : le bloc était plus large que build/sync/check (capture et facts y étaient aussi). `hash.mjs`, `text.mjs`, `page-templates.mjs` et l'état des fichiers traduits (`translations.mjs`) vont dans `engine/core/` ; la résolution des imports passe de `sync` à `facts` ; `readProjectVersion` passe de `build` à `project/version.mjs`. Ordre de bas en haut : core, capture, check, facts, sync, build ; règle RULES.md M14 | `layers.test.mjs` |
+| M6, M8, M14 | Ouverts | — |
 
 Les règles qui empêchent ces problèmes de revenir sont dans [RULES.fr.md](RULES.fr.md) ([RULES.md](RULES.md) en
 anglais).

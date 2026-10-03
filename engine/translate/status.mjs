@@ -3,8 +3,8 @@
 // writing the project's files (no network, no git): the same kind of module as engine/build/spaces.mjs.
 import fs from "node:fs";
 import path from "node:path";
-import { translatableFiles, translationState, readSources, writeSources } from "../build/languages.mjs";
-import { hashText } from "../sync/hash.mjs";
+import { translatableFiles, translationState, readSources, writeSources } from "../core/translations.mjs";
+import { hashText } from "../core/hash.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 

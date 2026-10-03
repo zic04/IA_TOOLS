@@ -3,8 +3,8 @@
 // engine/context/context.mjs (buildContext), which this module deliberately does not reuse: the translator's
 // dossier has its own order and never excerpts code, so its budget cut is its own (diff first, then the
 // previous translation; the page, the sections, the glossary and the source are never cut).
-import { sectionLabel, sectionCount } from "../build/page-templates.mjs";
-import { escapeRegex } from "../build/text.mjs";
+import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
+import { escapeRegex } from "../core/text.mjs";
 import { estimateTokens } from "./budget.mjs";
 
 /** `use/orders` + "fr" → `use__orders.fr.md` (ARCHITECTURE.md §6.12): "/" replaced with "__", like contextFileName. */

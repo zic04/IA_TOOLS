@@ -190,7 +190,7 @@ describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
       new Date().toISOString().slice(0, 10),
       "the zone file is refreshed even though the image is not",
     );
-    assert.match(zone.plan, /^[0-9a-f]{16}$/, "the plan entry hash (hashPlanEntry, engine/sync/hash.mjs)");
+    assert.match(zone.plan, /^[0-9a-f]{16}$/, "the plan entry hash (hashPlanEntry, engine/core/hash.mjs)");
     assert.equal(
       zone.commit,
       undefined,

@@ -11,10 +11,10 @@ import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
-import { hashText, hashPlanEntry, stableStringify, hashFile } from "../../engine/sync/hash.mjs";
+import { hashText, hashPlanEntry, stableStringify, hashFile } from "../../engine/core/hash.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { routeFiles, matchRoute } from "../../engine/sync/routes.mjs";
-import { resolveImports } from "../../engine/sync/imports.mjs";
+import { resolveImports } from "../../engine/facts/imports.mjs";
 import { pageDependencies, writtenPages, captureIds } from "../../engine/sync/dependencies.mjs";
 import { extractProofs, recordProof, locateProof, rewriteProof, PROOF_REF } from "../../engine/sync/proofs.mjs";
 import { citedLabels, replaceLabel, flattenMessages, labelFiles } from "../../engine/sync/labels.mjs";
@@ -22,7 +22,7 @@ import { readSyncReference, writeSyncReference, markPages } from "../../engine/s
 import { compareWithReference, renderReport, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
 import { applyReport } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
-import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
+import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
@@ -84,7 +84,7 @@ function fakeExec({ rev = "c0ffee", changed = [], diffs = {}, showFiles = {} } =
   };
 }
 
-describe("engine/sync/hash.mjs", () => {
+describe("engine/core/hash.mjs", () => {
   test("hashText: BOM removed, CRLF/CR normalised to LF, 16 hex characters", () => {
     const a = hashText("line1\nline2\n");
     const b = hashText("line1\r\nline2\r\n");
@@ -304,7 +304,7 @@ describe("engine/sync/routes.mjs", () => {
   });
 });
 
-describe("engine/sync/imports.mjs", () => {
+describe("engine/facts/imports.mjs", () => {
   let fx;
   before(() => {
     fx = syncFixtureCopy();

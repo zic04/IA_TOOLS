@@ -15,7 +15,7 @@
 // The generated markup (CSS classes, data-* attributes) is the historical one: app.js, style.css and the
 // equivalence tests depend on it.
 import { Marked } from "marked";
-import { esc, attrs, plainText, slug } from "./text.mjs";
+import { esc, attrs, plainText, slug } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { renderErd } from "./erd.mjs";
 import { renderChanges } from "../facts/changes.mjs";

@@ -1,6 +1,6 @@
 // The actions of `audit` (standard/maturity.md): for each criterion not met above the level reached, what to do,
 // on which pages, ordered by level, then by effort. Pure: the audit (audit.mjs) passes what it measured.
-import { sectionLabel, sectionCount } from "../build/page-templates.mjs";
+import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
 import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
 
 /** Effort of each kind of action (1 = minutes, 5 = real writing): orders the actions inside a level. */

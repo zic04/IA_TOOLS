@@ -12,7 +12,7 @@ import {
   stripPrefillMarkers,
   prefillTemplate,
 } from "../../engine/context/prefill.mjs";
-import { countGuidance, loadPageTemplates } from "../../engine/build/page-templates.mjs";
+import { countGuidance, loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { createPage } from "../../cli/commands/new.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";

@@ -10,7 +10,7 @@ import { excerpts, buildContext, contextFileName, factsFor, glossaryFor } from "
 import { estimateTokens, fitBudget } from "../../engine/context/budget.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
-import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
+import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { createI18n, loadDictionary } from "../../engine/i18n.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";

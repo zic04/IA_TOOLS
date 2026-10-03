@@ -26,7 +26,7 @@ import path from "node:path";
 import { loadPlans, selectCaptures, forbiddenMatchers, forbiddenMatch } from "../../engine/capture/plans.mjs";
 import { runCaptures, summarizeRequests, readOnlyMode } from "../../engine/capture/capture.mjs";
 import { loadAuth, sessionFile, refreshSession } from "../../engine/capture/session.mjs";
-import { hashPlanEntry } from "../../engine/sync/hash.mjs";
+import { hashPlanEntry } from "../../engine/core/hash.mjs";
 import { checkLanguageOption, mergeLanguageCapture } from "../../engine/build/languages.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { shown } from "./connect.mjs";

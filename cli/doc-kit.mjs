@@ -13,7 +13,7 @@ import { findProject } from "../engine/project/find.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environment.mjs";
 import { readSyncReference } from "../engine/sync/reference.mjs";
-import { readProjectVersion } from "../engine/build/build.mjs";
+import { readProjectVersion } from "../engine/project/version.mjs";
 import { languageCounts } from "../engine/build/languages.mjs";
 import { createTimer, usageFolder, appendUsage } from "../engine/stats/usage.mjs";
 import { syncPath } from "../engine/sync/reference.mjs";

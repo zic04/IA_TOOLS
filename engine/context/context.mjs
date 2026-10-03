@@ -4,10 +4,10 @@
 // dependencies, labels, facts and glossary, it always returns the same text.
 import fs from "node:fs";
 import path from "node:path";
-import { sectionLabel, sectionCount } from "../build/page-templates.mjs";
+import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
 import { labelKeysInCode } from "../sync/labels.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
-import { escapeRegex } from "../build/text.mjs";
+import { escapeRegex } from "../core/text.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
 
 /** `use/orders` → `use__orders.md` (ARCHITECTURE.md §6.11): the context file's name, "/" replaced with "__". */

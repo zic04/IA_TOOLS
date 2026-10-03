@@ -155,7 +155,7 @@ describe("the code only uses existing keys", () => {
     const build = [
       "engine/build/markdown.mjs",
       "engine/build/build.mjs",
-      "engine/build/page-templates.mjs",
+      "engine/core/page-templates.mjs",
       "engine/check/links.mjs",
       "engine/theme/logo.mjs",
     ]
