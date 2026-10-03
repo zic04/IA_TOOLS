@@ -147,10 +147,12 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
     const dir = tempDir("doc-kit-bin-");
     const bin = tempDir("doc-kit-bin-");
     try {
-      fs.writeFileSync(path.join(dir, "tool"), "");
-      fs.writeFileSync(path.join(bin, "tool"), "");
+      // On Windows, a process started without a shell is a .com or .exe file.
+      const file = process.platform === "win32" ? "tool.exe" : "tool";
+      fs.writeFileSync(path.join(dir, file), "");
+      fs.writeFileSync(path.join(bin, file), "");
       const env = { PATH: [".", dir, bin].join(path.delimiter) };
-      assert.equal(resolveOnPath("tool", { env, platform: process.platform === "win32" ? "linux" : process.platform, exclude: [dir] }), path.join(bin, "tool"));
+      assert.equal(resolveOnPath("tool", { env, exclude: [dir] }), path.join(bin, file));
       assert.equal(resolveOnPath("missing", { env, exclude: [] }), null);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
