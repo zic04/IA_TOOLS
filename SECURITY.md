@@ -108,4 +108,11 @@ Limits: `facts --tools` runs third-party tools on the folder. **knip loads the a
 The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
-the application's direct dependencies to the npm and PyPI registries. The generated site loads nothing from the network.
+the application's direct dependencies to the npm and PyPI registries, except the private ones: an npm scope that has
+its own registry in the application's `.npmrc`, every npm package when `.npmrc` replaces the default registry, every
+pip package when a private index is declared (`pip.conf`, `pip.ini`, or `--index-url` / `--extra-index-url` in a
+requirements file), and any package taken from a folder, a workspace, a git repository or a URL. A private package
+that the application does not declare that way cannot be told apart: do not use `--network` on such a project.
+`probe` runs only on a local instance or one you declared a demo (`capture.target: "demo"`), with `GET` and `HEAD`
+only, never follows a redirect, and never requests a route of `capture.forbidden`. The generated site loads nothing
+from the network (its Content Security Policy forbids it).

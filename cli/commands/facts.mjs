@@ -20,7 +20,7 @@ import { collectQuality } from "../../engine/facts/quality.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
 import { collectModules } from "../../engine/facts/modules.mjs";
 import { collectHistory } from "../../engine/facts/history.mjs";
-import { checkExistence } from "../../engine/facts/network.mjs";
+import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
 
@@ -106,7 +106,8 @@ export async function run({ ctx, values }) {
     if (!requested.includes(name)) continue;
     const end = ctx.timer?.start("facts", { sub: name });
     let { items, extra } = await collect(name, appDir, ctx, config, values.network).finally(() => end?.());
-    if (name === "dependencies" && values.network) items = await checkExistence(items, ctx.fetch);
+    if (name === "dependencies" && values.network)
+      items = await checkExistence(items, ctx.fetch, { registries: privateRegistries(appDir) });
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
     written[name] = file;

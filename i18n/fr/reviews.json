@@ -12,6 +12,10 @@
     "one": "{n} route sautée (un paramètre de chemin manque dans review.params)",
     "other": "{n} routes sautées (un paramètre de chemin manque dans review.params)"
   },
+  "cli.probe.forbidden": {
+    "one": "{n} route non appelée (capture.forbidden)",
+    "other": "{n} routes non appelées (capture.forbidden)"
+  },
   "cli.probe.unprotected": "{method} {route} : répond à un appelant anonyme sans être protégée",
   "cli.probe.unreachable": "impossible d'atteindre {url}",
   "cli.probe.unreachable.help": "{error}",

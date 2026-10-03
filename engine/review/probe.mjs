@@ -3,6 +3,7 @@
 // disclosure on "/" and on one API route; the access control of every GET route of facts/api.json, against its
 // `auth` (ARCHITECTURE.md §6.9/§6.13: "none" | "user" | "role" | "unknown"), for anonymous and every `--as <role>`.
 import { LOGIN_PATTERN } from "../capture/session.mjs";
+import { forbiddenMatch } from "../capture/plans.mjs";
 
 const SECURITY_HEADERS = Object.freeze([
   "content-security-policy",
@@ -183,6 +184,8 @@ export class ProbeUnreachableError extends Error {}
  * @param {(role: string) => object|null} [p.sessionOf]   storageState of a role's session file, or null
  * @param {Array<{method,route,auth}>} [p.apiItems]       facts/api.json items
  * @param {object} [p.params]                 review.params: path parameter name → example value
+ * @param {Array<{ pattern: string, re: RegExp }>} [p.forbidden]  capture.forbidden, compiled (forbiddenMatchers): never
+ *   requested; listed in the result's `forbidden`
  * @param {(url: string, init?: object) => Promise<Response>} [p.fetch]
  * @param {number} [p.maxPerSecond]
  * @param {number} [p.timeoutMs]
@@ -197,6 +200,7 @@ export async function runProbe({
   sessionOf = () => null,
   apiItems = [],
   params = {},
+  forbidden = [],
   fetch: fetchImpl = fetch,
   maxPerSecond = 4,
   timeoutMs = 5000,
@@ -219,9 +223,20 @@ export async function runProbe({
     );
   }
 
+  // capture.forbidden (AUDIT.md S13): a forbidden route is never requested, not even by probe, whatever its method;
+  // redirects are never followed (probeFetch).
+  const refused = [];
+  const allowed = (route, target) => {
+    const pattern = forbiddenMatch(target, forbidden);
+    if (pattern) refused.push({ route, pattern });
+    return !pattern;
+  };
   const getRoutes = apiItems.filter((i) => i.method === "GET");
-  const sample = sampleApiPath(getRoutes, params);
-  const targets = sample ? ["/", sample] : ["/"];
+  const sample = sampleApiPath(
+    getRoutes.filter((i) => !forbiddenMatch(i.route, forbidden)),
+    params,
+  );
+  const targets = (sample ? ["/", sample] : ["/"]).filter((t) => allowed(t, t));
 
   const headers = {};
   const cookies = {};
@@ -268,6 +283,7 @@ export async function runProbe({
       continue;
     }
     const target = fillRoute(item.route, params);
+    if (!allowed(item.route, target)) continue;
     const status = {};
     let anonLocation = null;
     let publicData = false;
@@ -312,5 +328,6 @@ export async function runProbe({
     disclosure,
     routes,
     skipped,
+    forbidden: refused,
   };
 }
