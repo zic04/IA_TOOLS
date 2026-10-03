@@ -21,6 +21,9 @@ import { zipFolder } from "../../engine/dev/zip.mjs";
 import { sessionFile } from "../../engine/capture/session.mjs";
 import { isStorageState } from "../../engine/check/secrets.mjs";
 import { shownPath } from "../common.mjs";
+import { closingBrace } from "../../engine/util/js-scan.mjs";
+
+export { closingBrace };
 
 export const options = {
   "with-dist": { type: "boolean" },
@@ -45,21 +48,6 @@ function readSmall(file) {
 }
 const README_START = "<!-- doc-kit:export -->";
 const README_END = "<!-- /doc-kit:export -->";
-
-/** Index of the "}" that closes the "{" at `open`, skipping strings and comments; -1 when not found. */
-export function closingBrace(source, open) {
-  let depth = 0;
-  for (let i = open; i < source.length; i++) {
-    const c = source[i];
-    if (c === '"' || c === "'" || c === "`") {
-      for (i++; i < source.length && source[i] !== c; i++) if (source[i] === "\\") i++;
-    } else if (c === "/" && source[i + 1] === "/") i = source.indexOf("\n", i) < 0 ? source.length : source.indexOf("\n", i);
-    else if (c === "/" && source[i + 1] === "*") i = source.indexOf("*/", i + 2) < 0 ? source.length : source.indexOf("*/", i + 2) + 1;
-    else if (c === "{") depth++;
-    else if (c === "}" && --depth === 0) return i;
-  }
-  return -1;
-}
 
 /**
  * Sets version.fallback in the source of doc.config.mjs (text change, comments kept).

@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import { lineAt } from "./api.mjs";
 import { listFiles } from "./common.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
+import { closingBrace } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
 const GENERATED = /\.min\.(js|css)$|\.generated\./i;
@@ -25,125 +26,10 @@ const BRANCH_RE = /\bif\b|\bfor\b|\bwhile\b|\bcase\b|\bcatch\b|\bexcept\b|\belif
 
 const CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch", "else", "do", "function", "return", "new", "typeof", "delete", "void", "throw", "class", "try", "finally", "case", "in", "of", "instanceof", "export", "import", "yield", "await"]);
 
-// Brace matching that is not fooled by a brace character that is not really a scope delimiter: one inside a
-// quoted string (JSX attributes included), inside the literal text of a template literal, or inside a comment
-// — each skipped as one token, never counted. A `${…}` substitution of a template literal IS real code (it can
-// hold its own object literals, strings, nested template literals): scanned the same way, recursively. Without
-// this, a single unmatched brace anywhere in a string, a template literal or a comment after a function's
-// opening brace made `balancedBraces` run to the end of the file (a 1000+ line "function", ARCHITECTURE.md
-// §6.13's real-world pitfall).
-
-/** Index just after the quoted string starting at `i` (which points at the opening quote); backslash escapes. */
-function skipString(text, i) {
-  const quote = text[i];
-  i++;
-  while (i < text.length) {
-    if (text[i] === "\\") {
-      i += 2;
-      continue;
-    }
-    if (text[i] === quote) return i + 1;
-    i++;
-  }
-  return text.length;
-}
-
-/** Index just after the line comment starting at `i` (pointing at the first "/"). */
-function skipLineComment(text, i) {
-  const nl = text.indexOf("\n", i);
-  return nl === -1 ? text.length : nl + 1;
-}
-
-/** Index just after the block comment starting at `i` (pointing at the opening "/*"). */
-function skipBlockComment(text, i) {
-  const end = text.indexOf("*/", i + 2);
-  return end === -1 ? text.length : end + 2;
-}
-
-/** Index just after the "}" matching the "{" already consumed right before `i` (a template literal's `${`
- * substitution): real code, so strings, nested template literals and comments inside it are skipped the same
- * way, and its own "{"/"}" are counted. */
-function skipBraceExpression(text, i) {
-  let depth = 1;
-  while (i < text.length && depth > 0) {
-    const c = text[i];
-    if (c === '"' || c === "'") {
-      i = skipString(text, i);
-      continue;
-    }
-    if (c === "`") {
-      i = skipTemplateLiteral(text, i);
-      continue;
-    }
-    if (c === "/" && text[i + 1] === "/") {
-      i = skipLineComment(text, i);
-      continue;
-    }
-    if (c === "/" && text[i + 1] === "*") {
-      i = skipBlockComment(text, i);
-      continue;
-    }
-    if (c === "{") depth++;
-    else if (c === "}") depth--;
-    i++;
-  }
-  return i;
-}
-
-/** Index just after the template literal starting at `i` (pointing at the opening backtick). */
-function skipTemplateLiteral(text, i) {
-  i++;
-  while (i < text.length) {
-    if (text[i] === "\\") {
-      i += 2;
-      continue;
-    }
-    if (text[i] === "`") return i + 1;
-    if (text[i] === "$" && text[i + 1] === "{") {
-      i = skipBraceExpression(text, i + 2);
-      continue;
-    }
-    i++;
-  }
-  return text.length;
-}
-
-/** Index of the "}" matching the "{" at `openIndex` (not included in a slice up to it). */
+/** Index of the "}" matching the "{" at `openIndex`; the last index when it is never closed. */
 function balancedBraces(text, openIndex) {
-  let depth = 0;
-  let i = openIndex;
-  while (i < text.length) {
-    const c = text[i];
-    if (c === '"' || c === "'") {
-      i = skipString(text, i);
-      continue;
-    }
-    if (c === "`") {
-      i = skipTemplateLiteral(text, i);
-      continue;
-    }
-    if (c === "/" && text[i + 1] === "/") {
-      i = skipLineComment(text, i);
-      continue;
-    }
-    if (c === "/" && text[i + 1] === "*") {
-      i = skipBlockComment(text, i);
-      continue;
-    }
-    if (c === "{") {
-      depth++;
-      i++;
-      continue;
-    }
-    if (c === "}") {
-      depth--;
-      i++;
-      if (depth === 0) return i - 1;
-      continue;
-    }
-    i++;
-  }
-  return text.length - 1;
+  const close = closingBrace(text, openIndex);
+  return close < 0 ? text.length - 1 : close;
 }
 
 /** Branches + 1, over a slice of text (a function's body). */
