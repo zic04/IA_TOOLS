@@ -324,7 +324,7 @@ export function detectApp(appDir) {
   r.nameSource = n.source;
   r.version = detectVersion(appDir, packageDir, r.python);
   r.envFiles = detectEnvFiles(appDir, packageDir);
-  return r;
+  return /** @type {any} */ (r);
 }
 
 /** Relative path between two folders, with forward slashes ("." when equal); absolute across drives. */
@@ -371,7 +371,7 @@ function withoutCaptureScripts(text) {
 
 /**
  * Writes the project skeleton into `target` (must be missing or empty).
- * @param {{ target: string, language: "en"|"fr", vars: Record<string,string>, raw?: string[], mode?: "app"|"none" }} p
+ * @param {{ target: string, language: "en"|"fr", vars: Record<string,string>, raw?: string[], kitVersion?: string, mode?: "app"|"none" }} p
  *   raw: variables inserted as they are (JavaScript literals such as {{coverage}}); mode: capture mode (§6.4 variants)
  * @returns {string[]} written files, relative to target, with forward slashes, sorted
  */

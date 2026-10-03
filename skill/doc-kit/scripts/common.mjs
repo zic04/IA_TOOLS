@@ -301,6 +301,7 @@ export function appDirInfo(docDir, config, given = "") {
   const configured =
     typeof config.app?.dir === "string" && config.app.dir.trim() ? path.resolve(docDir, config.app.dir) : "";
   let dir = given ? path.resolve(docDir, given) : configured;
+  /** @type {"given"|"config"|"git"|"parent"} */
   let from = given ? "given" : "config";
   if (!dir) {
     const parent = path.dirname(docDir);
@@ -582,7 +583,10 @@ export function parsePageList(text) {
   return lines.map((l) => l.trim().replace(/^-\s*/, "")).filter(Boolean);
 }
 
-/** Strict parseArgs, with a usage error (exit code 2) instead of a raw exception. */
+/**
+ * Strict parseArgs, with a usage error (exit code 2) instead of a raw exception.
+ * @returns {{ values: Record<string, any>, positionals: string[] }}
+ */
 export function parseOptions(options, usage) {
   try {
     return parseArgs({ allowPositionals: true, options });

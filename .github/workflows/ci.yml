@@ -54,5 +54,7 @@ jobs:
         run: npm run format:check
       - name: Lint (ESLint)
         run: npm run lint
+      - name: Types (TypeScript, from the JSDoc)
+        run: npm run typecheck
       - name: Known vulnerabilities of the runtime dependencies
         run: npm audit --omit=dev --audit-level=high

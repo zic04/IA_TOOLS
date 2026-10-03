@@ -44,7 +44,7 @@ function citedTokens(page, labelValues) {
 }
 
 /**
- * Lines of the CURRENT file touched by a unified diff (`@@ -a,b +c,d @@` → [c, c+d-1], context lines included:
+ * Lines of the CURRENT file touched by a unified diff (hunk header "-a,b +c,d" → [c, c+d-1], context lines included:
  * a slight over-estimate, never an under-estimate), or null without a usable diff.
  */
 export function touchedLines(patch) {
@@ -140,6 +140,29 @@ function allLabelValues(reference) {
 }
 
 /**
+ * The sync report (ARCHITECTURE.md §6.10). Every category is optional for the readers: a hand-written report
+ * (tests, or a report from an older run) may lack some.
+ * @typedef {object} SyncReport
+ * @property {string} [generator]
+ * @property {string} [date]
+ * @property {{ commit: string, version: string, date: string }|null} [reference]
+ * @property {string|null} [since]
+ * @property {{ commit: string|null, version: string }} [current]
+ * @property {{ moved: any[], broken: any[] }} [proofs]
+ * @property {any[]} [labels]
+ * @property {any[]} [review]
+ * @property {any[]} [captures]
+ * @property {any[]} [new]
+ * @property {any[]} [removed]
+ * @property {string[]} [unchanged]
+ * @property {any} [unmarked]
+ * @property {any[]} [translations]
+ * @property {{ stale: any }} [facts]
+ * @property {string[]} [truncated]
+ * @property {boolean} [gitAvailable]
+ */
+
+/**
  * Compares the application now with the reference.
  * @param {object} p
  * @param {string} p.root
@@ -154,7 +177,7 @@ function allLabelValues(reference) {
  * @param {string} p.version           documented version, now
  * @param {string|null} p.commit       application HEAD, now
  * @param {string} p.factsDir          projRel facts folder
- * @returns {Promise<object>} SyncReport
+ * @returns {Promise<SyncReport>}
  */
 export async function compareWithReference({
   root,
@@ -218,6 +241,7 @@ export async function compareWithReference({
     if (deps.truncated) truncated.push(id);
 
     // ─── Review: dependency hashes, against the reference OR against `since` (read via git show) ────────────
+    /** @type {Array<{ path: string, kind: "direct"|"shared", change: string, proofsIntact?: boolean }>} */
     const reasons = [];
     const recordedFiles = since
       ? Object.fromEntries(

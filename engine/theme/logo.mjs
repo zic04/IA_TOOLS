@@ -10,7 +10,8 @@ const XMLNS = 'xmlns="http://www.w3.org/2000/svg"';
 
 /**
  * @param {string} source  SVG content
- * @returns {{ ok: true, inline: string, favicon: (colour: string) => string } | { ok: false, reason: string }}
+ * @returns {{ ok: boolean, inline?: string, favicon?: (colour: string) => string, reason?: string }}
+ *   `ok: true`: `inline` and `favicon` are set; `ok: false`: `reason` is
  *   `reason`: i18n key suffix (cli.build.theme.logo.*)
  */
 export function sanitizeLogo(source) {

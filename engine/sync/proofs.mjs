@@ -19,7 +19,7 @@ export const PROOF_REF =
  * With `appDir`, each proof also gets `path`: the file in the application (resolveProofFile), or null.
  * @returns {Array<{ ref: string, file: string, path?: string|null, from: number, to: number|undefined, span: string, index: number }>}
  */
-export function extractProofs(markdown, { appDir } = {}) {
+export function extractProofs(markdown, { appDir } = /** @type {{ appDir?: string }} */ ({})) {
   const out = [];
   const push = (span, index, file, from, to) => {
     const proof = { ref: to !== undefined ? `${file}:${from}-${to}` : `${file}:${from}`, file, from, to, span, index };

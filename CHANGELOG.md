@@ -119,6 +119,10 @@ entries between a project's `kit` range and the installed version.
     M5 as warnings, capped by `--max-warnings` so that their number can only go down. `npm run lint` runs in the
     CI. It found 18 problems, all fixed: unused imports and variables, initial values always overwritten, and
     a regular expression with spaces that were hard to count. Rule RULES.md M12.
+  - Type checking of the JavaScript from its JSDoc (TypeScript 6.0.3, pinned dev dependency, `tsconfig.json`,
+    nothing compiled): `npm run typecheck` runs in the CI. It found 162 places where the JSDoc no longer matched
+    the code: undocumented options, missing type definitions, return types without a property the code sets.
+    All are fixed in the JSDoc; no runtime behaviour changed and no bug was found. Rule RULES.md M13.
 - Captures run with `reducedMotion: "reduce"`.
 - **Captures wait on conditions, not on fixed sleeps.** A capture waits until no request is in flight, fonts and
   images are ready, the DOM has been still for 150 ms and animations have ended, capped at 10 s. `delay` and

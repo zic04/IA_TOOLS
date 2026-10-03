@@ -323,6 +323,7 @@ async function main() {
   const template = fs.readFileSync(templateFile, "utf8");
 
   const given = readVars(o.var, docDir);
+  /** @type {Record<string, any>} */
   const vars = { ...baseVariables(docDir, config, lang), ...given };
   if (!vars.prefix && vars.code) vars.prefix = vars.code;
   const overridden = "appDir" in given || config.extra?.briefs?.appDir !== undefined;

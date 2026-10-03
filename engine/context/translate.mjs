@@ -142,9 +142,10 @@ export function buildTranslateContext({
     previous: previousText2,
     diff: diffText,
   };
+  /** @type {Array<{ kind: "diff"|"previous" }>} */
   const cut = [];
   let total = Object.values(parts).reduce((n, s) => n + estimateTokens(s), 0);
-  for (const kind of ["diff", "previous"]) {
+  for (const kind of /** @type {const} */ (["diff", "previous"])) {
     if (total <= budget || !parts[kind]) continue;
     total -= estimateTokens(parts[kind]);
     cut.push({ kind });

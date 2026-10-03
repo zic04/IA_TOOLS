@@ -181,6 +181,7 @@ export function buildContext({
   push("");
 
   // ─── 2. Required sections of the template, in the site's language ────────────────────────────────────────────
+  /** @type {import("./budget.mjs").BudgetPart} */
   const sectionsPart = { kind: "sections", text: "", cutLine: "" };
   if (page.template && templates?.types?.[page.template]) {
     const def = templates.types[page.template];
@@ -198,6 +199,7 @@ export function buildContext({
   // ─── 3. Files to read: direct first, each with the line ranges and the excerpts themselves ──────────────────
   const direct = deps.files.filter((f) => f.kind === "direct" && !isDocRef(f.path));
   const shared = deps.files.filter((f) => f.kind === "shared" && !isDocRef(f.path));
+  /** @type {import("./budget.mjs").BudgetPart[]} */
   const fileParts = [];
   const excerptTexts = [];
   const fileHeading = (f) => `### ${f.path} (${t(`cli.context.file.${f.kind}`)})`;
@@ -237,6 +239,7 @@ export function buildContext({
   const citedLabels = {};
   for (const txt of excerptTexts)
     for (const flat of Object.values(labels)) Object.assign(citedLabels, labelsCitedBy(txt, flat));
+  /** @type {import("./budget.mjs").BudgetPart} */
   const labelsPart = { kind: "labels", text: "", cutLine: cutLine("labels", t("cli.context.section.labels"), "—") };
   if (Object.keys(citedLabels).length)
     labelsPart.text =
@@ -249,6 +252,7 @@ export function buildContext({
   // ─── 5. Facts ──────────────────────────────────────────────────────────────────────────────────────────────
   const fileSet = new Set(deps.files.filter((f) => !isDocRef(f.path)).map((f) => f.path));
   const rows = factsFor(facts, fileSet, deps.routes);
+  /** @type {import("./budget.mjs").BudgetPart} */
   const factsPart = { kind: "facts", text: "", cutLine: cutLine("facts", t("cli.context.section.facts"), "—") };
   if (rows.length)
     factsPart.text =
@@ -307,7 +311,7 @@ export function buildContext({
   }
 
   // ─── Assembly with the budget (page and sections never cut) ──────────────────────────────────────────────────
-  const parts = [
+  const parts = /** @type {import("./budget.mjs").BudgetPart[]} */ ([
     { kind: "page", text: lines.join("\n") + "\n", cutLine: "" },
     sectionsPart,
     { kind: "page", text: `## ${t("cli.context.section.files")}\n`, cutLine: "" },
@@ -316,7 +320,7 @@ export function buildContext({
     factsPart,
     { kind: "page", text: glossaryText, cutLine: "" },
     { kind: "page", text: updateText, cutLine: "" },
-  ].filter((p) => p.text);
+  ]).filter((p) => p.text);
   const { kept, cut } = fitBudget(parts, budget);
   const cutSummary = cut.length
     ? `\n## ${t("cli.context.section.cut")}\n\n${cut.map((c) => `- ${c.cutLine.trim()}`).join("\n")}\n`

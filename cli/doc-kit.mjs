@@ -32,6 +32,7 @@ export const COMMANDS = fs
 /** Commands announced but not delivered yet ({ name: "release" }); empty when every command exists. */
 const LATER = {};
 
+/** @type {import("node:util").ParseArgsOptionsConfig} */
 const GLOBALS = {
   project: { type: "string" },
   json: { type: "boolean" },
@@ -53,6 +54,7 @@ export async function runCli(argv, io = {}) {
       COMMANDS.map(async (c) => [c, await import(pathToFileURL(path.join(FOLDER, "commands", `${c}.mjs`)).href)]),
     ),
   );
+  /** @type {import("node:util").ParseArgsOptionsConfig} */
   const all = { ...GLOBALS };
   for (const m of Object.values(modules)) Object.assign(all, m.options || {});
 
@@ -69,7 +71,7 @@ export async function runCli(argv, io = {}) {
     return EXIT.USAGE;
   }
   Object.assign(ctx.globals, values);
-  if (values.lang && !["en", "fr"].includes(values.lang)) {
+  if (values.lang && !["en", "fr"].includes(String(values.lang))) {
     ctx.error("option.value", { option: "lang", value: values.lang, expected: "en | fr" });
     return EXIT.USAGE;
   }
@@ -183,7 +185,7 @@ async function runSafely(ctx, fn) {
   } catch (e) {
     if (e instanceof KitError) {
       printKitError(ctx, e);
-      if (ctx.verbose && e.cause) ctx.printErr(String(e.cause.stack || e.cause));
+      if (ctx.verbose && e.cause) ctx.printErr(String(/** @type {any} */ (e.cause).stack || e.cause));
       return e.code;
     }
     ctx.error("internalError", { error: e.message });
@@ -301,6 +303,7 @@ ${ctx.t("cli.guided.next", { command: next })}`);
   }
 
   const prompt = prompterOf(ctx);
+  /** @type {string} */
   let step = s.step;
   if (s.step === "menu") {
     step = await prompt.choose(

@@ -52,14 +52,16 @@ export function defaultExec(bin, args = [], options = {}) {
     ...options,
     shell: false,
   });
-  return r.error?.code === "ENOENT" ? null : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
+  return /** @type {NodeJS.ErrnoException|undefined} */ (r.error)?.code === "ENOENT"
+    ? null
+    : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
 }
 
 /**
  * Execution context of a command.
  * @param {object} globals  global options (--project, --json, --verbose, --lang)
  * @param {{ stdout?, stderr?, env?, stdin?, interactive?: boolean, signal?: AbortSignal, steps?: object, launch?: Function,
- *   fetch?: Function, exec?: Function, commit?: Function }} [io]
+ *   fetch?: Function, exec?: Function, commit?: Function, codegen?: Function, chromium?: Function }} [io]
  *   interactive: questions allowed (default: stdin and stdout are terminals); signal: stops long-running
  *   commands (dev) like Ctrl+C. Test seams (ARCHITECTURE.md §4): steps replaces the follow-up steps of `init`
  *   ({ install, connect, capture }); launch replaces the browser launcher of `capture` and `connect`; fetch
@@ -171,7 +173,7 @@ export function createContext(
      * be imported or an invalid language, the language stays as it is and the command reports the problem.
      * @returns {Promise<string>} the message language
      */
-    async useProjectLanguage({ from } = {}) {
+    async useProjectLanguage({ from } = /** @type {{ from?: string }} */ ({})) {
       if (globals.lang) return ctx.language;
       try {
         const { configFile } = findProject({ project: globals.project, from });
@@ -283,7 +285,10 @@ function newestMtime(root, { folders = [], files = [] } = {}) {
  * of the full site. `requireExisting` (open: never silently build a first site): `site.missing` when the
  * output does not exist at all, instead of building a draft — a stale-but-existing output still rebuilds.
  */
-export async function builtSite(ctx, { space, requireExisting = false } = {}) {
+export async function builtSite(
+  ctx,
+  { space, requireExisting = false } = /** @type {{ space?: string, requireExisting?: boolean }} */ ({}),
+) {
   const { project, config } = await ctx.loadProject();
   const full = path.resolve(project.root, config.output);
   const output = space ? spaceOutput(project.root, config, space, full) : full;
@@ -350,7 +355,7 @@ function createPrompter(ctx) {
 
   return {
     /** Free answer; empty = default. `check(value)` returns an i18n key (cli.*) when the value is refused. */
-    async ask(label, def = "", check = () => null) {
+    async ask(label, def = "", check = /** @type {(value: string) => string|null} */ (() => null)) {
       for (;;) {
         const value = (await line(question(label, def))) || def;
         const problem = check(value);

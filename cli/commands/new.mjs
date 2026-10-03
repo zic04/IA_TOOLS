@@ -213,6 +213,7 @@ export function createPage({ root, config, id, template, title, parent, summary,
     prop(prop(prop(tree, "sections").items[w.si], "groups", "groupes").items[w.gi], "pages").items[w.pi];
   let newText = text;
   let entry = null;
+  /** @type {any} */
   let placement;
   if (declared) {
     if (declared.p.template && template && declared.p.template !== template)

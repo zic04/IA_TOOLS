@@ -141,10 +141,11 @@ export function redact(value) {
 
 /**
  * Detectors of a project.
- * @returns {Array<{ kind: string, re: RegExp, key?: string, file?: string }>}
+ * @returns {Array<{ kind: string, re: RegExp, key?: string, file?: string, allow?: RegExp, index?: number }>}
  */
 export function detectors(root, masking) {
   const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /** @type {Array<{ kind: string, re: RegExp, key?: string, file?: string, allow?: RegExp, index?: number }>} */
   const list = sensitiveValues(root, masking).map((v) => ({
     kind: "env",
     key: v.key,

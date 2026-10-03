@@ -121,6 +121,7 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return values.check ? EXIT.CHECK : EXIT.OK;
   }
 
+  /** @type {import("../../engine/sync/report.mjs").SyncReport & { estimate?: any }} */
   let report = await compareWithReference({
     root,
     config,

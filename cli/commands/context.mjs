@@ -145,8 +145,8 @@ export async function run({ ctx, values, positionals }) {
     readSyncReference(root, config),
   ]);
   const tools = adapterTools(root);
-  const labels = readLabels(root, config);
-  const facts = readFacts(root, config);
+  const labels = /** @type {Record<string, Record<string, string>>} */ (readLabels(root, config));
+  const facts = /** @type {Record<string, any[]>} */ (readFacts(root, config));
   const templates = loadPageTemplates();
 
   const product = config.product?.name ?? null;

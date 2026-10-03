@@ -53,6 +53,8 @@ export function changesBetween(entries, range, kitVersion) {
 
 /**
  * Plans (and with apply, performs) the upgrade of a project.
+ * @param {{ root: string, configFile: string, raw: any, apply?: boolean, kitVersion?: string, migrationsFolder?: string,
+ *   kitRoot?: string }} p
  * @returns {Promise<{ range, kit, compatible, changelog, migrations, diffs, newRange, applied, error? }>}
  */
 export async function planUpgrade({

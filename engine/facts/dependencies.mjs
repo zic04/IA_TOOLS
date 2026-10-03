@@ -272,6 +272,7 @@ function fromPoetryLock(abs, manifest) {
   const text = readText(abs);
   if (text === null) return [];
   const out = [];
+  /** @type {{ name?: string, version?: string, dev?: boolean }|null} */
   let current = null;
   const flush = () => {
     if (current?.name)

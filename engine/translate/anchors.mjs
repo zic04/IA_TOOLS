@@ -9,7 +9,8 @@ const idsOf = (toc) => (toc || []).map((h) => h.id);
  * Whether `anchor` (as written in a translated page, linking to `target`) is already a heading of the
  * translated target page, or can be mapped there by position.
  * @param {{ sourceToc: object[]|null, targetToc: object[]|null, anchor: string }} p
- * @returns {{ ok: true, same: true }|{ ok: true, mapped: string }|{ ok: false, reason: "missing"|"count"|"unknown" }}
+ * @returns {{ ok: boolean, same?: boolean, mapped?: string, reason?: "missing"|"count"|"unknown" }}
+ *   `ok: true`: `same` (already a heading of the target) or `mapped` is set; `ok: false`: `reason` is
  */
 function classify({ sourceToc, targetToc, anchor }) {
   const targetIds = idsOf(targetToc);

@@ -188,6 +188,9 @@ const NEVER = new Promise(() => {});
  * @param {(page) => Promise<void>} p.waitForUser   resolves when the person says they are signed in (Enter);
  *                                       rejects when nobody can answer (no terminal)
  * @param {(event: string) => void} [p.onStatus]   "notYet": the person pressed Enter but is not signed in
+ * @param {number} [p.timeout]           how long to wait for the sign-in (ms)
+ * @param {number} [p.poll]              interval between two checks of the sign-in (ms)
+ * @param {Function} [p.launch]          opens the browser (test seam; default: launchBrowser)
  * @returns {Promise<{ who?, details?, expires?, file: string }>}
  */
 export async function connect({
@@ -258,7 +261,7 @@ export async function connect({
  * Renews a short-lived session before a capture run (capture.sessionRefresh, ARCHITECTURE.md §6.3a): the only
  * request of a run that is not GET/HEAD/OPTIONS, sent once, outside any page, from a context that loads the
  * session; the cookies it sets are written back to the session file. Nothing else is sent.
- * @param {{ file: string, appUrl: string, refresh: { method?: string, path: string }, launch?: Function }} p
+ * @param {{ file: string, appUrl: string, refresh: { method?: string, path: string, json?: any }, launch?: Function }} p
  * @returns {Promise<{ ok: boolean, status: number|null, error?: string }>}
  */
 export async function refreshSession({ file, appUrl, refresh, launch = launchBrowser }) {

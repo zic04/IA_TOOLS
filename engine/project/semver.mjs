@@ -12,6 +12,7 @@ const compare = (a, b) => {
   return 0;
 };
 
+/** @returns {Array<[string, number[]]>|null} */
 function bounds(spec) {
   const m = /^(\^|~|>=|<=|>|<|=)?\s*(.+)$/.exec(spec.trim());
   if (!m) return null;

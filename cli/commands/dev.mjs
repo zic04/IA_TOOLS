@@ -71,21 +71,23 @@ export async function run({ ctx, values }) {
     }
   };
 
-  const server = await startDevServer({
-    root: project.root,
-    port,
-    loadConfig: () => reloadConfig(project.root, ctx.env),
-    describe: (problem) => describeProblem(ctx, problem),
-    describeError,
-    texts: {
-      language: config.language,
-      title: ctx.t("cli.dev.overlay.title"),
-      hint: ctx.t("cli.dev.overlay.hint"),
-      close: ctx.t("cli.dev.overlay.close"),
-      waiting: ctx.t("cli.dev.overlay.waiting"),
-    },
-    onEvent: report,
-  });
+  const server = /** @type {Awaited<ReturnType<typeof startDevServer>> & { stopped?: () => void }} */ (
+    await startDevServer({
+      root: project.root,
+      port,
+      loadConfig: () => reloadConfig(project.root, ctx.env),
+      describe: (problem) => describeProblem(ctx, problem),
+      describeError,
+      texts: {
+        language: config.language,
+        title: ctx.t("cli.dev.overlay.title"),
+        hint: ctx.t("cli.dev.overlay.hint"),
+        close: ctx.t("cli.dev.overlay.close"),
+        waiting: ctx.t("cli.dev.overlay.waiting"),
+      },
+      onEvent: report,
+    })
+  );
 
   const watched = watchedPaths(config);
   const spaces = server.spaces.map((space) => ({ space, url: `${server.url}space/${space}` }));

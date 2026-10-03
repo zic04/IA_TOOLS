@@ -122,7 +122,7 @@ export const GROUPINGS = Object.freeze(Object.keys(KEYS));
  * their own keys; the overall total only counts top-level spans (no `sub`), so that nothing is counted twice.
  * @returns {{ total: { ms, tokens, runs }, groups: Array<{ key, ms, tokens, count, share }> }} groups sorted by time
  */
-export function summarize(entries, by = "step", { since } = {}) {
+export function summarize(entries, by = "step", { since } = /** @type {{ since?: string }} */ ({})) {
   const key = KEYS[by];
   if (!key) throw new Error(`unknown grouping: ${by}`);
   const kept = since ? entries.filter((e) => compareVersions(e.version, since) >= 0) : entries;

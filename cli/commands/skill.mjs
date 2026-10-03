@@ -69,7 +69,10 @@ const PLACEHOLDER = "{{KIT_PATH}}";
 /** Files where the placeholder is replaced. */
 const SUBSTITUTED = /^(SKILL\.md|references\/[^/]+\.md|scripts\/[^/]+\.mjs)$/;
 
-/** Skills folder: --target, $CLAUDE_CONFIG_DIR/skills, ~/.claude/skills. */
+/**
+ * Skills folder: --target, $CLAUDE_CONFIG_DIR/skills, ~/.claude/skills.
+ * @param {{ target?: string, env?: NodeJS.ProcessEnv }} [p]
+ */
 export function skillsFolder({ target, env = process.env } = {}) {
   if (target) return path.resolve(process.cwd(), target);
   if (env.CLAUDE_CONFIG_DIR) return path.join(path.resolve(env.CLAUDE_CONFIG_DIR), "skills");
@@ -77,7 +80,10 @@ export function skillsFolder({ target, env = process.env } = {}) {
   return path.join(home, ".claude", "skills");
 }
 
-/** Claude Code's agents folder, next to the skills folder. */
+/**
+ * Claude Code's agents folder, next to the skills folder.
+ * @param {{ target?: string, env?: NodeJS.ProcessEnv }} [p]
+ */
 export function agentsFolder({ target, env = process.env } = {}) {
   return path.join(skillsFolder({ target, env }), "..", AGENTS_SUBDIR);
 }
@@ -130,7 +136,7 @@ function namedFilesHash(dir, names) {
 
 /**
  * Installs the skill and the agent types.
- * @returns {{ folder: string, files: number, kitPath: string, replaced: boolean, agents: { folder: string, files: number } }}
+ * @returns {{ folder: string, files: number, kitPath: string, replaced: boolean, agents: { folder: string, files: number }, hooks?: { file: string, added: boolean } }}
  */
 export function installSkill({ skills, force = false, source = SKILL_SOURCE, kitRoot = KIT_ROOT }) {
   if (!fs.existsSync(path.join(source, "SKILL.md")))
@@ -183,6 +189,7 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
  * State of the installed skill, for `doctor`:
  *   missing · current · outdated (the kit's skill changed since) · modified (edited after install) ·
  *   otherKit (installed from another kit folder) · foreign (a doc-kit folder without fingerprint)
+ * @param {{ env?: NodeJS.ProcessEnv, target?: string, source?: string, kitRoot?: string }} [p]
  */
 export function skillStatus({ env = process.env, target, source = SKILL_SOURCE, kitRoot = KIT_ROOT } = {}) {
   const folder = path.join(skillsFolder({ target, env }), SKILL_NAME);
@@ -205,6 +212,7 @@ export function skillStatus({ env = process.env, target, source = SKILL_SOURCE, 
  * State of the installed agent types (ARCHITECTURE.md §6.11), for `doctor`: missing (none installed, or no
  * fingerprint to compare against) · current · outdated (the kit's agents changed since) · modified (edited, or
  * removed, after install). Read from the main skill's fingerprint: the two are always installed together.
+ * @param {{ env?: NodeJS.ProcessEnv, target?: string, source?: string, kitRoot?: string }} [p]
  */
 export function agentsStatus({ env = process.env, target, source = SKILL_SOURCE, kitRoot = KIT_ROOT } = {}) {
   const folder = agentsFolder({ target, env });

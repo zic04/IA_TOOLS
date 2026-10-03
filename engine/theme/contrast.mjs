@@ -42,6 +42,7 @@ export function resolve(tokens) {
 }
 
 /** Checked pairs [text, background, threshold]. */
+/** @type {Array<[string, string, number]>} */
 const PAIRS = [
   ["text", "bg", 4.5],
   ["text", "surface", 4.5],

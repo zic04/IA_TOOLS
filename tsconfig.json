@@ -1,0 +1,18 @@
+{
+  // Type checking of the kit's JavaScript from its JSDoc (AUDIT M2, RULES.md M13): nothing is compiled
+  // (noEmit), the code stays plain ES modules. `npm run typecheck`.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "lib": ["es2023", "dom"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["engine/**/*.mjs", "cli/**/*.mjs", "adapters/**/*.mjs", "skill/**/*.mjs"]
+}

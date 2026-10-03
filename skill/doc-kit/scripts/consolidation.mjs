@@ -180,6 +180,7 @@ function sharedRefs(ra, rb) {
 /** Candidates: sections "## Title (code)", a sub-section whose title contains "candidate"/"candidat", numbered items. */
 function readCandidates(text) {
   const withoutComments = text.replace(/<!--[\s\S]*?-->/g, "");
+  /** @type {{ code: string, n: number, text: string, refs?: any }[]} */
   const candidates = [];
   const sections = [];
   let section = null;
@@ -232,6 +233,7 @@ function readCandidates(text) {
 
 /** Existing findings: headings "## C1 — …" (and ###) or table rows "| M3 | …". */
 function readExistingFindings(files) {
+  /** @type {{ id: string, file: any, text: string, refs?: any }[]} */
   const units = [];
   for (const f of files) {
     const lines = fs.readFileSync(f, "utf8").split(/\r?\n/);

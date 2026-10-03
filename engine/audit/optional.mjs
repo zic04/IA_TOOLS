@@ -22,7 +22,7 @@ const isFn = (f) => typeof f === "function";
  *   { covered|cited: number, total: number }                               → counts
  *   no available adapter, or nothing inventoried                           → not measured
  *   items may carry `plannedBy` (the page declared but not written yet whose entry cites them)  → `planned`, `plannedBy`
- * @returns {Promise<{ measured: boolean, reason?: string, n?: number, total?: number, missing?: string[],
+ * @returns {Promise<{ measured: boolean, reason?: string, error?: string, n?: number, total?: number, missing?: string[],
  *   planned?: number, plannedBy?: Record<string, string> }>}
  */
 export async function measureCoverage({ project, config }) {
@@ -72,7 +72,7 @@ export function readCoverage(r) {
 /**
  * Secrets (engine/check/secrets.mjs, when present): values that must never be published, in the site and its
  * sources; session files out of place. Only where each finding is and its kind are kept (never the value).
- * @returns {Promise<{ measured: boolean, reason?: string, findings?: Array<{ where: string, kind: string }> }>}
+ * @returns {Promise<{ measured: boolean, reason?: string, error?: string, findings?: Array<{ where: string, kind: string }> }>}
  */
 export async function measureSecrets({ project, config, data, env = process.env }) {
   try {
@@ -96,9 +96,13 @@ export async function measureSecrets({ project, config, data, env = process.env 
 
 /**
  * Tables wider than the reading column at `width` px (engine/check/tables.mjs; needs the Playwright browser).
- * @returns {Promise<{ measured: boolean, reason?: string, problems?: Array<{page, heading, wide, visible}> }>}
+ * @returns {Promise<{ measured: boolean, reason?: string, error?: string, problems?: Array<{page, heading, wide, visible}> }>}
  */
-export async function measureTables(html, { width = 1440, topOfPage } = {}) {
+/** @param {string} html */
+export async function measureTables(
+  html,
+  { width = 1440, topOfPage } = /** @type {{ width?: number, topOfPage?: any }} */ ({}),
+) {
   if (!html) return { measured: false, reason: "noSite" };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "doc-kit-audit-"));
   try {

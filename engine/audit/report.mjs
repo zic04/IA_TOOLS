@@ -315,7 +315,7 @@ export function renderMarkdown(result, i18n) {
 }
 
 /** Compact summary for the terminal: level, indicators on two lines, the 5 first actions. */
-export function renderSummary(result, i18n, { md, json } = {}) {
+export function renderSummary(result, i18n, { md, json } = /** @type {{ md?: string, json?: string }} */ ({})) {
   const f = formatter(i18n);
   const { t } = f;
   const lines = [
