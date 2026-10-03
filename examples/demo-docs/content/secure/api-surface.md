@@ -7,20 +7,20 @@ account, so tenant isolation does not apply — but role isolation does, and not
 
 `doc-kit facts --source api` finds nothing: Acme Orders answers with direct string comparisons on the request
 path (`serve.mjs`) rather than a router the adapter can parse, so the table below was completed entirely by
-hand from the code.
+hand from the code. There is no tenant isolation to check: the demo has a single account.
 
 ::facts{source="api" columns="method,route,file"}
 
-| Method | Route | Authentication | Role | Tenant isolation | Proof |
-|---|---|---|---|---|---|
-| GET | `/login` | None | Public | N/A | [[verified serve.mjs:41]] |
-| POST | `/login` | None | Public | N/A | [[verified serve.mjs:33]] |
-| GET | `/api/me` | Session cookie | Any signed-in user | N/A, one account | [[verified serve.mjs:52]] |
-| GET | `/api/orders` | Session cookie | Any signed-in user | N/A, one account | [[verified serve.mjs:54]] |
-| GET | `/api/orders/[id]` | Session cookie | Any signed-in user | N/A, one account | [[verified serve.mjs:55]] |
-| POST | `/api/settings` | Session cookie | Any signed-in user | N/A, one account | [[verified serve.mjs:49]] |
-| GET | `/orders/[id]/approval` | Session cookie | Any signed-in user — writes on render | N/A, one account | [[verified serve.mjs:59]] |
-| POST | `/api/demo/reset` | None | Public | N/A | [[verified serve.mjs:40]] |
+| Method | Route | Authentication | Role | Proof |
+|---|---|---|---|---|
+| GET | `/login` | None | Public | [[verified serve.mjs:41]] |
+| POST | `/login` | None | Public | [[verified serve.mjs:33]] |
+| GET | `/api/me` | Session cookie | Signed in | [[verified serve.mjs:52]] |
+| GET | `/api/orders` | Session cookie | Signed in | [[verified serve.mjs:54]] |
+| GET | `/api/orders/[id]` | Session cookie | Signed in | [[verified serve.mjs:55]] |
+| POST | `/api/settings` | Session cookie | Signed in | [[verified serve.mjs:49]] |
+| GET | `/orders/[id]/approval` | Session cookie | Signed in — writes on render | [[verified serve.mjs:59]] |
+| POST | `/api/demo/reset` | None | Public | [[verified serve.mjs:40]] |
 
 ## Database access rules
 

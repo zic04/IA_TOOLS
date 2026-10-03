@@ -410,7 +410,8 @@ describe("commands that stop before opening a browser", () => {
     }
     const dir = await project((c) => ({ ...c, app: { url: "http://127.0.0.1:9" }, capture: { setup: "setup.mjs" } }));
     try {
-      write(dir, "setup.mjs", 'export default async ({ config, root, url }) => { console.log(`ready ${config.product.name} ${url} ${root === process.cwd()}`); };');
+      // realpath: on macOS the temporary folder (/var/…) is a link to /private/var/…, which process.cwd() returns.
+      write(dir, "setup.mjs", 'import fs from "node:fs"; export default async ({ config, root, url }) => { console.log(`ready ${config.product.name} ${url} ${fs.realpathSync(root) === process.cwd()}`); };');
       let r = await cli(["demo", "--project", dir]);
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /^Preparing the demo data: setup\.mjs…\n {2}ready Acme Orders http:\/\/127\.0\.0\.1:9 true\n✔ Demo data ready \(setup\.mjs\)\.\n$/);

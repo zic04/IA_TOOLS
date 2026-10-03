@@ -77,7 +77,11 @@ after(async () => {
 });
 
 describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
-  test("baseline: the committed images already match the untouched app — --compare leaves both byte for byte untouched", async () => {
+  test("baseline: images freshly captured from the untouched app — --compare leaves both byte for byte untouched", async () => {
+    // The committed images were taken on one machine; fonts render differently on another system (CI runs on
+    // Linux, Windows and macOS), so the baseline is first captured here, then compared with itself.
+    const first = await cli(["capture", "--project", dir]);
+    assert.equal(first.code, 0, first.out + first.err);
     const before = {
       "orders-list": fs.readFileSync(path.join(dir, "images", "orders-list.webp")),
       "settings-profile": fs.readFileSync(path.join(dir, "images", "settings-profile.webp")),
