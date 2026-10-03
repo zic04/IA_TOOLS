@@ -34,6 +34,11 @@ conception des statistiques de temps, de jetons et de modèles demandée, puis l
 | S2 : chronométrage des commandes, des étapes de chaque capture et de chaque source des faits ; option `--profile` | **Fait** (les autres commandes : à affiner) |
 | A1 : attentes sur condition (`engine/capture/stable.mjs`) | **Fait** : 0,5 à 0,7 s par capture au lieu de 3,3 s sur la démo |
 | C1 : erreur si une cible de masquage ne trouve rien, et nouveau masquage avant la prise de vue | **Fait** |
+| S3 : hook Claude Code (`skill install --hooks`), jetons, modèle et temps de chaque agent | **Fait** |
+| S5 : page « Coût de la documentation » (`::usage`, gabarit `documentation-cost`), avec le nombre d'agents et les modèles utilisés | **Fait** |
+| G1 : pages probablement intactes marquées sans agent (`sync --apply --auto-intact`) | **Fait** |
+| G2, G3 : on s'arrête quand plus aucune page n'est signalée ; tri par lots de 5 pages au plus ; une page par agent de mise à jour, en parallèle (consignes du skill) | **Fait** |
+| G8 : API Batch | **Écarté** (pas de clé API) |
 | Le reste des § 5, 6 et 7 | À faire |
 
 ---
@@ -331,7 +336,7 @@ Les points faibles :
 | G5 | **Un vrai préfixe commun** : le brief est inséré directement dans la consigne de l'agent, partie commune d'abord, puis les variables, puis le contexte. Le cache sert enfin à toute la vague | −15 à 25 % en entrée | −10 % |
 | G6 | **Les vagues deviennent un graphe de dépendances** (`brief.mjs --plan` produit les dépendances) : les dossiers opus partent juste après les faits, chaque constat est vérifié dès que son lot est rendu, chaque page est traduite dès qu'elle est validée | 0 | −30 à 40 % de bout en bout |
 | G7 | **Paquets de contexte partagés** (`context --pack`) : un fichier commun à 10 pages n'est extrait qu'une fois, en tête, donc mis en cache | −10 à 20 % en entrée | — |
-| G8 | **Mode Batch** pour la traduction, le tri et l'échantillon de relecture (`translate --batch-export` / `--batch-import`, résultats en JSON) | **−50 % du prix** sur ces phases | hors du temps d'attente |
+| G8 | ~~**Mode Batch**~~ — *écarté : pas de clé API* — pour la traduction, le tri et l'échantillon de relecture (`translate --batch-export` / `--batch-import`, résultats en JSON) | **−50 % du prix** sur ces phases | hors du temps d'attente |
 | G9 | **Plus de génération sans IA** : `new --prefill` s'étend à la matrice des rôles, aux ressources, à la qualité des tests et à la carte du code. L'IA ne complète que les cellules à juger, sur haiku | −30 à 60 % sur ces pages | −40 % |
 | G10 | **Des estimations justes** : allers-retours × (préfixe au tarif du cache + croissance), calibrés sur `usage/`, avec le modèle de la table de routage. Écriture dans le cache comptée à 1,25×, lecture à 0,1× | — | — |
 | G11 | **Budgets par gabarit** : environ 8 000 jetons de contexte pour une mise à jour ou un tri, 16 000 pour une nouvelle page | −10 à 20 % | — |

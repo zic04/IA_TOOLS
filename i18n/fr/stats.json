@@ -50,5 +50,6 @@
   "render.usage.empty": "Pas encore de statistiques de production : elles apparaissent ici au fil de la production et des mises à jour de la documentation.",
   "cli.skill.hooks": "hook de statistiques (jetons, modèle et temps de chaque agent → usage/) enregistré dans {file}",
   "cli.skill.settingsInvalid": "{file} n'est pas un JSON valide : {error}",
-  "cli.skill.settingsInvalid.help": "corrigez le fichier, ou indiquez-en un autre avec --settings"
+  "cli.skill.settingsInvalid.help": "corrigez le fichier, ou indiquez-en un autre avec --settings",
+  "cli.sync.autoIntact": "✔ {n} page(s) probablement intacte(s) marquée(s) sans agent : {pages}"
 }

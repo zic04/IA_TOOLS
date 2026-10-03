@@ -27,6 +27,11 @@ entries between a project's `kit` range and the installed version.
   `.claude/settings.json`. Each AI agent's tokens (input, output, cache), model and time are then appended to
   `usage/` automatically. The settings already in the file are kept, and the hook is never added twice.
 - `llm.prices.<model>.cacheWrite` (default 1.25 × input); `cacheRead` defaults to 0.1 × input.
+- **`sync --apply --auto-intact`** marks the pages whose only changes are probably intact without any agent. The
+  skill's update cycle uses it, and then works only on the pages still flagged:
+  - it stops when none is left;
+  - triage runs on haiku, at most 5 pages per agent, with the agents in parallel;
+  - each update agent handles one page, up to 8 run in parallel, and edits the page instead of rewriting it.
 
 ### Changed
 

@@ -814,6 +814,26 @@ describe("CLI `sync`", () => {
     }
   });
 
+  test("--apply --auto-intact: a probably intact page is marked without an agent; without --apply → exit code 2", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], { commit: () => "c0ffee" });
+      fs.writeFileSync(path.join(fx.appDir, "app/layout.tsx"), 'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n');
+      const exec = fakeExec({ diffs: { c0ffee: '@@ -1 +1 @@\n-old\n+<html><body className="updated">\n' } });
+      const before = JSON.parse((await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out);
+      assert.ok(before.review.some((r) => r.page === "use/orders" && r.priority === "probablyIntact"), JSON.stringify(before.review));
+      assert.equal((await cli(["sync", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" })).code, 2);
+      const r = await cli(["sync", "--apply", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /page\(s\) probably intact marked without an agent: .*use\/orders/);
+      const after = JSON.parse((await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out);
+      assert.ok(!after.review.some((x) => x.page === "use/orders"), JSON.stringify(after.review));
+      assert.ok(after.unchanged.includes("use/orders"));
+    } finally {
+      fx.release();
+    }
+  });
+
   test("sync.noApp when app.dir is missing or does not exist", async () => {
     const dir = tempDir("doc-kit-sync-noapp-");
     try {

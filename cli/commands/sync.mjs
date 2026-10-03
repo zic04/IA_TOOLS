@@ -1,4 +1,4 @@
-// sync [--since <ref>] [--apply [--labels]] [--mark <page…> | --all] [--sources <file[:lines]…>]
+// sync [--since <ref>] [--apply [--labels] [--auto-intact]] [--mark <page…> | --all] [--sources <file[:lines]…>]
 //      [--date YYYY-MM-DD] [--check] [--estimate]
 // What the documentation must follow after a change of the application (ARCHITECTURE.md §6.10): a report by
 // default, or `--mark` to record the pages checked now. Git is read-only, through the `exec` test seam
@@ -31,6 +31,7 @@ export const options = {
   date: { type: "string" },
   check: { type: "boolean" },
   estimate: { type: "boolean" },
+  "auto-intact": { type: "boolean" },
 };
 
 /** The project's capture plan entries, loaded once; [] when there is nothing to load (capture.mode "none", or
@@ -61,6 +62,7 @@ export async function run({ ctx, values, positionals = [] }) {
   // `--all` alone is accepted too (sync --all), as it was first documented.
   const pages = values.mark ? positionals : [];
   if ((values.mark || values.all) && values.since !== undefined) throw new KitError(EXIT.USAGE, "option.invalid", { error: "--mark/--since" });
+  if (values["auto-intact"] && !values.apply) throw new KitError(EXIT.USAGE, "option.invalid", { error: "--auto-intact (--apply)" });
   if (values.mark && !values.all && !pages.length) throw new KitError(EXIT.USAGE, "sync.markNothing");
   const marking = !!(values.all || values.mark);
   const onePage = marking && !values.all && pages.length === 1;
@@ -137,6 +139,22 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     const touched = new Set([...report.proofs.moved.map((m) => m.page), ...(values.labels ? report.labels.flatMap((l) => l.pages) : [])]);
     const restamp = new Set(report.unchanged);
     for (const id of touched) if (!anyIssue.has(id)) restamp.add(id);
+    // --auto-intact (ETUDE-CAPTURES.md §7, G1): a page whose only changes are "probably intact" — shared files
+    // whose diff touches nothing the page cites, or files it reaches only through proofs that still hold — is
+    // marked without asking an agent, unless something else is pending on it (broken proof, capture, label,
+    // removed item it cites).
+    const intact = [];
+    if (values["auto-intact"]) {
+      const pending = new Set([
+        ...report.proofs.broken.map((b) => b.page),
+        ...report.captures.flatMap((c) => c.pages),
+        ...report.removed.flatMap((r) => r.pages),
+        ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
+      ]);
+      for (const r of report.review) if (r.priority === "probablyIntact" && !pending.has(r.page)) intact.push(r.page);
+      for (const id of intact) restamp.add(id);
+      if (!ctx.json) ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
+    }
     if (restamp.size) {
       const { reference: before } = readSyncReference(root, config);
       const { reference: next } = await markPages({

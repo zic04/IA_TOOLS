@@ -50,5 +50,6 @@
   "render.usage.empty": "No production statistics yet: they appear here as the documentation is produced and updated.",
   "cli.skill.hooks": "statistics hook (tokens, model and time of each agent → usage/) registered in {file}",
   "cli.skill.settingsInvalid": "{file} is not valid JSON: {error}",
-  "cli.skill.settingsInvalid.help": "fix the file, or pass another one with --settings"
+  "cli.skill.settingsInvalid.help": "fix the file, or pass another one with --settings",
+  "cli.sync.autoIntact": "✔ {n} page(s) probably intact marked without an agent: {pages}"
 }
