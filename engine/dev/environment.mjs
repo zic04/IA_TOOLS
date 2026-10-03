@@ -49,7 +49,11 @@ function installedVersion(name, from) {
 /** Runtime dependencies of the kit: [{ name, wanted, found }]. */
 export function kitDependencies(root = KIT_ROOT) {
   const deps = kitPackage(root).dependencies || {};
-  return Object.entries(deps).map(([name, wanted]) => ({ name, wanted, found: installedVersion(name, root)?.version ?? null }));
+  return Object.entries(deps).map(([name, wanted]) => ({
+    name,
+    wanted,
+    found: installedVersion(name, root)?.version ?? null,
+  }));
 }
 
 /** Exact command that installs the Chromium of the kit's Playwright version. */
@@ -89,7 +93,9 @@ export function projectDependency(root) {
 /** Is an import error caused by the missing kit package (npm install not run in the project)? */
 function isMissingKitPackage(error) {
   const e = error?.cause || error;
-  return e?.code === "ERR_MODULE_NOT_FOUND" && new RegExp(`['"]${BRAND.packageName}(/[^'"]*)?['"]`).test(String(e.message));
+  return (
+    e?.code === "ERR_MODULE_NOT_FOUND" && new RegExp(`['"]${BRAND.packageName}(/[^'"]*)?['"]`).test(String(e.message))
+  );
 }
 
 /**
@@ -101,7 +107,13 @@ export async function importConfig(configFile) {
     const url = pathToFileURL(configFile).href + `?t=${Date.now()}-${Math.random().toString(36).slice(2)}`;
     return (await import(url)).default;
   } catch (e) {
-    if (isMissingKitPackage(e)) throw new KitError(EXIT.ENVIRONMENT, "project.depsMissing", { folder: shownFolder(path.dirname(configFile)) }, { cause: e });
+    if (isMissingKitPackage(e))
+      throw new KitError(
+        EXIT.ENVIRONMENT,
+        "project.depsMissing",
+        { folder: shownFolder(path.dirname(configFile)) },
+        { cause: e },
+      );
     throw new KitError(EXIT.USAGE, "config.import", { file: configFile, error: e.message }, { cause: e });
   }
 }
@@ -122,7 +134,12 @@ export async function loadProjectFriendly(ctx) {
     return await ctx.loadProject();
   } catch (e) {
     if (e instanceof KitError && e.key === "config.import" && isMissingKitPackage(e)) {
-      throw new KitError(EXIT.ENVIRONMENT, "project.depsMissing", { folder: shownFolder(path.dirname(path.resolve(e.vars.file))) }, { cause: e.cause });
+      throw new KitError(
+        EXIT.ENVIRONMENT,
+        "project.depsMissing",
+        { folder: shownFolder(path.dirname(path.resolve(e.vars.file))) },
+        { cause: e.cause },
+      );
     }
     throw e;
   }
@@ -144,7 +161,9 @@ export function sessionInfo({ root, config, env = process.env, now = Date.now() 
   // A Playwright storageState: expired when every cookie with an expiry date is past.
   let expired = false;
   try {
-    const cookies = (JSON.parse(fs.readFileSync(file, "utf8")).cookies || []).filter((c) => typeof c.expires === "number" && c.expires > 0);
+    const cookies = (JSON.parse(fs.readFileSync(file, "utf8")).cookies || []).filter(
+      (c) => typeof c.expires === "number" && c.expires > 0,
+    );
     expired = cookies.length > 0 && cookies.every((c) => c.expires * 1000 < now);
   } catch {
     // not JSON: nothing more to say
@@ -167,7 +186,10 @@ export function git(cwd, args) {
   if (riskyGitConfig(cwd).length) return null;
   const bin = resolveOnPath("git", { exclude: [cwd] });
   if (!bin) return null;
-  const inside = spawnSync(bin, ["-C", cwd, ...safeGitArgs(["rev-parse", "--is-inside-work-tree"])], { encoding: "utf8", windowsHide: true });
+  const inside = spawnSync(bin, ["-C", cwd, ...safeGitArgs(["rev-parse", "--is-inside-work-tree"])], {
+    encoding: "utf8",
+    windowsHide: true,
+  });
   if (inside.error || inside.status !== 0 || inside.stdout.trim() !== "true") return null;
   const r = spawnSync(bin, ["-C", cwd, ...safeGitArgs(args)], { encoding: "utf8", windowsHide: true });
   if (r.error) return null;
@@ -209,9 +231,15 @@ export async function openBrowser(url, env = process.env) {
   if (env.DOC_KIT_NO_OPEN) return false;
   const { spawn } = await import("node:child_process");
   const [cmd, args] =
-    process.platform === "win32" ? ["rundll32", ["url.dll,FileProtocolHandler", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
+    process.platform === "win32"
+      ? ["rundll32", ["url.dll,FileProtocolHandler", url]]
+      : process.platform === "darwin"
+        ? ["open", [url]]
+        : ["xdg-open", [url]];
   try {
-    spawn(cmd, args, { detached: true, stdio: "ignore" }).on("error", () => {}).unref();
+    spawn(cmd, args, { detached: true, stdio: "ignore" })
+      .on("error", () => {})
+      .unref();
     return true;
   } catch {
     return false;

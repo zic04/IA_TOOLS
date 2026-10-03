@@ -27,7 +27,11 @@ export default {
         if (!METHODS.has(method.toLowerCase()) || !op || typeof op !== "object") continue;
         const verb = method.toUpperCase();
         const label = op.summary || op.operationId;
-        items.push({ id: `${verb} ${full}`, ...(label ? { label } : {}), match: routeMatches(full).map((r) => `${verb} ${r}`) });
+        items.push({
+          id: `${verb} ${full}`,
+          ...(label ? { label } : {}),
+          match: routeMatches(full).map((r) => `${verb} ${r}`),
+        });
       }
     }
     return { available: true, families: [{ name: options.family, items: excludeItems(items, options.exclude) }] };

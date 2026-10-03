@@ -112,13 +112,15 @@ function check(v, rawSchema, path, ctx) {
       return v;
     }
   }
-  if ("const" in schema && v !== schema.const) fail("enum", { values: JSON.stringify(schema.const), got: JSON.stringify(v) });
+  if ("const" in schema && v !== schema.const)
+    fail("enum", { values: JSON.stringify(schema.const), got: JSON.stringify(v) });
   if (schema.enum && !schema.enum.some((x) => x === v))
     fail("enum", { values: schema.enum.map((x) => JSON.stringify(x)).join(", "), got: JSON.stringify(v) });
 
   if (typeof v === "string") {
     if (schema.minLength != null && v.length < schema.minLength) fail("minLength", { min: schema.minLength });
-    if (schema.pattern && !new RegExp(schema.pattern, "u").test(v)) fail("pattern", { pattern: schema.pattern, got: v });
+    if (schema.pattern && !new RegExp(schema.pattern, "u").test(v))
+      fail("pattern", { pattern: schema.pattern, got: v });
   }
   if (typeof v === "number") {
     if (schema.minimum != null && v < schema.minimum) fail("minimum", { min: schema.minimum, got: v });

@@ -31,7 +31,19 @@ export const options = {
 };
 
 /** Sources of `doc-kit facts`, in the order they are written (ARCHITECTURE.md §6.9, §6.13). */
-export const SOURCES = Object.freeze(["dependencies", "env", "api", "db", "agents", "secrets", "security", "quality", "tests", "modules", "history"]);
+export const SOURCES = Object.freeze([
+  "dependencies",
+  "env",
+  "api",
+  "db",
+  "agents",
+  "secrets",
+  "security",
+  "quality",
+  "tests",
+  "modules",
+  "history",
+]);
 
 /** Collects one source; `tests` and `quality` return an extra `summary`. */
 async function collect(name, appDir, ctx, config, network) {
@@ -79,7 +91,9 @@ export async function run({ ctx, values }) {
   if (!fs.existsSync(appDir)) throw new KitError(EXIT.USAGE, "facts.noApp");
 
   const requested = values.source?.length ? values.source : SOURCES;
-  for (const name of requested) if (!SOURCES.includes(name)) throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCES.join(", ") });
+  for (const name of requested)
+    if (!SOURCES.includes(name))
+      throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCES.join(", ") });
 
   const factsDir = path.join(project.root, config.paths.facts);
   fs.mkdirSync(factsDir, { recursive: true });
@@ -96,7 +110,10 @@ export async function run({ ctx, values }) {
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
     written[name] = file;
-    if (!ctx.json) ctx.print(ctx.t("cli.facts.written", { source: name, n: items.length, file: `${config.paths.facts}/${name}.json` }));
+    if (!ctx.json)
+      ctx.print(
+        ctx.t("cli.facts.written", { source: name, n: items.length, file: `${config.paths.facts}/${name}.json` }),
+      );
   }
 
   let tools;
@@ -109,7 +126,13 @@ export async function run({ ctx, values }) {
     if (semgrepDir) results.push(runTool("semgrep", appDir, ctx.exec, { semgrepConfig: semgrepDir }));
     tools = {};
     for (const r of results) {
-      const file = { tool: r.tool, generator: generatorTag(), generated, installed: r.installed, ...(r.installed ? { ok: r.ok, data: r.data } : {}) };
+      const file = {
+        tool: r.tool,
+        generator: generatorTag(),
+        generated,
+        installed: r.installed,
+        ...(r.installed ? { ok: r.ok, data: r.data } : {}),
+      };
       fs.writeFileSync(path.join(factsDir, `tool-${r.tool}.json`), JSON.stringify(file, null, 2) + "\n");
       tools[r.tool] = file;
       if (!ctx.json) ctx.print(ctx.t(r.installed ? "cli.facts.tool.ran" : "cli.facts.tool.missing", { tool: r.tool }));

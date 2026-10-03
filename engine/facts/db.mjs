@@ -55,7 +55,9 @@ function collectPrisma(appDir) {
   }
   // A field whose type is another model is a relation: a reference to that model's table.
   for (const item of items) {
-    item.references = [...new Set(item.types.filter((t) => models.has(t) && models.get(t) !== item).map((t) => models.get(t).table))].sort();
+    item.references = [
+      ...new Set(item.types.filter((t) => models.has(t) && models.get(t) !== item).map((t) => models.get(t).table)),
+    ].sort();
     delete item.types;
   }
   return items;
@@ -72,8 +74,12 @@ function collectSqlAlchemy(appDir) {
       const body = m[2];
       const tm = /__tablename__\s*=\s*["']([^"']+)["']/.exec(body);
       if (!tm) continue;
-      const columns = [...body.matchAll(/^\s*(\w+)\s*(?::[^=\n]+)?=\s*(?:mapped_column|Column)\(/gm)].map((cm) => cm[1]);
-      const references = [...new Set([...body.matchAll(DB_PATTERNS.foreignKey)].map((fm) => fm[1]))].filter((t) => t !== tm[1]).sort();
+      const columns = [...body.matchAll(/^\s*(\w+)\s*(?::[^=\n]+)?=\s*(?:mapped_column|Column)\(/gm)].map(
+        (cm) => cm[1],
+      );
+      const references = [...new Set([...body.matchAll(DB_PATTERNS.foreignKey)].map((fm) => fm[1]))]
+        .filter((t) => t !== tm[1])
+        .sort();
       items.push({ table: tm[1], columns, file: rel, rls: false, policies: [], references });
     }
   }
@@ -83,7 +89,9 @@ function collectSqlAlchemy(appDir) {
 /** Tables of SQL migrations: CREATE TABLE (columns), ENABLE ROW LEVEL SECURITY (rls), CREATE POLICY … ON (policies). */
 function collectSqlMigrations(appDir) {
   const items = new Map();
-  const get = (table, file) => items.get(table) || items.set(table, { table, columns: [], file, rls: false, policies: [], references: [] }).get(table);
+  const get = (table, file) =>
+    items.get(table) ||
+    items.set(table, { table, columns: [], file, rls: false, policies: [], references: [] }).get(table);
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".sql"))) {
     const text = fs.readFileSync(path.join(appDir, rel), "utf8");
     for (const m of text.matchAll(DB_PATTERNS.createTable)) {
@@ -92,10 +100,13 @@ function collectSqlMigrations(appDir) {
         .split(",")
         .map((c) => c.trim().split(/\s+/)[0].replace(/"/g, ""))
         .filter((c) => c && !NOT_A_COLUMN.test(c));
-      item.references = [...new Set([...m[2].matchAll(DB_PATTERNS.references)].map((r) => r[1]))].filter((t) => t !== m[1]).sort();
+      item.references = [...new Set([...m[2].matchAll(DB_PATTERNS.references)].map((r) => r[1]))]
+        .filter((t) => t !== m[1])
+        .sort();
     }
     for (const m of text.matchAll(/ALTER TABLE\s+"?(\w+)"?\s+ENABLE ROW LEVEL SECURITY/gi)) get(m[1], rel).rls = true;
-    for (const m of text.matchAll(/CREATE POLICY\s+"?([\w-]+)"?\s+ON\s+"?(\w+)"?/gi)) get(m[2], rel).policies.push(m[1]);
+    for (const m of text.matchAll(/CREATE POLICY\s+"?([\w-]+)"?\s+ON\s+"?(\w+)"?/gi))
+      get(m[2], rel).policies.push(m[1]);
   }
   return [...items.values()];
 }
@@ -105,5 +116,7 @@ function collectSqlMigrations(appDir) {
  * @returns {Array<{table,columns,file,rls,policies,references}>} sorted by table then file
  */
 export function collectDb(appDir) {
-  return [...collectPrisma(appDir), ...collectSqlAlchemy(appDir), ...collectSqlMigrations(appDir)].sort((a, b) => a.table.localeCompare(b.table) || a.file.localeCompare(b.file));
+  return [...collectPrisma(appDir), ...collectSqlAlchemy(appDir), ...collectSqlMigrations(appDir)].sort(
+    (a, b) => a.table.localeCompare(b.table) || a.file.localeCompare(b.file),
+  );
 }

@@ -38,7 +38,12 @@ export function fitBudget(parts, budget) {
       if (total() <= budget) break;
       p.text = p.cutLine;
       p.cutDone = true;
-      cut.push({ kind: p.kind, cutLine: p.cutLine, ...(p.path ? { path: p.path } : {}), ...(p.lines ? { lines: p.lines } : {}) });
+      cut.push({
+        kind: p.kind,
+        cutLine: p.cutLine,
+        ...(p.path ? { path: p.path } : {}),
+        ...(p.lines ? { lines: p.lines } : {}),
+      });
     }
   }
   return { kept, cut };

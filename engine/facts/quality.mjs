@@ -24,7 +24,33 @@ const TODO_RE = /\b(?:TODO|FIXME|HACK|XXX)\b/g;
 // `??` (nullish coalescing); Python's conditional expression reuses `if`/`else`, already counted by `\bif\b`.
 const BRANCH_RE = /\bif\b|\bfor\b|\bwhile\b|\bcase\b|\bcatch\b|\bexcept\b|\belif\b|&&|\|\||\band\b|\bor\b|\?(?!\.|\?)/g;
 
-const CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch", "else", "do", "function", "return", "new", "typeof", "delete", "void", "throw", "class", "try", "finally", "case", "in", "of", "instanceof", "export", "import", "yield", "await"]);
+const CONTROL_KEYWORDS = new Set([
+  "if",
+  "for",
+  "while",
+  "switch",
+  "catch",
+  "else",
+  "do",
+  "function",
+  "return",
+  "new",
+  "typeof",
+  "delete",
+  "void",
+  "throw",
+  "class",
+  "try",
+  "finally",
+  "case",
+  "in",
+  "of",
+  "instanceof",
+  "export",
+  "import",
+  "yield",
+  "await",
+]);
 
 /** Index of the "}" matching the "{" at `openIndex`; the last index when it is never closed. */
 function balancedBraces(text, openIndex) {
@@ -44,15 +70,23 @@ function complexityOf(body) {
  */
 function jsFunctions(text) {
   const opens = new Set();
-  for (const m of text.matchAll(/\bfunction\s*\*?\s*\w*\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g)) opens.add(m.index + m[0].length - 1);
-  for (const m of text.matchAll(/\b(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\([^()]*\)\s*(?::\s*[^{;=]+?)?=>\s*\{/g)) opens.add(m.index + m[0].length - 1);
-  for (const m of text.matchAll(/(?:async\s+)?(?:static\s+)?(?:get\s+|set\s+)?(\w+)\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g)) {
+  for (const m of text.matchAll(/\bfunction\s*\*?\s*\w*\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g))
+    opens.add(m.index + m[0].length - 1);
+  for (const m of text.matchAll(/\b(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\([^()]*\)\s*(?::\s*[^{;=]+?)?=>\s*\{/g))
+    opens.add(m.index + m[0].length - 1);
+  for (const m of text.matchAll(
+    /(?:async\s+)?(?:static\s+)?(?:get\s+|set\s+)?(\w+)\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g,
+  )) {
     if (CONTROL_KEYWORDS.has(m[1])) continue;
     opens.add(m.index + m[0].length - 1);
   }
   return [...opens].map((openIdx) => {
     const closeIdx = balancedBraces(text, openIdx);
-    return { startLine: lineAt(text, openIdx), endLine: lineAt(text, closeIdx), complexity: complexityOf(text.slice(openIdx + 1, closeIdx)) };
+    return {
+      startLine: lineAt(text, openIdx),
+      endLine: lineAt(text, closeIdx),
+      complexity: complexityOf(text.slice(openIdx + 1, closeIdx)),
+    };
   });
 }
 
@@ -68,7 +102,7 @@ function pyFunctions(text) {
     let end = i;
     for (let j = i + 1; j < lines.length; j++) {
       if (lines[j].trim() === "") continue;
-      if ((lines[j].match(/^\s*/)[0].length) <= indent) break;
+      if (lines[j].match(/^\s*/)[0].length <= indent) break;
       end = j;
     }
     funcs.push({ startLine: i + 1, endLine: end + 1, complexity: complexityOf(lines.slice(i, end + 1).join("\n")) });
@@ -111,7 +145,10 @@ function findDuplication(files) {
     eligible += kept.length;
     for (let i = 0; i + DUPLICATE_WINDOW <= kept.length; i++) {
       const window = kept.slice(i, i + DUPLICATE_WINDOW);
-      const hash = crypto.createHash("sha1").update(window.map((w) => w.text).join("\n")).digest("hex");
+      const hash = crypto
+        .createHash("sha1")
+        .update(window.map((w) => w.text).join("\n"))
+        .digest("hex");
       const list = occurrences.get(hash) || [];
       list.push({ file, lines: window.map((w) => w.line) });
       occurrences.set(hash, list);
@@ -129,9 +166,21 @@ function findDuplication(files) {
   return { byFile, eligible };
 }
 
-const LINTER_FILES = [/(^|\/)\.eslintrc(\..+)?$/, /(^|\/)eslint\.config\.(js|mjs|cjs|ts)$/, /(^|\/)ruff\.toml$/, /(^|\/)\.ruff\.toml$/, /(^|\/)\.flake8$/, /(^|\/)\.pylintrc$/];
+const LINTER_FILES = [
+  /(^|\/)\.eslintrc(\..+)?$/,
+  /(^|\/)eslint\.config\.(js|mjs|cjs|ts)$/,
+  /(^|\/)ruff\.toml$/,
+  /(^|\/)\.ruff\.toml$/,
+  /(^|\/)\.flake8$/,
+  /(^|\/)\.pylintrc$/,
+];
 const FORMATTER_FILES = [/(^|\/)\.prettierrc(\..+)?$/, /(^|\/)prettier\.config\.(js|mjs|cjs)$/];
-const CI_FILES = [/^\.github\/workflows\/.+\.ya?ml$/, /(^|\/)\.gitlab-ci\.ya?ml$/, /(^|\/)azure-pipelines\.ya?ml$/, /(^|\/)\.circleci\/config\.ya?ml$/];
+const CI_FILES = [
+  /^\.github\/workflows\/.+\.ya?ml$/,
+  /(^|\/)\.gitlab-ci\.ya?ml$/,
+  /(^|\/)azure-pipelines\.ya?ml$/,
+  /(^|\/)\.circleci\/config\.ya?ml$/,
+];
 const TYPE_FILES = [/(^|\/)mypy\.ini$/, /(^|\/)\.mypy\.ini$/, /(^|\/)pyrightconfig\.json$/];
 
 /** Tooling found (ARCHITECTURE.md §6.13): linter, types, formatter, CI — config files, plus a few content checks. */

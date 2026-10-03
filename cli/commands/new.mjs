@@ -30,7 +30,15 @@ export const options = {
 
 /** Page ids: lower-case segments separated by "/", the first one being the section id. */
 export const PAGE_ID = /^[a-z0-9][a-z0-9_-]*(?:\/[a-z0-9][a-z0-9_-]*)+$/;
-const LEGACY_KEYS = { title: "titre", menuTitle: "titre_menu", level: "niveau", summary: "resume", template: "gabarit", groups: "groupes", file: "fichier" };
+const LEGACY_KEYS = {
+  title: "titre",
+  menuTitle: "titre_menu",
+  level: "niveau",
+  summary: "resume",
+  template: "gabarit",
+  groups: "groupes",
+  file: "fichier",
+};
 
 // ─── JSON located as text ────────────────────────────────────────────────────
 
@@ -101,7 +109,9 @@ function formatEntry(entry, { sibling, indent, unit, eol }) {
   const colon = /":\s/.test(sibling) ? ": " : ":";
   const comma = /,\s/.test(sibling) ? ", " : ",";
   const pad = /^\{\s/.test(sibling) ? " " : "";
-  return `{${pad}${Object.entries(entry).map(([k, v]) => JSON.stringify(k) + colon + JSON.stringify(v)).join(comma)}${pad}}`;
+  return `{${pad}${Object.entries(entry)
+    .map(([k, v]) => JSON.stringify(k) + colon + JSON.stringify(v))
+    .join(comma)}${pad}}`;
 }
 
 /**
@@ -121,7 +131,9 @@ export function insertEntry(text, pagesNode, after, entry) {
   const sibling = text.slice(node.start, node.end);
   const { indent, alone } = lineIndent(text, node.start);
   const body = formatEntry(entry, { sibling, indent, unit, eol });
-  const insertion = alone ? `,${eol}${indent}${body}` : `, ${formatEntry(entry, { sibling: sibling.replace(/\s*\n\s*/g, " "), indent, unit, eol })}`;
+  const insertion = alone
+    ? `,${eol}${indent}${body}`
+    : `, ${formatEntry(entry, { sibling: sibling.replace(/\s*\n\s*/g, " "), indent, unit, eol })}`;
   return text.slice(0, node.end) + insertion + text.slice(node.end);
 }
 
@@ -163,10 +175,13 @@ export function createPage({ root, config, id, template, title, parent, summary,
   if (!PAGE_ID.test(id)) throw new KitError(EXIT.USAGE, "new.invalidId", { id });
   const table = loadPageTemplates();
   const known = Object.keys(table?.types || {}).join(", ");
-  if (template !== undefined && !table?.types?.[template]) throw new KitError(EXIT.USAGE, "new.unknownTemplate", { template, known });
+  if (template !== undefined && !table?.types?.[template])
+    throw new KitError(EXIT.USAGE, "new.unknownTemplate", { template, known });
 
   const { content } = config.paths;
-  const tocRel = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
+  const tocRel = [CURRENT_FILES.toc, LEGACY_FILES.toc]
+    .map((f) => `${content}/${f}`)
+    .find((f) => fs.existsSync(path.join(root, f)));
   if (!tocRel) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${content}/${CURRENT_FILES.toc}` });
   const tocAbs = path.join(root, tocRel);
   const text = fs.readFileSync(tocAbs, "utf8");
@@ -177,26 +192,36 @@ export function createPage({ root, config, id, template, title, parent, summary,
     throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: e.message });
   }
   const toc = normalizeToc(raw).value;
-  if (validate(toc, readSchema("toc")).errors.length || !Array.isArray(toc.sections)) throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "schema" });
-  const legacy = tocRel.endsWith(LEGACY_FILES.toc) || "titre" in raw || (raw.sections || []).some((x) => x && "titre" in x);
+  if (validate(toc, readSchema("toc")).errors.length || !Array.isArray(toc.sections))
+    throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "schema" });
+  const legacy =
+    tocRel.endsWith(LEGACY_FILES.toc) || "titre" in raw || (raw.sections || []).some((x) => x && "titre" in x);
   const k = (key) => (legacy ? LEGACY_KEYS[key] || key : key);
 
   // Where every declared page is: section, group, index.
   const where = [];
-  toc.sections.forEach((s, si) => (s.groups || []).forEach((g, gi) => (g.pages || []).forEach((p, pi) => where.push({ p, si, gi, pi }))));
+  toc.sections.forEach((s, si) =>
+    (s.groups || []).forEach((g, gi) => (g.pages || []).forEach((p, pi) => where.push({ p, si, gi, pi }))),
+  );
   const declared = where.find((w) => w.p.id === id);
   const fileRel = `${content}/${declared?.p.file || id + ".md"}`;
   const fileAbs = path.join(root, fileRel);
   if (fs.existsSync(fileAbs)) throw new KitError(EXIT.CHECK, "new.exists", { file: fileRel });
 
   const tree = locateJson(text);
-  const pageNode = (w) => prop(prop(prop(tree, "sections").items[w.si], "groups", "groupes").items[w.gi], "pages").items[w.pi];
+  const pageNode = (w) =>
+    prop(prop(prop(tree, "sections").items[w.si], "groups", "groupes").items[w.gi], "pages").items[w.pi];
   let newText = text;
   let entry = null;
   let placement;
   if (declared) {
     if (declared.p.template && template && declared.p.template !== template)
-      throw new KitError(EXIT.USAGE, "new.templateConflict", { id, declared: declared.p.template, template, file: tocRel });
+      throw new KitError(EXIT.USAGE, "new.templateConflict", {
+        id,
+        declared: declared.p.template,
+        template,
+        file: tocRel,
+      });
     if (!declared.p.template && !template) throw new KitError(EXIT.USAGE, "new.missingTemplate", { known });
     if (!declared.p.template) {
       newText = addProperty(text, pageNode(declared), k("template"), template);
@@ -213,7 +238,8 @@ export function createPage({ root, config, id, template, title, parent, summary,
       const pw = where.find((w) => w.p.id === parent);
       if (!pw) throw new KitError(EXIT.USAGE, "new.unknownParent", { parent, file: tocRel });
       if (pw.p.level === 2) throw new KitError(EXIT.USAGE, "new.parentIsSubPage", { parent });
-      if (toc.sections[pw.si].id !== sectionId) throw new KitError(EXIT.USAGE, "new.parentSection", { parent, section: toc.sections[pw.si].id, id });
+      if (toc.sections[pw.si].id !== sectionId)
+        throw new KitError(EXIT.USAGE, "new.parentSection", { parent, section: toc.sections[pw.si].id, id });
       ({ si, gi } = pw);
       const pages = toc.sections[si].groups[gi].pages;
       after = pw.pi;
@@ -221,7 +247,12 @@ export function createPage({ root, config, id, template, title, parent, summary,
       placement = { kind: "after", after: pages[after].id };
     } else {
       si = toc.sections.findIndex((s) => s.id === sectionId);
-      if (si < 0) throw new KitError(EXIT.USAGE, "new.unknownSection", { section: sectionId, file: tocRel, known: toc.sections.map((s) => s.id).join(", ") });
+      if (si < 0)
+        throw new KitError(EXIT.USAGE, "new.unknownSection", {
+          section: sectionId,
+          file: tocRel,
+          known: toc.sections.map((s) => s.id).join(", "),
+        });
       const groups = toc.sections[si].groups || [];
       if (!groups.length) throw new KitError(EXIT.USAGE, "new.noGroup", { section: sectionId, file: tocRel });
       // The group whose pages share the longest prefix with the new id (more than the section), else the last.
@@ -238,7 +269,14 @@ export function createPage({ root, config, id, template, title, parent, summary,
       if (where.some((w) => w.p.id === prefix && w.p.level !== 2)) placement.parentHint = prefix;
     }
     const pageTitle = title || humanise(id);
-    entry = { id, [k("title")]: pageTitle, [k("menuTitle")]: pageTitle, ...(parent ? { [k("level")]: 2 } : {}), [k("summary")]: summary, [k("template")]: template };
+    entry = {
+      id,
+      [k("title")]: pageTitle,
+      [k("menuTitle")]: pageTitle,
+      ...(parent ? { [k("level")]: 2 } : {}),
+      [k("summary")]: summary,
+      [k("template")]: template,
+    };
     const pagesNode = prop(prop(prop(tree, "sections").items[si], "groups", "groupes").items[gi], "pages");
     newText = insertEntry(text, pagesNode, after, entry);
   }
@@ -246,10 +284,12 @@ export function createPage({ root, config, id, template, title, parent, summary,
   // The result must still be a valid table of contents, with the page where expected.
   const check = normalizeToc(JSON.parse(stripBom(newText))).value;
   const found = check.sections.flatMap((s) => s.groups.flatMap((g) => g.pages)).find((p) => p.id === id);
-  if (validate(check, readSchema("toc")).errors.length || !found || found.template !== template) throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "insertion" });
+  if (validate(check, readSchema("toc")).errors.length || !found || found.template !== template)
+    throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "insertion" });
 
   const source = path.join(KIT_ROOT, table.types[template].template.replace("{language}", config.language));
-  if (!fs.existsSync(source)) throw new KitError(EXIT.ENVIRONMENT, "new.templateFileMissing", { file: path.relative(KIT_ROOT, source) });
+  if (!fs.existsSync(source))
+    throw new KitError(EXIT.ENVIRONMENT, "new.templateFileMissing", { file: path.relative(KIT_ROOT, source) });
   fs.mkdirSync(path.dirname(fileAbs), { recursive: true });
   // The variant of the project's capture mode (ARCHITECTURE.md §6.4): "The screen" is a table without screenshots.
   let pageText = captureVariant(fs.readFileSync(source, "utf8"), config.capture?.mode || "app");
@@ -259,10 +299,12 @@ export function createPage({ root, config, id, template, title, parent, summary,
   let prefilled = null;
   if (prefill) {
     const prefillSource = PREFILL_SOURCES[template];
-    if (!prefillSource) throw new KitError(EXIT.USAGE, "new.noPrefill", { template, known: Object.keys(PREFILL_SOURCES).join(", ") });
+    if (!prefillSource)
+      throw new KitError(EXIT.USAGE, "new.noPrefill", { template, known: Object.keys(PREFILL_SOURCES).join(", ") });
     const factsRel = `${config.paths.facts}/${prefillSource}.json`;
     const factsAbs = path.join(root, factsRel);
-    if (!fs.existsSync(factsAbs)) throw new KitError(EXIT.CHECK, "new.noFacts", { file: factsRel, source: prefillSource });
+    if (!fs.existsSync(factsAbs))
+      throw new KitError(EXIT.CHECK, "new.noFacts", { file: factsRel, source: prefillSource });
     let facts;
     try {
       facts = JSON.parse(fs.readFileSync(factsAbs, "utf8"));
@@ -300,7 +342,8 @@ export async function run({ ctx, values, positionals }) {
   if (r.prefilled) ctx.print(ctx.t("cli.new.prefilled", { n: r.prefilled.rows, source: r.prefilled.source }));
   const id = positionals[0];
   if (r.placement.kind === "after") ctx.print(ctx.t("cli.new.tocAfter", { toc: r.toc, id, after: r.placement.after }));
-  else if (r.placement.kind === "end") ctx.print(ctx.t("cli.new.tocEnd", { toc: r.toc, id, group: r.placement.group, section: r.placement.section }));
+  else if (r.placement.kind === "end")
+    ctx.print(ctx.t("cli.new.tocEnd", { toc: r.toc, id, group: r.placement.group, section: r.placement.section }));
   else if (r.placement.kind === "typed") ctx.print(ctx.t("cli.new.tocTyped", { toc: r.toc, id, template: r.template }));
   else ctx.print(ctx.t("cli.new.tocDeclared", { toc: r.toc, id }));
   if (r.placement.parentHint) ctx.print(ctx.t("cli.new.parentHint", { parent: r.placement.parentHint }));

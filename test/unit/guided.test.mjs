@@ -32,9 +32,15 @@ describe("situation", () => {
     try {
       assert.deepEqual(await detectSituation({ project: empty, env: {} }), { step: "init", folder: empty });
       assert.equal((await detectSituation({ cwd: empty, env: {} })).step, "init");
-      fs.writeFileSync(path.join(dir, "doc.config.mjs"), 'import { defineConfig } from "doc-kit/config";\nexport default defineConfig({ product: { name: "X" } });\n');
+      fs.writeFileSync(
+        path.join(dir, "doc.config.mjs"),
+        'import { defineConfig } from "doc-kit/config";\nexport default defineConfig({ product: { name: "X" } });\n',
+      );
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "install");
-      fs.writeFileSync(path.join(dir, "doc.config.mjs"), 'export default { product: { name: "X" }, capture: { storgae: {} } };\n');
+      fs.writeFileSync(
+        path.join(dir, "doc.config.mjs"),
+        'export default { product: { name: "X" }, capture: { storgae: {} } };\n',
+      );
       const s = await detectSituation({ project: dir, env: {} });
       assert.equal(s.step, "doctor");
       assert.equal(s.error.key, "config.invalid");
@@ -54,10 +60,16 @@ describe("situation", () => {
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "capture");
       fs.rmSync(path.join(dir, ".doc-kit"), { recursive: true });
       const config = path.join(dir, "doc.config.mjs");
-      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/auth: \{[^}]*\},/, 'auth: { adapter: "none" },'));
+      fs.writeFileSync(
+        config,
+        fs.readFileSync(config, "utf8").replace(/auth: \{[^}]*\},/, 'auth: { adapter: "none" },'),
+      );
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "capture");
       // The session file named by the environment.
-      assert.equal((await detectSituation({ project: dir, env: { DOC_KIT_SESSION: "elsewhere.json" } })).step, "capture");
+      assert.equal(
+        (await detectSituation({ project: dir, env: { DOC_KIT_SESSION: "elsewhere.json" } })).step,
+        "capture",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -67,9 +79,27 @@ describe("situation", () => {
     const dir = demoCopy();
     try {
       withSession(dir);
-      fs.writeFileSync(path.join(dir, "sync.json"), JSON.stringify({ generator: "doc-kit 0.1.0", app: { commit: null, version: "9.9.9", date: "2026-10-01" }, pages: {} }));
-      assert.equal((await detectSituation({ project: dir, env: {} })).step, "sync", "1.4.0 (version.txt) ≠ 9.9.9 (sync.json)");
-      fs.writeFileSync(path.join(dir, "sync.json"), JSON.stringify({ generator: "doc-kit 0.1.0", app: { commit: null, version: "1.4.0", date: "2026-10-01" }, pages: {} }));
+      fs.writeFileSync(
+        path.join(dir, "sync.json"),
+        JSON.stringify({
+          generator: "doc-kit 0.1.0",
+          app: { commit: null, version: "9.9.9", date: "2026-10-01" },
+          pages: {},
+        }),
+      );
+      assert.equal(
+        (await detectSituation({ project: dir, env: {} })).step,
+        "sync",
+        "1.4.0 (version.txt) ≠ 9.9.9 (sync.json)",
+      );
+      fs.writeFileSync(
+        path.join(dir, "sync.json"),
+        JSON.stringify({
+          generator: "doc-kit 0.1.0",
+          app: { commit: null, version: "1.4.0", date: "2026-10-01" },
+          pages: {},
+        }),
+      );
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "same version: nothing to follow");
       const r = await cli(["--project", dir, "--json"], {});
       assert.equal(JSON.parse(r.out).step, "menu");
@@ -86,10 +116,17 @@ describe("no-screenshot mode (capture.mode none)", () => {
       fs.rmSync(path.join(dir, "images", "zones"), { recursive: true });
       const config = path.join(dir, "doc.config.mjs");
       fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/capture: \{/, 'capture: {\n    mode: "none",'));
-      assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "no session and no screenshot, yet nothing to capture");
+      assert.equal(
+        (await detectSituation({ project: dir, env: {} })).step,
+        "menu",
+        "no session and no screenshot, yet nothing to capture",
+      );
       const r = await cli(["--project", dir]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /Acme Orders: the project is in place\.\nCapture mode “none”: no screenshot, so neither connect nor capture is offered\.\n\nNext step: doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/);
+      assert.match(
+        r.out,
+        /Acme Orders: the project is in place\.\nCapture mode “none”: no screenshot, so neither connect nor capture is offered\.\n\nNext step: doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/,
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -102,10 +139,16 @@ describe("guided mode", () => {
     try {
       const r = await cli(["--project", dir]);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^doc-kit \d+\.\d+\.\d+ — guided mode\nAcme Orders: the project is ready, but there is no session to capture the application yet\.\n\nNext step: doc-kit connect\n\(no terminal: nothing was run\)\n$/);
+      assert.match(
+        r.out,
+        /^doc-kit \d+\.\d+\.\d+ — guided mode\nAcme Orders: the project is ready, but there is no session to capture the application yet\.\n\nNext step: doc-kit connect\n\(no terminal: nothing was run\)\n$/,
+      );
       withSession(dir);
       const menu = await cli(["--project", dir, "--lang", "fr"]);
-      assert.match(menu.out, /Acme Orders : le projet est en place\.\n\nÉtape suivante : doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/);
+      assert.match(
+        menu.out,
+        /Acme Orders : le projet est en place\.\n\nÉtape suivante : doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/,
+      );
       const j = JSON.parse((await cli(["--project", dir, "--json"])).out);
       assert.equal(j.step, "menu");
       assert.deepEqual(j.next, ["doc-kit dev", "doc-kit audit", "doc-kit build", "doc-kit doctor"]);
@@ -119,7 +162,10 @@ describe("guided mode", () => {
     try {
       const no = await cli(["--project", dir], { input: ["n"] });
       assert.equal(no.code, 0);
-      assert.match(no.out, /\? Run doc-kit connect now\? A browser window opens: sign in there, then press Enter here\. \(Y\/n\) › n\nWhen you are ready: doc-kit connect\n$/);
+      assert.match(
+        no.out,
+        /\? Run doc-kit connect now\? A browser window opens: sign in there, then press Enter here\. \(Y\/n\) › n\nWhen you are ready: doc-kit connect\n$/,
+      );
       withSession(dir);
       const doctor = await cli(["--project", dir], { input: ["4"], env: { CLAUDE_CONFIG_DIR: dir } });
       assert.match(doctor.out, /\? What do you want to do\?\n {2}1\) doc-kit dev/);
@@ -135,11 +181,17 @@ describe("guided mode", () => {
   test("interactive, no project: confirms, then init asks its questions (answers typed ahead are kept)", async () => {
     const app = tempDir("doc-kit-app-");
     try {
-      fs.writeFileSync(path.join(app, "package.json"), JSON.stringify({ name: "acme-orders", dependencies: { next: "15.0.0" } }));
+      fs.writeFileSync(
+        path.join(app, "package.json"),
+        JSON.stringify({ name: "acme-orders", dependencies: { next: "15.0.0" } }),
+      );
       fs.mkdirSync(path.join(app, "app"));
       const r = await cli(["--project", app], { input: ["y", "", "1", "", "1", "2", "y"] });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /No documentation project \(doc\.config\.mjs\) for this folder: .*\n\? Run doc-kit init .* now\? \(Y\/n\) › y\n/);
+      assert.match(
+        r.out,
+        /No documentation project \(doc\.config\.mjs\) for this folder: .*\n\? Run doc-kit init .* now\? \(Y\/n\) › y\n/,
+      );
       assert.ok(r.out.includes(path.resolve(app)), "the folder is shown in full, never as “.”");
       assert.match(r.out, /\? Product name \(Acme Orders\) › \n/);
       assert.match(r.out, /✔ \d+ files written in /);

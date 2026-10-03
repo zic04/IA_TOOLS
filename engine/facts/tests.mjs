@@ -6,7 +6,8 @@ import path from "node:path";
 import { listFiles } from "./common.mjs";
 
 // Exported: reused by `quality` (ARCHITECTURE.md §6.13) to exclude test files from its maintainability measures.
-export const TEST_FILE = /(\.(test|spec)\.[^./]+$)|(^|\/)(test_[^/]+\.py|[^/]+_test\.py)$|(^|\/)tests\/.*\.(py|js|ts|jsx|tsx|mjs|cjs)$/i;
+export const TEST_FILE =
+  /(\.(test|spec)\.[^./]+$)|(^|\/)(test_[^/]+\.py|[^/]+_test\.py)$|(^|\/)tests\/.*\.(py|js|ts|jsx|tsx|mjs|cjs)$/i;
 const TEST_CALL = /\bit\(|\btest\(|\bdef test_/g;
 
 /** Line coverage percentage (0-100, one decimal) from an lcov, istanbul or Cobertura report, or null. */

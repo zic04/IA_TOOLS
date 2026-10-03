@@ -37,7 +37,7 @@ describe("source rules (RULES.md § Security)", () => {
         .split("\n")
         .map((line, i) => ({ line, n: i + 1 }))
         .filter(({ line }) => re.test(line) && !/^\s*(\/\/|\*)/.test(line) && !allowed(f, line))
-        .map(({ n }) => `${f}:${n}`)
+        .map(({ n }) => `${f}:${n}`),
     );
 
   test("never a shell: no shell: true, no exec/execSync of child_process", () => {
@@ -46,18 +46,22 @@ describe("source rules (RULES.md § Security)", () => {
     // The only shell allowed: `npm install` without any argument from outside, on Windows (npm is a .cmd file).
     assert.deepEqual(
       offending(/shell:\s*[^f\s]/, (f, line) => /spawnSync\("npm", \["install"\]/.test(line)),
-      []
+      [],
     );
   });
 
   test("never eval, never new Function", () => {
-    assert.deepEqual(offending(/(^|[^.\w])eval\s*\(|new\s+Function\s*\(/, (f) => f === "engine/facts/security.mjs"), []);
+    assert.deepEqual(
+      offending(/(^|[^.\w])eval\s*\(|new\s+Function\s*\(/, (f) => f === "engine/facts/security.mjs"),
+      [],
+    );
   });
 
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {
     assert.deepEqual(offending(/spawn(Sync)?\(\s*["']git["']/), []);
     // Each module that spawns a process itself, and calls git, hardens the arguments.
-    for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text))) assert.match(text, /safeGitArgs\(/, f);
+    for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text)))
+      assert.match(text, /safeGitArgs\(/, f);
   });
 });
 
@@ -86,14 +90,21 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
     });
     await worker.terminate();
     assert.equal(outcome.error, undefined, String(outcome.error));
-    assert.equal(outcome.hang, undefined, `${outcome.hang}: still running after ${TIMEOUT_MS / 1000} s (catastrophic backtracking)`);
+    assert.equal(
+      outcome.hang,
+      undefined,
+      `${outcome.hang}: still running after ${TIMEOUT_MS / 1000} s (catastrophic backtracking)`,
+    );
     assert.ok(results.length > 20, `${results.length} checks`);
-    const slow = results.filter((r) => r.ms >= BUDGET_MS).map((r) => `${r.name}: ${r.ms.toFixed(0)} ms on ${JSON.stringify(r.input)}…`);
+    const slow = results
+      .filter((r) => r.ms >= BUDGET_MS)
+      .map((r) => `${r.name}: ${r.ms.toFixed(0)} ms on ${JSON.stringify(r.input)}…`);
     assert.deepEqual(slow, []);
   });
 
   test("the private key detector still finds a key (headers, indentation, blank lines)", () => {
-    const key = "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n  MIIEowIBAAKCAQEA1234567890abcdefABCDEF  \n\nabcdefghijklmnopqrstuvwxyz0123456789+/==\n-----END RSA PRIVATE KEY-----\n";
+    const key =
+      "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n  MIIEowIBAAKCAQEA1234567890abcdefABCDEF  \n\nabcdefghijklmnopqrstuvwxyz0123456789+/==\n-----END RSA PRIVATE KEY-----\n";
     const d = GENERIC.find((x) => x.kind === "privateKey");
     d.re.lastIndex = 0;
     const m = d.re.exec(key);
@@ -103,13 +114,28 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
 
 describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
   test("safeGitArgs: no file system monitor, no pager; diff, show and log without external diff or textconv", () => {
-    assert.deepEqual(safeGitArgs(["ls-files"]), ["-c", "core.fsmonitor=false", "-c", "core.pager=cat", "--no-pager", "ls-files"]);
-    assert.deepEqual(safeGitArgs(["diff", "--relative", "x"]).slice(-5), ["diff", "--no-ext-diff", "--no-textconv", "--relative", "x"]);
+    assert.deepEqual(safeGitArgs(["ls-files"]), [
+      "-c",
+      "core.fsmonitor=false",
+      "-c",
+      "core.pager=cat",
+      "--no-pager",
+      "ls-files",
+    ]);
+    assert.deepEqual(safeGitArgs(["diff", "--relative", "x"]).slice(-5), [
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--relative",
+      "x",
+    ]);
   });
 
   test("isSafeRef: hashes and revision expressions yes; options, spaces, colons no", () => {
-    for (const r of ["abc123", "HEAD", "HEAD~2", "v1.0^", "main@{1}", "origin/main", "release-1.2"]) assert.ok(isSafeRef(r), r);
-    for (const r of ["--output=/tmp/x", "-p", "a b", "a:b", "", "a\nb", null, 42, "x".repeat(300)]) assert.ok(!isSafeRef(r), String(r));
+    for (const r of ["abc123", "HEAD", "HEAD~2", "v1.0^", "main@{1}", "origin/main", "release-1.2"])
+      assert.ok(isSafeRef(r), r);
+    for (const r of ["--output=/tmp/x", "-p", "a b", "a:b", "", "a\nb", null, 42, "x".repeat(300)])
+      assert.ok(!isSafeRef(r), String(r));
   });
 
   test("riskyGitConfig: commands named by the repository are found; Git LFS and harmless values are not", () => {
@@ -117,14 +143,22 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
     try {
       fs.mkdirSync(path.join(dir, ".git"));
       const write = (text) => fs.writeFileSync(path.join(dir, ".git", "config"), text);
-      write('[core]\n\tfsmonitor = false\n\tpager = less\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tprocess = git-lfs filter-process\n[remote "origin"]\n\turl = x\n');
+      write(
+        '[core]\n\tfsmonitor = false\n\tpager = less\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tprocess = git-lfs filter-process\n[remote "origin"]\n\turl = x\n',
+      );
       assert.deepEqual(riskyGitConfig(path.join(dir)), []);
       const dir2 = tempDir("doc-kit-git-");
       fs.mkdirSync(path.join(dir2, ".git"));
       fs.mkdirSync(path.join(dir2, "app"));
-      fs.writeFileSync(path.join(dir2, ".git", "config"), '[core]\n\tfsmonitor = "touch /tmp/pwned"\n[diff "x"]\n\ttextconv = sh evil.sh\n[filter "y"]\n\tclean = ./clean.sh\n[diff]\n\texternal = ./d.sh\n[include]\n\tpath = ../other\n');
+      fs.writeFileSync(
+        path.join(dir2, ".git", "config"),
+        '[core]\n\tfsmonitor = "touch /tmp/pwned"\n[diff "x"]\n\ttextconv = sh evil.sh\n[filter "y"]\n\tclean = ./clean.sh\n[diff]\n\texternal = ./d.sh\n[include]\n\tpath = ../other\n',
+      );
       const found = riskyGitConfig(path.join(dir2, "app"));
-      assert.deepEqual(found.map((l) => l.split(" = ")[0]), ["core.fsmonitor", "diff.x.textconv", "filter.y.clean", "diff.external", "include.path"]);
+      assert.deepEqual(
+        found.map((l) => l.split(" = ")[0]),
+        ["core.fsmonitor", "diff.x.textconv", "filter.y.clean", "diff.external", "include.path"],
+      );
       // The CLI's process launcher refuses git there, without starting any process.
       const r = defaultExec("git", ["ls-files"], { cwd: path.join(dir2, "app") });
       assert.equal(r.status, 128);
@@ -138,7 +172,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
   test("parseGitConfig: sections, subsections, keys in any case, quoted values", () => {
     assert.deepEqual(parseGitConfig('[Core]\n  FSMonitor = "x y"\n# c\n[diff "A b"]\ntextconv=z\nbare\n'), [
       ["core.fsmonitor", "x y"],
-      ['diff.A b.textconv', "z"],
+      ["diff.A b.textconv", "z"],
       ["diff.A b.bare", "true"],
     ]);
   });
@@ -163,8 +197,10 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
 
 describe("dev server: DNS rebinding", () => {
   test("only its own Host (localhost, 127.0.0.1, [::1], with its port) is served", () => {
-    for (const h of ["127.0.0.1:4000", "localhost:4000", "LOCALHOST:4000", "[::1]:4000"]) assert.ok(isLocalHost(h, 4000), h);
-    for (const h of ["evil.test:4000", "127.0.0.1", "127.0.0.1:4001", "127.0.0.1.evil.test:4000", "", undefined]) assert.ok(!isLocalHost(h, 4000), String(h));
+    for (const h of ["127.0.0.1:4000", "localhost:4000", "LOCALHOST:4000", "[::1]:4000"])
+      assert.ok(isLocalHost(h, 4000), h);
+    for (const h of ["evil.test:4000", "127.0.0.1", "127.0.0.1:4001", "127.0.0.1.evil.test:4000", "", undefined])
+      assert.ok(!isLocalHost(h, 4000), String(h));
   });
 });
 
@@ -173,14 +209,31 @@ describe("export never carries a secret", () => {
     const docs = demoCopy();
     const target = path.join(tempDir("doc-kit-export-"), "copy");
     try {
-      fs.writeFileSync(path.join(docs, "my-session.json"), JSON.stringify({ cookies: [{ name: "sid", value: "x" }], origins: [] }));
+      fs.writeFileSync(
+        path.join(docs, "my-session.json"),
+        JSON.stringify({ cookies: [{ name: "sid", value: "x" }], origins: [] }),
+      );
       fs.mkdirSync(path.join(docs, "content", ".doc-kit"), { recursive: true });
       fs.writeFileSync(path.join(docs, "content", ".doc-kit", "session.json"), "{}");
-      for (const f of [".envrc", ".npmrc", "server.pem", "id_ed25519", "content/deploy.key"]) fs.writeFileSync(path.join(docs, f), "secret");
+      for (const f of [".envrc", ".npmrc", "server.pem", "id_ed25519", "content/deploy.key"])
+        fs.writeFileSync(path.join(docs, f), "secret");
       let err = "";
-      const code = await runCli(["export", target, "--project", docs], { stdout: { write: () => {} }, stderr: { write: (s) => (err += s) }, env: { DOC_KIT_SESSION: "elsewhere.json" } });
+      const code = await runCli(["export", target, "--project", docs], {
+        stdout: { write: () => {} },
+        stderr: { write: (s) => (err += s) },
+        env: { DOC_KIT_SESSION: "elsewhere.json" },
+      });
       assert.equal(code, 0, err);
-      for (const f of ["my-session.json", "content/.doc-kit", ".envrc", ".npmrc", "server.pem", "id_ed25519", "content/deploy.key"]) assert.ok(!fs.existsSync(path.join(target, f)), f);
+      for (const f of [
+        "my-session.json",
+        "content/.doc-kit",
+        ".envrc",
+        ".npmrc",
+        "server.pem",
+        "id_ed25519",
+        "content/deploy.key",
+      ])
+        assert.ok(!fs.existsSync(path.join(target, f)), f);
       assert.ok(fs.existsSync(path.join(target, "content", "toc.json")));
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });

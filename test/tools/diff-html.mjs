@@ -27,7 +27,12 @@ export function diffHtml(a, b) {
   if (x === y) return { identical: true };
   let i = 0;
   while (i < x.length && x[i] === y[i]) i++;
-  return { identical: false, position: i, reference: x.slice(Math.max(0, i - 80), i + 80), candidate: y.slice(Math.max(0, i - 80), i + 80) };
+  return {
+    identical: false,
+    position: i,
+    reference: x.slice(Math.max(0, i - 80), i + 80),
+    candidate: y.slice(Math.max(0, i - 80), i + 80),
+  };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

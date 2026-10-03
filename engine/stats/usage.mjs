@@ -26,7 +26,8 @@ export function usageFolder(root, env = process.env) {
 }
 
 /** File name of a version's usage (unsafe characters replaced). */
-export const usageFile = (dir, version) => path.join(dir, `${String(version || "unversioned").replace(/[^\w.+-]/g, "_")}.jsonl`);
+export const usageFile = (dir, version) =>
+  path.join(dir, `${String(version || "unversioned").replace(/[^\w.+-]/g, "_")}.jsonl`);
 
 /**
  * A timer: spans measured during one command.
@@ -125,9 +126,14 @@ export function summarize(entries, by = "step", { since } = {}) {
   const key = KEYS[by];
   if (!key) throw new Error(`unknown grouping: ${by}`);
   const kept = since ? entries.filter((e) => compareVersions(e.version, since) >= 0) : entries;
-  const tokensOf = (e) => (e.tokens ? (e.tokens.in || 0) + (e.tokens.out || 0) + (e.tokens.cacheRead || 0) + (e.tokens.cacheWrite || 0) : 0);
+  const tokensOf = (e) =>
+    e.tokens ? (e.tokens.in || 0) + (e.tokens.out || 0) + (e.tokens.cacheRead || 0) + (e.tokens.cacheWrite || 0) : 0;
   const top = kept.filter((e) => !e.sub);
-  const total = { ms: top.reduce((s, e) => s + e.ms, 0), tokens: kept.reduce((s, e) => s + tokensOf(e), 0), runs: new Set(kept.map((e) => e.run)).size };
+  const total = {
+    ms: top.reduce((s, e) => s + e.ms, 0),
+    tokens: kept.reduce((s, e) => s + tokensOf(e), 0),
+    runs: new Set(kept.map((e) => e.run)).size,
+  };
   // Sub-steps are grouped among themselves (by part) and top-level spans among themselves: the share of a part
   // is its share of its own step.
   const map = new Map();
@@ -143,10 +149,13 @@ export function summarize(entries, by = "step", { since } = {}) {
   const sorted = [...map.values()].sort((a, b) => b.ms - a.ms);
   const parentOf = (g) => g.key.split(" › ")[0];
   const groups = [];
-  for (const g of sorted.filter((x) => !x.nested)) groups.push(g, ...sorted.filter((x) => x.nested && parentOf(x) === g.key));
+  for (const g of sorted.filter((x) => !x.nested))
+    groups.push(g, ...sorted.filter((x) => x.nested && parentOf(x) === g.key));
   groups.push(...sorted.filter((x) => x.nested && !groups.includes(x)));
   for (const g of groups) {
-    const base = g.nested ? kept.filter((e) => !e.sub && `${e.step}` === g.key.split(" › ")[0]).reduce((s, e) => s + e.ms, 0) : total.ms;
+    const base = g.nested
+      ? kept.filter((e) => !e.sub && `${e.step}` === g.key.split(" › ")[0]).reduce((s, e) => s + e.ms, 0)
+      : total.ms;
     g.share = base ? g.ms / base : 0;
   }
   return { total, groups };
@@ -169,11 +178,49 @@ export function compareVersions(a, b) {
 
 /** CSV of the lines (one row per line, the fields in a fixed order). */
 export function usageCsv(entries) {
-  const cols = ["at", "version", "run", "command", "phase", "actor", "step", "sub", "part", "ms", "model", "tokensIn", "tokensOut", "cacheRead", "cacheWrite", "pages"];
+  const cols = [
+    "at",
+    "version",
+    "run",
+    "command",
+    "phase",
+    "actor",
+    "step",
+    "sub",
+    "part",
+    "ms",
+    "model",
+    "tokensIn",
+    "tokensOut",
+    "cacheRead",
+    "cacheWrite",
+    "pages",
+  ];
   const cell = (v) => {
     const s = v === undefined || v === null ? "" : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const rows = entries.map((e) => [e.at, e.version, e.run, e.command, e.phase, e.actor || "kit", e.step, e.sub, e.part, e.ms, e.model, e.tokens?.in, e.tokens?.out, e.tokens?.cacheRead, e.tokens?.cacheWrite, (e.pages || []).join(" ")].map(cell).join(","));
+  const rows = entries.map((e) =>
+    [
+      e.at,
+      e.version,
+      e.run,
+      e.command,
+      e.phase,
+      e.actor || "kit",
+      e.step,
+      e.sub,
+      e.part,
+      e.ms,
+      e.model,
+      e.tokens?.in,
+      e.tokens?.out,
+      e.tokens?.cacheRead,
+      e.tokens?.cacheWrite,
+      (e.pages || []).join(" "),
+    ]
+      .map(cell)
+      .join(","),
+  );
   return [cols.join(","), ...rows].join("\n") + "\n";
 }

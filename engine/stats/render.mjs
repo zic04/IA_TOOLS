@@ -12,7 +12,8 @@ import { summarize, compareVersions } from "./usage.mjs";
 
 export const USAGE_VIEWS = Object.freeze(["summary", "versions", "steps", "models", "slowest"]);
 
-const tokensOf = (e) => (e.tokens ? (e.tokens.in || 0) + (e.tokens.out || 0) + (e.tokens.cacheRead || 0) + (e.tokens.cacheWrite || 0) : 0);
+const tokensOf = (e) =>
+  e.tokens ? (e.tokens.in || 0) + (e.tokens.out || 0) + (e.tokens.cacheRead || 0) + (e.tokens.cacheWrite || 0) : 0;
 
 /** Cost of one line's tokens with `prices[model]` (per million tokens), or null when it has no price. */
 export function costOf(e, prices = {}) {
@@ -20,7 +21,13 @@ export function costOf(e, prices = {}) {
   const p = prices[e.model];
   if (!p) return null;
   const t = e.tokens;
-  return (((t.in || 0) * p.input + (t.out || 0) * p.output + (t.cacheRead || 0) * (p.cacheRead ?? p.input * 0.1) + (t.cacheWrite || 0) * (p.cacheWrite ?? p.input * 1.25)) / 1e6);
+  return (
+    ((t.in || 0) * p.input +
+      (t.out || 0) * p.output +
+      (t.cacheRead || 0) * (p.cacheRead ?? p.input * 0.1) +
+      (t.cacheWrite || 0) * (p.cacheWrite ?? p.input * 1.25)) /
+    1e6
+  );
 }
 
 /** "1.2 s", "3 min 4 s", "1 h 2 min". */
@@ -48,7 +55,8 @@ export function renderUsage(entries, view, { t, esc, prices = {}, currency = nul
   };
   const table = (kind, head, rows, caption) =>
     `<table data-generated="usage" data-view="${kind}"><caption>${esc(caption)}</caption><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
-  const bar = (share) => `<span class="usage-bar" style="--w:${Math.round(Math.min(1, share) * 100)}%"></span> ${Math.round(share * 100)} %`;
+  const bar = (share) =>
+    `<span class="usage-bar" style="--w:${Math.round(Math.min(1, share) * 100)}%"></span> ${Math.round(share * 100)} %`;
   const top = entries.filter((e) => !e.sub);
   const time = (list, actor) => list.filter((e) => (e.actor || "kit") === actor).reduce((s, e) => s + e.ms, 0);
   const out = [];
@@ -60,7 +68,10 @@ export function renderUsage(entries, view, { t, esc, prices = {}, currency = nul
       const agents = entries.filter((e) => e.actor === "agent");
       const perModel = new Map();
       for (const e of agents) perModel.set(e.model || "—", (perModel.get(e.model || "—") || 0) + 1);
-      const modelsUsed = [...perModel.entries()].sort((a, b) => b[1] - a[1]).map(([m, c]) => `${m} × ${n(c)}`).join(", ");
+      const modelsUsed = [...perModel.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([m, c]) => `${m} × ${n(c)}`)
+        .join(", ");
       const rows = [
         [t("render.usage.kitTime"), humanDuration(time(top, "kit"))],
         [t("render.usage.agentTime"), humanDuration(time(top, "agent"))],
@@ -72,22 +83,34 @@ export function renderUsage(entries, view, { t, esc, prices = {}, currency = nul
         [t("render.usage.runs"), n(new Set(entries.map((e) => e.run)).size)],
         [t("render.usage.versions"), n(versions.size)],
       ].map(([k, x]) => `<tr><td>${esc(k)}</td><td>${esc(x)}</td></tr>`);
-      out.push(table("summary", [t("render.usage.measure"), t("render.usage.value")], rows, t("render.usage.caption.summary")));
+      out.push(
+        table("summary", [t("render.usage.measure"), t("render.usage.value")], rows, t("render.usage.caption.summary")),
+      );
     }
     if (v === "versions") {
       const by = new Map();
       for (const e of entries) by.set(e.version, [...(by.get(e.version) || []), e]);
-      const rows = [...by.keys()]
-        .sort(compareVersions)
-        .map((version) => {
-          const list = by.get(version);
-          const lTop = list.filter((e) => !e.sub);
-          const phases = [...new Set(list.map((e) => e.phase).filter(Boolean))].map((p) => t(`render.usage.phase.${p}`)).join(", ");
-          const models = [...new Set(list.map((e) => e.model).filter(Boolean))].join(", ") || "—";
-          const cells = [version, phases, n(new Set(list.map((e) => e.run)).size), humanDuration(lTop.reduce((s, e) => s + e.ms, 0)), n(list.reduce((s, e) => s + tokensOf(e), 0)), models, ...(priced ? [money(sumCost(list))] : [])];
-          return `<tr>${cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`;
-        });
-      const head = ["version", "phase", "runs", "time", "tokens", "models", ...(priced ? ["cost"] : [])].map((h) => t(`render.usage.col.${h}`));
+      const rows = [...by.keys()].sort(compareVersions).map((version) => {
+        const list = by.get(version);
+        const lTop = list.filter((e) => !e.sub);
+        const phases = [...new Set(list.map((e) => e.phase).filter(Boolean))]
+          .map((p) => t(`render.usage.phase.${p}`))
+          .join(", ");
+        const models = [...new Set(list.map((e) => e.model).filter(Boolean))].join(", ") || "—";
+        const cells = [
+          version,
+          phases,
+          n(new Set(list.map((e) => e.run)).size),
+          humanDuration(lTop.reduce((s, e) => s + e.ms, 0)),
+          n(list.reduce((s, e) => s + tokensOf(e), 0)),
+          models,
+          ...(priced ? [money(sumCost(list))] : []),
+        ];
+        return `<tr>${cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`;
+      });
+      const head = ["version", "phase", "runs", "time", "tokens", "models", ...(priced ? ["cost"] : [])].map((h) =>
+        t(`render.usage.col.${h}`),
+      );
       out.push(table("versions", head, rows, t("render.usage.caption.versions")));
     }
     if (v === "steps") {
@@ -107,18 +130,49 @@ export function renderUsage(entries, view, { t, esc, prices = {}, currency = nul
         .map(([model, list]) => ({ model, list, tokens: list.reduce((s, e) => s + tokensOf(e), 0) }))
         .sort((a, b) => b.tokens - a.tokens)
         .map(({ model, list, tokens }) => {
-          const io = list.reduce((a, e) => ({ in: a.in + (e.tokens?.in || 0), out: a.out + (e.tokens?.out || 0), cache: a.cache + (e.tokens?.cacheRead || 0) + (e.tokens?.cacheWrite || 0) }), { in: 0, out: 0, cache: 0 });
-          const cells = [model, n(list.length), n(io.in), n(io.out), n(io.cache), n(tokens), humanDuration(list.reduce((s, e) => s + e.ms, 0)), ...(priced ? [money(sumCost(list))] : [])];
+          const io = list.reduce(
+            (a, e) => ({
+              in: a.in + (e.tokens?.in || 0),
+              out: a.out + (e.tokens?.out || 0),
+              cache: a.cache + (e.tokens?.cacheRead || 0) + (e.tokens?.cacheWrite || 0),
+            }),
+            { in: 0, out: 0, cache: 0 },
+          );
+          const cells = [
+            model,
+            n(list.length),
+            n(io.in),
+            n(io.out),
+            n(io.cache),
+            n(tokens),
+            humanDuration(list.reduce((s, e) => s + e.ms, 0)),
+            ...(priced ? [money(sumCost(list))] : []),
+          ];
           return `<tr>${cells.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`;
         });
-      const head = ["model", "agents", "in", "out", "cache", "tokens", "time", ...(priced ? ["cost"] : [])].map((h) => t(`render.usage.col.${h}`));
-      out.push(rows.length ? table("models", head, rows, t("render.usage.caption.models")) : `<p class="usage-none">${esc(t("render.usage.noModels"))}</p>`);
+      const head = ["model", "agents", "in", "out", "cache", "tokens", "time", ...(priced ? ["cost"] : [])].map((h) =>
+        t(`render.usage.col.${h}`),
+      );
+      out.push(
+        rows.length
+          ? table("models", head, rows, t("render.usage.caption.models"))
+          : `<p class="usage-none">${esc(t("render.usage.noModels"))}</p>`,
+      );
     }
     if (v === "slowest") {
-      const parts = summarize(entries, "step").groups.filter((g) => g.key.includes(" › ")).slice(0, 10);
-      const rows = parts.map((g) => `<tr><td>${esc(g.key)}</td><td>${esc(humanDuration(g.ms))}</td><td>${esc(humanDuration(g.ms / g.count))}</td><td>${esc(n(g.count))}</td></tr>`);
+      const parts = summarize(entries, "step")
+        .groups.filter((g) => g.key.includes(" › "))
+        .slice(0, 10);
+      const rows = parts.map(
+        (g) =>
+          `<tr><td>${esc(g.key)}</td><td>${esc(humanDuration(g.ms))}</td><td>${esc(humanDuration(g.ms / g.count))}</td><td>${esc(n(g.count))}</td></tr>`,
+      );
       const head = ["part", "time", "average", "count"].map((h) => t(`render.usage.col.${h}`));
-      out.push(rows.length ? table("slowest", head, rows, t("render.usage.caption.slowest")) : `<p class="usage-none">${esc(t("render.usage.noParts"))}</p>`);
+      out.push(
+        rows.length
+          ? table("slowest", head, rows, t("render.usage.caption.slowest"))
+          : `<p class="usage-none">${esc(t("render.usage.noParts"))}</p>`,
+      );
     }
   }
   return out.join("\n");

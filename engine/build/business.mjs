@@ -49,10 +49,20 @@ export function buildFeatureRegistry({ toc }) {
           continue;
         }
         if (features.has(p.feature)) {
-          problems.push({ key: "feature.duplicate", vars: { id: p.feature, page: p.id, first: features.get(p.feature).page }, strict: true });
+          problems.push({
+            key: "feature.duplicate",
+            vars: { id: p.feature, page: p.id, first: features.get(p.feature).page },
+            strict: true,
+          });
           continue;
         }
-        features.set(p.feature, { id: p.feature, title: p.title, summary: p.summary || "", permissions: p.permissions || [], page: p.id });
+        features.set(p.feature, {
+          id: p.feature,
+          title: p.title,
+          summary: p.summary || "",
+          permissions: p.permissions || [],
+          page: p.id,
+        });
       }
   return { features, problems };
 }
@@ -65,7 +75,7 @@ function featuresTable(features, t) {
   const rows = [...features.values()]
     .map(
       (f) =>
-        `<tr><td>${esc(f.id)}</td><td><a href="#/${esc(f.page)}">${esc(f.title)}</a></td><td>${esc(f.summary)}</td><td>${(f.permissions || []).map(esc).join(", ")}</td></tr>`
+        `<tr><td>${esc(f.id)}</td><td><a href="#/${esc(f.page)}">${esc(f.title)}</a></td><td>${esc(f.summary)}</td><td>${(f.permissions || []).map(esc).join(", ")}</td></tr>`,
     )
     .join("");
   return `<div class="tableau"><table><thead><tr><th>${esc(t("render.business.col.id"))}</th><th>${esc(t("render.business.col.feature"))}</th><th>${esc(t("render.business.col.summary"))}</th><th>${esc(t("render.business.col.who"))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -88,11 +98,15 @@ function rulesTable(rules, citedBy, pages, t) {
 function rolesTable(features, t) {
   const feats = [...features.values()];
   const permissions = [];
-  for (const f of feats) for (const perm of f.permissions || []) if (!permissions.includes(perm)) permissions.push(perm);
-  const header = `<th>${esc(t("render.business.col.feature"))}</th>` + permissions.map((p) => `<th>${esc(p)}</th>`).join("");
+  for (const f of feats)
+    for (const perm of f.permissions || []) if (!permissions.includes(perm)) permissions.push(perm);
+  const header =
+    `<th>${esc(t("render.business.col.feature"))}</th>` + permissions.map((p) => `<th>${esc(p)}</th>`).join("");
   const rows = feats
     .map((f) => {
-      const cells = permissions.map((p) => `<td>${(f.permissions || []).includes(p) ? allowedCell(t) : ""}</td>`).join("");
+      const cells = permissions
+        .map((p) => `<td>${(f.permissions || []).includes(p) ? allowedCell(t) : ""}</td>`)
+        .join("");
       return `<tr><td><a href="#/${esc(f.page)}">${esc(f.title)}</a></td>${cells}</tr>`;
     })
     .join("");
@@ -134,7 +148,11 @@ export function resolveBusinessRefs({ pages, features, rules, t }) {
       return `<a class="puce regle" href="#/${esc(r.page)}~${esc(r.anchor)}" title="${esc(r.title)}">${esc(id)}</a>`;
     });
 
-  const tables = { features: featuresTable(features, t), rules: rulesTable(rules, citedBy, pages, t), roles: rolesTable(features, t) };
+  const tables = {
+    features: featuresTable(features, t),
+    rules: rulesTable(rules, citedBy, pages, t),
+    roles: rolesTable(features, t),
+  };
   for (const page of Object.values(pages)) page.html = page.html.replace(DIRECTIVE, (m, kind) => tables[kind]);
   return { problems };
 }

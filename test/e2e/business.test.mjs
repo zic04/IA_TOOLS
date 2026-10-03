@@ -91,14 +91,14 @@ describe("glossary bubble: `technical` follows the current space", () => {
     await page.context().close();
   });
 
-  test("export \"business\": the data itself drops `tech` (§6.1a, §6.8), so the bubble never shows it", async () => {
+  test('export "business": the data itself drops `tech` (§6.1a, §6.8), so the bubble never shows it', async () => {
     const page = await open("use/approval", "business");
     const html = await bubbleHtml(page);
     assert.doesNotMatch(html, /bulle-tech/);
     await page.context().close();
   });
 
-  test("export \"takeover\": `tech` is kept, and the export is always current, so the bubble shows it", async () => {
+  test('export "takeover": `tech` is kept, and the export is always current, so the bubble shows it', async () => {
     const page = await open("take-over/notes", "takeover");
     const html = await bubbleHtml(page);
     assert.match(html, /bulle-tech/);

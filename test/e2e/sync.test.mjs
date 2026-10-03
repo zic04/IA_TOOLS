@@ -27,7 +27,11 @@ let dir;
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: { ...env } });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: { ...env },
+  });
   return { code, out, err };
 }
 
@@ -63,12 +67,28 @@ before(async () => {
     app: { url: app.url, dir: appDir },
     auth: { adapter: "manual", loginPattern: "^/login" },
     capture: { plans: PLANS, setup: "captures/setup.mjs", compareThreshold: 0.001 },
-    coverage: [{ adapter: "glob", base: path.join(appDir, "public"), pattern: "*.html", match: "/{name}", family: "Routes", exclude: ["login", "approval"] }],
+    coverage: [
+      {
+        adapter: "glob",
+        base: path.join(appDir, "public"),
+        pattern: "*.html",
+        match: "/{name}",
+        family: "Routes",
+        exclude: ["login", "approval"],
+      },
+    ],
   };
   fs.writeFileSync(path.join(dir, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
 
   const auth = await loadAdapter("auth", { adapter: "manual", loginPattern: "^/login" }, dir, "auth");
-  await connect({ url: app.url, auth, file: path.join(dir, ".doc-kit", "session.json"), headless: true, poll: 100, waitForUser: signIn });
+  await connect({
+    url: app.url,
+    auth,
+    file: path.join(dir, ".doc-kit", "session.json"),
+    headless: true,
+    poll: 100,
+    waitForUser: signIn,
+  });
 });
 
 after(async () => {
@@ -91,7 +111,11 @@ describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
     assert.match(r.out, /= orders-list unchanged \(0\.00 % different, kept as is\)/);
     assert.match(r.out, /= settings-profile unchanged \(0\.00 % different, kept as is\)/);
     assert.match(r.out, /2 unchanged · 0 changed · 0 failed\./);
-    for (const id of ["orders-list", "settings-profile"]) assert.ok(fs.readFileSync(path.join(dir, "images", `${id}.webp`)).equals(before[id]), `${id}: unchanged image rewritten`);
+    for (const id of ["orders-list", "settings-profile"])
+      assert.ok(
+        fs.readFileSync(path.join(dir, "images", `${id}.webp`)).equals(before[id]),
+        `${id}: unchanged image rewritten`,
+      );
   });
 
   test("the application changes (version 2): the orders page heading only — settings.html and style.css untouched", () => {
@@ -113,7 +137,10 @@ describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
       "settings-profile": fs.readFileSync(path.join(dir, "images", "settings-profile.webp")),
     };
     fs.mkdirSync(path.join(dir, ".doc-kit"), { recursive: true });
-    fs.writeFileSync(path.join(dir, ".doc-kit", "sync-report.json"), JSON.stringify({ captures: [{ id: "orders-list", pages: ["use/orders"], reasons: ["route"] }] }, null, 2));
+    fs.writeFileSync(
+      path.join(dir, ".doc-kit", "sync-report.json"),
+      JSON.stringify({ captures: [{ id: "orders-list", pages: ["use/orders"], reasons: ["route"] }] }, null, 2),
+    );
 
     const r = await cli(["capture", "--project", dir, "--stale"]);
     assert.equal(r.code, 0, r.out + r.err);
@@ -126,14 +153,24 @@ describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
 
     const orders = fs.readFileSync(path.join(dir, "images", "orders-list.webp"));
     assert.ok(!orders.equals(before["orders-list"]), "orders-list: the image was replaced");
-    assert.ok(fs.readFileSync(path.join(dir, "images", "settings-profile.webp")).equals(before["settings-profile"]), "settings-profile: never touched");
-    for (const file of ["orders-list.webp", "orders-list.png"]) assert.ok(fs.existsSync(path.join(dir, ".doc-kit", "compare", file)), file);
-    assert.ok(!fs.existsSync(path.join(dir, ".doc-kit", "compare", "settings-profile.png")), "settings-profile: no before/after sheet, it was never compared");
+    assert.ok(
+      fs.readFileSync(path.join(dir, "images", "settings-profile.webp")).equals(before["settings-profile"]),
+      "settings-profile: never touched",
+    );
+    for (const file of ["orders-list.webp", "orders-list.png"])
+      assert.ok(fs.existsSync(path.join(dir, ".doc-kit", "compare", file)), file);
+    assert.ok(
+      !fs.existsSync(path.join(dir, ".doc-kit", "compare", "settings-profile.png")),
+      "settings-profile: no before/after sheet, it was never compared",
+    );
   });
 
   test("--json: compared lists each id with its ratio and outcome (re-running --stale now finds the just-replaced image unchanged)", async () => {
     const json = JSON.parse((await cli(["capture", "--project", dir, "--stale", "--json"])).out);
-    assert.deepEqual(json.compared.map((c) => c.id), ["orders-list"]);
+    assert.deepEqual(
+      json.compared.map((c) => c.id),
+      ["orders-list"],
+    );
     assert.equal(json.compared[0].changed, false);
     assert.equal(json.compared[0].ratio, 0);
   });
@@ -148,9 +185,17 @@ describe("captures: --compare, --stale (ARCHITECTURE.md §6.10)", () => {
     assert.ok(after.equals(before), "an unchanged image is never rewritten, byte for byte");
     assert.deepEqual(webpSize(after), { width: beforeZone.width, height: beforeZone.height });
     const zone = JSON.parse(fs.readFileSync(path.join(dir, "images", "zones", "settings-profile.json"), "utf8"));
-    assert.equal(zone.captured, new Date().toISOString().slice(0, 10), "the zone file is refreshed even though the image is not");
+    assert.equal(
+      zone.captured,
+      new Date().toISOString().slice(0, 10),
+      "the zone file is refreshed even though the image is not",
+    );
     assert.match(zone.plan, /^[0-9a-f]{16}$/, "the plan entry hash (hashPlanEntry, engine/sync/hash.mjs)");
-    assert.equal(zone.commit, undefined, "app.dir is set but is not a git repository here: ctx.commit degrades to null, omitted from the zone file");
+    assert.equal(
+      zone.commit,
+      undefined,
+      "app.dir is set but is not a git repository here: ctx.commit degrades to null, omitted from the zone file",
+    );
   });
 });
 
@@ -177,7 +222,7 @@ describe("context --update (ARCHITECTURE.md §6.11)", () => {
     assert.match(text, /Before\/after sheets of its captures:\n- \.doc-kit\/compare\/orders-list\.png/);
   });
 
-  test("a page without --update: no sync report needed, no \"What changed\" section", async () => {
+  test('a page without --update: no sync report needed, no "What changed" section', async () => {
     const r = await cli(["context", "use/settings", "--project", dir]);
     assert.equal(r.code, 0, r.out + r.err);
     const text = fs.readFileSync(path.join(dir, ".doc-kit", "context", "use__settings.md"), "utf8");
@@ -213,7 +258,14 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
           { role: "button", name: "New order", exact: false, caption: "New order" },
         ],
       },
-      { id: "settings-profile", title: "Acme Orders › Settings", route: "/settings", delay: 400, frame: { css: "main", marginY: 0 }, zones: settingsZones },
+      {
+        id: "settings-profile",
+        title: "Acme Orders › Settings",
+        route: "/settings",
+        delay: 400,
+        frame: { css: "main", marginY: 0 },
+        zones: settingsZones,
+      },
     ];
     fs.mkdirSync(plansDir, { recursive: true });
     fs.writeFileSync(path.join(plansDir, "use.mjs"), `export const CAPTURES = ${JSON.stringify(captures, null, 2)};\n`);
@@ -228,7 +280,16 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
       auth: { adapter: "manual", loginPattern: "^/login" },
       capture: { plans: plansDir, forbidden: ["^/orders/\\d+/approval$"] },
       sync: { labels: [path.join(appDir, "public", "messages", "en.json")] },
-      coverage: [{ adapter: "glob", base: path.join(appDir, "public"), pattern: "*.html", match: "/{name}", family: "Routes", exclude: ["login", "approval"] }],
+      coverage: [
+        {
+          adapter: "glob",
+          base: path.join(appDir, "public"),
+          pattern: "*.html",
+          match: "/{name}",
+          family: "Routes",
+          exclude: ["login", "approval"],
+        },
+      ],
     };
   }
 
@@ -237,7 +298,8 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
     const cycleDir = demoCopy();
     fs.rmSync(path.join(cycleDir, "captures", "plans"), { recursive: true, force: true });
     const raw = structuredClone((await import(pathToFileURL(path.join(DEMO, "doc.config.mjs")).href)).default);
-    const writeConfig = (cfg) => fs.writeFileSync(path.join(cycleDir, "doc.config.mjs"), `export default ${JSON.stringify(cfg, null, 2)};\n`);
+    const writeConfig = (cfg) =>
+      fs.writeFileSync(path.join(cycleDir, "doc.config.mjs"), `export default ${JSON.stringify(cfg, null, 2)};\n`);
     const sessionFile = path.join(cycleDir, ".doc-kit", "session.json");
 
     // A single, mutable copy of the app: app.dir, the message file and the coverage base all keep the same
@@ -266,7 +328,9 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
       const auth = await loadAdapter("auth", { adapter: "manual", loginPattern: "^/login" }, cycleDir, "auth");
       await connect({ url: app1.url, auth, file: sessionFile, headless: true, poll: 100, waitForUser: signIn });
 
-      let r = await cli(["sync", "--mark", "--all", "--project", cycleDir, "--date", "2026-10-02"], { DOC_KIT_URL: app1.url });
+      let r = await cli(["sync", "--mark", "--all", "--project", cycleDir, "--date", "2026-10-02"], {
+        DOC_KIT_URL: app1.url,
+      });
       assert.equal(r.code, 0, r.out + r.err);
       assert.match(r.out, /11 pages marked as checked/);
 
@@ -289,30 +353,49 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
       // defines it (features/rules.md, BR-02) and the note on features/roles.md — sync finds every one.
       assert.deepEqual(
         report.labels.map((l) => ({ key: l.key, old: l.old, new: l.new, pages: [...l.pages].sort() })),
-        [{ key: "orders.approvalLink", old: "Approval chain", new: "Approvals", pages: ["features/approve-order", "features/roles", "features/rules"] }]
+        [
+          {
+            key: "orders.approvalLink",
+            old: "Approval chain",
+            new: "Approvals",
+            pages: ["features/approve-order", "features/roles", "features/rules"],
+          },
+        ],
       );
-      assert.deepEqual(report.captures.map((c) => c.id), ["settings-profile"]);
+      assert.deepEqual(
+        report.captures.map((c) => c.id),
+        ["settings-profile"],
+      );
       assert.deepEqual(report.captures[0].pages, ["use/settings"]);
       assert.ok(report.captures[0].reasons.includes("plan"), "the plan entry's own hash changed, not a pixel diff");
       // The glob adapter's item id is the file itself (its `match` text, "/invoices", is what coverage checks).
-      assert.deepEqual(report.new.map((n) => n.id), ["invoices.html"]);
+      assert.deepEqual(
+        report.new.map((n) => n.id),
+        ["invoices.html"],
+      );
       assert.equal(report.new[0].suggest, null, "no written page of the same family shares a path segment with it");
       assert.deepEqual(report.removed, []);
       // A verified claim badge is a proof (§6.10): risks/findings verifies its claim on order.html:22, the very line
       // whose label v2 renamed — the claim is reported to re-check, not silently kept.
       assert.deepEqual(report.proofs.moved, []);
-      assert.deepEqual(report.proofs.broken.map((b) => ({ page: b.page, ref: b.ref, reason: b.reason })), [{ page: "risks/findings", ref: "order.html:22", reason: "textNotFound" }]);
+      assert.deepEqual(
+        report.proofs.broken.map((b) => ({ page: b.page, ref: b.ref, reason: b.reason })),
+        [{ page: "risks/findings", ref: "order.html:22", reason: "textNotFound" }],
+      );
       // The pages to review, by priority: use/settings (its own screen changed: also a capture to retake) and
       // risks/findings (the line of its claim changed) are direct; features/approve-order reaches serve.mjs through
       // its counterpart (shared); the two takeover pages cite serve.mjs lines that v2 left intact (the new route
       // was added elsewhere): probably intact, for the triage.
-      assert.deepEqual(report.review.map((x) => [x.page, x.priority]), [
-        ["features/approve-order", "shared"],
-        ["risks/findings", "direct"],
-        ["secure/access-ownership", "probablyIntact"],
-        ["secure/api-surface", "probablyIntact"],
-        ["use/settings", "direct"],
-      ]);
+      assert.deepEqual(
+        report.review.map((x) => [x.page, x.priority]),
+        [
+          ["features/approve-order", "shared"],
+          ["risks/findings", "direct"],
+          ["secure/access-ownership", "probablyIntact"],
+          ["secure/api-surface", "probablyIntact"],
+          ["use/settings", "direct"],
+        ],
+      );
 
       // ─── --apply --labels: the page is corrected, not just reported ────────────────────────────────────────
       r = await cli(["sync", "--apply", "--labels", "--project", cycleDir]);
@@ -331,13 +414,31 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
       assert.match(r.out, /≠ settings-profile changed \(([\d.]+) % different, image replaced\)/);
       assert.match(r.out, /0 unchanged · 1 changed · 0 failed\./);
       assert.doesNotMatch(r.out, /orders-list/, "not selected: only settings-profile was reported stale");
-      assert.ok(fs.readFileSync(path.join(cycleDir, "images", "orders-list.webp")).equals(beforeOrders), "orders-list: never opened, byte for byte");
-      assert.ok(!fs.readFileSync(path.join(cycleDir, "images", "settings-profile.webp")).equals(beforeSettings), "settings-profile: the image was replaced");
+      assert.ok(
+        fs.readFileSync(path.join(cycleDir, "images", "orders-list.webp")).equals(beforeOrders),
+        "orders-list: never opened, byte for byte",
+      );
+      assert.ok(
+        !fs.readFileSync(path.join(cycleDir, "images", "settings-profile.webp")).equals(beforeSettings),
+        "settings-profile: the image was replaced",
+      );
 
       // ─── --mark the treated pages (not --all): sync.json follows, nothing stays outstanding ───────────────
       // risks/findings: its claim still holds on the renamed line (the link keeps its data-prefetch), re-checked;
       // the two probably-intact takeover pages: confirmed by the triage, marked without being rewritten.
-      r = await cli(["sync", "--mark", "features/approve-order", "use/settings", "risks/findings", "secure/access-ownership", "secure/api-surface", "--project", cycleDir, "--date", "2026-10-02"]);
+      r = await cli([
+        "sync",
+        "--mark",
+        "features/approve-order",
+        "use/settings",
+        "risks/findings",
+        "secure/access-ownership",
+        "secure/api-surface",
+        "--project",
+        cycleDir,
+        "--date",
+        "2026-10-02",
+      ]);
       assert.equal(r.code, 0, r.out + r.err);
       assert.match(r.out, /5 pages marked as checked/);
 

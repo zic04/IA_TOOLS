@@ -20,19 +20,23 @@ export function checkLinks({ pages, links, sections, journeys = [], counterparts
     for (const link of links[p.id] || []) {
       const [target, anchor] = link.slice(2).split("~");
       if (!target) continue;
-      if (!pages[target] && !sectionIds.has(target)) problems.push({ kind: "link", key: "link.broken", vars: { page: p.id, link } });
+      if (!pages[target] && !sectionIds.has(target))
+        problems.push({ kind: "link", key: "link.broken", vars: { page: p.id, link } });
       else if (anchor && pages[target] && !unwritten.has(target) && !pages[target].toc.some((t) => t.id === anchor))
         problems.push({ kind: "link", key: "link.anchor", vars: { page: p.id, link } });
     }
   }
   for (const j of journeys)
-    for (const step of j.steps || []) if (!pages[step]) problems.push({ kind: "link", key: "link.journey", vars: { journey: j.title, page: step } });
+    for (const step of j.steps || [])
+      if (!pages[step]) problems.push({ kind: "link", key: "link.journey", vars: { journey: j.title, page: step } });
   // A counterpart names ANOTHER page (a section is not a counterpart); its anchor is checked like a link's.
   for (const [id, value] of Object.entries(counterparts)) {
     const [target, anchor] = value.split("~");
     const link = `#/${value}`;
-    if (!pages[target] || target === id) problems.push({ kind: "link", key: "link.counterpart", vars: { page: id, link } });
-    else if (anchor && !unwritten.has(target) && !pages[target].toc.some((t) => t.id === anchor)) problems.push({ kind: "link", key: "link.anchor", vars: { page: id, link } });
+    if (!pages[target] || target === id)
+      problems.push({ kind: "link", key: "link.counterpart", vars: { page: id, link } });
+    else if (anchor && !unwritten.has(target) && !pages[target].toc.some((t) => t.id === anchor))
+      problems.push({ kind: "link", key: "link.anchor", vars: { page: id, link } });
   }
   return problems;
 }

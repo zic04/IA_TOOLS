@@ -31,7 +31,8 @@ export function checkOverrides(theme = {}) {
   const errors = [];
   for (const group of ["colors", "dark"])
     for (const name of Object.keys(theme[group] || {}))
-      if (!known.includes(name)) errors.push({ path: `theme.${group}.${name}`, key: "token", vars: { name, known: known.join(", ") } });
+      if (!known.includes(name))
+        errors.push({ path: `theme.${group}.${name}`, key: "token", vars: { name, known: known.join(", ") } });
   return errors;
 }
 

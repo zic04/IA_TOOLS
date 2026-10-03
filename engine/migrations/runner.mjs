@@ -41,7 +41,9 @@ export function listMigrations(folder = FOLDER) {
 /** Migrations to run between the project's range and the installed kit. */
 export function pendingMigrations(range, kitVersion, folder = FOLDER) {
   const base = rangeBase(range);
-  return listMigrations(folder).filter((m) => (!base || compareVersions(m.version, base) > 0) && compareVersions(m.version, kitVersion) <= 0);
+  return listMigrations(folder).filter(
+    (m) => (!base || compareVersions(m.version, base) > 0) && compareVersions(m.version, kitVersion) <= 0,
+  );
 }
 
 /**
@@ -75,9 +77,15 @@ export function createVirtualFiles(root) {
     list(dir = "") {
       dir = norm(dir);
       const base = abs(dir);
-      const onDisk = fs.existsSync(base) ? fs.readdirSync(base, { recursive: true }).map((f) => norm(path.join(dir, String(f)))).filter((f) => fs.statSync(abs(f)).isFile()) : [];
+      const onDisk = fs.existsSync(base)
+        ? fs
+            .readdirSync(base, { recursive: true })
+            .map((f) => norm(path.join(dir, String(f))))
+            .filter((f) => fs.statSync(abs(f)).isFile())
+        : [];
       const all = new Set(onDisk);
-      for (const [rel, v] of changed) if (!dir || rel.startsWith(dir + "/")) v === null ? all.delete(rel) : all.add(rel);
+      for (const [rel, v] of changed)
+        if (!dir || rel.startsWith(dir + "/")) v === null ? all.delete(rel) : all.add(rel);
       return [...all].sort();
     },
     /** [{ file, before: string|null, after: string|null }] — files whose content really changed. */
@@ -144,7 +152,9 @@ export function unifiedDiff(file, before, after, context = 3) {
     const n = midA.length;
     const m = midB.length;
     const lcs = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
-    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i][j] = midA[i] === midB[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    for (let i = n - 1; i >= 0; i--)
+      for (let j = m - 1; j >= 0; j--)
+        lcs[i][j] = midA[i] === midB[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
     let i = 0;
     let j = 0;
     while (i < n || j < m) {
@@ -159,7 +169,10 @@ export function unifiedDiff(file, before, after, context = 3) {
   if (!ops.some((o) => o[0] !== " ")) return "";
 
   // Hunks.
-  const lines = [`--- ${before === null ? "/dev/null" : "a/" + file}`, `+++ ${after === null ? "/dev/null" : "b/" + file}`];
+  const lines = [
+    `--- ${before === null ? "/dev/null" : "a/" + file}`,
+    `+++ ${after === null ? "/dev/null" : "b/" + file}`,
+  ];
   let lineA = 1;
   let lineB = 1;
   const positions = ops.map((o) => {
@@ -182,7 +195,9 @@ export function unifiedDiff(file, before, after, context = 3) {
     const hunk = ops.slice(from, to);
     const countA = hunk.filter((o) => o[0] !== "+").length;
     const countB = hunk.filter((o) => o[0] !== "-").length;
-    lines.push(`@@ -${countA ? positions[from][0] : positions[from][0] - 1},${countA} +${countB ? positions[from][1] : positions[from][1] - 1},${countB} @@`);
+    lines.push(
+      `@@ -${countA ? positions[from][0] : positions[from][0] - 1},${countA} +${countB ? positions[from][1] : positions[from][1] - 1},${countB} @@`,
+    );
     for (const [t, l] of hunk) lines.push(t + l);
   }
   return lines.join("\n");

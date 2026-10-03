@@ -35,15 +35,37 @@ describe("history", () => {
 
   test("parseNumstat: commits, authors, dates, files (a binary counts 0 lines)", () => {
     const c = parseNumstat(log);
-    assert.deepEqual(c.map((x) => [x.hash, x.author, x.files.length]), [["c3", "Ada", 2], ["c2", "Bob", 2], ["c1", "Ada", 2]]);
+    assert.deepEqual(
+      c.map((x) => [x.hash, x.author, x.files.length]),
+      [
+        ["c3", "Ada", 2],
+        ["c2", "Bob", 2],
+        ["c1", "Ada", 2],
+      ],
+    );
     assert.deepEqual(c[0].files[1], { path: "logo.png", added: 0, deleted: 0 });
   });
 
   test("historyFacts: per file commits, churn, authors, owner and share, last date; bus factor; deleted files left out", () => {
     const { items, summary } = historyFacts(parseNumstat(log), { tracked: ["src/orders.ts", "logo.png", "README.md"] });
-    assert.deepEqual(items[0], { file: "src/orders.ts", commits: 3, churn: 116, authors: 2, owner: "Ada", ownerShare: 67, last: "2026-09-30" });
+    assert.deepEqual(items[0], {
+      file: "src/orders.ts",
+      commits: 3,
+      churn: 116,
+      authors: 2,
+      owner: "Ada",
+      ownerShare: 67,
+      last: "2026-09-30",
+    });
     assert.ok(!items.some((i) => i.file === "src/old.ts"), "a file no longer tracked");
-    assert.deepEqual(summary, { commits: 3, authors: 2, since: "2026-08-01", until: "2026-09-30", busFactor: 1, files: 3 });
+    assert.deepEqual(summary, {
+      commits: 3,
+      authors: 2,
+      since: "2026-08-01",
+      until: "2026-09-30",
+      busFactor: 1,
+      files: 3,
+    });
   });
 
   test("collectHistory: through the exec seam (hardened git); no git → available false", () => {
@@ -56,9 +78,15 @@ describe("history", () => {
     };
     const r = collectHistory("/app", exec);
     assert.equal(r.summary.available, true);
-    assert.deepEqual(r.items.map((i) => i.file), ["src/orders.ts", "README.md"]);
+    assert.deepEqual(
+      r.items.map((i) => i.file),
+      ["src/orders.ts", "README.md"],
+    );
     assert.ok(calls[0].includes("--relative") && calls[0].includes("--no-renames"));
-    assert.deepEqual(collectHistory("/app", () => null), { items: [], summary: { available: false } });
+    assert.deepEqual(
+      collectHistory("/app", () => null),
+      { items: [], summary: { available: false } },
+    );
   });
 });
 
@@ -72,7 +100,10 @@ describe("modules", () => {
       ["e", new Set(["d"])],
       ["f", new Set(["a"])],
     ]);
-    assert.deepEqual(cyclesOf(g), [["a", "b", "c"], ["d", "e"]]);
+    assert.deepEqual(cyclesOf(g), [
+      ["a", "b", "c"],
+      ["d", "e"],
+    ]);
     assert.deepEqual(cyclesOf(new Map([["x", new Set()]])), []);
   });
 
@@ -91,7 +122,10 @@ describe("modules", () => {
       const { items, summary } = collectModules(app);
       const b = items.find((i) => i.file === "src/b.ts");
       assert.deepEqual(b, { file: "src/b.ts", imports: 1, importedBy: 2, cycle: 1 });
-      assert.deepEqual(items.find((i) => i.file === "py/app.py"), { file: "py/app.py", imports: 1, importedBy: 0, cycle: null });
+      assert.deepEqual(
+        items.find((i) => i.file === "py/app.py"),
+        { file: "py/app.py", imports: 1, importedBy: 0, cycle: null },
+      );
       assert.deepEqual(summary.cycles, [["src/a.ts", "src/b.ts"]]);
       assert.ok(summary.orphans >= 1);
       assert.equal(items[0].file, "src/b.ts", "the most depended-on file first");
@@ -106,8 +140,10 @@ describe("db references and ::erd", () => {
     const app = tempDir("doc-kit-db-");
     try {
       write(app, {
-        "prisma/schema.prisma": "model User {\n  id Int @id\n  orders Order[]\n}\n\nmodel Order {\n  id Int @id\n  user User @relation(fields: [userId], references: [id])\n  userId Int\n  @@map(\"orders\")\n}\n",
-        "models.py": 'class Line(Base):\n    __tablename__ = "lines"\n    id = Column(Integer)\n    order_id = Column(ForeignKey("orders.id"))\n',
+        "prisma/schema.prisma":
+          'model User {\n  id Int @id\n  orders Order[]\n}\n\nmodel Order {\n  id Int @id\n  user User @relation(fields: [userId], references: [id])\n  userId Int\n  @@map("orders")\n}\n',
+        "models.py":
+          'class Line(Base):\n    __tablename__ = "lines"\n    id = Column(Integer)\n    order_id = Column(ForeignKey("orders.id"))\n',
         "db/001.sql": "CREATE TABLE invoices (id int, order_id int REFERENCES orders(id), PRIMARY KEY (id));\n",
       });
       const items = collectDb(app);
@@ -128,7 +164,14 @@ describe("db references and ::erd", () => {
       { table: "users", columns: Array.from({ length: 14 }, (_, i) => `c${i}`), references: [] },
       { table: "audit", columns: ["id"], references: ["ghost"] },
     ];
-    assert.deepEqual(erdTables(items).map((t) => [t.table, t.columns.length, t.references]), [["orders", 3, ["users"]], ["users", 14, []], ["audit", 1, []]]);
+    assert.deepEqual(
+      erdTables(items).map((t) => [t.table, t.columns.length, t.references]),
+      [
+        ["orders", 3, ["users"]],
+        ["users", 14, []],
+        ["audit", 1, []],
+      ],
+    );
     const svg = renderErd(items, { esc, title: "Data", more: (n) => `+${n} more` });
     assert.equal((svg.match(/class="erd-table"/g) || []).length, 3);
     assert.equal((svg.match(/class="erd-edge"/g) || []).length, 1);
@@ -143,12 +186,26 @@ describe("db references and ::erd", () => {
     try {
       fs.appendFileSync(path.join(dir, "content", "use", "orders.md"), '\n\n::erd{title="Orders data"}\n');
       const out = path.join(dir, "dist", "x.html");
-      const empty = await runCli(["build", "--project", dir, "--date", "2026-01-01", "--output", out], { stdout: { write: () => {} }, stderr: { write: () => {} }, env: {} });
+      const empty = await runCli(["build", "--project", dir, "--date", "2026-01-01", "--output", out], {
+        stdout: { write: () => {} },
+        stderr: { write: () => {} },
+        env: {},
+      });
       assert.equal(empty, 0);
       const db = JSON.parse(fs.readFileSync(path.join(dir, "facts", "db.json"), "utf8"));
-      db.items = [{ table: "orders", columns: ["id"], file: "x.sql", rls: false, policies: [], references: ["customers"] }, { table: "customers", columns: ["id"], file: "x.sql", rls: false, policies: [], references: [] }];
+      db.items = [
+        { table: "orders", columns: ["id"], file: "x.sql", rls: false, policies: [], references: ["customers"] },
+        { table: "customers", columns: ["id"], file: "x.sql", rls: false, policies: [], references: [] },
+      ];
       fs.writeFileSync(path.join(dir, "facts", "db.json"), JSON.stringify(db));
-      assert.equal(await runCli(["build", "--project", dir, "--date", "2026-01-01", "--output", out], { stdout: { write: () => {} }, stderr: { write: () => {} }, env: {} }), 0);
+      assert.equal(
+        await runCli(["build", "--project", dir, "--date", "2026-01-01", "--output", out], {
+          stdout: { write: () => {} },
+          stderr: { write: () => {} },
+          env: {},
+        }),
+        0,
+      );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /erd-figure/);
       assert.match(html, /Orders data · db/);

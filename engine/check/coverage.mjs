@@ -14,11 +14,7 @@ import { countGuidance } from "../build/page-templates.mjs";
 const SKIP = new Set(["node_modules", ".git"]);
 
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
-export const normalize = (s) =>
-  String(s)
-    .replace(/[  ]/g, " ")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
 
 /** Regular expression of a glob: ** (any folders), * (any characters but /), ?, {a,b}. */
 export function globRegex(glob) {
@@ -37,7 +33,14 @@ export function globRegex(glob) {
       const end = glob.indexOf("}", i);
       if (end < 0) re += "\\{";
       else {
-        re += "(?:" + glob.slice(i + 1, end).split(",").map((s) => s.replace(/[.+^${}()|[\]\\]/g, "\\$&")).join("|") + ")";
+        re +=
+          "(?:" +
+          glob
+            .slice(i + 1, end)
+            .split(",")
+            .map((s) => s.replace(/[.+^${}()|[\]\\]/g, "\\$&"))
+            .join("|") +
+          ")";
         i = end;
       }
     } else re += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
@@ -131,7 +134,10 @@ function tocText(text, isUnwritten, planned) {
           return false;
         });
   const keep = (list) => (Array.isArray(list) ? list.filter((id) => !ids.has(id)) : list);
-  for (const j of [...(Array.isArray(toc?.journeys) ? toc.journeys : []), ...(Array.isArray(toc?.parcours) ? toc.parcours : [])])
+  for (const j of [
+    ...(Array.isArray(toc?.journeys) ? toc.journeys : []),
+    ...(Array.isArray(toc?.parcours) ? toc.parcours : []),
+  ])
     if (j && typeof j === "object") for (const k of ["steps", "etapes"]) if (k in j) j[k] = keep(j[k]);
   if (toc && typeof toc === "object") toc.suggestions = keep(toc.suggestions);
   return JSON.stringify(toc);
@@ -157,13 +163,16 @@ function documentationTexts(root, content) {
     files
       .filter((f) => !drafts.has(f))
       .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
-      .join("\n")
+      .join("\n"),
   );
   return { text, planned };
 }
 
 /** Does an item appear in the documentation text? */
-export const isCovered = (item, text) => (item.match || []).some((m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)));
+export const isCovered = (item, text) =>
+  (item.match || []).some(
+    (m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)),
+  );
 
 /** Applies an `exclude` option (regular expressions, or exact ids) to a list of items. */
 export function excludeItems(items, exclude = []) {
@@ -199,11 +208,22 @@ export async function runCoverage({ root, config }) {
       r = { available: false, reason: "error", vars: { error: String(e.message).split("\n")[0] } };
     }
     if (!r || r.available === false) {
-      adapters.push({ adapter: name, available: false, reason: r?.reason || "unknown", vars: r?.vars || {}, families: [] });
+      adapters.push({
+        adapter: name,
+        available: false,
+        reason: r?.reason || "unknown",
+        vars: r?.vars || {},
+        families: [],
+      });
       continue;
     }
     const families = (r.families || []).map((f) => {
-      const items = (f.items || []).map((it) => ({ id: String(it.id), ...(it.label !== undefined ? { label: it.label } : {}), match: it.match || [String(it.id)], covered: false }));
+      const items = (f.items || []).map((it) => ({
+        id: String(it.id),
+        ...(it.label !== undefined ? { label: it.label } : {}),
+        match: it.match || [String(it.id)],
+        covered: false,
+      }));
       for (const it of items) {
         it.covered = isCovered(it, text);
         if (!it.covered)

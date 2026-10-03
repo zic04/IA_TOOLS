@@ -88,7 +88,8 @@ export function readTranslatedJson(b, lang, name) {
 export function engineReadersFor(b, lang) {
   const { images, diagrams, translations } = b.paths;
   const { existsFs, readFs } = b;
-  const diagramPath = (rel) => (existsFs(`${translations}/${lang}/${diagrams}/${rel}`) ? `${translations}/${lang}/${diagrams}/${rel}` : null);
+  const diagramPath = (rel) =>
+    existsFs(`${translations}/${lang}/${diagrams}/${rel}`) ? `${translations}/${lang}/${diagrams}/${rel}` : null;
   const imagePath = (rel) => (existsFs(`${images}/${lang}/${rel}`) ? `${images}/${lang}/${rel}` : null);
   return {
     exists: (p) => {

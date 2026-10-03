@@ -7,7 +7,8 @@ export async function launchBrowser(options = {}) {
   try {
     return await chromium.launch(options);
   } catch (e) {
-    if (/Executable doesn't exist|playwright install/i.test(e.message)) throw new KitError(EXIT.ENVIRONMENT, "browser.missing", {}, { cause: e });
+    if (/Executable doesn't exist|playwright install/i.test(e.message))
+      throw new KitError(EXIT.ENVIRONMENT, "browser.missing", {}, { cause: e });
     throw e;
   }
 }

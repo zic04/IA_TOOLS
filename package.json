@@ -18,7 +18,9 @@
     "test:unit": "node test/run.mjs unit",
     "test:snapshot": "node test/run.mjs snapshot",
     "test:e2e": "node test/run.mjs e2e",
-    "test:security": "node --test test/unit/security.test.mjs"
+    "test:security": "node --test test/unit/security.test.mjs",
+    "format": "prettier --write \"**/*.{js,mjs}\"",
+    "format:check": "prettier --check \"**/*.{js,mjs}\""
   },
   "dependencies": {
     "marked": "18.0.14",
@@ -26,5 +28,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9"
   }
 }

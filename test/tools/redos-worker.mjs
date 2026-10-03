@@ -14,8 +14,61 @@ import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
-const PREFIXES = ["", "{ `${", "{ /*", "await page.goto('", "await page.getByRole('button', { name: '", "await page.locator('", "model A {\n", "CREATE TABLE t (", "ForeignKey(\"", "REFERENCES ", "@@x\t", "-----BEGIN PRIVATE KEY-----\n", "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n", "eyJ", "eyJabcdefgh.eyJ", "Password=", "https://u:", "?sig=", "secret = ", "api_key: ", "verify=", "app.get(", "@app.get(", 'router.post("/x", ', "res.redirect(", "SELECT * FROM t WHERE a = ", "export async function GET(", "class S(BaseSettings):\n", "dangerouslySetInnerHTML", "Access-Control-Allow-Origin"];
-const UNITS = [" ", "\t", "\n", "   \n", " \t\n", "a", "A1", "a:", "a-", "=", "-", "/", "'", '"', "(", "{", "a.", "%", "+", "_", "\\"];
+const PREFIXES = [
+  "",
+  "{ `${",
+  "{ /*",
+  "await page.goto('",
+  "await page.getByRole('button', { name: '",
+  "await page.locator('",
+  "model A {\n",
+  "CREATE TABLE t (",
+  'ForeignKey("',
+  "REFERENCES ",
+  "@@x\t",
+  "-----BEGIN PRIVATE KEY-----\n",
+  "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n",
+  "eyJ",
+  "eyJabcdefgh.eyJ",
+  "Password=",
+  "https://u:",
+  "?sig=",
+  "secret = ",
+  "api_key: ",
+  "verify=",
+  "app.get(",
+  "@app.get(",
+  'router.post("/x", ',
+  "res.redirect(",
+  "SELECT * FROM t WHERE a = ",
+  "export async function GET(",
+  "class S(BaseSettings):\n",
+  "dangerouslySetInnerHTML",
+  "Access-Control-Allow-Origin",
+];
+const UNITS = [
+  " ",
+  "\t",
+  "\n",
+  "   \n",
+  " \t\n",
+  "a",
+  "A1",
+  "a:",
+  "a-",
+  "=",
+  "-",
+  "/",
+  "'",
+  '"',
+  "(",
+  "{",
+  "a.",
+  "%",
+  "+",
+  "_",
+  "\\",
+];
 const N = 3000;
 const INPUTS = PREFIXES.flatMap((p) => UNITS.map((u) => p + u.repeat(Math.ceil(N / u.length)) + "!"));
 

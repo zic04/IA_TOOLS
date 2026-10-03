@@ -45,7 +45,7 @@ const go = (page, hash) =>
         window.addEventListener("hashchange", () => setTimeout(r, 30), { once: true });
         location.hash = h;
       }),
-    "#/" + hash
+    "#/" + hash,
   );
 // textContent: independent of CSS text-transform.
 const text = (page, sel) => page.locator(sel).first().textContent();
@@ -138,8 +138,15 @@ describe("theme", () => {
     for (const colorScheme of ["light", "dark"]) {
       const page = await open("", { colorScheme });
       const contrast = await page.evaluate(() => {
-        const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
-        const lum = ([r, g, b]) => [r, g, b].map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const rgb = (c) =>
+          c
+            .match(/[\d.]+/g)
+            .slice(0, 3)
+            .map(Number);
+        const lum = ([r, g, b]) =>
+          [r, g, b]
+            .map((v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+            .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
         const kbd = getComputedStyle(document.querySelector(".recherche-bouton kbd"));
         const [a, b] = [lum(rgb(kbd.color)), lum(rgb(kbd.backgroundColor))].sort((x, y) => y - x);
         return (a + 0.05) / (b + 0.05);
@@ -227,7 +234,12 @@ describe("doc-kit view", () => {
       const b = fs.readFileSync(file);
       return [b.readUInt32BE(16), b.readUInt32BE(20)];
     };
-    const run = (args) => runCli(["view", "use/orders", "--project", DEMO, ...args], { stdout: { write() {} }, stderr: { write() {} }, env: {} });
+    const run = (args) =>
+      runCli(["view", "use/orders", "--project", DEMO, ...args], {
+        stdout: { write() {} },
+        stderr: { write() {} },
+        env: {},
+      });
     const window = path.join(dir, "window.png");
     const full = path.join(dir, "full.png");
     assert.equal(await run(["--output", window]), 0);
@@ -240,25 +252,35 @@ describe("doc-kit view", () => {
 
   test("--tour <n>: the step's card is in the image (shown by a timer in the site, after the zone scrolls into view)", async () => {
     const shot = path.join(dir, "tour.png");
-    assert.equal(await runCli(["view", "use/orders", "--tour", "2", "--project", DEMO, "--output", shot], { stdout: { write() {} }, stderr: { write() {} }, env: {} }), 0);
+    assert.equal(
+      await runCli(["view", "use/orders", "--tour", "2", "--project", DEMO, "--output", shot], {
+        stdout: { write() {} },
+        stderr: { write() {} },
+        env: {},
+      }),
+      0,
+    );
     // The card is the only large white surface over the darkened viewer: ~44,000 white pixels with it, ~9,500
     // without (the shot taken before the card appears).
     const browser = await chromium.launch();
     try {
       const page = await browser.newPage();
-      const white = await page.evaluate(async (src) => {
-        const img = new Image();
-        img.src = src;
-        await img.decode();
-        const c = document.createElement("canvas");
-        [c.width, c.height] = [img.width, img.height];
-        const g = c.getContext("2d");
-        g.drawImage(img, 0, 0);
-        const d = g.getImageData(0, 0, c.width, c.height).data;
-        let n = 0;
-        for (let k = 0; k < d.length; k += 4) if (d[k] >= 250 && d[k + 1] >= 250 && d[k + 2] >= 250) n++;
-        return n;
-      }, "data:image/png;base64," + fs.readFileSync(shot).toString("base64"));
+      const white = await page.evaluate(
+        async (src) => {
+          const img = new Image();
+          img.src = src;
+          await img.decode();
+          const c = document.createElement("canvas");
+          [c.width, c.height] = [img.width, img.height];
+          const g = c.getContext("2d");
+          g.drawImage(img, 0, 0);
+          const d = g.getImageData(0, 0, c.width, c.height).data;
+          let n = 0;
+          for (let k = 0; k < d.length; k += 4) if (d[k] >= 250 && d[k + 1] >= 250 && d[k + 2] >= 250) n++;
+          return n;
+        },
+        "data:image/png;base64," + fs.readFileSync(shot).toString("base64"),
+      );
       assert.ok(white > 25_000, `the tour card is missing from the image (${white} white pixels)`);
     } finally {
       await browser.close();
@@ -279,7 +301,7 @@ describe("check tables: a table rendered by a directive is never reported", () =
           <h2>Generated</h2>
           <div class="tableau" data-generated="facts" style="width:300px; overflow:auto;"><table data-generated="facts" style="width:2000px"><tr><td>wide, from a directive</td></tr></table></div>
         </main>
-      </body></html>`
+      </body></html>`,
     );
     const result = await checkTables({ file });
     assert.equal(result.pages, 1);

@@ -9,7 +9,11 @@ import path from "node:path";
 import { KIT_ROOT } from "../tools/helpers.mjs";
 
 const FOLDERS = ["engine", "cli", "adapters", "skill", "test", "standard", "templates", "examples", "docs", "ci"];
-const PUBLIC = new Set(Object.values(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "package.json"), "utf8")).exports).map((p) => path.normalize(p)));
+const PUBLIC = new Set(
+  Object.values(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "package.json"), "utf8")).exports).map((p) =>
+    path.normalize(p),
+  ),
+);
 const DECLARATION = /^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm;
 
 function sources() {
@@ -33,7 +37,8 @@ test("every exported name is used by another file (RULES.md M10)", () => {
     if (file.startsWith(`test${path.sep}`) || PUBLIC.has(path.normalize(file))) continue;
     for (const [, name] of text.matchAll(DECLARATION)) {
       const word = new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`);
-      if (![...files].some(([other, t]) => other !== file && word.test(t))) unused.push(`${file.split(path.sep).join("/")}: ${name}`);
+      if (![...files].some(([other, t]) => other !== file && word.test(t)))
+        unused.push(`${file.split(path.sep).join("/")}: ${name}`);
     }
   }
   assert.deepEqual(unused, [], "exported but used nowhere else: drop the `export`, or the code if nothing uses it");

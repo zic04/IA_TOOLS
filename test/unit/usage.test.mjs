@@ -11,14 +11,21 @@ import { tempDir } from "../tools/helpers.mjs";
 
 const USAGE = path.join(SKILL_SOURCE, "scripts", "usage.mjs");
 function usage(args, cwd) {
-  const r = spawnSync(process.execPath, [USAGE, ...args], { cwd, encoding: "utf8", env: { ...process.env, DOC_KIT_URL: "", DOC_KIT_LANG: "" } });
+  const r = spawnSync(process.execPath, [USAGE, ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, DOC_KIT_URL: "", DOC_KIT_LANG: "" },
+  });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
 
 /** A minimal documentation project: just enough for loadConfig to succeed. */
 function project(config = {}) {
   const docs = tempDir("doc-kit-usage-");
-  fs.writeFileSync(path.join(docs, "doc.config.mjs"), `export default ${JSON.stringify({ product: { name: "Acme Orders" }, ...config }, null, 2)};\n`);
+  fs.writeFileSync(
+    path.join(docs, "doc.config.mjs"),
+    `export default ${JSON.stringify({ product: { name: "Acme Orders" }, ...config }, null, 2)};\n`,
+  );
   return docs;
 }
 
@@ -27,7 +34,27 @@ describe("usage.mjs log", () => {
     const docs = project({ language: "en" });
     try {
       const r = usage(
-        ["log", "--project", docs, "--brief", "writing-batch", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "1200", "--tools", "8", "--duration", "9000", "--pages", "use/orders,use/settings", "--phase", "5"],
+        [
+          "log",
+          "--project",
+          docs,
+          "--brief",
+          "writing-batch",
+          "--agent",
+          "doc-kit-writer",
+          "--model",
+          "sonnet",
+          "--tokens",
+          "1200",
+          "--tools",
+          "8",
+          "--duration",
+          "9000",
+          "--pages",
+          "use/orders,use/settings",
+          "--phase",
+          "5",
+        ],
         docs,
       );
       assert.equal(r.code, 0, r.err);
@@ -53,11 +80,17 @@ describe("usage.mjs log", () => {
       assert.equal(missing.code, 2);
       assert.match(missing.err, /--agent is required for log/);
 
-      const badTokens = usage(["log", "--project", docs, "--brief", "x", "--agent", "a", "--model", "m", "--tokens", "abc"], docs);
+      const badTokens = usage(
+        ["log", "--project", docs, "--brief", "x", "--agent", "a", "--model", "m", "--tokens", "abc"],
+        docs,
+      );
       assert.equal(badTokens.code, 2);
       assert.match(badTokens.err, /--tokens must be a non-negative integer/);
 
-      const negative = usage(["log", "--project", docs, "--brief", "x", "--agent", "a", "--model", "m", "--tokens", "-5"], docs);
+      const negative = usage(
+        ["log", "--project", docs, "--brief", "x", "--agent", "a", "--model", "m", "--tokens", "-5"],
+        docs,
+      );
       assert.equal(negative.code, 2);
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });
@@ -67,8 +100,14 @@ describe("usage.mjs log", () => {
   test("a second call appends, it never rewrites the file; French project speaks French", () => {
     const docs = project({ language: "fr" });
     try {
-      usage(["log", "--project", docs, "--brief", "a", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "10"], docs);
-      const r = usage(["log", "--project", docs, "--brief", "b", "--agent", "doc-kit-triage", "--model", "haiku", "--tokens", "20"], docs);
+      usage(
+        ["log", "--project", docs, "--brief", "a", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "10"],
+        docs,
+      );
+      const r = usage(
+        ["log", "--project", docs, "--brief", "b", "--agent", "doc-kit-triage", "--model", "haiku", "--tokens", "20"],
+        docs,
+      );
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /consommation journalisée : b \(doc-kit-triage, haiku\) : 20 jetons/);
       const lines = fs
@@ -117,11 +156,58 @@ describe("usage.mjs report", () => {
     });
     try {
       fs.mkdirSync(path.join(docs, "content", "use"), { recursive: true });
-      fs.writeFileSync(path.join(docs, "content", "toc.json"), JSON.stringify({ sections: [{ id: "use", groups: [{ pages: [{ id: "use/orders", template: "screen" }] }] }] }));
+      fs.writeFileSync(
+        path.join(docs, "content", "toc.json"),
+        JSON.stringify({ sections: [{ id: "use", groups: [{ pages: [{ id: "use/orders", template: "screen" }] }] }] }),
+      );
       fs.writeFileSync(path.join(docs, "content", "use", "orders.md"), "existing content\n");
 
-      assert.equal(usage(["log", "--project", docs, "--brief", "writing-batch", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "9000", "--pages", "use/orders", "--phase", "5"], docs).code, 0);
-      assert.equal(usage(["log", "--project", docs, "--brief", "triage", "--agent", "doc-kit-triage", "--model", "haiku", "--tokens", "400", "--pages", "use/orders", "--phase", "4"], docs).code, 0);
+      assert.equal(
+        usage(
+          [
+            "log",
+            "--project",
+            docs,
+            "--brief",
+            "writing-batch",
+            "--agent",
+            "doc-kit-writer",
+            "--model",
+            "sonnet",
+            "--tokens",
+            "9000",
+            "--pages",
+            "use/orders",
+            "--phase",
+            "5",
+          ],
+          docs,
+        ).code,
+        0,
+      );
+      assert.equal(
+        usage(
+          [
+            "log",
+            "--project",
+            docs,
+            "--brief",
+            "triage",
+            "--agent",
+            "doc-kit-triage",
+            "--model",
+            "haiku",
+            "--tokens",
+            "400",
+            "--pages",
+            "use/orders",
+            "--phase",
+            "4",
+          ],
+          docs,
+        ).code,
+        0,
+      );
 
       const r = usage(["report", "--project", docs], docs);
       assert.equal(r.code, 0, r.err);
@@ -133,12 +219,22 @@ describe("usage.mjs report", () => {
       assert.match(r.out, /By model:\n {2}sonnet: 9000\n {2}haiku: 400/);
       assert.match(r.out, /By page:\n {2}use\/orders: 9400/);
       assert.match(r.out, /Average tokens per page: 9400 \(1 page\(s\)\)/);
-      assert.match(r.out, /sonnet: \d+\.\d{4} EUR \(from 9000 logged token\(s\), approximate: no input\/output split\)/);
+      assert.match(
+        r.out,
+        /sonnet: \d+\.\d{4} EUR \(from 9000 logged token\(s\), approximate: no input\/output split\)/,
+      );
       assert.match(r.out, /haiku: \d+\.\d{4} EUR \(from 400 logged token\(s\), approximate: no input\/output split\)/);
-      assert.match(r.out, /Gap with a fresh estimate:\n(.*\n)*? {2}writing-batch: logged 9000 tokens, estimate ~\d+ tokens \([+-]\d+%\)/);
+      assert.match(
+        r.out,
+        /Gap with a fresh estimate:\n(.*\n)*? {2}writing-batch: logged 9000 tokens, estimate ~\d+ tokens \([+-]\d+%\)/,
+      );
 
       const j = usage(["report", "--project", docs, "--json"], docs);
-      assert.deepEqual(JSON.parse(j.out), { file: path.join(docs, ".doc-kit", "usage.jsonl"), entries: 2, total: 9400 });
+      assert.deepEqual(JSON.parse(j.out), {
+        file: path.join(docs, ".doc-kit", "usage.jsonl"),
+        entries: 2,
+        total: 9400,
+      });
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });
     }
@@ -147,7 +243,10 @@ describe("usage.mjs report", () => {
   test("without llm.prices: no cost computed, no crash", () => {
     const docs = project({ language: "en" });
     try {
-      usage(["log", "--project", docs, "--brief", "a", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "500"], docs);
+      usage(
+        ["log", "--project", docs, "--brief", "a", "--agent", "doc-kit-writer", "--model", "sonnet", "--tokens", "500"],
+        docs,
+      );
       const r = usage(["report", "--project", docs], docs);
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /not estimated: set llm\.prices in doc\.config\.mjs/);
@@ -166,7 +265,17 @@ describe("usage.mjs scan", () => {
         path.join(transcripts, "session.jsonl"),
         [
           JSON.stringify({ type: "other", note: "no usage here" }),
-          JSON.stringify({ message: { model: "claude-sonnet", usage: { input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 500, cache_creation_input_tokens: 50 } } }),
+          JSON.stringify({
+            message: {
+              model: "claude-sonnet",
+              usage: {
+                input_tokens: 1000,
+                output_tokens: 200,
+                cache_read_input_tokens: 500,
+                cache_creation_input_tokens: 50,
+              },
+            },
+          }),
           "not even json",
           JSON.stringify({ message: { usage: { input_tokens: 300, output_tokens: 40 } } }),
           "",

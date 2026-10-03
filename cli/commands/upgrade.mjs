@@ -12,7 +12,15 @@ import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
 import { LANGUAGES } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { importConfig } from "../../engine/dev/environment.mjs";
-import { pendingMigrations, runMigrations, createVirtualFiles, unifiedDiff, setKitRange, compareVersions, rangeBase } from "../../engine/migrations/runner.mjs";
+import {
+  pendingMigrations,
+  runMigrations,
+  createVirtualFiles,
+  unifiedDiff,
+  setKitRange,
+  compareVersions,
+  rangeBase,
+} from "../../engine/migrations/runner.mjs";
 
 export const options = {
   apply: { type: "boolean" },
@@ -47,7 +55,15 @@ export function changesBetween(entries, range, kitVersion) {
  * Plans (and with apply, performs) the upgrade of a project.
  * @returns {Promise<{ range, kit, compatible, changelog, migrations, diffs, newRange, applied, error? }>}
  */
-export async function planUpgrade({ root, configFile, raw, apply = false, kitVersion = BRAND.version, migrationsFolder, kitRoot = KIT_ROOT }) {
+export async function planUpgrade({
+  root,
+  configFile,
+  raw,
+  apply = false,
+  kitVersion = BRAND.version,
+  migrationsFolder,
+  kitRoot = KIT_ROOT,
+}) {
   const range = raw && typeof raw.kit === "string" ? raw.kit : "*";
   const compatible = isValidRange(range) && satisfies(kitVersion, range);
   const entries = readChangelog(kitRoot);
@@ -68,7 +84,17 @@ export async function planUpgrade({ root, configFile, raw, apply = false, kitVer
     files.apply();
     applied = true;
   }
-  return { range, kit: kitVersion, compatible, changelog, migrations: done, diffs, newRange, applied, error: failed || null };
+  return {
+    range,
+    kit: kitVersion,
+    compatible,
+    changelog,
+    migrations: done,
+    diffs,
+    newRange,
+    applied,
+    error: failed || null,
+  };
 }
 
 export async function run({ ctx, values }) {
@@ -82,12 +108,23 @@ export async function run({ ctx, values }) {
   }
   const p = ctx.paint;
   ctx.print(p.bold(ctx.t("cli.upgrade.title", { range: r.range, kit: r.kit, file: CONFIG_FILE })));
-  ctx.print(r.compatible ? `${p.ok("✔")} ${ctx.t("cli.upgrade.compatible")}` : `${p.warn("⚠")} ${ctx.t("cli.upgrade.incompatible", { range: r.range, kit: r.kit })}`);
+  ctx.print(
+    r.compatible
+      ? `${p.ok("✔")} ${ctx.t("cli.upgrade.compatible")}`
+      : `${p.warn("⚠")} ${ctx.t("cli.upgrade.incompatible", { range: r.range, kit: r.kit })}`,
+  );
 
   ctx.print(`\n${p.bold(ctx.t("cli.upgrade.changelog"))}`);
   if (r.changelog === null) ctx.print(`${p.warn("⚠")} ${ctx.t("cli.upgrade.noChangelog", { folder: KIT_ROOT })}`);
   else if (!r.changelog.length) ctx.print(`  ${ctx.t("cli.upgrade.noChanges")}`);
-  else for (const e of r.changelog) ctx.print(`  ${p.bold(e.heading)}\n${e.body.split("\n").map((l) => "    " + l).join("\n")}`);
+  else
+    for (const e of r.changelog)
+      ctx.print(
+        `  ${p.bold(e.heading)}\n${e.body
+          .split("\n")
+          .map((l) => "    " + l)
+          .join("\n")}`,
+      );
 
   ctx.print(`\n${p.bold(ctx.t("cli.upgrade.migrations"))}`);
   if (!r.migrations.length) ctx.print(`  ${ctx.t("cli.upgrade.noMigration")}`);
@@ -103,13 +140,22 @@ export async function run({ ctx, values }) {
       ctx.print(
         d.diff
           .split("\n")
-          .map((l) => (l.startsWith("+") && !l.startsWith("+++") ? p.ok(l) : l.startsWith("-") && !l.startsWith("---") ? p.fail(l) : l.startsWith("@@") ? p.cmd(l) : l))
-          .join("\n")
+          .map((l) =>
+            l.startsWith("+") && !l.startsWith("+++")
+              ? p.ok(l)
+              : l.startsWith("-") && !l.startsWith("---")
+                ? p.fail(l)
+                : l.startsWith("@@")
+                  ? p.cmd(l)
+                  : l,
+          )
+          .join("\n"),
       );
   }
   if (r.error) return EXIT.CHECK;
   if (!r.diffs.length) ctx.print(`\n${p.ok("✔")} ${ctx.t("cli.upgrade.upToDate", { range: r.range })}`);
-  else if (r.applied) ctx.print(`\n${p.ok("✔")} ${ctx.t("cli.upgrade.applied", { n: r.diffs.length, range: r.newRange })}`);
+  else if (r.applied)
+    ctx.print(`\n${p.ok("✔")} ${ctx.t("cli.upgrade.applied", { n: r.diffs.length, range: r.newRange })}`);
   else ctx.print(`\n${ctx.t("cli.upgrade.dryRun", { command: BRAND.command })}`);
   return EXIT.OK;
 }

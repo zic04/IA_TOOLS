@@ -53,7 +53,11 @@ describe("dev server", () => {
 
       // A content change: rebuilt, the page reloads on the same route.
       fs.appendFileSync(path.join(dir, "content", "use", "orders.md"), "\nA sentence added while the server runs.\n");
-      await page.waitForFunction(() => document.body.textContent.includes("A sentence added while the server runs."), null, { timeout: 8000 });
+      await page.waitForFunction(
+        () => document.body.textContent.includes("A sentence added while the server runs."),
+        null,
+        { timeout: 8000 },
+      );
       assert.equal(await page.evaluate(() => location.hash), "#/use/orders");
       assert.equal((await state(server.url)).id, 2);
 
@@ -72,13 +76,22 @@ describe("dev server", () => {
       // Fixed: the overlay disappears with the reload.
       fs.writeFileSync(toc, good.replace("Acme Orders documentation", "Acme Orders handbook"));
       await waitFor(async () => (await state(server.url)).id === 3);
-      await page.waitForFunction(() => !document.getElementById("doc-kit-dev-overlay") && document.title.includes("handbook"), null, { timeout: 8000 });
+      await page.waitForFunction(
+        () => !document.getElementById("doc-kit-dev-overlay") && document.title.includes("handbook"),
+        null,
+        { timeout: 8000 },
+      );
 
       // The configuration is watched too.
       const config = path.join(dir, "doc.config.mjs");
-      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace('"Explore the architecture"', '"Start with the architecture"'));
+      fs.writeFileSync(
+        config,
+        fs.readFileSync(config, "utf8").replace('"Explore the architecture"', '"Start with the architecture"'),
+      );
       await page.goto(server.url);
-      await page.waitForFunction(() => document.body.textContent.includes("Start with the architecture"), null, { timeout: 8000 });
+      await page.waitForFunction(() => document.body.textContent.includes("Start with the architecture"), null, {
+        timeout: 8000,
+      });
     } finally {
       await page.close();
       await server.close();

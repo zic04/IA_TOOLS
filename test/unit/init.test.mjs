@@ -7,7 +7,17 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { detectApp, humanize, scriptPort, coverageLiteral, metadataTitle, productBase, VERSION_TEXT_PATTERN, isLoopback, localOrDemo } from "../../cli/commands/init.mjs";
+import {
+  detectApp,
+  humanize,
+  scriptPort,
+  coverageLiteral,
+  metadataTitle,
+  productBase,
+  VERSION_TEXT_PATTERN,
+  isLoopback,
+  localOrDemo,
+} from "../../cli/commands/init.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
@@ -39,7 +49,12 @@ function fakeApp(files) {
 }
 const nextApp = () =>
   fakeApp({
-    "package.json": { name: "acme-orders", version: "2.4.0", scripts: { dev: "next dev -p 3100" }, dependencies: { next: "15.0.0", "next-auth": "5.0.0" } },
+    "package.json": {
+      name: "acme-orders",
+      version: "2.4.0",
+      scripts: { dev: "next dev -p 3100" },
+      dependencies: { next: "15.0.0", "next-auth": "5.0.0" },
+    },
     "src/app/page.tsx": "export default function Page() { return null; }",
     "src/app/orders/page.tsx": "export default function Page() { return null; }",
   });
@@ -86,7 +101,11 @@ describe("detection", () => {
 
   test("monorepo: React Router + Vite front end in frontend/, Python back end, generic package name", () => {
     const app = fakeApp({
-      "frontend/package.json": { name: "frontend", dependencies: { "react-router-dom": "7.0.0" }, devDependencies: { vite: "6.0.0" } },
+      "frontend/package.json": {
+        name: "frontend",
+        dependencies: { "react-router-dom": "7.0.0" },
+        devDependencies: { vite: "6.0.0" },
+      },
       "frontend/src/App.tsx": "export default function App() { return null; }",
       "frontend/vite.config.ts": "export default { server: { port: 4000 } };",
       "backend/pyproject.toml": '[project]\nname = "api"\nversion = "0.9.3"\n',
@@ -111,7 +130,10 @@ describe("detection", () => {
     assert.equal(scriptPort("PORT=8080 node server.js"), 8080);
     assert.equal(scriptPort("next dev"), null);
     assert.equal(coverageLiteral("next-app-router", "../../app"), '[{ adapter: "next-app-router", app: "../../app" }]');
-    assert.equal(coverageLiteral("react-router", "../../frontend/src/App.tsx"), '[{ adapter: "react-router", file: "../../frontend/src/App.tsx" }]');
+    assert.equal(
+      coverageLiteral("react-router", "../../frontend/src/App.tsx"),
+      '[{ adapter: "react-router", file: "../../frontend/src/App.tsx" }]',
+    );
     assert.equal(coverageLiteral(null, null), "[]");
   });
 });
@@ -126,13 +148,22 @@ describe("init", () => {
       assert.match(r.out, /Next\.js \(App Router\) · routes in src\/app · NextAuth/);
       assert.match(r.out, /3100 \(from the “dev” script\)/);
       // Exactly the next commands.
-      const next = r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim());
+      const next = r.out
+        .split("Next steps:\n")[1]
+        .split("\n\n")[0]
+        .split("\n")
+        .map((l) => l.trim());
       assert.deepEqual(next.slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
       assert.match(next[0], /^cd .*docs[\\/]manual"?$/);
 
       const files = allFiles(docs);
       assert.ok(files.length >= 20, files.join(", "));
-      for (const f of files) assert.doesNotMatch(fs.readFileSync(path.join(docs, f), "utf8"), /\{\{(name|slug|language|appUrl|auth|coverage|appDir|kitPath)\}\}/, f);
+      for (const f of files)
+        assert.doesNotMatch(
+          fs.readFileSync(path.join(docs, f), "utf8"),
+          /\{\{(name|slug|language|appUrl|auth|coverage|appDir|kitPath)\}\}/,
+          f,
+        );
       const config = fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8");
       assert.match(config, /coverage: \[\{ adapter: "next-app-router", app: "\.\.\/\.\.\/src\/app" \}\]/);
       assert.match(config, /file: "\.\.\/\.\.\/package\.json"/);
@@ -161,7 +192,9 @@ describe("init", () => {
   test("questions: name, language, URL, sign-in, confirmation (French project)", async () => {
     const app = nextApp();
     try {
-      const r = await cli(["init", app, "--dir", "documentation"], { input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "1", "3", "o"] });
+      const r = await cli(["init", app, "--dir", "documentation"], {
+        input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "1", "3", "o"],
+      });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /\? Product name \(Acme Orders\) › Acme "Q" Orders/);
       assert.match(r.out, /\? Language of the documentation\n {2}1\) English\n {2}2\) French/);
@@ -178,7 +211,10 @@ describe("init", () => {
       assert.equal(c.language, "fr");
       assert.equal(c.app.url, "http://localhost:3200");
       assert.equal(c.auth.adapter, "nextauth");
-      assert.equal(JSON.parse(fs.readFileSync(path.join(docs, "content", "toc.json"), "utf8")).title.includes('Acme "Q" Orders'), true);
+      assert.equal(
+        JSON.parse(fs.readFileSync(path.join(docs, "content", "toc.json"), "utf8")).title.includes('Acme "Q" Orders'),
+        true,
+      );
     } finally {
       remove(app);
     }
@@ -191,7 +227,10 @@ describe("init", () => {
       fs.writeFileSync(path.join(app, "docs", "manual", "notes.txt"), "x");
       const busy = await cli(["init", app, "--yes"]);
       assert.equal(busy.code, 1);
-      assert.match(busy.err, /^✖ the folder .* already exists and is not empty\n {2}→ choose another folder with --dir/);
+      assert.match(
+        busy.err,
+        /^✖ the folder .* already exists and is not empty\n {2}→ choose another folder with --dir/,
+      );
       assert.equal(fs.readdirSync(path.join(app, "docs", "manual")).length, 1, "nothing written");
       assert.equal((await cli(["init", path.join(app, "nope"), "--yes"])).code, 2);
       const tty = await cli(["init", app, "--dir", "other"]);
@@ -205,9 +244,22 @@ describe("init", () => {
   });
 
   test("Python-only application: version read in pyproject.toml, auth none: no connect step, --framework none", async () => {
-    const app = fakeApp({ "pyproject.toml": '[tool.x]\ntarget-version = "py311"\n[project]\nname = "acme-api"\nversion = "3.1.4"\n' });
+    const app = fakeApp({
+      "pyproject.toml": '[tool.x]\ntarget-version = "py311"\n[project]\nname = "acme-api"\nversion = "3.1.4"\n',
+    });
     try {
-      const r = await cli(["init", app, "--yes", "--auth", "none", "--name", "Acme API", "--framework", "none", "--json"]);
+      const r = await cli([
+        "init",
+        app,
+        "--yes",
+        "--auth",
+        "none",
+        "--name",
+        "Acme API",
+        "--framework",
+        "none",
+        "--json",
+      ]);
       assert.equal(r.code, 0, r.err);
       const j = JSON.parse(r.out);
       assert.equal(j.url, "http://localhost:8000");
@@ -246,7 +298,12 @@ const separateFrontApp = () =>
     "version.txt": "1.0.152\n",
     ".env": "SERVICE_ACCOUNT_SECRET=0123456789abcdef\n",
     ".env.example": "SERVICE_ACCOUNT_SECRET=\n",
-    "frontend/package.json": { name: "order-tracker-frontend", version: "1.0.0", scripts: { dev: "next dev" }, dependencies: { next: "15.0.0" } },
+    "frontend/package.json": {
+      name: "order-tracker-frontend",
+      version: "1.0.0",
+      scripts: { dev: "next dev" },
+      dependencies: { next: "15.0.0" },
+    },
     "frontend/.env.local": "NEXT_PUBLIC_API_URL=http://api.acme.example\n",
     "frontend/src/app/layout.tsx":
       'import type { Metadata } from "next";\n\nexport const metadata: Metadata = {\n  openGraph: { title: "Not this one" },\n  title: "Acme Orders",\n  description: "Orders, approvals, invoices",\n};\n\nexport default function RootLayout({ children }) {\n  return children;\n}\n',
@@ -275,20 +332,52 @@ describe("init on an application with a separate front end (pilot layout)", () =
 
   test("name and version helpers: metadata.title forms, front-end suffixes, version sources in order", () => {
     assert.equal(metadataTitle('export const metadata = { title: "Acme Orders" };'), "Acme Orders");
-    assert.equal(metadataTitle("export const metadata: Metadata = {\n  title: { default: 'Acme Orders', template: '%s · Acme' },\n};"), "Acme Orders");
-    assert.equal(metadataTitle('export const metadata = { openGraph: { title: "Nested" }, title: `Acme ${env}` };'), null, "a computed title is not a name");
-    assert.equal(metadataTitle('export const metadata = { description: "x" };\nconst other = { title: "Elsewhere" };'), null, "only the metadata object");
+    assert.equal(
+      metadataTitle(
+        "export const metadata: Metadata = {\n  title: { default: 'Acme Orders', template: '%s · Acme' },\n};",
+      ),
+      "Acme Orders",
+    );
+    assert.equal(
+      metadataTitle('export const metadata = { openGraph: { title: "Nested" }, title: `Acme ${env}` };'),
+      null,
+      "a computed title is not a name",
+    );
+    assert.equal(
+      metadataTitle('export const metadata = { description: "x" };\nconst other = { title: "Elsewhere" };'),
+      null,
+      "only the metadata object",
+    );
     assert.equal(metadataTitle("export async function generateMetadata() { return { title: 'X' }; }"), null);
-    for (const [raw, base] of [["order-tracker-frontend", "order-tracker"], ["@acme/orders-web", "orders"], ["acme_ui", "acme"], ["acme-client", "acme"], ["acme-app", "acme"], ["frontend", "frontend"]]) assert.equal(productBase(raw), base, raw);
+    for (const [raw, base] of [
+      ["order-tracker-frontend", "order-tracker"],
+      ["@acme/orders-web", "orders"],
+      ["acme_ui", "acme"],
+      ["acme-client", "acme"],
+      ["acme-app", "acme"],
+      ["frontend", "frontend"],
+    ])
+      assert.equal(productBase(raw), base, raw);
     // A generic front-end name gives way to the root package.json, then to the folder name.
-    const app = fakeApp({ "package.json": { name: "acme-orders", version: "3.0.1", private: true }, "web/package.json": { name: "web", version: "0.0.0", dependencies: { vite: "6.0.0" } } });
+    const app = fakeApp({
+      "package.json": { name: "acme-orders", version: "3.0.1", private: true },
+      "web/package.json": { name: "web", version: "0.0.0", dependencies: { vite: "6.0.0" } },
+    });
     try {
       const d = detectApp(app);
       assert.equal(d.packageDir, path.join(app, "web"));
       assert.deepEqual([d.name, d.nameSource.file], ["Acme Orders", "package.json"]);
-      assert.deepEqual([d.version.file, d.version.value], ["package.json", "3.0.1"], "the root package.json before the front end's");
+      assert.deepEqual(
+        [d.version.file, d.version.value],
+        ["package.json", "3.0.1"],
+        "the root package.json before the front end's",
+      );
       fs.writeFileSync(path.join(app, "VERSION"), "v4.2.0\n");
-      assert.deepEqual([detectApp(app).version.file, detectApp(app).version.value], ["VERSION", "4.2.0"], "VERSION at the root first");
+      assert.deepEqual(
+        [detectApp(app).version.file, detectApp(app).version.value],
+        ["VERSION", "4.2.0"],
+        "VERSION at the root first",
+      );
     } finally {
       remove(app);
     }
@@ -311,13 +400,24 @@ describe("init on an application with a separate front end (pilot layout)", () =
       assert.match(recap, /\.env masqués +\.env, frontend\/\.env\.local/);
       assert.match(recap, /Application +.*\(app\.dir: \.\.\/\.\.\)/);
       assert.match(recap, /Pour renommer le produit ensuite : product\.name dans doc\.config\.mjs, puis le titre/);
-      assert.ok(r.out.indexOf("Récapitulatif") < r.out.indexOf("fichiers écrits"), "the recap is printed before the files are written");
+      assert.ok(
+        r.out.indexOf("Récapitulatif") < r.out.indexOf("fichiers écrits"),
+        "the recap is printed before the files are written",
+      );
       // Next steps: no connect, no capture.
-      const next = r.out.split("Étapes suivantes :\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim());
+      const next = r.out
+        .split("Étapes suivantes :\n")[1]
+        .split("\n\n")[0]
+        .split("\n")
+        .map((l) => l.trim());
       assert.deepEqual(next.slice(1), ["npm install", "doc-kit dev"]);
 
       const config = fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8");
-      assert.match(config, /^\/\/ Configuration du site de documentation du produit Acme Orders/, "comments in the project's language");
+      assert.match(
+        config,
+        /^\/\/ Configuration du site de documentation du produit Acme Orders/,
+        "comments in the project's language",
+      );
       assert.doesNotMatch(config, /Precedence, from strongest/);
       assert.match(config, /mode: "none"/);
       assert.match(config, /file: "\.\.\/\.\.\/version\.txt"/);
@@ -329,14 +429,23 @@ describe("init on an application with a separate front end (pilot layout)", () =
       assert.ok(!fs.existsSync(path.join(docs, "captures", "plans", "example.mjs")));
       for (const f of allFiles(docs).filter((x) => x.endsWith(".md"))) {
         const text = fs.readFileSync(path.join(docs, f), "utf8");
-        assert.doesNotMatch(text, /^\s*:::(?:ecran|screen)\{|^\s*::(?:avant-apres|before-after)\{|doc-kit:(?:capture|end)/m, f);
+        assert.doesNotMatch(
+          text,
+          /^\s*:::(?:ecran|screen)\{|^\s*::(?:avant-apres|before-after)\{|doc-kit:(?:capture|end)/m,
+          f,
+        );
       }
       const home = fs.readFileSync(path.join(docs, "content", "home.md"), "utf8");
       assert.doesNotMatch(home, /Écrans interactifs|pastilles/);
       assert.match(home, /Écrans décrits élément par élément/);
-      assert.match(fs.readFileSync(path.join(docs, "content", "utiliser", "prise-en-main.md"), "utf8"), /\| Élément \| Ce qu'il montre \|\n\|---\|---\|\n\| \*\*Barre du haut\*\* \|/);
+      assert.match(
+        fs.readFileSync(path.join(docs, "content", "utiliser", "prise-en-main.md"), "utf8"),
+        /\| Élément \| Ce qu'il montre \|\n\|---\|---\|\n\| \*\*Barre du haut\*\* \|/,
+      );
       // French: no elision trap around the product name, fictional example routes only.
-      const all = allFiles(docs).map((f) => fs.readFileSync(path.join(docs, f), "utf8")).join("\n");
+      const all = allFiles(docs)
+        .map((f) => fs.readFileSync(path.join(docs, f), "utf8"))
+        .join("\n");
       assert.doesNotMatch(all, /\bde Acme Orders|\bde \*\*Acme Orders|(?<!application )Acme Orders est construite/);
       // No script calls `doc-kit capture` in a project without screenshots.
       const pkg = JSON.parse(fs.readFileSync(path.join(docs, "package.json"), "utf8"));
@@ -370,11 +479,20 @@ describe("init on an application with a separate front end (pilot layout)", () =
       assert.equal(j.capture, "app");
       assert.deepEqual(j.next.slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
       const docs = j.folder;
-      assert.match(fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8"), /^\/\/ Configuration of the Acme Orders documentation site/);
+      assert.match(
+        fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8"),
+        /^\/\/ Configuration of the Acme Orders documentation site/,
+      );
       assert.ok(fs.existsSync(path.join(docs, "captures", "plans", "example.mjs")));
-      assert.match(fs.readFileSync(path.join(docs, "content", "use", "getting-started.md"), "utf8"), /:::screen\{capture="home"/);
+      assert.match(
+        fs.readFileSync(path.join(docs, "content", "use", "getting-started.md"), "utf8"),
+        /:::screen\{capture="home"/,
+      );
       assert.match(fs.readFileSync(path.join(docs, "content", "home.md"), "utf8"), /\[!TIP\] Interactive screens/);
-      assert.match(fs.readFileSync(path.join(docs, "content", "administer", "users.md"), "utf8"), /\[\[route \/example\/users\]\]/);
+      assert.match(
+        fs.readFileSync(path.join(docs, "content", "administer", "users.md"), "utf8"),
+        /\[\[route \/example\/users\]\]/,
+      );
     } finally {
       remove(app);
     }
@@ -385,7 +503,10 @@ describe("init on an application with a separate front end (pilot layout)", () =
     try {
       const r = await cli(["init", app], { input: ["", "1", "", "3", "y"] });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /\? Where will the screenshots be taken\?\n {2}1\) local or demo application\n {2}2\) production, read-only\n {2}3\) no screenshots\n/);
+      assert.match(
+        r.out,
+        /\? Where will the screenshots be taken\?\n {2}1\) local or demo application\n {2}2\) production, read-only\n {2}3\) no screenshots\n/,
+      );
       assert.doesNotMatch(r.out, /How do people sign in/);
       assert.doesNotMatch(r.out, /Open the browser now/, "no follow-up without screenshots");
       assert.match(r.out, /Summary\n {2}Folder/);
@@ -413,23 +534,42 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     const app = nextApp();
     try {
       const { calls, steps } = stubSteps();
-      const r = await cli(["init", app], { input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "o", "o"], steps });
+      const r = await cli(["init", app], {
+        input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "o", "o"],
+        steps,
+      });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /\? Où prendre les captures \?\n {2}1\) application locale ou de démo\n {2}2\) production, en lecture seule\n {2}3\) aucune capture\n/);
+      assert.match(
+        r.out,
+        /\? Où prendre les captures \?\n {2}1\) application locale ou de démo\n {2}2\) production, en lecture seule\n {2}3\) aucune capture\n/,
+      );
       // The local address detected from the dev script is never offered as the production's.
       assert.match(r.out, /\? Adresse de la production › https:\/\/commandes\.acme\.example\/\n/);
-      assert.match(r.out, /⚠ Production, en lecture seule — avant la première capture :\n {2}· la lecture seule bloque .*PAS une écriture faite par le serveur.*capture\.forbidden ;\n {2}· le fichier de session \(\.doc-kit\/session\.json\) .*doc-kit connect --forget\) ;\n {2}· les captures montrent des données réelles/);
+      assert.match(
+        r.out,
+        /⚠ Production, en lecture seule — avant la première capture :\n {2}· la lecture seule bloque .*PAS une écriture faite par le serveur.*capture\.forbidden ;\n {2}· le fichier de session \(\.doc-kit\/session\.json\) .*doc-kit connect --forget\) ;\n {2}· les captures montrent des données réelles/,
+      );
       assert.match(r.out, /Cible des captures +production — lecture seule/);
       assert.match(r.out, /\? Ouvrir le navigateur maintenant pour vous connecter \? \(O\/n\) › o\n/);
-      assert.match(r.out, /\? Prendre une première capture de test avec --preview, sur la production, en lecture seule \(https:\/\/commandes\.acme\.example\) \? \(O\/n\) › o\n/);
+      assert.match(
+        r.out,
+        /\? Prendre une première capture de test avec --preview, sur la production, en lecture seule \(https:\/\/commandes\.acme\.example\) \? \(O\/n\) › o\n/,
+      );
       assert.deepEqual(calls, ["install", "connect", 'capture {"preview":true,"yes":true}']);
       // Done steps leave the list of the next ones.
-      const next = r.out.split("Étapes suivantes :\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim());
+      const next = r.out
+        .split("Étapes suivantes :\n")[1]
+        .split("\n\n")[0]
+        .split("\n")
+        .map((l) => l.trim());
       assert.deepEqual(next.slice(1), ["doc-kit dev"]);
       const docs = path.join(app, "docs", "manual");
       linkKit(docs);
       const c = await loadConfig(docs);
-      assert.deepEqual([c.app.url, c.capture.mode, c.capture.target, c.capture.readOnly], ["https://commandes.acme.example", "app", "production", true]);
+      assert.deepEqual(
+        [c.app.url, c.capture.mode, c.capture.target, c.capture.readOnly],
+        ["https://commandes.acme.example", "app", "production", true],
+      );
     } finally {
       remove(app);
     }
@@ -446,15 +586,34 @@ describe("capture target (local, demo, production) and the follow-up of init", (
       assert.match(r.out, /\? Open the browser now to sign in\? \(Y\/n\) › n\n/);
       assert.doesNotMatch(r.out, /test screenshot/);
       assert.deepEqual(calls, []);
-      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
-      assert.match(fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"), /target: "local",[\s\S]*readOnly: "auto",/);
+      assert.deepEqual(
+        r.out
+          .split("Next steps:\n")[1]
+          .split("\n\n")[0]
+          .split("\n")
+          .map((l) => l.trim())
+          .slice(1),
+        ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"],
+      );
+      assert.match(
+        fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8"),
+        /target: "local",[\s\S]*readOnly: "auto",/,
+      );
 
       ({ calls, steps } = stubSteps({ connect: 3 }));
       r = await cli(["init", app, "--lang", "en", "--dir", "second"], { input: ["", "", "1", "1", "y", ""], steps });
       assert.equal(r.code, 3, "the follow-up's exit code");
       assert.deepEqual(calls, ["install", "connect"], "no screenshot after a failed sign-in");
       assert.match(r.out, /The project is written: go on with the steps below/);
-      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+      assert.deepEqual(
+        r.out
+          .split("Next steps:\n")[1]
+          .split("\n\n")[0]
+          .split("\n")
+          .map((l) => l.trim())
+          .slice(1),
+        ["doc-kit connect", "doc-kit capture", "doc-kit dev"],
+      );
     } finally {
       remove(app);
     }
@@ -464,7 +623,10 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     const app = nextApp();
     try {
       const { calls, steps } = stubSteps();
-      const r = await cli(["init", app, "--lang", "en", "--auth", "none"], { input: ["", "https://demo.acme.example", "1", "y"], steps });
+      const r = await cli(["init", app, "--lang", "en", "--auth", "none"], {
+        input: ["", "https://demo.acme.example", "1", "y"],
+        steps,
+      });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /Capture target +demo — a demo copy/);
       assert.doesNotMatch(r.out, /Open the browser/);
@@ -491,13 +653,24 @@ describe("capture target (local, demo, production) and the follow-up of init", (
       assert.match(both.err, /--capture none takes none/);
       assert.ok(!fs.existsSync(path.join(app, "docs")), "nothing written");
 
-      const r = await cli(["init", app, "--yes", "--lang", "en", "--target", "production", "--url", "https://orders.acme.example"], { steps, input: ["y", "y", "y"] });
+      const r = await cli(
+        ["init", app, "--yes", "--lang", "en", "--target", "production", "--url", "https://orders.acme.example"],
+        { steps, input: ["y", "y", "y"] },
+      );
       assert.equal(r.code, 0, r.err);
       assert.deepEqual(calls, [], "--yes never runs a follow-up step, even with a terminal");
       assert.doesNotMatch(r.out, /\?/, "no question");
       assert.match(r.out, /Capture target +production — read-only/);
       assert.match(r.out, /⚠ Production, read-only — before the first screenshot:/);
-      assert.deepEqual(r.out.split("Next steps:\n")[1].split("\n\n")[0].split("\n").map((l) => l.trim()).slice(1), ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"]);
+      assert.deepEqual(
+        r.out
+          .split("Next steps:\n")[1]
+          .split("\n\n")[0]
+          .split("\n")
+          .map((l) => l.trim())
+          .slice(1),
+        ["npm install", "doc-kit connect", "doc-kit capture", "doc-kit dev"],
+      );
       const config = fs.readFileSync(path.join(app, "docs", "manual", "doc.config.mjs"), "utf8");
       assert.match(config, /target: "production",[\s\S]*readOnly: true,/);
 
@@ -509,8 +682,10 @@ describe("capture target (local, demo, production) and the follow-up of init", (
   });
 
   test("helpers: loopback addresses, local or demo", () => {
-    for (const u of ["http://localhost:3000", "http://app.localhost", "http://127.0.0.1:4173", "http://[::1]:8080"]) assert.equal(isLoopback(u), true, u);
-    for (const u of ["https://orders.acme.example", "http://10.0.0.5", "not a url"]) assert.equal(isLoopback(u), false, u);
+    for (const u of ["http://localhost:3000", "http://app.localhost", "http://127.0.0.1:4173", "http://[::1]:8080"])
+      assert.equal(isLoopback(u), true, u);
+    for (const u of ["https://orders.acme.example", "http://10.0.0.5", "not a url"])
+      assert.equal(isLoopback(u), false, u);
     assert.equal(localOrDemo("http://localhost:3000"), "local");
     assert.equal(localOrDemo("https://demo.acme.example"), "demo");
   });

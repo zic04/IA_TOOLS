@@ -98,7 +98,7 @@ export function skipToken(text, i) {
 /** Index of the "}" that closes the "{" at `open`, strings, template literals and comments skipped; -1 when none. */
 export function closingBrace(text, open) {
   let depth = 0;
-  for (let i = open; i < text.length; ) {
+  for (let i = open; i < text.length;) {
     const end = skipToken(text, i);
     if (end > i) {
       i = end;
@@ -115,7 +115,7 @@ export function closingBrace(text, open) {
 export function braceDepths(text) {
   const depth = new Int32Array(text.length + 1);
   let d = 0;
-  for (let i = 0; i < text.length; ) {
+  for (let i = 0; i < text.length;) {
     const end = skipToken(text, i);
     if (end > i) {
       depth.fill(d, i, end);

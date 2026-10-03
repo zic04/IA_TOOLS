@@ -58,22 +58,32 @@ export function candidateFeatures(adapters, existingFeatures = []) {
   const groups = new Map();
   for (const a of adapters) {
     if (!a.available) continue;
-    for (const f of a.families) for (const it of f.items) {
-      const key = segmentOf(it.id);
-      const g = groups.get(key) ?? groups.set(key, { routes: new Set(), api: new Set(), keys: new Set() }).get(key);
-      if (isApi(it.id)) g.api.add(it.id);
-      else if (isRoute(it.id)) g.routes.add(it.id);
-      else g.keys.add(it.id);
-    }
+    for (const f of a.families)
+      for (const it of f.items) {
+        const key = segmentOf(it.id);
+        const g = groups.get(key) ?? groups.set(key, { routes: new Set(), api: new Set(), keys: new Set() }).get(key);
+        if (isApi(it.id)) g.api.add(it.id);
+        else if (isRoute(it.id)) g.routes.add(it.id);
+        else g.keys.add(it.id);
+      }
   }
   let n = 0;
   return [...groups.entries()].map(([key, g]) => {
     const routes = [...g.routes].sort();
     const api = [...g.api].sort();
     const keys = [...g.keys].sort();
-    const sheet = existingFeatures.find((f) => [...routes, ...api].some((x) => (f.routes || []).includes(x) || (f.api || []).includes(x)));
+    const sheet = existingFeatures.find((f) =>
+      [...routes, ...api].some((x) => (f.routes || []).includes(x) || (f.api || []).includes(x)),
+    );
     n++;
-    return { id: `F-${String(n).padStart(2, "0")}`, name: humanise(key), routes, api, keys, ...(sheet ? { sheet: sheet.id } : {}) };
+    return {
+      id: `F-${String(n).padStart(2, "0")}`,
+      name: humanise(key),
+      routes,
+      api,
+      keys,
+      ...(sheet ? { sheet: sheet.id } : {}),
+    };
   });
 }
 
@@ -84,14 +94,21 @@ export function candidateFeatures(adapters, existingFeatures = []) {
  * @param {Array<object>} candidates candidateFeatures() of the current inventory
  */
 export function mergeFeatures(existing, candidates) {
-  const overlaps = (e, c) => [...c.routes, ...c.api].some((x) => (e.routes || []).includes(x) || (e.api || []).includes(x));
+  const overlaps = (e, c) =>
+    [...c.routes, ...c.api].some((x) => (e.routes || []).includes(x) || (e.api || []).includes(x));
   const maxN = Math.max(0, ...existing.map((e) => Number(/-(\d+)$/.exec(e.id)?.[1] || 0)));
   let n = maxN;
   const added = [];
   for (const c of candidates) {
     if (existing.some((e) => overlaps(e, c))) continue;
     n++;
-    added.push({ id: `F-${String(n).padStart(2, "0")}`, title: c.name, ...(c.routes.length ? { routes: c.routes } : {}), ...(c.api.length ? { api: c.api } : {}), ...(c.keys.length ? { keys: c.keys } : {}) });
+    added.push({
+      id: `F-${String(n).padStart(2, "0")}`,
+      title: c.name,
+      ...(c.routes.length ? { routes: c.routes } : {}),
+      ...(c.api.length ? { api: c.api } : {}),
+      ...(c.keys.length ? { keys: c.keys } : {}),
+    });
   }
   return [...existing, ...added];
 }
@@ -105,8 +122,17 @@ async function runFeatures({ ctx, values }) {
   const candidates = candidateFeatures(res.adapters, existing);
 
   if (values.write) {
-    if (fs.existsSync(file) && !values.force) throw new KitError(EXIT.CHECK, "inventory.features.written", { file: "features.json" });
-    const result = values.force ? mergeFeatures(existing, candidates) : candidates.map(({ id, name, routes, api, keys }) => ({ id, title: name, ...(routes.length ? { routes } : {}), ...(api.length ? { api } : {}), ...(keys.length ? { keys } : {}) }));
+    if (fs.existsSync(file) && !values.force)
+      throw new KitError(EXIT.CHECK, "inventory.features.written", { file: "features.json" });
+    const result = values.force
+      ? mergeFeatures(existing, candidates)
+      : candidates.map(({ id, name, routes, api, keys }) => ({
+          id,
+          title: name,
+          ...(routes.length ? { routes } : {}),
+          ...(api.length ? { api } : {}),
+          ...(keys.length ? { keys } : {}),
+        }));
     fs.writeFileSync(file, JSON.stringify(result, null, 2) + "\n");
     if (ctx.json) ctx.print(JSON.stringify({ file: "features.json", n: result.length }, null, 2));
     else ctx.print(ctx.t("cli.inventory.features.wrote", { file: "features.json", n: result.length }));
@@ -121,7 +147,9 @@ async function runFeatures({ ctx, values }) {
     if (c.routes.length) ctx.print(`  ${ctx.t("cli.inventory.features.routes", { routes: c.routes.join(", ") })}`);
     if (c.api.length) ctx.print(`  ${ctx.t("cli.inventory.features.api", { routes: c.api.join(", ") })}`);
     if (c.keys.length) ctx.print(`  ${ctx.t("cli.inventory.features.keys", { keys: c.keys.join(", ") })}`);
-    ctx.print(`  ${c.sheet ? ctx.t("cli.inventory.features.sheet", { sheet: c.sheet }) : ctx.t("cli.inventory.features.noSheet")}`);
+    ctx.print(
+      `  ${c.sheet ? ctx.t("cli.inventory.features.sheet", { sheet: c.sheet }) : ctx.t("cli.inventory.features.noSheet")}`,
+    );
   }
   ctx.print(`\n${ctx.t("cli.inventory.features.summary", { n: candidates.length })}`);
   return EXIT.OK;
@@ -142,7 +170,9 @@ export async function run({ ctx, values, positionals }) {
       continue;
     }
     for (const f of a.families) {
-      ctx.print(`\n${ctx.t("cli.inventory.family", { adapter: a.adapter, name: f.name, n: f.total, covered: f.covered })}`);
+      ctx.print(
+        `\n${ctx.t("cli.inventory.family", { adapter: a.adapter, name: f.name, n: f.total, covered: f.covered })}`,
+      );
       for (const it of f.items) ctx.print(`  ${it.covered ? "✔" : "·"} ${it.id}${it.label ? ` — ${it.label}` : ""}`);
     }
   }

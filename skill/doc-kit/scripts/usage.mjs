@@ -99,7 +99,8 @@ addMessages({
     pageAverage: "Jetons moyens par page : {avg} ({n} page(s))",
     costTitle: "Coût :",
     costPrecise: "  {model} : {cost} {currency} (sur {n} jeton(s) scanné(s), précis)",
-    costApprox: "  {model} : {cost} {currency} (sur {n} jeton(s) journalisé(s), approximatif : pas de répartition entrée/sortie)",
+    costApprox:
+      "  {model} : {cost} {currency} (sur {n} jeton(s) journalisé(s), approximatif : pas de répartition entrée/sortie)",
     costNone: "  non estimé : renseignez llm.prices dans doc.config.mjs",
     costNoneModel: "  {model} : {tokens} jeton(s) non estimé(s) (renseignez llm.prices.{model})",
     unpriced: "  {tokens} jeton(s) scanné(s) sans modèle associé ne sont pas tarifés",
@@ -137,7 +138,10 @@ function appendEntry(docDir, entry) {
 const entryTokens = (e) =>
   typeof e.tokens === "number"
     ? e.tokens
-    : (e.input_tokens || 0) + (e.output_tokens || 0) + (e.cache_read_input_tokens || 0) + (e.cache_creation_input_tokens || 0);
+    : (e.input_tokens || 0) +
+      (e.output_tokens || 0) +
+      (e.cache_read_input_tokens || 0) +
+      (e.cache_creation_input_tokens || 0);
 
 /** Sums tokens of entries grouped by key(entry) (entries where key returns "" are left out). */
 function groupTotals(entries, key) {
@@ -159,7 +163,9 @@ function printGroup(label, totals) {
 /** Every agent type's model (agents/<type>.md): available for a future, finer validation of --agent. */
 function knownModels() {
   const models = new Map();
-  if (fs.existsSync(AGENTS_DIR)) for (const f of fs.readdirSync(AGENTS_DIR)) if (f.endsWith(".md")) models.set(f.slice(0, -3), agentModel(f.slice(0, -3)));
+  if (fs.existsSync(AGENTS_DIR))
+    for (const f of fs.readdirSync(AGENTS_DIR))
+      if (f.endsWith(".md")) models.set(f.slice(0, -3), agentModel(f.slice(0, -3)));
   return models;
 }
 
@@ -189,10 +195,19 @@ async function freshEstimate(brief, pages, docDir, config, lang) {
 }
 
 async function cmdLog(o, docDir) {
-  for (const option of ["brief", "agent", "model", "tokens"]) if (!o[option]) throw new ExitError(2, t("missing", { option, action: "log" }), t("usage"));
+  for (const option of ["brief", "agent", "model", "tokens"])
+    if (!o[option]) throw new ExitError(2, t("missing", { option, action: "log" }), t("usage"));
   const tokens = Number(o.tokens);
-  if (!Number.isInteger(tokens) || tokens < 0) throw new ExitError(2, t("badTokens", { value: o.tokens }), t("badTokens_todo"));
-  const entry = { date: new Date().toISOString(), source: "log", brief: o.brief, agent: o.agent, model: o.model, tokens };
+  if (!Number.isInteger(tokens) || tokens < 0)
+    throw new ExitError(2, t("badTokens", { value: o.tokens }), t("badTokens_todo"));
+  const entry = {
+    date: new Date().toISOString(),
+    source: "log",
+    brief: o.brief,
+    agent: o.agent,
+    model: o.model,
+    tokens,
+  };
   if (o.phase) entry.phase = o.phase;
   if (o.tools) entry.tools = Number(o.tools);
   if (o.duration) entry.duration = Number(o.duration);
@@ -207,7 +222,12 @@ async function cmdScan(o, docDir) {
   const folder = path.resolve(o.transcripts);
   if (!fs.existsSync(folder)) throw new ExitError(2, t("transcriptsMissing", { folder }), t("transcriptsMissing_todo"));
   const isDir = fs.statSync(folder).isDirectory();
-  const files = isDir ? fs.readdirSync(folder, { recursive: true }).map(String).filter((f) => f.endsWith(".jsonl")) : [path.basename(folder)];
+  const files = isDir
+    ? fs
+        .readdirSync(folder, { recursive: true })
+        .map(String)
+        .filter((f) => f.endsWith(".jsonl"))
+    : [path.basename(folder)];
   const totals = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   let lines = 0;
   for (const f of files) {
@@ -242,7 +262,15 @@ async function cmdScan(o, docDir) {
     console.log(t("scannedNone", { files: files.length }));
     return 0;
   }
-  appendEntry(docDir, { date: new Date().toISOString(), source: "scan", transcripts: folder, files: files.length, lines, ...totals, tokens });
+  appendEntry(docDir, {
+    date: new Date().toISOString(),
+    source: "scan",
+    transcripts: folder,
+    files: files.length,
+    lines,
+    ...totals,
+    tokens,
+  });
   console.log(t("scanned", { files: files.length, lines, tokens }));
   return 0;
 }
@@ -250,7 +278,13 @@ async function cmdScan(o, docDir) {
 async function cmdReport(o, docDir) {
   const entries = readEntries(docDir);
   if (o.json) {
-    console.log(JSON.stringify({ file: usageFile(docDir), entries: entries.length, total: entries.reduce((a, e) => a + entryTokens(e), 0) }, null, 2));
+    console.log(
+      JSON.stringify(
+        { file: usageFile(docDir), entries: entries.length, total: entries.reduce((a, e) => a + entryTokens(e), 0) },
+        null,
+        2,
+      ),
+    );
     return 0;
   }
   if (!entries.length) {
@@ -259,10 +293,22 @@ async function cmdReport(o, docDir) {
   }
   console.log(t("reportTitle", { n: entries.length }));
   console.log(`  total: ${entries.reduce((a, e) => a + entryTokens(e), 0)} tokens`);
-  printGroup("phase", groupTotals(entries, (e) => e.phase || ""));
-  printGroup("brief", groupTotals(entries, (e) => e.brief || ""));
-  printGroup("agent type", groupTotals(entries, (e) => e.agent || ""));
-  printGroup("model", groupTotals(entries, (e) => e.model || ""));
+  printGroup(
+    "phase",
+    groupTotals(entries, (e) => e.phase || ""),
+  );
+  printGroup(
+    "brief",
+    groupTotals(entries, (e) => e.brief || ""),
+  );
+  printGroup(
+    "agent type",
+    groupTotals(entries, (e) => e.agent || ""),
+  );
+  printGroup(
+    "model",
+    groupTotals(entries, (e) => e.model || ""),
+  );
 
   const pageTotals = new Map();
   for (const e of entries)
@@ -310,7 +356,8 @@ async function cmdReport(o, docDir) {
       if (g.approx) {
         const p = prices[model];
         const blended = p ? ((p.input ?? 0) + (p.output ?? 0)) / 2 : null;
-        if (blended != null) console.log(t("costApprox", { model, cost: ((g.approx / 1e6) * blended).toFixed(4), currency, n: g.approx }));
+        if (blended != null)
+          console.log(t("costApprox", { model, cost: ((g.approx / 1e6) * blended).toFixed(4), currency, n: g.approx }));
         else console.log(t("costNoneModel", { model, tokens: g.approx }));
       }
     }

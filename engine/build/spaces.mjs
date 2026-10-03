@@ -16,10 +16,15 @@ import { KitError, EXIT } from "../project/errors.mjs";
  * The spaces of the standard (standard/structure.md): their texts are the keys ui.spaces.<id>.title, shortTitle,
  * subtitle and for, in the site language; their icon comes from the kit's set. Any other space needs a title.
  */
-export const SPACE_DEFAULTS = Object.freeze({ business: Object.freeze({ icon: "book" }), takeover: Object.freeze({ icon: "code" }) });
+export const SPACE_DEFAULTS = Object.freeze({
+  business: Object.freeze({ icon: "book" }),
+  takeover: Object.freeze({ icon: "code" }),
+});
 
 /** Keys of the i18n fragment of the spaces (i18n/en/spaces.json): embedded only when the site uses them. */
-export const SPACE_TEXT_KEYS = Object.freeze(Object.keys(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "i18n", "en", "spaces.json"), "utf8"))));
+export const SPACE_TEXT_KEYS = Object.freeze(
+  Object.keys(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "i18n", "en", "spaces.json"), "utf8"))),
+);
 
 /** Embedded texts without those of the spaces (a site that uses neither spaces nor counterparts). */
 export function withoutSpaceTexts(texts) {
@@ -44,7 +49,8 @@ export function resolveSpaces({ toc, t, iconKey }) {
   const named = [];
   for (const sec of toc.sections) {
     if (sec.space !== undefined) named.push({ where: sec.id, space: sec.space });
-    for (const g of sec.groups) for (const p of g.pages) if (p.space !== undefined) named.push({ where: p.id, space: p.space });
+    for (const g of sec.groups)
+      for (const p of g.pages) if (p.space !== undefined) named.push({ where: p.id, space: p.space });
   }
   for (const j of toc.journeys || []) if (j.space !== undefined) named.push({ where: j.title, space: j.space });
 
@@ -60,7 +66,8 @@ export function resolveSpaces({ toc, t, iconKey }) {
   }
   const known = ids.join(", ");
   for (const sec of toc.sections) if (sec.space === undefined) problem("space.missing", { section: sec.id, known });
-  for (const x of named) if (!ids.includes(x.space)) problem("space.unknown", { where: x.where, space: x.space, known });
+  for (const x of named)
+    if (!ids.includes(x.space)) problem("space.unknown", { where: x.where, space: x.space, known });
 
   const spaces = [];
   for (const s of declared) {
@@ -74,7 +81,15 @@ export function resolveSpaces({ toc, t, iconKey }) {
       continue;
     }
     const icon = s.icon ?? standard?.icon;
-    spaces.push({ id: s.id, title, shortTitle: text("shortTitle") ?? title, subtitle: text("subtitle") ?? "", ...(icon ? { icon: iconKey(icon) } : {}), for: text("for") ?? "", pages: 0 });
+    spaces.push({
+      id: s.id,
+      title,
+      shortTitle: text("shortTitle") ?? title,
+      subtitle: text("subtitle") ?? "",
+      ...(icon ? { icon: iconKey(icon) } : {}),
+      for: text("for") ?? "",
+      pages: 0,
+    });
   }
   return { spaces, errors };
 }
@@ -104,7 +119,12 @@ export function exportSite({ data, space, used, t }) {
   delete d.meta.screenshots; // recomputed from the kept pages by assemble()
   const keep = new Set(d.ordre.filter((id) => d.pages[id]?.space === space));
   d.sections = d.sections
-    .map((s) => ({ ...s, groupes: s.groupes.map((g) => ({ ...g, pages: g.pages.filter((id) => keep.has(id)) })).filter((g) => g.pages.length) }))
+    .map((s) => ({
+      ...s,
+      groupes: s.groupes
+        .map((g) => ({ ...g, pages: g.pages.filter((id) => keep.has(id)) }))
+        .filter((g) => g.pages.length),
+    }))
     .filter((s) => s.groupes.length);
   const sectionsKept = new Set(d.sections.map((s) => s.id));
   d.pages = Object.fromEntries(Object.entries(d.pages).filter(([id]) => keep.has(id)));
@@ -181,12 +201,16 @@ export function spaceOutput(root, config, space, output) {
 
 /** Ids of the spaces declared by the project's table of contents (read only for that), or null. */
 export function declaredSpaceIds(root, config) {
-  const file = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => path.join(root, config.paths.content, f)).find((f) => fs.existsSync(f));
+  const file = [CURRENT_FILES.toc, LEGACY_FILES.toc]
+    .map((f) => path.join(root, config.paths.content, f))
+    .find((f) => fs.existsSync(f));
   if (!file) return null;
   try {
     const toc = normalizeToc(JSON.parse(fs.readFileSync(file, "utf8"))).value;
     if (!Array.isArray(toc?.spaces)) return null;
-    return [...new Set(toc.spaces.map((s) => (typeof s === "string" ? s : s?.id)).filter((id) => typeof id === "string"))];
+    return [
+      ...new Set(toc.spaces.map((s) => (typeof s === "string" ? s : s?.id)).filter((id) => typeof id === "string")),
+    ];
   } catch {
     return null; // an unreadable table of contents is reported by the build
   }
@@ -201,5 +225,9 @@ export function checkSpaceOption({ ids, space, t }) {
   if (!ids || !ids.length) throw new KitError(EXIT.USAGE, "build.noSpaces", {});
   if (ids.includes(space)) return space;
   const near = closest(String(space), ids);
-  throw new KitError(EXIT.USAGE, "build.spaceUnknown", { space, known: ids.join(", "), closest: near ? t("cli.build.spaceUnknown.closest", { space: near }) : "" });
+  throw new KitError(EXIT.USAGE, "build.spaceUnknown", {
+    space,
+    known: ids.join(", "),
+    closest: near ? t("cli.build.spaceUnknown.closest", { space: near }) : "",
+  });
 }

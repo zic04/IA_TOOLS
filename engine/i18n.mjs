@@ -25,7 +25,12 @@ export function loadDictionary(language) {
   if (!cache.has(language)) {
     const dictionary = JSON.parse(fs.readFileSync(path.join(FOLDER, `${language}.json`), "utf8"));
     const fragments = path.join(FOLDER, language);
-    const files = fs.existsSync(fragments) ? fs.readdirSync(fragments).filter((f) => f.endsWith(".json")).sort() : [];
+    const files = fs.existsSync(fragments)
+      ? fs
+          .readdirSync(fragments)
+          .filter((f) => f.endsWith(".json"))
+          .sort()
+      : [];
     for (const file of files) {
       const fragment = JSON.parse(fs.readFileSync(path.join(fragments, file), "utf8"));
       for (const [key, value] of Object.entries(fragment)) {
@@ -40,7 +45,9 @@ export function loadDictionary(language) {
 
 /** Replaces {name} with vars.name; a missing variable is left as is (visible, hence fixable). */
 export function format(template, vars = {}) {
-  return String(template).replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m));
+  return String(template).replace(/\{(\w+)\}/g, (m, k) =>
+    vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m,
+  );
 }
 
 /** Names of the variables of a text (or of all the forms of a plural), sorted. */
@@ -64,7 +71,8 @@ export function createI18n({ language = "en", overrides = {}, vars: defaults = {
   const rules = new Intl.PluralRules(locale);
   const raw = (key) => (key in keys ? keys[key] : fallback?.[key]);
 
-  const pick = (value, n) => (value && typeof value === "object" ? value[rules.select(Number(n ?? 0))] ?? value.other : value);
+  const pick = (value, n) =>
+    value && typeof value === "object" ? (value[rules.select(Number(n ?? 0))] ?? value.other) : value;
 
   function t(key, vars = {}) {
     const v = raw(key);
@@ -85,7 +93,7 @@ export function createI18n({ language = "en", overrides = {}, vars: defaults = {
       Object.keys(all)
         .filter((k) => prefixes.some((p) => k.startsWith(p)))
         .sort()
-        .map((k) => [k, all[k]])
+        .map((k) => [k, all[k]]),
     );
   }
 

@@ -10,7 +10,16 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { installSkill, skillStatus, agentsStatus, agentFileNames, skillsFolder, agentsFolder, SKILL_SOURCE, FINGERPRINT } from "../../cli/commands/skill.mjs";
+import {
+  installSkill,
+  skillStatus,
+  agentsStatus,
+  agentFileNames,
+  skillsFolder,
+  agentsFolder,
+  SKILL_SOURCE,
+  FINGERPRINT,
+} from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { AGENT_TYPES } from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
@@ -41,7 +50,8 @@ describe("skill install", () => {
       assert.doesNotMatch(skill, /\{\{KIT_PATH\}\}/);
       assert.ok(skill.includes(`\`${kitPath}\``), "absolute kit path, forward slashes");
       assert.doesNotMatch(fs.readFileSync(path.join(dir, "scripts", "common.mjs"), "utf8"), /\{\{KIT_PATH\}\}/);
-      for (const f of fs.readdirSync(path.join(dir, "references"))) assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_PATH\}\}/, f);
+      for (const f of fs.readdirSync(path.join(dir, "references")))
+        assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_PATH\}\}/, f);
       // Brief templates keep their own placeholders.
       assert.match(fs.readFileSync(path.join(dir, "assets", "briefs", "en", "inventory.md"), "utf8"), /\{\{\w+\}\}/);
       // The skill folder itself never receives the agent definitions: they go next to the skills folder.
@@ -61,7 +71,11 @@ describe("skill install", () => {
       for (const name of AGENT_NAMES) {
         const installed = fs.readFileSync(path.join(agents, name), "utf8");
         assert.equal(installed, fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8"), name);
-        assert.match(installed, /^---\nname: doc-kit-\w+\ndescription: .+\nmodel: (haiku|sonnet|opus)\ntools: [\w, ]+\n---\n/, name);
+        assert.match(
+          installed,
+          /^---\nname: doc-kit-\w+\ndescription: .+\nmodel: (haiku|sonnet|opus)\ntools: [\w, ]+\n---\n/,
+          name,
+        );
       }
       assert.equal(agentsStatus({ target: skills }).state, "current");
 
@@ -145,7 +159,11 @@ describe("skill install", () => {
 // The skill's brief.mjs (run as the agents run it: a separate Node process).
 const BRIEF = path.join(SKILL_SOURCE, "scripts", "brief.mjs");
 function brief(args, cwd) {
-  const r = spawnSync(process.execPath, [BRIEF, ...args], { cwd, encoding: "utf8", env: { ...process.env, DOC_KIT_URL: "", DOC_KIT_LANG: "" } });
+  const r = spawnSync(process.execPath, [BRIEF, ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, DOC_KIT_URL: "", DOC_KIT_LANG: "" },
+  });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
 /** An application with a separate front end and its documentation project (<app>/docs/manual). */
@@ -155,9 +173,15 @@ function briefProject(config) {
   fs.mkdirSync(path.join(app, "frontend", "src", "app"), { recursive: true });
   fs.mkdirSync(path.join(app, "api"), { recursive: true });
   fs.mkdirSync(docs, { recursive: true });
-  fs.writeFileSync(path.join(app, "frontend", "package.json"), JSON.stringify({ name: "acme-orders-frontend", version: "1.0.0" }));
+  fs.writeFileSync(
+    path.join(app, "frontend", "package.json"),
+    JSON.stringify({ name: "acme-orders-frontend", version: "1.0.0" }),
+  );
   fs.writeFileSync(path.join(app, "version.txt"), "2.4.0\n");
-  fs.writeFileSync(path.join(docs, "doc.config.mjs"), `export default ${JSON.stringify({ product: { name: "Acme Orders" }, version: { file: "../../version.txt", pattern: "^([\\d.]+)" }, coverage: [{ adapter: "next-app-router", app: "../../frontend/src/app" }], ...config }, null, 2)};\n`);
+  fs.writeFileSync(
+    path.join(docs, "doc.config.mjs"),
+    `export default ${JSON.stringify({ product: { name: "Acme Orders" }, version: { file: "../../version.txt", pattern: "^([\\d.]+)" }, coverage: [{ adapter: "next-app-router", app: "../../frontend/src/app" }], ...config }, null, 2)};\n`,
+  );
   return { app, docs };
 }
 
@@ -175,17 +199,40 @@ describe("brief.mjs", () => {
   });
 
   test("a French project: French messages; appDir from app.dir; the separate front end is reported; no screenshot", () => {
-    const { app, docs } = briefProject({ language: "fr", app: { url: "http://localhost:3000", dir: "../.." }, capture: { mode: "none" } });
+    const { app, docs } = briefProject({
+      language: "fr",
+      app: { url: "http://localhost:3000", dir: "../.." },
+      capture: { mode: "none" },
+    });
     try {
       const vars = brief(["inventory", "--project", docs, "--vars"], app);
       assert.equal(vars.code, 0, vars.err);
       assert.match(vars.out, /^Paramètres de inventory\.md :/);
       assert.ok(vars.out.includes(`appDir                 ${app.length > 87 ? app.slice(0, 87) : app}`), vars.out);
-      assert.match(vars.err, /⚠ la source de couverture \(\.\.\/\.\.\/frontend\/src\/app\) est dans un front-end séparé \(frontend\) : l'inventaire des routes ne voit que le front-end\n {2}→ les briefs pointent vers /);
+      assert.match(
+        vars.err,
+        /⚠ la source de couverture \(\.\.\/\.\.\/frontend\/src\/app\) est dans un front-end séparé \(frontend\) : l'inventaire des routes ne voit que le front-end\n {2}→ les briefs pointent vers /,
+      );
       assert.doesNotMatch(vars.err, /appDir n'est pas configuré/);
-      const r = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=configure/x"], app);
+      const r = brief(
+        [
+          "writing-batch",
+          "--project",
+          docs,
+          "--var",
+          "code=u1",
+          "--var",
+          "pages=use/orders",
+          "--var",
+          "referencePage=configure/x",
+        ],
+        app,
+      );
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt\)\n$/);
+      assert.match(
+        r.out,
+        /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt\)\n$/,
+      );
       const text = fs.readFileSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md"), "utf8");
       assert.match(text, /^agent: doc-kit-writer\n/m);
       assert.match(text, /\*\*AUCUNE CAPTURE DU TOUT\*\* \(`capture\.mode: "none"`/);
@@ -204,8 +251,14 @@ describe("brief.mjs", () => {
     const templates = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "standard", "templates.json"), "utf8"));
     const screenMaxWords = templates.types.screen.maxWords;
     assert.equal(screenMaxWords, 2500, "sanity check: the screen template's bound this brief refers to");
-    const en = fs.readFileSync(path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "en", "writing-batch.md"), "utf8");
-    const fr = fs.readFileSync(path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "fr", "writing-batch.md"), "utf8");
+    const en = fs.readFileSync(
+      path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "en", "writing-batch.md"),
+      "utf8",
+    );
+    const fr = fs.readFileSync(
+      path.join(KIT_ROOT, "skill", "doc-kit", "assets", "briefs", "fr", "writing-batch.md"),
+      "utf8",
+    );
     // No hard-coded range that could contradict a template's own maxWords (the former "2,000 to 3,500 words").
     assert.doesNotMatch(en, /\b2,000 to 3,500 words\b/);
     assert.doesNotMatch(fr, /\b2 000\s*à\s*3 500 mots\b/);
@@ -219,15 +272,24 @@ describe("brief.mjs", () => {
     try {
       let r = brief(["inventory", "--project", docs, "--vars"], app);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.err, /⚠ appDir is not configured \(app\.dir in doc\.config\.mjs\): .* is assumed \(two levels above the documentation folder\)\n {2}→ check it: set app\.dir/);
-      assert.match(r.err, /⚠ the coverage source \(\.\.\/\.\.\/frontend\/src\/app\) is in a separate front end \(frontend\): the inventory of routes only sees the front end/);
+      assert.match(
+        r.err,
+        /⚠ appDir is not configured \(app\.dir in doc\.config\.mjs\): .* is assumed \(two levels above the documentation folder\)\n {2}→ check it: set app\.dir/,
+      );
+      assert.match(
+        r.err,
+        /⚠ the coverage source \(\.\.\/\.\.\/frontend\/src\/app\) is in a separate front end \(frontend\): the inventory of routes only sees the front end/,
+      );
       fs.mkdirSync(path.join(app, ".git"));
       r = brief(["inventory", "--project", docs, "--vars"], app);
       assert.match(r.err, /is assumed \(the folder that holds \.git\)/);
       // Given explicitly: no "not configured" warning; the separate front end is still reported.
       r = brief(["inventory", "--project", docs, "--vars", "--var", `appDir=${app}`], app);
       assert.doesNotMatch(r.err, /not configured/);
-      assert.match(r.err, /⚠ the coverage source \(\.\.\/\.\.\/frontend\/src\/app\) is in a separate front end \(frontend\)/);
+      assert.match(
+        r.err,
+        /⚠ the coverage source \(\.\.\/\.\.\/frontend\/src\/app\) is in a separate front end \(frontend\)/,
+      );
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
     }
@@ -238,23 +300,110 @@ describe("brief.mjs", () => {
 // after their common part — tested here with different `code`/`pages` (and, where relevant, other per-agent
 // variables), so that the agents of one wave can share their prompt cache.
 const TEMPLATE_VARIANTS = {
-  "writing-batch": [["--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=use/orders"], ["--var", "code=u2", "--var", "pages=use/settings", "--var", "referencePage=use/orders"]],
-  inventory: [["--var", "reads=guide-a.md"], ["--var", "reads=guide-b.md"]],
-  "findings-verification": [["--var", "consolidationFile=.doc-kit/consolidation-a.md"], ["--var", "consolidationFile=.doc-kit/consolidation-b.md"]],
-  "page-corrections": [["--var", "labels=messages/a.json"], ["--var", "labels=messages/b.json"]],
-  journey: [["--var", "code=ord", "--var", "pages=take-over/order-journey", "--var", "topic=the journey of an order", "--var", "diagram=t-order-journey"], ["--var", "code=inv", "--var", "pages=take-over/invoice-journey", "--var", "topic=the journey of an invoice", "--var", "diagram=t-invoice-journey"]],
-  troubleshooting: [["--var", "code=tbl", "--var", "pages=take-over/troubleshooting", "--var", "diagram=t-troubleshooting"], ["--var", "code=tb2", "--var", "pages=take-over/troubleshooting-2", "--var", "diagram=t-troubleshooting-2"]],
-  "production-technical": [["--var", "code=t", "--var", "pages=take-over/architecture", "--var", "portalCaptures=.doc-kit/portal-a", "--var", "diagram=t-architecture"], ["--var", "code=t2", "--var", "pages=take-over/resources", "--var", "portalCaptures=.doc-kit/portal-b", "--var", "diagram=t-resources"]],
-  triage: [["--var", "pages=use/orders"], ["--var", "pages=use/settings"]],
-  update: [["--var", "pages=use/orders"], ["--var", "pages=use/settings"]],
-  "functional-spec": [["--var", "code=fs1", "--var", "pages=use/orders"], ["--var", "code=fs2", "--var", "pages=use/invoices"]],
-  "code-health": [["--var", "code=t", "--var", "pages=take-over/api-surface"], ["--var", "code=t2", "--var", "pages=take-over/dependencies"]],
-  "access-ownership": [["--var", "pages=take-over/access-ownership"], ["--var", "pages=take-over/access-ownership-2"]],
-  "system-dossier": [["--var", "code=t3", "--var", "pages=take-over/runbook"], ["--var", "code=t4", "--var", "pages=take-over/data-model"]],
-  "security-review": [["--var", "pages=take-over/security-review"], ["--var", "pages=take-over/security-review-2"]],
-  "maintainability-review": [["--var", "pages=take-over/maintainability-review"], ["--var", "pages=take-over/maintainability-review-2"]],
-  translate: [["--var", "lang=fr", "--var", "pages=use/orders", "--var", "contextFiles=.doc-kit/context/use__orders.fr.md"], ["--var", "lang=fr", "--var", "pages=use/settings", "--var", "contextFiles=.doc-kit/context/use__settings.fr.md"]],
-  "capture-plans": [["--var", "code=cp1", "--var", "pages=/orders"], ["--var", "code=cp2", "--var", "pages=/settings"]],
+  "writing-batch": [
+    ["--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=use/orders"],
+    ["--var", "code=u2", "--var", "pages=use/settings", "--var", "referencePage=use/orders"],
+  ],
+  inventory: [
+    ["--var", "reads=guide-a.md"],
+    ["--var", "reads=guide-b.md"],
+  ],
+  "findings-verification": [
+    ["--var", "consolidationFile=.doc-kit/consolidation-a.md"],
+    ["--var", "consolidationFile=.doc-kit/consolidation-b.md"],
+  ],
+  "page-corrections": [
+    ["--var", "labels=messages/a.json"],
+    ["--var", "labels=messages/b.json"],
+  ],
+  journey: [
+    [
+      "--var",
+      "code=ord",
+      "--var",
+      "pages=take-over/order-journey",
+      "--var",
+      "topic=the journey of an order",
+      "--var",
+      "diagram=t-order-journey",
+    ],
+    [
+      "--var",
+      "code=inv",
+      "--var",
+      "pages=take-over/invoice-journey",
+      "--var",
+      "topic=the journey of an invoice",
+      "--var",
+      "diagram=t-invoice-journey",
+    ],
+  ],
+  troubleshooting: [
+    ["--var", "code=tbl", "--var", "pages=take-over/troubleshooting", "--var", "diagram=t-troubleshooting"],
+    ["--var", "code=tb2", "--var", "pages=take-over/troubleshooting-2", "--var", "diagram=t-troubleshooting-2"],
+  ],
+  "production-technical": [
+    [
+      "--var",
+      "code=t",
+      "--var",
+      "pages=take-over/architecture",
+      "--var",
+      "portalCaptures=.doc-kit/portal-a",
+      "--var",
+      "diagram=t-architecture",
+    ],
+    [
+      "--var",
+      "code=t2",
+      "--var",
+      "pages=take-over/resources",
+      "--var",
+      "portalCaptures=.doc-kit/portal-b",
+      "--var",
+      "diagram=t-resources",
+    ],
+  ],
+  triage: [
+    ["--var", "pages=use/orders"],
+    ["--var", "pages=use/settings"],
+  ],
+  update: [
+    ["--var", "pages=use/orders"],
+    ["--var", "pages=use/settings"],
+  ],
+  "functional-spec": [
+    ["--var", "code=fs1", "--var", "pages=use/orders"],
+    ["--var", "code=fs2", "--var", "pages=use/invoices"],
+  ],
+  "code-health": [
+    ["--var", "code=t", "--var", "pages=take-over/api-surface"],
+    ["--var", "code=t2", "--var", "pages=take-over/dependencies"],
+  ],
+  "access-ownership": [
+    ["--var", "pages=take-over/access-ownership"],
+    ["--var", "pages=take-over/access-ownership-2"],
+  ],
+  "system-dossier": [
+    ["--var", "code=t3", "--var", "pages=take-over/runbook"],
+    ["--var", "code=t4", "--var", "pages=take-over/data-model"],
+  ],
+  "security-review": [
+    ["--var", "pages=take-over/security-review"],
+    ["--var", "pages=take-over/security-review-2"],
+  ],
+  "maintainability-review": [
+    ["--var", "pages=take-over/maintainability-review"],
+    ["--var", "pages=take-over/maintainability-review-2"],
+  ],
+  translate: [
+    ["--var", "lang=fr", "--var", "pages=use/orders", "--var", "contextFiles=.doc-kit/context/use__orders.fr.md"],
+    ["--var", "lang=fr", "--var", "pages=use/settings", "--var", "contextFiles=.doc-kit/context/use__settings.fr.md"],
+  ],
+  "capture-plans": [
+    ["--var", "code=cp1", "--var", "pages=/orders"],
+    ["--var", "code=cp2", "--var", "pages=/settings"],
+  ],
 };
 const AGENT_TYPES_KNOWN = new Set(AGENT_TYPES);
 
@@ -276,7 +425,10 @@ describe("brief templates: agent type and common/variable split", () => {
           }
           const marker = "## Variables";
           const commons = outputs.map((t) => t.slice(0, t.indexOf(marker)));
-          assert.ok(commons[0].length > 0 && outputs.every((t) => t.includes(marker)), `${name} (${lang}) has a Variables section`);
+          assert.ok(
+            commons[0].length > 0 && outputs.every((t) => t.includes(marker)),
+            `${name} (${lang}) has a Variables section`,
+          );
           assert.equal(commons[1], commons[0], `${name} (${lang}): common part differs between two variable sets`);
         } finally {
           fs.rmSync(app, { recursive: true, force: true });
@@ -286,7 +438,18 @@ describe("brief templates: agent type and common/variable split", () => {
   }
 
   test("newer briefs (triage, update, functional-spec, code-health, access-ownership, system-dossier, security-review, maintainability-review): the same placeholders in en and fr", () => {
-    for (const name of ["triage", "update", "functional-spec", "code-health", "access-ownership", "system-dossier", "security-review", "maintainability-review", "translate", "capture-plans"]) {
+    for (const name of [
+      "triage",
+      "update",
+      "functional-spec",
+      "code-health",
+      "access-ownership",
+      "system-dossier",
+      "security-review",
+      "maintainability-review",
+      "translate",
+      "capture-plans",
+    ]) {
       const en = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "en", `${name}.md`), "utf8");
       const fr = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "fr", `${name}.md`), "utf8");
       const vars = (t) => [...new Set([...t.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((m) => m[1]))].sort();
@@ -300,10 +463,41 @@ describe("brief.mjs --estimate", () => {
     const { app, docs } = briefProject({ language: "en" });
     try {
       fs.mkdirSync(path.join(docs, "content", "use"), { recursive: true });
-      fs.writeFileSync(path.join(docs, "content", "toc.json"), JSON.stringify({ sections: [{ id: "use", groups: [{ pages: [{ id: "use/orders", template: "screen" }, { id: "use/brandnew", template: "screen" }] }] }] }));
+      fs.writeFileSync(
+        path.join(docs, "content", "toc.json"),
+        JSON.stringify({
+          sections: [
+            {
+              id: "use",
+              groups: [
+                {
+                  pages: [
+                    { id: "use/orders", template: "screen" },
+                    { id: "use/brandnew", template: "screen" },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      );
       fs.writeFileSync(path.join(docs, "content", "use", "orders.md"), "existing content\n");
 
-      const r = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders, use/brandnew", "--var", "referencePage=use/orders", "--estimate"], app);
+      const r = brief(
+        [
+          "writing-batch",
+          "--project",
+          docs,
+          "--var",
+          "code=u1",
+          "--var",
+          "pages=use/orders, use/brandnew",
+          "--var",
+          "referencePage=use/orders",
+          "--estimate",
+        ],
+        app,
+      );
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /^Estimate for writing-batch — agent doc-kit-writer, model sonnet\n/);
       assert.match(r.out, /^ {2}input: {2}\d+ tokens \(brief \d+ \+ \d+ cited file\(s\) \d+ tokens\)$/m);
@@ -314,8 +508,30 @@ describe("brief.mjs --estimate", () => {
       assert.ok(!fs.existsSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md")));
 
       // With llm.prices set, the same run reports a cost.
-      fs.writeFileSync(path.join(docs, "doc.config.mjs"), fs.readFileSync(path.join(docs, "doc.config.mjs"), "utf8").replace("export default {", 'export default {\n  llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15 } } },'));
-      const r2 = brief(["writing-batch", "--project", docs, "--var", "code=u1", "--var", "pages=use/orders, use/brandnew", "--var", "referencePage=use/orders", "--estimate"], app);
+      fs.writeFileSync(
+        path.join(docs, "doc.config.mjs"),
+        fs
+          .readFileSync(path.join(docs, "doc.config.mjs"), "utf8")
+          .replace(
+            "export default {",
+            'export default {\n  llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15 } } },',
+          ),
+      );
+      const r2 = brief(
+        [
+          "writing-batch",
+          "--project",
+          docs,
+          "--var",
+          "code=u1",
+          "--var",
+          "pages=use/orders, use/brandnew",
+          "--var",
+          "referencePage=use/orders",
+          "--estimate",
+        ],
+        app,
+      );
       assert.equal(r2.code, 0, r2.err);
       assert.match(r2.out, /^ {2}cost: {3}\d+\.\d{4} EUR$/m);
     } finally {
@@ -350,15 +566,50 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
 
   test("accepted with prices per model, currency optional; rejected without output, or with an unknown key", () => {
     const base = { product: { name: "Acme Orders" } };
-    const ok = prepareConfig({ ...base, llm: { currency: "EUR", prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } } }, { env: {} });
-    assert.deepEqual(ok.llm, { currency: "EUR", routing: {}, prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } } });
+    const ok = prepareConfig(
+      {
+        ...base,
+        llm: {
+          currency: "EUR",
+          prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } },
+        },
+      },
+      { env: {} },
+    );
+    assert.deepEqual(ok.llm, {
+      currency: "EUR",
+      routing: {},
+      prices: { sonnet: { input: 3, output: 15, cacheRead: 0.3 }, haiku: { input: 0.25, output: 1.25 } },
+    });
     const noCurrency = prepareConfig({ ...base, llm: { prices: { opus: { input: 15, output: 75 } } } }, { env: {} });
     assert.equal(noCurrency.llm.currency, null, "no default currency");
-    assert.deepEqual(prepareConfig(base, { env: {} }).llm, { currency: null, routing: {}, prices: {} }, "no price by default: prices change and differ by contract");
-    assert.deepEqual(prepareConfig({ ...base, llm: { routing: { translate: "sonnet" } } }, { env: {} }).llm.routing, { translate: "sonnet" });
-    assert.throws(() => prepareConfig({ ...base, llm: { routing: { translate: "" } } }, { env: {} }), /KitError|invalid/i, "an empty model name");
-    assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: 3 } } } }, { env: {} }), /KitError|invalid/i, "output is required");
-    assert.throws(() => prepareConfig({ ...base, llm: { bogus: 1 } }, { env: {} }), /KitError|invalid/i, "no unknown key");
-    assert.throws(() => prepareConfig({ ...base, llm: { prices: { sonnet: { input: -1, output: 1 } } } }, { env: {} }), /KitError|invalid/i, "no negative price");
+    assert.deepEqual(
+      prepareConfig(base, { env: {} }).llm,
+      { currency: null, routing: {}, prices: {} },
+      "no price by default: prices change and differ by contract",
+    );
+    assert.deepEqual(prepareConfig({ ...base, llm: { routing: { translate: "sonnet" } } }, { env: {} }).llm.routing, {
+      translate: "sonnet",
+    });
+    assert.throws(
+      () => prepareConfig({ ...base, llm: { routing: { translate: "" } } }, { env: {} }),
+      /KitError|invalid/i,
+      "an empty model name",
+    );
+    assert.throws(
+      () => prepareConfig({ ...base, llm: { prices: { sonnet: { input: 3 } } } }, { env: {} }),
+      /KitError|invalid/i,
+      "output is required",
+    );
+    assert.throws(
+      () => prepareConfig({ ...base, llm: { bogus: 1 } }, { env: {} }),
+      /KitError|invalid/i,
+      "no unknown key",
+    );
+    assert.throws(
+      () => prepareConfig({ ...base, llm: { prices: { sonnet: { input: -1, output: 1 } } } }, { env: {} }),
+      /KitError|invalid/i,
+      "no negative price",
+    );
   });
 });

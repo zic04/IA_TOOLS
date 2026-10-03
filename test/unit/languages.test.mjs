@@ -38,7 +38,15 @@ import { prepareConfig } from "../../engine/project/load.mjs";
 import { createI18n, loadDictionary, LANGUAGES as KIT_LANGUAGES } from "../../engine/i18n.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { detectSituation, menuFor } from "../../cli/doc-kit.mjs";
-import { KIT_ROOT, LANGUAGES, languagesConfig, buildLanguages, languagesCopy, dataOf, tempDir } from "../tools/helpers.mjs";
+import {
+  KIT_ROOT,
+  LANGUAGES,
+  languagesConfig,
+  buildLanguages,
+  languagesCopy,
+  dataOf,
+  tempDir,
+} from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
@@ -62,11 +70,34 @@ describe("configuration", () => {
       }
     };
     assert.equal(err({ product: { name: "X" }, languages: ["en"] }).details[0].key, "languagesMin");
-    assert.equal(err({ product: { name: "X" }, languages: ["en", "en"] }).details.find((d) => d.key === "languagesDuplicate")?.path, "languages[1]");
-    assert.equal(err({ product: { name: "X" }, languages: ["en", "de"] }).details.find((d) => d.key === "languagesUnsupported")?.path, "languages[1]");
-    assert.equal(err({ product: { name: "X" }, languages: ["fr", "en"], language: "en" }).details.find((d) => d.key === "languagesSource")?.path, "language");
-    assert.equal(err({ product: { name: "X" }, languages: ["en", "fr"], paths: { translations: "content/x" } }).details.find((d) => d.key === "translationsInsideContent")?.path, "paths.translations");
-    assert.equal(err({ product: { name: "X" }, capture: { languages: { de: {} } } }).details.find((d) => d.key === "captureLanguageUnknown")?.path, "capture.languages.de");
+    assert.equal(
+      err({ product: { name: "X" }, languages: ["en", "en"] }).details.find((d) => d.key === "languagesDuplicate")
+        ?.path,
+      "languages[1]",
+    );
+    assert.equal(
+      err({ product: { name: "X" }, languages: ["en", "de"] }).details.find((d) => d.key === "languagesUnsupported")
+        ?.path,
+      "languages[1]",
+    );
+    assert.equal(
+      err({ product: { name: "X" }, languages: ["fr", "en"], language: "en" }).details.find(
+        (d) => d.key === "languagesSource",
+      )?.path,
+      "language",
+    );
+    assert.equal(
+      err({ product: { name: "X" }, languages: ["en", "fr"], paths: { translations: "content/x" } }).details.find(
+        (d) => d.key === "translationsInsideContent",
+      )?.path,
+      "paths.translations",
+    );
+    assert.equal(
+      err({ product: { name: "X" }, capture: { languages: { de: {} } } }).details.find(
+        (d) => d.key === "captureLanguageUnknown",
+      )?.path,
+      "capture.languages.de",
+    );
     // Valid: completeConfig sets `language` to languages[0] before capture.locale is derived.
     const ok = prepareConfig({ product: { name: "X" }, languages: ["fr", "en"] }, { env: {} });
     assert.deepEqual(ok.languages, ["fr", "en"]);
@@ -94,7 +125,10 @@ describe("equivalence: no `languages` declared", () => {
     assert.deepEqual(r.languages, []);
     assert.ok(!r.html.includes('id="donnees-'), "no donnees-<lang> block");
     assert.ok(!/id="img-[^"]+@/.test(r.html), "no @<lang> image id");
-    assert.ok(!Object.keys(r.data.i18n).some((k) => k.startsWith("ui.language.") || k.startsWith("template.")), "no language/template texts embedded");
+    assert.ok(
+      !Object.keys(r.data.i18n).some((k) => k.startsWith("ui.language.") || k.startsWith("template.")),
+      "no language/template texts embedded",
+    );
   });
 });
 
@@ -119,7 +153,10 @@ describe("multilingual build (draft)", () => {
     assert.deepEqual(Object.keys(dataFr).sort(), Object.keys(r.data).sort());
     assert.deepEqual(dataFr.ordre, r.data.ordre);
     assert.deepEqual(Object.keys(dataFr.pages).sort(), Object.keys(r.data.pages).sort());
-    assert.deepEqual(dataFr.sections.map((s) => s.id), r.data.sections.map((s) => s.id));
+    assert.deepEqual(
+      dataFr.sections.map((s) => s.id),
+      r.data.sections.map((s) => s.id),
+    );
     assert.equal(dataFr.meta.language, "fr");
     assert.deepEqual(dataFr.meta.languages, ["en", "fr"]);
     assert.equal(dataFr.sections.find((s) => s.id === "use").titre, "Utiliser Acme Orders");
@@ -131,9 +168,17 @@ describe("multilingual build (draft)", () => {
     const dataFr = dataOf(r.html, "fr");
     assert.equal(dataFr.pages["take-over/orders-api"].fallback, "en");
     assert.equal(dataFr.pages["use/api-limits"].fallback, undefined, "stale is not a fallback");
-    assert.equal(dataFr.pages["take-over/architecture"].fallback, undefined, "unmarked is not a fallback, and not reported by the build");
+    assert.equal(
+      dataFr.pages["take-over/architecture"].fallback,
+      undefined,
+      "unmarked is not a fallback, and not reported by the build",
+    );
     assert.equal(dataFr.meta.homeFallback, undefined, "home.md is translated");
-    assert.equal(dataFr.sections.find((s) => s.id === "take-over").fallback, undefined, "take-over/index.md is translated");
+    assert.equal(
+      dataFr.sections.find((s) => s.id === "take-over").fallback,
+      undefined,
+      "take-over/index.md is translated",
+    );
   });
 
   test("invariant: #donnees-fr minus meta.languages/language equals #donnees of `build --lang fr`; mono output name; no @ variant", async () => {
@@ -148,7 +193,11 @@ describe("multilingual build (draft)", () => {
     assert.ok(!mono.html.includes("donnees-fr"));
     assert.ok(!/id="img-[^"]+@/.test(mono.html), "no @ variant in a mono-language build");
     assert.ok(mono.html.includes('id="img-orders-list"'), "the fr image, embedded as the plain id");
-    assert.deepEqual(mono.languages.map((l) => l.id), ["en", "fr"], "languages summary still returned with --lang");
+    assert.deepEqual(
+      mono.languages.map((l) => l.id),
+      ["en", "fr"],
+      "languages summary still returned with --lang",
+    );
   });
 
   test("images: img-orders-list@fr embedded once, only for the id fr actually uses; settings-profile has no fr variant", async () => {
@@ -224,13 +273,28 @@ describe("exports (ARCHITECTURE.md §6.1a + §6.12)", () => {
 describe("translatedToc", () => {
   test("text fields from the translation, non-text from the source; a partial translation falls back silently", () => {
     const source = sourceToc();
-    const translated = { title: "FR", sections: source.sections.map((s) => ({ id: s.id, title: `${s.title} FR`, groups: s.groups.map((g) => ({ pages: g.pages.map((p) => ({ id: p.id })) })) })) };
+    const translated = {
+      title: "FR",
+      sections: source.sections.map((s) => ({
+        id: s.id,
+        title: `${s.title} FR`,
+        groups: s.groups.map((g) => ({ pages: g.pages.map((p) => ({ id: p.id })) })),
+      })),
+    };
     const { toc, problems } = translatedToc({ source, translated });
     assert.deepEqual(problems, []);
     assert.equal(toc.title, "FR");
     assert.equal(toc.sections[0].title, `${source.sections[0].title} FR`);
-    assert.equal(toc.sections[0].groups[0].pages[0].title, source.sections[0].groups[0].pages[0].title, "untranslated title falls back to the source, no warning");
-    assert.deepEqual(toc.sections[0].groups[0].pages[0].routes, source.sections[0].groups[0].pages[0].routes, "non-text fields come from the source");
+    assert.equal(
+      toc.sections[0].groups[0].pages[0].title,
+      source.sections[0].groups[0].pages[0].title,
+      "untranslated title falls back to the source, no warning",
+    );
+    assert.deepEqual(
+      toc.sections[0].groups[0].pages[0].routes,
+      source.sections[0].groups[0].pages[0].routes,
+      "non-text fields come from the source",
+    );
   });
 
   test("no translated toc.json yet (a translation just started): the source's texts, no problem at all", () => {
@@ -238,7 +302,10 @@ describe("translatedToc", () => {
     const { toc, problems } = translatedToc({ source, translated: null });
     assert.deepEqual(problems, []);
     assert.equal(toc.sections[0].title, source.sections[0].title);
-    assert.deepEqual(toc.sections.map((s) => s.id), source.sections.map((s) => s.id));
+    assert.deepEqual(
+      toc.sections.map((s) => s.id),
+      source.sections.map((s) => s.id),
+    );
   });
 
   test("structure mismatch (missing section): blocking, with the path", () => {
@@ -255,13 +322,24 @@ describe("translatedToc", () => {
     const translated = JSON.parse(JSON.stringify(source));
     translated.sections[0].groups[0].pages[0].routes = ["/changed"];
     const { toc, problems } = translatedToc({ source, translated });
-    assert.deepEqual(toc.sections[0].groups[0].pages[0].routes, source.sections[0].groups[0].pages[0].routes, "source value kept");
+    assert.deepEqual(
+      toc.sections[0].groups[0].pages[0].routes,
+      source.sections[0].groups[0].pages[0].routes,
+      "source value kept",
+    );
     assert.ok(problems.some((p) => p.key === "translation.toc.ignored" && !p.blocking));
   });
 
   test("spaces and journeys merged the same way; omitted `steps`/`suggestions` (no attempt to translate them) is never structural", () => {
     const source = sourceToc();
-    const translated = { sections: source.sections, spaces: ["business", { id: "takeover", subtitle: "FR" }], journeys: [{ title: "FR1", description: "d1" }, { title: "FR2", description: "d2" }] };
+    const translated = {
+      sections: source.sections,
+      spaces: ["business", { id: "takeover", subtitle: "FR" }],
+      journeys: [
+        { title: "FR1", description: "d1" },
+        { title: "FR2", description: "d2" },
+      ],
+    };
     const { toc, problems } = translatedToc({ source, translated });
     assert.equal(toc.spaces[1].subtitle, "FR");
     assert.equal(toc.journeys[0].title, "FR1");
@@ -272,15 +350,22 @@ describe("translatedToc", () => {
 
 describe("translatedGlossary", () => {
   test("term/def/pattern translated, same order; technical always from the source", () => {
-    const source = [{ term: "Order", pattern: "orders?", def: "A customer request", technical: { file: "x.ts", line: 1 } }];
+    const source = [
+      { term: "Order", pattern: "orders?", def: "A customer request", technical: { file: "x.ts", line: 1 } },
+    ];
     const translated = [{ term: "Commande", pattern: "commandes?", def: "Une demande" }];
     const { glossary, problem } = translatedGlossary({ source, translated });
     assert.equal(problem, undefined);
-    assert.deepEqual(glossary, [{ term: "Commande", pattern: "commandes?", def: "Une demande", technical: { file: "x.ts", line: 1 } }]);
+    assert.deepEqual(glossary, [
+      { term: "Commande", pattern: "commandes?", def: "Une demande", technical: { file: "x.ts", line: 1 } },
+    ]);
   });
 
   test("a different count of entries: problem reported, source glossary returned (draft fallback)", () => {
-    const source = [{ term: "A", def: "a" }, { term: "B", def: "b" }];
+    const source = [
+      { term: "A", def: "a" },
+      { term: "B", def: "b" },
+    ];
     const translated = [{ term: "A'", def: "a'" }];
     const { glossary, problem } = translatedGlossary({ source, translated });
     assert.deepEqual(glossary, source);
@@ -340,22 +425,41 @@ describe("small helpers", () => {
 
   test("checkLanguageOption: known language passes, unknown throws build.langUnknown (exit 2)", () => {
     assert.equal(checkLanguageOption({ languages: ["en", "fr"], lang: "fr", t: (k) => k }), "fr");
-    assert.throws(() => checkLanguageOption({ languages: ["en", "fr"], lang: "de", t: (k) => k }), (e) => e.code === 2 && e.key === "build.langUnknown");
-    assert.throws(() => checkLanguageOption({ languages: null, lang: "fr", t: (k) => k }), (e) => e.key === "build.langUnknown");
+    assert.throws(
+      () => checkLanguageOption({ languages: ["en", "fr"], lang: "de", t: (k) => k }),
+      (e) => e.code === 2 && e.key === "build.langUnknown",
+    );
+    assert.throws(
+      () => checkLanguageOption({ languages: null, lang: "fr", t: (k) => k }),
+      (e) => e.key === "build.langUnknown",
+    );
   });
 
   test("checkIdClash: a section id or a page id's first segment equal to a declared language", () => {
-    const toc = { sections: [{ id: "fr", groups: [] }, { id: "use", groups: [{ pages: [{ id: "en/orders" }, { id: "use/orders" }] }] }] };
+    const toc = {
+      sections: [
+        { id: "fr", groups: [] },
+        { id: "use", groups: [{ pages: [{ id: "en/orders" }, { id: "use/orders" }] }] },
+      ],
+    };
     const problems = checkIdClash({ toc, languages: ["en", "fr"] });
     assert.deepEqual(problems.map((p) => p.vars.id).sort(), ["en/orders", "fr"]);
     assert.deepEqual(checkIdClash({ toc, languages: null }), []);
   });
 
   test("mergeLanguageCapture: locale default, cookies concatenated, storage merged, --var still overridable fields untouched otherwise", () => {
-    const capture = { locale: "en-US", cookies: [{ name: "a", value: "1" }], storage: { x: "1" }, languages: { fr: { cookies: [{ name: "b", value: "2" }], storage: { y: "2" } } } };
+    const capture = {
+      locale: "en-US",
+      cookies: [{ name: "a", value: "1" }],
+      storage: { x: "1" },
+      languages: { fr: { cookies: [{ name: "b", value: "2" }], storage: { y: "2" } } },
+    };
     const merged = mergeLanguageCapture(capture, "fr");
     assert.equal(merged.locale, "fr-FR", "defaults to the locale of the language when not given");
-    assert.deepEqual(merged.cookies, [{ name: "a", value: "1" }, { name: "b", value: "2" }]);
+    assert.deepEqual(merged.cookies, [
+      { name: "a", value: "1" },
+      { name: "b", value: "2" },
+    ]);
     assert.deepEqual(merged.storage, { x: "1", y: "2" });
     const withLocale = mergeLanguageCapture({ ...capture, languages: { fr: { locale: "fr-CA" } } }, "fr");
     assert.equal(withLocale.locale, "fr-CA");
@@ -377,16 +481,35 @@ describe("small helpers", () => {
 describe("anchors (engine/translate/anchors.mjs)", () => {
   const h = (id) => ({ id });
   test("mapAnchor: already valid, mapped by position, unknown to either, different counts", () => {
-    assert.equal(mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "y" }), "y", "already a valid target heading: left as is");
-    assert.equal(mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "b" }), "y", "mapped by position");
-    assert.equal(mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "z" }), null, "unknown to both");
-    assert.equal(mapAnchor({ sourceToc: [h("a"), h("b"), h("c")], targetToc: [h("x"), h("y")], anchor: "c" }), null, "different heading counts");
+    assert.equal(
+      mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "y" }),
+      "y",
+      "already a valid target heading: left as is",
+    );
+    assert.equal(
+      mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "b" }),
+      "y",
+      "mapped by position",
+    );
+    assert.equal(
+      mapAnchor({ sourceToc: [h("a"), h("b")], targetToc: [h("x"), h("y")], anchor: "z" }),
+      null,
+      "unknown to both",
+    );
+    assert.equal(
+      mapAnchor({ sourceToc: [h("a"), h("b"), h("c")], targetToc: [h("x"), h("y")], anchor: "c" }),
+      null,
+      "different heading counts",
+    );
   });
 
   test("fixAnchors on the fixture's use/orders.md (fr): 1 changed, 0 unmapped; idempotent", () => {
     const text = fs.readFileSync(path.join(LANGUAGES, "translations", "fr", "use", "orders.md"), "utf8");
     const outlines = {
-      "use/settings": { source: [h("what-it-is-for"), h("the-screen"), h("step-by-step")], target: [h("son-role"), h("l-ecran"), h("etape-par-etape")] },
+      "use/settings": {
+        source: [h("what-it-is-for"), h("the-screen"), h("step-by-step")],
+        target: [h("son-role"), h("l-ecran"), h("etape-par-etape")],
+      },
       "use/api-limits": { source: [h("quotas"), h("timeouts")], target: [h("quotas"), h("delais")] },
     };
     const tocs = (id) => outlines[id] || { source: null, target: null };
@@ -402,19 +525,28 @@ describe("anchors (engine/translate/anchors.mjs)", () => {
 
   test("fixAnchors reasons: missing (no target toc), count (different lengths), unknown (neither toc has it)", () => {
     const md = "[a](#/p1~x) [b](#/p2~x) [c](#/p3~x)";
-    const tocs = (id) => ({ p1: { source: [h("x")], target: null }, p2: { source: [h("x"), h("y")], target: [h("z")] }, p3: { source: [h("other")], target: [h("other2")] } })[id];
+    const tocs = (id) =>
+      ({
+        p1: { source: [h("x")], target: null },
+        p2: { source: [h("x"), h("y")], target: [h("z")] },
+        p3: { source: [h("other")], target: [h("other2")] },
+      })[id];
     const { changed, unmapped } = fixAnchors({ markdown: md, tocs });
     assert.deepEqual(changed, []);
     assert.deepEqual(unmapped.map((u) => u.reason).sort(), ["count", "missing", "unknown"]);
   });
 
-  test("fixAnchors also rewrites raw href=\"#/x~y\" HTML links, with a function replacer (never a literal $-sensitive string)", () => {
-    const md = 'before <a href="#/use/settings~what-it-is-for">lien</a> after, with a dollar sign $& in the anchor text itself (untouched)';
+  test('fixAnchors also rewrites raw href="#/x~y" HTML links, with a function replacer (never a literal $-sensitive string)', () => {
+    const md =
+      'before <a href="#/use/settings~what-it-is-for">lien</a> after, with a dollar sign $& in the anchor text itself (untouched)';
     const tocs = () => ({ source: [h("what-it-is-for")], target: [h("son-role")] });
     const { text, changed } = fixAnchors({ markdown: md, tocs });
     assert.equal(changed.length, 1);
     assert.ok(text.includes('href="#/use/settings~son-role"'));
-    assert.ok(text.includes("dollar sign $& in the anchor text itself"), "unrelated $-sequences in the text are never touched");
+    assert.ok(
+      text.includes("dollar sign $& in the anchor text itself"),
+      "unrelated $-sequences in the text are never touched",
+    );
   });
 });
 
@@ -435,13 +567,21 @@ describe("engine/translate/status.mjs", () => {
     const toc = sourceToc();
     const root = LANGUAGES;
     const content = "content";
-    assert.deepEqual(resolveItems({ toc, root, content, items: ["use/orders"] }), [{ file: "use/orders.md", page: "use/orders" }]);
+    assert.deepEqual(resolveItems({ toc, root, content, items: ["use/orders"] }), [
+      { file: "use/orders.md", page: "use/orders" },
+    ]);
     assert.deepEqual(resolveItems({ toc, root, content, items: ["home.md"] }), [{ file: "home.md" }]);
-    assert.throws(() => resolveItems({ toc, root, content, items: ["nope"] }), (e) => e.code === 2 && e.key === "translate.unknownItem");
+    assert.throws(
+      () => resolveItems({ toc, root, content, items: ["nope"] }),
+      (e) => e.code === 2 && e.key === "translate.unknownItem",
+    );
   });
 
   test("a section introduction without a source file (§6.12/§6.1, the build's own introSourceMissing): never translatable — translatableFiles excludes it, resolveItems refuses to mark it, statusOf/languageCounts never count it as missing", async () => {
-    const toc = { ...sourceToc(), sections: [...sourceToc().sections, { id: "no-intro", title: "No intro", groups: [] }] };
+    const toc = {
+      ...sourceToc(),
+      sections: [...sourceToc().sections, { id: "no-intro", title: "No intro", groups: [] }],
+    };
     const root = LANGUAGES;
     const content = "content";
     assert.ok(!fs.existsSync(path.join(root, content, "no-intro", "index.md")), "sanity check: truly no source file");
@@ -449,7 +589,10 @@ describe("engine/translate/status.mjs", () => {
     const files = translatableFiles({ toc, root, content }).map((f) => f.file);
     assert.ok(!files.includes("no-intro/index.md"));
 
-    assert.throws(() => resolveItems({ toc, root, content, items: ["no-intro/index.md"] }), (e) => e.code === 2 && e.key === "translate.unknownItem");
+    assert.throws(
+      () => resolveItems({ toc, root, content, items: ["no-intro/index.md"] }),
+      (e) => e.code === 2 && e.key === "translate.unknownItem",
+    );
 
     const config = await languagesConfig();
     const status = statusOf({ root, config, toc, lang: "fr" });
@@ -457,7 +600,11 @@ describe("engine/translate/status.mjs", () => {
 
     const counts = languageCounts({ root, config, toc, lang: "fr" });
     const withoutExtraSection = languageCounts({ root, config, toc: sourceToc(), lang: "fr" });
-    assert.deepEqual(counts, withoutExtraSection, "the sourceless section changes nothing to the counts doctor and sync report on");
+    assert.deepEqual(
+      counts,
+      withoutExtraSection,
+      "the sourceless section changes nothing to the counts doctor and sync report on",
+    );
   });
 
   test("markFiles: writes .sources.json for the given items; --all; a missing translation file is reported, nothing written for it", async () => {
@@ -465,11 +612,20 @@ describe("engine/translate/status.mjs", () => {
     try {
       const config = await languagesConfig();
       const toc = JSON.parse(fs.readFileSync(path.join(dir, "content", "toc.json"), "utf8"));
-      const { written, missing } = markFiles({ root: dir, config, toc, lang: "fr", items: [{ file: "use/api-limits.md" }, { file: "take-over/orders-api.md" }] });
+      const { written, missing } = markFiles({
+        root: dir,
+        config,
+        toc,
+        lang: "fr",
+        items: [{ file: "use/api-limits.md" }, { file: "take-over/orders-api.md" }],
+      });
       assert.deepEqual(written, ["use/api-limits.md"]);
       assert.deepEqual(missing, ["take-over/orders-api.md"]);
       const sources = readSources(dir, "translations", "fr");
-      assert.equal(sources["use/api-limits.md"], hashText(fs.readFileSync(path.join(dir, "content", "use", "api-limits.md"), "utf8")));
+      assert.equal(
+        sources["use/api-limits.md"],
+        hashText(fs.readFileSync(path.join(dir, "content", "use", "api-limits.md"), "utf8")),
+      );
       const all = markFiles({ root: dir, config, toc, lang: "fr", all: true });
       assert.ok(all.written.includes("take-over/architecture.md"), "the unmarked file gets marked by --all");
       assert.ok(!all.written.includes("take-over/orders-api.md"), "still missing, never marked");
@@ -552,19 +708,41 @@ describe("context --translate", () => {
     const found = findSourceCommit({ git, path: "use/orders.md", recorded: hashText("old text"), hashText, limit: 50 });
     assert.equal(found, "c1");
     assert.equal(findSourceCommit({ git: createGit(() => null, "/docs"), path: "x", recorded: "abc", hashText }), null);
-    assert.equal(findSourceCommit({ git, path: "use/orders.md", recorded: null, hashText }), null, "no recorded fingerprint: no diff attempted");
+    assert.equal(
+      findSourceCommit({ git, path: "use/orders.md", recorded: null, hashText }),
+      null,
+      "no recorded fingerprint: no diff attempted",
+    );
   });
 
   test("buildTranslateContext: page, glossary table, source, previous translation, diff; budget cuts diff first then previous", () => {
     const page = { title: "Orders", summary: "Filters, order list", template: null, file: "use/orders.md" };
     const glossary = [{ term: "Order", pattern: "orders?", def: "def" }];
     const glossaryL = [{ term: "Commande" }];
-    const base = { page, pageL: null, pageId: "use/orders", lang: "fr", sourceFile: "content/use/orders.md", targetFile: "translations/fr/use/orders.md", state: "current", sourceText: "source text", previousText: "previous text", glossary, glossaryL, templates: null, diff: "+added", t: (k, v) => (v ? `${k}(${JSON.stringify(v)})` : k) };
+    const base = {
+      page,
+      pageL: null,
+      pageId: "use/orders",
+      lang: "fr",
+      sourceFile: "content/use/orders.md",
+      targetFile: "translations/fr/use/orders.md",
+      state: "current",
+      sourceText: "source text",
+      previousText: "previous text",
+      glossary,
+      glossaryL,
+      templates: null,
+      diff: "+added",
+      t: (k, v) => (v ? `${k}(${JSON.stringify(v)})` : k),
+    };
     const full = buildTranslateContext(base);
     assert.ok(full.text.includes("source text") && full.text.includes("previous text") && full.text.includes("+added"));
     assert.deepEqual(full.cut, []);
     const tiny = buildTranslateContext({ ...base, budget: 1 });
-    assert.deepEqual(tiny.cut.map((c) => c.kind), ["diff", "previous"]);
+    assert.deepEqual(
+      tiny.cut.map((c) => c.kind),
+      ["diff", "previous"],
+    );
     assert.ok(!tiny.text.includes("+added") && !tiny.text.includes("previous text"));
     assert.ok(tiny.text.includes("source text"), "the source is never cut");
   });
@@ -605,7 +783,8 @@ describe("capture --lang", () => {
 
 describe("check images (language folders)", () => {
   test("embeddedLanguageCaptures / embeddedCaptures: source ids exclude @lang variants", () => {
-    const html = '<script type="text/plain" id="img-orders-list">data:x</script><script type="text/plain" id="img-orders-list@fr">data:y</script>';
+    const html =
+      '<script type="text/plain" id="img-orders-list">data:x</script><script type="text/plain" id="img-orders-list@fr">data:y</script>';
     assert.deepEqual(embeddedCaptures(html), new Set(["orders-list"]));
     assert.deepEqual(embeddedLanguageCaptures(html, "fr"), new Set(["orders-list"]));
   });
@@ -618,9 +797,14 @@ describe("check images (language folders)", () => {
       const config = await languagesConfig();
       const r = build({ project: { root: dir }, config, options: { draft: true } });
       const check = checkImages({ root: dir, config, html: r.html, warnings: r.warnings, version: "1.4.0" });
-      const orphan = check.errors.find((e) => e.key === "check.images.orphan" && e.vars.file === "images/fr/orphan.webp");
+      const orphan = check.errors.find(
+        (e) => e.key === "check.images.orphan" && e.vars.file === "images/fr/orphan.webp",
+      );
       assert.ok(orphan, "orphan.webp reported with its full path");
-      assert.ok(!check.errors.some((e) => e.key === "check.images.orphan" && e.vars.file === "images/fr/orders-list.webp"), "the valid fr variant is not an orphan");
+      assert.ok(
+        !check.errors.some((e) => e.key === "check.images.orphan" && e.vars.file === "images/fr/orders-list.webp"),
+        "the valid fr variant is not an orphan",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -644,8 +828,24 @@ describe("sync report (translations category)", () => {
   test("report.translations lists the stale and missing files; the summary line and hint; never without `languages`", async () => {
     const config = await languagesConfig();
     const toc = sourceToc();
-    const report = await compareWithReference({ root: LANGUAGES, config, toc, reference: null, since: null, git: null, inventory: { adapters: [] }, plans: [], appDir: null, version: "1.0.0", commit: null, factsDir: config.paths.facts });
-    assert.deepEqual(report.translations, [{ lang: "fr", file: "use/api-limits.md", state: "stale" }, { lang: "fr", file: "take-over/orders-api.md", state: "missing" }]);
+    const report = await compareWithReference({
+      root: LANGUAGES,
+      config,
+      toc,
+      reference: null,
+      since: null,
+      git: null,
+      inventory: { adapters: [] },
+      plans: [],
+      appDir: null,
+      version: "1.0.0",
+      commit: null,
+      factsDir: config.paths.facts,
+    });
+    assert.deepEqual(report.translations, [
+      { lang: "fr", file: "use/api-limits.md", state: "stale" },
+      { lang: "fr", file: "take-over/orders-api.md", state: "missing" },
+    ]);
     const md = renderReport(report, createI18n({ language: "en" }).t);
     assert.match(md, /2 translations to update/);
     assert.match(md, /translate status/);
@@ -655,7 +855,20 @@ describe("sync report (translations category)", () => {
     const { SPACES, spacesConfig } = await import("../tools/helpers.mjs");
     const config = await spacesConfig();
     const toc = JSON.parse(fs.readFileSync(path.join(SPACES, "content", "toc.json"), "utf8"));
-    const report = await compareWithReference({ root: SPACES, config, toc, reference: null, since: null, git: null, inventory: { adapters: [] }, plans: [], appDir: null, version: "1.0.0", commit: null, factsDir: config.paths.facts });
+    const report = await compareWithReference({
+      root: SPACES,
+      config,
+      toc,
+      reference: null,
+      since: null,
+      git: null,
+      inventory: { adapters: [] },
+      plans: [],
+      appDir: null,
+      version: "1.0.0",
+      commit: null,
+      factsDir: config.paths.facts,
+    });
     assert.equal(report.translations, undefined);
   });
 });
@@ -686,7 +899,19 @@ describe("CLI init --languages", () => {
   test("--lang fr --languages en,fr -> init.languagesLang (2); --languages en alone -> init.languagesInvalid (2)", async () => {
     const appDir = app();
     try {
-      const mismatch = await cli(["init", appDir, "--yes", "--lang", "fr", "--languages", "en,fr", "--capture", "none", "--auth", "none"]);
+      const mismatch = await cli([
+        "init",
+        appDir,
+        "--yes",
+        "--lang",
+        "fr",
+        "--languages",
+        "en,fr",
+        "--capture",
+        "none",
+        "--auth",
+        "none",
+      ]);
       assert.equal(mismatch.code, 2);
       const tooFew = await cli(["init", appDir, "--yes", "--languages", "en", "--capture", "none", "--auth", "none"]);
       assert.equal(tooFew.code, 2);
@@ -756,7 +981,11 @@ describe("i18n: languages.json fragment", () => {
     const en = loadDictionary("en");
     const fr = loadDictionary("fr");
     for (const lang of KIT_LANGUAGES) {
-      assert.equal(en[`ui.language.${lang}`], fr[`ui.language.${lang}`], `ui.language.${lang} must read the same in both dictionaries (an autonym)`);
+      assert.equal(
+        en[`ui.language.${lang}`],
+        fr[`ui.language.${lang}`],
+        `ui.language.${lang} must read the same in both dictionaries (an autonym)`,
+      );
     }
   });
 

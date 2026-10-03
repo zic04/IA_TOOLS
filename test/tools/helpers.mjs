@@ -47,7 +47,14 @@ export async function spacesConfig(modify = (c) => c) {
 }
 
 /** Builds the spaces project in memory; `root`: a copy of it (spacesCopy). */
-export async function buildSpaces({ language = "en", date = "2026-01-01", draft = false, modify, root = SPACES, options = {} } = {}) {
+export async function buildSpaces({
+  language = "en",
+  date = "2026-01-01",
+  draft = false,
+  modify,
+  root = SPACES,
+  options = {},
+} = {}) {
   const config = await spacesConfig((c) => {
     c.language = language;
     return modify ? modify(c) : c;
@@ -78,7 +85,13 @@ export async function languagesConfig(modify = (c) => c) {
 }
 
 /** Builds the languages project in memory; `root`: a copy of it (languagesCopy). */
-export async function buildLanguages({ date = "2026-01-01", draft = false, modify, root = LANGUAGES, options = {} } = {}) {
+export async function buildLanguages({
+  date = "2026-01-01",
+  draft = false,
+  modify,
+  root = LANGUAGES,
+  options = {},
+} = {}) {
   const config = await languagesConfig(modify);
   return build({ project: { root }, config, options: { date, draft, ...options } });
 }
@@ -110,7 +123,14 @@ export async function businessConfig(modify = (c) => c) {
 }
 
 /** Builds the business project in memory; `root`: a copy of it (businessCopy). */
-export async function buildBusiness({ language = "en", date = "2026-01-01", draft = false, modify, root = BUSINESS, options = {} } = {}) {
+export async function buildBusiness({
+  language = "en",
+  date = "2026-01-01",
+  draft = false,
+  modify,
+  root = BUSINESS,
+  options = {},
+} = {}) {
   const config = await businessConfig((c) => {
     c.language = language;
     return modify ? modify(c) : c;

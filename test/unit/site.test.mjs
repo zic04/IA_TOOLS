@@ -15,11 +15,15 @@ import { KIT_ROOT, DEMO } from "../tools/helpers.mjs";
 const read = (p) => fs.readFileSync(path.join(KIT_ROOT, p), "utf8");
 const css = read("engine/site/style.css");
 const declarations = (source) =>
-  [...source.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([\w-]+)\s*:\s*([^;{}]+);/g)].map((m) => ({ property: m[1], value: m[2].trim() }));
+  [...source.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([\w-]+)\s*:\s*([^;{}]+);/g)].map((m) => ({
+    property: m[1],
+    value: m[2].trim(),
+  }));
 
 describe("style.css", () => {
   test("no literal colour: only var(--token) and color-mix()", () => {
-    const named = /\b(white|black|red|green|blue|gray|grey|silver|yellow|orange|purple|navy|teal|maroon|olive|lime|aqua|fuchsia)\b/i;
+    const named =
+      /\b(white|black|red|green|blue|gray|grey|silver|yellow|orange|purple|navy|teal|maroon|olive|lime|aqua|fuchsia)\b/i;
     for (const { property, value } of declarations(css)) {
       const v = value.replace(/var\(--[\w-]+\)/g, "");
       assert.doesNotMatch(v, /#[0-9a-f]{3,8}\b/i, `${property}: ${value}`);
@@ -32,11 +36,20 @@ describe("style.css", () => {
     const known = new Set(tokenNames());
     const local = new Set([...css.matchAll(/--([\w-]+)\s*:/g)].map((m) => m[1]));
     local.add("pos"); // set at runtime by app.js (before/after handle)
-    for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/var\(--([\w-]+)/g)) assert.ok(known.has(m[1]) || local.has(m[1]), `unknown token: --${m[1]}`);
+    for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/var\(--([\w-]+)/g))
+      assert.ok(known.has(m[1]) || local.has(m[1]), `unknown token: --${m[1]}`);
   });
 
   test("English diagram classes and their legacy names are styled together", () => {
-    for (const [en, fr] of [["d-box", "s-boite"], ["d-brand", "s-marque"], ["d-line", "s-trait"], ["d-arrow-brand", "s-fleche-marque"], ["d-white", "s-blanc"], ["d-solid", "s-plein"], ["d-chrome", "s-navy"]])
+    for (const [en, fr] of [
+      ["d-box", "s-boite"],
+      ["d-brand", "s-marque"],
+      ["d-line", "s-trait"],
+      ["d-arrow-brand", "s-fleche-marque"],
+      ["d-white", "s-blanc"],
+      ["d-solid", "s-plein"],
+      ["d-chrome", "s-navy"],
+    ])
       assert.match(css, new RegExp(`\\.${en},\\n\\.${fr} \\{`), en);
   });
 });
@@ -48,14 +61,23 @@ describe("app.js and template.html", () => {
       .replace(/^\s*\/\/.*$/gm, "");
     assert.doesNotMatch(code, /[À-ÿŒœ]/, "accented letters");
     // Text between tags inside template literals: only ${…} expressions or punctuation.
-    for (const m of code.matchAll(/(?:<[a-z][^<>]*>|<\/[a-z]+>)([^<>`$"'()]*?[A-Za-z]{2,}[^<>`$"'()]*?)</g)) assert.fail(`hard-coded text: «${m[1].trim()}»`);
-    for (const m of code.matchAll(/\b(title|aria-label|placeholder)="([^"$]+)"/g)) assert.fail(`hard-coded attribute: ${m[0]}`);
+    for (const m of code.matchAll(/(?:<[a-z][^<>]*>|<\/[a-z]+>)([^<>`$"'()]*?[A-Za-z]{2,}[^<>`$"'()]*?)</g))
+      assert.fail(`hard-coded text: «${m[1].trim()}»`);
+    for (const m of code.matchAll(/\b(title|aria-label|placeholder)="([^"$]+)"/g))
+      assert.fail(`hard-coded attribute: ${m[0]}`);
     assert.doesNotMatch(code, /confirm\("/);
   });
 
   test("template.html: no visible text outside {{t:…}} markers", () => {
-    const html = read("engine/site/template.html").replace(/<script>[\s\S]*?<\/script>/, "").replace(/<style>[\s\S]*?<\/style>/, "");
-    for (const m of html.matchAll(/>([^<>]+)</g)) assert.match(m[1].trim(), /^(|\{\{[^}]+\}\}(\s*\{\{[^}]+\}\})*|[↑↓]|v\{\{VERSION\}\})$/, `text: «${m[1].trim()}»`);
+    const html = read("engine/site/template.html")
+      .replace(/<script>[\s\S]*?<\/script>/, "")
+      .replace(/<style>[\s\S]*?<\/style>/, "");
+    for (const m of html.matchAll(/>([^<>]+)</g))
+      assert.match(
+        m[1].trim(),
+        /^(|\{\{[^}]+\}\}(\s*\{\{[^}]+\}\})*|[↑↓]|v\{\{VERSION\}\})$/,
+        `text: «${m[1].trim()}»`,
+      );
     // The lookbehind excludes data-t-aria-label / data-t-title / data-t-placeholder (ARCHITECTURE.md §6.12):
     // those carry a plain template.* key (re-applied at runtime by applyTemplateTexts()), not a {{t:…}} marker.
     for (const m of html.matchAll(/(?<![\w-])(title|aria-label|placeholder|content)="([^"]*)"/g))
@@ -73,7 +95,10 @@ describe("app.js and template.html", () => {
       themeKey: "key",
     });
     assert.equal(html, '<p>{{APP}}</p>«template.menu»[menu]<script>{"x":"\\u003c/script>{{TITLE}}"}</script>k="key"');
-    assert.throws(() => assemble({ template: "{{NOPE}}", app: "", markers: {}, t: String, icon: String, data: {}, themeKey: "k" }), /NOPE/);
+    assert.throws(
+      () => assemble({ template: "{{NOPE}}", app: "", markers: {}, t: String, icon: String, data: {}, themeKey: "k" }),
+      /NOPE/,
+    );
   });
 });
 
@@ -84,7 +109,10 @@ describe("theme", () => {
     assert.match(sheet, /--brand: #123456;/);
     assert.match(sheet, /html\[data-theme="dark"\] \{\n {2}color-scheme: dark;[\s\S]*--brand: #abcdef;/);
     assert.equal(themeTokens({ colors: { brand: "#123456" } }, "dark").brand, loadTokens().dark.brand);
-    assert.deepEqual(checkOverrides({ colors: { brand: "#000000", nope: "#000000" } }).map((e) => e.path), ["theme.colors.nope"]);
+    assert.deepEqual(
+      checkOverrides({ colors: { brand: "#000000", nope: "#000000" } }).map((e) => e.path),
+      ["theme.colors.nope"],
+    );
   });
 
   test("the default palette is neutral and passes every WCAG pair, in both themes", () => {
@@ -100,16 +128,23 @@ describe("theme", () => {
     assert.match(rule, /background: var\(--chrome-2\)/);
     assert.match(rule, /color: var\(--chrome-text\)/);
     for (const mode of ["light", "dark"]) {
-      const pair = checkContrasts().find((r) => r.mode === mode && r.text === "chrome-text" && r.background === "chrome-2");
+      const pair = checkContrasts().find(
+        (r) => r.mode === mode && r.text === "chrome-text" && r.background === "chrome-2",
+      );
       assert.ok(pair && pair.ratio >= 4.5, `${mode}: ${pair?.ratio}`);
     }
   });
 
   test("logo: sanitised, inlined without xmlns, favicon in the brand colour; unsafe logos rejected", () => {
-    const ok = sanitizeLogo('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
+    const ok = sanitizeLogo(
+      '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>',
+    );
     assert.equal(ok.ok, true);
     assert.equal(ok.inline, '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
-    assert.match(decodeURIComponent(ok.favicon("#2563eb")), /^data:image\/svg\+xml,<svg fill="#2563eb" xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 24 24">/);
+    assert.match(
+      decodeURIComponent(ok.favicon("#2563eb")),
+      /^data:image\/svg\+xml,<svg fill="#2563eb" xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 24 24">/,
+    );
     const reasons = [
       ["<div/>", "notSvg"],
       ['<svg viewBox="0 0 1 1"><script>x()</script></svg>', "script"],
@@ -143,27 +178,53 @@ describe("product neutrality", () => {
   const terms = [
     ...(process.env.DOC_KIT_FORBIDDEN_TERMS || "").split("|"),
     ...(fs.existsSync(termsFile) ? fs.readFileSync(termsFile, "utf8").split(/\r?\n/) : []),
-  ].map((t) => t.trim()).filter((t) => t && !t.startsWith("#"));
-  test("no customer name, internal URL or brand colour of a real project in the kit", { skip: terms.length === 0 && "no private term list (test/.forbidden-terms)" }, () => {
-    const forbidden = new RegExp(terms.join("|"), "i");
-    const skip = new Set(["node_modules", ".git"]);
-    const walk = (dir) =>
-      fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
-        if (skip.has(d.name)) return [];
-        const p = path.join(dir, d.name);
-        return d.isDirectory() ? walk(p) : /\.(mjs|js|json|css|html|md|svg)$/.test(d.name) ? [p] : [];
-      });
-    const own = ["cli", "engine", "i18n", "schemas", "test", "examples", "standard", "templates", "skill", "docs", "ci"]
-      .filter((d) => fs.existsSync(path.join(KIT_ROOT, d)))
-      .flatMap((d) => walk(path.join(KIT_ROOT, d)));
-    for (const f of ["README.md", "README.fr.md", "ARCHITECTURE.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "package.json"]) {
-      if (fs.existsSync(path.join(KIT_ROOT, f))) own.push(path.join(KIT_ROOT, f));
-    }
-    assert.ok(own.length > 30);
-    for (const f of own) {
-      if (f.includes(`${path.sep}__snapshots__${path.sep}`) || f === fileURLToPath(import.meta.url)) continue;
-      const m = forbidden.exec(fs.readFileSync(f, "utf8"));
-      assert.equal(m, null, `${path.relative(KIT_ROOT, f)}: ${m && m[0]}`);
-    }
-  });
+  ]
+    .map((t) => t.trim())
+    .filter((t) => t && !t.startsWith("#"));
+  test(
+    "no customer name, internal URL or brand colour of a real project in the kit",
+    { skip: terms.length === 0 && "no private term list (test/.forbidden-terms)" },
+    () => {
+      const forbidden = new RegExp(terms.join("|"), "i");
+      const skip = new Set(["node_modules", ".git"]);
+      const walk = (dir) =>
+        fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+          if (skip.has(d.name)) return [];
+          const p = path.join(dir, d.name);
+          return d.isDirectory() ? walk(p) : /\.(mjs|js|json|css|html|md|svg)$/.test(d.name) ? [p] : [];
+        });
+      const own = [
+        "cli",
+        "engine",
+        "i18n",
+        "schemas",
+        "test",
+        "examples",
+        "standard",
+        "templates",
+        "skill",
+        "docs",
+        "ci",
+      ]
+        .filter((d) => fs.existsSync(path.join(KIT_ROOT, d)))
+        .flatMap((d) => walk(path.join(KIT_ROOT, d)));
+      for (const f of [
+        "README.md",
+        "README.fr.md",
+        "ARCHITECTURE.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "package.json",
+      ]) {
+        if (fs.existsSync(path.join(KIT_ROOT, f))) own.push(path.join(KIT_ROOT, f));
+      }
+      assert.ok(own.length > 30);
+      for (const f of own) {
+        if (f.includes(`${path.sep}__snapshots__${path.sep}`) || f === fileURLToPath(import.meta.url)) continue;
+        const m = forbidden.exec(fs.readFileSync(f, "utf8"));
+        assert.equal(m, null, `${path.relative(KIT_ROOT, f)}: ${m && m[0]}`);
+      }
+    },
+  );
 });

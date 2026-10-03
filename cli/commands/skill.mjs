@@ -44,14 +44,17 @@ export function installHooks({ settingsFile, skillFolder }) {
     } catch (e) {
       throw new KitError(EXIT.CHECK, "skill.settingsInvalid", { file: settingsFile, error: e.message });
     }
-    if (!settings || typeof settings !== "object" || Array.isArray(settings)) throw new KitError(EXIT.CHECK, "skill.settingsInvalid", { file: settingsFile, error: "not an object" });
+    if (!settings || typeof settings !== "object" || Array.isArray(settings))
+      throw new KitError(EXIT.CHECK, "skill.settingsInvalid", { file: settingsFile, error: "not an object" });
   }
   const command = `node "${slash(path.join(skillFolder, HOOK_SCRIPT))}"`;
   const ours = (h) => typeof h?.command === "string" && h.command.includes("usage-hook.mjs");
   settings.hooks = settings.hooks && typeof settings.hooks === "object" ? settings.hooks : {};
   const groups = Array.isArray(settings.hooks.SubagentStop) ? settings.hooks.SubagentStop : [];
   const already = groups.some((g) => (g.hooks || []).some((h) => ours(h) && h.command === command));
-  const kept = groups.map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !ours(h)) })).filter((g) => g.hooks.length);
+  const kept = groups
+    .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !ours(h)) }))
+    .filter((g) => g.hooks.length);
   settings.hooks.SubagentStop = [...kept, { matcher: "", hooks: [{ type: "command", command }] }];
   fs.mkdirSync(path.dirname(settingsFile), { recursive: true });
   fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2) + "\n");
@@ -94,7 +97,12 @@ function listFiles(dir) {
 /** The agent definition file names shipped by the kit (skill/doc-kit/agents/*.md), sorted; [] if there are none. */
 export function agentFileNames(source = SKILL_SOURCE) {
   const dir = path.join(source, AGENTS_SUBDIR);
-  return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort() : [];
+  return fs.existsSync(dir)
+    ? fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith(".md"))
+        .sort()
+    : [];
 }
 
 /** SHA-256 of a folder's files (names and contents). */
@@ -125,10 +133,12 @@ function namedFilesHash(dir, names) {
  * @returns {{ folder: string, files: number, kitPath: string, replaced: boolean, agents: { folder: string, files: number } }}
  */
 export function installSkill({ skills, force = false, source = SKILL_SOURCE, kitRoot = KIT_ROOT }) {
-  if (!fs.existsSync(path.join(source, "SKILL.md"))) throw new KitError(EXIT.ENVIRONMENT, "skill.sourceMissing", { folder: source });
+  if (!fs.existsSync(path.join(source, "SKILL.md")))
+    throw new KitError(EXIT.ENVIRONMENT, "skill.sourceMissing", { folder: source });
   const folder = path.join(skills, SKILL_NAME);
   const replaced = fs.existsSync(folder);
-  if (replaced && !fs.existsSync(path.join(folder, FINGERPRINT)) && !force) throw new KitError(EXIT.CHECK, "skill.foreign", { folder });
+  if (replaced && !fs.existsSync(path.join(folder, FINGERPRINT)) && !force)
+    throw new KitError(EXIT.CHECK, "skill.foreign", { folder });
   // Prepared in a temporary folder, then copied: an error while preparing never leaves half a skill, and
   // nothing but <skills>/doc-kit is ever created in the skills folder.
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "doc-kit-skill-"));
@@ -137,7 +147,8 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
   for (const f of files) {
     const dest = path.join(staging, f);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    if (SUBSTITUTED.test(f)) fs.writeFileSync(dest, fs.readFileSync(path.join(source, f), "utf8").split(PLACEHOLDER).join(kitPath));
+    if (SUBSTITUTED.test(f))
+      fs.writeFileSync(dest, fs.readFileSync(path.join(source, f), "utf8").split(PLACEHOLDER).join(kitPath));
     else fs.copyFileSync(path.join(source, f), dest);
   }
 
@@ -210,24 +221,35 @@ export function agentsStatus({ env = process.env, target, source = SKILL_SOURCE,
   const present = fp.agentNames.filter((n) => fs.existsSync(path.join(folder, n)));
   if (!present.length) return { state: "missing", folder };
   const sourceNames = agentFileNames(source);
-  if (sourceNames.length && namedFilesHash(path.join(source, AGENTS_SUBDIR), fp.agentNames) !== fp.agentsSource) return { state: "outdated", folder, version: fp.kit };
+  if (sourceNames.length && namedFilesHash(path.join(source, AGENTS_SUBDIR), fp.agentNames) !== fp.agentsSource)
+    return { state: "outdated", folder, version: fp.kit };
   if (namedFilesHash(folder, fp.agentNames) !== fp.agentsInstalled) return { state: "modified", folder };
   return { state: "current", folder, version: fp.kit, n: fp.agentNames.length };
 }
 
 export async function run({ ctx, values, positionals }) {
   const action = positionals[0];
-  if (action !== "install") throw new KitError(EXIT.USAGE, "skill.action", { action: action ?? "", command: BRAND.command });
+  if (action !== "install")
+    throw new KitError(EXIT.USAGE, "skill.action", { action: action ?? "", command: BRAND.command });
   const skills = skillsFolder({ target: values.target, env: ctx.env });
   const r = installSkill({ skills, force: !!values.force });
   // --hooks: the statistics hook in the project's Claude Code settings (or --settings <file>).
-  if (values.hooks || values.settings) r.hooks = installHooks({ settingsFile: path.resolve(process.cwd(), values.settings || path.join(".claude", "settings.json")), skillFolder: r.folder });
+  if (values.hooks || values.settings)
+    r.hooks = installHooks({
+      settingsFile: path.resolve(process.cwd(), values.settings || path.join(".claude", "settings.json")),
+      skillFolder: r.folder,
+    });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));
     return EXIT.OK;
   }
-  ctx.print(`${ctx.paint.ok("✔")} ${ctx.t(r.replaced ? "cli.skill.updated" : "cli.skill.installed", { folder: shownPath(r.folder), n: r.files, kit: r.kitPath })}`);
-  if (r.agents.files) ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.agents", { folder: shownPath(r.agents.folder), n: r.agents.files }))}`);
+  ctx.print(
+    `${ctx.paint.ok("✔")} ${ctx.t(r.replaced ? "cli.skill.updated" : "cli.skill.installed", { folder: shownPath(r.folder), n: r.files, kit: r.kitPath })}`,
+  );
+  if (r.agents.files)
+    ctx.print(
+      `  ${ctx.paint.dim(ctx.t("cli.skill.agents", { folder: shownPath(r.agents.folder), n: r.agents.files }))}`,
+    );
   if (r.hooks) ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.hooks", { file: shownPath(r.hooks.file) }))}`);
   ctx.print(`  ${ctx.paint.dim(ctx.t("cli.skill.restart"))}`);
   return EXIT.OK;

@@ -93,7 +93,9 @@ function importGraph(appDir, files) {
 
 /** The `modules` source. */
 export function collectModules(appDir) {
-  const files = listFiles(appDir).filter((f) => CODE.test(f)).slice(0, MODULES_LIMIT);
+  const files = listFiles(appDir)
+    .filter((f) => CODE.test(f))
+    .slice(0, MODULES_LIMIT);
   const edges = importGraph(appDir, files);
   const importedBy = new Map();
   for (const [from, tos] of edges) for (const to of tos) importedBy.set(to, (importedBy.get(to) || 0) + 1);
@@ -101,7 +103,12 @@ export function collectModules(appDir) {
   const cycleOf = new Map();
   cycles.forEach((c, i) => c.forEach((f) => cycleOf.set(f, i + 1)));
   const items = [...edges.keys()]
-    .map((file) => ({ file, imports: edges.get(file).size, importedBy: importedBy.get(file) || 0, cycle: cycleOf.get(file) ?? null }))
+    .map((file) => ({
+      file,
+      imports: edges.get(file).size,
+      importedBy: importedBy.get(file) || 0,
+      cycle: cycleOf.get(file) ?? null,
+    }))
     .sort((a, b) => b.importedBy - a.importedBy || b.imports - a.imports || a.file.localeCompare(b.file));
   const edgeCount = [...edges.values()].reduce((n, s) => n + s.size, 0);
   const orphans = items.filter((i) => !i.imports && !i.importedBy).length;

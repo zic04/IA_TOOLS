@@ -16,7 +16,13 @@ export const options = {
 /** The validated roles of `--as` (ARCHITECTURE.md §6.13), in the order given, de-duplicated. */
 function rolesOf(values) {
   const roles = [...new Set(values.as || [])];
-  for (const role of roles) if (!ROLE_PATTERN.test(role)) throw new KitError(EXIT.USAGE, "option.value", { option: "as", value: role, expected: "letters, digits and dashes, starting with a letter" });
+  for (const role of roles)
+    if (!ROLE_PATTERN.test(role))
+      throw new KitError(EXIT.USAGE, "option.value", {
+        option: "as",
+        value: role,
+        expected: "letters, digits and dashes, starting with a letter",
+      });
   return roles;
 }
 
@@ -52,7 +58,8 @@ export async function run({ ctx, values }) {
       fetch: ctx.fetch,
     });
   } catch (e) {
-    if (e instanceof ProbeUnreachableError) throw new KitError(EXIT.ENVIRONMENT, "probe.unreachable", { url, error: e.message });
+    if (e instanceof ProbeUnreachableError)
+      throw new KitError(EXIT.ENVIRONMENT, "probe.unreachable", { url, error: e.message });
     throw e;
   }
 

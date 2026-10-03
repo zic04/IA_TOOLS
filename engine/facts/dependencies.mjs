@@ -19,7 +19,8 @@ import path from "node:path";
 import { listFiles } from "./common.mjs";
 
 /** Manifests and lock files searched for, by file name (case-insensitive). */
-const MANIFEST_NAME = /^(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml)$/i;
+const MANIFEST_NAME =
+  /^(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml)$/i;
 /** How deep under the application a manifest may sit (ARCHITECTURE.md §6.9: a separate front end and API). */
 const MAX_DEPTH = 4;
 
@@ -41,8 +42,12 @@ function fromPackageJson(abs, manifest) {
     return [];
   }
   const out = [];
-  for (const [dev, deps] of [[false, pkg.dependencies], [true, pkg.devDependencies]])
-    for (const [name, version] of Object.entries(deps || {})) out.push({ name, version: String(version), ecosystem: "npm", direct: true, dev, manifest });
+  for (const [dev, deps] of [
+    [false, pkg.dependencies],
+    [true, pkg.devDependencies],
+  ])
+    for (const [name, version] of Object.entries(deps || {}))
+      out.push({ name, version: String(version), ecosystem: "npm", direct: true, dev, manifest });
   return out;
 }
 
@@ -69,7 +74,15 @@ function fromPackageLock(abs, manifest) {
       const m = /node_modules\/((?:@[^/]+\/)?[^/]+)$/.exec(key);
       if (!m || seen.has(m[1])) continue;
       seen.add(m[1]);
-      out.push({ name: m[1], version: info.version, ecosystem: "npm", direct: direct.has(m[1]), dev: dev.has(m[1]) || !!info.dev, manifest, ...(info.license ? { license: info.license } : {}) });
+      out.push({
+        name: m[1],
+        version: info.version,
+        ecosystem: "npm",
+        direct: direct.has(m[1]),
+        dev: dev.has(m[1]) || !!info.dev,
+        manifest,
+        ...(info.license ? { license: info.license } : {}),
+      });
     }
   } else if (lock.dependencies) {
     // v1: no self-contained direct/transitive signal at this level; every entry is reported indirect.
@@ -166,7 +179,10 @@ function fromYarnLock(abs, manifest) {
     if (!lines.length || /^\s/.test(lines[0]) || lines[0].includes("@workspace:")) continue;
     const versionLine = lines.find((l) => /^\s+version:?\s/.test(l));
     if (!versionLine) continue;
-    const version = versionLine.replace(/^\s+version:?\s+/, "").replace(/^"|"$/g, "").trim();
+    const version = versionLine
+      .replace(/^\s+version:?\s+/, "")
+      .replace(/^"|"$/g, "")
+      .trim();
     for (const spec of lines[0].replace(/:$/, "").split(",")) {
       const name = yarnSpecifierName(spec);
       if (name && !seen.has(name)) {
@@ -197,7 +213,12 @@ function fromRequirements(abs, manifest) {
     const m = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[([^\]]*)\])?\s*(.*)$/.exec(line);
     if (!m) continue;
     const [, name, extrasRaw, specRaw] = m;
-    const extras = extrasRaw ? extrasRaw.split(",").map((e) => e.trim()).filter(Boolean) : [];
+    const extras = extrasRaw
+      ? extrasRaw
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean)
+      : [];
     const spec = specRaw.trim();
     const opMatch = /^(==|>=|<=|~=|!=|>|<)/.exec(spec);
     const operator = opMatch ? opMatch[1] : null;
@@ -230,9 +251,18 @@ function fromPyproject(abs, manifest) {
       section = h[1];
       continue;
     }
-    if (section !== "tool.poetry.dependencies" && !/^tool\.poetry\.group\.[\w-]+\.dependencies$/.test(section || "")) continue;
+    if (section !== "tool.poetry.dependencies" && !/^tool\.poetry\.group\.[\w-]+\.dependencies$/.test(section || ""))
+      continue;
     const m = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*=\s*"?([^"#,{]*)/.exec(line);
-    if (m && m[1].toLowerCase() !== "python") out.push({ name: m[1], version: (m[2] || "*").trim() || "*", ecosystem: "pip", direct: true, dev: section !== "tool.poetry.dependencies", manifest });
+    if (m && m[1].toLowerCase() !== "python")
+      out.push({
+        name: m[1],
+        version: (m[2] || "*").trim() || "*",
+        ecosystem: "pip",
+        direct: true,
+        dev: section !== "tool.poetry.dependencies",
+        manifest,
+      });
   }
   return out;
 }
@@ -244,7 +274,15 @@ function fromPoetryLock(abs, manifest) {
   const out = [];
   let current = null;
   const flush = () => {
-    if (current?.name) out.push({ name: current.name, version: current.version, ecosystem: "pip", direct: false, dev: !!current.dev, manifest });
+    if (current?.name)
+      out.push({
+        name: current.name,
+        version: current.version,
+        ecosystem: "pip",
+        direct: false,
+        dev: !!current.dev,
+        manifest,
+      });
   };
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
@@ -284,5 +322,8 @@ export function collectDependencies(appDir) {
     const reader = READER_OF[name] || (/^requirements[^/]*\.txt$/i.test(name) ? fromRequirements : null);
     if (reader) items.push(...reader(path.join(appDir, rel), rel));
   }
-  return items.sort((a, b) => a.manifest.localeCompare(b.manifest) || a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name));
+  return items.sort(
+    (a, b) =>
+      a.manifest.localeCompare(b.manifest) || a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name),
+  );
 }

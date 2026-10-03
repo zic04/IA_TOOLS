@@ -38,11 +38,17 @@ export async function compareImages(page, oldWebp, newWebp, { tolerance = 16 } =
       const p2 = pixelsOf(after);
       let differing = 0;
       for (let i = 0; i < p1.length; i += 4) {
-        if (Math.abs(p1[i] - p2[i]) > tolerance || Math.abs(p1[i + 1] - p2[i + 1]) > tolerance || Math.abs(p1[i + 2] - p2[i + 2]) > tolerance || Math.abs(p1[i + 3] - p2[i + 3]) > tolerance) differing++;
+        if (
+          Math.abs(p1[i] - p2[i]) > tolerance ||
+          Math.abs(p1[i + 1] - p2[i + 1]) > tolerance ||
+          Math.abs(p1[i + 2] - p2[i + 2]) > tolerance ||
+          Math.abs(p1[i + 3] - p2[i + 3]) > tolerance
+        )
+          differing++;
       }
       return { ratio: differing / (width * height), sameSize: true, width, height };
     },
-    { a: oldWebp.toString("base64"), b: newWebp.toString("base64"), tolerance }
+    { a: oldWebp.toString("base64"), b: newWebp.toString("base64"), tolerance },
   );
 }
 
@@ -113,7 +119,15 @@ export async function beforeAfterSheet(page, { before, after, zonesBefore = [], 
       drawZones(zonesAfter, wA + gutter, wB, hB);
       return canvas.toDataURL("image/png").split(",")[1];
     },
-    { beforeB64: before.toString("base64"), afterB64: after.toString("base64"), zonesBefore, zonesAfter, labelBefore: labels.before, labelAfter: labels.after, colour: ZONE_COLOUR }
+    {
+      beforeB64: before.toString("base64"),
+      afterB64: after.toString("base64"),
+      zonesBefore,
+      zonesAfter,
+      labelBefore: labels.before,
+      labelAfter: labels.after,
+      colour: ZONE_COLOUR,
+    },
   );
   return Buffer.from(b64, "base64");
 }

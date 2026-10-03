@@ -16,7 +16,8 @@ const schemas = new Map();
 
 /** A JSON schema of the kit (schemas/<name>.schema.json). */
 export function readSchema(name) {
-  if (!schemas.has(name)) schemas.set(name, JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "schemas", `${name}.schema.json`), "utf8")));
+  if (!schemas.has(name))
+    schemas.set(name, JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "schemas", `${name}.schema.json`), "utf8")));
   return schemas.get(name);
 }
 
@@ -34,11 +35,14 @@ function extraChecks(config, raw) {
     if (!/^(#[0-9a-fA-F]{3,8}|[a-z][a-z0-9-]*|var\(--[a-z0-9-]+\))$/.test(colour))
       errors.push({ path: `statuses.${k}[0]`, key: "status", vars: { got: colour } });
   for (const [name, svg] of Object.entries(config.theme.icons))
-    if (/<script|\son[a-z]+\s*=|javascript:|<foreignObject|<iframe/i.test(svg)) errors.push({ path: `theme.icons.${name}`, key: "icon", vars: { name } });
+    if (/<script|\son[a-z]+\s*=|javascript:|<foreignObject|<iframe/i.test(svg))
+      errors.push({ path: `theme.icons.${name}`, key: "icon", vars: { name } });
   // Production is only ever captured read-only (ARCHITECTURE.md §3, capture.target).
-  if (config.capture.target === "production" && config.capture.readOnly === false) errors.push({ path: "capture.readOnly", key: "productionReadOnly", vars: {} });
+  if (config.capture.target === "production" && config.capture.readOnly === false)
+    errors.push({ path: "capture.readOnly", key: "productionReadOnly", vars: {} });
   // One file per space (ARCHITECTURE.md §6.1a): the path of the exports names the space.
-  if (typeof config.spaces.output === "string" && !config.spaces.output.includes("{space}")) errors.push({ path: "spaces.output", key: "spaceOutput", vars: { placeholder: "{space}" } });
+  if (typeof config.spaces.output === "string" && !config.spaces.output.includes("{space}"))
+    errors.push({ path: "spaces.output", key: "spaceOutput", vars: { placeholder: "{space}" } });
   errors.push(...checkLanguages(config, raw));
   return errors;
 }
@@ -61,16 +65,33 @@ function checkLanguages(config, raw) {
     langs.forEach((lang, i) => {
       if (seen.has(lang)) errors.push({ path: `languages[${i}]`, key: "languagesDuplicate", vars: { lang } });
       seen.add(lang);
-      if (!LANGUAGES.includes(lang)) errors.push({ path: `languages[${i}]`, key: "languagesUnsupported", vars: { lang, known: LANGUAGES.join(", ") } });
+      if (!LANGUAGES.includes(lang))
+        errors.push({
+          path: `languages[${i}]`,
+          key: "languagesUnsupported",
+          vars: { lang, known: LANGUAGES.join(", ") },
+        });
     });
-    if (raw.language !== undefined && raw.language !== langs[0]) errors.push({ path: "language", key: "languagesSource", vars: { expected: langs[0] } });
-    const translations = String(config.paths.translations).split(/[\\/]+/).filter(Boolean);
-    const content = String(config.paths.content).split(/[\\/]+/).filter(Boolean);
-    if (content.length && content.every((seg, i) => translations[i] === seg)) errors.push({ path: "paths.translations", key: "translationsInsideContent", vars: {} });
+    if (raw.language !== undefined && raw.language !== langs[0])
+      errors.push({ path: "language", key: "languagesSource", vars: { expected: langs[0] } });
+    const translations = String(config.paths.translations)
+      .split(/[\\/]+/)
+      .filter(Boolean);
+    const content = String(config.paths.content)
+      .split(/[\\/]+/)
+      .filter(Boolean);
+    if (content.length && content.every((seg, i) => translations[i] === seg))
+      errors.push({ path: "paths.translations", key: "translationsInsideContent", vars: {} });
     for (const key of Object.keys(config.capture.languages || {}))
-      if (!langs.includes(key)) errors.push({ path: `capture.languages.${key}`, key: "captureLanguageUnknown", vars: { key, known: langs.join(", ") } });
+      if (!langs.includes(key))
+        errors.push({
+          path: `capture.languages.${key}`,
+          key: "captureLanguageUnknown",
+          vars: { key, known: langs.join(", ") },
+        });
   } else {
-    for (const key of Object.keys(config.capture.languages || {})) errors.push({ path: `capture.languages.${key}`, key: "captureLanguageUnknown", vars: { key, known: "" } });
+    for (const key of Object.keys(config.capture.languages || {}))
+      errors.push({ path: `capture.languages.${key}`, key: "captureLanguageUnknown", vars: { key, known: "" } });
   }
   return errors;
 }
@@ -80,16 +101,21 @@ function checkLanguages(config, raw) {
  * @throws {KitError} exit code 2 (invalid configuration) or 3 (incompatible kit)
  */
 export function prepareConfig(raw, { file = CONFIG_FILE, env = process.env, version = kitVersion() } = {}) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new KitError(EXIT.USAGE, "config.noDefaultExport", { file });
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new KitError(EXIT.USAGE, "config.noDefaultExport", { file });
   const { value, errors } = validate(raw, readSchema("config"), { applyDefaults: true });
   if (!errors.length) errors.push(...extraChecks(value, raw));
-  if (errors.length) throw new KitError(EXIT.USAGE, "config.invalid", { file, n: errors.length }, { details: errors, prefix: file });
-  if (!satisfies(version, value.kit)) throw new KitError(EXIT.ENVIRONMENT, "config.kitIncompatible", { range: value.kit, version });
+  if (errors.length)
+    throw new KitError(EXIT.USAGE, "config.invalid", { file, n: errors.length }, { details: errors, prefix: file });
+  if (!satisfies(version, value.kit))
+    throw new KitError(EXIT.ENVIRONMENT, "config.kitIncompatible", { range: value.kit, version });
   completeConfig(value);
   applyEnv(value, env);
   // <PREFIX>_READONLY / DOC_KIT_READONLY cannot turn read-only off on production either.
   if (value.capture.target === "production" && value.capture.readOnly === false)
-    throw new KitError(EXIT.USAGE, "env.productionReadOnly", { variable: readEnv("READONLY", value.env.prefix, env)?.variable ?? "READONLY" });
+    throw new KitError(EXIT.USAGE, "env.productionReadOnly", {
+      variable: readEnv("READONLY", value.env.prefix, env)?.variable ?? "READONLY",
+    });
   return value;
 }
 

@@ -103,7 +103,11 @@ export function readZip(zipFile) {
     const extra = buf.readUInt16LE(i + 28);
     const name = buf.subarray(i + 30, i + 30 + nameLength).toString("utf8");
     const body = buf.subarray(i + 30 + nameLength + extra, i + 30 + nameLength + extra + size);
-    entries.push({ name, data: method === 8 ? zlib.inflateRawSync(body) : Buffer.from(body), crc: buf.readUInt32LE(i + 14) });
+    entries.push({
+      name,
+      data: method === 8 ? zlib.inflateRawSync(body) : Buffer.from(body),
+      crc: buf.readUInt32LE(i + 14),
+    });
     i += 30 + nameLength + extra + size;
   }
   return entries;

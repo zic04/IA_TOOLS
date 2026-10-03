@@ -25,7 +25,8 @@ export function sanitizeLogo(source) {
   if (/\son[a-z]+\s*=/i.test(svg)) return { ok: false, reason: "handler" };
   if (/javascript:/i.test(svg)) return { ok: false, reason: "javascript" };
   if (/<(foreignObject|iframe|embed|object)[\s/>]/i.test(svg)) return { ok: false, reason: "embedded" };
-  for (const m of svg.matchAll(/(?:xlink:)?href\s*=\s*["']([^"']*)["']/gi)) if (!m[1].startsWith("#")) return { ok: false, reason: "external" };
+  for (const m of svg.matchAll(/(?:xlink:)?href\s*=\s*["']([^"']*)["']/gi))
+    if (!m[1].startsWith("#")) return { ok: false, reason: "external" };
   const root = /^<svg\b[^>]*>/i.exec(svg)[0];
   if (!/\sviewBox\s*=/.test(root)) return { ok: false, reason: "viewBox" };
 

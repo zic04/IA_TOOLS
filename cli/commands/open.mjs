@@ -16,10 +16,16 @@ export const options = {
 
 export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
-  const space = values.space === undefined ? undefined : checkSpaceOption({ ids: declaredSpaceIds(project.root, config), space: values.space, t: ctx.t });
+  const space =
+    values.space === undefined
+      ? undefined
+      : checkSpaceOption({ ids: declaredSpaceIds(project.root, config), space: values.space, t: ctx.t });
   const site = await builtSite(ctx, { space, requireExisting: true });
   // --lang (ARCHITECTURE.md §6.12): the built site is already multilingual; only the opened URL changes.
-  const lang = config.languages && ctx.globals.lang ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t }) : null;
+  const lang =
+    config.languages && ctx.globals.lang
+      ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t })
+      : null;
   const page = (lang ? `${lang}/` : "") + (positionals[0] || "").replace(/^\/+/, "");
   const url = pathToFileURL(site.file).href + (page ? "#/" + page : "");
   if (ctx.json) ctx.print(JSON.stringify({ url }));

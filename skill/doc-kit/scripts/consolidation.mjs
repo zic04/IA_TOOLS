@@ -38,7 +38,12 @@ const DEFAULT_TITLE = { en: "Writer", fr: "Rédacteur" };
 // ─── init ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
 function readCodes(raw) {
-  if (!raw) throw new ExitError(2, "--codes is missing", 'example: --codes u1,u2,cf or --codes "ord=Journey of an order,inv=Journey of an invoice"');
+  if (!raw)
+    throw new ExitError(
+      2,
+      "--codes is missing",
+      'example: --codes u1,u2,cf or --codes "ord=Journey of an order,inv=Journey of an invoice"',
+    );
   const codes = raw
     .split(",")
     .map((s) => s.trim())
@@ -47,7 +52,8 @@ function readCodes(raw) {
       const i = s.indexOf("=");
       const code = (i < 0 ? s : s.slice(0, i)).trim();
       const title = i < 0 ? "" : s.slice(i + 1).trim();
-      if (!/^[\w-]+$/.test(code)) throw new ExitError(2, `invalid code: "${code}"`, "letters, digits, dash or underscore (u1, ord, a2…)");
+      if (!/^[\w-]+$/.test(code))
+        throw new ExitError(2, `invalid code: "${code}"`, "letters, digits, dash or underscore (u1, ord, a2…)");
       return { code, title };
     });
   const seen = new Set();
@@ -66,11 +72,13 @@ async function init(o) {
   checkLanguage(lang, "language");
   const codes = readCodes(o.codes).map((c) => ({ ...c, title: c.title || `${DEFAULT_TITLE[lang]} ${c.code}` }));
   const templateFile = path.join(SKILL_ROOT, "assets", "briefs", lang, "consolidation.md");
-  if (!fs.existsSync(templateFile)) throw new ExitError(2, `template missing: ${templateFile}`, "reinstall the skill (doc-kit skill install)");
+  if (!fs.existsSync(templateFile))
+    throw new ExitError(2, `template missing: ${templateFile}`, "reinstall the skill (doc-kit skill install)");
   const template = fs.readFileSync(templateFile, "utf8");
   const a = template.indexOf(START);
   const b = template.indexOf(END);
-  if (a < 0 || b < a) throw new ExitError(2, "the consolidation template lacks its section markers", `${START} … ${END}`);
+  if (a < 0 || b < a)
+    throw new ExitError(2, "the consolidation template lacks its section markers", `${START} … ${END}`);
 
   const base = { ...baseVariables(docDir, config, lang), topic: o.topic ?? DEFAULT_TOPIC[lang] };
   const head = fill(template.slice(0, a), base);
@@ -83,28 +91,43 @@ async function init(o) {
 
   const output = o.output ? path.resolve(o.output) : path.join(docDir, WORK_DIR, "consolidation.md");
   if (fs.existsSync(output) && !o.force) {
-    throw new ExitError(2, `the file already exists: ${output}`, "add --force to overwrite it, or --output <another file>");
+    throw new ExitError(
+      2,
+      `the file already exists: ${output}`,
+      "add --force to overwrite it, or --output <another file>",
+    );
   }
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, text.endsWith("\n") ? text : `${text}\n`);
-  console.log(`✔ consolidation file created: ${output} (${codes.length} section(s): ${codes.map((c) => c.code).join(", ")})`);
+  console.log(
+    `✔ consolidation file created: ${output} (${codes.length} section(s): ${codes.map((c) => c.code).join(", ")})`,
+  );
   if (unfilled.length) {
-    warn(`placeholder(s) left unfilled: ${unfilled.join(", ")}`, "complete doc.config.mjs (product.name…), then run again with --force");
+    warn(
+      `placeholder(s) left unfilled: ${unfilled.join(", ")}`,
+      "complete doc.config.mjs (product.name…), then run again with --force",
+    );
     return 1;
   }
-  console.log('  → paste the candidates, errors and terms of each report into it, then run "consolidation.mjs duplicates".');
+  console.log(
+    '  → paste the candidates, errors and terms of each report into it, then run "consolidation.mjs duplicates".',
+  );
   return 0;
 }
 
 // ─── file:line references ──────────────────────────────────────────────────────────────────────────────────────
 
 // `:28` (same file as the previous reference) | path/file.ext:12 or :12-18
-const RE_REF = /`\s*:(\d+)(?:\s*[-–]\s*(\d+))?\s*`|((?:[\w@.\-[\]()]+[/\\])*[\w@.\-[\]()]+\.[A-Za-z][A-Za-z0-9]{0,6}):(\d+)(?:\s*[-–]\s*(\d+))?/g;
+const RE_REF =
+  /`\s*:(\d+)(?:\s*[-–]\s*(\d+))?\s*`|((?:[\w@.\-[\]()]+[/\\])*[\w@.\-[\]()]+\.[A-Za-z][A-Za-z0-9]{0,6}):(\d+)(?:\s*[-–]\s*(\d+))?/g;
 const NOT_FILES = new Set(["com", "net", "org", "fr", "io", "eu", "dev", "local", "internal", "services"]);
 
 function normalise(file) {
   // "(orderService.ts" caught after an opening parenthesis: drop an unclosed bracket or parenthesis.
-  return file.replace(/\\/g, "/").replace(/^[([]+(?=[^)\]]*$)/, "").replace(/^\.\//, "");
+  return file
+    .replace(/\\/g, "/")
+    .replace(/^[([]+(?=[^)\]]*$)/, "")
+    .replace(/^\.\//, "");
 }
 
 /** References of a text, in order; `:N` reuses the file of the previous reference. */
@@ -174,7 +197,15 @@ function readCandidates(text) {
     if (h2) {
       close();
       const m = h2[1].match(/\(([\w-]+)\)\s*$/);
-      section = { title: h2[1], code: m ? m[1] : h2[1].toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") };
+      section = {
+        title: h2[1],
+        code: m
+          ? m[1]
+          : h2[1]
+              .toLowerCase()
+              .replace(/[^\p{L}\p{N}]+/gu, "-")
+              .replace(/^-|-$/g, ""),
+      };
       sections.push(section);
       inCandidates = false;
       continue;
@@ -252,10 +283,14 @@ async function duplicates(o) {
   const config = await loadConfig(docDir);
   const vars = baseVariables(docDir, config, config.language ?? "en");
   const file = o.file
-    ? [path.resolve(o.file), path.resolve(docDir, o.file)].find((f) => fs.existsSync(f)) ?? path.resolve(o.file)
+    ? ([path.resolve(o.file), path.resolve(docDir, o.file)].find((f) => fs.existsSync(f)) ?? path.resolve(o.file))
     : path.join(docDir, WORK_DIR, "consolidation.md");
   if (!fs.existsSync(file)) {
-    throw new ExitError(2, `consolidation file not found: ${file}`, 'create it with "consolidation.mjs init", or pass --file <path>');
+    throw new ExitError(
+      2,
+      `consolidation file not found: ${file}`,
+      'create it with "consolidation.mjs init", or pass --file <path>',
+    );
   }
   const { candidates, sections } = readCandidates(fs.readFileSync(file, "utf8"));
   const label = (c) => `${c.code} ${c.n}`;
@@ -276,38 +311,74 @@ async function duplicates(o) {
     for (const c of candidates) {
       for (const u of findings) {
         const shared = sharedRefs(c.refs, u.refs);
-        if (shared.length) existing.push({ candidate: label(c), finding: u.id, page: path.relative(docDir, u.file).replace(/\\/g, "/"), refs: shared });
+        if (shared.length)
+          existing.push({
+            candidate: label(c),
+            finding: u.id,
+            page: path.relative(docDir, u.file).replace(/\\/g, "/"),
+            refs: shared,
+          });
       }
     }
   }
   const withoutRef = candidates.filter((c) => !c.refs.length).map(label);
 
   if (o.json) {
-    console.log(JSON.stringify({ file, sections: sections.length, candidates: candidates.length, duplicates: pairs, existing, withoutReference: withoutRef }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          file,
+          sections: sections.length,
+          candidates: candidates.length,
+          duplicates: pairs,
+          existing,
+          withoutReference: withoutRef,
+        },
+        null,
+        2,
+      ),
+    );
     return candidates.length ? 0 : 1;
   }
 
   const refCount = candidates.reduce((s, c) => s + c.refs.length, 0);
   console.log(`Consolidation: ${file}`);
-  console.log(`${candidates.length} candidate(s) in ${sections.filter((s) => candidates.some((c) => c.code === s.code)).length} section(s), ${refCount} file:line reference(s).\n`);
+  console.log(
+    `${candidates.length} candidate(s) in ${sections.filter((s) => candidates.some((c) => c.code === s.code)).length} section(s), ${refCount} file:line reference(s).\n`,
+  );
   if (!candidates.length) {
-    warn("no candidate read", 'each "## Title (code)" section needs a "### Candidate findings" sub-section with a numbered list');
+    warn(
+      "no candidate read",
+      'each "## Title (code)" section needs a "### Candidate findings" sub-section with a numbered list',
+    );
     return 1;
   }
-  const width = Math.max(...pairs.map((p) => `${p.a} ↔ ${p.b}`.length), ...existing.map((e) => `${e.candidate} ≈ ${e.finding}`.length), 10) + 3;
+  const width =
+    Math.max(
+      ...pairs.map((p) => `${p.a} ↔ ${p.b}`.length),
+      ...existing.map((e) => `${e.candidate} ≈ ${e.finding}`.length),
+      10,
+    ) + 3;
   console.log(pairs.length ? "Probable duplicates (same file:line):" : "No probable duplicate between candidates.");
   for (const p of pairs) console.log(`  ${`${p.a} ↔ ${p.b}`.padEnd(width)}${p.refs.join(", ")}`);
   if (findingsPage) {
     const where = `${vars.contentDir}/${findingsPage}…`;
     console.log("");
-    console.log(existing.length ? `Lines already cited by an existing finding (${where}):` : `No existing finding (${where}) cites these lines.`);
-    for (const e of existing) console.log(`  ${`${e.candidate} ≈ ${e.finding}`.padEnd(width)}${e.refs.join(", ")}  (${e.page})`);
+    console.log(
+      existing.length
+        ? `Lines already cited by an existing finding (${where}):`
+        : `No existing finding (${where}) cites these lines.`,
+    );
+    for (const e of existing)
+      console.log(`  ${`${e.candidate} ≈ ${e.finding}`.padEnd(width)}${e.refs.join(", ")}  (${e.page})`);
   }
   if (withoutRef.length) {
     console.log("");
     console.log(`Candidates without a file:line reference (complete or check by hand): ${withoutRef.join(", ")}`);
   }
-  console.log('\n  → write the decisions under "Duplicates found", then launch findings-verification and page-corrections.');
+  console.log(
+    '\n  → write the decisions under "Duplicates found", then launch findings-verification and page-corrections.',
+  );
   return 0;
 }
 

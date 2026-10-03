@@ -6,7 +6,16 @@ import { testEngine } from "../tools/helpers.mjs";
 import { statusColour } from "../../engine/build/markdown.mjs";
 
 const CAPTURES = {
-  screen: { file: "screen.webp", title: "Screen", width: 400, height: 200, zones: [{ n: 1, x: 1, y: 2, w: 3, h: 4 }, { n: 2, x: 5, y: 6, w: 7, h: 8, side: "right" }] },
+  screen: {
+    file: "screen.webp",
+    title: "Screen",
+    width: 400,
+    height: 200,
+    zones: [
+      { n: 1, x: 1, y: 2, w: 3, h: 4 },
+      { n: 2, x: 5, y: 6, w: 7, h: 8, side: "right" },
+    ],
+  },
   plain: { file: "plain.webp", title: "Plain", width: 100, height: 50, zones: [] },
 };
 
@@ -25,7 +34,10 @@ describe("directives ::", () => {
   test("::capture of a screenshot with zones is a strict error", () => {
     const { render, reports } = testEngine({ captures: CAPTURES });
     render('::capture{id="screen"}\n');
-    assert.deepEqual(reports.map((s) => [s.strict, s.key]), [[true, "capture.hasZones"]]);
+    assert.deepEqual(
+      reports.map((s) => [s.strict, s.key]),
+      [[true, "capture.hasZones"]],
+    );
   });
 
   test("missing screenshot: 'Screenshot to produce' box and an error with the page id", () => {
@@ -53,11 +65,19 @@ describe("directives ::", () => {
 
   test("::before-after and ::avant-apres", () => {
     const { render } = testEngine({ captures: CAPTURES });
-    const en = render('::before-after{before="plain" after="screen" before-label="Yesterday" title="Comparison"}\n').html;
+    const en = render(
+      '::before-after{before="plain" after="screen" before-label="Yesterday" title="Comparison"}\n',
+    ).html;
     assert.match(en, /aria-label="Compare before \/ after \(left\/right arrows\)"/);
-    assert.match(en, /<span class="comparer-etiquette avant">Yesterday<\/span><span class="comparer-etiquette apres">After<\/span>/);
+    assert.match(
+      en,
+      /<span class="comparer-etiquette avant">Yesterday<\/span><span class="comparer-etiquette apres">After<\/span>/,
+    );
     assert.match(en, /<figcaption>Comparison<\/figcaption>/);
-    assert.equal(render('::avant-apres{avant="plain" apres="screen" libelle-avant="Yesterday" titre="Comparison"}\n').html, en);
+    assert.equal(
+      render('::avant-apres{avant="plain" apres="screen" libelle-avant="Yesterday" titre="Comparison"}\n').html,
+      en,
+    );
   });
 });
 
@@ -67,7 +87,10 @@ describe("containers :::", () => {
     const r = render(':::screen{capture="screen" title="Screen"}\nFree text.\n\n1. First\n2. Second\n:::\n');
     assert.equal(reports.length, 0);
     assert.match(r.html, /Guided tour<span class="libelle-long"> · 2 steps<\/span>/);
-    assert.match(r.html, /<div class="zone" data-n="1" style="left:1%;top:2%;width:3%;height:4%"><span class="pastille">1<\/span><\/div>/);
+    assert.match(
+      r.html,
+      /<div class="zone" data-n="1" style="left:1%;top:2%;width:3%;height:4%"><span class="pastille">1<\/span><\/div>/,
+    );
     assert.match(r.html, /<div class="zone cote-droit" data-n="2"/);
     assert.match(r.html, /<div class="legende-figure"><p>Free text.<\/p>\n<\/div>/);
     assert.match(r.html, /<ol class="legende"><li data-n="1"><span class="n">1<\/span><div>First<\/div><\/li>/);
@@ -83,9 +106,16 @@ describe("containers :::", () => {
   });
 
   test(":::ecran (French) renders like :::screen; labels follow the language", () => {
-    const en = testEngine({ captures: CAPTURES }).render(':::screen{capture="screen" title="T"}\n1. A\n2. B\n:::\n').html;
-    assert.equal(testEngine({ captures: CAPTURES }).render(':::ecran{capture="screen" titre="T"}\n1. A\n2. B\n:::\n').html, en);
-    const fr = testEngine({ captures: CAPTURES, language: "fr" }).render(':::screen{capture="screen" title="T"}\n1. A\n2. B\n:::\n').html;
+    const en = testEngine({ captures: CAPTURES }).render(
+      ':::screen{capture="screen" title="T"}\n1. A\n2. B\n:::\n',
+    ).html;
+    assert.equal(
+      testEngine({ captures: CAPTURES }).render(':::ecran{capture="screen" titre="T"}\n1. A\n2. B\n:::\n').html,
+      en,
+    );
+    const fr = testEngine({ captures: CAPTURES, language: "fr" }).render(
+      ':::screen{capture="screen" title="T"}\n1. A\n2. B\n:::\n',
+    ).html;
     assert.match(fr, /Visite guidée<span class="libelle-long"> · 2 étapes<\/span>/);
     assert.match(fr, /<span class="libelle-long">Agrandir<\/span>/);
   });
@@ -103,7 +133,10 @@ describe("badges [[…]]", () => {
   test("perm, menu, route, key, status (and the French spellings)", () => {
     const { render } = testEngine({ statuses: { 0: ["st-0", "0 · paid"], x: ["#123456", "Ex"] } });
     const p = (s) => render(s).html.trim();
-    assert.match(p("[[perm orders:write]]"), /<span class="puce droit" title="Permission"><svg[^>]*>.*<\/svg>orders:write<\/span>/);
+    assert.match(
+      p("[[perm orders:write]]"),
+      /<span class="puce droit" title="Permission"><svg[^>]*>.*<\/svg>orders:write<\/span>/,
+    );
     assert.equal(p("[[droit orders:write]]"), p("[[perm orders:write]]"));
     assert.equal(p("[[menu A › B]]"), '<p><span class="puce menu">A › B</span></p>');
     assert.equal(p("[[route /orders/[id]]]"), '<p><span class="puce route">/orders/[id]</span></p>');
@@ -134,9 +167,17 @@ describe("callouts > [!TYPE]", () => {
   for (const [en, fr, cls, titleEn, titleFr] of CASES) {
     test(`${en} / ${fr}`, () => {
       const a = testEngine().render(`> [!${en}]\n> Body.\n`).html;
-      assert.match(a, new RegExp(`^<aside class="encadre ${cls}"><svg class="ico"[^>]*>.*</svg><div class="encadre-corps"><div class="encadre-titre">${titleEn}</div><p>Body.</p>\n</div></aside>`));
+      assert.match(
+        a,
+        new RegExp(
+          `^<aside class="encadre ${cls}"><svg class="ico"[^>]*>.*</svg><div class="encadre-corps"><div class="encadre-titre">${titleEn}</div><p>Body.</p>\n</div></aside>`,
+        ),
+      );
       assert.equal(testEngine().render(`> [!${fr}]\n> Body.\n`).html, a);
-      assert.match(testEngine({ language: "fr" }).render(`> [!${en}]\n> Body.\n`).html, new RegExp(`encadre-titre">${titleFr}<`));
+      assert.match(
+        testEngine({ language: "fr" }).render(`> [!${en}]\n> Body.\n`).html,
+        new RegExp(`encadre-titre">${titleFr}<`),
+      );
     });
   }
 
@@ -150,7 +191,10 @@ describe("callouts > [!TYPE]", () => {
     const r = render("> [!ODD]\n> X\n").html;
     assert.match(r, /<aside class="encadre odd">/);
     assert.match(r, /encadre-titre">ODD</);
-    assert.deepEqual(reports.map((s) => [s.strict, s.key]), [[false, "callout.unknown"]]);
+    assert.deepEqual(
+      reports.map((s) => [s.strict, s.key]),
+      [[false, "callout.unknown"]],
+    );
   });
 
   test("plain quotes are unchanged", () => {
@@ -161,7 +205,10 @@ describe("callouts > [!TYPE]", () => {
 describe("headings, anchors, links, tables, long code", () => {
   test("h2/h3: anchor and page table of contents; h1 becomes h2; h4 has no anchor", () => {
     const r = testEngine().render("# One\n\n## Two *three*\n\n#### Four\n", "p/x");
-    assert.match(r.html, /^<h2 id="one">One<a class="ancre" href="#\/p\/x~one" aria-label="Link to this section">#<\/a><\/h2>/);
+    assert.match(
+      r.html,
+      /^<h2 id="one">One<a class="ancre" href="#\/p\/x~one" aria-label="Link to this section">#<\/a><\/h2>/,
+    );
     assert.match(r.html, /<h2 id="two-three">Two <em>three<\/em>/);
     assert.match(r.html, /<h4>Four<\/h4>/);
     assert.deepEqual(r.toc, [
@@ -172,7 +219,10 @@ describe("headings, anchors, links, tables, long code", () => {
 
   test("de-duplicated slugs (-2, then -2-2), without accents", () => {
     const r = testEngine().render("## Écran\n\n### Écran\n\n### Écran\n");
-    assert.deepEqual(r.toc.map((x) => x.id), ["ecran", "ecran-2", "ecran-2-2"]);
+    assert.deepEqual(
+      r.toc.map((x) => x.id),
+      ["ecran", "ecran-2", "ecran-2-2"],
+    );
   });
 
   test("internal links are collected", () => {
@@ -190,11 +240,11 @@ describe("headings, anchors, links, tables, long code", () => {
     assert.equal(testEngine().render("`a/b.c`\n").html, "<p><code>a/b.c</code></p>\n");
     assert.equal(
       testEngine().render("`https://example.org/api/v1/x?filter=open,b`\n").html,
-      "<p><code>https:/<wbr>/<wbr>example.<wbr>org/<wbr>api/<wbr>v1/<wbr>x?<wbr>filter=<wbr>open,<wbr>b</code></p>\n"
+      "<p><code>https:/<wbr>/<wbr>example.<wbr>org/<wbr>api/<wbr>v1/<wbr>x?<wbr>filter=<wbr>open,<wbr>b</code></p>\n",
     );
     assert.equal(
       testEngine().render("`<path>/one/two?a=1&b=2&c=three`\n").html,
-      "<p><code>&lt;path&gt;/<wbr>one/<wbr>two?<wbr>a=<wbr>1&amp;b=<wbr>2&amp;c=<wbr>three</code></p>\n"
+      "<p><code>&lt;path&gt;/<wbr>one/<wbr>two?<wbr>a=<wbr>1&amp;b=<wbr>2&amp;c=<wbr>three</code></p>\n",
     );
   });
 });

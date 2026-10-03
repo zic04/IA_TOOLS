@@ -20,7 +20,9 @@ export const TEXT_FIELDS = Object.freeze({
 });
 
 /** Keys of the i18n fragment of the languages (i18n/en/languages.json): embedded only when the site uses them. */
-export const LANGUAGE_TEXT_KEYS = Object.freeze(Object.keys(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "i18n", "en", "languages.json"), "utf8"))));
+export const LANGUAGE_TEXT_KEYS = Object.freeze(
+  Object.keys(JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "i18n", "en", "languages.json"), "utf8"))),
+);
 
 /** Embedded texts without those of the languages (a site that does not declare `languages`). */
 export function withoutLanguageTexts(texts) {
@@ -47,7 +49,8 @@ export function translatableFiles({ toc, root, content }) {
   ];
   for (const sec of toc.sections || []) {
     const introRel = `${sec.id}/index.md`;
-    if (fs.existsSync(path.join(root, content, introRel))) files.push({ file: introRel, kind: "page", section: sec.id });
+    if (fs.existsSync(path.join(root, content, introRel)))
+      files.push({ file: introRel, kind: "page", section: sec.id });
     for (const g of sec.groups || [])
       for (const p of g.pages || []) files.push({ file: p.file || `${p.id}.md`, kind: "page", page: p.id });
   }
@@ -82,13 +85,18 @@ export function readSources(root, translationsDir, lang) {
 export function writeSources(root, translationsDir, lang, map) {
   const dir = path.join(root, translationsDir, lang);
   fs.mkdirSync(dir, { recursive: true });
-  const sorted = Object.fromEntries(Object.keys(map).sort().map((k) => [k, map[k]]));
+  const sorted = Object.fromEntries(
+    Object.keys(map)
+      .sort()
+      .map((k) => [k, map[k]]),
+  );
   fs.writeFileSync(path.join(dir, ".sources.json"), JSON.stringify(sorted, null, 2) + "\n");
 }
 
 // ─── Merging a translated toc.json / glossary.json onto the source's structure ────────────────────────────────
 
-const pickText = (source, translated, field) => (translated && translated[field] !== undefined ? translated[field] : source[field]);
+const pickText = (source, translated, field) =>
+  translated && translated[field] !== undefined ? translated[field] : source[field];
 
 /** Non-text fields of a node (every key but `skip`); a translated value that differs from the source is ignored
  * (warning `translation.toc.ignored`), the source's value is always kept. */
@@ -97,7 +105,8 @@ function mergeNonText(source, translated, skip, path, problems) {
   for (const key of Object.keys(source)) {
     if (skip.includes(key)) continue;
     if (translated[key] === undefined) continue;
-    if (JSON.stringify(translated[key]) !== JSON.stringify(source[key])) problems.push({ key: "translation.toc.ignored", vars: { path: `${path}.${key}` }, blocking: false });
+    if (JSON.stringify(translated[key]) !== JSON.stringify(source[key]))
+      problems.push({ key: "translation.toc.ignored", vars: { path: `${path}.${key}` }, blocking: false });
   }
 }
 
@@ -109,7 +118,12 @@ function mergePage(sp, group, i, problems, basePath) {
     return { ...sp };
   }
   mergeNonText(sp, tp, [...TEXT_FIELDS.page, "id"], path, problems);
-  return { ...sp, title: pickText(sp, tp, "title"), menuTitle: pickText(sp, tp, "menuTitle"), summary: pickText(sp, tp, "summary") };
+  return {
+    ...sp,
+    title: pickText(sp, tp, "title"),
+    menuTitle: pickText(sp, tp, "menuTitle"),
+    summary: pickText(sp, tp, "summary"),
+  };
 }
 
 function mergeGroup(sg, section, i, problems, basePath) {
@@ -120,12 +134,17 @@ function mergeGroup(sg, section, i, problems, basePath) {
     return { ...sg, pages: (sg.pages || []).map((p) => ({ ...p })) };
   }
   mergeNonText(sg, tg, [...TEXT_FIELDS.group, "pages"], path, problems);
-  return { ...sg, title: pickText(sg, tg, "title"), pages: (sg.pages || []).map((p, j) => mergePage(p, tg, j, problems, path)) };
+  return {
+    ...sg,
+    title: pickText(sg, tg, "title"),
+    pages: (sg.pages || []).map((p, j) => mergePage(p, tg, j, problems, path)),
+  };
 }
 
 function mergeSection(ss, translated, i, problems) {
   // No translated toc.json yet (a translation just started): every text falls back to the source, silently.
-  if (!translated) return { ...ss, groups: (ss.groups || []).map((g) => ({ ...g, pages: (g.pages || []).map((p) => ({ ...p })) })) };
+  if (!translated)
+    return { ...ss, groups: (ss.groups || []).map((g) => ({ ...g, pages: (g.pages || []).map((p) => ({ ...p })) })) };
   const ts = translated?.sections?.[i];
   const path = `sections[${i}]`;
   if (!ts || ts.id !== ss.id || (ss.groups || []).length !== (ts.groups || []).length) {
@@ -156,7 +175,13 @@ function mergeSpace(ss, translated, i, problems) {
     problems.push({ key: "translation.toc.structure", vars: { path }, blocking: true });
     return ss;
   }
-  if (typeof ss === "string") return typeof tsRaw === "string" ? ss : { id, ...Object.fromEntries(TEXT_FIELDS.space.filter((f) => tsRaw[f] !== undefined).map((f) => [f, tsRaw[f]])) };
+  if (typeof ss === "string")
+    return typeof tsRaw === "string"
+      ? ss
+      : {
+          id,
+          ...Object.fromEntries(TEXT_FIELDS.space.filter((f) => tsRaw[f] !== undefined).map((f) => [f, tsRaw[f]])),
+        };
   const ts = typeof tsRaw === "string" ? {} : tsRaw;
   mergeNonText(ss, ts, [...TEXT_FIELDS.space, "id"], path, problems);
   const out = { ...ss };
@@ -192,7 +217,14 @@ export function translatedToc({ source, translated }) {
   const problems = [];
   if ((source.suggestions || []).length !== (translated?.suggestions || source.suggestions || []).length)
     problems.push({ key: "translation.toc.structure", vars: { path: "suggestions" }, blocking: true });
-  else mergeNonText({ suggestions: source.suggestions || [] }, translated ? { suggestions: translated.suggestions } : null, [], "", problems);
+  else
+    mergeNonText(
+      { suggestions: source.suggestions || [] },
+      translated ? { suggestions: translated.suggestions } : null,
+      [],
+      "",
+      problems,
+    );
 
   const toc = {
     ...source,
@@ -214,12 +246,15 @@ export function translatedToc({ source, translated }) {
  */
 export function translatedGlossary({ source, translated }) {
   if (!translated) return { glossary: source };
-  if (translated.length !== source.length) return { glossary: source, problem: { expected: source.length, found: translated.length } };
+  if (translated.length !== source.length)
+    return { glossary: source, problem: { expected: source.length, found: translated.length } };
   const glossary = source.map((g, i) => ({
     ...g,
     term: translated[i].term ?? g.term,
     def: translated[i].def ?? g.def,
-    ...(g.pattern !== undefined || translated[i].pattern !== undefined ? { pattern: translated[i].pattern ?? g.pattern } : {}),
+    ...(g.pattern !== undefined || translated[i].pattern !== undefined
+      ? { pattern: translated[i].pattern ?? g.pattern }
+      : {}),
   }));
   return { glossary };
 }

@@ -25,15 +25,36 @@ export const options = {
 /** Runs Playwright's codegen (no shell): writes the recorded JavaScript to `output`; returns the exit status. */
 function runCodegen({ url, output, storage }) {
   const cli = path.join(path.dirname(createRequire(import.meta.url).resolve("playwright/package.json")), "cli.js");
-  const args = [cli, "codegen", "--target", "javascript", "--output", output, ...(storage ? ["--load-storage", storage] : []), url];
+  const args = [
+    cli,
+    "codegen",
+    "--target",
+    "javascript",
+    "--output",
+    output,
+    ...(storage ? ["--load-storage", storage] : []),
+    url,
+  ];
   return spawnSync(process.execPath, args, { stdio: "inherit", windowsHide: false, shell: false }).status;
 }
 
 export async function run({ ctx, values, positionals }) {
   const route = positionals[0];
   if (!route || !route.startsWith("/")) throw new KitError(EXIT.USAGE, "record.route", { command: BRAND.command });
-  const id = values.id || route.replace(/[?#].*$/, "").replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "home";
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) throw new KitError(EXIT.USAGE, "option.value", { option: "id", value: id, expected: "lower-case letters, digits and dashes" });
+  const id =
+    values.id ||
+    route
+      .replace(/[?#].*$/, "")
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/[^a-z0-9]+/gi, "-")
+      .toLowerCase() ||
+    "home";
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(id))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "id",
+      value: id,
+      expected: "lower-case letters, digits and dashes",
+    });
   const { project, config } = await ctx.loadProject();
   if (config.capture.mode === "none") throw new KitError(EXIT.USAGE, "capture.modeNone", { file: "doc.config.mjs" });
   if (config.capture.target === "production") throw new KitError(EXIT.USAGE, "record.production");

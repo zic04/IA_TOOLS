@@ -18,35 +18,65 @@ const TYPED = path.join(FIXTURES, "audit-typed");
 const NOW = new Date(Date.UTC(2026, 9, 1, 12));
 
 describe("::facts and ::faits (ARCHITECTURE.md §6.9)", () => {
-  const data = { source: "env", generator: "doc-kit 0.1.0", generated: "2026-10-02T08:00:00.000Z", commit: "abcdef1234567890", app: "..", items: [
-    { name: "DATABASE_URL", files: ["lib/db.ts:3", "lib/db.ts:9"], example: true },
-    { name: "INTERNAL_FLAG", files: [], example: false },
-  ] };
-  const files = { "facts/env.json": JSON.stringify(data), "facts/empty.json": JSON.stringify({ ...data, source: "empty", items: [] }) };
+  const data = {
+    source: "env",
+    generator: "doc-kit 0.1.0",
+    generated: "2026-10-02T08:00:00.000Z",
+    commit: "abcdef1234567890",
+    app: "..",
+    items: [
+      { name: "DATABASE_URL", files: ["lib/db.ts:3", "lib/db.ts:9"], example: true },
+      { name: "INTERNAL_FLAG", files: [], example: false },
+    ],
+  };
+  const files = {
+    "facts/env.json": JSON.stringify(data),
+    "facts/empty.json": JSON.stringify({ ...data, source: "empty", items: [] }),
+  };
 
   test("columns, translated headers, lists joined with commas, booleans ✔ / —", () => {
     const { render } = testEngine({ files });
     const r = render('::facts{source="env" columns="name,files,example"}');
     // data-generated="facts" (on the wrapping div and the table itself): tells `check tables` not to report this
     // table for being too narrow a column to fix — a directive's table, never one the writer wrote by hand.
-    assert.match(r.html, /<div class="tableau" data-generated="facts"><table data-generated="facts"><caption>[^<]*<\/caption><thead><tr><th>Name<\/th><th>Files<\/th><th>In the example file<\/th><\/tr><\/thead>/);
+    assert.match(
+      r.html,
+      /<div class="tableau" data-generated="facts"><table data-generated="facts"><caption>[^<]*<\/caption><thead><tr><th>Name<\/th><th>Files<\/th><th>In the example file<\/th><\/tr><\/thead>/,
+    );
     assert.match(r.html, /<tr><td>DATABASE_URL<\/td><td>lib\/db\.ts:3, lib\/db\.ts:9<\/td><td>✔<\/td><\/tr>/);
     assert.match(r.html, /<tr><td>INTERNAL_FLAG<\/td><td>—<\/td><td>—<\/td><\/tr>/);
   });
 
   test("a path-like scalar cell (contains '/': a file path, a route) is wrapped in <code>, so a long nested path (a real-world Next.js route) gets the same <wbr> break opportunities as hand-written inline code; a plain scalar (no '/') stays plain text", () => {
     const apiData = {
-      source: "api", generator: "doc-kit 0.1.0", generated: "2026-10-02T08:00:00.000Z", commit: "abcdef1234567890", app: "..",
-      items: [{ method: "GET", route: "/admin/orders/[id]", file: "frontend/src/app/admin/pulse-projects/[id]/edit/page.tsx" }],
+      source: "api",
+      generator: "doc-kit 0.1.0",
+      generated: "2026-10-02T08:00:00.000Z",
+      commit: "abcdef1234567890",
+      app: "..",
+      items: [
+        {
+          method: "GET",
+          route: "/admin/orders/[id]",
+          file: "frontend/src/app/admin/pulse-projects/[id]/edit/page.tsx",
+        },
+      ],
     };
     const { render } = testEngine({ files: { "facts/api.json": JSON.stringify(apiData) } });
     const r = render('::facts{source="api" columns="method,route,file"}');
     assert.match(r.html, /<td>GET<\/td>/, "a plain scalar (no '/') is never wrapped in <code>");
     assert.doesNotMatch(r.html, /<code>GET<\/code>/);
-    assert.match(r.html, /<td><code>\/admin\/orders\/\[id\]<\/code><\/td>/, "a short path-like value: wrapped, no <wbr> needed under 28 characters");
+    assert.match(
+      r.html,
+      /<td><code>\/admin\/orders\/\[id\]<\/code><\/td>/,
+      "a short path-like value: wrapped, no <wbr> needed under 28 characters",
+    );
     const longFile = "frontend/src/app/admin/pulse-projects/[id]/edit/page.tsx";
     assert.ok(longFile.length >= 28, "sanity check: long enough to need a break opportunity");
-    assert.match(r.html, /<td><code>frontend\/<wbr>src\/<wbr>app\/<wbr>admin\/<wbr>pulse-projects\/<wbr>\[id\]\/<wbr>edit\/<wbr>page\.<wbr>tsx<\/code><\/td>/);
+    assert.match(
+      r.html,
+      /<td><code>frontend\/<wbr>src\/<wbr>app\/<wbr>admin\/<wbr>pulse-projects\/<wbr>\[id\]\/<wbr>edit\/<wbr>page\.<wbr>tsx<\/code><\/td>/,
+    );
   });
 
   test("without `columns`: every key of the first item", () => {
@@ -59,7 +89,9 @@ describe("::facts and ::faits (ARCHITECTURE.md §6.9)", () => {
     const { render, reports } = testEngine({ files });
     const r = render('::facts{source="env" columns="name,bogus"}');
     assert.match(r.html, /<th>bogus<\/th>/);
-    assert.deepEqual(reports, [{ strict: true, kind: "facts", key: "facts.column", vars: { page: "page/test", source: "env", column: "bogus" } }]);
+    assert.deepEqual(reports, [
+      { strict: true, kind: "facts", key: "facts.column", vars: { page: "page/test", source: "env", column: "bogus" } },
+    ]);
   });
 
   test("the caption gives the date (generated) and a short commit", () => {
@@ -72,7 +104,14 @@ describe("::facts and ::faits (ARCHITECTURE.md §6.9)", () => {
     const { render, reports } = testEngine({ files });
     const r = render('::facts{source="nope"}');
     assert.equal(r.html.trim(), "");
-    assert.deepEqual(reports, [{ strict: true, kind: "facts", key: "facts.missing", vars: { page: "page/test", source: "nope", file: "facts/nope.json" } }]);
+    assert.deepEqual(reports, [
+      {
+        strict: true,
+        kind: "facts",
+        key: "facts.missing",
+        vars: { page: "page/test", source: "nope", file: "facts/nope.json" },
+      },
+    ]);
   });
 
   test("French spelling: ::faits{source colonnes}, empty items render an empty body without error", () => {
@@ -87,16 +126,25 @@ describe("claim badges [[verified]] [[deduced]] [[unknown]] (and the French spel
   test("with a file:line proof, and without one", () => {
     const { render } = testEngine({});
     const withProof = render("[[verified lib/orders.ts:42]]").html;
-    assert.match(withProof, /<span class="puce affirmation verifie" title="Verified in the code">Verified in the code <code>lib\/orders\.ts:42<\/code><\/span>/);
+    assert.match(
+      withProof,
+      /<span class="puce affirmation verifie" title="Verified in the code">Verified in the code <code>lib\/orders\.ts:42<\/code><\/span>/,
+    );
     const bare = render("[[deduced]]").html;
-    assert.match(bare, /<span class="puce affirmation deduit" title="Deduced, not directly verified">Deduced, not directly verified<\/span>/);
+    assert.match(
+      bare,
+      /<span class="puce affirmation deduit" title="Deduced, not directly verified">Deduced, not directly verified<\/span>/,
+    );
     assert.doesNotMatch(bare, /<code>/);
   });
 
   test("[[unknown]] and the French spellings verifie / deduit / inconnu", () => {
     const { render } = testEngine({ language: "fr" });
     assert.match(render("[[unknown]]").html, /class="puce affirmation inconnu"/);
-    assert.match(render("[[verifie chemin/fichier.ts:1]]").html, /class="puce affirmation verifie"[^>]*>[^<]*<code>chemin\/fichier\.ts:1<\/code>/);
+    assert.match(
+      render("[[verifie chemin/fichier.ts:1]]").html,
+      /class="puce affirmation verifie"[^>]*>[^<]*<code>chemin\/fichier\.ts:1<\/code>/,
+    );
     assert.match(render("[[deduit]]").html, /class="puce affirmation deduit"/);
     assert.match(render("[[inconnu]]").html, /class="puce affirmation inconnu"/);
   });
@@ -122,7 +170,10 @@ describe("audit: facts (stale) and claims (informative, no criterion)", () => {
   }
   const writeFacts = (dir, source, commit) => {
     fs.mkdirSync(path.join(dir, "facts"), { recursive: true });
-    fs.writeFileSync(path.join(dir, "facts", `${source}.json`), JSON.stringify({ source, generator: "x", generated: "2026-01-01T00:00:00.000Z", commit, app: "..", items: [] }));
+    fs.writeFileSync(
+      path.join(dir, "facts", `${source}.json`),
+      JSON.stringify({ source, generator: "x", generated: "2026-01-01T00:00:00.000Z", commit, app: "..", items: [] }),
+    );
   };
 
   test("no facts/ folder: 0 files, 0 stale", async () => {
@@ -131,18 +182,24 @@ describe("audit: facts (stale) and claims (informative, no criterion)", () => {
   });
 
   test("a facts file whose commit differs from the application's current HEAD is stale", async () => {
-    const r = await audited((dir) => {
-      writeFacts(dir, "env", "old-commit");
-      writeFacts(dir, "api", "current-commit");
-    }, { commit: "current-commit" });
+    const r = await audited(
+      (dir) => {
+        writeFacts(dir, "env", "old-commit");
+        writeFacts(dir, "api", "current-commit");
+      },
+      { commit: "current-commit" },
+    );
     assert.deepEqual(r.facts, { files: 2, stale: 1 });
   });
 
   test("tool-*.json reports (--tools) are not counted as facts files", async () => {
-    const r = await audited((dir) => {
-      writeFacts(dir, "env", "x");
-      fs.writeFileSync(path.join(dir, "facts", "tool-gitleaks.json"), "{}");
-    }, { commit: "x" });
+    const r = await audited(
+      (dir) => {
+        writeFacts(dir, "env", "x");
+        fs.writeFileSync(path.join(dir, "facts", "tool-gitleaks.json"), "{}");
+      },
+      { commit: "x" },
+    );
     assert.equal(r.facts.files, 1);
   });
 
@@ -154,7 +211,10 @@ describe("audit: facts (stale) and claims (informative, no criterion)", () => {
   test("claims: tallied on the written takeover pages only, with the verified ratio", async () => {
     const r = await audited((dir) => {
       const f = path.join(dir, "content", "take-over", "architecture.md");
-      fs.appendFileSync(f, "\n\n[[verified lib/orders/rules.ts:40]] and [[verified lib/orders/rules.ts:41]], but [[deduced]] and [[unknown]] remain.\n");
+      fs.appendFileSync(
+        f,
+        "\n\n[[verified lib/orders/rules.ts:40]] and [[verified lib/orders/rules.ts:41]], but [[deduced]] and [[unknown]] remain.\n",
+      );
       // A claim badge outside Take over (use/orders) must not be counted.
       fs.appendFileSync(path.join(dir, "content", "use", "orders.md"), "\n\n[[verified lib/orders.ts:1]]\n");
     });
@@ -168,9 +228,15 @@ describe("audit: facts (stale) and claims (informative, no criterion)", () => {
 
   test("facts and claims appear in the Markdown report only when there is something to show", async () => {
     const r1 = await audited();
-    assert.doesNotMatch(renderMarkdown(r1, createI18n({ language: "en", vars: { command: "doc-kit" } })), /Facts and claims/);
+    assert.doesNotMatch(
+      renderMarkdown(r1, createI18n({ language: "en", vars: { command: "doc-kit" } })),
+      /Facts and claims/,
+    );
     const r2 = await audited((dir) => writeFacts(dir, "env", "x"), { commit: "x" });
-    assert.match(renderMarkdown(r2, createI18n({ language: "en", vars: { command: "doc-kit" } })), /## Facts and claims\n\n- 1 facts file, 0 stale/);
+    assert.match(
+      renderMarkdown(r2, createI18n({ language: "en", vars: { command: "doc-kit" } })),
+      /## Facts and claims\n\n- 1 facts file, 0 stale/,
+    );
   });
 
   test("the level never changes because of facts or claims: both are informative only", async () => {

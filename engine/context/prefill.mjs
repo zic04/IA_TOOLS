@@ -12,13 +12,20 @@ export function stripPrefillMarkers(text) {
 }
 
 /** Prefillable page type → facts source (ARCHITECTURE.md §6.9, §6.11). */
-export const PREFILL_SOURCES = Object.freeze({ variables: "env", "api-surface": "api", "data-model": "db", dependencies: "dependencies", "agent-instructions": "agents" });
+export const PREFILL_SOURCES = Object.freeze({
+  variables: "env",
+  "api-surface": "api",
+  "data-model": "db",
+  dependencies: "dependencies",
+  "agent-instructions": "agents",
+});
 
 /** Is this template's own language French (detected from the "consigne" guidance marker it already uses)? */
 const isFrench = (text) => /<!--\s*consigne\s*:/i.test(text);
 
 /** A guidance comment in the template's own language. */
-const guidanceOf = (text) => (isFrench(text) ? (cell) => `<!-- consigne : ${cell} -->` : (cell) => `<!-- guidance: ${cell} -->`);
+const guidanceOf = (text) =>
+  isFrench(text) ? (cell) => `<!-- consigne : ${cell} -->` : (cell) => `<!-- guidance: ${cell} -->`;
 
 /** The claim-status badge word of the template's own language (ARCHITECTURE.md §6.9: [[verified]] / [[verifie]]). */
 const verifiedOf = (text) => (isFrench(text) ? "verifie" : "verified");
@@ -33,11 +40,20 @@ const filesCell = (files) => (files?.length ? files.map((f) => `\`${f}\``).join(
  * env file" (a short, language-neutral notation, read the same in English and French).
  */
 const KEY_CELLS = {
-  env: (item) => ({ 0: `\`${item.name}\``, 2: filesCell(item.files), ...(item.example && !item.files?.length ? { 1: "`.env.example`" } : {}) }),
+  env: (item) => ({
+    0: `\`${item.name}\``,
+    2: filesCell(item.files),
+    ...(item.example && !item.files?.length ? { 1: "`.env.example`" } : {}),
+  }),
   api: (item, verified) => ({ 0: item.method, 1: `\`${item.route}\``, 5: `[[${verified} file]]` }),
   db: (item, verified) => ({ 0: `\`${item.table}\``, 1: (item.columns || []).join(", "), 3: `[[${verified} file]]` }),
   dependencies: (item) => ({ 0: `\`${item.name}\``, 1: item.version, ...(item.license ? { 3: item.license } : {}) }),
-  agents: (item) => ({ 0: `\`${item.file}\``, 1: String(item.lines), 2: String(item.words), 3: String(item.hidden?.length || 0) }),
+  agents: (item) => ({
+    0: `\`${item.file}\``,
+    1: String(item.lines),
+    2: String(item.words),
+    3: String(item.hidden?.length || 0),
+  }),
 };
 
 /** Only the direct dependencies are prefilled (ARCHITECTURE.md §6.11): a dev or transitive package tells a reviewer little. */

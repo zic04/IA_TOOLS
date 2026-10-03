@@ -10,12 +10,29 @@
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
   // Icon names used by this file → keys of the embedded icon set.
-  const ICON_KEYS = { sun: "soleil", moon: "lune", screen: "ecran", lock: "droits", book: "livre", sliders: "studios", map: "carte", search: "recherche", left: "gauche" };
+  const ICON_KEYS = {
+    sun: "soleil",
+    moon: "lune",
+    screen: "ecran",
+    lock: "droits",
+    book: "livre",
+    sliders: "studios",
+    map: "carte",
+    search: "recherche",
+    left: "gauche",
+  };
   const icon = (name, cls = "ico") =>
     `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${D.icones[ICON_KEYS[name] || name] || ""}</svg>`;
   const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    String(s ?? "").replace(
+      /[&<>"']/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const norm = (s) =>
+    String(s || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase();
 
   // ─── Texts (i18n) ─────────────────────────────────────────────────────────
   // t(key, vars): plain text; variables {name}; plural { one, other… } chosen from vars.n.
@@ -29,7 +46,9 @@
     return v;
   }
   const fill = (template, vars) =>
-    String(template).replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m));
+    String(template).replace(/\{(\w+)\}/g, (m, k) =>
+      vars && vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m,
+    );
   const t = (key, vars) => fill(form(key, vars), vars);
   const th = (key, vars) => fill(esc(form(key, vars)), vars);
 
@@ -89,7 +108,13 @@
   let spacesById = Object.fromEntries((SPACES || []).map((s) => [s.id, s]));
   const SPACE_KEY = "__THEME_KEY__.space";
   const exported = SPACES && D.meta.space ? D.meta.space : null;
-  let FULL = { sections: D.sections, ordre: D.ordre, parcours: D.parcours || [], suggestions: D.suggestions || [], byId: { ...sectionsById } };
+  let FULL = {
+    sections: D.sections,
+    ordre: D.ordre,
+    parcours: D.parcours || [],
+    suggestions: D.suggestions || [],
+    byId: { ...sectionsById },
+  };
   const knownSpace = (id) => (id && spacesById[id] ? id : null);
   let currentSpace = exported || knownSpace(memo.read(SPACE_KEY));
   const inCurrentSpace = (pid) => !currentSpace || (!!D.pages[pid] && D.pages[pid].space === currentSpace);
@@ -121,7 +146,8 @@
     applySpace();
   }
   /** Where a section leads: its overview, or its first page of the current space when it belongs to another one. */
-  const sectionLink = (s) => (currentSpace && s.space !== currentSpace && s.groupes.length ? s.groupes[0].pages[0] : s.id);
+  const sectionLink = (s) =>
+    currentSpace && s.space !== currentSpace && s.groupes.length ? s.groupes[0].pages[0] : s.id;
   const spaceIcon = (s) => (s.icon ? icon(s.icon) : "");
 
   // Selector: "everything", then one button per space (tooltip: its readers); the current one is pressed. In the
@@ -130,9 +156,15 @@
   const spaceButtons = () =>
     `<button type="button" class="espace-choix" data-espace="" title="${esc(t("ui.spaces.allFor"))}" aria-pressed="${!currentSpace}">${esc(t("ui.spaces.all"))}</button>` +
     (SPACES || [])
-      .map((s) => `<button type="button" class="espace-choix" data-espace="${esc(s.id)}" title="${esc(s.for)}" aria-pressed="${s.id === currentSpace}">${esc(s.shortTitle)}</button>`)
+      .map(
+        (s) =>
+          `<button type="button" class="espace-choix" data-espace="${esc(s.id)}" title="${esc(s.for)}" aria-pressed="${s.id === currentSpace}">${esc(s.shortTitle)}</button>`,
+      )
       .join("");
-  const sidebarSpaces = () => (SPACES && !exported ? `<div class="espaces lat-espaces" role="group" aria-label="${esc(t("ui.spaces.label"))}">${spaceButtons()}</div>` : "");
+  const sidebarSpaces = () =>
+    SPACES && !exported
+      ? `<div class="espaces lat-espaces" role="group" aria-label="${esc(t("ui.spaces.label"))}">${spaceButtons()}</div>`
+      : "";
   function renderSpaces() {
     if (!spacesBar) return;
     if (!exported) {
@@ -169,7 +201,9 @@
     const target = c && D.pages[c.id];
     if (!target) return "";
     const other = SPACES && target.space !== p.space ? spacesById[target.space] : null;
-    const text = other ? t("ui.counterpart", { space: other.shortTitle, title: target.titre }) : t("ui.counterpart.plain", { title: target.titre });
+    const text = other
+      ? t("ui.counterpart", { space: other.shortTitle, title: target.titre })
+      : t("ui.counterpart.plain", { title: target.titre });
     return `<p class="pendant"><a href="#/${c.id}${c.anchor ? "~" + c.anchor : ""}">${icon("lien")}<span>${esc(text)}</span></a></p>`;
   }
   /** Home page, "everything" mode: one door per space. */
@@ -181,7 +215,7 @@
           ${s.for ? `<p class="porte-pour">${esc(t("home.spaces.for", { for: s.for }))}</p>` : ""}
           <p>${esc(s.subtitle)}</p>
           <span class="aller">${esc(t("home.doorPages", { n: s.pages }))}</span>
-        </a>`
+        </a>`,
     ).join("");
   /** Home page with a space current (not in an export): "You are reading: {title} · Show everything". */
   function spaceStrip() {
@@ -230,7 +264,13 @@
     computeHierarchy();
     SPACES = D.spaces || null;
     spacesById = Object.fromEntries((SPACES || []).map((s) => [s.id, s]));
-    FULL = { sections: D.sections, ordre: D.ordre, parcours: D.parcours || [], suggestions: D.suggestions || [], byId: { ...sectionsById } };
+    FULL = {
+      sections: D.sections,
+      ordre: D.ordre,
+      parcours: D.parcours || [],
+      suggestions: D.suggestions || [],
+      byId: { ...sectionsById },
+    };
     INDEX = buildIndex();
     TERMS = buildTerms();
     imageCache.clear();
@@ -274,10 +314,12 @@
   const languageButtons = () =>
     LANGUAGES.map(
       (id) =>
-        `<button type="button" class="espace-choix" data-langue="${id}" lang="${id}" aria-pressed="${id === currentLang}">${esc(TEXTS["ui.language." + id] || id)}</button>`
+        `<button type="button" class="espace-choix" data-langue="${id}" lang="${id}" aria-pressed="${id === currentLang}">${esc(TEXTS["ui.language." + id] || id)}</button>`,
     ).join("");
   const sidebarLanguages = () =>
-    LANGUAGES ? `<div class="espaces lat-espaces lat-langues" role="group" aria-label="${esc(t("ui.language.label"))}">${languageButtons()}</div>` : "";
+    LANGUAGES
+      ? `<div class="espaces lat-espaces lat-langues" role="group" aria-label="${esc(t("ui.language.label"))}">${languageButtons()}</div>`
+      : "";
   const langBar = $("#langues");
   function renderLanguages() {
     if (!langBar) return;
@@ -295,14 +337,17 @@
    * e.g. "anglais" on a French interface, "French" on an English one), never the autonym (reserved for the
    * language selector): ui.language.name.<fallback> first, then the autonym, then the raw code. */
   const translationBanner = (fallback) =>
-    fallback ? `<div class="bandeau-traduction" role="note">${icon("note")}<span>${esc(t("ui.translation.missing", { language: TEXTS["ui.language.name." + fallback] || TEXTS["ui.language." + fallback] || fallback }))}</span></div>` : "";
+    fallback
+      ? `<div class="bandeau-traduction" role="note">${icon("note")}<span>${esc(t("ui.translation.missing", { language: TEXTS["ui.language.name." + fallback] || TEXTS["ui.language." + fallback] || fallback }))}</span></div>`
+      : "";
 
   // ─── Embedded images ──────────────────────────────────────────────────────
   const imageCache = new Map();
   function imageSrc(id) {
     const key = LANGUAGES ? currentLang + ":" + id : id;
     if (!imageCache.has(key)) {
-      let el = LANGUAGES && currentLang !== SOURCE_LANG ? document.getElementById("img-" + id + "@" + currentLang) : null;
+      let el =
+        LANGUAGES && currentLang !== SOURCE_LANG ? document.getElementById("img-" + id + "@" + currentLang) : null;
       if (!el) el = document.getElementById("img-" + id);
       imageCache.set(key, el ? el.textContent.trim() : "");
     }
@@ -334,7 +379,7 @@
     $("#topnav").innerHTML = D.sections
       .map(
         (s) =>
-          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.vedette ? "vedette" : ""}">${esc(s.titre_court || s.titre)}</a>`
+          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.vedette ? "vedette" : ""}">${esc(s.titre_court || s.titre)}</a>`,
       )
       .join("");
   }
@@ -342,42 +387,49 @@
   const openSections = new Set();
   function renderSidebar(sectionId, pageId) {
     if (sectionId) openSections.add(sectionId);
-    sidebar.innerHTML = sidebarLanguages() + sidebarSpaces() + D.sections
-      .map((s, i) => {
-        const open = openSections.has(s.id);
-        const groups = s.groupes
-          .map(
-            (g) =>
-              (g.titre ? `<div class="lat-groupe">${esc(g.titre)}</div>` : "") +
-              g.pages
-                .map((pid) => {
-                  const p = D.pages[pid];
-                  // A sub-page is shown only when its parent page or one of its siblings is displayed.
-                  const branch = pageId && (parentOf[pageId] || pageId);
-                  if (parentOf[pid] && parentOf[pid] !== branch) return "";
-                  const children = childrenOf[pid];
-                  const classes = [
-                    "lat-lien",
-                    parentOf[pid] ? "niveau-2" : "",
-                    pid === pageId ? "actif" : "",
-                    children ? "a-enfants" : "",
-                    children && branch === pid ? "deplie" : "",
-                    parentOf[pageId] === pid ? "parent-actif" : "",
-                  ].filter(Boolean).join(" ");
-                  const count = children ? `<span class="lat-nb" title="${esc(t("ui.subPages", { n: children.length }))}">${children.length}</span>` : "";
-                  return `<a class="${classes}" href="#/${pid}"><span>${esc(p.titre_menu || p.titre)}</span>${count}</a>`;
-                })
-                .join("")
-          )
-          .join("");
-        // The overview of a section belongs to its own space: not offered from another one.
-        const overview = !currentSpace || s.space === currentSpace;
-        return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
+    sidebar.innerHTML =
+      sidebarLanguages() +
+      sidebarSpaces() +
+      D.sections
+        .map((s, i) => {
+          const open = openSections.has(s.id);
+          const groups = s.groupes
+            .map(
+              (g) =>
+                (g.titre ? `<div class="lat-groupe">${esc(g.titre)}</div>` : "") +
+                g.pages
+                  .map((pid) => {
+                    const p = D.pages[pid];
+                    // A sub-page is shown only when its parent page or one of its siblings is displayed.
+                    const branch = pageId && (parentOf[pageId] || pageId);
+                    if (parentOf[pid] && parentOf[pid] !== branch) return "";
+                    const children = childrenOf[pid];
+                    const classes = [
+                      "lat-lien",
+                      parentOf[pid] ? "niveau-2" : "",
+                      pid === pageId ? "actif" : "",
+                      children ? "a-enfants" : "",
+                      children && branch === pid ? "deplie" : "",
+                      parentOf[pageId] === pid ? "parent-actif" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
+                    const count = children
+                      ? `<span class="lat-nb" title="${esc(t("ui.subPages", { n: children.length }))}">${children.length}</span>`
+                      : "";
+                    return `<a class="${classes}" href="#/${pid}"><span>${esc(p.titre_menu || p.titre)}</span>${count}</a>`;
+                  })
+                  .join(""),
+            )
+            .join("");
+          // The overview of a section belongs to its own space: not offered from another one.
+          const overview = !currentSpace || s.space === currentSpace;
+          return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
           <button type="button" aria-expanded="${open}"><span class="pastille-section">${icon(s.icone)}</span>${esc(s.titre)}${icon("chevron", "ico chevron")}</button>
           <div class="lat-corps">${overview ? `<a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${s.id}">${esc(t("ui.sidebar.overview"))}</a>` : ""}${groups}</div>
         </div>`;
-      })
-      .join("");
+        })
+        .join("");
     const active = $(".lat-lien.actif", sidebar);
     if (active) active.scrollIntoView({ block: "nearest" });
   }
@@ -399,7 +451,10 @@
     if (SPACES && spacesById[p.space]) badges.push(spaceBadge(p));
     (p.routes || []).forEach((r) => badges.push(`<span class="puce route">${icon("screen")}${esc(r)}</span>`));
     (p.droits || []).forEach((d) => badges.push(`<span class="puce droit">${icon("lock")}${esc(d)}</span>`));
-    if (p.captures) badges.push(`<span class="puce menu">${icon("screen")}${esc(t("ui.page.annotatedScreens", { n: p.captures }))}</span>`);
+    if (p.captures)
+      badges.push(
+        `<span class="puce menu">${icon("screen")}${esc(t("ui.page.annotatedScreens", { n: p.captures }))}</span>`,
+      );
     return badges.length ? `<div class="page-meta">${badges.join("")}</div>` : `<div class="page-meta"></div>`;
   }
 
@@ -419,7 +474,10 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
     if (!m) return d;
     try {
-      return new Intl.DateTimeFormat(document.documentElement.lang || undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)));
+      return new Intl.DateTimeFormat(document.documentElement.lang || undefined, {
+        dateStyle: "long",
+        timeZone: "UTC",
+      }).format(new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)));
     } catch (e) {
       return d;
     }
@@ -428,7 +486,8 @@
   function screenshotsNote(p) {
     const parts = [];
     // Following the application (ARCHITECTURE.md §6.10): only present when sync.json marked this page.
-    if (p.verified) parts.push(t("ui.footer.verified", { version: p.verified.version, date: longDate(p.verified.date) }));
+    if (p.verified)
+      parts.push(t("ui.footer.verified", { version: p.verified.version, date: longDate(p.verified.date) }));
     const info = D.meta.screenshots;
     if (info) {
       const ids = new Set(Array.from(String(p.html).matchAll(/data-img="([^"]+)"/g), (m) => m[1]));
@@ -436,9 +495,17 @@
       const dates = Array.from(new Set(known.map((x) => x.captured).filter(Boolean))).sort();
       const versions = Array.from(new Set(known.map((x) => x.version).filter(Boolean))).sort(versionOrder);
       if (dates.length === 1) parts.push(t("ui.footer.screenshots.on", { date: longDate(dates[0]) }));
-      else if (dates.length > 1) parts.push(t("ui.footer.screenshots.between", { from: longDate(dates[0]), to: longDate(dates[dates.length - 1]) }));
+      else if (dates.length > 1)
+        parts.push(
+          t("ui.footer.screenshots.between", { from: longDate(dates[0]), to: longDate(dates[dates.length - 1]) }),
+        );
       if (versions.length)
-        parts.push(t(dates.length ? "ui.footer.screenshots.version" : "ui.footer.screenshots.versionOnly", { n: versions.length, version: versions.join(", ") }));
+        parts.push(
+          t(dates.length ? "ui.footer.screenshots.version" : "ui.footer.screenshots.versionOnly", {
+            n: versions.length,
+            version: versions.join(", "),
+          }),
+        );
     }
     if (!parts.length) return "";
     return `<div class="pied-captures">${esc(parts.join(", "))}</div>`;
@@ -446,7 +513,13 @@
 
   const siteFooter = () =>
     `<div class="pied-site">${esc(
-      t("ui.footer.site", { product: D.meta.produit, version: D.meta.version, date: D.meta.date, pages: D.meta.stats.pages, captures: D.meta.stats.captures })
+      t("ui.footer.site", {
+        product: D.meta.produit,
+        version: D.meta.version,
+        date: D.meta.date,
+        pages: D.meta.stats.pages,
+        captures: D.meta.stats.captures,
+      }),
     )}${D.meta.feedback ? ` · <a href="${esc(D.meta.feedback.url)}" rel="noopener" target="_blank">${esc(D.meta.feedback.label)}</a>` : ""}</div>`;
 
   function showPage(id, anchor) {
@@ -496,10 +569,12 @@
               const counts = [
                 children.length ? esc(t("ui.subPages", { n: children.length })) : "",
                 screens ? esc(t("ui.page.annotatedScreens", { n: screens })) : "",
-              ].filter(Boolean).join(" · ");
+              ]
+                .filter(Boolean)
+                .join(" · ");
               return `<a class="carte-lien" href="#/${pid}"><span class="titre">${esc(p.titre)}</span><span class="resume">${esc(p.resume || "")}</span>${counts ? `<span class="compte">${counts}</span>` : ""}</a>`;
             })
-            .join("")}</div>`
+            .join("")}</div>`,
       )
       .join("");
     main.innerHTML = `<article class="article">
@@ -524,10 +599,13 @@
     toc.innerHTML = "";
     const s = D.meta.stats;
     // "Everything" mode: one door per space; a space current: the doors of its sections.
-    const doors = SPACES && !currentSpace ? spaceDoors() : D.sections
-      .map((sec) => {
-        const n = sec.groupes.reduce((total, g) => total + g.pages.length, 0);
-        return `<a class="porte ${sec.vedette ? "vedette" : ""}" href="#/${sectionLink(sec)}">
+    const doors =
+      SPACES && !currentSpace
+        ? spaceDoors()
+        : D.sections
+            .map((sec) => {
+              const n = sec.groupes.reduce((total, g) => total + g.pages.length, 0);
+              return `<a class="porte ${sec.vedette ? "vedette" : ""}" href="#/${sectionLink(sec)}">
           ${sec.vedette ? `<span class="etiquette">${esc(t("home.featured"))}</span>` : ""}
           <span class="icone">${icon(sec.icone)}</span>
           <h2>${esc(sec.titre)}</h2>
@@ -535,17 +613,22 @@
           <ul>${(sec.points || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
           <span class="aller">${esc(t("home.doorPages", { n }))}</span>
         </a>`;
-      })
-      .join("");
+            })
+            .join("");
     const journeyCount = (D.parcours || []).length;
     const journeys = (D.parcours || [])
       .map(
-        (j) => `<div class="carte-lien"><span class="titre">${esc(j.titre)}</span><span class="resume">${esc(j.desc)}</span>
-        <ol>${j.etapes.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].titre)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`
+        (
+          j,
+        ) => `<div class="carte-lien"><span class="titre">${esc(j.titre)}</span><span class="resume">${esc(j.desc)}</span>
+        <ol>${j.etapes.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].titre)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`,
       )
       .join("");
     // A space current: its first featured section, else its first own section.
-    const first = D.sections.find((x) => x.vedette) || D.sections.find((x) => !currentSpace || x.space === currentSpace) || D.sections[0];
+    const first =
+      D.sections.find((x) => x.vedette) ||
+      D.sections.find((x) => !currentSpace || x.space === currentSpace) ||
+      D.sections[0];
     main.innerHTML = `
       <section class="heros">
         <div class="heros-interieur">
@@ -597,7 +680,9 @@
     }
     toc.innerHTML =
       `<div class="toc-titre">${esc(t("ui.toc.title"))}</div>` +
-      p.toc.map((h) => `<a class="h${h.niveau}" href="#/${p.id}~${h.id}" data-cible="${h.id}">${esc(h.titre)}</a>`).join("");
+      p.toc
+        .map((h) => `<a class="h${h.niveau}" href="#/${p.id}~${h.id}" data-cible="${h.id}">${esc(h.titre)}</a>`)
+        .join("");
   }
   let tocFrame = 0;
   window.addEventListener(
@@ -616,7 +701,7 @@
         links.forEach((a) => a.classList.toggle("actif", a === active));
       });
     },
-    { passive: true }
+    { passive: true },
   );
 
   function scrollToAnchor(anchor, otherwiseTop) {
@@ -678,10 +763,13 @@
   function markGlossary(root) {
     if (!root || !TERMS.length) return;
     const remaining = new Set(TERMS);
-    const excluded = "a, code, pre, h1, h2, h3, h4, kbd, .puce, .gl, .ecran-barre, .pastille, figcaption, .tableau th, svg";
+    const excluded =
+      "a, code, pre, h1, h2, h3, h4, kbd, .puce, .gl, .ecran-barre, .pastille, figcaption, .tableau th, svg";
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: (n) =>
-        !n.nodeValue.trim() || (n.parentElement && n.parentElement.closest(excluded)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+        !n.nodeValue.trim() || (n.parentElement && n.parentElement.closest(excluded))
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT,
     });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -712,7 +800,9 @@
   // export other than takeover never embeds `tech` at all, engine/build/spaces.mjs).
   function glossaryBubble(gl) {
     const showTech = gl.dataset.tech && (!SPACES || currentSpace === null || currentSpace === "takeover");
-    const tech = showTech ? `<div class="bulle-tech">${esc(t("ui.glossary.technical"))} ${esc(gl.dataset.tech)}</div>` : "";
+    const tech = showTech
+      ? `<div class="bulle-tech">${esc(t("ui.glossary.technical"))} ${esc(gl.dataset.tech)}</div>`
+      : "";
     return `<strong>${esc(gl.dataset.terme)}</strong> — ${esc(gl.dataset.def)}${tech}`;
   }
 
@@ -839,7 +929,9 @@
       .join("");
     // The CSS size of the capture (its zone file), not the image's own pixels: a capture taken at capture.scale 2
     // stays sharp at the same size on a high-density screen.
-    const size = img.getAttribute("width") ? ` width="${esc(img.getAttribute("width"))}" height="${esc(img.getAttribute("height") || "")}"` : "";
+    const size = img.getAttribute("width")
+      ? ` width="${esc(img.getAttribute("width"))}" height="${esc(img.getAttribute("height") || "")}"`
+      : "";
     scene.innerHTML = `<div class="vis-image"><img alt="${esc(fig.dataset.titre || "")}" src="${imageSrc(img.dataset.img)}"${size}>${zones}<div class="projecteur" hidden></div><div class="vis-carte" hidden></div></div>`;
     viewer.classList.add("ouverte");
     document.body.style.overflow = "hidden";
@@ -915,7 +1007,11 @@
       [z.left, z.top - 18 - h],
     ];
     let pos = candidates.find(([x, y]) => x >= margin && y >= margin && x + w <= vw - margin && y + h <= vh - margin);
-    if (!pos) pos = [Math.min(Math.max(margin, z.left), vw - w - margin), Math.min(Math.max(margin, z.bottom + 18), vh - h - margin)];
+    if (!pos)
+      pos = [
+        Math.min(Math.max(margin, z.left), vw - w - margin),
+        Math.min(Math.max(margin, z.bottom + 18), vh - h - margin),
+      ];
     card.style.left = pos[0] - c.left + "px";
     card.style.top = pos[1] - c.top + "px";
   }
@@ -1014,7 +1110,8 @@
     ranges.sort((a, b) => a[0] - b[0]);
     const merged = [];
     for (const r of ranges) {
-      if (merged.length && r[0] <= merged[merged.length - 1][1]) merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], r[1]);
+      if (merged.length && r[0] <= merged[merged.length - 1][1])
+        merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], r[1]);
       else merged.push(r);
     }
     let out = "";
@@ -1027,7 +1124,9 @@
   }
 
   function search(q) {
-    const terms = norm(q).split(/\s+/).filter((x) => x.length > 1);
+    const terms = norm(q)
+      .split(/\s+/)
+      .filter((x) => x.length > 1);
     if (!terms.length) return [];
     const found = [];
     for (const e of INDEX) {
@@ -1060,7 +1159,10 @@
       const k = SPACES.findIndex((sp) => sp.id === s);
       return s === currentSpace ? -1 : k < 0 ? SPACES.length : k;
     };
-    return found.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map((a) => a[0]);
+    return found
+      .map((x, i) => [x, i])
+      .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+      .map((a) => a[0]);
   }
   function resultHeading(r, i) {
     if (!SPACES || !currentSpace) return "";
@@ -1070,7 +1172,8 @@
     return `<div class="recherche-groupe">${esc(t("ui.search.inSpace", { space: spacesById[s].shortTitle, n }))}</div>`;
   }
   /** "Everything" mode: the path of a result starts with its space. */
-  const spacePath = (p) => (SPACES && !currentSpace && spacesById[p.space] ? `${esc(spacesById[p.space].shortTitle)} › ` : "");
+  const spacePath = (p) =>
+    SPACES && !currentSpace && spacesById[p.space] ? `${esc(spacesById[p.space].shortTitle)} › ` : "";
 
   // Screen readers hear the number of results (role="status", aria-live="polite").
   const searchStatus = $("#recherche-statut");
@@ -1087,7 +1190,7 @@
         suggestions
           .map(
             (pid, i) =>
-              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${pid}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].titre)}</div><div class="titre">${esc(D.pages[pid].titre)}</div></a>`
+              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${pid}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].titre)}</div><div class="titre">${esc(D.pages[pid].titre)}</div></a>`,
           )
           .join("");
       results = suggestions.map((pid) => ({ link: "#/" + pid }));
@@ -1103,10 +1206,13 @@
     resultList.innerHTML = r
       .map(({ e, terms }, i) => {
         const p = D.pages[e.p];
-        const pos = Math.max(0, terms.reduce((m, term) => {
-          const k = e.nx.indexOf(term);
-          return k >= 0 && (m < 0 || k < m) ? k : m;
-        }, -1));
+        const pos = Math.max(
+          0,
+          terms.reduce((m, term) => {
+            const k = e.nx.indexOf(term);
+            return k >= 0 && (m < 0 || k < m) ? k : m;
+          }, -1),
+        );
         const start = Math.max(0, pos - 50);
         const excerpt = (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
         return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
@@ -1206,7 +1312,10 @@
     const outline = D.sections
       .map(
         (s) =>
-          `<h3>${esc(s.titre)}</h3><ol>${s.groupes.flatMap((g) => g.pages).map((pid) => `<li>${esc(D.pages[pid].titre)}</li>`).join("")}</ol>`
+          `<h3>${esc(s.titre)}</h3><ol>${s.groupes
+            .flatMap((g) => g.pages)
+            .map((pid) => `<li>${esc(D.pages[pid].titre)}</li>`)
+            .join("")}</ol>`,
       )
       .join("");
     target.innerHTML =

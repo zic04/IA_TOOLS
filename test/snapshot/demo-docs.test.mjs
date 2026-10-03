@@ -21,7 +21,9 @@ for (const language of ["en", "fr"]) {
     assert.deepEqual(r.errors, []);
     assert.deepEqual(
       r.warnings.map((w) => w.key),
-      language === "fr" ? [...Array(26).fill("template.missingSection"), "space.excludedLinks", "space.excludedLinks"] : ["space.excludedLinks", "space.excludedLinks"]
+      language === "fr"
+        ? [...Array(26).fill("template.missingSection"), "space.excludedLinks", "space.excludedLinks"]
+        : ["space.excludedLinks", "space.excludedLinks"],
     );
     const html = stable(r.html);
     const file = path.join(FOLDER, `demo-docs.${language}.html`);
@@ -33,7 +35,9 @@ for (const language of ["en", "fr"]) {
     if (html !== expected) {
       let i = 0;
       while (i < html.length && html[i] === expected[i]) i++;
-      assert.fail(`snapshot ${path.basename(file)} differs at ${i}:\n  expected «${expected.slice(Math.max(0, i - 60), i + 60)}»\n  actual   «${html.slice(Math.max(0, i - 60), i + 60)}»\n(UPDATE=1 to accept)`);
+      assert.fail(
+        `snapshot ${path.basename(file)} differs at ${i}:\n  expected «${expected.slice(Math.max(0, i - 60), i + 60)}»\n  actual   «${html.slice(Math.max(0, i - 60), i + 60)}»\n(UPDATE=1 to accept)`,
+      );
     }
   });
 }

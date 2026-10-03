@@ -20,7 +20,14 @@ import { chromiumStatus } from "../engine/dev/environment.mjs";
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
 function createPaint(enabled) {
   const wrap = (open, close) => (s) => (enabled ? `\x1b[${open}m${s}\x1b[${close}m` : String(s));
-  return { ok: wrap(32, 39), warn: wrap(33, 39), fail: wrap(31, 39), dim: wrap(2, 22), bold: wrap(1, 22), cmd: wrap(36, 39) };
+  return {
+    ok: wrap(32, 39),
+    warn: wrap(33, 39),
+    fail: wrap(31, 39),
+    dim: wrap(2, 22),
+    bold: wrap(1, 22),
+    cmd: wrap(36, 39),
+  };
 }
 
 /**
@@ -38,7 +45,13 @@ export function defaultExec(bin, args = [], options = {}) {
   }
   const file = resolveOnPath(bin, { exclude: [cwd] });
   if (!file) return null;
-  const r = spawnSync(file, args, { encoding: "utf8", windowsHide: true, maxBuffer: 32 * 1024 * 1024, ...options, shell: false });
+  const r = spawnSync(file, args, {
+    encoding: "utf8",
+    windowsHide: true,
+    maxBuffer: 32 * 1024 * 1024,
+    ...options,
+    shell: false,
+  });
   return r.error?.code === "ENOENT" ? null : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
 }
 
@@ -54,7 +67,24 @@ export function defaultExec(bin, args = [], options = {}) {
  *   (bin, args, options) => { status, stdout, stderr } | null (null: the binary is not on the PATH); commit
  *   replaces the read-only git HEAD lookup of `facts` (dir) => string | null.
  */
-export function createContext(globals, { stdout = process.stdout, stderr = process.stderr, env = process.env, stdin = process.stdin, interactive, signal, steps, launch, fetch: fetchImpl = fetch, exec = defaultExec, commit, codegen, chromium } = {}) {
+export function createContext(
+  globals,
+  {
+    stdout = process.stdout,
+    stderr = process.stderr,
+    env = process.env,
+    stdin = process.stdin,
+    interactive,
+    signal,
+    steps,
+    launch,
+    fetch: fetchImpl = fetch,
+    exec = defaultExec,
+    commit,
+    codegen,
+    chromium,
+  } = {},
+) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const warnedGit = new Set();
   const ctx = {
@@ -76,7 +106,9 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
       if (r?.refused && !warnedGit.has(options?.cwd)) {
         warnedGit.add(options?.cwd);
         const vars = { folder: options?.cwd || ".", keys: r.refused.join("; ") };
-        stderr.write(`⚠ ${ctx.t ? ctx.t("cli.git.unsafeConfig", vars) : `git refused in ${vars.folder}: ${vars.keys}`}\n`);
+        stderr.write(
+          `⚠ ${ctx.t ? ctx.t("cli.git.unsafeConfig", vars) : `git refused in ${vars.folder}: ${vars.keys}`}\n`,
+        );
         if (ctx.t) stderr.write(`  → ${ctx.t("cli.git.unsafeConfig.help", vars)}\n`);
       }
       return r;
@@ -99,7 +131,11 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
     get verbose() {
       return !!globals.verbose;
     },
-    language: LANGUAGES.includes(globals.lang) ? globals.lang : LANGUAGES.includes(env.DOC_KIT_LANG) ? env.DOC_KIT_LANG : "en",
+    language: LANGUAGES.includes(globals.lang)
+      ? globals.lang
+      : LANGUAGES.includes(env.DOC_KIT_LANG)
+        ? env.DOC_KIT_LANG
+        : "en",
     project: null,
     config: null,
     i18n: null,
@@ -177,7 +213,12 @@ export function createContext(globals, { stdout = process.stdout, stderr = proce
  */
 export function describeProblem(ctx, p) {
   const prefix = p.kind === "validate" ? "cli.validate." : "cli.build.";
-  const where = p.kind === "validate" ? `${[p.file, p.entry, p.path].filter(Boolean).join(" › ")}: ` : p.vars?.lang ? `(${p.vars.lang}) ` : "";
+  const where =
+    p.kind === "validate"
+      ? `${[p.file, p.entry, p.path].filter(Boolean).join(" › ")}: `
+      : p.vars?.lang
+        ? `(${p.vars.lang}) `
+        : "";
   return {
     what: where + ctx.t(prefix + p.key, p.vars),
     help: ctx.i18n.has(`${prefix}${p.key}.help`) ? ctx.t(`${prefix}${p.key}.help`, p.vars) : "",
@@ -247,7 +288,8 @@ export async function builtSite(ctx, { space, requireExisting = false } = {}) {
   const full = path.resolve(project.root, config.output);
   const output = space ? spaceOutput(project.root, config, space, full) : full;
   const exists = fs.existsSync(output);
-  if (!exists && requireExisting) throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });
+  if (!exists && requireExisting)
+    throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });
   if (exists) {
     const { folders, files } = watchedPaths(config);
     const sources = newestMtime(project.root, { folders: [...folders, config.paths.facts], files });
@@ -283,7 +325,12 @@ function createPrompter(ctx) {
     while (waiting.length) waiting.shift()(null);
   });
   rl.on("SIGINT", () => rl.close());
-  const nextLine = () => (queue.length ? Promise.resolve(queue.shift()) : closed ? Promise.resolve(null) : new Promise((r) => waiting.push(r)));
+  const nextLine = () =>
+    queue.length
+      ? Promise.resolve(queue.shift())
+      : closed
+        ? Promise.resolve(null)
+        : new Promise((r) => waiting.push(r));
 
   async function line(prompt) {
     if (terminal) {
@@ -329,7 +376,9 @@ function createPrompter(ctx) {
     /** Yes / no; empty = default. Accepts y, yes, o, oui, n, no, non. */
     async confirm(label, def = true) {
       for (;;) {
-        const answer = (await line(question(label, ctx.t(def ? "cli.prompt.yesNo" : "cli.prompt.noYes")))).toLowerCase();
+        const answer = (
+          await line(question(label, ctx.t(def ? "cli.prompt.yesNo" : "cli.prompt.noYes")))
+        ).toLowerCase();
         if (!answer) return def;
         if (["y", "yes", "o", "oui"].includes(answer)) return true;
         if (["n", "no", "non"].includes(answer)) return false;

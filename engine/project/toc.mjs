@@ -15,7 +15,9 @@ export const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
  *   file: relative to root (the current name when neither exists); toc: null when missing or unreadable
  */
 export function readToc(root, content) {
-  const rel = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
+  const rel = [CURRENT_FILES.toc, LEGACY_FILES.toc]
+    .map((f) => `${content}/${f}`)
+    .find((f) => fs.existsSync(path.join(root, f)));
   if (!rel) return { file: `${content}/${CURRENT_FILES.toc}`, toc: null, found: false };
   try {
     const raw = JSON.parse(stripBom(fs.readFileSync(path.join(root, rel), "utf8")));

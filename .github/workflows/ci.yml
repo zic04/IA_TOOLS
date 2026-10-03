@@ -49,5 +49,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Security rules (RULES.md) and ReDoS budget
         run: npm run test:security
+      # In this job, whose name the branch ruleset requires: the code checks that need no browser (RULES.md M11).
+      - name: Formatting (Prettier)
+        run: npm run format:check
       - name: Known vulnerabilities of the runtime dependencies
         run: npm audit --omit=dev --audit-level=high

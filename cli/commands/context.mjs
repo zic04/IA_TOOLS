@@ -15,7 +15,13 @@ import { buildContext, contextFileName } from "../../engine/context/context.mjs"
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
 import { readProjectVersion } from "../../engine/build/build.mjs";
 import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
-import { checkLanguageOption, translatedToc, translatedGlossary, readSources, translationState } from "../../engine/build/languages.mjs";
+import {
+  checkLanguageOption,
+  translatedToc,
+  translatedGlossary,
+  readSources,
+  translationState,
+} from "../../engine/build/languages.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { hashText } from "../../engine/sync/hash.mjs";
 import { normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
@@ -40,7 +46,9 @@ function readProjectToc(root, config) {
 /** Reads content/glossary.json (or the legacy glossaire.json); [] when missing or invalid. */
 function readGlossary(root, config) {
   const { content } = config.paths;
-  const rel = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
+  const rel = [CURRENT_FILES.glossary, LEGACY_FILES.glossary]
+    .map((f) => `${content}/${f}`)
+    .find((f) => fs.existsSync(path.join(root, f)));
   if (!rel) return [];
   try {
     const raw = JSON.parse(stripBom(fs.readFileSync(path.join(root, rel), "utf8")));
@@ -96,14 +104,20 @@ export async function run({ ctx, values, positionals }) {
   let budget = 16000;
   if (values.budget !== undefined) {
     budget = Number(values.budget);
-    if (!Number.isInteger(budget) || budget <= 0) throw new KitError(EXIT.USAGE, "option.value", { option: "budget", value: values.budget, expected: "a whole number > 0" });
+    if (!Number.isInteger(budget) || budget <= 0)
+      throw new KitError(EXIT.USAGE, "option.value", {
+        option: "budget",
+        value: values.budget,
+        expected: "a whole number > 0",
+      });
   }
 
   const { project, config } = await ctx.loadProject();
   const root = project.root;
   const toc = readProjectToc(root, config);
   if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${CURRENT_FILES.toc}` });
-  for (const id of positionals) if (!findPageEntry(toc, id)) throw new KitError(EXIT.USAGE, "context.unknownPage", { page: id });
+  for (const id of positionals)
+    if (!findPageEntry(toc, id)) throw new KitError(EXIT.USAGE, "context.unknownPage", { page: id });
 
   if (values.translate !== undefined) {
     if (values.update) throw new KitError(EXIT.USAGE, "context.translateUpdate");
@@ -124,7 +138,12 @@ export async function run({ ctx, values, positionals }) {
   }
 
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
-  const [inventory, plans, glossary, { reference }] = await Promise.all([runCoverage({ root, config }), readPlans(root, config), readGlossary(root, config), readSyncReference(root, config)]);
+  const [inventory, plans, glossary, { reference }] = await Promise.all([
+    runCoverage({ root, config }),
+    readPlans(root, config),
+    readGlossary(root, config),
+    readSyncReference(root, config),
+  ]);
   const tools = adapterTools(root);
   const labels = readLabels(root, config);
   const facts = readFacts(root, config);
@@ -138,12 +157,42 @@ export async function run({ ctx, values, positionals }) {
   const written = [];
   for (const pageId of positionals) {
     const declared = reference?.pages?.[pageId]?.declared || [];
-    const deps = await pageDependencies({ root, config, toc, pageId, inventory, tools, factsDir: config.paths.facts, plans, declared });
-    const { text, tokens, cut } = buildContext({ root, config, toc, pageId, deps, appDir, labels, facts, glossary, templates, report, update: !!values.update, budget, product, version, t: ctx.t });
+    const deps = await pageDependencies({
+      root,
+      config,
+      toc,
+      pageId,
+      inventory,
+      tools,
+      factsDir: config.paths.facts,
+      plans,
+      declared,
+    });
+    const { text, tokens, cut } = buildContext({
+      root,
+      config,
+      toc,
+      pageId,
+      deps,
+      appDir,
+      labels,
+      facts,
+      glossary,
+      templates,
+      report,
+      update: !!values.update,
+      budget,
+      product,
+      version,
+      t: ctx.t,
+    });
     const file = contextFileName(pageId);
     fs.writeFileSync(path.join(dir, file), text);
     written.push({ page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length, cut });
-    if (!ctx.json) ctx.print(ctx.t("cli.context.written", { page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length }));
+    if (!ctx.json)
+      ctx.print(
+        ctx.t("cli.context.written", { page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length }),
+      );
   }
   if (ctx.json) ctx.print(JSON.stringify(written, null, 2));
   return EXIT.OK;
@@ -158,8 +207,12 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
   const rawTranslatedToc = readProjectToc(root, translationsConfig);
   const tocL = rawTranslatedToc ? translatedToc({ source: toc, translated: rawTranslatedToc }).toc : null;
   const glossary = readGlossary(root, config);
-  const glossaryLExists = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].some((f) => fs.existsSync(path.join(root, translations, lang, f)));
-  const glossaryL = glossaryLExists ? translatedGlossary({ source: glossary, translated: readGlossary(root, translationsConfig) }).glossary : null;
+  const glossaryLExists = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].some((f) =>
+    fs.existsSync(path.join(root, translations, lang, f)),
+  );
+  const glossaryL = glossaryLExists
+    ? translatedGlossary({ source: glossary, translated: readGlossary(root, translationsConfig) }).glossary
+    : null;
   const recorded = readSources(root, translations, lang);
   const git = createGit(ctx.exec, root);
 
@@ -198,7 +251,16 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
     const file = translateContextFileName(pageId, lang);
     fs.writeFileSync(path.join(dir, file), text);
     written.push({ page: pageId, lang, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length, cut });
-    if (!ctx.json) ctx.print(ctx.t("cli.context.translate.written", { lang, page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length }));
+    if (!ctx.json)
+      ctx.print(
+        ctx.t("cli.context.translate.written", {
+          lang,
+          page: pageId,
+          file: `.doc-kit/context/${file}`,
+          tokens,
+          cuts: cut.length,
+        }),
+      );
   }
   if (ctx.json) ctx.print(JSON.stringify(written, null, 2));
   return EXIT.OK;

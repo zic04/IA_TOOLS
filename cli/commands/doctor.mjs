@@ -47,12 +47,29 @@ const FAILURE = { env: EXIT.ENVIRONMENT, config: EXIT.USAGE, project: EXIT.CHECK
 
 /** Relative path strings of an adapter's options (coverage sources). */
 /** Adapter options that are never file paths (regular expressions, i18n keys, labels), even with a "/" or "\" in them. */
-const NOT_PATHS = new Set(["adapter", "pattern", "block", "flags", "key", "fallback", "family", "aliases", "exclude", "ignore", "match", "prefix", "loginPattern", "start"]);
+const NOT_PATHS = new Set([
+  "adapter",
+  "pattern",
+  "block",
+  "flags",
+  "key",
+  "fallback",
+  "family",
+  "aliases",
+  "exclude",
+  "ignore",
+  "match",
+  "prefix",
+  "loginPattern",
+  "start",
+]);
 
 function pathOptions(value, at = "") {
-  if (typeof value === "string") return /^(\.{1,2}[\\/]|[\\/]|[A-Za-z]:[\\/])|[\\/]/.test(value) && !/^https?:/.test(value) ? [{ at, value }] : [];
+  if (typeof value === "string")
+    return /^(\.{1,2}[\\/]|[\\/]|[A-Za-z]:[\\/])|[\\/]/.test(value) && !/^https?:/.test(value) ? [{ at, value }] : [];
   if (Array.isArray(value)) return value.flatMap((v, i) => pathOptions(v, `${at}[${i}]`));
-  if (value && typeof value === "object") return Object.entries(value).flatMap(([k, v]) => (NOT_PATHS.has(k) ? [] : pathOptions(v, at ? `${at}.${k}` : k)));
+  if (value && typeof value === "object")
+    return Object.entries(value).flatMap(([k, v]) => (NOT_PATHS.has(k) ? [] : pathOptions(v, at ? `${at}.${k}` : k)));
   return [];
 }
 
@@ -68,9 +85,15 @@ const CHANGELOG_VERSION = /^#{1,3}\s*\[?v?(\d+\.\d+\.\d+[\w.+-]*)/m;
  */
 function otherVersion(root, config, documented) {
   const versionFile = config.version.file ? path.resolve(root, config.version.file) : null;
-  const folders = [config.app.dir ? path.resolve(root, config.app.dir) : null, versionFile ? path.dirname(versionFile) : null].filter(Boolean);
+  const folders = [
+    config.app.dir ? path.resolve(root, config.app.dir) : null,
+    versionFile ? path.dirname(versionFile) : null,
+  ].filter(Boolean);
   for (const folder of [...new Set(folders)]) {
-    for (const [name, pattern] of [...VERSION_FILES.map((f) => [f, new RegExp(VERSION_TEXT_PATTERN)]), ["CHANGELOG.md", CHANGELOG_VERSION]]) {
+    for (const [name, pattern] of [
+      ...VERSION_FILES.map((f) => [f, new RegExp(VERSION_TEXT_PATTERN)]),
+      ["CHANGELOG.md", CHANGELOG_VERSION],
+    ]) {
       const file = path.join(folder, name);
       if (file === versionFile || !fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
       const version = pattern.exec(fs.readFileSync(file, "utf8"))?.[1];
@@ -97,16 +120,30 @@ async function diagnose(ctx, { network = false } = {}) {
   // ─── Environment ───────────────────────────────────────────────────────────
   const engines = kitPackage().engines?.node || ">=20";
   const node = process.versions.node;
-  add("node", satisfies(node, engines) ? "ok" : "fail", "env", satisfies(node, engines) ? "cli.doctor.node.ok" : "cli.doctor.node.fail", { version: node, required: engines });
+  add(
+    "node",
+    satisfies(node, engines) ? "ok" : "fail",
+    "env",
+    satisfies(node, engines) ? "cli.doctor.node.ok" : "cli.doctor.node.fail",
+    { version: node, required: engines },
+  );
 
   const deps = kitDependencies();
   const missing = deps.filter((d) => !d.found);
   const different = deps.filter((d) => d.found && /^\d/.test(d.wanted) && d.found !== d.wanted);
   const kitFolder = slash(KIT_ROOT);
-  if (missing.length) add("kitDeps", "fail", "env", "cli.doctor.kitDeps.fail", { names: missing.map((d) => d.name).join(", "), kit: kitFolder });
+  if (missing.length)
+    add("kitDeps", "fail", "env", "cli.doctor.kitDeps.fail", {
+      names: missing.map((d) => d.name).join(", "),
+      kit: kitFolder,
+    });
   else if (different.length)
-    add("kitDeps", "warn", "env", "cli.doctor.kitDeps.warn", { list: different.map((d) => `${d.name} ${d.found} ≠ ${d.wanted}`).join(", "), kit: kitFolder });
-  else add("kitDeps", "ok", "env", "cli.doctor.kitDeps.ok", { list: deps.map((d) => `${d.name} ${d.found}`).join(", ") });
+    add("kitDeps", "warn", "env", "cli.doctor.kitDeps.warn", {
+      list: different.map((d) => `${d.name} ${d.found} ≠ ${d.wanted}`).join(", "),
+      kit: kitFolder,
+    });
+  else
+    add("kitDeps", "ok", "env", "cli.doctor.kitDeps.ok", { list: deps.map((d) => `${d.name} ${d.found}`).join(", ") });
 
   if (!missing.some((d) => d.name === "playwright")) {
     const chromium = await ctx.chromium();
@@ -115,13 +152,30 @@ async function diagnose(ctx, { network = false } = {}) {
   }
 
   const skill = skillStatus({ env: ctx.env });
-  const skillKeys = { current: "ok", missing: "warn", outdated: "warn", modified: "warn", otherKit: "warn", foreign: "warn" };
-  add("skill", skillKeys[skill.state], "env", `cli.doctor.skill.${skill.state}`, { folder: skill.folder, version: skill.version ?? "", kit: skill.kitPath ?? "", command: BRAND.command });
+  const skillKeys = {
+    current: "ok",
+    missing: "warn",
+    outdated: "warn",
+    modified: "warn",
+    otherKit: "warn",
+    foreign: "warn",
+  };
+  add("skill", skillKeys[skill.state], "env", `cli.doctor.skill.${skill.state}`, {
+    folder: skill.folder,
+    version: skill.version ?? "",
+    kit: skill.kitPath ?? "",
+    command: BRAND.command,
+  });
 
   // Agent types (ARCHITECTURE.md §6.11: doc-kit-triage, doc-kit-writer, doc-kit-reviewer), installed alongside the skill.
   const agents = agentsStatus({ env: ctx.env });
   const agentsKeys = { current: "ok", missing: "warn", outdated: "warn", modified: "warn", otherKit: "warn" };
-  add("agents", agentsKeys[agents.state], "env", `cli.doctor.agents.${agents.state}`, { folder: agents.folder, version: agents.version ?? "", kit: agents.kitPath ?? "", command: BRAND.command });
+  add("agents", agentsKeys[agents.state], "env", `cli.doctor.agents.${agents.state}`, {
+    folder: agents.folder,
+    version: agents.version ?? "",
+    kit: agents.kitPath ?? "",
+    command: BRAND.command,
+  });
 
   // ─── Project ───────────────────────────────────────────────────────────────
   let found = null;
@@ -129,7 +183,10 @@ async function diagnose(ctx, { network = false } = {}) {
     found = findProject({ project: ctx.globals.project });
   } catch (e) {
     if (!(e instanceof KitError)) throw e;
-    add("project", "fail", "config", "cli.doctor.project.missing", { folder: path.resolve(ctx.globals.project || "."), command: BRAND.command });
+    add("project", "fail", "config", "cli.doctor.project.missing", {
+      folder: path.resolve(ctx.globals.project || "."),
+      command: BRAND.command,
+    });
   }
   if (found) await projectChecks(ctx, found, add, { network });
 
@@ -151,9 +208,16 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     // no (readable) package.json
   }
   const dependency = projectDependency(root);
-  if (!declared && !dependency.ok) add("projectDeps", "warn", "env", "cli.doctor.projectDeps.undeclared", { file: "package.json", package: BRAND.packageName, kit: slash(KIT_ROOT) });
-  else if (!dependency.ok) add("projectDeps", "fail", "env", "cli.doctor.projectDeps.fail", { folder: shownFolder(root) });
-  else if (!dependency.sameKit) add("projectDeps", "warn", "env", "cli.doctor.projectDeps.other", { folder: dependency.folder, kit: KIT_ROOT });
+  if (!declared && !dependency.ok)
+    add("projectDeps", "warn", "env", "cli.doctor.projectDeps.undeclared", {
+      file: "package.json",
+      package: BRAND.packageName,
+      kit: slash(KIT_ROOT),
+    });
+  else if (!dependency.ok)
+    add("projectDeps", "fail", "env", "cli.doctor.projectDeps.fail", { folder: shownFolder(root) });
+  else if (!dependency.sameKit)
+    add("projectDeps", "warn", "env", "cli.doctor.projectDeps.other", { folder: dependency.folder, kit: KIT_ROOT });
   else add("projectDeps", "ok", "env", "cli.doctor.projectDeps.ok", { kit: slash(KIT_ROOT) });
 
   let raw;
@@ -174,12 +238,20 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   }
   let config;
   try {
-    config = prepareConfig(raw && typeof raw === "object" && !Array.isArray(raw) ? { ...raw, kit: isValidRange(range) ? "*" : range } : raw, { file: CONFIG_FILE, env: ctx.env });
+    config = prepareConfig(
+      raw && typeof raw === "object" && !Array.isArray(raw) ? { ...raw, kit: isValidRange(range) ? "*" : range } : raw,
+      { file: CONFIG_FILE, env: ctx.env },
+    );
     add("config", "ok", "config", "cli.doctor.config.ok", { file: CONFIG_FILE });
   } catch (e) {
     if (!(e instanceof KitError)) throw e;
-    const c = add("config", "fail", "config", "cli.doctor.config.fail", { file: CONFIG_FILE, n: e.details.length || 1 });
-    const details = e.details.length ? e.details.map((d) => describeProblem(ctx, { kind: "validate", ...d }).what) : [ctx.t(`cli.${e.key}`, e.vars)];
+    const c = add("config", "fail", "config", "cli.doctor.config.fail", {
+      file: CONFIG_FILE,
+      n: e.details.length || 1,
+    });
+    const details = e.details.length
+      ? e.details.map((d) => describeProblem(ctx, { kind: "validate", ...d }).what)
+      : [ctx.t(`cli.${e.key}`, e.vars)];
     c.details = details;
     return;
   }
@@ -194,7 +266,11 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   const content = path.join(root, config.paths.content);
   const toc = ["toc.json", "sommaire.json"].map((f) => path.join(content, f)).find((f) => fs.existsSync(f));
   if (toc) add("toc", "ok", "project", "cli.doctor.toc.ok", { file: rel(toc) });
-  else add("toc", "fail", "project", "cli.doctor.toc.fail", { file: `${config.paths.content}/toc.json`, command: BRAND.command });
+  else
+    add("toc", "fail", "project", "cli.doctor.toc.fail", {
+      file: `${config.paths.content}/toc.json`,
+      command: BRAND.command,
+    });
 
   // Languages (ARCHITECTURE.md §6.12): one line per declared language but the source.
   if (config.languages && toc) {
@@ -211,28 +287,51 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
       }
       if (!parsedToc) continue; // the toc check above already reports the invalid table of contents
       const c = languageCounts({ root, config, toc: parsedToc, lang });
-      add(`languages.${lang}`, c.stale > 0 || c.missing > 0 ? "warn" : "ok", "project", "cli.doctor.languages", { lang, current: c.current, stale: c.stale, missing: c.missing });
+      add(`languages.${lang}`, c.stale > 0 || c.missing > 0 ? "warn" : "ok", "project", "cli.doctor.languages", {
+        lang,
+        current: c.current,
+        stale: c.stale,
+        missing: c.missing,
+      });
     }
   }
 
   // Version file.
   if (config.version.file) {
     const f = path.resolve(root, config.version.file);
-    if (!fs.existsSync(f)) add("version", "warn", "project", "cli.doctor.version.missing", { file: config.version.file, fallback: config.version.fallback });
+    if (!fs.existsSync(f))
+      add("version", "warn", "project", "cli.doctor.version.missing", {
+        file: config.version.file,
+        fallback: config.version.fallback,
+      });
     else {
       const m = new RegExp(config.version.pattern).exec(fs.readFileSync(f, "utf8"));
       // A version never incremented (0.0.0, 1.0.0) while the application says otherwise elsewhere: ⚠, not ✔.
       const other = m && m[1] && FROZEN_VERSIONS.has(m[1]) ? otherVersion(root, config, m[1]) : null;
-      if (other) add("version", "warn", "project", "cli.doctor.version.frozen", { file: config.version.file, version: m[1], source: other.file, other: other.version });
-      else if (m && m[1]) add("version", "ok", "project", "cli.doctor.version.ok", { file: config.version.file, version: m[1] });
-      else add("version", "warn", "project", "cli.doctor.version.noMatch", { file: config.version.file, fallback: config.version.fallback });
+      if (other)
+        add("version", "warn", "project", "cli.doctor.version.frozen", {
+          file: config.version.file,
+          version: m[1],
+          source: other.file,
+          other: other.version,
+        });
+      else if (m && m[1])
+        add("version", "ok", "project", "cli.doctor.version.ok", { file: config.version.file, version: m[1] });
+      else
+        add("version", "warn", "project", "cli.doctor.version.noMatch", {
+          file: config.version.file,
+          fallback: config.version.fallback,
+        });
     }
   }
 
   // Application folder (app.dir): the code read by the writers and the skill's briefs.
   if (config.app.dir) {
     const ok = fs.existsSync(path.resolve(root, config.app.dir));
-    add("appDir", ok ? "ok" : "warn", "project", ok ? "cli.doctor.appDir.ok" : "cli.doctor.appDir.missing", { path: config.app.dir, folder: path.resolve(root, config.app.dir) });
+    add("appDir", ok ? "ok" : "warn", "project", ok ? "cli.doctor.appDir.ok" : "cli.doctor.appDir.missing", {
+      path: config.app.dir,
+      folder: path.resolve(root, config.app.dir),
+    });
   }
 
   // Stale facts (ARCHITECTURE.md §6.9/§6.10): a facts/<source>.json whose recorded commit differs from the
@@ -241,7 +340,11 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     const commit = ctx.commit(path.resolve(root, config.app.dir));
     if (commit) {
       const stale = staleFacts(root, config.paths.facts, commit);
-      if (stale.length) add("factsStale", "warn", "project", "cli.doctor.factsStale", { sources: stale.join(", "), command: BRAND.command });
+      if (stale.length)
+        add("factsStale", "warn", "project", "cli.doctor.factsStale", {
+          sources: stale.join(", "),
+          command: BRAND.command,
+        });
       else add("factsStale", "ok", "project", "cli.doctor.factsStale.ok", {});
     }
   }
@@ -250,26 +353,36 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   config.coverage.forEach((entry, i) => {
     for (const { at, value } of pathOptions(entry)) {
       const ok = fs.existsSync(path.resolve(root, value));
-      add(`coverage.${i}.${at}`, ok ? "ok" : "warn", "project", ok ? "cli.doctor.coverage.ok" : "cli.doctor.coverage.missing", { adapter: entry.adapter, option: at, path: value });
+      add(
+        `coverage.${i}.${at}`,
+        ok ? "ok" : "warn",
+        "project",
+        ok ? "cli.doctor.coverage.ok" : "cli.doctor.coverage.missing",
+        { adapter: entry.adapter, option: at, path: value },
+      );
     }
   });
 
   // Masking files.
   config.masking.env.forEach((file) => {
     const ok = fs.existsSync(path.resolve(root, file));
-    add(`masking.${file}`, ok ? "ok" : "warn", "project", ok ? "cli.doctor.masking.ok" : "cli.doctor.masking.missing", { file });
+    add(`masking.${file}`, ok ? "ok" : "warn", "project", ok ? "cli.doctor.masking.ok" : "cli.doctor.masking.missing", {
+      file,
+    });
   });
 
   // Capture plans (none to expect without screenshots).
   const noCapture = config.capture.mode === "none";
   const plans = path.resolve(root, config.capture.plans);
-  if (!noCapture && !fs.existsSync(plans)) add("plans", "warn", "project", "cli.doctor.plans.missing", { folder: config.capture.plans });
+  if (!noCapture && !fs.existsSync(plans))
+    add("plans", "warn", "project", "cli.doctor.plans.missing", { folder: config.capture.plans });
 
   // Capture target: where the screenshots are taken; production without any forbidden route deserves a look.
   if (!noCapture) {
     const target = config.capture.target;
     const vars = { url: config.app.url || "—", n: config.capture.forbidden.length };
-    if (target === "production" && !config.capture.forbidden.length) add("target", "warn", "project", "cli.doctor.target.noForbidden", vars);
+    if (target === "production" && !config.capture.forbidden.length)
+      add("target", "warn", "project", "cli.doctor.target.noForbidden", vars);
     else add("target", "ok", "project", `cli.doctor.target.${target}`, vars);
   }
 
@@ -288,15 +401,25 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   if (noCapture) {
     add("session", "ok", "project", "cli.doctor.session.noCapture", {});
     // An old session left behind still holds sign-in cookies.
-    if (session.exists && isTracked(root, session.file)) add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
+    if (session.exists && isTracked(root, session.file))
+      add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
   } else if (!session.needed) add("session", "ok", "project", "cli.doctor.session.notNeeded", {});
-  else if (!session.exists) add("session", "warn", "project", "cli.doctor.session.missing", { file: shown, command: BRAND.command });
+  else if (!session.exists)
+    add("session", "warn", "project", "cli.doctor.session.missing", { file: shown, command: BRAND.command });
   else {
-    const age = session.ageHours < 1 ? ctx.t("cli.doctor.minutes", { n: Math.max(1, Math.round(session.ageHours * 60)) }) : session.ageHours < 48 ? ctx.t("cli.doctor.hours", { n: Math.round(session.ageHours) }) : ctx.t("cli.doctor.days", { n: Math.round(session.ageHours / 24) });
-    if (session.expired) add("session", "warn", "project", "cli.doctor.session.expired", { file: shown, age, command: BRAND.command });
-    else if (session.ageHours > 24) add("session", "warn", "project", "cli.doctor.session.old", { file: shown, age, command: BRAND.command });
+    const age =
+      session.ageHours < 1
+        ? ctx.t("cli.doctor.minutes", { n: Math.max(1, Math.round(session.ageHours * 60)) })
+        : session.ageHours < 48
+          ? ctx.t("cli.doctor.hours", { n: Math.round(session.ageHours) })
+          : ctx.t("cli.doctor.days", { n: Math.round(session.ageHours / 24) });
+    if (session.expired)
+      add("session", "warn", "project", "cli.doctor.session.expired", { file: shown, age, command: BRAND.command });
+    else if (session.ageHours > 24)
+      add("session", "warn", "project", "cli.doctor.session.old", { file: shown, age, command: BRAND.command });
     else add("session", "ok", "project", "cli.doctor.session.ok", { file: shown, age });
-    if (isTracked(root, session.file)) add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
+    if (isTracked(root, session.file))
+      add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
   }
 
   // Theme contrasts (the default palette passes; a project's colours may not).
@@ -306,9 +429,20 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   else {
     const list = failing
       .slice(0, 6)
-      .map((r) => ctx.t("cli.doctor.contrast.pair", { mode: r.mode, text: r.text, background: r.background, ratio: r.ratio, threshold: r.threshold }))
+      .map((r) =>
+        ctx.t("cli.doctor.contrast.pair", {
+          mode: r.mode,
+          text: r.text,
+          background: r.background,
+          ratio: r.ratio,
+          threshold: r.threshold,
+        }),
+      )
       .join(" · ");
-    add("contrast", "warn", "project", "cli.doctor.contrast.fail", { n: failing.length, list: list + (failing.length > 6 ? " …" : "") });
+    add("contrast", "warn", "project", "cli.doctor.contrast.fail", {
+      n: failing.length,
+      list: list + (failing.length > 6 ? " …" : ""),
+    });
   }
 
   // Application reachable.
@@ -319,7 +453,11 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
         const res = await fetch(config.app.url, { redirect: "manual", signal: AbortSignal.timeout(8000) });
         add("network", "ok", "env", "cli.doctor.network.ok", { url: config.app.url, status: res.status });
       } catch (e) {
-        add("network", "fail", "env", "cli.doctor.network.fail", { url: config.app.url, error: e.cause?.code || e.name || e.message, prefix: config.env.prefix });
+        add("network", "fail", "env", "cli.doctor.network.fail", {
+          url: config.app.url,
+          error: e.cause?.code || e.name || e.message,
+          prefix: config.env.prefix,
+        });
       }
     }
   }
@@ -333,13 +471,23 @@ export async function run({ ctx, values }) {
   }
   const p = ctx.paint;
   const paint = { ok: p.ok, warn: p.warn, fail: p.fail };
-  ctx.print(p.bold(ctx.t("cli.doctor.title", { name: BRAND.name, version: BRAND.version, folder: r.project || path.resolve(ctx.globals.project || ".") })) + "\n");
+  ctx.print(
+    p.bold(
+      ctx.t("cli.doctor.title", {
+        name: BRAND.name,
+        version: BRAND.version,
+        folder: r.project || path.resolve(ctx.globals.project || "."),
+      }),
+    ) + "\n",
+  );
   for (const c of r.checks) {
     ctx.print(`${paint[c.status](SYMBOLS[c.status])} ${c.text}`);
     for (const d of c.details || []) ctx.print(`    ${p.dim(d)}`);
     if (c.help) ctx.print(`  → ${c.help}`);
   }
   const n = (s) => r.checks.filter((c) => c.status === s).length;
-  ctx.print(`\n${ctx.t(r.code ? "cli.doctor.summary.fail" : "cli.doctor.summary.ok", { ok: n("ok"), warnings: n("warn"), problems: n("fail") })}`);
+  ctx.print(
+    `\n${ctx.t(r.code ? "cli.doctor.summary.fail" : "cli.doctor.summary.ok", { ok: n("ok"), warnings: n("warn"), problems: n("fail") })}`,
+  );
   return r.code;
 }

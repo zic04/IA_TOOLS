@@ -23,19 +23,38 @@ function bounds(spec) {
   const full = [major, minor ?? 0, patch ?? 0];
   switch (op) {
     case "^": {
-      const upper = major > 0 || minor === null ? [major + 1, 0, 0] : minor > 0 || patch === null ? [0, minor + 1, 0] : [0, 0, patch + 1];
-      return [[">=", full], ["<", upper]];
+      const upper =
+        major > 0 || minor === null
+          ? [major + 1, 0, 0]
+          : minor > 0 || patch === null
+            ? [0, minor + 1, 0]
+            : [0, 0, patch + 1];
+      return [
+        [">=", full],
+        ["<", upper],
+      ];
     }
     case "~":
-      return [[">=", full], ["<", minor === null ? [major + 1, 0, 0] : [major, minor + 1, 0]]];
+      return [
+        [">=", full],
+        ["<", minor === null ? [major + 1, 0, 0] : [major, minor + 1, 0]],
+      ];
     case ">=":
     case ">":
     case "<=":
     case "<":
       return [[op, full]];
     default:
-      if (minor === null) return [[">=", [major, 0, 0]], ["<", [major + 1, 0, 0]]];
-      if (patch === null) return [[">=", [major, minor, 0]], ["<", [major, minor + 1, 0]]];
+      if (minor === null)
+        return [
+          [">=", [major, 0, 0]],
+          ["<", [major + 1, 0, 0]],
+        ];
+      if (patch === null)
+        return [
+          [">=", [major, minor, 0]],
+          ["<", [major, minor + 1, 0]],
+        ];
       return [["=", full]];
   }
 }
@@ -49,7 +68,14 @@ const test = (v, [op, b]) => {
 export function isValidRange(range) {
   return String(range)
     .split("||")
-    .every((alt) => alt.trim() === "" || alt.trim().split(/\s+/).every((s) => bounds(s) !== null));
+    .every(
+      (alt) =>
+        alt.trim() === "" ||
+        alt
+          .trim()
+          .split(/\s+/)
+          .every((s) => bounds(s) !== null),
+    );
 }
 
 /** Does `version` satisfy `range`? */

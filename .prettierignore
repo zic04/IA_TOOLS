@@ -1,0 +1,15 @@
+# Formatted by Prettier: the kit's own JavaScript only. Markdown and JSON are content (documentation, page
+# templates, fixtures, snapshots) whose exact bytes the tests and the builds depend on.
+node_modules/
+dist/
+.doc-kit/
+*.md
+*.json
+*.html
+*.css
+*.svg
+test/fixtures/
+test/snapshot/__snapshots__/
+examples/
+docs/
+templates/

@@ -63,7 +63,23 @@ export function findSourceCommit({ git, path: relFile, recorded, hashText, limit
  *   write, "Page"/"Glossary"… are shown in <lang>, since that is the language the translator writes in)
  * @returns {{ text: string, tokens: number, cut: Array<{ kind: "diff"|"previous" }> }}
  */
-export function buildTranslateContext({ page, pageL, pageId, lang, sourceFile, targetFile, state, sourceText, previousText, glossary = [], glossaryL = null, templates, diff = null, budget = 16000, t }) {
+export function buildTranslateContext({
+  page,
+  pageL,
+  pageId,
+  lang,
+  sourceFile,
+  targetFile,
+  state,
+  sourceText,
+  previousText,
+  glossary = [],
+  glossaryL = null,
+  templates,
+  diff = null,
+  budget = 16000,
+  t,
+}) {
   const lines = [];
   const push = (s = "") => lines.push(s);
 
@@ -85,7 +101,9 @@ export function buildTranslateContext({ page, pageL, pageId, lang, sourceFile, t
     for (let i = 0; i < sectionCount(templates, page.template); i++) {
       const label = sectionLabel(templates, page.template, i, lang);
       if (!label) continue;
-      sectionLines.push(`- ${label}${(def.required || []).includes(i) ? ` (${t("cli.context.section.required")})` : ""}`);
+      sectionLines.push(
+        `- ${label}${(def.required || []).includes(i) ? ` (${t("cli.context.section.required")})` : ""}`,
+      );
     }
     sectionsText = sectionLines.join("\n") + "\n";
   }
@@ -96,18 +114,34 @@ export function buildTranslateContext({ page, pageL, pageId, lang, sourceFile, t
   if (matched.length) {
     const heading = `## ${t("cli.context.translate.section.glossary")}`;
     glossaryText = glossaryL
-      ? [heading, "", `| ${t("cli.context.translate.glossary.header")} |`, "|---|---|", ...matched.map(({ g, i }) => `| ${g.term} | ${glossaryL[i]?.term || "—"} |`)].join("\n") + "\n"
-      : [heading, "", t("cli.context.translate.noGlossary"), "", ...matched.map(({ g }) => `- ${g.term}`)].join("\n") + "\n";
+      ? [
+          heading,
+          "",
+          `| ${t("cli.context.translate.glossary.header")} |`,
+          "|---|---|",
+          ...matched.map(({ g, i }) => `| ${g.term} | ${glossaryL[i]?.term || "—"} |`),
+        ].join("\n") + "\n"
+      : [heading, "", t("cli.context.translate.noGlossary"), "", ...matched.map(({ g }) => `- ${g.term}`)].join("\n") +
+        "\n";
   }
 
   const sourceText2 = `## ${t("cli.context.translate.section.source")}\n\n\`\`\`markdown\n${sourceText}\n\`\`\`\n`;
-  const previousText2 = previousText ? `## ${t("cli.context.translate.section.previous")}\n\n\`\`\`markdown\n${previousText}\n\`\`\`\n` : "";
+  const previousText2 = previousText
+    ? `## ${t("cli.context.translate.section.previous")}\n\n\`\`\`markdown\n${previousText}\n\`\`\`\n`
+    : "";
   const diffText = `## ${t("cli.context.translate.section.diff")}\n\n${diff ? `\`\`\`diff\n${diff}\n\`\`\`` : t("cli.context.translate.noDiff")}\n`;
 
   // Never cut: page, sections, glossary, source. Cut, in this order, when the budget is exceeded: the diff,
   // then the previous translation (ARCHITECTURE.md §6.12). Each dropped part is removed whole (no excerpt here:
   // a translator reads the diff or the whole previous text, never a fragment of either).
-  const parts = { page: lines.join("\n") + "\n", sections: sectionsText, glossary: glossaryText, source: sourceText2, previous: previousText2, diff: diffText };
+  const parts = {
+    page: lines.join("\n") + "\n",
+    sections: sectionsText,
+    glossary: glossaryText,
+    source: sourceText2,
+    previous: previousText2,
+    diff: diffText,
+  };
   const cut = [];
   let total = Object.values(parts).reduce((n, s) => n + estimateTokens(s), 0);
   for (const kind of ["diff", "previous"]) {
@@ -116,6 +150,8 @@ export function buildTranslateContext({ page, pageL, pageId, lang, sourceFile, t
     cut.push({ kind });
     parts[kind] = "";
   }
-  const text = [parts.page, parts.sections, parts.glossary, parts.source, parts.previous, parts.diff].filter(Boolean).join("\n");
+  const text = [parts.page, parts.sections, parts.glossary, parts.source, parts.previous, parts.diff]
+    .filter(Boolean)
+    .join("\n");
   return { text, tokens: estimateTokens(text), cut };
 }

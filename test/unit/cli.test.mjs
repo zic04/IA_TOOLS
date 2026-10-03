@@ -38,7 +38,11 @@ describe("dispatching", () => {
     const init = await cli(["init", "--help"]);
     assert.equal(init.code, 0);
     assert.match(init.out, /^Usage: doc-kit init \[app-dir\] \[options\]\n/);
-    assert.match(init.out, /\n {2}--lang en\|fr +language of the site/, "--lang is an option of init: it sets the site's language");
+    assert.match(
+      init.out,
+      /\n {2}--lang en\|fr +language of the site/,
+      "--lang is an option of init: it sets the site's language",
+    );
     assert.match(init.out, /\n {2}--capture app\|none /);
     assert.match(init.out, /\nGlobal options: --project <dir>/);
     assert.equal((await cli(["help", "init"])).out, init.out);
@@ -51,7 +55,8 @@ describe("dispatching", () => {
         assert.equal(r.code, 0, `${language} ${command}`);
         assert.match(r.out, new RegExp(`^Usage ?: doc-kit ${command}\\b`), `${language} ${command}`);
         const module = await import(pathToFileURL(path.join(KIT_ROOT, "cli", "commands", `${command}.mjs`)).href);
-        for (const option of Object.keys(module.options || {})) assert.ok(r.out.includes(`--${option}`), `${language} ${command} --${option}`);
+        for (const option of Object.keys(module.options || {}))
+          assert.ok(r.out.includes(`--${option}`), `${language} ${command} --${option}`);
         assert.doesNotMatch(r.out, /\{\w+\}/, `${language} ${command}: no variable left`);
       }
     const unknown = await cli(["help", "nope"]);
@@ -64,7 +69,27 @@ describe("dispatching", () => {
     assert.equal(unknown.code, 2);
     assert.match(unknown.err, /^✖ unknown command: nope\n {2}→ available commands: /);
     // Every command of the contract is delivered.
-    for (const c of ["init", "doctor", "connect", "demo", "capture", "build", "dev", "new", "check", "audit", "inventory", "facts", "view", "open", "optimize", "migrate", "export", "upgrade", "skill"])
+    for (const c of [
+      "init",
+      "doctor",
+      "connect",
+      "demo",
+      "capture",
+      "build",
+      "dev",
+      "new",
+      "check",
+      "audit",
+      "inventory",
+      "facts",
+      "view",
+      "open",
+      "optimize",
+      "migrate",
+      "export",
+      "upgrade",
+      "skill",
+    ])
       assert.ok(unknown.err.includes(c), c);
     assert.equal((await cli(["build", "--nope"])).code, 2);
     assert.equal((await cli(["build", "--width", "10", "--project", DEMO])).code, 2);
@@ -116,14 +141,27 @@ describe("build", () => {
       // last export's own summary line also carries their count).
       assert.match(
         r.out,
-        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-business\.html — 0\.\d MB · 7 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-takeover\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings\n$/
+        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-business\.html — 0\.\d MB · 7 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-takeover\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings\n$/,
       );
-      assert.match(r.err, /⚠ export “business”: 2 links to another space replaced by their text\n⚠ export “takeover”: 4 links to another space replaced by their text\n/);
+      assert.match(
+        r.err,
+        /⚠ export “business”: 2 links to another space replaced by their text\n⚠ export “takeover”: 4 links to another space replaced by their text\n/,
+      );
       // Sizes with the decimal comma of the language, each noun in the plural form of its number.
-      const fr = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out + "-fr", "--lang", "fr"]);
+      const fr = await cli([
+        "build",
+        "--project",
+        DEMO,
+        "--date",
+        "2026-01-01",
+        "--output",
+        out + "-fr",
+        "--lang",
+        "fr",
+      ]);
       assert.match(
         fr.out,
-        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-business\.html-fr — 0,\d Mo · 7 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-takeover\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 1 schéma · 2 avertissements\n$/
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-business\.html-fr — 0,\d Mo · 7 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-takeover\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 1 schéma · 2 avertissements\n$/,
       );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);
@@ -144,7 +182,10 @@ describe("build", () => {
   test("invalid configuration → exit code 2 with the path of the key", async () => {
     const dir = demoCopy();
     try {
-      fs.writeFileSync(path.join(dir, "doc.config.mjs"), 'export default { product: { name: "X" }, capture: { storgae: {} } };');
+      fs.writeFileSync(
+        path.join(dir, "doc.config.mjs"),
+        'export default { product: { name: "X" }, capture: { storgae: {} } };',
+      );
       const r = await cli(["build", "--project", dir]);
       assert.equal(r.code, 2);
       assert.match(r.err, /doc\.config\.mjs: 1 configuration error\n/);
@@ -172,7 +213,10 @@ describe("build", () => {
       const strict = await cli(["build", "--project", dir, "--output", out]);
       assert.equal(strict.code, 1);
       // One problem per page not written yet: neither its template's sections nor the anchors that point into it.
-      assert.match(strict.err, /✖ page not written yet: use\/settings \(content\/use\/settings\.md\)\n {2}→ create it from its template \(doc-kit new use\/settings\)/);
+      assert.match(
+        strict.err,
+        /✖ page not written yet: use\/settings \(content\/use\/settings\.md\)\n {2}→ create it from its template \(doc-kit new use\/settings\)/,
+      );
       assert.doesNotMatch(strict.err, /anchor not found|required section/);
       assert.match(strict.err, /✖ 1 error — site NOT generated\./);
       assert.ok(!fs.existsSync(out));
@@ -196,7 +240,10 @@ describe("build", () => {
       assert.equal(j.ok, true);
       assert.equal(j.stats.pages, 11);
       // Two spaces (ARCHITECTURE.md §6.1a): one export per declared space, besides the full site above.
-      assert.deepEqual(j.sites.map((s) => s.space), ["business", "takeover"]);
+      assert.deepEqual(
+        j.sites.map((s) => s.space),
+        ["business", "takeover"],
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -208,7 +255,10 @@ describe("check links, migrate, open", () => {
     assert.equal((await cli(["check", "links", "--project", DEMO])).code, 0);
     const dir = demoCopy();
     try {
-      fs.appendFileSync(path.join(dir, "content/use/settings.md"), "\nSee [nowhere](#/use/nowhere) and [bad anchor](#/use/orders~nope).\n");
+      fs.appendFileSync(
+        path.join(dir, "content/use/settings.md"),
+        "\nSee [nowhere](#/use/nowhere) and [bad anchor](#/use/orders~nope).\n",
+      );
       const r = await cli(["check", "links", "--project", dir]);
       assert.equal(r.code, 1);
       assert.match(r.err, /✖ \[use\/settings\] broken link: #\/use\/nowhere/);
@@ -266,7 +316,10 @@ describe("check links, migrate, open", () => {
         assert.notEqual(stale.file, distFile, "a fresh temporary draft, never the stale dist file");
         assert.ok(path.resolve(stale.file).startsWith(path.resolve(os.tmpdir())), stale.file);
         assert.ok(fs.readFileSync(stale.file, "utf8").includes("STALE-MARKER-9f3"), "rebuilt from the changed source");
-        assert.ok(!fs.readFileSync(distFile, "utf8").includes("STALE-MARKER-9f3"), "the stale dist file on disk is untouched");
+        assert.ok(
+          !fs.readFileSync(distFile, "utf8").includes("STALE-MARKER-9f3"),
+          "the stale dist file on disk is untouched",
+        );
       } finally {
         stale.release();
       }
@@ -274,7 +327,10 @@ describe("check links, migrate, open", () => {
 
       // requireExisting (open): a missing output is never silently drafted.
       fs.rmSync(distFile);
-      await assert.rejects(() => builtSite(ctx, { requireExisting: true }), (e) => e.key === "site.missing");
+      await assert.rejects(
+        () => builtSite(ctx, { requireExisting: true }),
+        (e) => e.key === "site.missing",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

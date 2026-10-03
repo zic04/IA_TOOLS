@@ -38,7 +38,14 @@ function targetLanguages(config, ctx) {
 /** A throwaway Markdown engine, just to get a page's outline (render().toc): no capture, no diagram, nothing
  * reported (ARCHITECTURE.md §6.12, `translate --fix-anchors`: the source and target outlines of every page). */
 function tocEngine() {
-  return createMarkdownEngine({ captures: {}, exists: () => false, read: () => "", report: () => {}, t: (k) => k, icon: () => "" });
+  return createMarkdownEngine({
+    captures: {},
+    exists: () => false,
+    read: () => "",
+    report: () => {},
+    t: (k) => k,
+    icon: () => "",
+  });
 }
 
 /** Every page and section id of the table of contents, with the relative file read for its outline. */
@@ -46,7 +53,8 @@ function tocEntries(toc) {
   const entries = [];
   for (const sec of toc.sections || []) {
     entries.push({ id: sec.id, file: `${sec.id}/index.md` });
-    for (const g of sec.groups || []) for (const p of g.pages || []) entries.push({ id: p.id, file: p.file || `${p.id}.md` });
+    for (const g of sec.groups || [])
+      for (const p of g.pages || []) entries.push({ id: p.id, file: p.file || `${p.id}.md` });
   }
   return entries;
 }
@@ -77,7 +85,9 @@ async function runStatus({ ctx, values, config, root, toc }) {
     ctx.print(ctx.t("cli.translate.status.title", { lang: r.id }));
     ctx.print(`  ${ctx.t("cli.translate.status.counts", r.counts)}`);
     for (const f of r.files.filter((x) => x.state !== "current"))
-      ctx.print(`  ${ctx.t("cli.translate.status.file", { file: f.file, state: ctx.t(`cli.translate.status.state.${f.state}`) })}`);
+      ctx.print(
+        `  ${ctx.t("cli.translate.status.file", { file: f.file, state: ctx.t(`cli.translate.status.state.${f.state}`) })}`,
+      );
   }
   const n = results.reduce((s, r) => s + r.counts.stale + r.counts.missing, 0);
   ctx.print(n ? numbers(ctx.i18n).count("cli.translate.status.failed", n) : ctx.t("cli.translate.status.ok"));
@@ -104,7 +114,15 @@ async function runMark({ ctx, values, positionals, config, root, toc }) {
 }
 
 async function runFixAnchors({ ctx, values, positionals, config, root, toc }) {
-  const items = positionals.length ? resolveItems({ toc, root, content: config.paths.content, items: positionals }) : tocEntries(toc).filter((e) => toc.sections.some((s) => s.id === e.id) || toc.sections.some((s) => (s.groups || []).some((g) => (g.pages || []).some((p) => p.id === e.id)))).map((e) => ({ file: e.file, page: e.id }));
+  const items = positionals.length
+    ? resolveItems({ toc, root, content: config.paths.content, items: positionals })
+    : tocEntries(toc)
+        .filter(
+          (e) =>
+            toc.sections.some((s) => s.id === e.id) ||
+            toc.sections.some((s) => (s.groups || []).some((g) => (g.pages || []).some((p) => p.id === e.id))),
+        )
+        .map((e) => ({ file: e.file, page: e.id }));
   const out = [];
   let anyUnmapped = false;
   for (const lang of targetLanguages(config, ctx)) {
@@ -129,12 +147,26 @@ async function runFixAnchors({ ctx, values, positionals, config, root, toc }) {
     }
   }
   if (ctx.json) {
-    ctx.print(JSON.stringify({ languages: targetLanguages(config, ctx).map((lang) => ({ id: lang, files: out.filter((o) => o.lang === lang) })) }, null, 2));
+    ctx.print(
+      JSON.stringify(
+        {
+          languages: targetLanguages(config, ctx).map((lang) => ({
+            id: lang,
+            files: out.filter((o) => o.lang === lang),
+          })),
+        },
+        null,
+        2,
+      ),
+    );
   } else {
     const changedOut = out.filter((o) => o.kind === "changed");
     if (!changedOut.length) ctx.print(ctx.t("cli.translate.anchors.none"));
     for (const o of changedOut) ctx.print(ctx.t("cli.translate.anchors.file", { lang: o.lang, file: o.file, n: o.n }));
-    for (const o of out.filter((o) => o.kind === "unmapped")) ctx.printErr(`⚠ ${ctx.t("cli.translate.anchorUnmapped", { lang: o.lang, file: o.file, link: o.link, reason: ctx.t(`cli.translate.anchors.reason.${o.reason}`) })}`);
+    for (const o of out.filter((o) => o.kind === "unmapped"))
+      ctx.printErr(
+        `⚠ ${ctx.t("cli.translate.anchorUnmapped", { lang: o.lang, file: o.file, link: o.link, reason: ctx.t(`cli.translate.anchors.reason.${o.reason}`) })}`,
+      );
   }
   return anyUnmapped ? EXIT.CHECK : EXIT.OK;
 }
@@ -144,7 +176,8 @@ export async function run({ ctx, values, positionals }) {
   const root = project.root;
   if (!config.languages) throw new KitError(EXIT.USAGE, "translate.noLanguages");
   const toc = readProjectToc(root, config);
-  if (positionals[0] === "status") return runStatus({ ctx, values, positionals: positionals.slice(1), config, root, toc });
+  if (positionals[0] === "status")
+    return runStatus({ ctx, values, positionals: positionals.slice(1), config, root, toc });
   if (values.mark) return runMark({ ctx, values, positionals, config, root, toc });
   if (values["fix-anchors"]) return runFixAnchors({ ctx, values, positionals, config, root, toc });
   throw new KitError(EXIT.USAGE, "translate.usage");

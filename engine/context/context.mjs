@@ -36,10 +36,20 @@ export function excerpts(fileText, lines = [], { whole = 400, around = 40, head 
   // A trailing newline at EOF produces one extra empty element: dropped, so the count matches an editor's.
   const total = rows.length && rows[rows.length - 1] === "" ? rows.length - 1 : rows.length;
   if (!total) return [];
-  const slice = (from, to, extent) => ({ from, to, extent, text: rows.slice(from - 1, to).map((line, i) => `${from + i}│ ${line}`).join("\n") });
+  const slice = (from, to, extent) => ({
+    from,
+    to,
+    extent,
+    text: rows
+      .slice(from - 1, to)
+      .map((line, i) => `${from + i}│ ${line}`)
+      .join("\n"),
+  });
   if (kind === "direct" && total <= whole) return [slice(1, total, "whole")];
   if (lines.length) {
-    const ranges = lines.map(([f, t]) => [Math.max(1, f - around), Math.min(total, t + around)]).sort((a, b) => a[0] - b[0]);
+    const ranges = lines
+      .map(([f, t]) => [Math.max(1, f - around), Math.min(total, t + around)])
+      .sort((a, b) => a[0] - b[0]);
     const merged = [];
     for (const [f, t] of ranges) {
       const last = merged.at(-1);
@@ -121,13 +131,31 @@ export function glossaryFor(glossary, texts) {
  * @param {(key: string, vars?: object) => string} p.t   translator, already in the site's language
  * @returns {{ text: string, tokens: number, cut: Array<{ kind: string, path?: string, lines?: [number, number] }> }}
  */
-export function buildContext({ root, config, toc, pageId, deps, appDir, labels = {}, facts = {}, glossary = [], templates, report = null, update = false, budget = 16000, product = null, version = null, t }) {
+export function buildContext({
+  root,
+  config,
+  toc,
+  pageId,
+  deps,
+  appDir,
+  labels = {},
+  facts = {},
+  glossary = [],
+  templates,
+  report = null,
+  update = false,
+  budget = 16000,
+  product = null,
+  version = null,
+  t,
+}) {
   const page = deps.page;
   const lines = [];
   const push = (s = "") => lines.push(s);
   // A line marking what a cut removed, reused both in place of the cut part and in the end-of-file summary
   // (ARCHITECTURE.md §6.11): "lines" is already formatted ("40-57" or "—" for a whole section).
-  const cutLine = (kindVar, pathVar, linesVar) => t("cli.context.cut", { kind: kindVar, path: pathVar, lines: linesVar });
+  const cutLine = (kindVar, pathVar, linesVar) =>
+    t("cli.context.cut", { kind: kindVar, path: pathVar, lines: linesVar });
 
   // ─── 1. The page ───────────────────────────────────────────────────────────────────────────────────────────
   push(`# ${page.title || pageId} (${pageId})`);
@@ -146,7 +174,9 @@ export function buildContext({ root, config, toc, pageId, deps, appDir, labels =
   if (page.counterpart) {
     const targetId = page.counterpart.split("~")[0];
     const target = findPageEntry(toc, targetId);
-    push(`\n${t("cli.context.counterpart", { id: targetId, title: target?.title || "", summary: target?.summary || "" })}`);
+    push(
+      `\n${t("cli.context.counterpart", { id: targetId, title: target?.title || "", summary: target?.summary || "" })}`,
+    );
   }
   push("");
 
@@ -158,7 +188,9 @@ export function buildContext({ root, config, toc, pageId, deps, appDir, labels =
     for (let i = 0; i < sectionCount(templates, page.template); i++) {
       const label = sectionLabel(templates, page.template, i, config.language);
       if (!label) continue;
-      sectionLines.push(`- ${label}${(def.required || []).includes(i) ? ` (${t("cli.context.section.required")})` : ""}`);
+      sectionLines.push(
+        `- ${label}${(def.required || []).includes(i) ? ` (${t("cli.context.section.required")})` : ""}`,
+      );
     }
     sectionsPart.text = sectionLines.join("\n") + "\n";
   }
@@ -194,24 +226,45 @@ export function buildContext({ root, config, toc, pageId, deps, appDir, labels =
     }
   }
   const docFilesOnly = deps.files.filter((f) => isDocRef(f.path)).map((f) => docPath(f.path));
-  for (const p of docFilesOnly) fileParts.push({ kind: "page", text: `### ${p} (${t("cli.context.file.shared")})\n${t("cli.context.file.pathOnly")}\n`, cutLine: "" });
+  for (const p of docFilesOnly)
+    fileParts.push({
+      kind: "page",
+      text: `### ${p} (${t("cli.context.file.shared")})\n${t("cli.context.file.pathOnly")}\n`,
+      cutLine: "",
+    });
 
   // ─── 4. Exact labels ───────────────────────────────────────────────────────────────────────────────────────
   const citedLabels = {};
-  for (const txt of excerptTexts) for (const flat of Object.values(labels)) Object.assign(citedLabels, labelsCitedBy(txt, flat));
+  for (const txt of excerptTexts)
+    for (const flat of Object.values(labels)) Object.assign(citedLabels, labelsCitedBy(txt, flat));
   const labelsPart = { kind: "labels", text: "", cutLine: cutLine("labels", t("cli.context.section.labels"), "—") };
-  if (Object.keys(citedLabels).length) labelsPart.text = [`## ${t("cli.context.section.labels")}`, "", ...Object.entries(citedLabels).map(([k, v]) => `- \`${k}\`: ${v}`)].join("\n") + "\n";
+  if (Object.keys(citedLabels).length)
+    labelsPart.text =
+      [
+        `## ${t("cli.context.section.labels")}`,
+        "",
+        ...Object.entries(citedLabels).map(([k, v]) => `- \`${k}\`: ${v}`),
+      ].join("\n") + "\n";
 
   // ─── 5. Facts ──────────────────────────────────────────────────────────────────────────────────────────────
   const fileSet = new Set(deps.files.filter((f) => !isDocRef(f.path)).map((f) => f.path));
   const rows = factsFor(facts, fileSet, deps.routes);
   const factsPart = { kind: "facts", text: "", cutLine: cutLine("facts", t("cli.context.section.facts"), "—") };
-  if (rows.length) factsPart.text = [`## ${t("cli.context.section.facts")}`, "", ...rows.map((r) => `- \`${r.source}\`: ${JSON.stringify(r.item)}`)].join("\n") + "\n";
+  if (rows.length)
+    factsPart.text =
+      [
+        `## ${t("cli.context.section.facts")}`,
+        "",
+        ...rows.map((r) => `- \`${r.source}\`: ${JSON.stringify(r.item)}`),
+      ].join("\n") + "\n";
 
   // ─── 6. Glossary ───────────────────────────────────────────────────────────────────────────────────────────
   const terms = glossaryFor(glossary, [page.title || "", page.summary || "", ...excerptTexts]);
   let glossaryText = "";
-  if (terms.length) glossaryText = [`## ${t("cli.context.section.glossary")}`, "", ...terms.map((g) => `- **${g.term}**: ${g.def}`)].join("\n") + "\n";
+  if (terms.length)
+    glossaryText =
+      [`## ${t("cli.context.section.glossary")}`, "", ...terms.map((g) => `- **${g.term}**: ${g.def}`)].join("\n") +
+      "\n";
 
   // ─── 7. --update: the sync report's entries for this page (rendered with the same keys as .doc-kit/sync.md,
   // engine/sync/report.mjs renderReport, so an agent reads the same wording), its diff, its capture sheets ─────
@@ -228,20 +281,28 @@ export function buildContext({ root, config, toc, pageId, deps, appDir, labels =
     const rRemoved = r.removed || [];
     const reasons = [];
     for (const m of proofsMoved.filter((x) => x.page === pageId)) reasons.push(t("cli.sync.proof.moved", m));
-    for (const m of proofsBroken.filter((x) => x.page === pageId)) reasons.push(t(`cli.sync.proof.broken.${m.reason}`, m));
-    for (const m of rLabels.filter((x) => x.pages.includes(pageId))) reasons.push(t(m.new === null ? "cli.sync.label.removed" : "cli.sync.label.changed", { ...m, pages: m.pages.join(", ") }));
+    for (const m of proofsBroken.filter((x) => x.page === pageId))
+      reasons.push(t(`cli.sync.proof.broken.${m.reason}`, m));
+    for (const m of rLabels.filter((x) => x.pages.includes(pageId)))
+      reasons.push(
+        t(m.new === null ? "cli.sync.label.removed" : "cli.sync.label.changed", { ...m, pages: m.pages.join(", ") }),
+      );
     const review = rReview.find((x) => x.page === pageId);
-    if (review) for (const reason of review.reasons) reasons.push(t(`cli.sync.reason.${reason.change}`, { path: reason.path }));
-    for (const c of rCaptures.filter((x) => x.pages.includes(pageId))) reasons.push(t("cli.sync.capture.stale", { id: c.id, reasons: c.reasons.join(", ") }));
+    if (review)
+      for (const reason of review.reasons) reasons.push(t(`cli.sync.reason.${reason.change}`, { path: reason.path }));
+    for (const c of rCaptures.filter((x) => x.pages.includes(pageId)))
+      reasons.push(t("cli.sync.capture.stale", { id: c.id, reasons: c.reasons.join(", ") }));
     for (const n of rNew.filter((x) => x.suggest === pageId)) reasons.push(t("cli.sync.new.item", n));
-    for (const rem of rRemoved.filter((x) => x.pages.includes(pageId))) reasons.push(t("cli.sync.removed.item", { ...rem, pages: rem.pages.join(", ") }));
+    for (const rem of rRemoved.filter((x) => x.pages.includes(pageId)))
+      reasons.push(t("cli.sync.removed.item", { ...rem, pages: rem.pages.join(", ") }));
     const diffFile = path.join(root, ".doc-kit", "sync", `${pageId.replaceAll("/", "__")}.diff`);
     const diff = readText(diffFile)?.replace(/\n+$/, "") || null;
     const sheets = rCaptures.filter((x) => x.pages.includes(pageId)).map((c) => `.doc-kit/compare/${c.id}.png`);
     const updateLines = [`## ${t("cli.context.section.update")}`, ""];
     updateLines.push(reasons.length ? reasons.map((reason) => `- ${reason}`).join("\n") : t("cli.context.update.none"));
     if (diff) updateLines.push(`\n${t("cli.context.update.diff")}\n\`\`\`diff\n${diff}\n\`\`\``);
-    if (sheets.length) updateLines.push(`\n${t("cli.context.update.sheets")}\n${sheets.map((s) => `- ${s}`).join("\n")}`);
+    if (sheets.length)
+      updateLines.push(`\n${t("cli.context.update.sheets")}\n${sheets.map((s) => `- ${s}`).join("\n")}`);
     updateText = updateLines.join("\n") + "\n";
   }
 
@@ -257,7 +318,9 @@ export function buildContext({ root, config, toc, pageId, deps, appDir, labels =
     { kind: "page", text: updateText, cutLine: "" },
   ].filter((p) => p.text);
   const { kept, cut } = fitBudget(parts, budget);
-  const cutSummary = cut.length ? `\n## ${t("cli.context.section.cut")}\n\n${cut.map((c) => `- ${c.cutLine.trim()}`).join("\n")}\n` : "";
+  const cutSummary = cut.length
+    ? `\n## ${t("cli.context.section.cut")}\n\n${cut.map((c) => `- ${c.cutLine.trim()}`).join("\n")}\n`
+    : "";
   const text = kept.map((p) => p.text).join("\n") + cutSummary;
   return { text, tokens: estimateTokens(text), cut };
 }

@@ -13,17 +13,55 @@ export const LEGACY_FILES = Object.freeze({ toc: "sommaire.json", glossary: "glo
 export const CURRENT_FILES = Object.freeze({ toc: "toc.json", glossary: "glossary.json" });
 
 const TOC = { titre: "title", produit: "product", accroche: "tagline", parcours: "journeys", espaces: "spaces" };
-const SECTION = { titre: "title", titre_court: "shortTitle", icone: "icon", sous_titre: "subtitle", points: "highlights", vedette: "featured", groupes: "groups", espace: "space" };
+const SECTION = {
+  titre: "title",
+  titre_court: "shortTitle",
+  icone: "icon",
+  sous_titre: "subtitle",
+  points: "highlights",
+  vedette: "featured",
+  groupes: "groups",
+  espace: "space",
+};
 const GROUP = { titre: "title" };
-const PAGE = { titre: "title", titre_menu: "menuTitle", resume: "summary", niveau: "level", droits: "permissions", gabarit: "template", fichier: "file", espace: "space", pendant: "counterpart" };
+const PAGE = {
+  titre: "title",
+  titre_menu: "menuTitle",
+  resume: "summary",
+  niveau: "level",
+  droits: "permissions",
+  gabarit: "template",
+  fichier: "file",
+  espace: "space",
+  pendant: "counterpart",
+};
 const JOURNEY = { titre: "title", desc: "description", etapes: "steps", espace: "space" };
 const TERM = { terme: "term", motif: "pattern" };
 const ZONE_FILE = { fichier: "file", titre: "title", largeur: "width", hauteur: "height", capture: "captured" };
 const ZONE = { l: "w", libelle: "label", cote: "side" };
 const SIDES = { coin: "corner", droit: "right", bas: "bottom", "droit-bas": "bottom-right" };
-const ENTRY = { titre: "title", contexte: "context", vue: "view", stockage: "storage", delai: "delay", stabiliser: "settle", cadre: "frame", masques: "masks" };
+const ENTRY = {
+  titre: "title",
+  contexte: "context",
+  vue: "view",
+  stockage: "storage",
+  delai: "delay",
+  stabiliser: "settle",
+  cadre: "frame",
+  masques: "masks",
+};
 const CONTEXTS = { bureau: "desktop" };
-const ACTION = { clic: "click", survol: "hover", saisir: "type", choisir: "select", touche: "press", defiler: "scroll", attendre: "wait", molette: "wheel", valeur: "value" };
+const ACTION = {
+  clic: "click",
+  survol: "hover",
+  saisir: "type",
+  choisir: "select",
+  touche: "press",
+  defiler: "scroll",
+  attendre: "wait",
+  molette: "wheel",
+  valeur: "value",
+};
 const WHEEL = { crans: "steps", sens: "direction" };
 const TARGET = {
   nom: "name",

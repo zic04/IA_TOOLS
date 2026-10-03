@@ -104,7 +104,12 @@ export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigat
     // A redirect is followed by the browser without calling this handler again: a navigation of the application
     // is fetched here without following redirects, and the chain is checked before the browser sees it, so that
     // a server redirect never leads to a forbidden route (SECURITY.md).
-    if (forbidden.length && u.origin === appOrigin && req.isNavigationRequest() && SAFE_METHODS.includes(req.method())) {
+    if (
+      forbidden.length &&
+      u.origin === appOrigin &&
+      req.isNavigationRequest() &&
+      SAFE_METHODS.includes(req.method())
+    ) {
       let chain;
       try {
         chain = await redirectChain(route, u, { appOrigin, forbidden });
@@ -219,7 +224,12 @@ export async function runCaptures({
   await registerSelectors();
   const cap = capture || config.capture;
   // A fixed clock (capture.clock): "today", relative dates and countdowns are the same on every run.
-  if (cap.clock && !Number.isFinite(Date.parse(cap.clock))) throw new KitError(EXIT.USAGE, "option.value", { option: "capture.clock", value: cap.clock, expected: "an ISO date, e.g. 2026-01-15T09:00:00Z" });
+  if (cap.clock && !Number.isFinite(Date.parse(cap.clock)))
+    throw new KitError(EXIT.USAGE, "option.value", {
+      option: "capture.clock",
+      value: cap.clock,
+      expected: "an ISO date, e.g. 2026-01-15T09:00:00Z",
+    });
   const appOrigin = new URL(appUrl).origin;
   const imagesDir = path.join(root, imagesDirOption || config.paths.images);
   const rc = {
@@ -255,7 +265,10 @@ export async function runCaptures({
   };
   // Captures in parallel (ETUDE-CAPTURES.md A2): each worker has its own browser contexts, its own guard state
   // and its own spans; production is always captured one at a time.
-  const concurrency = Math.max(1, Math.min(cap.concurrency ?? 4, entries.length || 1, config.capture?.target === "production" ? 1 : Infinity));
+  const concurrency = Math.max(
+    1,
+    Math.min(cap.concurrency ?? 4, entries.length || 1, config.capture?.target === "production" ? 1 : Infinity),
+  );
 
   fs.mkdirSync(rc.zonesDir, { recursive: true });
   const browser = await launch(browserLaunch(auth, { headless: true }));
@@ -280,7 +293,13 @@ export async function runCaptures({
 /** A worker: its own pages (one per context name), guard state, open span and trace. */
 function newWorker(rc) {
   const w = { pages: new Map(), state: { forbidden: null }, span: { close: () => {} }, tracing: null };
-  w.guard = requestGuard({ appOrigin: rc.appOrigin, forbidden: rc.forbidden, readOnly: rc.readOnly, result: rc.result, onNavigation: (p) => (w.state.forbidden ??= p) });
+  w.guard = requestGuard({
+    appOrigin: rc.appOrigin,
+    forbidden: rc.forbidden,
+    readOnly: rc.readOnly,
+    result: rc.result,
+    onNavigation: (p) => (w.state.forbidden ??= p),
+  });
   w.tracing = {
     context: null,
     // The trace of the capture in progress: kept on failure only (ETUDE-CAPTURES.md C3).
@@ -322,7 +341,8 @@ async function pageFor(rc, browser, w, name) {
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
   if (guarded) await context.route("**/*", w.guard);
-  if (cap.cookies.length) await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: rc.appUrl })));
+  if (cap.cookies.length)
+    await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: rc.appUrl })));
   if (rc.trace) await context.tracing.start({ screenshots: true, snapshots: true });
   const page = await context.newPage();
   if (cap.clock) await page.clock.setFixedTime(new Date(cap.clock));
@@ -362,7 +382,10 @@ async function runWorkers(rc, workers, entries, onEvent) {
       const t0 = Date.now();
       try {
         const r = await takeOne(rc, entry, w);
-        done[i] = { event: { type: "ok", id: entry.id, ...r, ms: Date.now() - t0 }, compared: r.compared ? { id: entry.id, ...r.compared } : null };
+        done[i] = {
+          event: { type: "ok", id: entry.id, ...r, ms: Date.now() - t0 },
+          compared: r.compared ? { id: entry.id, ...r.compared } : null,
+        };
       } catch (e) {
         w.span.close();
         const traceFile = rc.trace ? await w.tracing.stop(path.join(rc.trace, `${entry.id}.zip`)) : null;
@@ -374,7 +397,10 @@ async function runWorkers(rc, workers, entries, onEvent) {
           expired = expired || { fatal: e };
           throw e;
         } else {
-          const event = e instanceof CaptureError ? { type: "failed", id: entry.id, key: e.key, vars: e.vars } : { type: "failed", id: entry.id, key: "generic", vars: { error: firstLine(e) } };
+          const event =
+            e instanceof CaptureError
+              ? { type: "failed", id: entry.id, key: e.key, vars: e.vars }
+              : { type: "failed", id: entry.id, key: "generic", vars: { error: firstLine(e) } };
           if (traceFile) event.trace = traceFile;
           done[i] = { event };
         }

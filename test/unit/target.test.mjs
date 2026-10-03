@@ -53,25 +53,44 @@ function productionProject(capture = {}, { auth = "none" } = {}) {
   fs.writeFileSync(path.join(dir, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
   fs.mkdirSync(path.join(dir, "captures", "plans-prod"), { recursive: true });
   const entry = (id, route) => ({ id, title: id, route, zones: [{ css: "header" }, { css: "nav" }, { css: "main" }] });
-  fs.writeFileSync(path.join(dir, "captures", "plans-prod", "prod.mjs"), `export const CAPTURES = ${JSON.stringify([entry("prod-orders", "/orders"), entry("prod-settings", "/settings")], null, 2)};\n`);
+  fs.writeFileSync(
+    path.join(dir, "captures", "plans-prod", "prod.mjs"),
+    `export const CAPTURES = ${JSON.stringify([entry("prod-orders", "/orders"), entry("prod-settings", "/settings")], null, 2)};\n`,
+  );
   return dir;
 }
 
 describe("configuration", () => {
   test("default local; production with readOnly false → validation error (2); a false READONLY variable → 2", async () => {
     assert.equal((await demoConfig()).capture.target, "local");
-    for (const target of ["local", "demo", "production"]) assert.equal((await demoConfig((c) => ((c.capture.target = target), c))).capture.target, target);
+    for (const target of ["local", "demo", "production"])
+      assert.equal((await demoConfig((c) => ((c.capture.target = target), c))).capture.target, target);
     await assert.rejects(
       demoConfig((c) => ((c.capture.target = "staging"), c)),
-      (e) => e instanceof KitError && e.code === EXIT.USAGE && e.details.some((d) => d.path === "capture.target" && d.key === "enum")
+      (e) =>
+        e instanceof KitError &&
+        e.code === EXIT.USAGE &&
+        e.details.some((d) => d.path === "capture.target" && d.key === "enum"),
     );
     await assert.rejects(
       demoConfig((c) => Object.assign(c, { capture: { ...c.capture, target: "production", readOnly: false } })),
-      (e) => e instanceof KitError && e.code === EXIT.USAGE && e.details.some((d) => d.path === "capture.readOnly" && d.key === "productionReadOnly")
+      (e) =>
+        e instanceof KitError &&
+        e.code === EXIT.USAGE &&
+        e.details.some((d) => d.path === "capture.readOnly" && d.key === "productionReadOnly"),
     );
-    for (const readOnly of ["auto", true]) assert.equal((await demoConfig((c) => Object.assign(c, { capture: { ...c.capture, target: "production", readOnly } }))).capture.readOnly, readOnly);
+    for (const readOnly of ["auto", true])
+      assert.equal(
+        (await demoConfig((c) => Object.assign(c, { capture: { ...c.capture, target: "production", readOnly } })))
+          .capture.readOnly,
+        readOnly,
+      );
     // readOnly false stays allowed on a local or demo copy.
-    assert.equal((await demoConfig((c) => Object.assign(c, { capture: { ...c.capture, target: "demo", readOnly: false } }))).capture.readOnly, false);
+    assert.equal(
+      (await demoConfig((c) => Object.assign(c, { capture: { ...c.capture, target: "demo", readOnly: false } })))
+        .capture.readOnly,
+      false,
+    );
 
     const dir = productionProject();
     const writable = productionProject({ readOnly: false });
@@ -79,7 +98,10 @@ describe("configuration", () => {
       const { calls, launch } = stubLaunch();
       const r = await cli(["capture", "--project", dir, "--yes"], { env: { ACME_ORDERS_READONLY: "0" }, launch });
       assert.equal(r.code, 2);
-      assert.match(r.err, /^✖ ACME_ORDERS_READONLY turns read-only off, but capture\.target is "production"\n {2}→ unset ACME_ORDERS_READONLY/);
+      assert.match(
+        r.err,
+        /^✖ ACME_ORDERS_READONLY turns read-only off, but capture\.target is "production"\n {2}→ unset ACME_ORDERS_READONLY/,
+      );
       const invalid = await cli(["capture", "--project", writable, "--yes"], { launch });
       assert.equal(invalid.code, 2);
       assert.match(invalid.err, /capture\.readOnly: read-only cannot be turned off on production/);
@@ -106,13 +128,19 @@ describe("capture on production", () => {
       const refused = await cli(["capture", "--project", dir], { launch });
       assert.equal(refused.code, 2);
       assert.match(refused.out, /^PRODUCTION — read-only · 2 screenshots · https:\/\/orders\.acme\.example\n$/);
-      assert.match(refused.err, /^✖ capture on production not confirmed \(no terminal to ask\)\n {2}→ add --yes to confirm a production capture\n$/);
+      assert.match(
+        refused.err,
+        /^✖ capture on production not confirmed \(no terminal to ask\)\n {2}→ add --yes to confirm a production capture\n$/,
+      );
       assert.equal((await cli(["capture", "--project", dir, "--json"], { launch })).code, 2, "--json needs --yes too");
       assert.equal(calls.length, 0, "no browser before the confirmation");
 
       const yes = await cli(["capture", "prod-orders", "--project", dir, "--yes"], { launch });
       assert.equal(yes.code, 3, "the stub stops the run like an unreachable application");
-      assert.match(yes.out, /^PRODUCTION — read-only · 1 screenshot · https:\/\/orders\.acme\.example\n1 capture · https:\/\/orders\.acme\.example · session: none · read-only: on\n/);
+      assert.match(
+        yes.out,
+        /^PRODUCTION — read-only · 1 screenshot · https:\/\/orders\.acme\.example\n1 capture · https:\/\/orders\.acme\.example · session: none · read-only: on\n/,
+      );
       assert.equal(calls.length, 1);
       assert.equal(calls[0].headless, true);
     } finally {
@@ -126,9 +154,15 @@ describe("capture on production", () => {
       const { calls, launch } = stubLaunch();
       const enter = await cli(["capture", "--project", dir], { input: [""], launch });
       assert.equal(enter.code, 0);
-      assert.match(enter.out, /^PRODUCTION — read-only · 2 screenshots · https:\/\/orders\.acme\.example\n\? Capture 2 screens on production now\? \(y\/N\) › \nNothing was captured\.\n$/);
+      assert.match(
+        enter.out,
+        /^PRODUCTION — read-only · 2 screenshots · https:\/\/orders\.acme\.example\n\? Capture 2 screens on production now\? \(y\/N\) › \nNothing was captured\.\n$/,
+      );
       const no = await cli(["capture", "--project", dir, "--lang", "fr"], { input: ["n"], launch });
-      assert.match(no.out, /^PRODUCTION — lecture seule · 2 captures · https:\/\/orders\.acme\.example\n\? Capturer 2 écrans sur la production maintenant \? \(o\/N\) › n\nRien n'a été capturé\.\n$/);
+      assert.match(
+        no.out,
+        /^PRODUCTION — lecture seule · 2 captures · https:\/\/orders\.acme\.example\n\? Capturer 2 écrans sur la production maintenant \? \(o\/N\) › n\nRien n'a été capturé\.\n$/,
+      );
       assert.equal(calls.length, 0);
       const yes = await cli(["capture", "--project", dir], { input: ["y"], launch });
       assert.equal(yes.code, 3);
@@ -161,10 +195,16 @@ describe("demo, connect, doctor and the guided mode with a production target", (
     let dir = productionProject({ setup: "captures/setup.mjs" });
     try {
       const marker = path.join(dir, "ran.txt");
-      fs.writeFileSync(path.join(dir, "captures", "setup.mjs"), `import fs from "node:fs";\nfs.writeFileSync(${JSON.stringify(marker)}, "x");\n`);
+      fs.writeFileSync(
+        path.join(dir, "captures", "setup.mjs"),
+        `import fs from "node:fs";\nfs.writeFileSync(${JSON.stringify(marker)}, "x");\n`,
+      );
       const demo = await cli(["demo", "--project", dir]);
       assert.equal(demo.code, 2);
-      assert.match(demo.err, /^✖ capture\.target is "production" in doc\.config\.mjs: a demo data script never runs against production \(https:\/\/orders\.acme\.example\)\n {2}→ prepare the demo data on a local or demo copy/);
+      assert.match(
+        demo.err,
+        /^✖ capture\.target is "production" in doc\.config\.mjs: a demo data script never runs against production \(https:\/\/orders\.acme\.example\)\n {2}→ prepare the demo data on a local or demo copy/,
+      );
       assert.ok(!fs.existsSync(marker), "the setup script never ran");
 
       fs.rmSync(dir, { recursive: true, force: true });
@@ -172,7 +212,10 @@ describe("demo, connect, doctor and the guided mode with a production target", (
       const { calls, launch } = stubLaunch();
       const connect = await cli(["connect", "--project", dir], { launch });
       assert.equal(connect.code, 3);
-      assert.match(connect.out, /^PRODUCTION — https:\/\/orders\.acme\.example: sign in with your own account; the session saved gives access to production\.\nA Chromium window is open/);
+      assert.match(
+        connect.out,
+        /^PRODUCTION — https:\/\/orders\.acme\.example: sign in with your own account; the session saved gives access to production\.\nA Chromium window is open/,
+      );
       assert.equal(calls[0].headless, false, "connect opens a visible window (the stub opened none)");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -185,13 +228,22 @@ describe("demo, connect, doctor and the guided mode with a production target", (
     const config = path.join(dir, "doc.config.mjs");
     const doctor = async () => (await cli(["doctor", "--project", dir], { env: { CLAUDE_CONFIG_DIR: claude } })).out;
     try {
-      assert.match(await doctor(), /^✔ capture target: PRODUCTION, read-only \(https:\/\/orders\.acme\.example\); 1 forbidden route$/m);
+      assert.match(
+        await doctor(),
+        /^✔ capture target: PRODUCTION, read-only \(https:\/\/orders\.acme\.example\); 1 forbidden route$/m,
+      );
       fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/"forbidden": \[[^\]]*\]/, '"forbidden": []'));
       const out = await doctor();
-      assert.match(out, /^⚠ capture target: PRODUCTION, read-only \(https:\/\/orders\.acme\.example\) — no forbidden route declared: check pages that write on render\n {2}→ read the code of each detail page/m);
+      assert.match(
+        out,
+        /^⚠ capture target: PRODUCTION, read-only \(https:\/\/orders\.acme\.example\) — no forbidden route declared: check pages that write on render\n {2}→ read the code of each detail page/m,
+      );
       fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace('"target": "production"', '"target": "local"'));
       assert.match(await doctor(), /^✔ capture target: local application \(https:\/\/orders\.acme\.example\)$/m);
-      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace('"target": "local"', '"target": "local", "mode": "none"'));
+      fs.writeFileSync(
+        config,
+        fs.readFileSync(config, "utf8").replace('"target": "local"', '"target": "local", "mode": "none"'),
+      );
       assert.doesNotMatch(await doctor(), /capture target/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -205,16 +257,25 @@ describe("demo, connect, doctor and the guided mode with a production target", (
     try {
       const r = await cli(["--project", signIn], { input: ["n"] });
       assert.equal(r.code, 0);
-      assert.match(r.out, /no session to capture the application yet\.\nPRODUCTION — read-only · https:\/\/orders\.acme\.example\n\? Run doc-kit connect now\? A browser window opens: sign in there, then press Enter here\. \(Y\/n\) › n\n/);
+      assert.match(
+        r.out,
+        /no session to capture the application yet\.\nPRODUCTION — read-only · https:\/\/orders\.acme\.example\n\? Run doc-kit connect now\? A browser window opens: sign in there, then press Enter here\. \(Y\/n\) › n\n/,
+      );
       fs.rmSync(path.join(dir, "images", "zones"), { recursive: true });
       const capture = await cli(["--project", dir]);
-      assert.match(capture.out, /no screenshot yet\.\nPRODUCTION — read-only · https:\/\/orders\.acme\.example\n\nNext step: doc-kit capture\n/);
+      assert.match(
+        capture.out,
+        /no screenshot yet\.\nPRODUCTION — read-only · https:\/\/orders\.acme\.example\n\nNext step: doc-kit capture\n/,
+      );
       // Confirmed after the banner: capture runs without asking again (the stub stops it, exit code 3).
       const { calls, launch } = stubLaunch();
       const run = await cli(["--project", dir], { input: ["y"], launch });
       assert.equal(run.code, 3);
       assert.equal((run.out.match(/^\? /gm) || []).length, 1, run.out);
-      assert.match(run.out, /\? Run doc-kit capture now\? \(Y\/n\) › y\n\nPRODUCTION — read-only · 2 screenshots · https:\/\/orders\.acme\.example\n2 captures · /);
+      assert.match(
+        run.out,
+        /\? Run doc-kit capture now\? \(Y\/n\) › y\n\nPRODUCTION — read-only · 2 screenshots · https:\/\/orders\.acme\.example\n2 captures · /,
+      );
       assert.equal(calls.length, 1);
     } finally {
       for (const d of [signIn, dir]) fs.rmSync(d, { recursive: true, force: true });

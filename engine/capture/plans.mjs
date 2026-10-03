@@ -109,17 +109,20 @@ function kindErrors(entry) {
       return;
     }
     const kinds = TARGET_KINDS.filter((k) => k in t);
-    if (kinds.length !== 1) errors.push({ path: p, key: "target", vars: { found: kinds.join(", ") || "—", kinds: TARGET_KINDS.join(", ") } });
+    if (kinds.length !== 1)
+      errors.push({ path: p, key: "target", vars: { found: kinds.join(", ") || "—", kinds: TARGET_KINDS.join(", ") } });
     if (isObject(t.within)) target(t.within, `${p}.within`);
   };
   (entry.actions || []).forEach((a, i) => {
     if (!isObject(a)) return;
     const kinds = ACTION_KINDS.filter((k) => k in a);
     const p = `actions[${i}]`;
-    if (kinds.length !== 1) errors.push({ path: p, key: "action", vars: { found: kinds.join(", ") || "—", kinds: ACTION_KINDS.join(", ") } });
+    if (kinds.length !== 1)
+      errors.push({ path: p, key: "action", vars: { found: kinds.join(", ") || "—", kinds: ACTION_KINDS.join(", ") } });
     for (const k of TARGET_ACTIONS) if (k in a) target(a[k], `${p}.${k}`);
     if (isObject(a.wait)) target(a.wait, `${p}.wait`);
-    if ((a.type !== undefined || a.select !== undefined) && a.value === undefined) errors.push({ path: `${p}.value`, key: "required", vars: { key: "value" } });
+    if ((a.type !== undefined || a.select !== undefined) && a.value === undefined)
+      errors.push({ path: `${p}.value`, key: "required", vars: { key: "value" } });
   });
   if (entry.frame) target(entry.frame, "frame");
   (entry.zones || []).forEach((z, i) => target(z, `zones[${i}]`, { zone: true }));
@@ -151,7 +154,8 @@ function entryLabel(entry, index) {
  *   (`capture.planInvalid`: every invalid entry of every file, each detail { file, entry, path, key, vars })
  */
 export async function loadPlans({ folder, display = folder }) {
-  if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) throw new KitError(EXIT.USAGE, "capture.plansMissing", { folder: display });
+  if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory())
+    throw new KitError(EXIT.USAGE, "capture.plansMissing", { folder: display });
   const files = fs
     .readdirSync(folder)
     .filter((f) => f.endsWith(".mjs") || f.endsWith(".js"))
@@ -171,15 +175,27 @@ export async function loadPlans({ folder, display = folder }) {
     } catch (e) {
       // A missing package (usually the kit itself, imported as "doc-kit/targets") is not a syntax error.
       const key = e.code === "ERR_MODULE_NOT_FOUND" ? "capture.planModule" : "capture.planImport";
-      throw new KitError(EXIT.USAGE, key, { file: `${display}/${f}`, error: String(e.message).split("\n")[0] }, { cause: e });
+      throw new KitError(
+        EXIT.USAGE,
+        key,
+        { file: `${display}/${f}`, error: String(e.message).split("\n")[0] },
+        { cause: e },
+      );
     }
-    if (!Array.isArray(mod.CAPTURES)) throw new KitError(EXIT.USAGE, "capture.planNoExport", { file: `${display}/${f}` });
+    if (!Array.isArray(mod.CAPTURES))
+      throw new KitError(EXIT.USAGE, "capture.planNoExport", { file: `${display}/${f}` });
     let isLegacy = false;
     mod.CAPTURES.forEach((raw, i) => {
       const { value, legacy: l } = normalizeEntry(raw);
       isLegacy ||= l;
       const errors = validateEntry(value);
-      for (const e of errors) details.push({ ...e, file: `${display}/${f}`, entry: entryLabel(value, i), path: e.path === "(root)" ? "" : e.path });
+      for (const e of errors)
+        details.push({
+          ...e,
+          file: `${display}/${f}`,
+          entry: entryLabel(value, i),
+          path: e.path === "(root)" ? "" : e.path,
+        });
       if (errors.length) return;
       if (seen.has(value.id)) {
         duplicate ??= { id: value.id, first: seen.get(value.id), second: f };
@@ -190,14 +206,27 @@ export async function loadPlans({ folder, display = folder }) {
     });
     if (isLegacy) legacy.push(f);
   }
-  if (details.length) throw new KitError(EXIT.USAGE, "capture.planInvalid", { folder: display, n: details.length }, { details, prefix: display });
+  if (details.length)
+    throw new KitError(
+      EXIT.USAGE,
+      "capture.planInvalid",
+      { folder: display, n: details.length },
+      { details, prefix: display },
+    );
   if (duplicate) throw new KitError(EXIT.USAGE, "capture.duplicate", duplicate);
   return { captures, files, legacy };
 }
 
 /** Regular expression of a selection pattern: "*" = any characters, "?" = one character, anchored. */
 export function patternRegex(pattern) {
-  return new RegExp("^" + pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
+  return new RegExp(
+    "^" +
+      pattern
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*/g, ".*")
+        .replace(/\?/g, ".") +
+      "$",
+  );
 }
 
 /** The captures whose id matches one of the patterns (all of them without a pattern), in plan order. */
@@ -219,7 +248,15 @@ export function forbiddenMatchers(patterns = []) {
     try {
       return { pattern: p, re: new RegExp(p) };
     } catch (e) {
-      throw new KitError(EXIT.USAGE, "config.invalid", { file: "doc.config.mjs", n: 1 }, { details: [{ path: `capture.forbidden[${i}]`, key: "regex", vars: { error: e.message } }], prefix: "doc.config.mjs" });
+      throw new KitError(
+        EXIT.USAGE,
+        "config.invalid",
+        { file: "doc.config.mjs", n: 1 },
+        {
+          details: [{ path: `capture.forbidden[${i}]`, key: "regex", vars: { error: e.message } }],
+          prefix: "doc.config.mjs",
+        },
+      );
     }
   });
 }

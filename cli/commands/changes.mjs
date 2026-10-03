@@ -53,7 +53,8 @@ export async function run({ ctx, values }) {
   fs.writeFileSync(output, markdown + "\n");
   if (values.record) {
     const file = recordChanges(root, { since, until, date: new Date().toISOString(), ...changes });
-    if (!ctx.json) ctx.printErr(ctx.t("cli.changes.recorded", { file: path.relative(root, file).split(path.sep).join("/") }));
+    if (!ctx.json)
+      ctx.printErr(ctx.t("cli.changes.recorded", { file: path.relative(root, file).split(path.sep).join("/") }));
   }
   if (ctx.json) ctx.print(JSON.stringify({ since, until, ...changes }, null, 2));
   else ctx.print(markdown);

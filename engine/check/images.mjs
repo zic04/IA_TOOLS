@@ -11,12 +11,20 @@ import { normalizeZones } from "../project/legacy.mjs";
 
 const IMAGE_EXTENSIONS = /\.(webp|png|jpe?g)$/i;
 
-const unescape = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+const unescape = (s) =>
+  s
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
 
 /** Ids of the captures embedded in a built site (one <script id="img-<id>"> per image), source only — a
  * language variant (`id="img-<id>@<lang>"`, ARCHITECTURE.md §6.12) is excluded: embeddedLanguageCaptures. */
 export function embeddedCaptures(html) {
-  return new Set([...String(html).matchAll(/<script type="text\/plain" id="img-([^"@]+)">data:/g)].map((m) => unescape(m[1])));
+  return new Set(
+    [...String(html).matchAll(/<script type="text\/plain" id="img-([^"@]+)">data:/g)].map((m) => unescape(m[1])),
+  );
 }
 
 /** Ids of the captures embedded FOR one language (`id="img-<id>@<lang>"`, ARCHITECTURE.md §6.12 §7). */
@@ -28,7 +36,12 @@ export function embeddedLanguageCaptures(html, lang) {
 /** Zone files of one folder (`<images>/[<lang>/]zones/*.json`), normalised like the build does. */
 function readZones(root, zonesDir) {
   const zones = {};
-  for (const f of fs.existsSync(path.join(root, zonesDir)) ? fs.readdirSync(path.join(root, zonesDir)).filter((x) => x.endsWith(".json")).sort() : []) {
+  for (const f of fs.existsSync(path.join(root, zonesDir))
+    ? fs
+        .readdirSync(path.join(root, zonesDir))
+        .filter((x) => x.endsWith(".json"))
+        .sort()
+    : []) {
     try {
       zones[f.slice(0, -5)] = normalizeZones(JSON.parse(fs.readFileSync(path.join(root, zonesDir, f), "utf8"))).value;
     } catch {
@@ -40,7 +53,13 @@ function readZones(root, zonesDir) {
 
 /** Image files of one folder (webp/png/jpg), sorted. */
 function readImageFiles(root, dir) {
-  return fs.existsSync(path.join(root, dir)) ? fs.readdirSync(path.join(root, dir), { withFileTypes: true }).filter((d) => d.isFile() && IMAGE_EXTENSIONS.test(d.name)).map((d) => d.name).sort() : [];
+  return fs.existsSync(path.join(root, dir))
+    ? fs
+        .readdirSync(path.join(root, dir), { withFileTypes: true })
+        .filter((d) => d.isFile() && IMAGE_EXTENSIONS.test(d.name))
+        .map((d) => d.name)
+        .sort()
+    : [];
 }
 
 /**
@@ -63,22 +82,33 @@ export function checkImages({ root, config, html, warnings: buildWarnings = [], 
   const errors = [];
   const warnings = [];
   for (const w of buildWarnings)
-    if (w.key === "capture.notFound" || w.key === "capture.fileMissing") errors.push({ key: `build.${w.key}`, vars: w.vars });
+    if (w.key === "capture.notFound" || w.key === "capture.fileMissing")
+      errors.push({ key: `build.${w.key}`, vars: w.vars });
   // Cited captures whose image is missing are reported by the build (capture.fileMissing, with the image path).
   const missingFiles = new Set(buildWarnings.filter((w) => w.key === "capture.fileMissing").map((w) => w.vars?.file));
-  const citedIds = new Set([...cited, ...Object.keys(zones).filter((id) => zones[id]?.file && missingFiles.has(rel(zones[id].file)))]);
+  const citedIds = new Set([
+    ...cited,
+    ...Object.keys(zones).filter((id) => zones[id]?.file && missingFiles.has(rel(zones[id].file))),
+  ]);
   const usedFiles = new Set([...cited].map((id) => zones[id]?.file).filter(Boolean));
   for (const f of files) if (!usedFiles.has(f)) errors.push({ key: "check.images.orphan", vars: { file: rel(f) } });
   for (const [id, z] of Object.entries(zones)) {
     if (z && z.file && !fs.existsSync(path.join(dir, z.file)) && !citedIds.has(id))
-      errors.push({ key: "check.images.zonesWithoutImage", vars: { zones: `${images}/zones/${id}.json`, file: rel(z.file) } });
+      errors.push({
+        key: "check.images.zonesWithoutImage",
+        vars: { zones: `${images}/zones/${id}.json`, file: rel(z.file) },
+      });
   }
   for (const f of files) {
     const kb = Math.round(fs.statSync(path.join(dir, f)).size / 1024);
     if (kb > threshold) warnings.push({ key: "check.images.heavy", vars: { file: rel(f), kb, threshold } });
   }
   for (const [id, z] of Object.entries(zones))
-    if (z && z.version && version && z.version !== version) warnings.push({ key: "check.images.outdated", vars: { file: `${images}/zones/${id}.json`, captured: z.version, version } });
+    if (z && z.version && version && z.version !== version)
+      warnings.push({
+        key: "check.images.outdated",
+        vars: { file: `${images}/zones/${id}.json`, captured: z.version, version },
+      });
 
   // Languages (ARCHITECTURE.md §6.12 §7): every <images>/<lang>/ is walked for ORPHANS only — a language image
   // without a source counterpart is never "missing" (it is always optional), so nothing else is checked there.
@@ -90,7 +120,14 @@ export function checkImages({ root, config, html, warnings: buildWarnings = [], 
     const langZones = readZones(root, `${langImages}/zones`);
     const citedLang = embeddedLanguageCaptures(html, lang);
     const usedLangFiles = new Set([...citedLang].map((id) => (langZones[id] || zones[id])?.file).filter(Boolean));
-    for (const f of langFiles) if (!usedLangFiles.has(f)) errors.push({ key: "check.images.orphan", vars: { file: `${langImages}/${f}` } });
+    for (const f of langFiles)
+      if (!usedLangFiles.has(f)) errors.push({ key: "check.images.orphan", vars: { file: `${langImages}/${f}` } });
   }
-  return { images: files.length + languageImages, zones: Object.keys(zones).length, cited: cited.size, errors, warnings };
+  return {
+    images: files.length + languageImages,
+    zones: Object.keys(zones).length,
+    cited: cited.size,
+    errors,
+    warnings,
+  };
 }

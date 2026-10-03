@@ -37,8 +37,7 @@ async function loadCoverageAdapters(root, config) {
 /** A page entry of the table of contents (id, title, template, routes, sources, counterpart…), or null. */
 export function findPageEntry(toc, pageId) {
   for (const sec of toc.sections || [])
-    for (const g of sec.groups || [])
-      for (const p of g.pages || []) if (p.id === pageId) return p;
+    for (const g of sec.groups || []) for (const p of g.pages || []) if (p.id === pageId) return p;
   return null;
 }
 
@@ -51,7 +50,9 @@ export function captureIds(markdown) {
 }
 
 /** `::facts` / `::faits` sources cited by a page's Markdown. */
-const factsSourcesOf = (markdown) => [...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1]))];
+const factsSourcesOf = (markdown) => [
+  ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1])),
+];
 
 /** Written pages (ARCHITECTURE.md §5): a file that exists and holds no template guidance. */
 export function writtenPages({ root, config, toc }) {
@@ -86,7 +87,13 @@ async function filesOfRoute({ route, root, appDir, config, inventory, coverageAd
     for (const family of a.families || []) {
       const item = matchRoute(route, family.items);
       if (!item) continue;
-      const files = routeFiles({ spec: coverageAdapters[i].spec, options: coverageAdapters[i].options, item, route, tools });
+      const files = routeFiles({
+        spec: coverageAdapters[i].spec,
+        options: coverageAdapters[i].options,
+        item,
+        route,
+        tools,
+      });
       return files.map((f) => toAppRel(root, appDir, f)).filter(Boolean);
     }
   }
@@ -121,7 +128,18 @@ const isLayout = (f) => /(^|\/)layout\.(tsx|ts|jsx|js)$/.test(f);
  *   files: Array<{ path: string, kind: "direct"|"shared", via: string[], lines: Array<[number,number]> }>,
  *   proofs: Array<object>, truncated: boolean }>}
  */
-export async function pageDependencies({ root, config, toc, pageId, inventory, tools, factsDir, plans = [], declared = [], _counterpartDepth = 0 }) {
+export async function pageDependencies({
+  root,
+  config,
+  toc,
+  pageId,
+  inventory,
+  tools,
+  factsDir,
+  plans = [],
+  declared = [],
+  _counterpartDepth = 0,
+}) {
   const entry = findPageEntry(toc, pageId) || { id: pageId };
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const file = `${config.paths.content}/${entry.file || `${pageId}.md`}`;
@@ -167,7 +185,8 @@ export async function pageDependencies({ root, config, toc, pageId, inventory, t
 
   // ─── Proofs: the cited file is always direct ──────────────────────────────────────────────────────────────
   // A proof whose file cannot be found in the application (proof.path null) adds no dependency.
-  for (const proof of proofs) add(appDir ? proof.path : proof.file, { via: "proof", direct: true, lines: [proof.from, proof.to ?? proof.from] });
+  for (const proof of proofs)
+    add(appDir ? proof.path : proof.file, { via: "proof", direct: true, lines: [proof.from, proof.to ?? proof.from] });
 
   // ─── Server code behind the screen: the API paths written in the page's own files, matched against the routes
   // of facts/api.json (api-links.mjs); each handler's file is direct, with the handler's line ──────────────────
@@ -180,7 +199,8 @@ export async function pageDependencies({ root, config, toc, pageId, inventory, t
       // An unreadable facts file is reported by the build (::facts) and by doc-kit facts, not here.
     }
     const texts = [...pageFiles].map((f) => readCached(path.join(appDir, f)) ?? "");
-    for (const item of apiRoutesCalledBy(texts, items)) add(item.file, { via: "api", direct: true, lines: item.line ? [item.line, item.line] : undefined });
+    for (const item of apiRoutesCalledBy(texts, items))
+      add(item.file, { via: "api", direct: true, lines: item.line ? [item.line, item.line] : undefined });
   }
 
   // ─── Closure of local imports, from R ──────────────────────────────────────────────────────────────────────
@@ -195,7 +215,15 @@ export async function pageDependencies({ root, config, toc, pageId, inventory, t
   for (const id of captures) {
     const planEntry = plans.find((p) => p.id === id);
     if (!planEntry) continue;
-    const files = await filesOfRoute({ route: planEntry.route, root, appDir, config, inventory, coverageAdapters, tools });
+    const files = await filesOfRoute({
+      route: planEntry.route,
+      root,
+      appDir,
+      config,
+      inventory,
+      coverageAdapters,
+      tools,
+    });
     for (const f of files) add(f, { via: "capture" });
   }
 
@@ -205,14 +233,26 @@ export async function pageDependencies({ root, config, toc, pageId, inventory, t
   // ─── Counterpart: one level of recursion, never beyond ────────────────────────────────────────────────────
   if (entry.counterpart && _counterpartDepth < 1) {
     const targetId = entry.counterpart.split("~")[0];
-    const target = await pageDependencies({ root, config, toc, pageId: targetId, inventory, tools, factsDir, plans, declared: [], _counterpartDepth: 1 });
+    const target = await pageDependencies({
+      root,
+      config,
+      toc,
+      pageId: targetId,
+      inventory,
+      tools,
+      factsDir,
+      plans,
+      declared: [],
+      _counterpartDepth: 1,
+    });
     for (const f of target.files) add(f.path, { via: "counterpart", direct: false });
   }
 
   // ─── Declared page sources (toc field `sources`: globs relative to app.dir) ────────────────────────────────
   if (appDir && entry.sources?.length) {
     const appTools = adapterTools(appDir);
-    for (const pattern of entry.sources) for (const f of globFiles(appTools, ".", pattern)) add(f, { via: "sources", direct: true });
+    for (const pattern of entry.sources)
+      for (const f of globFiles(appTools, ".", pattern)) add(f, { via: "sources", direct: true });
   }
 
   // ─── Declared sources of --mark --sources (sync.json pages[id].declared) ──────────────────────────────────
@@ -226,12 +266,27 @@ export async function pageDependencies({ root, config, toc, pageId, inventory, t
   const files = [...acc.entries()].map(([p, e]) => {
     const underD = !p.startsWith("doc:") && [...D].some((d) => p === d || p.startsWith(d + "/"));
     const direct = e.direct || pageFiles.has(p) || underD;
-    return { path: p, kind: direct ? "direct" : "shared", via: [...e.via], lines: [...e.lines].map((s) => JSON.parse(s)) };
+    return {
+      path: p,
+      kind: direct ? "direct" : "shared",
+      via: [...e.via],
+      lines: [...e.lines].map((s) => JSON.parse(s)),
+    };
   });
 
   // `routeFiles`/`routeFolders` (R/D, ARCHITECTURE.md §2.3) are exposed so that the report can classify a file
   // that disappeared (no longer reachable at all) by the same rule, using the current state.
-  return { page: entry, routes, captures, factsSources, files, proofs, truncated, routeFiles: [...R], routeFolders: [...D] };
+  return {
+    page: entry,
+    routes,
+    captures,
+    factsSources,
+    files,
+    proofs,
+    truncated,
+    routeFiles: [...R],
+    routeFolders: [...D],
+  };
 }
 
 /** Classifies a path by the ARCHITECTURE.md §2.3 rule, from the R/D of a (possibly stale) pageDependencies

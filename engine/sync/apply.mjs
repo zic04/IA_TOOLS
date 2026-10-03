@@ -55,7 +55,8 @@ export function applyReport({ root, config, toc, report, pages, withLabels = fal
     for (const move of movedByPage.get(pageId) || []) {
       const proofs = extractProofs(text).filter((p) => p.ref === move.ref);
       if (!proofs.length) continue;
-      for (const proof of proofs) text = rewriteProof(text, proof, { newFile: move.newFile, newFrom: move.newFrom, newTo: move.newTo });
+      for (const proof of proofs)
+        text = rewriteProof(text, proof, { newFile: move.newFile, newFrom: move.newFrom, newTo: move.newTo });
       proofsRewritten++;
     }
 

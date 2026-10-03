@@ -54,7 +54,10 @@ function startServer() {
 /** A documentation project pointing at the test server, with facts/api.json already written. */
 function makeProject(url) {
   const dir = tempDir("doc-kit-probe-e2e-");
-  fs.writeFileSync(path.join(dir, "doc.config.mjs"), `export default ${JSON.stringify({ product: { name: "Acme Orders" }, app: { url } })};\n`);
+  fs.writeFileSync(
+    path.join(dir, "doc.config.mjs"),
+    `export default ${JSON.stringify({ product: { name: "Acme Orders" }, app: { url } })};\n`,
+  );
   fs.mkdirSync(path.join(dir, "content"));
   fs.writeFileSync(path.join(dir, "content", "toc.json"), JSON.stringify({ title: "Acme Orders", sections: [] }));
   fs.mkdirSync(path.join(dir, "facts"));
@@ -67,10 +70,26 @@ function makeProject(url) {
       commit: null,
       app: "..",
       items: [
-        { method: "GET", route: "/api/admin/users", file: "server.js", line: 1, framework: "express", auth: "role", guards: ["requireAdmin"] },
-        { method: "GET", route: "/api/customers", file: "server.js", line: 2, framework: "express", auth: "none", guards: [] },
+        {
+          method: "GET",
+          route: "/api/admin/users",
+          file: "server.js",
+          line: 1,
+          framework: "express",
+          auth: "role",
+          guards: ["requireAdmin"],
+        },
+        {
+          method: "GET",
+          route: "/api/customers",
+          file: "server.js",
+          line: 2,
+          framework: "express",
+          auth: "none",
+          guards: [],
+        },
       ],
-    })
+    }),
   );
   return dir;
 }
@@ -78,7 +97,11 @@ function makeProject(url) {
 async function cli(args) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env: {} });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env: {},
+  });
   return { code, out, err };
 }
 
@@ -129,7 +152,10 @@ describe("doc-kit probe (e2e, a real local server)", () => {
       fs.mkdirSync(sessionDir, { recursive: true });
       fs.writeFileSync(
         path.join(sessionDir, "session-manager.json"),
-        JSON.stringify({ cookies: [{ name: "sid", value: "secret-token", domain: "127.0.0.1", path: "/" }], origins: [] })
+        JSON.stringify({
+          cookies: [{ name: "sid", value: "secret-token", domain: "127.0.0.1", path: "/" }],
+          origins: [],
+        }),
       );
       const r = await cli(["probe", "--project", dir, "--as", "manager", "--json"]);
       assert.equal(r.code, 0, r.err);

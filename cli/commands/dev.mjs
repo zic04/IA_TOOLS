@@ -26,7 +26,8 @@ export async function run({ ctx, values }) {
   let port = DEFAULT_PORT;
   if (values.port !== undefined) {
     port = Number(values.port);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) throw new KitError(EXIT.USAGE, "option.value", { option: "port", value: values.port, expected: "0..65535" });
+    if (!Number.isInteger(port) || port < 0 || port > 65535)
+      throw new KitError(EXIT.USAGE, "option.value", { option: "port", value: values.port, expected: "0..65535" });
     if (port && !(await portFree(port))) throw new KitError(EXIT.ENVIRONMENT, "dev.portBusy", { port });
   } else port = (await findPort(DEFAULT_PORT)) || 0;
 
@@ -35,7 +36,9 @@ export async function run({ ctx, values }) {
   const time = () => new Date().toTimeString().slice(0, 8);
   const describeError = (e) => {
     if (e instanceof KitError) {
-      const details = (e.details || []).map((d) => describeProblem(ctx, { kind: "validate", file: e.prefix, ...d }).what);
+      const details = (e.details || []).map(
+        (d) => describeProblem(ctx, { kind: "validate", file: e.prefix, ...d }).what,
+      );
       return {
         what: [ctx.t(`cli.${e.key}`, e.vars), ...details].join("\n"),
         help: ctx.i18n.has(`cli.${e.key}.help`) ? ctx.t(`cli.${e.key}.help`, e.vars) : "",
@@ -46,7 +49,9 @@ export async function run({ ctx, values }) {
   const report = (event) => {
     if (ctx.json) return;
     const when = p.dim(`[${time()}]`);
-    const changed = event.changed?.length ? `${event.changed.slice(0, 3).join(", ")}${event.changed.length > 3 ? " …" : ""} — ` : "";
+    const changed = event.changed?.length
+      ? `${event.changed.slice(0, 3).join(", ")}${event.changed.length > 3 ? " …" : ""} — `
+      : "";
     if (event.type === "error") {
       const d = describeError(event.error);
       ctx.printErr(`${when} ${changed}${p.fail("✖")} ${d.what}`);
@@ -55,7 +60,9 @@ export async function run({ ctx, values }) {
     }
     if (event.ok) {
       const s = event.stats;
-      ctx.print(`${when} ${changed}${p.ok("✔")} ${ctx.t("cli.dev.built", { s: (event.ms / 1000).toFixed(1), pages: s.pages, captures: s.captures, n: event.warnings.length })}`);
+      ctx.print(
+        `${when} ${changed}${p.ok("✔")} ${ctx.t("cli.dev.built", { s: (event.ms / 1000).toFixed(1), pages: s.pages, captures: s.captures, n: event.warnings.length })}`,
+      );
       if (ctx.verbose) ctx.printProblems({ warnings: event.warnings });
     } else {
       ctx.printErr(`${when} ${changed}${p.fail("✖")} ${ctx.t("cli.dev.failed", { n: event.errors.length })}`);
@@ -82,11 +89,22 @@ export async function run({ ctx, values }) {
 
   const watched = watchedPaths(config);
   const spaces = server.spaces.map((space) => ({ space, url: `${server.url}space/${space}` }));
-  if (ctx.json) ctx.print(JSON.stringify({ url: server.url, port: server.port, root: project.root, watched, ...(spaces.length ? { spaces } : {}) }));
+  if (ctx.json)
+    ctx.print(
+      JSON.stringify({
+        url: server.url,
+        port: server.port,
+        root: project.root,
+        watched,
+        ...(spaces.length ? { spaces } : {}),
+      }),
+    );
   else {
     ctx.print(`\n  ${p.bold(ctx.t("cli.dev.serving"))} ${p.cmd(server.url)}  ${p.dim(ctx.t("cli.dev.stop"))}`);
     for (const s of spaces) ctx.print(`  ${p.bold(ctx.t("cli.dev.space", { space: s.space }))} ${p.cmd(s.url)}`);
-    ctx.print(`  ${p.dim(ctx.t("cli.dev.watching", { list: [...watched.folders.map((f) => f + "/"), ...watched.files].join(", "), folder: path.basename(project.root) }))}\n`);
+    ctx.print(
+      `  ${p.dim(ctx.t("cli.dev.watching", { list: [...watched.folders.map((f) => f + "/"), ...watched.files].join(", "), folder: path.basename(project.root) }))}\n`,
+    );
   }
   await openBrowser(server.url, ctx.env);
 

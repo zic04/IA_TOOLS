@@ -1,10 +1,12 @@
 // Text helpers of the build. Their output is part of the generated HTML: change them only on purpose.
 
 /** Minimal HTML escaping (& < > "). The apostrophe is NOT escaped. */
-export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+export const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /** Attributes of a directive: `id="x" title="y"` → { id: "x", title: "y" }. */
-export const attrs = (s) => Object.fromEntries([...String(s || "").matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
+export const attrs = (s) =>
+  Object.fromEntries([...String(s || "").matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
 
 /** Plain text of an HTML fragment (search index, table of contents titles). */
 export const plainText = (html) =>

@@ -7,7 +7,20 @@ import path from "node:path";
 import { lineAt, balancedParens } from "./api.mjs";
 import { appFiles } from "./common.mjs";
 
-const BINARY_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".eot", ".pdf", ".zip"]);
+const BINARY_EXT = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".pdf",
+  ".zip",
+]);
 const MAX_SIZE = 2 * 1024 * 1024;
 
 /** 1-based, de-duplicated, sorted lines of every match of `re` in `text`. */
@@ -28,7 +41,8 @@ const SQL_LINE_WINDOW = 4;
 function sqlConcatLines(text) {
   const lines = text.split("\n");
   const buildLines = [];
-  for (let i = 0; i < lines.length; i++) if (SQL_KEYWORD.test(lines[i]) && STRING_BUILDING.test(lines[i])) buildLines.push(i);
+  for (let i = 0; i < lines.length; i++)
+    if (SQL_KEYWORD.test(lines[i]) && STRING_BUILDING.test(lines[i])) buildLines.push(i);
   if (!buildLines.length) return [];
   const flagged = new Set();
   for (const m of text.matchAll(SQL_SINK_CALL)) {
@@ -40,15 +54,18 @@ function sqlConcatLines(text) {
 
 // cors.wildcardCredentials: a wildcard origin together with credentials, within the same configuration block
 // (close enough in the text — a generous but simple window, ARCHITECTURE.md §6.13 is a heuristic by design).
-const WILDCARD_ORIGIN = /\borigin\s*[:=]\s*["']\*["']|Access-Control-Allow-Origin["']?\s*,\s*["']\*["']|allow_origins\s*=\s*\[\s*["']\*["']/gi;
-const CREDENTIALS_TRUE = /\bcredentials\s*[:=]\s*True\b|\bcredentials\s*:\s*true\b|allow_credentials\s*=\s*True\b|Access-Control-Allow-Credentials["']?\s*,\s*["']true["']/gi;
+const WILDCARD_ORIGIN =
+  /\borigin\s*[:=]\s*["']\*["']|Access-Control-Allow-Origin["']?\s*,\s*["']\*["']|allow_origins\s*=\s*\[\s*["']\*["']/gi;
+const CREDENTIALS_TRUE =
+  /\bcredentials\s*[:=]\s*True\b|\bcredentials\s*:\s*true\b|allow_credentials\s*=\s*True\b|Access-Control-Allow-Credentials["']?\s*,\s*["']true["']/gi;
 const CORS_WINDOW = 400;
 
 function corsWildcardCredentialsLines(text) {
   const origins = [...text.matchAll(WILDCARD_ORIGIN)].map((m) => m.index);
   const creds = [...text.matchAll(CREDENTIALS_TRUE)].map((m) => m.index);
   const lines = new Set();
-  for (const o of origins) for (const c of creds) if (Math.abs(o - c) <= CORS_WINDOW) lines.add(lineAt(text, Math.min(o, c)));
+  for (const o of origins)
+    for (const c of creds) if (Math.abs(o - c) <= CORS_WINDOW) lines.add(lineAt(text, Math.min(o, c)));
   return [...lines].sort((a, b) => a - b);
 }
 
@@ -67,7 +84,8 @@ function openRedirectLines(text) {
 
 // auth.noRateLimit: a sign-in route (ARCHITECTURE.md §5 LOGIN_PATTERN) declared without a nearby rate-limit
 // decorator or middleware. Heuristic, severity "info".
-const SIGNIN_ROUTE = /\b(?:get|post|put|patch|delete|route)\(\s*["'`]([^"'`]*(?:login|signin|sign-in|authorize)[^"'`]*)["'`]/gi;
+const SIGNIN_ROUTE =
+  /\b(?:get|post|put|patch|delete|route)\(\s*["'`]([^"'`]*(?:login|signin|sign-in|authorize)[^"'`]*)["'`]/gi;
 const RATE_LIMIT_HINT = /rate[-_]?limit|throttle|limiter/i;
 const RATE_LIMIT_WINDOW = 200;
 
@@ -111,13 +129,46 @@ const MASK_CHARS_ONLY = /^[•*x]+$/i;
 const SLICE_INTERPOLATION = /\$\{[^}]*\.(?:slice|substring|substr)\(/;
 const SLICE_CONCAT_AFTER = /^\s*\+\s*[\w.]+\.(?:slice|substring|substr)\(/;
 const COMMON_WORDS = new Set([
-  "password", "passwd", "secret", "secretkey", "admin", "administrator", "username", "token", "default",
-  "changeme", "placeholder", "example", "test", "testing", "demo", "sample", "none", "null", "undefined",
-  "true", "false", "value", "string", "text", "unknown", "todo", "temp", "temporary", "guest", "root", "user",
-  "login", "key", "apikey", "required", "optional",
+  "password",
+  "passwd",
+  "secret",
+  "secretkey",
+  "admin",
+  "administrator",
+  "username",
+  "token",
+  "default",
+  "changeme",
+  "placeholder",
+  "example",
+  "test",
+  "testing",
+  "demo",
+  "sample",
+  "none",
+  "null",
+  "undefined",
+  "true",
+  "false",
+  "value",
+  "string",
+  "text",
+  "unknown",
+  "todo",
+  "temp",
+  "temporary",
+  "guest",
+  "root",
+  "user",
+  "login",
+  "key",
+  "apikey",
+  "required",
+  "optional",
 ]);
 /** A masked display value, never a real secret: made only of bullet, asterisk or x characters, or a slice interpolated/concatenated in. */
-const isMaskedDisplay = (value, after) => MASK_CHARS_ONLY.test(value) || SLICE_INTERPOLATION.test(value) || SLICE_CONCAT_AFTER.test(after);
+const isMaskedDisplay = (value, after) =>
+  MASK_CHARS_ONLY.test(value) || SLICE_INTERPOLATION.test(value) || SLICE_CONCAT_AFTER.test(after);
 /** At least 8 characters and not a common placeholder word: the rest look too short or too ordinary to flag. */
 const looksSecret = (value) => value.length >= 8 && !COMMON_WORDS.has(value.toLowerCase());
 
@@ -145,14 +196,45 @@ function secretDefaultLines(text) {
  */
 export const RULES = Object.freeze([
   { rule: "redirect.open", owasp: "A01:2021", severity: "medium", find: openRedirectLines },
-  { rule: "tls.disabled", owasp: "A02:2021", severity: "high", find: (t) => matchLines(t, /\bverify\s*=\s*False\b|\brejectUnauthorized\s*:\s*false\b|NODE_TLS_REJECT_UNAUTHORIZED/g) },
-  { rule: "xss.dangerouslySetInnerHTML", owasp: "A03:2021", severity: "medium", find: (t) => matchFindings(t, /dangerouslySetInnerHTML/g) },
-  { rule: "xss.innerHTML", owasp: "A03:2021", severity: "medium", find: (t) => matchFindings(t, /\.innerHTML\s*=(?!=)/g) },
-  { rule: "code.eval", owasp: "A03:2021", severity: "high", find: (t) => matchLines(t, /\b(?:eval|exec)\s*\(|\bnew\s+Function\s*\(/g) },
+  {
+    rule: "tls.disabled",
+    owasp: "A02:2021",
+    severity: "high",
+    find: (t) =>
+      matchLines(t, /\bverify\s*=\s*False\b|\brejectUnauthorized\s*:\s*false\b|NODE_TLS_REJECT_UNAUTHORIZED/g),
+  },
+  {
+    rule: "xss.dangerouslySetInnerHTML",
+    owasp: "A03:2021",
+    severity: "medium",
+    find: (t) => matchFindings(t, /dangerouslySetInnerHTML/g),
+  },
+  {
+    rule: "xss.innerHTML",
+    owasp: "A03:2021",
+    severity: "medium",
+    find: (t) => matchFindings(t, /\.innerHTML\s*=(?!=)/g),
+  },
+  {
+    rule: "code.eval",
+    owasp: "A03:2021",
+    severity: "high",
+    find: (t) => matchLines(t, /\b(?:eval|exec)\s*\(|\bnew\s+Function\s*\(/g),
+  },
   { rule: "sql.concat", owasp: "A03:2021", severity: "high", find: sqlConcatLines },
   { rule: "cors.wildcardCredentials", owasp: "A05:2021", severity: "high", find: corsWildcardCredentialsLines },
-  { rule: "debug.enabled", owasp: "A05:2021", severity: "low", find: (t) => matchLines(t, /\bDEBUG\s*=\s*True\b|\bdebug\s*[:=]\s*[Tt]rue\b/g) },
-  { rule: "jwt.noVerify", owasp: "A07:2021", severity: "high", find: (t) => matchLines(t, /verify_signature["']?\s*[:=]\s*False\b|algorithms\s*[:=]\s*\[[^\]]*["']none["']/gi) },
+  {
+    rule: "debug.enabled",
+    owasp: "A05:2021",
+    severity: "low",
+    find: (t) => matchLines(t, /\bDEBUG\s*=\s*True\b|\bdebug\s*[:=]\s*[Tt]rue\b/g),
+  },
+  {
+    rule: "jwt.noVerify",
+    owasp: "A07:2021",
+    severity: "high",
+    find: (t) => matchLines(t, /verify_signature["']?\s*[:=]\s*False\b|algorithms\s*[:=]\s*\[[^\]]*["']none["']/gi),
+  },
   { rule: "secret.default", owasp: "A07:2021", severity: "medium", find: secretDefaultLines },
   { rule: "auth.noRateLimit", owasp: "A07:2021", severity: "info", find: noRateLimitLines },
 ]);
@@ -185,7 +267,14 @@ export function collectSecurity(appDir, exec) {
     for (const { rule, owasp, severity, find } of RULES)
       for (const entry of find(text)) {
         const e = typeof entry === "object" ? entry : { line: entry };
-        items.push({ rule, file: rel, line: e.line, severity: e.severity ?? severity, owasp, ...(e.sanitized ? { sanitized: true } : {}) });
+        items.push({
+          rule,
+          file: rel,
+          line: e.line,
+          severity: e.severity ?? severity,
+          owasp,
+          ...(e.sanitized ? { sanitized: true } : {}),
+        });
       }
   }
   return items.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.rule.localeCompare(b.rule));

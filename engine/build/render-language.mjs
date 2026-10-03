@@ -34,9 +34,14 @@ export function siteDate(date, i18n) {
  * @param {object} lang   lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang
  * @returns {{ data: object, used: object, engine: object, counterparts: object, pages: object }}
  */
-export function renderLanguage(b, site, { lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang }) {
+export function renderLanguage(
+  b,
+  site,
+  { lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang },
+) {
   const { features, problems: featureProblems } = buildFeatureRegistry({ toc: langToc });
-  if (isSource) for (const { strict, ...problem } of featureProblems) b.report(strict, { kind: "business", ...problem });
+  if (isSource)
+    for (const { strict, ...problem } of featureProblems) b.report(strict, { kind: "business", ...problem });
 
   const { images, diagrams, facts, translations } = b.paths;
   const readers = isSource ? { exists: b.existsFs, read: b.readFs } : engineReadersFor(b, lang);
@@ -78,7 +83,12 @@ export function renderLanguage(b, site, { lang, isSource, langToc, langGlossary,
   const home = renderHome(r);
   checkLanguage(r, { langToc, features });
 
-  const stats = { pages: r.order.length, captures: engine.usedCaptures.size, zones: engine.zoneCount, schemas: engine.usedDiagrams.size };
+  const stats = {
+    pages: r.order.length,
+    captures: engine.usedCaptures.size,
+    zones: engine.zoneCount,
+    schemas: engine.usedDiagrams.size,
+  };
   const data = languageData(r, { langToc, langGlossary, langI18n, sections, home, stats });
   return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages };
 }
@@ -105,7 +115,8 @@ function resolveDoc(r, rel, sourceText, sourceMissing) {
 /** One section of the table of contents: its pages, then its introduction (`<section>/index.md`). */
 function renderSection(r, sec) {
   const { b, site } = r;
-  if (r.isSource && sec.icon && !(site.iconKey(sec.icon) in site.ICONS)) b.warnings.push({ kind: "toc", key: "toc.icon", vars: { section: sec.id, icon: sec.icon } });
+  if (r.isSource && sec.icon && !(site.iconKey(sec.icon) in site.ICONS))
+    b.warnings.push({ kind: "toc", key: "toc.icon", vars: { section: sec.id, icon: sec.icon } });
   const groups = sec.groups.map((g) => ({ titre: g.title || "", pages: g.pages.map((p) => renderPage(r, sec, g, p)) }));
   const introRel = `${sec.id}/index.md`;
   let introRender = null;
@@ -175,9 +186,22 @@ function renderPage(r, sec, g, p) {
   indexPage(r.index, p.id, p.title, out.html);
   const headings = out.toc.filter((x) => x.niveau === 2).map((x) => x.titre);
   if (!missing)
-    for (const { strict, ...problem } of checkPage({ pageId: p.id, template: p.template, headings, source, templates: site.templates, language: r.lang }))
+    for (const { strict, ...problem } of checkPage({
+      pageId: p.id,
+      template: p.template,
+      headings,
+      source,
+      templates: site.templates,
+      language: r.lang,
+    }))
       r.reportLang(strict, { kind: "template", ...problem });
-  if (!missing && site.spaces && (p.space ?? sec.space) === "business" && BUSINESS_TYPES.includes(p.template) && hasTechnicalProof(source))
+  if (
+    !missing &&
+    site.spaces &&
+    (p.space ?? sec.space) === "business" &&
+    BUSINESS_TYPES.includes(p.template) &&
+    hasTechnicalProof(source)
+  )
     r.reportLang(false, { kind: "business", key: "business.technical", vars: { page: p.id } });
   return p.id;
 }
@@ -205,15 +229,24 @@ function renderHome(r) {
 function checkLanguage(r, { langToc, features }) {
   const { b, site, isSource } = r;
   const { pages, links, counterparts, unwritten, order } = r;
-  for (const problem of checkLinks({ pages, links, sections: langToc.sections.map((s) => s.id), journeys: langToc.journeys || [], counterparts: isSource ? counterparts : {}, unwritten }))
+  for (const problem of checkLinks({
+    pages,
+    links,
+    sections: langToc.sections.map((s) => s.id),
+    journeys: langToc.journeys || [],
+    counterparts: isSource ? counterparts : {},
+    unwritten,
+  }))
     r.reportLang(true, problem);
   const { problems: businessRefProblems } = resolveBusinessRefs({ pages, features, rules: r.engine.rules, t: r.langT });
   for (const { strict, ...problem } of businessRefProblems) r.reportLang(strict, { kind: "business", ...problem });
   if (isSource && site.spaces) {
     for (const s of site.spaces) s.pages = order.filter((id) => pages[id].space === s.id).length;
-    for (const s of site.spaces.filter((x) => !x.pages)) b.warnings.push({ kind: "space", key: "space.empty", vars: { space: s.id } });
+    for (const s of site.spaces.filter((x) => !x.pages))
+      b.warnings.push({ kind: "space", key: "space.empty", vars: { space: s.id } });
   }
-  if (isSource && b.legacyFiles.length) b.warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: b.legacyFiles.join(", ") } });
+  if (isSource && b.legacyFiles.length)
+    b.warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: b.legacyFiles.join(", ") } });
 }
 
 /** The data object embedded in the site (#donnees), historical key names kept (see build.mjs). */
@@ -228,7 +261,10 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
   if (!languages) embedded = withoutLanguageTexts(embedded);
 
   const siteSpaces = spaces
-    ? resolveSpaces({ toc: langToc, t: langT, iconKey: site.iconKey }).spaces.map((s, i) => ({ ...s, pages: spaces[i]?.pages ?? s.pages }))
+    ? resolveSpaces({ toc: langToc, t: langT, iconKey: site.iconKey }).spaces.map((s, i) => ({
+        ...s,
+        pages: spaces[i]?.pages ?? s.pages,
+      }))
     : null;
 
   return {
@@ -240,7 +276,9 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
       date: siteDate(b.options.date, langI18n),
       stats,
       generator: generatorTag(),
-      ...(config.feedback ? { feedback: { label: config.feedback.label || langT("ui.feedback"), url: config.feedback.url } } : {}),
+      ...(config.feedback
+        ? { feedback: { label: config.feedback.label || langT("ui.feedback"), url: config.feedback.url } }
+        : {}),
       ...(languages ? { languages, language: lang } : {}),
       ...(home.fallback ? { homeFallback: home.fallback } : {}),
     },
@@ -250,8 +288,18 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
     pages: r.pages,
     ordre: r.order,
     recherche: r.index,
-    glossaire: langGlossary.map((g) => ({ terme: g.term, def: g.def, motif: g.pattern || escapeRegex(g.term), ...(g.technical ? { tech: g.technical } : {}) })),
-    parcours: (langToc.journeys || []).map((j) => ({ titre: j.title, desc: j.description, etapes: j.steps, ...(spaces ? { space: j.space ?? r.pages[j.steps[0]]?.space ?? null } : {}) })),
+    glossaire: langGlossary.map((g) => ({
+      terme: g.term,
+      def: g.def,
+      motif: g.pattern || escapeRegex(g.term),
+      ...(g.technical ? { tech: g.technical } : {}),
+    })),
+    parcours: (langToc.journeys || []).map((j) => ({
+      titre: j.title,
+      desc: j.description,
+      etapes: j.steps,
+      ...(spaces ? { space: j.space ?? r.pages[j.steps[0]]?.space ?? null } : {}),
+    })),
     suggestions: langToc.suggestions || [],
     accueil_html: home.html,
     i18n: embedded,
