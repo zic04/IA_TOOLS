@@ -13,17 +13,12 @@ import { labelFiles, flattenMessages } from "../../engine/sync/labels.mjs";
 import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
-import { readProjectVersion } from "../../engine/build/build.mjs";
-import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
-import {
-  checkLanguageOption,
-  translatedToc,
-  translatedGlossary,
-  readSources,
-  translationState,
-} from "../../engine/build/languages.mjs";
+import { readProjectVersion } from "../../engine/project/version.mjs";
+import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
+import { checkLanguageOption, translatedToc, translatedGlossary } from "../../engine/build/languages.mjs";
+import { readSources, translationState } from "../../engine/core/translations.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
-import { hashText } from "../../engine/sync/hash.mjs";
+import { hashText } from "../../engine/core/hash.mjs";
 import { normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
 import { readToc, stripBom } from "../../engine/project/toc.mjs";
 import { validate } from "../../engine/project/validate.mjs";

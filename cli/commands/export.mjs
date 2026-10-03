@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT, CONFIG_FILE } from "../../engine/project/find.mjs";
-import { readProjectVersion } from "../../engine/build/build.mjs";
+import { readProjectVersion } from "../../engine/project/version.mjs";
 import { declaredSpaceIds, spaceOutput } from "../../engine/build/spaces.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";

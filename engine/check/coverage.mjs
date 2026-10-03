@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
-import { countGuidance } from "../build/page-templates.mjs";
+import { countGuidance } from "../core/page-templates.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 

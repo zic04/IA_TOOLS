@@ -5,10 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { adapterTools } from "../check/coverage.mjs";
-import { countGuidance } from "../build/page-templates.mjs";
+import { countGuidance } from "../core/page-templates.mjs";
 import { relPath } from "../facts/common.mjs";
 import { routeFiles, matchRoute } from "./routes.mjs";
-import { resolveImports } from "./imports.mjs";
+import { resolveImports } from "../facts/imports.mjs";
 import { extractProofs } from "./proofs.mjs";
 import { apiRoutesCalledBy } from "./api-links.mjs";
 

@@ -1,4 +1,4 @@
-// engine/sync/imports.mjs (ARCHITECTURE.md §6.10 §2.2): the regex-based specifier extraction and resolution
+// engine/facts/imports.mjs (ARCHITECTURE.md §6.10 §2.2): the regex-based specifier extraction and resolution
 // functions, at unit level (the closure itself, resolveImports, is also exercised end to end in sync.test.mjs
 // against test/fixtures/sync-app).
 import { test, describe } from "node:test";
@@ -13,7 +13,7 @@ import {
   resolveJs,
   resolvePy,
   resolveImports,
-} from "../../engine/sync/imports.mjs";
+} from "../../engine/facts/imports.mjs";
 
 describe("jsSpecifiers", () => {
   test("import … from, bare import, require, dynamic import; one specifier per statement", () => {

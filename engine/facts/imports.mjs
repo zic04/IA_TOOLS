@@ -3,7 +3,7 @@
 // and matches no `paths` alias is a package: ignored). Never reads outside app.dir.
 import fs from "node:fs";
 import path from "node:path";
-import { relPath } from "../facts/common.mjs";
+import { relPath } from "./common.mjs";
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", ".venv", "venv"]);
 const CODE_FILE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;

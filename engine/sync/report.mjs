@@ -3,13 +3,13 @@
 // the disk and the injected `git` calls: no side effect, no network, never a write to the application.
 import fs from "node:fs";
 import path from "node:path";
-import { hashText, hashPlanEntry } from "./hash.mjs";
+import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, classifyMissingFile } from "./dependencies.mjs";
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
 import { flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
-import { translatableFiles, translationState, readSources } from "../build/languages.mjs";
+import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
 
 const safeRead = (p) => (p && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 /** A fresh (non-global) test of the PROOF_REF family, for one code span. */

@@ -5,13 +5,14 @@
 // `report`, with `vars.lang` added for every language but the source).
 import { createMarkdownEngine } from "./markdown.mjs";
 import { indexPage } from "./search.mjs";
-import { checkPage } from "./page-templates.mjs";
-import { escapeRegex } from "./text.mjs";
+import { checkPage } from "../core/page-templates.mjs";
+import { escapeRegex } from "../core/text.mjs";
 import { checkLinks } from "../check/links.mjs";
 import { EMBEDDED_NAMESPACES } from "../i18n.mjs";
 import { resolveSpaces, counterpartOf, withoutSpaceTexts } from "./spaces.mjs";
 import { buildFeatureRegistry, resolveBusinessRefs, hasTechnicalProof, BUSINESS_TYPES } from "./business.mjs";
-import { withoutLanguageTexts, translationState, readSources } from "./languages.mjs";
+import { withoutLanguageTexts } from "./languages.mjs";
+import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
 import { engineReadersFor } from "./build-context.mjs";
 

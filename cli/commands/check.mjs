@@ -6,7 +6,8 @@
 //   secrets   .env values, GUIDs, keys and tokens in the site and its sources; session files out of place
 //   all       every check (default); coverage is skipped when no adapter is configured
 import path from "node:path";
-import { build, readProjectVersion } from "../../engine/build/build.mjs";
+import { build } from "../../engine/build/build.mjs";
+import { readProjectVersion } from "../../engine/project/version.mjs";
 import { checkTables } from "../../engine/check/tables.mjs";
 import { checkImages } from "../../engine/check/images.mjs";
 import { checkSecrets } from "../../engine/check/secrets.mjs";

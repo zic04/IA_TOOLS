@@ -10,7 +10,8 @@
 // spaces, the result also holds the level of each space (`spaces`), its page indicators measured on its pages.
 import fs from "node:fs";
 import path from "node:path";
-import { build, readProjectVersion, HOME_FILES } from "../build/build.mjs";
+import { build, HOME_FILES } from "../build/build.mjs";
+import { readProjectVersion } from "../project/version.mjs";
 import {
   loadPageTemplates,
   analysePage,
@@ -18,7 +19,7 @@ import {
   closestTemplate,
   headingsOf,
   countGuidance,
-} from "../build/page-templates.mjs";
+} from "../core/page-templates.mjs";
 import { normalizeZones } from "../project/legacy.mjs";
 import { languageCounts } from "../build/languages.mjs";
 import { createI18n, LANGUAGES } from "../i18n.mjs";

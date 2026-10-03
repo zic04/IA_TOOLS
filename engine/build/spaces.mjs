@@ -6,7 +6,7 @@
 //   - paths of the exports, declared ids and the --space option of the CLI.
 import fs from "node:fs";
 import path from "node:path";
-import { esc } from "./text.mjs";
+import { esc } from "../core/text.mjs";
 import { closest } from "../project/validate.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";

@@ -2,7 +2,7 @@
 // at marking time) and locating them again later (intact, moved, or broken) after the application has changed.
 import fs from "node:fs";
 import path from "node:path";
-import { hashText } from "./hash.mjs";
+import { hashText } from "../core/hash.mjs";
 import { listFiles } from "../facts/common.mjs";
 
 /**

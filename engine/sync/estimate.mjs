@@ -1,6 +1,6 @@
 // Economy of the agents (ARCHITECTURE.md §6.11): the estimate of `sync --estimate` and of the skill's
 // `brief.mjs --estimate` (lot V7-agents), one `doc-kit-writer` agent per page to review.
-import { maxWordsOf, DEFAULT_MAX_WORDS } from "../build/page-templates.mjs";
+import { maxWordsOf, DEFAULT_MAX_WORDS } from "../core/page-templates.mjs";
 
 /** Fixed overhead of a brief (rules, safety, syntax, standard: ARCHITECTURE.md §8), in tokens. */
 const BRIEF_TOKENS = 1800;

@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createPage, locateJson, insertEntry, addProperty, PAGE_ID } from "../../cli/commands/new.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
-import { captureVariant } from "../../engine/build/page-templates.mjs";
+import { captureVariant } from "../../engine/core/page-templates.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir } from "../tools/helpers.mjs";

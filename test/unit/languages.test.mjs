@@ -12,10 +12,6 @@ import {
   TEXT_FIELDS,
   LANGUAGE_TEXT_KEYS,
   withoutLanguageTexts,
-  translatableFiles,
-  translationState,
-  readSources,
-  writeSources,
   translatedToc,
   translatedGlossary,
   languageOutput,
@@ -24,11 +20,12 @@ import {
   mergeLanguageCapture,
   languageCounts,
 } from "../../engine/build/languages.mjs";
+import { translatableFiles, translationState, readSources, writeSources } from "../../engine/core/translations.mjs";
 import { mapAnchor, fixAnchors } from "../../engine/translate/anchors.mjs";
 import { statusOf, resolveItems, markFiles } from "../../engine/translate/status.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
-import { hashText } from "../../engine/sync/hash.mjs";
+import { hashText } from "../../engine/core/hash.mjs";
 import { checkImages, embeddedCaptures, embeddedLanguageCaptures } from "../../engine/check/images.mjs";
 import { runAudit } from "../../engine/audit/audit.mjs";
 import { renderMarkdown } from "../../engine/audit/report.mjs";

@@ -17,8 +17,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { assemble } from "./assemble.mjs";
-import { loadPageTemplates } from "./page-templates.mjs";
-import { esc, escapeRegex } from "./text.mjs";
+import { loadPageTemplates } from "../core/page-templates.mjs";
+import { esc, escapeRegex } from "../core/text.mjs";
 import { createI18n } from "../i18n.mjs";
 import { resolveSpaces, exportSite, spaceOutput } from "./spaces.mjs";
 import { translatedToc, translatedGlossary, languageOutput, checkIdClash, languageCounts } from "./languages.mjs";
@@ -31,6 +31,7 @@ import { readSchema } from "../project/load.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { generatorTag } from "../brand.mjs";
+import { readProjectVersion } from "../project/version.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
 import { readUsage, USAGE_DIR } from "../stats/usage.mjs";
 import { readChanges } from "../facts/changes.mjs";
@@ -40,18 +41,6 @@ import { renderLanguage, siteDate, HOME_FILES } from "./render-language.mjs";
 export { siteDate, HOME_FILES };
 export const SITE_DIR = path.join(KIT_ROOT, "engine", "site");
 const IMAGE_TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
-
-/** Documented version: version.file + version.pattern (first group), otherwise version.fallback. */
-export function readProjectVersion(root, { file, pattern, fallback }) {
-  if (file) {
-    const f = path.resolve(root, file);
-    if (fs.existsSync(f)) {
-      const m = new RegExp(pattern).exec(fs.readFileSync(f, "utf8"));
-      if (m && m[1]) return m[1];
-    }
-  }
-  return fallback;
-}
 
 /**
  * @param {object} p

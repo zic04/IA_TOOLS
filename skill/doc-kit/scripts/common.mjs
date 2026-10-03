@@ -518,9 +518,9 @@ export async function flattenedPages(docDir, config, kitRoot) {
   return pages;
 }
 
-/** The kit's page template table (engine/build/page-templates.mjs), or null when the kit's engine is unreachable. */
+/** The kit's page template table (engine/core/page-templates.mjs), or null when the kit's engine is unreachable. */
 export async function pageTemplatesTable(kitRoot) {
-  const mod = await importKitModule(kitRoot, "engine/build/page-templates.mjs");
+  const mod = await importKitModule(kitRoot, "engine/core/page-templates.mjs");
   return mod ? mod.loadPageTemplates(kitRoot) : null;
 }
 

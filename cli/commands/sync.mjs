@@ -17,8 +17,8 @@ import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
 import { readToc } from "../../engine/audit/audit.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
-import { loadPageTemplates } from "../../engine/build/page-templates.mjs";
-import { readProjectVersion } from "../../engine/build/build.mjs";
+import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
+import { readProjectVersion } from "../../engine/project/version.mjs";
 import { WORK_DIR } from "./audit.mjs";
 
 export const options = {

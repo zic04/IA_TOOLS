@@ -1,4 +1,4 @@
-// Page templates (engine/build/page-templates.mjs): standard/templates.json and the 13 templates agree; section
+// Page templates (engine/core/page-templates.mjs): standard/templates.json and the 13 templates agree; section
 // matching (prefix, case, accents, apostrophes, aliases); guidance; words; guessing the type of an untyped page;
 // the build check (required sections: strict; guidance: warning).
 import { test, describe } from "node:test";
@@ -21,7 +21,7 @@ import {
   DEFAULT_MAX_WORDS,
   captureVariant,
   CAPTURE_MODES,
-} from "../../engine/build/page-templates.mjs";
+} from "../../engine/core/page-templates.mjs";
 import { loadDictionary } from "../../engine/i18n.mjs";
 import { KIT_ROOT, buildDemo, demoCopy } from "../tools/helpers.mjs";
 import { build } from "../../engine/build/build.mjs";

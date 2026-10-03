@@ -16,7 +16,7 @@
 // (computed from its own `captures`, since a translated screenshot may carry its own date and version). Empty
 // without `languages` (the marker then resolves to ""); a template without the marker at all is unaffected (the
 // replacement loop only ever acts on markers it finds in the template text).
-import { esc } from "./text.mjs";
+import { esc } from "../core/text.mjs";
 import { withContentSecurityPolicy } from "./csp.mjs";
 
 /**

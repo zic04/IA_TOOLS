@@ -22,7 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { launchBrowser } from "../project/browser.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { readProjectVersion } from "../build/build.mjs";
+import { readProjectVersion } from "../project/version.mjs";
 import { CaptureError, firstLine, registerSelectors } from "./actions.mjs";
 import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";

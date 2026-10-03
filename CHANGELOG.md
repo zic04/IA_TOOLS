@@ -6,6 +6,14 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Changed
+
+- The folders of `engine/` no longer import one another in a cycle (they were build, sync, check, capture and facts).
+  `engine/core/` holds what they share: `hash.mjs` (was in `sync/`), `text.mjs` and `page-templates.mjs` (were in
+  `build/`), and `translations.mjs` (the translated-file state, taken out of `build/languages.mjs`). The import
+  resolver moves to `engine/facts/imports.mjs` and `readProjectVersion` to `engine/project/version.mjs`.
+  `test/unit/layers.test.mjs` fails on a new folder cycle (RULES.md M14).
+
 ## [0.2.0] - 2026-10-03
 
 ### Added

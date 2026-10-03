@@ -1,6 +1,6 @@
 // `modules` source (ETUDE-CAPTURES.md, developer overview): the application's own import graph — which file
 // imports which, how many files depend on each one (fan-in), how many it depends on (fan-out), and the import
-// cycles. JavaScript/TypeScript and Python, with the resolvers of `sync` (engine/sync/imports.mjs); packages are
+// cycles. JavaScript/TypeScript and Python, with the resolvers of `sync` (engine/facts/imports.mjs); packages are
 // left out.
 //   item: { file, imports, importedBy, cycle }   cycle: the id of the cycle the file belongs to, or null
 //   summary: { files, edges, cycles: [[file, …], …], orphans }   orphans: files nothing imports and that import
@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { listFiles } from "./common.mjs";
-import { jsSpecifiers, pySpecifiers, resolveJs, resolvePy, loadTsconfig } from "../sync/imports.mjs";
+import { jsSpecifiers, pySpecifiers, resolveJs, resolvePy, loadTsconfig } from "./imports.mjs";
 
 const CODE = /\.(m?[jt]sx?|cjs|py)$/;
 /** Files read at most (a large repository stays bounded). */

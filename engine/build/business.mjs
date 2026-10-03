@@ -7,7 +7,7 @@
 //     only once every page has been rendered (a rule may be defined in a page further down the table of contents):
 //     markdown.mjs leaves a placeholder for each citation and each generated-table directive; resolveBusinessRefs
 //     replaces them in a second pass, after the build's page loop.
-import { esc } from "./text.mjs";
+import { esc } from "../core/text.mjs";
 
 /** A citation placeholder left by the Markdown engine: <span class="ref-feature|rule" data-ref-id="…">id</span>. */
 const REF = /<span class="ref-(feature|rule)" data-ref-id="([^"]*)">([^<]*)<\/span>/g;

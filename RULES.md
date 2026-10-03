@@ -46,6 +46,7 @@ same change.
 | M11 | The JavaScript is formatted by Prettier (`npm run format`, 120 columns); `npm run format:check` passes before every commit and in the CI. A commit that only reformats is listed in `.git-blame-ignore-revs`. |
 | M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passes: no error, and no more warnings than its `--max-warnings` ceiling. The ceiling counts the functions still over the size rules of M5; it only ever goes down, with the functions split. |
 | M13 | `npm run typecheck` (TypeScript on the JSDoc, `tsconfig.json`, nothing compiled) passes with no error. A JSDoc that no longer matches the code is fixed, never silenced: no `@ts-ignore`; a `@ts-expect-error` only with its reason. |
+| M14 | The folders of `engine/` import one another without a cycle: from the bottom up, `core`, `capture`, `check`, `facts`, `sync`, `build`. A module two folders share moves to `engine/core/`. Checked by `test/unit/layers.test.mjs`. |
 
 ## Before every release
 
