@@ -76,6 +76,11 @@ reads text only, never images. **Review every image** before delivering a site.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.
+- The generated site carries a Content Security Policy (a `<meta>` in its `<head>`): only its own inline scripts
+  run, each allowed by its hash; images and fonts must be embedded; no request, frame, form or `<base>` is allowed.
+  A script, an `onclick=`, a `javascript:` link, an iframe or an external image written in a page is refused by the
+  browser. It is a second line of defence, not a reason to build untrusted content. A policy set by a `<meta>` cannot
+  forbid framing (`frame-ancestors`): the server that hosts the file decides that.
 - The generated site has no access control: anyone who has the file can read it. A site that shows real data is
   shared only with the people its owner allows.
 

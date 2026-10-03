@@ -3,7 +3,8 @@
 // never ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and
 // names the last check started.
 import { parentPort } from "node:worker_threads";
-import { GENERIC } from "../../engine/check/secrets.mjs";
+import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
+import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { nextRouteHandlers, expressRoutes, fastapiRoutes, nextHandlerGuards } from "../../engine/facts/api.mjs";
 import { pydanticEnvNames } from "../../engine/facts/env.mjs";
@@ -15,6 +16,10 @@ import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
 const PREFIXES = [
+  "<script>",
+  "<script ",
+  '<a href="',
+  "<a x=",
   "",
   "{ `${",
   "{ /*",
@@ -96,6 +101,8 @@ export const CHECKS = [
   ["history parseNumstat", (s) => parseNumstat(s)],
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
+  ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
+  ["csp INLINE_SCRIPT", (s) => [...s.matchAll(INLINE_SCRIPT)].length],
   ["js-scan closingBrace", (s) => closingBrace(s, 0)],
   ["js-scan braceDepths", (s) => braceDepths(s)],
 ];

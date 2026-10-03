@@ -16,7 +16,9 @@ import {
   isLocalAddress,
   isUrlTemplate,
   ignoreRules,
+  checkSecrets,
 } from "../../engine/check/secrets.mjs";
+import { loadProject } from "../../engine/project/load.mjs";
 import { DEMO, demoCopy } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -251,6 +253,48 @@ describe("check secrets", () => {
       (await cli(["check", "secrets", "--project", DEMO, "--lang", "fr"])).out,
       /^✔ Aucun secret trouvé \(\d+ fichiers sources, \d+ emplacements du site\)\.\n$/,
     );
+  });
+
+  test("a secret in an HTML attribute of the site, in a translated page and in a translated zone file (AUDIT.md S11)", async () => {
+    const dir = await project((c) => ({ ...c, masking: { env: ["app.env"] } }));
+    try {
+      write(dir, "app.env", "API_URL=https://orders.internal.example/api\n");
+      write(dir, "translations/fr/use/orders.md", "# Commandes\n\nL'API : https://orders.internal.example/api.\n");
+      write(dir, "images/fr/zones/orders-list.json", '{"note": "https://orders.internal.example/api"}');
+      const { config } = await loadProject({ project: dir, env: {} });
+      // Generated HTML (a directive, a table) can carry a value in an attribute only: the page text never shows it.
+      const data = {
+        meta: {},
+        sections: [],
+        glossaire: [],
+        pages: {
+          x: {
+            titre: "X",
+            resume: "",
+            html: '<p><a href="https://orders.internal.example/api/v1" title="docs">link</a></p>',
+          },
+        },
+      };
+      const r = checkSecrets({
+        root: dir,
+        config,
+        data,
+        session: path.join(dir, ".doc-kit", "session.json"),
+        tracked: () => false,
+      });
+      const where = r.findings.map((f) => f.where);
+      assert.ok(where.includes("site › x"), where.join(", "));
+      assert.ok(
+        where.some((w) => w.startsWith("translations/fr/use/orders.md:")),
+        where.join(", "),
+      );
+      assert.ok(
+        where.some((w) => w.startsWith("images/fr/zones/orders-list.json:")),
+        where.join(", "),
+      );
+    } finally {
+      rm(dir);
+    }
   });
 
   test(".env values, GUIDs, patterns, tokens in the sources and the site; the value itself is never printed", async () => {

@@ -1,5 +1,6 @@
 // Secret check: values that must never be published, searched in the text of the built site (pages, section
-// introductions, home page, glossary) and in the text sources (<content>/, zone files, capture plans, diagrams).
+// introductions, home page, glossary; their text and their HTML attribute values) and in the text sources
+// (<content>/, <translations>/, the zone files of every language, capture plans, diagrams).
 //   env      values of the masking.env files whose key suggests a URL, host, tenant, client, account, e-mail,
 //            user or secret (the values masked in the screenshots)
 //   guid     GUIDs, when masking.guid is true (the nil GUID 00000000-… is allowed)
@@ -195,6 +196,18 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
 
 // The build breaks long code spans with <wbr> (after "/", ".", "?", "="…): removed without a space, so that a URL
 // of the site reads as in its source (its value, and the URL template around a match).
+/**
+ * The attribute values of an HTML text (`href`, `title`, `alt`, `aria-*`, `data-*`, `placeholder`, `value`…): a secret
+ * there is in the site even though no reader sees it on the page. Embedded files (`data:` URIs) are left out.
+ * Linear: a name, `=`, then one quoted value with no nested quantifier (RULES.md S5).
+ */
+export const HTML_ATTRIBUTE = /\s([A-Za-z_:][-\w:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const htmlAttributes = (html) =>
+  [...String(html || "").matchAll(HTML_ATTRIBUTE)]
+    .map((m) => m[2] ?? m[3] ?? "")
+    .filter((v) => v && !/^data:/i.test(v))
+    .join("\n");
+
 const htmlText = (html) =>
   String(html || "")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -213,10 +226,20 @@ function siteTexts(data) {
   if (!data) return [];
   const out = [];
   for (const [id, p] of Object.entries(data.pages || {}))
-    out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html)].join("\n") });
+    out.push({ where: id, text: [p.titre, p.resume, htmlText(p.html), htmlAttributes(p.html)].join("\n") });
   for (const s of data.sections || [])
-    out.push({ where: s.id, text: [s.titre, s.sous_titre, ...(s.points || []), htmlText(s.intro_html)].join("\n") });
-  out.push({ where: "home", text: [data.meta?.titre, data.meta?.accroche, htmlText(data.accueil_html)].join("\n") });
+    out.push({
+      where: s.id,
+      text: [s.titre, s.sous_titre, ...(s.points || []), htmlText(s.intro_html), htmlAttributes(s.intro_html)].join(
+        "\n",
+      ),
+    });
+  out.push({
+    where: "home",
+    text: [data.meta?.titre, data.meta?.accroche, htmlText(data.accueil_html), htmlAttributes(data.accueil_html)].join(
+      "\n",
+    ),
+  });
   for (const g of data.glossaire || []) out.push({ where: `glossary › ${g.terme}`, text: `${g.terme}\n${g.def}` });
   return out;
 }
@@ -279,7 +302,12 @@ export function checkSecrets({ root, config, data, session, tracked = trackedByG
   const rel = (f) => path.relative(root, f).split(path.sep).join("/");
   const sources = [
     ...walk(path.join(root, config.paths.content), (n) => /\.(md|json)$/i.test(n)),
-    ...walk(path.join(root, config.paths.images, "zones"), (n) => n.endsWith(".json")),
+    // Zone files of every language: <images>/zones and <images>/<lang>/zones.
+    ...walk(path.join(root, config.paths.images), (n) => n.endsWith(".json")),
+    // Translated pages, table of contents and glossary (ARCHITECTURE.md §6.12).
+    ...(config.paths.translations
+      ? walk(path.join(root, config.paths.translations), (n) => /\.(md|json)$/i.test(n))
+      : []),
     ...walk(path.join(root, config.capture.plans), (n) => /\.(mjs|js|json)$/i.test(n)),
     ...walk(path.join(root, config.paths.diagrams), (n) => n.endsWith(".svg")),
   ];
