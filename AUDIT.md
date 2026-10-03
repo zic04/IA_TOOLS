@@ -48,7 +48,7 @@ mise à jour ou build** de l'application.
 | M1 CI du dépôt | **Corrigé** : `.github/workflows/ci.yml` | — |
 | § 4 : graphe des modules et cycles, historique git (fichiers à risque, propriétaires, bus factor), schéma entité-relation | **Fait** (`facts --source modules`, `--source history`, `::erd`) | `overview.test.mjs` |
 | § 5 : « ce qui a changé » entre deux versions (`doc-kit changes`), historique par version dans le site (`--record`, `::changes`), recette CI à chaque build avec commentaire de PR, hooks git locaux (`doc-kit hooks install`) | **Fait** | `changes.test.mjs`, `hooks.test.mjs` |
-| M4 Lecteurs de sommaire | **Corrigé** pour le sommaire : un seul `engine/project/toc.mjs` ; `safeToc` lit désormais le sommaire hérité. Le scan JS reste à dédoublonner | `legacy.test.mjs` › lecteur unique |
+| M4 Utilitaires dupliqués | **Corrigé** : un seul lecteur de sommaire (`engine/project/toc.mjs`, `safeToc` lit désormais le sommaire hérité) et un seul analyseur d'accolades JS (`engine/util/js-scan.mjs`), qui corrige `init` (commentaire bloc) et `export` (gabarit imbriqué) | `legacy.test.mjs` › lecteur unique ; `js-scan.test.mjs` ; ReDoS |
 | M7 Tests liés à la machine | **Corrigé** : la détection de Chromium passe par `ctx.chromium` (seam), `doctor` et le mode guidé ne dépendent plus du navigateur installé | `doctor.test.mjs` › Chromium manquant |
 | M9 Code mort | **Corrigé** pour les cas cités (`closestLanguage`, `documentationText`, `getMessageLanguage`, `cli.estimate.noPrices`) ; `AGENT_TYPES` est gardé et sert de source au test. knip en CI reste à faire | — |
 | M10 Références « cadrage » | **Corrigé** : elles pointent vers ARCHITECTURE.md | — |

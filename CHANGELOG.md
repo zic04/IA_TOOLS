@@ -93,6 +93,9 @@ entries between a project's `kit` range and the installed version.
 - **Maintainability** (AUDIT.md M4, M7, M9 to M11):
   - one table-of-contents reader, `engine/project/toc.mjs`, for `audit`, `context`, `translate` and the CLI.
     `safeToc` now reads a legacy `sommaire.json`; it used to see no table of contents at all;
+  - one JavaScript brace scanner, `engine/util/js-scan.mjs`, for `facts --source quality`, `init` and `export`.
+    `init` now finds a layout's title after a brace in a block comment, and `export` no longer adds a second
+    `fallback` when the version object holds a nested template literal;
   - the capture durations are in `engine/capture/timings.mjs`. `view` and `check tables` wait for the page to
     settle, and `view --tour` for the step's card, instead of fixed delays;
   - `doctor` checks Chromium through a seam (`ctx.chromium`), so its tests no longer depend on the browser

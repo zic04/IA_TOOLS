@@ -10,10 +10,11 @@ import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
+import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
-const PREFIXES = ["", "await page.goto('", "await page.getByRole('button', { name: '", "await page.locator('", "model A {\n", "CREATE TABLE t (", "ForeignKey(\"", "REFERENCES ", "@@x\t", "-----BEGIN PRIVATE KEY-----\n", "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n", "eyJ", "eyJabcdefgh.eyJ", "Password=", "https://u:", "?sig=", "secret = ", "api_key: ", "verify=", "app.get(", "@app.get(", 'router.post("/x", ', "res.redirect(", "SELECT * FROM t WHERE a = ", "export async function GET(", "class S(BaseSettings):\n", "dangerouslySetInnerHTML", "Access-Control-Allow-Origin"];
+const PREFIXES = ["", "{ `${", "{ /*", "await page.goto('", "await page.getByRole('button', { name: '", "await page.locator('", "model A {\n", "CREATE TABLE t (", "ForeignKey(\"", "REFERENCES ", "@@x\t", "-----BEGIN PRIVATE KEY-----\n", "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n", "eyJ", "eyJabcdefgh.eyJ", "Password=", "https://u:", "?sig=", "secret = ", "api_key: ", "verify=", "app.get(", "@app.get(", 'router.post("/x", ', "res.redirect(", "SELECT * FROM t WHERE a = ", "export async function GET(", "class S(BaseSettings):\n", "dangerouslySetInnerHTML", "Access-Control-Allow-Origin"];
 const UNITS = [" ", "\t", "\n", "   \n", " \t\n", "a", "A1", "a:", "a-", "=", "-", "/", "'", '"', "(", "{", "a.", "%", "+", "_", "\\"];
 const N = 3000;
 const INPUTS = PREFIXES.flatMap((p) => UNITS.map((u) => p + u.repeat(Math.ceil(N / u.length)) + "!"));
@@ -42,6 +43,8 @@ export const CHECKS = [
   ["history parseNumstat", (s) => parseNumstat(s)],
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
+  ["js-scan closingBrace", (s) => closingBrace(s, 0)],
+  ["js-scan braceDepths", (s) => braceDepths(s)],
 ];
 
 for (const [name, fn] of CHECKS) {

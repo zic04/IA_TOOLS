@@ -30,6 +30,7 @@ import { slash, projectDependency, DEFAULT_SESSION } from "../../engine/dev/envi
 import { prompterOf, shownPath, absolutePath, printKitError } from "../common.mjs";
 import { run as runConnect } from "./connect.mjs";
 import { run as runCapture } from "./capture.mjs";
+import { braceDepths } from "../../engine/util/js-scan.mjs";
 
 export const options = {
   dir: { type: "string" },
@@ -120,28 +121,6 @@ export function productBase(name) {
 export function scriptPort(script) {
   const m = /(?:^|\s)(?:-p|--port)[\s=]+(\d{2,5})\b/.exec(script || "") || /\bPORT=(\d{2,5})\b/.exec(script || "");
   return m ? Number(m[1]) : null;
-}
-
-/** Depth of braces at each index of a JavaScript source, strings and comments skipped (rough, enough for an object literal). */
-function braceDepths(source) {
-  const depth = new Int32Array(source.length + 1);
-  let d = 0;
-  for (let i = 0; i < source.length; i++) {
-    const c = source[i];
-    depth[i] = d;
-    if (c === '"' || c === "'" || c === "`") {
-      for (i++; i < source.length && source[i] !== c; i++) {
-        depth[i] = d;
-        if (source[i] === "\\") depth[++i] = d;
-      }
-      depth[i] = d;
-    } else if (c === "/" && source[i + 1] === "/") {
-      while (i < source.length && source[i] !== "\n") depth[i++] = d;
-    } else if (c === "{") d++;
-    else if (c === "}") d--;
-  }
-  depth[source.length] = d;
-  return depth;
 }
 
 const unquote = (s) => s.replace(/\\(.)/g, "$1").trim();
