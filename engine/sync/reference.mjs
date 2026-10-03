@@ -8,7 +8,7 @@ import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { adapterTools } from "../check/coverage.mjs";
 import { hashText, hashPlanEntry } from "./hash.mjs";
-import { pageDependencies, writtenPages, captureIds } from "./dependencies.mjs";
+import { pageDependencies, writtenPages } from "./dependencies.mjs";
 import { recordProof } from "./proofs.mjs";
 import { citedLabels, labelFiles, flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";

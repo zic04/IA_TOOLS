@@ -98,7 +98,7 @@ export function collectModules(appDir) {
     .slice(0, MODULES_LIMIT);
   const edges = importGraph(appDir, files);
   const importedBy = new Map();
-  for (const [from, tos] of edges) for (const to of tos) importedBy.set(to, (importedBy.get(to) || 0) + 1);
+  for (const [, tos] of edges) for (const to of tos) importedBy.set(to, (importedBy.get(to) || 0) + 1);
   const cycles = cyclesOf(edges);
   const cycleOf = new Map();
   cycles.forEach((c, i) => c.forEach((f) => cycleOf.set(f, i + 1)));

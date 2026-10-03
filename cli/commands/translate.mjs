@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createMarkdownEngine } from "../../engine/build/markdown.mjs";
-import { checkLanguageOption, translationState } from "../../engine/build/languages.mjs";
+import { checkLanguageOption } from "../../engine/build/languages.mjs";
 import { statusOf, markFiles, resolveItems } from "../../engine/translate/status.mjs";
 import { fixAnchors } from "../../engine/translate/anchors.mjs";
 import { readToc } from "../../engine/project/toc.mjs";

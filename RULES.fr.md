@@ -44,6 +44,7 @@ ou son test est mis à jour dans la même modification.
 | M9 | Chaque modification a son entrée dans le CHANGELOG, sous `[Unreleased]`. Une version incrémente `package.json`, range les entrées sous son numéro et pose le tag `vX.Y.Z`. Les commits sont petits et disent ce qu'ils changent. |
 | M10 | Pas de surface morte : un nom n'est exporté que si un autre fichier l'importe (hors points d'entrée publics de `exports` dans `package.json`). Vérifié par `test/unit/exports.test.mjs`. |
 | M11 | Le JavaScript est formaté par Prettier (`npm run format`, 120 colonnes) ; `npm run format:check` passe avant chaque commit et dans la CI. Un commit qui ne fait que reformater est listé dans `.git-blame-ignore-revs`. |
+| M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passe : aucune erreur, et pas plus d'avertissements que son plafond `--max-warnings`. Le plafond compte les fonctions qui dépassent encore les règles de taille de M5 ; il ne fait que baisser, à mesure qu'elles sont découpées. |
 
 ## Avant chaque version
 

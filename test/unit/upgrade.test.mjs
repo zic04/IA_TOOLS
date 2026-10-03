@@ -257,7 +257,7 @@ export async function migrate({ files }) {
       assert.match(dry.out, /^⚠ the project requires \^0\.0\.1: kit .* is refused until the upgrade is applied$/m);
       if (!fs.existsSync(path.join(KIT_ROOT, "CHANGELOG.md"))) assert.match(dry.out, /^⚠ no CHANGELOG\.md in the kit/m);
       assert.match(dry.out, /✔ 0\.1\.0 — baseline of the project format \(no change\)/);
-      assert.match(dry.out, /^-  kit: "\^0\.0\.1",\n\+  kit: "\^\d+\.\d+\.\d+",$/m);
+      assert.match(dry.out, /^- {2}kit: "\^0\.0\.1",\n\+ {2}kit: "\^\d+\.\d+\.\d+",$/m);
       assert.match(dry.out, /Nothing written \(dry run\)\. To apply: doc-kit upgrade --apply\n$/);
       const apply = await cli(["upgrade", "--apply", "--project", dir]);
       assert.equal(apply.code, 0);

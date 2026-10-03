@@ -20,7 +20,8 @@
     "test:e2e": "node test/run.mjs e2e",
     "test:security": "node --test test/unit/security.test.mjs",
     "format": "prettier --write \"**/*.{js,mjs}\"",
-    "format:check": "prettier --check \"**/*.{js,mjs}\""
+    "format:check": "prettier --check \"**/*.{js,mjs}\"",
+    "lint": "eslint . --max-warnings 57"
   },
   "dependencies": {
     "marked": "18.0.14",
@@ -30,6 +31,9 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0",
     "prettier": "3.9.9"
   }
 }

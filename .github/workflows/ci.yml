@@ -52,5 +52,7 @@ jobs:
       # In this job, whose name the branch ruleset requires: the code checks that need no browser (RULES.md M11).
       - name: Formatting (Prettier)
         run: npm run format:check
+      - name: Lint (ESLint)
+        run: npm run lint
       - name: Known vulnerabilities of the runtime dependencies
         run: npm audit --omit=dev --audit-level=high

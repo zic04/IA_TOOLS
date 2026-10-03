@@ -1,7 +1,7 @@
 // `doc-kit facts` (ARCHITECTURE.md §6.9): each source on its fixture, the CLI (--source, --json, determinism,
 // facts.noApp), --network and --tools (both simulated, never touching the real network or PATH), and the
 // coverage adapters that read facts (`facts`, `fastapi`, and the `api` option of `next-app-router`).
-import { test, describe, before, after } from "node:test";
+import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

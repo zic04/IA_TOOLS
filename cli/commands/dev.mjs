@@ -23,7 +23,7 @@ async function findPort(start, tries = 20) {
 }
 
 export async function run({ ctx, values }) {
-  let port = DEFAULT_PORT;
+  let port;
   if (values.port !== undefined) {
     port = Number(values.port);
     if (!Number.isInteger(port) || port < 0 || port > 65535)

@@ -44,6 +44,7 @@ same change.
 | M9 | Every change gets a CHANGELOG entry under `[Unreleased]`; a release bumps `package.json`, moves the entries under its version and is tagged `vX.Y.Z`. Commits are small and say what they change. |
 | M10 | No dead surface: a name is exported only when another file imports it (the public entry points of `package.json` `exports` aside). Checked by `test/unit/exports.test.mjs`. |
 | M11 | The JavaScript is formatted by Prettier (`npm run format`, 120 columns); `npm run format:check` passes before every commit and in the CI. A commit that only reformats is listed in `.git-blame-ignore-revs`. |
+| M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passes: no error, and no more warnings than its `--max-warnings` ceiling. The ceiling counts the functions still over the size rules of M5; it only ever goes down, with the functions split. |
 
 ## Before every release
 
