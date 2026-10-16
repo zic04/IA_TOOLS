@@ -16,6 +16,7 @@
           "pages": [
             { "id": "start/install", "title": "Install doc-kit", "menuTitle": "Install", "summary": "Node 20, the kit's two dependencies, Chromium, and the doc-kit command on your path.", "template": "recipe" },
             { "id": "start/first-five-minutes", "title": "The first five minutes", "menuTitle": "First five minutes", "summary": "From an application folder to a documentation site with one annotated screen, on the demo app.", "template": "recipe" },
+            { "id": "start/sources", "title": "Declare the sources: repositories, documents, spaces", "menuTitle": "The sources", "summary": "Shared repositories, infrastructure code, the application online, a technical architecture document, Confluence or SharePoint pages: declared once, fetched and converted for the agents.", "template": "recipe" },
             { "id": "start/guided-mode", "title": "Guided mode", "menuTitle": "Guided mode", "summary": "Run doc-kit without a command: it looks at where you are and offers the next step.", "template": "technical" },
             { "id": "start/generated-site", "title": "The generated site", "menuTitle": "The generated site", "summary": "What a reader gets: one HTML file with menus, search, annotated screens, guided tours, themes and print.", "template": "screen" }
           ]

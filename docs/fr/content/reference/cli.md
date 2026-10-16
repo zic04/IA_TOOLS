@@ -83,6 +83,7 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit stats` | Temps, jetons et modèles par bloc et par version (`usage/`) |
 | `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats (`--record` : gardé pour `::changes`) |
 | `doc-kit pack` | Fichiers pour la prochaine IA : `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets retirés) |
+| `doc-kit inputs [status]` · `doc-kit inputs add <type> <valeur>` · `doc-kit inputs fetch` · `doc-kit inputs ingest` | Les sources du projet (inputs.json) : leur état ; en déclarer une ; cloner ou mettre à jour les dépôts partagés avec vos propres identifiants git ; convertir les documents (Word, PDF, schémas) pour les agents |
 | `doc-kit bricks [<id\|préréglage>]` · `doc-kit bricks run [<id\|préréglage>…]` | L'état de chaque brique (sources de faits, outils, audit) et pourquoi ; relance seulement les briques nommées, ou toutes celles qui sont périmées (`--stale`) |
 | `doc-kit hooks install` | Hooks git : faits et sync après chaque pull et changement de branche |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |

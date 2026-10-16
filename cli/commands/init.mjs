@@ -27,7 +27,8 @@ import { writeSources } from "../../engine/core/translations.mjs";
 import { LANGUAGES as KIT_LANGUAGES } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { slash, projectDependency, DEFAULT_SESSION } from "../../engine/dev/environment.mjs";
-import { prompterOf, shownPath, absolutePath, printKitError } from "../common.mjs";
+import { prompterOf, shownPath, printKitError } from "../common.mjs";
+import { recapLines, askSources, saveSources } from "../init-answers.mjs";
 import { run as runConnect } from "./connect.mjs";
 import { run as runCapture } from "./capture.mjs";
 import { braceDepths } from "../../engine/util/js-scan.mjs";
@@ -516,46 +517,6 @@ async function followUp(ctx, folder, answers) {
 }
 
 /** Lines of the recap (label, value), in the message language. */
-function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot, languages }) {
-  const p = ctx.paint;
-  const s = detected.nameSource;
-  const nameSource = !nameFromDetection
-    ? ctx.t(answers.nameFromOption ? "cli.init.source.option" : "cli.init.source.answer")
-    : s.kind === "layout"
-      ? ctx.t("cli.init.source.layout", { file: s.file })
-      : s.kind === "package"
-        ? ctx.t("cli.init.source.package", { field: s.field, file: s.file })
-        : ctx.t("cli.init.source.folder");
-  const v = detected.version;
-  const coverage =
-    detected.framework && detected.appPath
-      ? `${detected.framework}: ${slash(path.relative(appDir, path.join(detected.packageDir || appDir, detected.appPath)))}`
-      : ctx.t("cli.init.coverage.none");
-  return [
-    ["folder", absolutePath(target)],
-    ["name", `${answers.name} ${p.dim(`(${nameSource})`)}`],
-    ["slug", productSlug(answers.name)],
-    ["language", `${answers.language} — ${ctx.t(`cli.init.language.${answers.language}`)}`],
-    ...(languages ? [["languages", languages.join(", ")]] : []),
-    ["url", answers.url],
-    [
-      "version",
-      v.value
-        ? ctx.t("cli.init.version.read", { version: v.value, file: v.file })
-        : ctx.t("cli.init.version.unread", { file: v.file }),
-    ],
-    ["capture", ctx.t(`cli.init.capture.${answers.capture}`)],
-    ...(answers.capture === "app" ? [["target", ctx.t(`cli.init.target.${answers.target}`)]] : []),
-    [
-      "auth",
-      answers.capture === "none" ? `${answers.auth} ${p.dim(`(${ctx.t("cli.init.authUnused")})`)}` : answers.auth,
-    ],
-    ["coverage", coverage],
-    ["masking", detected.envFiles.length ? detected.envFiles.join(", ") : ctx.t("cli.init.masking.none")],
-    ["appDir", `${absolutePath(appDir)} ${p.dim(`(app.dir: ${docsToRoot})`)}`],
-  ].map(([k, value]) => [ctx.t(`cli.init.recap.${k}`), value]);
-}
-
 export async function run({ ctx, values, positionals }) {
   const appDir = path.resolve(process.cwd(), positionals[0] || ".");
   if (!fs.existsSync(appDir) || !fs.statSync(appDir).isDirectory())
@@ -674,6 +635,7 @@ export async function run({ ctx, values, positionals }) {
     ctx.print("");
   }
 
+  let sources = null;
   if (!values.yes) {
     const prompt = prompterOf(ctx);
     for (;;) {
@@ -745,6 +707,7 @@ export async function run({ ctx, values, positionals }) {
       }
       values = { ...values, name: undefined, capture: undefined, target: undefined };
     }
+    sources = await askSources(ctx, prompt, { from: process.cwd(), target });
   } else if (!ctx.json) {
     printRecap();
     if (answers.capture === "app" && answers.target === "production") printProductionReminders(ctx);
@@ -781,6 +744,7 @@ export async function run({ ctx, values, positionals }) {
     mode: answers.capture,
     raw: ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly", "languagesLine"],
   });
+  if (sources) files.push(saveSources(target, sources));
   // Every other language starts with nothing translated yet (`translate status` then lists it all as missing):
   // simpler and safer than guessing a correspondence with the OTHER mono-language skeleton's own file names
   // (templates/project/<lang>/content/ uses that language's own folder names, e.g. "utiliser/" for "use/" —

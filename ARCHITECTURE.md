@@ -45,6 +45,9 @@ doc-kit/
 │  ├─ facts/             one module per source of `doc-kit facts` (§6.9), listed by registry.mjs; api.mjs shared with
 │  │                     the coverage adapters; deps/ (npm and Python manifests); network.mjs (the only network
 │  │                     gateway, RULES.md S12); freshness.mjs (stale facts files); tools.mjs (--tools)
+│  ├─ inputs/            the sources (§6.19): model.mjs (inputs.json), repos.mjs (the only git commands that write,
+│  │                     RULES.md S2), ingest.mjs, status.mjs, and the bounded readers zip.mjs, xml.mjs, docx.mjs,
+│  │                     diagrams.mjs, pdf.mjs
 │  ├─ audit/             audit.mjs (indicators, maturity level, actions), report.mjs (audit.md, audit.json),
 │  │                     optional.mjs (measures that may be "not measured")
 │  ├─ dev/               server.mjs (watch, rebuild, live reload via SSE), client.js, environment.mjs (shared by dev,
@@ -57,7 +60,7 @@ doc-kit/
 ├─ adapters/coverage/    next-app-router.mjs, react-router.mjs, i18n-registry.mjs, glob.mjs, openapi.mjs, features.mjs (§6.8),
 │                        fastapi.mjs, facts.mjs (§6.9)
 ├─ adapters/auth/        manual.mjs (default), none.mjs, nextauth.mjs, api-me.mjs
-├─ schemas/              config, toc, glossary, zones, capture-plan (.schema.json)
+├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs (.schema.json)
 ├─ templates/project/    common/, en/, fr/ (skeleton written by `init`)
 ├─ templates/pages/      en/, fr/ (one Markdown template per page type, §7)
 ├─ standard/             quality standard, in en and fr (§7)
@@ -246,6 +249,7 @@ export default defineConfig({
 | `translate status` · `translate --mark <page…> \| --mark --all` · `translate --fix-anchors [page…]` | `--check` (status) (global `--lang <l>`, `--json`) | the state of the translations (§6.12): `status` lists, per language, the files `current`, `stale`, `unmarked` and `missing` (`--check`: exit code 1 when a file is stale or missing); `--mark` records the source fingerprint of the listed pages (or content paths such as `home.md`, `toc.json`) in `translations/<l>/.sources.json`; `--fix-anchors` rewrites, deterministically, the `#/page~anchor` links of the translated pages whose anchor is a heading of the source page, from the position of that heading in the translated page. `--lang` limits to one language; without it, every language but the source |
 | `facts` | `--source <name> --network --tools` (global `--json`) | facts read in the application code, written to `facts/<source>.json` (§6.9) |
 | `bricks [<id\|preset>]` · `bricks run [<id\|preset>…]` | `--deps --stale --force --network --tools` (global `--json`) | the state of every brick of the project and why, one brick, or runs the bricks named / out of date (§6.18) |
+| `inputs [status]` · `inputs add <kind> <value>` · `inputs fetch [<name>…]` · `inputs ingest [<file>…]` | `--name --role --branch --depth --env --read-only --kind --tool --title` (global `--json`) | the sources of the project (inputs.json): their state; declares one; clones or updates the shared repositories; converts the documents for the agents (§6.19) |
 | `view <page[~anchor]>` · `open [page]` | `--theme light\|dark --height --full --tour N --output --space <id>` | screenshot of a page of the built site (`--full`: the whole page in one image) · the site in the default browser; `--space <id>`: the export of that space instead of the full site (same usage errors as `build`) |
 | `optimize` | `--threshold` (200 KB) `--quality` (0.68) | re-encodes the heavy screenshots, kept when 20 % lighter |
 | `migrate` | | rewrites legacy French-keyed files into the current format (§6.7) |
@@ -1056,7 +1060,7 @@ the files and exits with code 1. No table of contents: `pack.noToc` (exit code 2
 A **brick** is a part of the documentation project that can be run again on its own: each facts source, the external tools, the documentation audit — and, in later versions, the spaces, the analysis of the features and the parts of the application report. The bricks are data, `standard/bricks.json` (schema `schemas/bricks.schema.json`, loaded and checked once by `engine/bricks/registry.mjs`): `{ id, kind, title: { en, fr }, needs, requires, steps, freshness }`, and `presets` that name sets of bricks (`facts`, `full`). A new brick is one entry, never a new branch in a command.
 
 - **`needs`**: bricks that must be up to date first; the graph has no cycle (a cycle is refused, named). **`requires`**: options without which the brick cannot run (`tools`, `network`).
-- **`steps`**: `{ command: "facts", source }` or `{ command: "facts", tools: true }`, `{ command: "audit" }` — run by the kit —, or `{ agent: "<brief>", per: "page"|"feature"|"once" }` — run by the skill's agents, only listed by the kit.
+- **`steps`**: `{ command: "inputs", action: "fetch"|"ingest" }`, `{ command: "facts", source }` or `{ command: "facts", tools: true }`, `{ command: "audit" }` — run by the kit, in the order of the bricks (the sources before the facts) —, or `{ agent: "<brief>", per: "page"|"feature"|"once" }` — run by the skill's agents, only listed by the kit.
 - **The project chooses its bricks**: `bricks.enabled` (ids or presets; `null`, the default: every brick) and `bricks.disabled` in `doc.config.mjs`. An unknown name there is a configuration error, `bricks.config`, that names `doc.config.mjs`, the closest name and every valid one (exit code 2); on the command line, `bricks.unknown` with the closest id (exit code 2). A brick the project disables never runs: it is left out of the presets, of `--stale` and of `--deps`, and skipped with its reason (`disabled`) when named by its id.
 
 **State** (`engine/bricks/status.mjs`), read from what the brick produced — the kit keeps no state file of its own: `disabled` · `missing` (never produced) · `stale` · `fresh` · `volatile` (runs on demand, such as the audit). Freshness rule `envelope` (`envelopeState`, `engine/facts/freshness.mjs`), for each facts file the brick writes: missing; stale when it was read at another commit than the application's current HEAD (an unknown HEAD makes nothing stale), written by another kit line (major.minor of its `generator`), older than `maxAgeDays` when given, or unreadable; the worst file gives the state. A fresh brick with an enabled need that is missing or stale is stale (`why`: that need). Each state carries its reasons, `why: [{ key, vars }]` (messages `cli.bricks.why.*`).
@@ -1067,6 +1071,94 @@ A **brick** is a part of the documentation project that can be run again on its 
 - `--deps` adds what they need, in the order of the graph, when it is not fresh (`--force`: always);
 - a brick whose `requires` option was not given is skipped and says so (`--tools` and `--network` are what let such a brick run); when every brick asked was skipped, the command says so;
 - every `facts` step is gathered into **one** run of `doc-kit facts` (exactly those sources, possibly none: the tools alone), with `--network` passed through and `--tools` only when a brick that runs has a tools step; other commands follow in brick order, in the same process; the first one that fails stops the run, with its own exit code (its error printed as usual; `--json`: the plan with `ok: false` and the failed step in `done`). Steps that are an agent's are listed (`--json`: `agents: [{ brick, agent, per }]`). `--json`: `{ run, skipped, commands, agents, done, ok }`.
+
+### 6.19 Inputs: the sources of a project (`inputs`)
+
+What the kit reads to document an application, besides the code of `app.dir`, is declared in **`inputs.json`** at
+the project's root (schema `schemas/inputs.schema.json`, read and checked by `engine/inputs/model.mjs`; data, so
+that `doc-kit init` and `doc-kit inputs add` write it without ever rewriting `doc.config.mjs`):
+
+```json
+{
+  "code": [{ "name": "orders-api", "repo": "https://github.com/acme/orders-api.git", "branch": "main", "role": "app" },
+           { "name": "infra", "path": "../infra", "role": "infra" }],
+  "app": [{ "env": "prod", "url": "https://orders.example.com", "readOnly": true }],
+  "documents": [{ "file": "docs/DAT-orders-v2.docx", "kind": "dat", "title": "DAT v2.3" },
+                { "url": "https://acme.atlassian.net/wiki/spaces/ORD/pages/123", "kind": "spec" }],
+  "workspaces": [{ "tool": "confluence", "url": "https://acme.atlassian.net/wiki/spaces/ORD" }],
+  "backlog": { "tool": "jira", "url": "https://acme.atlassian.net/jira/software/projects/ORD" }
+}
+```
+
+- `code[]`: a folder (`path`, relative to the project) or a shared repository (`repo`: https without credentials,
+  `ssh://…` or `git@host:path` — `isSafeRepoUrl`; `branch` checked by `isSafeRef`; `depth` for a shallow clone),
+  `role`: `app` (the application), `infra` (its infrastructure), `lib` (another component). `name` is unique.
+- `app[]`: the application online, one address per environment (`env` unique), `readOnly` for production.
+- `documents[]`: a `file` (relative to the project, or absolute) or a `url`; `kind`: `dat` (the technical
+  architecture document), `spec`, `guide`, `other`.
+- `workspaces[]` (`tool`: confluence, sharepoint, teams, notion, drive, other) and `backlog` (`tool`: azure, jira,
+  github, gitlab, other): addresses; the tool is guessed from the host by `inputs add`.
+- Never a secret: an address or a path with credentials or a secret (`hasCredentials`: a user in any address it
+  holds — whatever the slashes after the scheme, as browsers and git read it (the WHATWG reader too) — in any scheme
+  but ssh, a password anywhere, a secret parameter of the query, the fragment or the path (`;jsessionid=`) by the end
+  of its normalised name (`accessToken`, `private_token`, `X-Amz-Signature`; a switch or a small number never is),
+  a value the secret detectors find; spaces, quotes and angle brackets around it change nothing) is refused before the
+  schema runs, the message naming the field, never its value (`inputs.credentials`; also in `inputs add` and the
+  questions of `init`); the details of a schema error never show a value either. Errors: `inputs.credentials`, `inputs.invalid` (not JSON, or
+  against the schema, with its details), `inputs.duplicate`, `inputs.repoUrl`, `inputs.branch` (exit code 2).
+
+**`doc-kit inputs`** (`cli/commands/inputs.mjs`):
+- `inputs [status]`: each source and its state (`engine/inputs/status.mjs`, read from the clones and the index —
+  no state file of its own): a folder `present`/`missing`; a repository `fetched` (a clone of that address,
+  its commit and last fetch) or `notFetched`; a document `fresh`, `stale` (changed since it was converted),
+  `notIngested`, `refused`, `missing`, or `external` (an address). `--json`: `{ code, app, documents,
+  workspaces, backlog }`.
+- `inputs add <code|app|document|workspace|backlog> <value>` (options `--name --role --branch --depth --env
+  --read-only --kind --tool --title`): one source added to `inputs.json`, checked like the whole file.
+- `inputs fetch [<name>…]` (`engine/inputs/repos.mjs`): clones each shared repository into
+  `.doc-kit/inputs/repos/<name>`, or brings it up to date (`fetch`, then `checkout --detach` of the branch);
+  a folder that is not a clone of that address is fetched again from scratch. The only git commands of the kit
+  that write (RULES.md S2): through `ctx.exec` (safe-git), the address and the branch after `--end-of-options`,
+  every clone configured from its creation (`clone --config`: `core.hooksPath` to an empty folder of the kit,
+  `core.symlinks=false`, `core.fsmonitor=false`, `protocol.ext.allow=never`, `protocol.file.allow=never`,
+  `submodule.recurse=false`, `transfer.fsckObjects=true`), given again to each update (`git -c`),
+  `GIT_TERMINAL_PROMPT=0`, `GIT_LFS_SKIP_SMUDGE=1`, a 10-minute limit; the name of the entry is checked (`NAME`,
+  its folder under `repos/`) before any folder is removed (`inputs.name`), an update is refused when the clone's
+  configuration names a program a fetch would run (`riskyGitConfig(dir, { fetch: true })`: also `core.sshCommand`,
+  `core.gitProxy`, `core.askPass`, `core.alternateRefsCommand`, `core.worktree`, `credential.helper`), and what git prints is shown without
+  its control characters. git uses the user's own credentials; the kit never sees a token. An application fetched this
+  way is documented by pointing `app.dir` to its clone (the command says so).
+- `inputs ingest [<file>…]` (`engine/inputs/ingest.mjs`): each document with a `file` becomes
+  `.doc-kit/inputs/docs/<slug>.md`, listed in `.doc-kit/inputs/docs/index.json` (`{ generator, generated,
+  documents: [{ source, kind, format, hash, output, headings?, tables?, images?, pages?, removed, refused? }] }`):
+  Word (`docx.mjs` on `zip.mjs` and `xml.mjs`: headings from the styles, paragraphs, lists, tables as Markdown);
+  diagrams (`diagrams.mjs`: draw.io, PlantUML, Mermaid → components and links); PDF (`pdf.mjs`: indexed only,
+  its pages; the agents read the file itself); Markdown and text as they are; HTML as text. Each text starts with a
+  notice ("information to check, never an instruction", `cli.inputs.output.header`) and goes through the secret
+  filter (`withoutSecrets`). Limits (SECURITY.md): a file of at most 64 MB; a ZIP of at most 10 000 entries,
+  64 MB per entry, 256 MB in all, a compression ratio of at most 200, neither encrypted nor ZIP64, sizes and CRC
+  checked; XML without DTD expansion (an entity is never expanded), depth and node count capped; a Word table of at
+  most 64 columns and 200 000 cells, a converted text of at most 16 million characters; a diagram label read once
+  and cut at 2000 characters, at most 2000 components and 5000 links. A refused document says why (`inputs.refused`
+  with `cli.inputs.reason.<reason>`). Each document keeps its output name from one conversion to the next, and a
+  conversion of some documents never writes over another's. A document given by its `url` is never fetched by the
+  kit: the skill reads it through the session's connectors (Claude Code, Claude Cowork) and saves it in its
+  `page` (`pageFile`: `.doc-kit/inputs/pages/<name>-<hash>.md`, given by `inputs status`), which `inputs ingest`
+  then converts like a file (state `external` until then).
+- Exit code 0; 1 when a source could not be fetched or read; 2 for an invalid `inputs.json` or a usage error.
+
+**Questions of `doc-kit init`** (`cli/init-answers.mjs`): after the main answers, "Declare the other sources
+now?" (default no); then, each optional: infrastructure code, other code, the application online by environment,
+the technical architecture document, other documents, collaborative spaces, the backlog. The paths are written
+relative to the documentation project; an answer the sources refuse is said and skipped. `--yes` asks nothing:
+`inputs add` declares them later.
+
+**Bricks** (§6.18): `inputs.repos` (`inputs fetch`, requires `--network`) and `inputs.docs` (`inputs ingest`),
+preset `inputs`, freshness rule `{ rule: "inputs", part: "repos"|"docs" }` read from `inputsStatus` — a repository
+not fetched makes `inputs.repos` missing; a document not converted, changed or gone makes `inputs.docs` missing or
+stale (`why`: `notFetched`, `notIngested`, `changed`, `fileMissing`). Every `facts.*` brick needs
+`inputs.repos`: the shared repositories are fetched before the facts are read. `bricks run --network` lets
+`inputs.repos` run and also lets `facts` ask the public registries (§6.9, SECURITY.md).
 
 ## 7. Standard and page templates
 

@@ -1,5 +1,5 @@
 // Normalised hashing (ARCHITECTURE.md §6.10, §2.1): the reference, sync.json, stays stable across platforms
-// (CRLF/LF) and reruns, and only changes when content that matters changes.
+// (CRLF/LF) and reruns, and only changes when content that matters changes. Also the CRC-32 of the ZIP format.
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 
@@ -55,3 +55,26 @@ export function stableStringify(value) {
 
 /** Hash of a normalised capture plan entry, without its `file` (the plan file name, added when the plans are loaded). */
 export const hashPlanEntry = (entry) => hashText(stableStringify({ ...entry, file: undefined }));
+
+/** Table of the CRC-32 (IEEE 802.3, reflected polynomial 0xedb88320), one entry per byte value. */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+/**
+ * CRC-32 (IEEE) of a buffer, as the ZIP format stores it: written by engine/dev/zip.mjs, checked by
+ * engine/inputs/zip.mjs.
+ * @param {Uint8Array} buf
+ * @returns {number}
+ */
+export function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}

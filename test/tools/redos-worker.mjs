@@ -15,6 +15,13 @@ import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
+import { walkXml, decodeEntities, inertMarkup } from "../../engine/inputs/xml.mjs";
+import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
+import { pdfIndex } from "../../engine/inputs/pdf.mjs";
+import { htmlToText } from "../../engine/inputs/ingest.mjs";
+import { isSafeRepoUrl, nameOf, hasCredentials } from "../../engine/inputs/model.mjs";
+import { parseGitConfig } from "../../engine/util/safe-git.mjs";
+import { KitError } from "../../engine/project/errors.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
@@ -65,6 +72,33 @@ const PREFIXES = [
   "class S(BaseSettings):\n",
   "dangerouslySetInnerHTML",
   "Access-Control-Allow-Origin",
+  // The readers of the documents of the sources (engine/inputs/): XML, diagrams, PDF.
+  "<r ",
+  "<r a='",
+  '<r a="',
+  "<r>&",
+  "<r>&#x",
+  "<r><!--",
+  "<r><![CDATA[",
+  "<!DOCTYPE r [",
+  '<!DOCTYPE r [<!ENTITY a "',
+  '<mxfile><diagram name="a">',
+  '<mxGraphModel><root><mxCell id="1" vertex="1" value="<',
+  "@startuml\n",
+  "@startuml\nA -",
+  "@startuml\nA -[",
+  '@startuml\ncomponent "',
+  "@startuml\n[A] as ",
+  "graph TD\nA",
+  "graph TD\nA[",
+  'graph TD\nA["',
+  "graph TD\nA -- ",
+  "flowchart LR\nA --> B & ",
+  "C4Context\nRel(",
+  'C4Context\nPerson(a, "',
+  "<< /Type /Pages /Count ",
+  "<< /Title (",
+  "stream\n",
 ];
 const UNITS = [
   " ",
@@ -88,8 +122,25 @@ const UNITS = [
   "+",
   "_",
   "\\",
+  "<",
+  ">",
+  "&",
+  "[",
+  "]",
+  "|",
+  ":",
+  "<<",
 ];
 const N = 3000;
+
+/** A check of a scanner that may refuse its input (KitError): the refusal is caught, any other error is not. */
+const refusing = (fn) => (s) => {
+  try {
+    fn(s);
+  } catch (e) {
+    if (!(e instanceof KitError)) throw e;
+  }
+};
 const INPUTS = PREFIXES.flatMap((p) => UNITS.map((u) => p + u.repeat(Math.ceil(N / u.length)) + "!"));
 
 export const CHECKS = [
@@ -127,6 +178,25 @@ export const CHECKS = [
   ...Object.entries(DEPENDENCY_PATTERNS).map(([name, re]) => [`dependencies ${name}`, (s) => re.exec(s)]),
   ["js-scan closingBrace", (s) => closingBrace(s, 0)],
   ["js-scan braceDepths", (s) => braceDepths(s)],
+  // The readers of documents scan without regular expressions; they are checked as scanners, a refusal
+  // ("inputs.refused") being a normal outcome on these inputs.
+  ["inputs walkXml", refusing((s) => walkXml(s, { open() {}, close() {}, text() {} }))],
+  ["inputs walkXml (inside a root)", refusing((s) => walkXml(`<r>${s}</r>`, {}))],
+  ["inputs decodeEntities", (s) => decodeEntities(s)],
+  ["inputs inertMarkup", (s) => inertMarkup(s)],
+  ["inputs diagram drawio", refusing((s) => diagramToMarkdown(s, "drawio"))],
+  ["inputs diagram puml", (s) => diagramToMarkdown(s, "puml")],
+  ["inputs diagram mermaid", (s) => diagramToMarkdown(s, "mermaid")],
+  ["inputs diagram mermaid flowchart", (s) => diagramToMarkdown(`graph TD\n${s}`, "mermaid")],
+  ["inputs diagram mermaid C4", (s) => diagramToMarkdown(`C4Context\n${s}`, "mermaid")],
+  ["inputs pdfIndex", (s) => pdfIndex(Buffer.from(`%PDF-1.7\n${s}`, "latin1"))],
+  // An HTML document of the sources, and the addresses and names of inputs.json.
+  ["inputs htmlToText", (s) => htmlToText(s)],
+  ["inputs htmlToText (in a page)", (s) => htmlToText(`<html><body><h1>${s}</h1><p>${s}</p><script>${s}`)],
+  ["inputs isSafeRepoUrl", (s) => isSafeRepoUrl(`https://github.com/${s}`) || isSafeRepoUrl(`git@h:${s}`)],
+  ["inputs nameOf", (s) => nameOf(s)],
+  ["inputs hasCredentials", (s) => hasCredentials(`https://h/x?${s}`) || hasCredentials(s)],
+  ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
 ];
 
 for (const [name, fn] of CHECKS) {

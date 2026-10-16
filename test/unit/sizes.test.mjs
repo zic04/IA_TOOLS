@@ -12,7 +12,7 @@ const LIMIT = 600;
 /** Files over the limit, held at their current number of lines. */
 const CEILINGS = Object.freeze({
   "engine/site/app.js": 1379,
-  "cli/commands/init.mjs": 846,
+  "cli/commands/init.mjs": 810,
   "engine/audit/audit.mjs": 667,
 });
 const ROOTS = ["engine", "cli", "adapters", "skill"];

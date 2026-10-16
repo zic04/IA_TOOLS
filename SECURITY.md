@@ -103,6 +103,52 @@ Limits: `facts --tools` runs third-party tools on the folder. **knip loads the a
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
 `.git/config` handed over with an application before running anything on it.
 
+### The sources: shared repositories and documents (`inputs`)
+
+`doc-kit inputs` (ARCHITECTURE.md §6.19) reads what a team already has besides the code: repositories, documents.
+Both are untrusted input.
+
+- **Shared repositories** (`inputs fetch`): the only git commands of the kit that write (RULES.md S2), into
+  `.doc-kit/inputs/repos/<name>` only. The address is refused unless it is https without credentials, ssh or
+  `git@host:path` (never an option, never a transport helper such as `ext::`), and the branch unless it is a plain
+  reference; both come after `--end-of-options`. Every clone is configured from its creation so that its own
+  fetches and checkouts never run a hook (`core.hooksPath` points to an empty folder of the kit), check out a link
+  as a link (`core.symlinks=false`: nothing outside the clone is ever read through one), use the `ext` or `file`
+  transport, recurse into submodules, or accept a malformed object (`transfer.fsckObjects`); every update gives these
+  settings again (`git -c`), so a clone whose own configuration changed since stays hardened. git never asks for a
+  user or a password in the terminal (`GIT_TERMINAL_PROMPT=0`) — your own SSH agent or credential manager may still
+  ask for a passphrase or show its window — and Git LFS downloads nothing. A source's name is also its folder: it is
+  checked (letters, digits, dashes) before a clone folder is ever removed, so nothing outside `.doc-kit/inputs/repos/`
+  is touched. What git prints back is shown without its control characters. git authenticates with **your own** credentials
+  (credential manager, SSH key): the kit never asks for, sees or stores a token. An address or a path that carries a user, a
+  password or a token — whatever its scheme (`git+https://`, `git://`…), with spaces, quotes or angle brackets around
+  it, in a secret parameter (`?private_token=`, `#access_token=`, `&sig=`) or in a form the secret detectors of
+  `check secrets` recognise — is refused in `inputs add`, in `doc-kit init` and in an `inputs.json` written by hand,
+  before anything shows it: the message names the field, never its value. A clone whose configuration names a program is refused like any repository (see above); before an update, so is
+  one whose configuration names a transport, a proxy, a prompt or a credential helper the fetch would run
+  (`core.sshCommand`, `core.gitProxy`, `core.askPass`, `core.alternateRefsCommand`, `credential.helper`) or moves its
+  working tree elsewhere (`core.worktree`). A setting is read as git reads it, also on its section's line.
+- **Documents** (`inputs ingest`): a Word file is read by the kit's own bounded reader — the ZIP central directory,
+  at most 10 000 entries, 64 MB per entry and 256 MB in all, a compression ratio of at most 200 (a ZIP bomb is
+  refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
+  `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
+  expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
+  is ever opened. A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
+  Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
+  is written, and starts with a notice telling the agent that reads it that it is information to check, never an
+  instruction to follow. A Word table, paragraphs nested in one another (read in one pass, whatever their depth), a diagram or a label
+  cannot make the output grow without bound or the reading slow down: a table is at
+  most 64 columns and 200 000 cells, a converted text at most 16 million characters, a diagram label is read once and
+  cut, every list is capped (refused: `tooLarge`). Each document keeps its own output file.
+- **Pages of Confluence, SharePoint, Teams or Notion** are never fetched by the kit: the skill reads them through
+  the connectors of the session (Claude Code, Claude Cowork), with your consent, and saves each one where
+  `inputs status` says (`.doc-kit/inputs/pages/`); `inputs ingest` then filters it like a file.
+
+Limits: a document can still hold false or misleading statements, or text written to steer an AI: the notice and
+the skill's briefs make the agents check every statement against the code, but review what a document claims
+before it becomes a page. A clone is a full copy of the repository: it lives in the work folder (`.doc-kit/`, never
+committed) — delete it when the documentation is done.
+
 ### Files for the next AI (`pack`)
 
 `doc-kit pack` writes `llms.txt`, `llms-full.txt`, `AGENTS.md` and `CLAUDE.md` in the documentation project, never
@@ -116,7 +162,7 @@ shape) passes. Review the files before handing them to an agent, and `AGENTS.md`
 
 ### Network
 
-The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on
+The kit talks to nothing but the application you capture and, with `doc-kit inputs fetch`, the repositories you declared (through git, above): no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
 the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest

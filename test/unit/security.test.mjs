@@ -73,6 +73,31 @@ describe("source rules (RULES.md § Security)", () => {
     for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text)))
       assert.match(text, /safeGitArgs\(/, f);
   });
+
+  test("git writes only in engine/inputs/repos.mjs (RULES.md S2): clone, fetch and checkout of the sources, hardened", () => {
+    // Every other git command of the kit is read-only; the shared repositories of the sources are the one exception.
+    const WRITE = /(\[|^)\s*["'](clone|fetch|checkout|pull|push|reset|merge|rebase|commit|stash|init|am)["']\s*,/;
+    assert.deepEqual(
+      offending(WRITE, (f) => f === "engine/inputs/repos.mjs"),
+      [],
+    );
+    const repos = files.find(({ f }) => f === "engine/inputs/repos.mjs").text;
+    for (const setting of [
+      "core.hooksPath=",
+      "core.symlinks=false",
+      "core.fsmonitor=false",
+      "protocol.ext.allow=never",
+      "protocol.file.allow=never",
+      "submodule.recurse=false",
+      "transfer.fsckObjects=true",
+      "--no-recurse-submodules",
+      "--end-of-options",
+      'GIT_TERMINAL_PROMPT: "0"',
+      "isSafeRepoUrl(",
+      "isSafeRef(",
+    ])
+      assert.ok(repos.includes(setting), `engine/inputs/repos.mjs: ${setting}`);
+  });
 });
 
 describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {

@@ -8,6 +8,19 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The sources of a project** (ARCHITECTURE.md §6.19, `inputs.json`): what the kit reads besides the code of
+  `app.dir` — other code (folders or **shared repositories**: GitHub, GitLab, Azure Repos), the infrastructure
+  code, the application online by environment, the documents a team already has (a **technical architecture
+  document** in Word, PDF, Markdown, diagrams; Confluence or SharePoint pages by their address), collaborative
+  spaces and the backlog. `doc-kit init` asks for them (optional), `doc-kit inputs add` declares them,
+  `doc-kit inputs` shows their state. `doc-kit inputs fetch` clones or updates the repositories into
+  `.doc-kit/inputs/repos/` with your own git credentials (never a token in the kit), every clone hardened from its
+  creation; `doc-kit inputs ingest` converts the documents into text for the documentation agents
+  (`.doc-kit/inputs/docs/`), secrets removed, with the kit's own bounded readers (ZIP bombs, XML entities and macros
+  refused or never expanded; SECURITY.md). A page given by its address is read by the skill through the session's
+  connectors (Claude Code, Claude Cowork), never by the kit. New bricks `inputs.repos` and `inputs.docs` (preset
+  `inputs`), needed by the facts; the skill asks for the sources at the cadrage and checks a DAT against the code.
+  RULES.md S2 now allows `clone`, `fetch` and `checkout`, in `engine/inputs/repos.mjs` only.
 - **Bricks** (ARCHITECTURE.md §6.18): `doc-kit bricks` gives the state of every part of the project that can be
   run again on its own — each facts source, the external tools, the documentation audit — and why ("read at commit
   939ed0c; the application is at 24b882c", "written by kit 0.1", "never produced"); `doc-kit bricks <id>` shows one
@@ -56,6 +69,9 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **A git setting written on its section's line was not seen** by the check that keeps git from running a
+  program named in an untrusted repository (`[core] fsmonitor = …`, `[include] path = …` on one line, or after a
+  lone carriage return): git reads it, and the kit now does too (`parseGitConfig`, `riskyGitConfig`).
 - **`facts --source quality --network` sent the names of private packages** (an npm scope with its own registry, a
   private pip index, workspace and local packages) to npm and PyPI while looking up their latest version: it now
   goes through the same `isPrivatePackage` check as `dependencies --network` (AUDIT.md S13).

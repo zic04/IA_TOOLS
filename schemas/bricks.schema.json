@@ -30,7 +30,8 @@
           "additionalProperties": false,
           "required": ["command"],
           "properties": {
-            "command": { "enum": ["facts", "audit"] },
+            "command": { "enum": ["inputs", "facts", "audit"] },
+            "action": { "enum": ["fetch", "ingest"] },
             "source": { "type": "string" },
             "tools": { "type": "boolean" }
           }
@@ -61,6 +62,12 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["rule", "part"],
+          "properties": { "rule": { "const": "inputs" }, "part": { "enum": ["repos", "docs"] } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["rule"],
           "properties": { "rule": { "const": "volatile" } }
         }
@@ -72,7 +79,7 @@
       "required": ["id", "kind", "title", "steps", "freshness"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["facts", "report"] },
+        "kind": { "enum": ["inputs", "facts", "report"] },
         "title": { "$ref": "#/$defs/text" },
         "needs": { "type": "array", "items": { "$ref": "#/$defs/id" } },
         "requires": { "type": "array", "items": { "enum": ["network", "tools"] } },

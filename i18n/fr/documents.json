@@ -1,0 +1,13 @@
+{
+  "cli.inputs.reason.corrupt": "l'archive est endommagée, ou organisée d'une façon que le kit ne lit pas (plusieurs volumes, une entrée en double)",
+  "cli.inputs.reason.encrypted": "le document est chiffré ou protégé par un mot de passe",
+  "cli.inputs.reason.method": "une entrée est compressée autrement qu'avec deflate",
+  "cli.inputs.reason.missingPart": "l'archive ne contient pas word/document.xml : ce n'est pas un document Word",
+  "cli.inputs.reason.notPdf": "ce n'est pas un fichier PDF (il ne commence pas par %PDF-)",
+  "cli.inputs.reason.notZip": "ce n'est pas une archive ZIP (un .docx en est une ; un fichier Word protégé par un mot de passe, non)",
+  "cli.inputs.reason.ratio": "une entrée est bien plus grosse une fois décompressée que dans l'archive (une bombe ZIP ?)",
+  "cli.inputs.reason.tooLarge": "trop volumineux pour les limites du kit",
+  "cli.inputs.reason.tooManyEntries": "l'archive contient trop d'entrées",
+  "cli.inputs.reason.xml": "son XML est mal formé, trop profond ou trop volumineux",
+  "cli.inputs.reason.zip64": "une archive ZIP64 (plus de 4 Go ou de 65 535 entrées), que le kit ne lit pas"
+}

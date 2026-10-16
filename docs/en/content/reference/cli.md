@@ -82,6 +82,7 @@ exit code 2.
 | `doc-kit stats` | Time, tokens and models per block and per version (`usage/`) |
 | `doc-kit changes` | What changed in the application since a git reference: routes, tables, variables, dependencies, findings (`--record`: kept for `::changes`) |
 | `doc-kit pack` | Files for the next AI: `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets removed) |
+| `doc-kit inputs [status]` · `doc-kit inputs add <kind> <value>` · `doc-kit inputs fetch` · `doc-kit inputs ingest` | The sources of the project (inputs.json): their state; declare one; clone or update the shared repositories with your own git credentials; convert the documents (Word, PDF, diagrams) for the agents |
 | `doc-kit bricks [<id\|preset>]` · `doc-kit bricks run [<id\|preset>…]` | The state of every brick (facts sources, tools, audit) and why; runs again only the bricks named, or every brick out of date (`--stale`) |
 | `doc-kit hooks install` | Git hooks: facts and sync after each pull and branch switch |
 | `doc-kit export <target>` | Writes a self-contained copy of the project |

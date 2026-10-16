@@ -11,6 +11,8 @@ import { loadBricks, enabledBricks, expand } from "../../engine/bricks/registry.
 import { brickStatuses } from "../../engine/bricks/status.mjs";
 import { planRun } from "../../engine/bricks/plan.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
+import { readInputs } from "../../engine/inputs/model.mjs";
+import { inputsStatus } from "../../engine/inputs/status.mjs";
 
 export const options = {
   deps: { type: "boolean" },
@@ -37,6 +39,7 @@ async function load(ctx) {
     commit,
     generator: generatorTag(),
     now: new Date(),
+    inputs: inputsStatus({ root: project.root, inputs: readInputs(project.root).inputs, commit: ctx.commit }),
   });
   return { registry, statuses, language: ctx.i18n.language === "fr" ? "fr" : "en" };
 }
@@ -117,7 +120,15 @@ function show(ctx, s, id) {
       step.agent
         ? ctx.t("cli.bricks.show.agent", { agent: step.agent, per: step.per })
         : ctx.t("cli.bricks.show.command", {
-            step: step.command + (step.source ? ` --source ${step.source}` : step.tools ? " --tools" : ""),
+            step:
+              step.command +
+              (step.action
+                ? ` ${step.action}`
+                : step.source
+                  ? ` --source ${step.source}`
+                  : step.tools
+                    ? " --tools"
+                    : ""),
           }),
     );
   return EXIT.OK;
@@ -146,7 +157,7 @@ async function runBricks(ctx, s, names, values) {
     const mod = await import(`./${c.command}.mjs`);
     let code;
     try {
-      code = (await mod.run({ ctx: child, values: c.values, positionals: [] })) ?? EXIT.OK;
+      code = (await mod.run({ ctx: child, values: c.values, positionals: c.positionals || [] })) ?? EXIT.OK;
     } catch (e) {
       const kit = e instanceof KitError;
       done.push({ command: c.command, code: kit ? e.code : null, key: kit ? e.key : null });

@@ -498,6 +498,55 @@ describe("init on an application with a separate front end (pilot layout)", () =
     }
   });
 
+  test("interactive: the sources, declared after the answers (ARCHITECTURE.md §6.19), written to inputs.json", async () => {
+    const app = separateFrontApp();
+    const infra = path.join(app, "infra");
+    fs.mkdirSync(infra);
+    fs.writeFileSync(path.join(app, "DAT.docx"), "not read by init");
+    try {
+      const r = await cli(["init", app], {
+        input: [
+          ...["", "1", "", "3", "y"], // name, language, URL, no screenshots, confirm
+          "y", // declare the sources now
+          `${infra}, https://u:p@github.com/a/b.git`, // a credential in an address: refused, asked again
+          `${infra}, https://github.com/acme/orders-infra.git`,
+          "", // other code
+          "prod=https://orders.acme.example, staging=https://staging.acme.example",
+          path.join(app, "DAT.docx"),
+          "https://acme.atlassian.net/wiki/spaces/ORD/pages/1",
+          "https://acme.sharepoint.com/sites/orders",
+          "https://acme.atlassian.net/jira/software/projects/ORD",
+        ],
+      });
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /Declare the other sources now/);
+      assert.match(r.out, /⚠ one of these is neither a folder that exists here nor a repository address/);
+      // The answer typed is echoed like any input; the kit's own warning never repeats it.
+      const warning = r.out.split("\n").find((l) => l.includes("⚠ one of these"));
+      assert.doesNotMatch(warning, /u:p@/, "the credential typed is never shown by the kit");
+      const inputs = JSON.parse(fs.readFileSync(path.join(app, "docs", "manual", "inputs.json"), "utf8"));
+      assert.deepEqual(inputs, {
+        code: [
+          { name: "infra", path: "../../infra", role: "infra" },
+          { name: "orders-infra", repo: "https://github.com/acme/orders-infra.git", role: "infra" },
+        ],
+        app: [
+          { env: "prod", url: "https://orders.acme.example" },
+          { env: "staging", url: "https://staging.acme.example" },
+        ],
+        documents: [
+          { file: "../../DAT.docx", kind: "dat" },
+          { url: "https://acme.atlassian.net/wiki/spaces/ORD/pages/1", kind: "spec" },
+        ],
+        workspaces: [{ tool: "sharepoint", url: "https://acme.sharepoint.com/sites/orders" }],
+        backlog: { tool: "jira", url: "https://acme.atlassian.net/jira/software/projects/ORD" },
+      });
+      assert.match(r.out, /✔ \d+ files written/);
+    } finally {
+      remove(app);
+    }
+  });
+
   test("interactive: the capture-target question; with “no screenshots”, the sign-in question is skipped", async () => {
     const app = separateFrontApp();
     try {
@@ -535,7 +584,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     try {
       const { calls, steps } = stubSteps();
       const r = await cli(["init", app], {
-        input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "o", "o"],
+        input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "n", "o", "o"],
         steps,
       });
       assert.equal(r.code, 0, r.err);
@@ -579,7 +628,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     const app = nextApp();
     try {
       let { calls, steps } = stubSteps();
-      let r = await cli(["init", app, "--lang", "en"], { input: ["", "", "1", "1", "y", "n"], steps });
+      let r = await cli(["init", app, "--lang", "en"], { input: ["", "", "1", "1", "y", "n", "n"], steps });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /Capture target +local — the application on this machine/);
       assert.doesNotMatch(r.out, /Production, read-only — before/);
@@ -601,7 +650,10 @@ describe("capture target (local, demo, production) and the follow-up of init", (
       );
 
       ({ calls, steps } = stubSteps({ connect: 3 }));
-      r = await cli(["init", app, "--lang", "en", "--dir", "second"], { input: ["", "", "1", "1", "y", ""], steps });
+      r = await cli(["init", app, "--lang", "en", "--dir", "second"], {
+        input: ["", "", "1", "1", "y", "", ""],
+        steps,
+      });
       assert.equal(r.code, 3, "the follow-up's exit code");
       assert.deepEqual(calls, ["install", "connect"], "no screenshot after a failed sign-in");
       assert.match(r.out, /The project is written: go on with the steps below/);

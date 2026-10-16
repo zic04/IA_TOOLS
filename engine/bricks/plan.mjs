@@ -6,8 +6,9 @@
 //   - A brick that requires an option it was not given (`--tools`, `--network`) is skipped, and says why.
 //   - A brick the project disables never runs: left out of presets and of --stale and --deps, skipped (and says
 //     why) when named by its id.
-//   - Every `facts` step is gathered into ONE run of `doc-kit facts` (one read of the application); other commands
-//     follow in brick order. Steps that are an agent's (a skill brief) are listed for the skill, never run.
+//   - Every `facts` step is gathered into ONE run of `doc-kit facts` (one read of the application), at the place of
+//     the first brick that has one; the other commands keep the order of the bricks (the sources are fetched before
+//     the facts are read). Steps that are an agent's (a skill brief) are listed for the skill, never run.
 import { expand, topoOrder, withNeeds } from "./registry.mjs";
 
 /**
@@ -17,7 +18,8 @@ import { expand, topoOrder, withNeeds } from "./registry.mjs";
  * @param {string[]} p.names        bricks or presets named on the command line
  * @param {{ deps?: boolean, stale?: boolean, force?: boolean, network?: boolean, tools?: boolean }} p.flags
  * @returns {{ run: string[], skipped: Array<{ id: string, why: { key: string, vars: object } }>,
- *   commands: Array<{ command: string, values: object }>, agents: Array<{ brick: string, agent: string, per: string }> }}
+ *   commands: Array<{ command: string, values: object, positionals?: string[] }>,
+ *   agents: Array<{ brick: string, agent: string, per: string }> }}
  */
 export function planRun({ registry, statuses, names, flags }) {
   const named = names.length ? expand(registry, names) : new Set();
@@ -48,23 +50,33 @@ export function planRun({ registry, statuses, names, flags }) {
   return { run, skipped, ...commandsOf(registry, run, flags) };
 }
 
-/** The commands and agent steps of the bricks that run: the facts steps gathered into one `facts` run. */
+/**
+ * The commands and agent steps of the bricks that run, in their order: the facts steps gathered into one `facts`
+ * run, at the place of the first; an inputs step is `doc-kit inputs <action>`; each other command once.
+ */
 function commandsOf(registry, run, flags) {
-  const sources = [];
-  let tools = false;
-  const others = [];
+  const commands = [];
   const agents = [];
+  let facts = null;
   for (const id of run)
     for (const step of registry.byId.get(id).steps) {
       if (step.agent) agents.push({ brick: id, agent: step.agent, per: step.per });
       else if (step.command === "facts") {
-        if (step.source && !sources.includes(step.source)) sources.push(step.source);
-        if (step.tools) tools = true;
-      } else if (!others.some((c) => c.command === step.command)) others.push({ command: step.command, values: {} });
+        if (!facts) {
+          facts = {
+            command: "facts",
+            values: { source: [], sourcesExactly: true, tools: false, network: !!flags.network },
+          };
+          commands.push(facts);
+        }
+        if (step.source && !facts.values.source.includes(step.source)) facts.values.source.push(step.source);
+        if (step.tools) facts.values.tools = true;
+      } else {
+        const positionals = step.action ? [step.action] : undefined;
+        const same = (c) => c.command === step.command && c.positionals?.[0] === positionals?.[0];
+        if (!commands.some(same))
+          commands.push({ command: step.command, values: {}, ...(positionals ? { positionals } : {}) });
+      }
     }
-  const facts =
-    sources.length || tools
-      ? [{ command: "facts", values: { source: sources, sourcesExactly: true, tools, network: !!flags.network } }]
-      : [];
-  return { commands: [...facts, ...others], agents };
+  return { commands, agents };
 }

@@ -102,7 +102,8 @@ export function ignoreRules(masking = {}) {
 const BUILT_IN_RULES = ignoreRules();
 const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
 const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
-const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
+/** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
+export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
 
 /** Value detectors: `re` (group `v` = the value, else the whole match) and an optional `accept(match)`. */
 export const GENERIC = Object.freeze([

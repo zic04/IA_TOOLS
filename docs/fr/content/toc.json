@@ -16,6 +16,7 @@
           "pages": [
             { "id": "start/install", "title": "Installer doc-kit", "menuTitle": "Installer", "summary": "Node 20, les deux dépendances du kit, Chromium, et la commande doc-kit dans votre chemin.", "template": "recipe" },
             { "id": "start/first-five-minutes", "title": "Les cinq premières minutes", "menuTitle": "Cinq premières minutes", "summary": "D'un dossier d'application à un site de documentation avec un écran annoté, sur l'application de démo.", "template": "recipe" },
+            { "id": "start/sources", "title": "Déclarer les sources : dépôts, documents, espaces", "menuTitle": "Les sources", "summary": "Dépôts partagés, code d'infrastructure, application en ligne, dossier d'architecture technique, pages Confluence ou SharePoint : déclarés une fois, récupérés et convertis pour les agents.", "template": "recipe" },
             { "id": "start/guided-mode", "title": "Le mode guidé", "menuTitle": "Mode guidé", "summary": "Lancez doc-kit sans commande : il regarde où vous en êtes et propose l'étape suivante.", "template": "technical" },
             { "id": "start/generated-site", "title": "Le site généré", "menuTitle": "Le site généré", "summary": "Ce que reçoit un lecteur : un fichier HTML avec menus, recherche, écrans annotés, visites guidées, thèmes et impression.", "template": "screen" }
           ]

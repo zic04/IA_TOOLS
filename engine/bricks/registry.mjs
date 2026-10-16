@@ -11,9 +11,11 @@ import { KitError, EXIT } from "../project/errors.mjs";
 const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
- * @typedef {{ command?: "facts"|"audit", source?: string, tools?: boolean, agent?: string, per?: string }} Step
+ * @typedef {{ command?: "inputs"|"facts"|"audit", action?: "fetch"|"ingest", source?: string, tools?: boolean,
+ *   agent?: string, per?: string }} Step
  * @typedef {{ id: string, kind: string, title: { en: string, fr: string }, needs: string[], requires: string[],
- *   steps: Step[], freshness: { rule: "envelope"|"volatile", files?: string[], maxAgeDays?: number } }} Brick
+ *   steps: Step[], freshness: { rule: "envelope"|"inputs"|"volatile", files?: string[], maxAgeDays?: number,
+ *   part?: "repos"|"docs" } }} Brick
  * @typedef {{ bricks: Brick[], byId: Map<string, Brick>, presets: Record<string, string[]> }} Registry
  */
 
@@ -44,6 +46,8 @@ export function loadBricks(kitRoot = KIT_ROOT) {
     for (const step of b.steps)
       if (step.command === "facts" && !step.source && !step.tools)
         throw new Error(`standard/bricks.json: ${b.id}: a facts step names no source and no tools`);
+      else if ((step.command === "inputs") !== (step.action !== undefined))
+        throw new Error(`standard/bricks.json: ${b.id}: an action belongs to an inputs step, and only to it`);
   }
   for (const [name, list] of Object.entries(data.presets)) {
     if (!PRESET_NAME.test(name)) throw new Error(`standard/bricks.json: preset name ${name}`);
