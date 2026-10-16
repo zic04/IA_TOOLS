@@ -20,7 +20,7 @@ import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
 import { checkContrasts } from "../../engine/theme/contrast.mjs";
 import { normalizeToc } from "../../engine/project/legacy.mjs";
 import { languageCounts } from "../../engine/build/languages.mjs";
-import { staleFacts } from "../../engine/sync/report.mjs";
+import { staleFacts } from "../../engine/facts/freshness.mjs";
 import { describeProblem } from "../common.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import {

@@ -57,6 +57,16 @@ describe("source rules (RULES.md § Security)", () => {
     );
   });
 
+  test("one network gateway (RULES.md S12): no file but engine/facts/network.mjs names a public registry", () => {
+    // Every request to a package registry or vulnerability database goes through createRegistryClient, which
+    // refuses a private package (AUDIT.md S13). Naming a registry's address anywhere else would bypass it.
+    const HOSTS = /\bhttps?:\/\/(?:registry\.npmjs\.(?:org|com)|registry\.yarnpkg\.com|pypi\.org|api\.osv\.dev)\b/;
+    assert.deepEqual(
+      offending(HOSTS, (f) => f === "engine/facts/network.mjs"),
+      [],
+    );
+  });
+
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {
     assert.deepEqual(offending(/spawn(Sync)?\(\s*["']git["']/), []);
     // Each module that spawns a process itself, and calls git, hardens the arguments.

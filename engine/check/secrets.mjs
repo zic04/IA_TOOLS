@@ -194,6 +194,26 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
   return out;
 }
 
+/**
+ * The text with every line where a secret detector fires replaced by a notice (the value is never kept). Shared by
+ * every writer of a file read by people or agents (`pack`, reports): one filter, the same detectors.
+ * @param {string} text
+ * @param {object[]} detectorList   detectors()
+ * @param {(kind: string) => string} notice   the replacement line, from the kind of secret
+ * @param {(value: string, token: string) => string|null} [ignore]   ignoreRules(config.masking)
+ * @returns {{ text: string, removed: Array<{ line: number, kind: string }> }}
+ */
+export function withoutSecrets(text, detectorList, notice, ignore = undefined) {
+  const found = scanText(text, detectorList, ignore);
+  if (!found.length) return { text, removed: [] };
+  const byLine = new Map(found.map((f) => [f.line, f.kind]));
+  const lines = text.split("\n").map((l, i) => (byLine.has(i + 1) ? notice(byLine.get(i + 1)) : l));
+  return {
+    text: lines.join("\n"),
+    removed: [...byLine].map(([line, kind]) => ({ line, kind })).sort((a, b) => a.line - b.line),
+  };
+}
+
 // The build breaks long code spans with <wbr> (after "/", ".", "?", "="…): removed without a space, so that a URL
 // of the site reads as in its source (its value, and the URL template around a match).
 /**

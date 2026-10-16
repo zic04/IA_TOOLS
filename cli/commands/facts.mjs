@@ -13,17 +13,8 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { factsFile, relPath } from "../../engine/facts/common.mjs";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
-import { collectEnv } from "../../engine/facts/env.mjs";
-import { collectApi } from "../../engine/facts/api.mjs";
-import { collectDb } from "../../engine/facts/db.mjs";
-import { collectAgents } from "../../engine/facts/agents.mjs";
-import { collectSecrets } from "../../engine/facts/secrets.mjs";
-import { collectSecurity } from "../../engine/facts/security.mjs";
-import { collectQuality } from "../../engine/facts/quality.mjs";
-import { collectTests } from "../../engine/facts/tests.mjs";
-import { collectModules } from "../../engine/facts/modules.mjs";
-import { collectHistory } from "../../engine/facts/history.mjs";
-import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
+import { privateRegistries } from "../../engine/facts/network.mjs";
+import { SOURCE_NAMES, collectSource } from "../../engine/facts/registry.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
 
@@ -32,67 +23,6 @@ export const options = {
   network: { type: "boolean" },
   tools: { type: "boolean" },
 };
-
-/** Sources of `doc-kit facts`, in the order they are written (ARCHITECTURE.md §6.9, §6.13). */
-export const SOURCES = Object.freeze([
-  "dependencies",
-  "env",
-  "api",
-  "db",
-  "agents",
-  "secrets",
-  "security",
-  "quality",
-  "tests",
-  "modules",
-  "history",
-]);
-
-/** Collects one source; `tests` and `quality` return an extra `summary`. `network`: null, or `{ registries }` (what
- * is private, never sent) when --network is given. */
-async function collect(name, appDir, ctx, config, network) {
-  switch (name) {
-    case "dependencies": {
-      const unreadable = [];
-      return { items: collectDependencies(appDir, unreadable), unreadable };
-    }
-    case "env":
-      return { items: collectEnv(appDir) };
-    case "api":
-      return { items: collectApi(appDir, config.review?.guards) };
-    case "db":
-      return { items: collectDb(appDir) };
-    case "agents":
-      return { items: collectAgents(appDir) };
-    case "secrets":
-      return { items: collectSecrets(appDir, ctx.exec) };
-    case "security":
-      return { items: collectSecurity(appDir, ctx.exec) };
-    case "quality": {
-      const dependencies = collectDependencies(appDir);
-      const { items, summary } = await collectQuality(appDir, {
-        fetch: network ? ctx.fetch : undefined,
-        dependencies,
-        registries: network?.registries,
-      });
-      return { items, extra: { summary } };
-    }
-    case "tests": {
-      const { items, summary, unreadable } = collectTests(appDir);
-      return { items, extra: { summary }, unreadable };
-    }
-    case "modules": {
-      const { items, summary } = collectModules(appDir);
-      return { items, extra: { summary } };
-    }
-    case "history": {
-      const { items, summary } = collectHistory(appDir, ctx.exec);
-      return { items, extra: { summary } };
-    }
-    default:
-      return { items: [] };
-  }
-}
 
 /**
  * --tools: runs the external tools and writes one `tool-<name>.json` each; returns them keyed by tool.
@@ -129,10 +59,10 @@ export async function run({ ctx, values }) {
   const appDir = path.resolve(project.root, config.app.dir);
   if (!fs.existsSync(appDir)) throw new KitError(EXIT.USAGE, "facts.noApp");
 
-  const requested = values.source?.length ? values.source : SOURCES;
+  const requested = values.source?.length ? values.source : SOURCE_NAMES;
   for (const name of requested)
-    if (!SOURCES.includes(name))
-      throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCES.join(", ") });
+    if (!SOURCE_NAMES.includes(name))
+      throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCE_NAMES.join(", ") });
 
   const factsDir = path.join(project.root, config.paths.facts);
   fs.mkdirSync(factsDir, { recursive: true });
@@ -146,14 +76,13 @@ export async function run({ ctx, values }) {
     : null;
 
   const written = {};
-  for (const name of SOURCES) {
+  for (const name of SOURCE_NAMES) {
     if (!requested.includes(name)) continue;
     const end = ctx.timer?.start("facts", { sub: name });
-    let { items, extra, unreadable = [] } = await collect(name, appDir, ctx, config, network).finally(() => end?.());
+    const seams = { appDir, exec: ctx.exec, fetch: ctx.fetch, config, network };
+    let { items, extra, unreadable = [] } = await collectSource(name, seams).finally(() => end?.());
     // A file that is there but cannot be read: its facts are unknown, not empty (AUDIT.md M14).
     if (unreadable.length) extra = { ...extra, unreadable };
-    if (name === "dependencies" && network)
-      items = await checkExistence(items, ctx.fetch, { registries: network.registries });
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
     written[name] = file;

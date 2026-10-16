@@ -5,7 +5,8 @@
 // A PRIVATE package's name is never sent (AUDIT.md S13): it would tell the public registry what the company
 // builds. Every network request of the facts goes through `isPrivatePackage` first. A package is private when:
 //   - its version is not a registry release (a folder, a workspace, a link, a git repository or a URL), or a lock
-//     file took it from a source that is not a public registry (`local: true`, engine/facts/dependencies.mjs);
+//     file took it from a source that is not a public registry (`local: true`, engine/facts/deps/npm.mjs and
+//     engine/facts/deps/python.mjs);
 //   - its name is one of the application's own packages (every package.json and pyproject.toml under it: npm
 //     workspaces point at their siblings with plain ranges);
 //   - its npm scope has its own registry, or a registry replaces the default one (then every npm package is
@@ -21,26 +22,72 @@
 import fs from "node:fs";
 import path from "node:path";
 import { listFiles } from "./common.mjs";
+// ─── The network gateway ────────────────────────────────────────────────────────────────────────────────────────
+// The ONLY place of the kit that builds the URL of a public registry or sends a request to one (RULES.md S12,
+// checked by test/unit/security.test.mjs; the dependency readers only RECOGNISE those hosts in lock files). Every
+// request the kit itself sends goes through `createRegistryClient`, which refuses a private package whatever the
+// caller did: a name the filter missed upstream is a defect, never a request. The one exception is an external tool:
+// with --tools --network, osv-scanner downloads its own vulnerability database (public files, no name sent).
+
+/** Where a package is looked up: existence, and its latest published version. */
 const REGISTRY = {
-  npm: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}`,
-  pip: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
+  npm: {
+    exists: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}`,
+    latest: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}/latest`,
+    version: (data) => data.version,
+  },
+  pip: {
+    exists: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
+    latest: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
+    version: (data) => data.info?.version,
+  },
 };
 
-/** Does `name` exist in its registry: true, false (404), or null (no usable answer, e.g. a timeout). */
-async function existsInRegistry(item, fetchImpl, timeoutMs) {
-  const url = REGISTRY[item.ecosystem]?.(item.name);
-  if (!url) return null;
+/**
+ * A GET whose answer is read by `read`, within one timeout that covers the body too (a registry that trickles its
+ * answer cannot hold a worker): what `read` returns, or null (no answer, a timeout, a network or parsing error).
+ */
+async function get(url, fetchImpl, timeoutMs, read) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: controller.signal });
-    if (res.ok) return true;
-    return res.status === 404 ? false : null;
+    return await read(await fetchImpl(url, { signal: controller.signal }));
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * The client of the public registries, for one run. A private item (isPrivatePackage) throws: callers filter them
+ * out first, so reaching the gateway with one is a defect of the kit, and nothing is sent.
+ * @param {{ fetch: (url: string, options?: object) => Promise<any>, registries: ReturnType<typeof privateRegistries>,
+ *   timeoutMs?: number }} p
+ */
+export function createRegistryClient({ fetch: fetchImpl, registries, timeoutMs = 5000 }) {
+  const guard = (item) => {
+    if (isPrivatePackage(item, registries)) throw new Error("defect: a private package reached the network gateway");
+    return REGISTRY[item.ecosystem];
+  };
+  return {
+    /** Does the package exist: true, false (404), or null (no usable answer). */
+    async exists(item) {
+      const registry = guard(item);
+      if (!registry) return null;
+      return get(registry.exists(item.name), fetchImpl, timeoutMs, (res) =>
+        res.ok ? true : res.status === 404 ? false : null,
+      );
+    },
+    /** Its latest published version, or null (404, timeout, malformed answer). */
+    async latest(item) {
+      const registry = guard(item);
+      if (!registry) return null;
+      return get(registry.latest(item.name), fetchImpl, timeoutMs, async (res) =>
+        res.ok ? (registry.version(await res.json()) ?? null) : null,
+      );
+    },
+  };
 }
 
 /** A version that is not a registry release: local folder, workspace, link, git repository or URL. */
@@ -378,11 +425,11 @@ export async function checkExistence(
 ) {
   const isPrivate = (i) => isPrivatePackage(i, registries);
   const direct = items.filter((i) => i.direct && !isPrivate(i));
+  const client = createRegistryClient({ fetch: fetchImpl, registries, timeoutMs });
   const results = new Map();
   const queue = [...direct];
   async function worker() {
-    for (let item = queue.shift(); item; item = queue.shift())
-      results.set(item, await existsInRegistry(item, fetchImpl, timeoutMs));
+    for (let item = queue.shift(); item; item = queue.shift()) results.set(item, await client.exists(item));
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, direct.length) }, worker));
   return items.map((i) =>

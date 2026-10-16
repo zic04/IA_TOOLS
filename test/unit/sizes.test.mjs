@@ -13,8 +13,7 @@ const LIMIT = 600;
 const CEILINGS = Object.freeze({
   "engine/site/app.js": 1379,
   "cli/commands/init.mjs": 846,
-  "engine/audit/audit.mjs": 770,
-  "engine/build/markdown.mjs": 611,
+  "engine/audit/audit.mjs": 748,
 });
 const ROOTS = ["engine", "cli", "adapters", "skill"];
 

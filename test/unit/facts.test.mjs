@@ -25,7 +25,12 @@ import { collectDb } from "../../engine/facts/db.mjs";
 import { collectAgents, hiddenCharacters } from "../../engine/facts/agents.mjs";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
-import { checkExistence, privateRegistries, isPrivatePackage } from "../../engine/facts/network.mjs";
+import {
+  checkExistence,
+  privateRegistries,
+  isPrivatePackage,
+  createRegistryClient,
+} from "../../engine/facts/network.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/capture/session.mjs";
@@ -933,6 +938,36 @@ describe("--network: what is private is read everywhere it can be declared (AUDI
       assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.corp/simple" } }).pipAll, true);
       assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.org/simple" } }).pipAll, false);
     });
+  });
+
+  test("the network gateway itself refuses a private package (defence in depth: nothing is sent)", async () => {
+    const sent = [];
+    const fetch = async (url) => (sent.push(url), { ok: true, status: 200, json: async () => ({ version: "2.0.0" }) });
+    const registries = { npmScopes: new Set(["@corp"]), npmAll: false, pipAll: false, names: new Set() };
+    const client = createRegistryClient({ fetch, registries });
+    await assert.rejects(client.exists({ name: "@corp/ui", ecosystem: "npm" }), /private package/);
+    await assert.rejects(client.latest({ name: "tooling", version: "file:../tooling", ecosystem: "npm" }), /private/);
+    assert.deepEqual(sent, [], "a refused package sends nothing");
+    assert.equal(await client.exists({ name: "next", ecosystem: "npm" }), true);
+    assert.equal(await client.latest({ name: "next", ecosystem: "npm" }), "2.0.0");
+    assert.deepEqual(sent, ["https://registry.npmjs.org/next", "https://registry.npmjs.org/next/latest"]);
+  });
+
+  test("the gateway's timeout covers the whole answer: a registry that trickles its body gets null, not a wait", async () => {
+    const slowBody = async (url, { signal }) => ({
+      ok: true,
+      status: 200,
+      json: () =>
+        new Promise((resolve, reject) => {
+          const late = setTimeout(() => resolve({ version: "9.0.0" }), 500);
+          signal.addEventListener("abort", () => (clearTimeout(late), reject(new Error("aborted"))));
+        }),
+    });
+    const none = { npmScopes: new Set(), npmAll: false, pipAll: false, names: new Set() };
+    const client = createRegistryClient({ fetch: slowBody, registries: none, timeoutMs: 20 });
+    const started = Date.now();
+    assert.equal(await client.latest({ name: "next", ecosystem: "npm" }), null);
+    assert.ok(Date.now() - started < 400, "the body is cut at the timeout");
   });
 
   test("an ecosystem the kit does not know is never sent", () => {

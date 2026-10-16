@@ -27,6 +27,7 @@ import { generatorTag } from "../brand.mjs";
 import { measureCoverage, measureSecrets } from "./optional.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
 import { readToc } from "../project/toc.mjs";
+import { factsSummary } from "../facts/freshness.mjs";
 import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
 import { actionsOf, draftBuildAction } from "./actions.mjs";
 
@@ -99,29 +100,6 @@ const summaryPlaceholders = () =>
   LANGUAGES.map((l) => createI18n({ language: /** @type {"en"|"fr"} */ (l) }).t("cli.new.summaryPlaceholder"));
 
 /**
- * `facts` (ARCHITECTURE.md §6.9, informative): the facts/<source>.json files (not the facts/tool-*.json reports
- * of `--tools`) and how many are stale — their `commit` differs from `currentCommit`, the application's current
- * HEAD. `currentCommit` is null when it cannot be known (no app.dir, no git): no file is then counted as stale.
- */
-function collectFacts(root, factsPath, currentCommit) {
-  const dir = path.join(root, factsPath);
-  const files = fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("tool-"))
-    : [];
-  let stale = 0;
-  if (currentCommit)
-    for (const f of files) {
-      try {
-        const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-        if (j.commit && j.commit !== currentCommit) stale++;
-      } catch {
-        // an unreadable facts file is not this audit's job
-      }
-    }
-  return { files: files.length, stale };
-}
-
-/**
  * Audits a project.
  * @param {object} p
  * @param {{ root: string }} p.project
@@ -154,7 +132,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     legacyToc: !!tocInfo.legacy,
   };
   // Facts and claims (§6.9) are informative: computed whichever the level, never part of a criterion.
-  const facts = collectFacts(root, config.paths.facts, measure.commit ?? null);
+  const facts = factsSummary(root, config.paths.facts, measure.commit ?? null);
   const noClaims = { verified: 0, deduced: 0, unknown: 0, ratio: null };
 
   // Without a readable table of contents nothing can be measured: level 0, fix the build first.

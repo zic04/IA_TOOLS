@@ -36,11 +36,15 @@ doc-kit/
 │  ├─ project/           find.mjs, load.mjs, validate.mjs, defaults.mjs, env.mjs, legacy.mjs (§6.7), semver.mjs, browser.mjs
 │  ├─ core/              shared by the folders below (no folder cycle, RULES.md M14): hash.mjs, text.mjs,
 │  │                     page-templates.mjs (required sections of §6.4), translations.mjs (translated files, §6.12)
-│  ├─ build/             build.mjs (pure functions), markdown.mjs (extensions), search.mjs, assemble.mjs,
-│  │                     languages.mjs (§6.12), spaces.mjs (§6.1a)
+│  ├─ build/             build.mjs (pure functions), markdown.mjs (extensions), fact-directives.mjs (the directives
+│  │                     drawn from the facts: ::facts, ::erd, ::changes, the developer views), search.mjs,
+│  │                     assemble.mjs, languages.mjs (§6.12), spaces.mjs (§6.1a)
 │  ├─ capture/           capture.mjs, targets.mjs, actions.mjs, masking.mjs, webp.mjs, plans.mjs, session.mjs (adapters)
-│  ├─ check/             coverage.mjs, links.mjs, tables.mjs, images.mjs, secrets.mjs
-│  ├─ facts/             one module per source of `doc-kit facts` (§6.9), api.mjs shared with the coverage adapters
+│  ├─ check/             coverage.mjs, links.mjs, tables.mjs, images.mjs, secrets.mjs (detectors, and the filter
+│  │                     withoutSecrets of every file written for people or agents)
+│  ├─ facts/             one module per source of `doc-kit facts` (§6.9), listed by registry.mjs; api.mjs shared with
+│  │                     the coverage adapters; deps/ (npm and Python manifests); network.mjs (the only network
+│  │                     gateway, RULES.md S12); freshness.mjs (stale facts files); tools.mjs (--tools)
 │  ├─ audit/             audit.mjs (indicators, maturity level, actions), report.mjs (audit.md, audit.json),
 │  │                     optional.mjs (measures that may be "not measured")
 │  ├─ dev/               server.mjs (watch, rebuild, live reload via SSE), client.js, environment.mjs (shared by dev,

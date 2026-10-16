@@ -74,6 +74,15 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
+  command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,
+  `doctor` and `audit`); every request to a public registry goes through one gateway, `createRegistryClient`
+  (`engine/facts/network.mjs`), which refuses a private package itself and whose 5 s timeout now also covers reading the answer, as it did before
+  for the latest version (new rule S12); the dependency readers are
+  split by ecosystem (`engine/facts/deps/`); the directives drawn from the facts leave the Markdown engine
+  (`engine/build/fact-directives.mjs`, one function per directive); `withoutSecrets` moves to
+  `engine/check/secrets.mjs`. The lint warning ceiling goes down to 56. Visible only in `--profile` and the usage
+  records: the time of the `dependencies` source now includes its `--network` existence check.
 - **`facts/tool-<name>.json`** is now `{ tool, generator, generated, commit, app, status, reason?, code?,
   truncated?, items }` (normalised items) instead of `{ tool, generator, generated, installed, ok, data }` (the raw
   report). `status` (`ok`, `findings`, `failed`, `missing`) comes from each tool's exit codes and items: a tool that

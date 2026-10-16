@@ -9,8 +9,8 @@ import path from "node:path";
 import { readToc } from "../../engine/project/toc.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { systemModel } from "../../engine/build/c4.mjs";
-import { detectors, ignoreRules } from "../../engine/check/secrets.mjs";
-import { readingOrder, llmsIndex, llmsFull, agentsFile, withoutSecrets } from "../../engine/pack/pack.mjs";
+import { readingOrder, llmsIndex, llmsFull, agentsFile } from "../../engine/pack/pack.mjs";
+import { detectors, ignoreRules, withoutSecrets } from "../../engine/check/secrets.mjs";
 
 export const options = {
   output: { type: "string" },

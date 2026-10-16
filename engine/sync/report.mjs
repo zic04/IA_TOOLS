@@ -8,6 +8,7 @@ import { pageDependencies, writtenPages, classifyMissingFile } from "./dependenc
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
 import { flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
+import { staleFacts } from "../facts/freshness.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
 import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
 
@@ -74,22 +75,6 @@ function priorityOf({ reasons: all, page, git, refCommit, labelValues }) {
   const changedLines = patch.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
   const tokens = citedTokens(page, labelValues);
   return changedLines.some((line) => tokens.some((t) => line.includes(t))) ? "shared" : "probablyIntact";
-}
-
-/** Facts files (facts/<source>.json, not tool-*) whose recorded commit differs from the application's current HEAD. */
-export function staleFacts(root, factsDir, commit) {
-  const dir = path.join(root, factsDir);
-  if (!commit || !fs.existsSync(dir)) return [];
-  const out = [];
-  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".json") && !x.startsWith("tool-"))) {
-    try {
-      const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-      if (j.commit && j.commit !== commit) out.push(j.source || f.slice(0, -5));
-    } catch {
-      // not this report's job
-    }
-  }
-  return out;
 }
 
 /** The content of a dependency file as it was at `since`/`refCommit` ("doc:" facts files are not versioned

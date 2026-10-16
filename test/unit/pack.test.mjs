@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { readingOrder, llmsIndex, llmsFull, agentsFile, withoutSecrets } from "../../engine/pack/pack.mjs";
-import { GENERIC } from "../../engine/check/secrets.mjs";
+import { readingOrder, llmsIndex, llmsFull, agentsFile } from "../../engine/pack/pack.mjs";
+import { withoutSecrets, GENERIC } from "../../engine/check/secrets.mjs";
 import { demoCopy, tempDir } from "../tools/helpers.mjs";
 
 const toc = {
