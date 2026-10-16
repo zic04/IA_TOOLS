@@ -17,7 +17,7 @@ deux mesures qui n'influencent jamais le niveau : `facts` et `claims`.
 
 ## Le résumé
 
-Le résumé du squelette d'un nouveau projet (ses deux espaces déjà déclarés, métier et reprise) : ses 14 pages sont
+Le résumé du squelette d'un nouveau projet (ses quatre espaces déjà déclarés, use, product, admin et develop) : ses 14 pages sont
 des brouillons, écrits par `init` avec leurs consignes de gabarit, donc aucune n'est encore écrite.
 
 ```text
@@ -27,7 +27,7 @@ des brouillons, écrits par `init` avec leurs consignes de gabarit, donc aucune 
   – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · – upToDatePages n/a · ✖ glossary 2 · ✖ tours 1 · ✔ blocking 0 · – wideTables non mesuré
 
 Prochain : niveau 2 · Utilisateur — 1 critère à remplir
-  1. Écrivez les 4 pages pas encore écrites hors Reprendre (0 sans fichier, 4 encore en consignes) (utiliser/prise-en-main, fonctionnalites/exemple-fonctionnalite, configurer/editeur-exemple +1)
+  1. Écrivez les 7 pages pas encore écrites hors Reprendre (0 sans fichier, 7 encore en consignes) (utiliser/prise-en-main, fonctionnalites/exemple-fonctionnalite, configurer/editeur-exemple +4)
   + 5 actions pour les niveaux suivants : voir le rapport
 
 → rapport : .doc-kit/audit.md · données : .doc-kit/audit.json
@@ -89,33 +89,54 @@ constat numéroté (`C1`, `I1`…), et une page sur la maintenance de la doc (id
 
 ## Le niveau par espace
 
-Avec `spaces` déclaré ([Deux espaces, une seule source](#/spaces/overview)), le rapport montre aussi une ligne par
-espace :
+Avec `spaces` déclaré ([Quatre espaces, une seule source](#/spaces/overview)), le rapport montre aussi une ligne par
+espace — ici, pour le même squelette :
 
 ```text
 ## Niveau par espace
 
 | Espace | Pages | Niveau | Manque pour le niveau suivant |
 |---|---|---|---|
-| Pour le métier (`business`) | 4 | 1 Squelette | `written2` |
-| Pour l'équipe de reprise (`takeover`) | 10 | 2 Utilisateur | `written3`, `guidance3`, `glossary3`, `tours3` |
+| Utiliser l'application (`use`) | 1 | 1 Squelette | `written2` |
+| Le produit (`product`) | 1 | 1 Squelette | `written2` |
+| Administrer l'application (`admin`) | 5 | 1 Squelette | `written2` |
+| Développer l'application (`develop`) | 7 | 2 Utilisateur | `written3`, `guidance3`, `glossary3`, `tours3` |
 ```
 
 - `written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs` et `tooLong` sont mesurés seulement sur
   les pages de cet espace ; les indicateurs communs au projet (configuration, build, accueil, glossaire, parcours,
   couverture, blocages, tableaux trop larges, versions des captures et des pages) sont ceux déjà affichés au
   niveau global.
-- Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a` : `written2` (pages hors Reprendre)
-  dans l'espace Reprise ; `takeover4` et `proofs4` (les 7 pages obligatoires de Reprendre, les preuves sur ces
-  pages) en dehors.
+- Le **type** de l'espace décide des pages qui sont les pages de reprise et de l'endroit où l'on cherche les pages
+  obligatoires. Les pages de reprise sont celles de l'espace Développer (preuves `file:line` attendues) : `proofs`
+  et `claims` les comptent, `written2` les laisse de côté. Pour le projet, chacune des 7 pages obligatoires de
+  la reprise est cherchée dans les pages d'Administrer et de Développer ; elle appartient à l'espace dont le type
+  la porte — le DAT et l'exploitation à Administrer, les cinq autres à Développer —, dont le niveau propre la
+  compte parmi ses pages, et une page manquante est proposée dans la partie habituelle de cet espace (Exploiter,
+  Comprendre, Risques, Maintenir), à défaut dans sa section qui contient déjà une page de ce type, à défaut dans
+  sa première section. Sans aucun espace qui
+  porte des pages de reprise (seulement `use` et `product` déclarés), l'action `takeover.noSection` demande une
+  section dans un espace de type `develop` ou `admin`.
+- `takeover4` d'un espace ne compte que les pages obligatoires que porte son type, trouvées parmi ses propres
+  pages : 2 pour Administrer, 5 pour Développer ; le `takeover4` du projet compte toujours les 7.
+- Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a`, selon son type :
+
+| Type | `written2` | `proofs4` | `takeover4` |
+|---|---|---|---|
+| `use`, `product` | mesuré | `n/a` | `n/a` |
+| `admin` | mesuré | `n/a` | mesuré (ses 2 pages) |
+| `develop` | `n/a` | mesuré | mesuré (ses 5 pages) |
+
+  C'est pourquoi l'espace Développer du squelette est déjà au niveau 2 alors que les autres sont au niveau 1 : ses
+  pages n'ont pas à être écrites pour le niveau 2.
 - **Le niveau global reste global** : toutes les pages, quel que soit leur espace. Un projet peut être au niveau 2
-  dans l'ensemble alors que son espace métier atteint déjà le niveau 3 — utile pour savoir quel public est
+  dans l'ensemble alors que son espace Utiliser atteint déjà le niveau 3 — utile pour savoir quel public est
   vraiment servi en premier. `audit.json` porte `spaces : [{ id, title, pages, level, indicators, criteria }]` ;
   sans espaces déclarés, rien ne change dans le rapport.
 
 ## Faits et affirmations (informatif)
 
-Avec un espace reprise, deux mesures de plus sont affichées, **jamais** un critère de niveau — aucun site
+Deux mesures de plus, pour le dossier de reprise, sont affichées, **jamais** un critère de niveau — aucun site
 antérieur à elles ne permet d'en observer un seuil :
 
 ```text
@@ -129,7 +150,7 @@ antérieur à elles ne permet d'en observer un seuil :
   ([Reprendre une application vibe-codée](#/spaces/takeover)), et combien sont **périmés** — leur commit
   enregistré diffère du `HEAD` courant de l'application. Corrigé par `doc-kit facts --source <nom>`.
 - `claims` : combien de puces `[[verifie]]`, `[[deduit]]` et `[[inconnu]]` apparaissent dans les pages de reprise
-  écrites, et le taux vérifiées ÷ (vérifiées + déduites). Un taux bas se corrige en lisant le code, jamais en
+  écrites (avec des espaces, les pages de l'espace Développer), et le taux vérifiées ÷ (vérifiées + déduites). Un taux bas se corrige en lisant le code, jamais en
   changeant une puce.
 
 `audit.md` n'affiche cette section que s'il y a quelque chose à signaler ; `audit.json` porte toujours `facts` et
@@ -175,6 +196,6 @@ node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
 - `standard/maturity.fr.md` dans le kit : les formules, les seuils et un exemple détaillé.
 - [Les contrôles](#/publish/checks) : les contrôles bloquants derrière `blocking`.
 - [Les gabarits de page](#/write/page-templates) : `typed`, `conformant` et `completeness`.
-- [Deux espaces, une seule source](#/spaces/overview) : le tableau niveau par espace, en contexte.
+- [Quatre espaces, une seule source](#/spaces/overview) : le tableau niveau par espace, en contexte.
 - [Suivre l'évolution de l'application](#/publish/sync) : `upToDatePages`, marqué par `doc-kit sync --mark`.
 - [Reprendre une application vibe-codée](#/spaces/takeover) : `facts` et `claims`, mesurés.

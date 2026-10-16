@@ -8,7 +8,7 @@ explains more.
 | [The site](#/faq/questions~the-site) | What readers need, weight, hosting, printing |
 | [The application](#/faq/questions~the-application) | Which applications, sign-in, public sites, versions |
 | [Writing](#/faq/questions~writing) | Languages, HTML, diagrams, look and feel |
-| [Spaces, takeover and agents](#/faq/questions~spaces-takeover-and-agents) | Business vs takeover, LLM use, token cost, keeping up to date |
+| [Spaces, takeover and agents](#/faq/questions~spaces-takeover-and-agents) | Four audiences, one export each, LLM use, token cost, keeping up to date |
 | [The kit](#/faq/questions~the-kit) | Network, data, licence, name |
 
 ## The site
@@ -83,9 +83,11 @@ find their way from one documentation to another.
 
 ### Can I hand out only the business pages, or only the takeover dossier?
 
-Yes: declare `spaces` in `content/toc.json`, then `doc-kit build` — it writes the full site plus one export per
-space, each with every other space's content physically removed, not merely hidden
-([Two spaces, one source](#/spaces/overview)).
+Yes: declare `spaces` in `content/toc.json` (the skeleton of `doc-kit init` already declares the four), then
+`doc-kit build` — it writes the full site plus one export per space, each with every other space's content
+physically removed, not merely hidden: the business pages in `…-product.html`, the takeover dossier in
+`…-develop.html`, its operating pages (technical architecture document, runbook) in `…-admin.html`
+([Four spaces, one source](#/spaces/overview)).
 
 ### Does the kit use an LLM to find risks or write the findings?
 

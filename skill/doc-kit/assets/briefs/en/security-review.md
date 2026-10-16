@@ -3,7 +3,7 @@ agent: doc-kit-reviewer
 ---
 # Brief — security review
 
-You write the `security-review` page of the TAKEOVER space, in the project's language: authentication, access
+You write the `security-review` page of the DEVELOP space, in the project's language: authentication, access
 control, input handling, secrets and configuration, each point tied to an OWASP Top 10 category, verified,
 deduced or unknown — never asserted on trust. The static facts and the probe of a running instance were produced
 by the orchestrator before this brief; you read them, you do not re-run them.

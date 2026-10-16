@@ -126,7 +126,7 @@ pages de reprise (`access-ownership`, `api-surface`, `runbook`, `data-model`, `d
 
 Le même code, lancé sur le même commit de l'application, écrit le même fichier (son horodatage `generated` mis à
 part) : `doc-kit facts` peut être committé sans risque avec les pages qu'il alimente. Voir [Exemple · Surface d'API](#/examples/api-surface)
-et les autres exemples de l'espace reprise pour `::faits` en situation.
+et les autres exemples de la reprise pour `::faits` en situation.
 
 ## doc-kit sync
 

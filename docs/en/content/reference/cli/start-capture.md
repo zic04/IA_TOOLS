@@ -44,8 +44,8 @@ Creates the documentation project of the application in `app-dir` (default: the 
   files and the application folder. To rename the product afterwards: `product.name` in `doc.config.mjs`, then the
   title, tagline and section titles of `content/toc.json`.
 - **Writes** the skeleton of `templates/project/common` and `templates/project/<language>`: configuration,
-  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, a table of contents with sample pages in four
-  sections (Use, Configure, Administer, Take over), a glossary, an example capture plan, a logo. 22 files. The
+  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, a table of contents with the four spaces and
+  sample pages in six sections (Use; Features; Configure, Administer, Operate; Take over), a glossary, an example capture plan, a logo. 22 files. The
   comments of `doc.config.mjs` are in the language of the project; the example routes are fictional (`/example/…`).
 - **Without screenshots** (`--capture none`): no example plan (21 files), sample pages that describe each screen with a
   table `| Element | What it shows |`, a home page without the "interactive screens" box, and next steps without
@@ -172,7 +172,7 @@ entry in the table of contents count. Exit code 2 when `coverage` is empty.
 
 | Option | Effect |
 |---|---|
-| `--features` | Groups the items of every adapter into candidate business features ([Business space: features, rules and roles](#/write/markdown~business-space)), by the first static segment of their id: a suggested id (`F-01`…), the routes, the API routes and the i18n keys of the group, and the `features.json` entry that already covers it, if any |
+| `--features` | Groups the items of every adapter into candidate business features ([Features, rules and roles](#/write/markdown~features-rules-and-roles)), by the first static segment of their id: a suggested id (`F-01`…), the routes, the API routes and the i18n keys of the group, and the `features.json` entry that already covers it, if any |
 | `--write` | Writes `features.json` from the candidates; refused when it already exists (exit code 1) |
 | `--force` | With `--write`: keeps the ids already in `features.json`, appends only the candidates it does not already cover |
 

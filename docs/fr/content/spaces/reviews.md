@@ -1,6 +1,6 @@
 ## En bref
 
-Deux revues, à la demande, écrites de la même façon que le reste de l'espace de reprise : des faits déterministes
+Deux revues, à la demande, écrites de la même façon que le reste du dossier de reprise, dans l'espace Développer : des faits déterministes
 d'abord, aucune supposition, puis un agent rédige la page à partir d'eux.
 
 1. **`security-review`** : authentification, contrôle d'accès, traitement des entrées, secrets et configuration,

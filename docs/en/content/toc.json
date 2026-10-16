@@ -49,16 +49,16 @@
     },
     {
       "id": "spaces",
-      "title": "Business and takeover spaces",
+      "title": "Spaces, one per audience",
       "shortTitle": "Spaces",
       "icon": "map",
-      "subtitle": "One source, documented twice: a business sheet for each feature, a technical dossier for whoever takes the application over.",
-      "highlights": ["One source, two audiences, two exports", "Feature sheets, business rules and roles", "Facts, verified claims and the risk register"],
+      "subtitle": "One source, four audiences: how to use the application, what the product does, how to administer it, how it is built.",
+      "highlights": ["One source, four spaces, one export each", "Feature sheets, business rules and roles", "Facts, verified claims and the risk register"],
       "groups": [
         {
           "title": "Guides",
           "pages": [
-            { "id": "spaces/overview", "title": "Two spaces, one source", "menuTitle": "Two spaces, one source", "summary": "Declaring business and takeover spaces, the selector, the export per space, and why only an export is fit to hand out.", "template": "technical" },
+            { "id": "spaces/overview", "title": "Four spaces, one source", "menuTitle": "Four spaces, one source", "summary": "Declaring the Use, Product, Administer and Develop spaces, their kinds, the selector, the export per space, and why only an export is fit to hand out.", "template": "technical" },
             { "id": "spaces/business", "title": "Documenting each feature", "menuTitle": "Documenting a feature", "summary": "Feature sheets, business rules with their Given/When/Then example, the roles matrix, and the generated tables.", "template": "technical" },
             { "id": "spaces/takeover", "title": "Taking over a vibe-coded application", "menuTitle": "Taking over an application", "summary": "The usual risks, doc-kit facts, claim badges, the risk register, and where to start.", "template": "technical" },
             { "id": "spaces/reviews", "title": "Security and maintainability reviews", "menuTitle": "Security and maintainability", "summary": "The auth/guards access matrix, the security and quality facts, doc-kit probe, and why it never touches production.", "template": "technical" },
@@ -167,7 +167,7 @@
       "shortTitle": "Method",
       "icon": "recipe",
       "subtitle": "The quality standard behind the kit: what a site must contain, how to write it, when it is ready.",
-      "highlights": ["Four readers, four sections", "Nothing made up: file:line proofs", "A handover checklist"],
+      "highlights": ["Four readers, four spaces", "Nothing made up: file:line proofs", "A handover checklist"],
       "groups": [
         {
           "title": "The standard",
@@ -248,7 +248,7 @@
           ]
         },
         {
-          "title": "Business space",
+          "title": "Business types",
           "pages": [
             { "id": "examples/feature", "title": "Example · Feature sheet: order approval", "menuTitle": "feature", "summary": "A feature sheet with its access box, business rules and scenario: order approval at Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
             { "id": "examples/business-rules", "title": "Example · Business rules", "menuTitle": "business-rules", "summary": "Rules shared across features, each a :::rule with its Given/When/Then example, and the generated ::rules{} table.", "template": "business-rules" },
@@ -260,7 +260,7 @@
         {
           "title": "Take over",
           "pages": [
-            { "id": "examples/technical", "title": "Example · Technical page: security", "menuTitle": "technical", "summary": "A technical topic of the Take over section, split into sub-pages.", "template": "technical" },
+            { "id": "examples/technical", "title": "Example · Technical page: security", "menuTitle": "technical", "summary": "A technical topic of the Develop space, split into sub-pages.", "template": "technical" },
             { "id": "examples/technical-sub", "title": "Example · Technical sub-page: sign-in", "menuTitle": "technical-sub", "level": 2, "summary": "The detail of one technical mechanism, in execution order.", "template": "technical-sub" },
             { "id": "examples/journey", "title": "Example · End-to-end journey: an order", "menuTitle": "journey", "summary": "What really happens to an order, from its creation to its archiving.", "template": "journey" },
             { "id": "examples/journey-step", "title": "Example · Journey step: approval", "menuTitle": "journey-step", "level": 2, "summary": "One step of the journey, at code level: what runs, what is written, what breaks.", "template": "journey-step", "routes": ["/orders/[id]"] },
@@ -274,7 +274,7 @@
           ]
         },
         {
-          "title": "Takeover space",
+          "title": "Takeover types",
           "pages": [
             { "id": "examples/access-ownership", "title": "Example · Access and ownership", "menuTitle": "access-ownership", "summary": "Who owns what, where the secrets live, the AI tool accounts, and the handover checklist.", "template": "access-ownership" },
             { "id": "examples/api-surface", "title": "Example · API surface", "menuTitle": "api-surface", "summary": "Every route, built from ::facts{source=\"api\"}, completed with authentication, role and tenant isolation.", "template": "api-surface" },
@@ -315,8 +315,8 @@
       "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
     },
     {
-      "title": "Business and takeover, one source",
-      "description": "Declare the two spaces, write a feature sheet and a takeover dossier, then keep both in sync.",
+      "title": "Four audiences, one source",
+      "description": "Declare the four spaces, write a feature sheet and a takeover dossier, then keep both in sync.",
       "steps": ["spaces/overview", "spaces/business", "examples/feature", "spaces/takeover", "examples/access-ownership", "publish/sync"]
     }
   ],

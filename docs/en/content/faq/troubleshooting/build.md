@@ -76,14 +76,14 @@
 
 ## Spaces, facts and sync
 
-### "section “use” has no space" or "unknown space “takeove”"
+### "section “use” has no space" or "unknown space “develp”"
 
 - **Likely causes**
   1. `spaces` was just declared, and a section (or a page, or a journey) was not given a `space` yet.
   2. A typo in a `space` value.
 - **Check**: `spaces` in `content/toc.json` lists the declared ids; the error names the section or the exact id tried.
-- **Fix**: add `"space": "business"` (or the right id) to the section; fix the typo.
-- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+- **Fix**: add `"space": "use"` (or the right id) to the section; fix the typo.
+- **Understand**: [Four spaces, one source](#/spaces/overview~declaring-the-spaces).
 
 ### "\"space\" is used but the table of contents declares no \"spaces\""
 
@@ -91,7 +91,22 @@
   1. A `space` field was copied from another project before `spaces` itself was declared.
 - **Check**: the top of `content/toc.json`.
 - **Fix**: declare `spaces` first, or remove the `space` field.
-- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+- **Understand**: [Four spaces, one source](#/spaces/overview~declaring-the-spaces).
+
+### "space “ops” has no known kind", "space “business” is a space of kit 0.3" or "space “ops” has no title"
+
+- **Likely causes**
+  1. A space of the project's own (any id but `use`, `product`, `admin` and `develop`) has no `kind`, or a kind
+     that does not exist.
+  2. A standard space was given another kind (`{ "id": "use", "kind": "admin" }`).
+  3. The project was written for kit 0.3 and still declares `business` or `takeover`, which are no longer standard
+     spaces ("is a space of kit 0.3", `space.retired`).
+  4. A space of the project's own has no `title`: only the four standard spaces have default texts.
+- **Check**: the `spaces` list at the top of `content/toc.json`; the error names the space.
+- **Fix**: give a space of your own its `kind` and its `title` (`{ "id": "ops", "kind": "admin", "title":
+  "Operations" }`); remove the `kind` of a standard space; for a project of kit 0.3, run `doc-kit upgrade --apply`,
+  which moves `business` and `takeover` to the four spaces.
+- **Understand**: [Four spaces, one source](#/spaces/overview~a-space-of-your-own-kind).
 
 ### "no application to read" from `doc-kit facts` or `doc-kit sync`
 

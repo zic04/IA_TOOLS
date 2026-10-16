@@ -1,6 +1,6 @@
 ## En bref
 
-L'espace métier décrit **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la soutiennent :
+L'espace Produit décrit **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la soutiennent :
 aucun code, aucun `file:line`. Trois ingrédients, chacun avec son type de page : une **fiche de fonctionnalité** par
 fonctionnalité, des **règles métier** énoncées une fois et citées partout où elles s'appliquent, et une **matrice
 des rôles** de qui peut faire quoi.
@@ -81,12 +81,15 @@ leur premier segment — en fonctionnalités candidates, chacune avec un identif
 déjà, le cas échéant. `--write` écrit `features.json` (refusé s'il existe, sauf `--force`, qui n'ajoute que les
 nouvelles candidates) ; l'adaptateur de couverture `features` mesure ensuite combien de ses entrées une fiche cite.
 
-## Garder l'espace métier libre de code
+## Garder les espaces Produit et Utiliser libres de code
 
-Une page métier qui contient une preuve `file:line` reçoit l'avertissement « déplacez le détail technique vers son
-pendant » : comment le seuil de validation est appliqué appartient à l'espace reprise, derrière le `counterpart`
-de la fiche. Le champ `technical` d'un terme du glossaire (où il vit dans le code) suit la même règle : il
-n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace courant est `takeover` ou « tout ».
+Les espaces Produit et Utiliser se lisent sans le code. Une page métier (`feature`, `business-rules`, `roles-matrix`,
+`process`, `release-notes`) dont l'espace est l'un d'eux — ou un espace propre au projet de l'un de leurs types — et
+qui contient une preuve `file:line` reçoit l'avertissement `business.technical`, « déplacez le détail technique vers
+son pendant » : comment le seuil de validation est appliqué appartient à l'espace Développer, derrière le
+`counterpart` de la fiche. Le champ `technical` d'un terme du glossaire (où il vit dans le code) suit la même
+règle : il n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace courant est `admin`,
+`develop` ou « tout » ; seuls les exports d'Administrer et de Développer le gardent.
 
 ## Pièges et écarts constatés
 
@@ -100,8 +103,8 @@ n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace co
 
 ## Pour aller plus loin
 
-- [Deux espaces, une seule source](#/spaces/overview) : déclarer `business`, le sélecteur, l'export.
-- [Reprendre une application vibe-codée](#/spaces/takeover) : le pendant de cet espace.
-- [Le Markdown étendu](#/write/markdown~espace-metier) : la syntaxe complète de chaque directive.
+- [Quatre espaces, une seule source](#/spaces/overview) : déclarer `product`, le sélecteur, l'export.
+- [Reprendre une application vibe-codée](#/spaces/takeover) : l'espace Développer, le pendant de celui-ci.
+- [Le Markdown étendu](#/write/markdown~fonctionnalites-regles-et-roles) : la syntaxe complète de chaque directive.
 - [Exemple · Fiche de fonctionnalité](#/examples/feature), [Exemple · Processus](#/examples/process), [Exemple ·
   Notes de version](#/examples/release-notes).

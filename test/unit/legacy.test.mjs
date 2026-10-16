@@ -229,11 +229,11 @@ describe("legacy project: build and migrate", () => {
       const legacy = await buildDemo({ root: dir });
       assert.deepEqual(legacy.errors, []);
       assert.equal(legacy.html, current.html);
-      // Plus the two spaces' own warning (ARCHITECTURE.md §6.1a, business.md/takeover.md link each other):
+      // Plus the four spaces' own warning (ARCHITECTURE.md §6.1a, their pages link each other):
       // identical on both sides, so still only one difference between the legacy copy and the current project.
       assert.deepEqual(
         legacy.warnings.map((w) => w.key),
-        ["legacy.read", "space.excludedLinks", "space.excludedLinks"],
+        ["legacy.read", ...Array(4).fill("space.excludedLinks")],
       );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -258,11 +258,11 @@ describe("legacy project: build and migrate", () => {
       );
       assert.ok(!fs.existsSync(path.join(dir, "content/sommaire.json")));
       const after = await buildDemo({ root: dir });
-      // The two spaces' own warning (ARCHITECTURE.md §6.1a), present on every build of this demo; migrating
+      // The four spaces' own warning (ARCHITECTURE.md §6.1a), present on every build of this demo; migrating
       // the legacy files introduces none of its own.
       assert.deepEqual(
         after.warnings.map((w) => w.key),
-        ["space.excludedLinks", "space.excludedLinks"],
+        Array(4).fill("space.excludedLinks"),
       );
       assert.equal(after.html, (await buildDemo()).html);
       assert.deepEqual(migrateProject(dir, paths).converted, []);

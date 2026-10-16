@@ -16,8 +16,8 @@ change neither ids nor titles. Your pages, your diagram and other paths are in V
    orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
    — the reading you need for the application, besides what is listed below.
 2. The writing guide, and the `troubleshooting` and `troubleshooting-area` templates (path in Variables).
-3. The pages that explain the mechanisms: the Take over section (security, operations, integrations, AI…),
-   administration pages, end-to-end journeys if they exist (further reading, if any, is listed in Variables).
+3. The pages that explain the mechanisms: the Develop space and the Operate part of Administer (security,
+   operations, integrations, AI…), administration pages, end-to-end journeys if they exist (further reading, if any, is listed in Variables).
    Cite them, do not copy them, and re-check in the code what you state.
 4. The findings page and its sub-pages (path in Variables): a symptom that comes from an existing finding
    cites it by number, with a link.

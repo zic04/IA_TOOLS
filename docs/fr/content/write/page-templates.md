@@ -1,8 +1,8 @@
 ## En bref
 
 Un **gabarit de page** fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y
-a **31 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 pour l'espace métier, 13 pour
-l'espace reprise. Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
+a **31 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 types métier (écrits pour l'espace
+Produit), 13 types de reprise (écrits pour l'espace Développer, quelques-uns pour l'espace Administrer). Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
 ses **sections obligatoires** sont présentes, et `doc-kit audit` mesure à quel point elle est complète.
 
 1. **La source de vérité** est `standard/templates.json` dans le kit, plus ses deux fragments,
@@ -36,7 +36,7 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `variables` | Les variables d'environnement | 2 sur 4 | 2 200 | [variables](#/examples/variables) |
 | `resources` | Les ressources du déploiement | 7 sur 9 | 2 200 | [resources](#/examples/resources) |
 
-### Types de l'espace métier
+### Types métier (espace Produit)
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `process` | La même fonctionnalité, de bout en bout | 4 sur 8 | 2 200 | [process](#/examples/process) |
 | `release-notes` | Un historique de version pour un lecteur métier | 2 sur 3 | 3 000 | [release-notes](#/examples/release-notes) |
 
-### Types de l'espace reprise
+### Types de la reprise (espaces Développer et Administrer)
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
@@ -63,6 +63,10 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `security-review` | La matrice d'accès, les résultats de la sonde, les constats OWASP | 7 sur 10 | 3 000 | [security-review](#/examples/security-review) |
 | `maintainability-review` | Notes, points chauds, recommandations par effort | 5 sur 8 | 2 200 | [maintainability-review](#/examples/maintainability-review) |
 | `documentation-cost` | Temps, agents, modèles et jetons consacrés à la documentation | 3 sur 5 | 1 200 | [documentation-cost](#/examples/documentation-cost) |
+
+`access-ownership` et `runbook` sont lus par les exploitants : ils se rangent dans la partie Exploiter de l'espace
+Administrer, avec `architecture`, `variables` et `resources` ; les autres types de la reprise, dans l'espace
+Développer.
 
 Les sections elles-mêmes, type par type, sont listées dans `standard/templates.fr.md`. Les pages de ce site sont
 typées elles aussi : les pages de référence sont `technical`, les pages pratiques `recipe`. Les types métier et

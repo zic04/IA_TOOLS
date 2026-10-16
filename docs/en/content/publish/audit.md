@@ -16,7 +16,7 @@ With spaces declared, it also reports a level **per space**, and two measures th
 
 ## The summary
 
-The summary of a new project's skeleton (its two spaces already declared, business and takeover): its 14 pages are
+The summary of a new project's skeleton (its four spaces already declared, use, product, admin and develop): its 14 pages are
 drafts, written by `init` with their template guidance, so none of them is written yet.
 
 ```text
@@ -26,7 +26,7 @@ drafts, written by `init` with their template guidance, so none of them is writt
   – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · – upToDatePages n/a · ✖ glossary 2 · ✖ tours 1 · ✔ blocking 0 · – wideTables not measured
 
 Next: level 2 · User — 1 criterion to meet
-  1. Write the 4 pages not written yet outside Take over (0 without a file, 4 still in template guidance) (use/getting-started, features/example-feature, configure/sample-editor +1)
+  1. Write the 7 pages not written yet outside Take over (0 without a file, 7 still in template guidance) (use/getting-started, features/example-feature, configure/sample-editor +4)
   + 5 actions for the next levels: see the report
 
 → report: .doc-kit/audit.md · data: .doc-kit/audit.json
@@ -86,31 +86,52 @@ page on maintaining the docs (id ending with `/maintaining-docs`).
 
 ## Level by space
 
-With `spaces` declared ([Two spaces, one source](#/spaces/overview)), the report also shows one row per space:
+With `spaces` declared ([Four spaces, one source](#/spaces/overview)), the report also shows one row per space —
+here, for the same skeleton:
 
 ```text
 ## Level by space
 
 | Space | Pages | Level | Missing for the next level |
 |---|---|---|---|
-| For the business (`business`) | 4 | 1 Skeleton | `written2` |
-| For the takeover team (`takeover`) | 10 | 2 User | `written3`, `guidance3`, `glossary3`, `tours3` |
+| Using the application (`use`) | 1 | 1 Skeleton | `written2` |
+| The product (`product`) | 1 | 1 Skeleton | `written2` |
+| Administering the application (`admin`) | 5 | 1 Skeleton | `written2` |
+| Developing the application (`develop`) | 7 | 2 User | `written3`, `guidance3`, `glossary3`, `tours3` |
 ```
 
 - `written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs` and `tooLong` are measured on that
   space's pages only; the project-wide indicators (configuration, build, home page, glossary, journeys, coverage,
   blocking, wide tables, screenshot and page versions) are the same ones shown globally.
-- A criterion that does not concern a space counts as met, shown `n/a`: `written2` (pages outside Take over)
-  inside the Takeover space; `takeover4` and `proofs4` (the 7 required Take over pages, proofs on them) outside
-  it.
+- The space's **kind** decides which pages are the takeover pages and where the required ones are looked for.
+  The takeover pages are those of the Develop space (`file:line` proofs expected): `proofs` and `claims` count
+  them, `written2` leaves them out. For the project, each of the 7 required takeover pages is looked for in
+  the pages of Administer and Develop; it belongs to the space whose kind holds it — the technical architecture
+  document and Operate to Administer, the five others to Develop —, whose own level counts it among its pages,
+  and a missing one is suggested in the usual part of that space (Operate, Understand, Risks, Maintain), else in
+  its section that already holds a page of that type, else in its first section. With no space holding takeover pages (only `use`
+  and `product` declared), the action `takeover.noSection` asks for a section in a space of the `develop` or
+  `admin` kind.
+- `takeover4` of a space counts only the required pages its kind holds, found among its own pages: 2 for
+  Administer, 5 for Develop; the project's own `takeover4` still counts all 7.
+- A criterion that does not concern a space counts as met, shown `n/a`, as its kind says:
+
+| Kind | `written2` | `proofs4` | `takeover4` |
+|---|---|---|---|
+| `use`, `product` | measured | `n/a` | `n/a` |
+| `admin` | measured | `n/a` | measured (its 2 pages) |
+| `develop` | `n/a` | measured | measured (its 5 pages) |
+
+  This is why the skeleton's Develop space is already level 2 while the others are level 1: its pages are not
+  expected to be written for level 2.
 - **The global level stays global**: every page, whatever its space. A project can be level 2 overall while its
-  business space alone already reaches level 3 — useful to know which audience is actually served first.
+  Use space alone already reaches level 3 — useful to know which audience is actually served first.
   `audit.json` carries `spaces: [{ id, title, pages, level, indicators, criteria }]`; without spaces declared,
   nothing changes in the report.
 
 ## Facts and claims (informative)
 
-With a takeover space, two more measures are shown, **never** part of a level's criteria — no site predates them
+Two more measures, for the takeover dossier, are shown, **never** part of a level's criteria — no site predates them
 for a threshold to be observed on:
 
 ```text
@@ -123,8 +144,8 @@ for a threshold to be observed on:
 - `facts`: how many `facts/<source>.json` files exist ([Taking over a vibe-coded application](#/spaces/takeover)),
   and how many are **stale** — their recorded commit differs from the application's current `HEAD`. Fixed by
   `doc-kit facts --source <name>`.
-- `claims`: how many `[[verified]]`, `[[deduced]]` and `[[unknown]]` badges appear in the written takeover pages,
-  and the ratio verified ÷ (verified + deduced). A low ratio is fixed by reading the code, never by changing a
+- `claims`: how many `[[verified]]`, `[[deduced]]` and `[[unknown]]` badges appear in the written takeover pages
+  (with spaces, the pages of the Develop space), and the ratio verified ÷ (verified + deduced). A low ratio is fixed by reading the code, never by changing a
   badge.
 
 `audit.md` shows this section only when there is something to report; `audit.json` always carries `facts` and
@@ -169,6 +190,6 @@ node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
 - `standard/maturity.md` in the kit: the formulas, the thresholds and a worked example.
 - [The checks](#/publish/checks): the blocking checks behind `blocking`.
 - [Page templates](#/write/page-templates): `typed`, `conformant` and `completeness`.
-- [Two spaces, one source](#/spaces/overview): the level-by-space table, in context.
+- [Four spaces, one source](#/spaces/overview): the level-by-space table, in context.
 - [Keeping up with the application](#/publish/sync): `upToDatePages`, marked by `doc-kit sync --mark`.
 - [Taking over a vibe-coded application](#/spaces/takeover): `facts` and `claims`, measured.

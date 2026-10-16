@@ -21,7 +21,7 @@ configuration le nomme et donne ses options à côté.
 | `i18n-registry` | Les ids d'un registre dans un fichier source, couverts par leur libellé dans un fichier i18n | `source`, `messages` (obligatoires), `key` (`"{id}"`), `block`, `pattern`, `flags` (`"m"`), `aliases`, `fallback`, `exclude`, `family` (`"Registry"`) |
 | `glob` | Les fichiers d'un dossier, cités sous une forme que vous choisissez | `pattern` (obligatoire), `base` (`"."`), `match` (`"{name}"`), `family` (`"Files"`), `exclude` |
 | `openapi` | Les opérations d'un document OpenAPI 3 ou Swagger 2, en JSON | `file` (obligatoire), `family` (`"API"`), `prefix` (`""`), `exclude` |
-| `features` | Les candidates fonctionnalités métier de `features.json` ([Espace métier](#/write/markdown~espace-metier)) | `file` (`"features.json"`), `family` (`"Features"`) |
+| `features` | Les candidates fonctionnalités métier de `features.json` ([Fonctionnalités, règles et rôles](#/write/markdown~fonctionnalites-regles-et-roles)) | `file` (`"features.json"`), `family` (`"Features"`) |
 | `fastapi` | Les gestionnaires de route d'une application FastAPI (`APIRouter(prefix)` et `include_router(prefix)` composés) | `app` (`"."`), `family` (`"API"`), `exclude` |
 | `facts` | Un élément par fait d'une source `doc-kit facts` : `env`, `api`, `db`, les `dependencies` directes, ou `agents` | `source` (obligatoire), `family` (selon la source), `dir` (`"facts"`), `exclude` |
 

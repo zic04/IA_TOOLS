@@ -17,8 +17,8 @@ change ni ids ni titres. Tes pages, ton schéma et les autres chemins sont dans 
    extraits, les libellés exacts et les faits pertinents — la lecture dont tu as besoin pour l'application, en
    plus de ce qui suit.
 2. Le guide de rédaction, et les gabarits `troubleshooting` et `troubleshooting-area` (chemin dans Variables).
-3. Les pages qui expliquent les mécanismes : la section Reprendre (sécurité, exploitation, intégrations, IA…),
-   les pages d'administration, les parcours de bout en bout s'ils existent (lecture complémentaire, s'il y en
+3. Les pages qui expliquent les mécanismes : l'espace Développer et la partie Exploiter d'Administrer (sécurité,
+   exploitation, intégrations, IA…), les pages d'administration, les parcours de bout en bout s'ils existent (lecture complémentaire, s'il y en
    a, listée dans Variables). Cite-les, ne les recopie pas, et revérifie dans le code ce que tu affirmes.
 4. La page des points d'attention et ses sous-pages (chemin dans Variables) : un symptôme qui vient d'un
    constat existant le cite par son numéro, avec un lien.

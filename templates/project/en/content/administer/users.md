@@ -72,7 +72,7 @@
 > What happens, why, and how to avoid it.
 
 > [!NOTE] Observed gaps (vX.Y.Z)
-> - Gap between the screen, the documentation and the code (see `path/file.ts`; no line number here — this page is in the Business space, see writing.md §13).
+> - Gap between the screen, the documentation and the code (see `path/file.ts`; no line number here — the Administer space is read by administrators, not developers).
 
 ## In production
 

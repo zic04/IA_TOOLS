@@ -238,7 +238,10 @@ export function renderMarkdown(result, i18n) {
     }
     out.push("");
 
-    out.push(`## ${t("cli.audit.takeoverTitle", { section: result.takeoverSection ?? "—" })}`, "");
+    // With spaces, the required pages are looked for in more than one space: every section they belong to.
+    const sections = [...new Set(result.takeover.map((x) => x.section ?? result.takeoverSection).filter(Boolean))];
+    const section = sections.map((x) => "`" + x + "`").join(", ") || "—";
+    out.push(`## ${t("cli.audit.takeoverTitle", { n: Math.max(sections.length, 1), section })}`, "");
     out.push(`| # | ${t("cli.audit.col.page")} | | ${t("cli.audit.col.found")} |`, "|---|---|---|---|");
     const found = (x) =>
       x.ok && x.page

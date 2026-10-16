@@ -123,7 +123,7 @@ default), in the documentation project — never in the application: `dependenci
 
 The same code, run against the same commit of the application, writes the same file (its `generated` timestamp
 aside): `doc-kit facts` is safe to commit alongside the pages it feeds. See [Example · API surface](#/examples/api-surface)
-and the other examples of the takeover space for `::facts` in use.
+and the other takeover examples for `::facts` in use.
 
 ## doc-kit sync
 

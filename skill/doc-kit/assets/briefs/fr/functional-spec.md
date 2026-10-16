@@ -3,9 +3,9 @@ agent: doc-kit-writer
 ---
 # Brief — spécification fonctionnelle : fonctionnalités, règles, rôles, processus
 
-Tu rédiges une partie de l'espace MÉTIER, dans la langue du projet : ce que fait un lot de fonctionnalités, pour
-qui, et selon quelle règle — pour des lecteurs qui ne lisent pas le code (utilisateurs, key users, product
-owners, support). D'autres agents rédigent les autres lots de la même vague EN MÊME TEMPS (voir Variables pour
+Tu rédiges une partie de l'espace PRODUIT, dans la langue du projet : ce que fait un lot de fonctionnalités, pour
+qui, et selon quelle règle — pour des lecteurs qui ne lisent pas le code (responsables produit, analystes métier,
+référents). D'autres agents rédigent les autres lots de la même vague EN MÊME TEMPS (voir Variables pour
 savoir qui). Lance toutes les commandes depuis le dossier de la documentation.
 
 Tes pages sont DÉJÀ déclarées dans le sommaire (ids, titres, l'identifiant « feature » d'une fiche, `level: 2`
@@ -27,7 +27,7 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
    s'il y en a) : cite-les (`[[fonctionnalite F-0x]]`), ne les recopie pas.
 5. La page des points d'attention (chemin dans Variables), pour ses numéros seulement : la section « Limites »
    d'une fiche ne décrit jamais un défaut comme s'il s'agissait d'une fonctionnalité (c'est le rôle de l'espace
-   de reprise). Si une limite ressemble à un défaut, signale-la comme candidat constat au lieu de l'écrire dans
+   Développer). Si une limite ressemble à un défaut, signale-la comme candidat constat au lieu de l'écrire dans
    la fiche.
 
 ## Ce que porte chaque page
@@ -53,10 +53,10 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
   et relances`, `## Quand ça se passe mal`, `## Fonctionnalités concernées` (facultatif, `::fonctionnalites{}` ou
   `[[fonctionnalite …]]`).
 
-## Rien à citer : l'espace métier ne nomme aucun code
+## Rien à citer : l'espace Produit ne nomme aucun code
 
 Une page métier ne cite **aucun `fichier:ligne`** : le build avertit (`business.technical`) dès qu'un en glisse
-un, car la raison technique appartient à la page `counterpart` de cette fiche dans l'espace de reprise, pas ici.
+un, car la raison technique appartient à la page `counterpart` de cette fiche dans l'espace Développer, pas ici.
 Ce que tu dois tout de même au lecteur :
 
 - le libellé **exact**, écran ou métier, en gras, tel que le disent vraiment les personnes qui utilisent la
@@ -68,7 +68,7 @@ Ce que tu dois tout de même au lecteur :
   celui du projet) définis exactement une fois ; toute autre mention est une citation, jamais une redéfinition ;
 - quand le comportement d'une fonctionnalité pose une question technique (comment une règle est réellement
   appliquée, ce qui se passe en cas d'échec), dis-le dans ton rapport plutôt que d'y répondre ici :
-  l'orchestrateur relie ta fiche et sa page `counterpart` dans l'espace de reprise.
+  l'orchestrateur relie ta fiche et sa page `counterpart` dans l'espace Développer.
 
 ## Règles
 
@@ -95,8 +95,8 @@ Ce que tu dois tout de même au lecteur :
 
 1. Pages écrites (nombre de mots) ; ids de fonctionnalités et de règles définis ; rôles et étapes de processus
    décrits.
-2. Fonctionnalités dont le comportement pose une question technique qui vaut une contrepartie de reprise (id de
-   fonctionnalité, la question).
+2. Fonctionnalités dont le comportement pose une question technique qui vaut une contrepartie dans Développer (id
+   de fonctionnalité, la question).
 3. **Candidats constats** : une « limite » qui est en réalité un défaut (gravité, constat, où tu l'as lu).
 4. Erreurs trouvées dans les pages métier existantes (fichier, phrase, preuve) ; termes de glossaire proposés.
 5. Ce qui n'a pas pu être résolu à partir du fichier des fonctionnalités ou des fichiers de contexte, et pourquoi.

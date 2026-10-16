@@ -3,8 +3,8 @@ agent: doc-kit-writer
 ---
 # Brief — functional specification: features, rules, roles, process
 
-You write part of the BUSINESS space, in the project's language: what a batch of features does, for whom, and by
-which rule — for readers who do not read code (users, key users, product owners, support). Other agents write the
+You write part of the PRODUCT space, in the project's language: what a batch of features does, for whom, and by
+which rule — for readers who do not read code (product owners, business analysts, key users). Other agents write the
 other batches of the same wave AT THE SAME TIME (see Variables for who). Run every command from the documentation
 folder.
 
@@ -24,7 +24,7 @@ sub-pages): change neither ids nor titles. File of a page = the content folder's
 4. Existing business pages on nearby features or the same process (listed in Variables, if any): cite them
    (`[[feature F-0x]]`), do not copy them.
 5. The findings page (path in Variables), for its numbers only: a feature's "Limits" section never describes a
-   defect as if it were a feature (that is the takeover space's job). If a limit looks like a defect, report it
+   defect as if it were a feature (that is the Develop space's job). If a limit looks like a defect, report it
    as a candidate finding instead of writing it into the sheet.
 
 ## What each page holds
@@ -47,10 +47,10 @@ sub-pages): change neither ids nor titles. File of a page = the content folder's
   `## What happens on its own, and what waits for someone`; `## Deadlines and reminders`, `## When it goes
   wrong`, `## Features involved` (optional, `::features{}` or `[[feature …]]`).
 
-## Nothing to cite: the business space names no code
+## Nothing to cite: the Product space names no code
 
 A business page cites **no `file:line`**: the build warns (`business.technical`) the moment one slips in, because
-the technical reason belongs to the page's `counterpart` in the takeover space, not here. What you still owe the
+the technical reason belongs to the page's `counterpart` in the Develop space, not here. What you still owe the
 reader:
 
 - the **exact** on-screen or business wording, in bold, the way the people who use the feature actually say it —
@@ -61,7 +61,7 @@ reader:
   defined exactly once; every other mention is a citation, never a redefinition;
 - when a feature's behaviour raises a technical question (how a rule is actually enforced, what happens on
   failure), say so in your report rather than answering it here: the orchestrator links your sheet and its
-  `counterpart` page in the takeover space.
+  `counterpart` page in the Develop space.
 
 ## Rules
 
@@ -86,7 +86,7 @@ reader:
 ## Final report (300 words at most, in the project's language)
 
 1. Pages written (word counts); feature and rule ids defined; roles and process steps described.
-2. Features whose behaviour raises a technical question worth a takeover counterpart (feature id, the question).
+2. Features whose behaviour raises a technical question worth a counterpart in Develop (feature id, the question).
 3. **Candidate findings**: a "limit" that is really a defect (severity, finding, where you read it).
 4. Errors found in existing business pages (file, sentence, proof); proposed glossary terms.
 5. What could not be resolved from the features file or the context files, and why.

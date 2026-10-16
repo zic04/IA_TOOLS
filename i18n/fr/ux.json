@@ -284,6 +284,9 @@
   },
   "cli.upgrade.dryRun": "Rien n'a été écrit (simulation). Pour appliquer : {command} upgrade --apply",
   "cli.migration.0.1.0": "base du format de projet (aucun changement)",
+  "cli.migration.0.4.0": "les quatre espaces : business et takeover deviennent use, product, admin et develop (content/toc.json et ses traductions)",
+  "cli.migration.legacyToc": "migration {version} : {file} est encore au format du kit 0.1 (clés françaises)",
+  "cli.migration.legacyToc.help": "lancez d'abord {command} migrate (il réécrit les fichiers du kit 0.1), puis de nouveau {command} upgrade ; rien n'a été écrit",
 
   "cli.skill.installed": "skill Claude Code installé dans {folder} ({n} fichiers, kit {kit})",
   "cli.skill.updated": "skill Claude Code mis à jour dans {folder} ({n} fichiers, kit {kit})",

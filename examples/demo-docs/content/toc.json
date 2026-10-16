@@ -1,11 +1,11 @@
 {
   "title": "Acme Orders documentation",
-  "tagline": "The demo documentation of the kit: two spaces (Business and Takeover), feature sheets and business rules, a risk register, a sub-page, two annotated screens, a diagram, a glossary and a reading path.",
-  "spaces": ["business", "takeover"],
+  "tagline": "The demo documentation of the kit: four spaces (Use, Product, Administer, Develop), feature sheets and business rules, a risk register, a sub-page, two annotated screens, a diagram, a glossary and a reading path.",
+  "spaces": ["use", "product", "admin", "develop"],
   "sections": [
     {
       "id": "use",
-      "space": "business",
+      "space": "use",
       "title": "Using Acme Orders",
       "shortTitle": "Use",
       "icon": "screen",
@@ -45,7 +45,7 @@
     },
     {
       "id": "features",
-      "space": "business",
+      "space": "product",
       "title": "Acme Orders features",
       "shortTitle": "Features",
       "icon": "book",
@@ -93,8 +93,28 @@
       ]
     },
     {
+      "id": "operate",
+      "space": "admin",
+      "title": "Operate the application",
+      "shortTitle": "Operate",
+      "groups": [
+        {
+          "title": "Ownership and the API",
+          "pages": [
+            {
+              "id": "secure/access-ownership",
+              "title": "Access and ownership",
+              "menuTitle": "Access and ownership",
+              "summary": "Who owns the repository, the hosting and the session secret.",
+              "template": "access-ownership"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "maintain",
-      "space": "takeover",
+      "space": "develop",
       "title": "Maintaining Acme Orders",
       "shortTitle": "Maintain",
       "icon": "code",
@@ -117,7 +137,7 @@
     },
     {
       "id": "secure",
-      "space": "takeover",
+      "space": "develop",
       "title": "Securing Acme Orders",
       "shortTitle": "Secure",
       "icon": "shield",
@@ -127,13 +147,6 @@
         {
           "title": "Ownership and the API",
           "pages": [
-            {
-              "id": "secure/access-ownership",
-              "title": "Access and ownership",
-              "menuTitle": "Access and ownership",
-              "summary": "Who owns the repository, the hosting and the session secret.",
-              "template": "access-ownership"
-            },
             {
               "id": "secure/api-surface",
               "title": "API surface",
@@ -148,7 +161,7 @@
     },
     {
       "id": "risks",
-      "space": "takeover",
+      "space": "develop",
       "title": "Risks in Acme Orders",
       "shortTitle": "Risks",
       "icon": "warning",
@@ -177,5 +190,12 @@
       "steps": ["use/orders", "use/settings", "maintain/architecture"]
     }
   ],
-  "suggestions": ["use/orders", "features/track-orders", "features/approve-order", "secure/api-surface", "risks/findings", "maintain/architecture"]
+  "suggestions": [
+    "use/orders",
+    "features/track-orders",
+    "features/approve-order",
+    "secure/api-surface",
+    "risks/findings",
+    "maintain/architecture"
+  ]
 }

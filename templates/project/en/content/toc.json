@@ -1,7 +1,7 @@
 {
   "title": "{{name}} documentation",
   "tagline": "The reference guide to {{name}}: every screen, every setting and how they really work, explained element by element.",
-  "spaces": ["business", "takeover"],
+  "spaces": ["use", "product", "admin", "develop"],
   "sections": [
     {
       "id": "use",
@@ -9,12 +9,8 @@
       "shortTitle": "Use",
       "icon": "screen",
       "subtitle": "The user's daily work: every screen, element by element, and what it really does.",
-      "space": "business",
-      "highlights": [
-        "Signing in and finding your way",
-        "Every screen explained item by item",
-        "The pitfalls to know"
-      ],
+      "space": "use",
+      "highlights": ["Signing in and finding your way", "Every screen explained item by item", "The pitfalls to know"],
       "groups": [
         {
           "title": "Getting started",
@@ -37,7 +33,7 @@
       "shortTitle": "Features",
       "icon": "book",
       "subtitle": "What each feature does, for whom, and the rules it enforces — no code.",
-      "space": "business",
+      "space": "product",
       "highlights": [
         "One sheet per feature, with its access rule",
         "The business rules, in one place",
@@ -67,12 +63,8 @@
       "icon": "sliders",
       "featured": true,
       "subtitle": "Every editor and every setting, with the real mechanism it drives.",
-      "space": "business",
-      "highlights": [
-        "The mechanism behind each setting",
-        "The complete settings reference",
-        "End-to-end recipes"
-      ],
+      "space": "admin",
+      "highlights": ["The mechanism behind each setting", "The complete settings reference", "End-to-end recipes"],
       "groups": [
         {
           "title": "Editors",
@@ -94,12 +86,8 @@
       "shortTitle": "Administer",
       "icon": "shield",
       "subtitle": "Access, reference data and system settings.",
-      "space": "business",
-      "highlights": [
-        "Accounts and permissions",
-        "Reference data",
-        "System settings"
-      ],
+      "space": "admin",
+      "highlights": ["Accounts and permissions", "Reference data", "System settings"],
       "groups": [
         {
           "title": "Access",
@@ -116,12 +104,51 @@
       ]
     },
     {
+      "id": "operate",
+      "space": "admin",
+      "title": "Operate the application",
+      "shortTitle": "Operate",
+      "groups": [
+        {
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "take-over/technical-architecture",
+              "title": "Technical architecture document",
+              "menuTitle": "Production setup",
+              "summary": "The production setup: what runs and where, the numbered flows, what remains to be confirmed and who manages what.",
+              "template": "architecture"
+            }
+          ]
+        },
+        {
+          "title": "Takeover dossier",
+          "pages": [
+            {
+              "id": "take-over/access-ownership",
+              "title": "Access and ownership",
+              "menuTitle": "Access and ownership",
+              "summary": "Who owns what, where the secrets live, and the checklist to actually receive them.",
+              "template": "access-ownership"
+            },
+            {
+              "id": "take-over/runbook",
+              "title": "Runbook",
+              "menuTitle": "Runbook",
+              "summary": "Install, build, deploy, roll back, back up: the exact commands, read from the real pipeline.",
+              "template": "runbook"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "take-over",
       "title": "Take the project over",
       "shortTitle": "Take over",
       "icon": "code",
       "subtitle": "What you need to know to run and evolve the application: architecture, production setup, troubleshooting, findings.",
-      "space": "takeover",
+      "space": "develop",
       "highlights": [
         "The architecture and the production setup",
         "Troubleshooting by symptom",
@@ -146,13 +173,6 @@
               "level": 2,
               "template": "technical-sub",
               "counterpart": "features/example-feature"
-            },
-            {
-              "id": "take-over/technical-architecture",
-              "title": "Technical architecture document",
-              "menuTitle": "Production setup",
-              "summary": "The production setup: what runs and where, the numbered flows, what remains to be confirmed and who manages what.",
-              "template": "architecture"
             }
           ]
         },
@@ -193,20 +213,6 @@
         {
           "title": "Takeover dossier",
           "pages": [
-            {
-              "id": "take-over/access-ownership",
-              "title": "Access and ownership",
-              "menuTitle": "Access and ownership",
-              "summary": "Who owns what, where the secrets live, and the checklist to actually receive them.",
-              "template": "access-ownership"
-            },
-            {
-              "id": "take-over/runbook",
-              "title": "Runbook",
-              "menuTitle": "Runbook",
-              "summary": "Install, build, deploy, roll back, back up: the exact commands, read from the real pipeline.",
-              "template": "runbook"
-            },
             {
               "id": "take-over/agent-instructions",
               "title": "Agent instruction files",

@@ -284,6 +284,9 @@
   },
   "cli.upgrade.dryRun": "Nothing written (dry run). To apply: {command} upgrade --apply",
   "cli.migration.0.1.0": "baseline of the project format (no change)",
+  "cli.migration.0.4.0": "the four spaces: business and takeover become use, product, admin and develop (content/toc.json and its translations)",
+  "cli.migration.legacyToc": "migration {version}: {file} is still in the format of kit 0.1 (French keys)",
+  "cli.migration.legacyToc.help": "run {command} migrate first (it rewrites the files of kit 0.1), then {command} upgrade again; nothing was written",
 
   "cli.skill.installed": "Claude Code skill installed in {folder} ({n} files, kit {kit})",
   "cli.skill.updated": "Claude Code skill updated in {folder} ({n} files, kit {kit})",

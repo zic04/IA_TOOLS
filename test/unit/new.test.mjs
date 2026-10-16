@@ -177,9 +177,9 @@ describe("creating a page", () => {
         "features/approve-order:1",
         "features/rules:1",
         "features/roles:1",
+        "secure/access-ownership:1",
         "maintain/architecture:1",
         "maintain/deployment:1",
-        "secure/access-ownership:1",
         "secure/api-surface:1",
         "risks/findings:1",
       ]);

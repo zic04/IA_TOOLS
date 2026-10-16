@@ -45,8 +45,9 @@ the next step.
 No application at hand? The kit ships a fictional one, **Acme Orders**: `node examples/demo-app/serve.mjs` serves it
 on `http://127.0.0.1:4173` and accepts any e-mail and password. The documentation walks you through it in
 [the first five minutes](docs/en/content/start/first-five-minutes.md). Its documentation project,
-`examples/demo-docs`, shows both spaces (a Business space of feature sheets and business rules, a Takeover space
-of ownership, API surface and findings) and the full update cycle: `examples/demo-app-v2` is a second version of
+`examples/demo-docs`, shows the four spaces (Use, with its annotated screens; Product, with feature sheets and
+business rules; Administer, with access and ownership; Develop, with the API surface and the findings) and the
+full update cycle: `examples/demo-app-v2` is a second version of
 the app (a renamed label, a modified screen, a new route) that `doc-kit sync` follows end to end.
 
 ## Requirements

@@ -29,7 +29,7 @@ Toute affirmation non évidente sur le code porte sa preuve, entre accents grave
 | Nom de fonction, quand la ligne bouge souvent | `getScopedCustomers`, `lib/services/customerService.ts:9` |
 
 - La page ou le chapitre dit **à quelle version** correspondent les numéros de ligne : « d'après le code de la version 2.4.0 ». Les numéros de ligne dérivent ; le nom de fonction reste un repère.
-- Les pages de Reprendre citent leurs preuves systématiquement. Les pages d'écran les réservent aux écarts constatés.
+- Les pages de l'espace Développer, et les pages techniques de la partie Exploiter d'Administrer, citent leurs preuves systématiquement. Les pages d'écran les réservent aux écarts constatés. Les pages métier des espaces Utiliser et Produit n'en citent aucune (§13).
 
 ## 3. Ce qui est déduit, ce qui est à confirmer
 
@@ -126,7 +126,7 @@ Chaque constat a une lettre pour sa famille et un numéro. Les lettres dépenden
 - Un numéro **ne change jamais** : il est cité dans les parcours, dans les pages de diagnostic et dans les encadrés d'écarts. Un nouveau constat prend le numéro libre suivant de sa famille (par exemple I34, I35, puis I40 à I43, ajoutés aux constats de sécurité après I16).
 - Chaque constat a sa preuve `fichier:ligne`, son impact et sa recommandation.
 - Les rédacteurs proposent des **candidats** (constat, preuve, gravité proposée). Une seule personne les consolide, les déduplique et les numérote.
-- Citez un constat par son numéro, avec un lien vers sa sous-page : `[C1](#/reprendre/points-attention/critiques)`.
+- Citez un constat par son numéro, avec un lien vers sa sous-page : `[C1](#/risques/points-attention/critiques)`.
 
 ## 10. Le glossaire
 
@@ -162,10 +162,13 @@ Chaque constat a une lettre pour sa famille et un numéro. Les lettres dépenden
 - Il signale ce qu'il trouve faux ailleurs (fichier, phrase, preuve) au lieu de le corriger.
 - Son rapport donne : les pages écrites, les captures et les zones, les écarts et les constats candidats avec leur preuve, les termes de glossaire proposés, et ce qui n'a pas pu être fait.
 
-## 13. Écrire dans l'espace Métier
+## 13. Écrire dans les espaces Utiliser et Produit
 
-L'espace Métier (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` ; ARCHITECTURE.md
-§6.8) est lu par des personnes qui n'ouvrent jamais le code. Quatre règles le gardent ainsi.
+L'espace Utiliser (les écrans) et l'espace Produit (`feature`, `business-rules`, `roles-matrix`, `process`,
+`release-notes` ; ARCHITECTURE.md §6.8) sont lus par des personnes qui n'ouvrent jamais le code : leurs types
+se lisent sans le code (`standard/spaces.json`), comme un espace propre au projet déclaré avec
+`"kind": "use"` ou `"product"`. Quatre règles les gardent ainsi ; les trois premières portent sur les fiches
+de fonctionnalité et les règles métier de l'espace Produit.
 
 **Les identifiants.** `F-01`, `F-02`… numérotent les fiches de fonctionnalité ; `BR-01`, `BR-02`… (en anglais)
 ou `RG-01`, `RG-02`… (en français) numérotent les règles métier. Les deux suivent la même forme,
@@ -199,17 +202,19 @@ Gardez l'exemple à un seul scénario avec des chiffres réels et précis — ja
 « une commande de 12 000 € » tient en une ligne de plus et lève tout doute. Une règle qui a besoin de deux
 exemples pour être comprise est en général deux règles.
 
-**Pas de code dans l'espace Métier.** Une page dont l'espace effectif est `business` ne cite aucune preuve
-`fichier:ligne` : le build avertit (`business.technical`) quand l'une s'y glisse. Énoncez la règle en termes
-métier et renvoyez vers son `counterpart` pour le détail d'implémentation (« comment le seuil est réellement
-appliqué : voir `reprendre/surface-api` »). C'est le même partage que « une page, un lecteur » dans
+**Pas de code dans les espaces Utiliser et Produit.** Une page métier (`feature`, `business-rules`,
+`roles-matrix`, `process`, `release-notes`) dont l'espace effectif se lit sans le code ne cite aucune preuve
+`fichier:ligne` : le build avertit (`business.technical`) quand l'une s'y glisse. Une page `screen` garde les
+preuves de son « Comment ça marche », quel que soit son espace. Énoncez la règle en termes métier et renvoyez
+vers son `counterpart` dans l'espace Développer pour le détail d'implémentation (« comment le seuil est
+réellement appliqué : voir `securiser/surface-api` »). C'est le même partage que « une page, un lecteur » dans
 [structure.fr.md](structure.fr.md#une-page-un-lecteur-diátaxis) : un lecteur métier ne devrait jamais avoir à
 sauter une preuve `fichier:ligne` pour trouver la phrase qui répond à sa question.
 
 ## 14. Statut des affirmations : vérifiée, déduite, inconnue
 
-La section 3 ci-dessus donne la règle pour la prose libre (« (déduit) », « à confirmer »). L'espace Reprise a
-aussi une puce compacte pour les trois mêmes statuts, posée sur une valeur plutôt que sur tout un paragraphe —
+La section 3 ci-dessus donne la règle pour la prose libre (« (déduit) », « à confirmer »). L'espace
+Développer, et la partie Exploiter de l'espace Administrer, ont aussi une puce compacte pour les trois mêmes statuts, posée sur une valeur plutôt que sur tout un paragraphe —
 typiquement dans un tableau construit depuis `::faits{…}` puis complété à la main (ARCHITECTURE.md §6.9) :
 
 | Puce (en · fr) | Signifie | Exemple |

@@ -47,8 +47,9 @@ propose l'étape suivante.
 Pas d'application sous la main ? Le kit en fournit une, fictive : **Acme Orders**. `node examples/demo-app/serve.mjs`
 la sert sur `http://127.0.0.1:4173` et accepte n'importe quels e-mail et mot de passe. La documentation vous guide
 dans [les cinq premières minutes](docs/fr/content/start/first-five-minutes.md). Son projet de documentation,
-`examples/demo-docs`, montre les deux espaces (un espace Métier de fiches fonctionnalité et de règles métier, un
-espace Reprise avec propriété, surface d'API et points d'attention) et le cycle de mise à jour complet :
+`examples/demo-docs`, montre les quatre espaces (Utiliser, avec ses écrans annotés ; Produit, avec les fiches
+fonctionnalité et les règles métier ; Administrer, avec les accès et la propriété ; Développer, avec la surface
+d'API et les points d'attention) et le cycle de mise à jour complet :
 `examples/demo-app-v2` est une seconde version de l'application (libellé renommé, écran modifié, route ajoutée)
 que `doc-kit sync` suit de bout en bout.
 

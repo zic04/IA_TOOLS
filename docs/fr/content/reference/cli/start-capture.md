@@ -47,8 +47,8 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
   couverture, les fichiers `.env` masqués et le dossier de l'application. Pour renommer le produit ensuite :
   `product.name` dans `doc.config.mjs`, puis le titre, l'accroche et les titres de section de `content/toc.json`.
 - **Écrit** le squelette de `templates/project/common` et de `templates/project/<langue>` : configuration,
-  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, un sommaire avec des pages d'exemple réparties en
-  quatre sections (Utiliser, Configurer, Administrer, Reprendre), un glossaire, un exemple de plan de capture, un
+  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, un sommaire avec les quatre espaces et des pages
+  d'exemple réparties en six sections (Utiliser ; Fonctionnalités ; Configurer, Administrer, Exploiter ; Reprendre), un glossaire, un exemple de plan de capture, un
   logo. 22 fichiers. Les commentaires de `doc.config.mjs` sont dans la langue du projet ; les routes d'exemple sont
   fictives (`/exemple/…`).
 - **Sans captures** (`--capture none`) : pas de plan d'exemple (21 fichiers), des pages d'exemple qui décrivent chaque
@@ -178,7 +178,7 @@ son texte ni son entrée dans le sommaire ne comptent. Code de sortie 2 quand `c
 
 | Option | Effet |
 |---|---|
-| `--features` | Regroupe les éléments de chaque adaptateur en candidates fonctionnalités métier ([Espace métier : fonctionnalités, règles et rôles](#/write/markdown~espace-metier)), par le premier segment statique de leur identifiant : un identifiant suggéré (`F-01`…), les routes, les routes API et les clés i18n du groupe, et l'entrée de `features.json` qui la couvre déjà, s'il y en a une |
+| `--features` | Regroupe les éléments de chaque adaptateur en candidates fonctionnalités métier ([Fonctionnalités, règles et rôles](#/write/markdown~fonctionnalites-regles-et-roles)), par le premier segment statique de leur identifiant : un identifiant suggéré (`F-01`…), les routes, les routes API et les clés i18n du groupe, et l'entrée de `features.json` qui la couvre déjà, s'il y en a une |
 | `--write` | Écrit `features.json` à partir des candidates ; refusé s'il existe déjà (code de sortie 1) |
 | `--force` | Avec `--write` : garde les identifiants déjà dans `features.json`, n'ajoute que les candidates qu'il ne couvre pas déjà |
 

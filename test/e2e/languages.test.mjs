@@ -259,16 +259,20 @@ describe("images per language", () => {
 });
 
 describe("combination with spaces", () => {
-  test("#/fr/@business: the space is pressed, the menu is filtered, titles are in French", async () => {
-    const page = await open("fr/@business", { locale: "en-US" });
+  test("#/fr/@use: the space is pressed, the menu is filtered, titles are in French", async () => {
+    const page = await open("fr/@use", { locale: "en-US" });
     await page.waitForTimeout(80);
-    assert.deepEqual(await pressed(page, "#espaces .espace-choix"), ["Tout:false", "Métier:true", "Reprise:false"]);
+    assert.deepEqual(await pressed(page, "#espaces .espace-choix"), [
+      "Tout:false",
+      "Utiliser:true",
+      "Développer:false",
+    ]);
     assert.match(await text(page, ".heros h1"), /Acme Orders/);
     await page.context().close();
   });
 
   test("exports keep both languages (no build per language) and no space selector, but keep the language selector", async () => {
-    const page = await open("", { file: "business", locale: "en-US" });
+    const page = await open("", { file: "use", locale: "en-US" });
     await page.waitForTimeout(80);
     assert.equal(await page.locator("#espaces .espace-choix").count(), 0, "no space selector in an export");
     assert.equal(await page.locator(".espace-unique").count(), 1, "the space shown as a label");

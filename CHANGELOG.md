@@ -80,6 +80,26 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Four spaces, one per audience** (ARCHITECTURE.md §6.1a, `standard/structure.md`), instead of `business` and
+  `takeover`: `use` (the users, screen by screen), `product` (the product owners: features, rules, process),
+  `admin` (the administrators and operators: settings, access, operations, the technical architecture document)
+  and `develop` (the developers, the takeover team, security). What the kit does for a space is its **kind**,
+  data in `standard/spaces.json`, never its id: no code in `use` and `product` (`business.technical`), the
+  glossary's technical correspondence in `admin` and `develop` (also in their exports), `file:line` proofs and
+  the takeover pages of the audit in `develop`; the required takeover pages are spread — the technical
+  architecture document and operations in `admin`, the five others in `develop` — each looked for and suggested
+  in its own space, and `takeover4` of a space counts only its own. A space of the project's own declares its
+  `kind` (`space.kind`, error, without one); a project that still declares `business` or `takeover` is told to
+  run `doc-kit upgrade --apply` (`space.retired`). Site data `spaces[]` gains `kind` and `tech`; exports are named
+  after the new ids (`…-use.html`). New projects (`doc-kit init`) and the demo declare the four spaces.
+  **Migration**: `doc-kit upgrade --apply` (migration 0.4.0) rewrites `content/toc.json` and its translations —
+  Use stays `use`; Features, Rules, Roles and Process go to `product`; Configure and Administer to `admin`; the
+  takeover section to `develop`, but for its operating pages (technical architecture document, runbook,
+  operations, deployment, variables, resources, access and ownership), which move with their sub-pages to a new
+  `operate` (`exploiter`) section of `admin`; a space of the project's own gets the kind of most of its typed
+  pages; a translation that was up to date stays up to date; a table of contents of kit 0.1 (French keys) is
+  refused until `doc-kit migrate` has rewritten it.
+  The takeover dossier of the audit moves to `engine/audit/takeover.mjs`; the lint warning ceiling goes down to 55.
 - **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
   command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,
   `doctor` and `audit`); every request to a public registry goes through one gateway, `createRegistryClient`

@@ -125,17 +125,17 @@ GUIDs stay reported until `masking.allow` names them ([Masking](#/capture/maskin
 a password in a URL stays reported, even when the host is private. With
 `--json`, `secrets.ignored` counts what was set aside, by rule: `local`, `template`, `exclude`, `allow`.
 
-## Business, takeover and spaces: checked by the build, not by `check`
+## Spaces, features and facts: checked by the build, not by `check`
 
 These gates run inside `doc-kit build` itself (strict or `--draft`), not as a separate `doc-kit check` category —
 `standard/quality.md` in the kit lists every one in full:
 
 | Gate | Fails on |
 |---|---|
-| `space.*` | A section with no `space`; `space` naming an unknown or undeclared id; a space declared twice, or a custom one with no `title` — only once `spaces` is declared ([Two spaces, one source](#/spaces/overview~declaring-the-spaces)) |
+| `space.*` | A section with no `space`; `space` naming an unknown or undeclared id; a space declared twice; a space with no valid `kind` (`space.kind`: a space of your own without one, or a standard space given another); a space of your own with no `title` (`space.title`) — only once `spaces` is declared ([Four spaces, one source](#/spaces/overview~declaring-the-spaces)) |
 | `feature.*`, `rule.*` | A `feature` id declared on the wrong template, or twice; `[[feature …]]` or `[[rule …]]` citing an unknown id; a `:::rule` with no `id` or `title`, or defined twice ([Documenting each feature](#/spaces/business)) |
 | `facts.*` | `::facts{source="…"}` naming a source with no `facts/<source>.json` file, or a `columns` entry the file does not have ([Taking over a vibe-coded application](#/spaces/takeover~reading-the-code-automatically-doc-kit-facts)) |
-| `business.technical` (warning) | A page whose effective space is `business` contains a `file:line` proof: move it behind the page's `counterpart` |
+| `business.technical` (warning) | A business page (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`) whose effective space is read without the code (`use`, `product`, or a space of your own of one of those kinds) contains a `file:line` proof: move it behind the page's `counterpart` |
 
 Fix: write or declare the missing id once, run `doc-kit facts` first, or correct the id, the column or the space
 name.
@@ -156,4 +156,4 @@ name.
 - [Audit and maturity levels](#/publish/audit): the checks turned into a level.
 - [Commands: write and check](#/reference/cli/write-check): the options of `check`.
 - [Adapters](#/reference/adapters): every coverage adapter, built-in or your own.
-- [Two spaces, one source](#/spaces/overview): the `space.*` gates, in context.
+- [Four spaces, one source](#/spaces/overview): the `space.*` gates, in context.

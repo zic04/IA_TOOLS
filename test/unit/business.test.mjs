@@ -262,7 +262,7 @@ describe("glossary `technical` (§6.8)", () => {
 });
 
 describe("the fixture project: end-to-end resolution through a real build", () => {
-  test("builds cleanly; a rule cited before its own definition resolves; business.technical fires only in the business space", async () => {
+  test("builds cleanly; a rule cited before its own definition resolves; business.technical fires only in a space read without the code", async () => {
     const r = await buildBusiness();
     assert.deepEqual(r.errors, []);
     const technical = r.warnings.filter((w) => w.key === "business.technical");
@@ -272,7 +272,7 @@ describe("the fixture project: end-to-end resolution through a real build", () =
       r.data.pages["use/approval"].html,
       /<a class="puce regle" href="#\/use\/rules~br-12" title="An order above the threshold waits for a manager">BR-12<\/a>/,
     );
-    // take-over/notes cites the feature sheet; its own file:line proof never raises business.technical (not business).
+    // take-over/notes cites the feature sheet; its own file:line proof never raises business.technical (develop space).
     assert.match(
       r.data.pages["take-over/notes"].html,
       /<a class="puce fonctionnalite" href="#\/use\/approval" title="Order approval">F-01<\/a>/,
@@ -281,15 +281,15 @@ describe("the fixture project: end-to-end resolution through a real build", () =
     assert.match(r.data.pages["use/rules"].html, /orders:approve/);
   });
 
-  test("glossary.tech: kept in the full site and the takeover export, dropped from the business export", async () => {
+  test("glossary.tech: kept in the full site and the develop export, dropped from the use export", async () => {
     const r = await buildBusiness();
     assert.equal(r.data.glossary[0].tech, "table `orders`, column `status`");
-    const business = r.sites.find((s) => s.space === "business");
-    const takeover = r.sites.find((s) => s.space === "takeover");
-    assert.ok(!("tech" in business.data.glossary[0]));
-    assert.equal(takeover.data.glossary[0].tech, "table `orders`, column `status`");
-    assert.ok(!business.html.includes("table `orders`, column `status`"));
-    assert.ok(takeover.html.includes("table `orders`, column `status`"));
+    const use = r.sites.find((s) => s.space === "use");
+    const develop = r.sites.find((s) => s.space === "develop");
+    assert.ok(!("tech" in use.data.glossary[0]));
+    assert.equal(develop.data.glossary[0].tech, "table `orders`, column `status`");
+    assert.ok(!use.html.includes("table `orders`, column `status`"));
+    assert.ok(develop.html.includes("table `orders`, column `status`"));
   });
 
   test("an unknown citation fails a strict build, is only a warning with --draft", async () => {

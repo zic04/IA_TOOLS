@@ -6,12 +6,12 @@ Pages are **GitHub-flavoured Markdown** (tables, fenced code, task-free lists) w
 1. **Blocks with a body**: `:::screen` (an annotated capture and its legend) and `:::steps` (numbered steps).
 2. **One-line directives**: `::capture`, `::diagram` and `::before-after`.
 3. **Callouts**: `> [!TIP]`, `> [!WARNING]`, `> [!CAUTION]`, `> [!PERMISSIONS]`, `> [!NOTE]`, `> [!RECIPE]`, `> [!HOW]`.
-4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the business space's
+4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the Product space's
    `[[feature …]]`, `[[rule …]]`.
 5. **Internal links**: `#/page-id` and `#/page-id~anchor`, checked by the build.
-6. **Business space** (§6.8): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
+6. **Features, rules and roles** (§6.8, the Product space): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
    `::roles`.
-7. **Takeover space** (§6.9): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
+7. **Facts and claims** (§6.9, the takeover dossier): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
    `[[deduced …]]`, `[[unknown …]]`.
 
 Every extension has an English and a French spelling; both are accepted in any project, whatever its language.
@@ -120,10 +120,10 @@ An unknown type (`[!DANGER]`) is a build warning, and the quote is shown with th
 - `[[route …]]` accepts brackets inside (`/orders/[id]`). The coverage check finds a route anywhere in the text of
   the pages, in a badge or not.
 
-## Business space
+## Features, rules and roles
 
-The business space (ARCHITECTURE.md §6.8) describes each feature for the people who use it, decide about it or
-support it: no code, no `file:line`.
+These directives serve the Product space (ARCHITECTURE.md §6.8), which describes each feature for the people who
+use it, decide about it or support it: no code, no `file:line`.
 
 | English | French | What it does |
 |---|---|---|
@@ -153,16 +153,16 @@ A page declares its own feature id with the `feature` field of `content/toc.json
 what the coverage adapters see, grouped by the first static segment of their routes, API routes or i18n keys.
 
 A glossary term's `technical` field (where it lives in the code) is shown in its tooltip only when the project has
-no spaces, or the current space is `takeover` or "everything" ([Glossary](#/write/glossary)); exports other than
-`takeover` drop it.
+no spaces, or the current space is "everything" or one whose kind shows it, `admin` or `develop`
+([Glossary](#/write/glossary)); the exports of the other spaces (`use`, `product`) drop it.
 
 [Example · Feature sheet](#/examples/feature), [Example · Business rules](#/examples/business-rules) and
 [Example · Roles matrix](#/examples/roles-matrix) show every element of this section in a real page.
 
-## Takeover space
+## Facts and claims
 
-The takeover space (ARCHITECTURE.md §6.9) is the dossier a team needs to take over an application: every claim is
-backed by a proof (`file:line`), or marked as deduced or unknown.
+The takeover dossier (ARCHITECTURE.md §6.9), written for the Develop space, is what a team needs to take over an
+application: every claim is backed by a proof (`file:line`), or marked as deduced or unknown.
 
 | English | French | What it does |
 |---|---|---|
@@ -187,7 +187,7 @@ An unknown source (`facts.missing`) or a column that none of the items has (`fac
 run `doc-kit facts` first. [Commands: write and check](#/reference/cli/write-check~doc-kit-facts) lists the seven
 sources. The ten takeover page types ([Page templates](#/write/page-templates)) are built around these two pieces
 of syntax: [Example · API surface](#/examples/api-surface), [Example · Dependencies](#/examples/dependencies) and
-the other examples of the takeover space show them in a real page.
+the other takeover examples show them in a real page.
 
 ## Links
 

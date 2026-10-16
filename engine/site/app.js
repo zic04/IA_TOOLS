@@ -796,10 +796,10 @@
   }
 
   // Glossary bubble content: the term and its definition, then its technical correspondence (§6.8) when the term
-  // has one and the reader can see it: no spaces declared, or the current space is takeover / everything (an
-  // export other than takeover never embeds `tech` at all, engine/build/spaces.mjs).
+  // has one and the reader can see it: no spaces declared, everything, or a space whose kind shows it (`tech`: admin,
+  // develop; the export of another space never embeds `tech` at all, engine/build/spaces.mjs).
   function glossaryBubble(gl) {
-    const showTech = gl.dataset.tech && (!SPACES || currentSpace === null || currentSpace === "takeover");
+    const showTech = gl.dataset.tech && (!SPACES || currentSpace === null || !!spacesById[currentSpace]?.tech);
     const tech = showTech
       ? `<div class="bulle-tech">${esc(t("ui.glossary.technical"))} ${esc(gl.dataset.tech)}</div>`
       : "";

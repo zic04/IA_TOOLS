@@ -1,7 +1,7 @@
 // The actions of `audit` (standard/maturity.md): for each criterion not met above the level reached, what to do,
 // on which pages, ordered by level, then by effort. Pure: the audit (audit.mjs) passes what it measured.
 import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
-import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
+import { THRESHOLDS } from "./thresholds.mjs";
 
 /** Effort of each kind of action (1 = minutes, 5 = real writing): orders the actions inside a level. */
 const EFFORT = {
@@ -222,7 +222,7 @@ const ACTIONS = {
   takeover4: (c, x) => [
     {
       key: "takeover",
-      vars: { n: TAKEOVER_ITEMS.length - x.indicators.takeover.n },
+      vars: { n: x.indicators.takeover.total - x.indicators.takeover.n },
       items: x.takeover.filter((t) => !t.ok).map((t) => takeoverItem(t, x)),
     },
   ],
@@ -328,8 +328,8 @@ function optionalMissing(p, x) {
 /** What to do for one missing Take over page. */
 function takeoverItem(t, x) {
   const vars = { item: t.id, template: t.template, sub: t.sub, min: t.min };
-  if (!x.takeoverId) return { id: "", key: "takeover.noSection", vars };
-  const suggested = `${x.takeoverId}/${t.suggest[x.language] || t.suggest.en}`;
+  if (!t.section) return { id: "", key: "takeover.noSection", vars };
+  const suggested = `${t.section}/${t.suggest[x.language] || t.suggest.en}`;
   if (t.page && t.sub && (t.subs ?? 0) < t.min)
     return { id: t.page, key: "takeover.subPages", vars: { ...vars, n: t.subs ?? 0, need: t.min - (t.subs ?? 0) } };
   if (t.page && t.numbered === false) return { id: t.page, key: "takeover.number", vars };

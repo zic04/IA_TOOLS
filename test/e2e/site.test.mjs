@@ -230,9 +230,9 @@ describe("printing", () => {
     });
     await page.evaluate(() => document.getElementById("bouton-imprimer").click());
     await page.waitForFunction(() => window.__printed === 1);
-    // Opening use/orders makes the business space current (ARCHITECTURE.md §6.1a): "print everything" only
-    // covers that space (7 pages), not the takeover one too.
-    assert.equal(await page.locator("#impression .page-imprimee").count(), 8, "outline + 7 business pages");
+    // Opening use/orders makes the use space current (ARCHITECTURE.md §6.1a): "print everything" only covers
+    // that space (3 pages), not the others too.
+    assert.equal(await page.locator("#impression .page-imprimee").count(), 4, "outline + the 3 pages of use");
     assert.ok(await page.evaluate(() => document.body.classList.contains("impression-complete")));
     await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
     assert.equal(await page.locator("#impression .page-imprimee").count(), 0);

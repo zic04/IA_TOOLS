@@ -246,22 +246,22 @@ describe("multilingual build (draft)", () => {
 describe("exports (ARCHITECTURE.md §6.1a + §6.12)", () => {
   test("each export embeds both languages (#site-data and #site-data-fr), pages filtered in both", async () => {
     const r = await buildLanguages({ draft: true });
-    const business = r.sites.find((s) => s.space === "business");
-    assert.ok(business.html.includes('id="site-data"'));
-    assert.ok(business.html.includes('id="site-data-fr"'));
-    const en = dataOf(business.html);
-    const fr = dataOf(business.html, "fr");
-    assert.ok(Object.keys(en.pages).every((id) => en.pages[id].space === "business"));
-    assert.ok(Object.keys(fr.pages).every((id) => fr.pages[id].space === "business"));
+    const use = r.sites.find((s) => s.space === "use");
+    assert.ok(use.html.includes('id="site-data"'));
+    assert.ok(use.html.includes('id="site-data-fr"'));
+    const en = dataOf(use.html);
+    const fr = dataOf(use.html, "fr");
+    assert.ok(Object.keys(en.pages).every((id) => en.pages[id].space === "use"));
+    assert.ok(Object.keys(fr.pages).every((id) => fr.pages[id].space === "use"));
   });
 
-  test("--lang fr --space business: mono-language export", async () => {
-    const r = await buildLanguages({ draft: true, options: { lang: "fr", space: "business" } });
+  test("--lang fr --space use: mono-language export", async () => {
+    const r = await buildLanguages({ draft: true, options: { lang: "fr", space: "use" } });
     assert.equal(r.sites.length, 1);
     assert.ok(!r.sites[0].html.includes("site-data-fr"));
     const data = dataOf(r.sites[0].html);
     assert.equal(data.meta.language, undefined);
-    assert.ok(Object.keys(data.pages).every((id) => data.pages[id].space === "business"));
+    assert.ok(Object.keys(data.pages).every((id) => data.pages[id].space === "use"));
   });
 });
 
@@ -331,7 +331,7 @@ describe("translatedToc", () => {
     const source = sourceToc();
     const translated = {
       sections: source.sections,
-      spaces: ["business", { id: "takeover", subtitle: "FR" }],
+      spaces: ["use", { id: "develop", subtitle: "FR" }],
       journeys: [
         { title: "FR1", description: "d1" },
         { title: "FR2", description: "d2" },

@@ -83,6 +83,8 @@ A newer kit may require new sections or report new warnings: the audit lists the
 |---|---|---|
 | "no CHANGELOG.md in the kit" | A copy of the engine without its changelog | The changes cannot be listed; the migrations still run |
 | "migration 0.2.0 failed: …" | The project differs from what the migration expects | Nothing was written; report it with the project's `doc.config.mjs` |
+| "migration 0.4.0: content/toc.json is still in the format of kit 0.1 (French keys)" | A table of contents of kit 0.1 that declares spaces | Nothing was written; run `doc-kit migrate` first, then `doc-kit upgrade` again |
+| The diff of `content/toc.json` shows lines that did not really change | Migration 0.4.0 writes the table of contents back with 2-space indentation, one array item per line, LF line endings | Expected: only the spaces changed; the build reads the file the same way |
 | "Chromium for Playwright is not installed" | The new kit uses a newer Playwright | `npx playwright install chromium` in the kit |
 
 ## Pitfalls and limits

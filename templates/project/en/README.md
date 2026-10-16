@@ -8,10 +8,12 @@ The documentation site of **{{name}}**, delivered as **a single self-contained H
 
 The engine is **doc-kit**, linked by `package.json`. This folder only holds the content.
 
-This skeleton declares two **spaces**: Business (`use`, `features`, `configure`, `administer` — no code, for
-users, key users and product owners) and Takeover (`take-over` — for whoever runs, secures and evolves the
-application). `doc-kit build` writes the full site plus one export per space, each with the other space
-physically removed. See `standard/structure.md` for the full picture, and the top of `content/toc.json`.
+This skeleton declares four **spaces**, one per audience: Use (`use` — no code, for users, key users and
+support), Product (`features` — no code, for product owners, business analysts and key users), Administer
+(`configure`, `administer`, `operate` — for application administrators and operators) and Develop (`take-over` —
+for developers, the takeover team and security). `doc-kit build` writes the full site plus one export per space
+(`dist/…-use.html`, `-product`, `-admin`, `-develop`), each with the other spaces physically removed. See
+`standard/structure.md` for the full picture, and the top of `content/toc.json`.
 
 ## Requirements
 
@@ -75,7 +77,7 @@ Running `npx doc-kit` with no command starts the guided mode: it suggests the ne
 
 ## Keeping the Takeover dossier current
 
-For the Takeover pages (`access-ownership`, `runbook`, `agent-instructions`, `api-surface`…): run
+For the pages of the takeover dossier (`access-ownership`, `runbook`, `agent-instructions`, `api-surface`…): run
 `npx doc-kit facts --source <name>` first (env, api, db, dependencies, agents, secrets, tests), fill the
 page's table from the result (`::facts{…}` or by hand), mark non-code claims `[[verified …]]`, `[[deduced]]`
 or `[[unknown]]`. Once the dossier is checked, `npx doc-kit sync --mark --all` records what was checked,

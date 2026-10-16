@@ -99,7 +99,7 @@ owner allows.
 
 > [!NOTE] A project with spaces
 > `--with-dist` copies the per-space exports wherever `build` wrote them, alongside the full site: a takeover
-> dossier handed to one team never needs the business pages removed by hand ([Two spaces, one source](#/spaces/overview~exporting-where-confidentiality-actually-starts)).
+> dossier handed to one team never needs the business pages removed by hand ([Four spaces, one source](#/spaces/overview~exporting-where-confidentiality-actually-starts)).
 
 > [!NOTE] The handover checklist
 > `standard/delivery.md` lists everything to check before a handover: checks, safety, takeover content, export and

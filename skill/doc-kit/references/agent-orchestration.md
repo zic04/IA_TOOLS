@@ -25,10 +25,10 @@ of the reference journey `ord` (an order from creation to archiving).
 Another organisation that worked (site B): prefixes by application area (`map-…`, `bar-…`, `dash-…`, `admin-…`), 11
 plans, plus a separate production plan with its own prefix.
 
-**With a business space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
+**With a Product space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
 entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
-`process` pages, usually their own small batch since they are not tied to one feature). **With a takeover
-space**: `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
+`process` pages, usually their own small batch since they are not tied to one feature). **For the takeover
+dossier** (the Develop space, and the Operate part of Administer): `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
 `tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
 `access-ownership` and `system-dossier` (`runbook`, `data-model`, `code-map`, `adr` together). None of the three
 splits further: keeping each whole is cheaper than reconciling two agents' views of the same facts afterwards.
@@ -68,7 +68,7 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 | 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
 | 1 | inventory (1 Explore) | facts generated |
 | 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
-| 3 | all writing batches: `writing-batch` and `functional-spec`, business and takeover together (example: 8) | reference page(s) approved, captures tried |
+| 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8) | reference page(s) approved, captures tried |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |

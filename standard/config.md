@@ -257,7 +257,7 @@ On Windows PowerShell, set the variables first: `$env:DELIVERIES_URL = "https://
 
 ## Spaces, facts, sync and the agent economy
 
-Fictional examples of the keys added by the two-space standard (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+Fictional examples of the keys added by the standard of the spaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 None of them has a default that changes existing behaviour: a project that does not set them keeps building
 exactly as before.
 

@@ -3,9 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — system dossier: runbook, data model, code map, ADR
 
-You write part of the TAKEOVER space, in the project's language: how the system is installed, built, deployed
-and restored; what data it holds; how its pieces fit together; and the decisions that shaped it, reconstructed
-after the fact. These pages complete `code-health` and `access-ownership` (ARCHITECTURE.md §6.9).
+You write part of the takeover dossier, in the project's language: how the system is installed, built, deployed
+and restored (the runbook, in the ADMINISTER space's Operate part); what data it holds; how its pieces fit
+together; and the decisions that shaped it, reconstructed after the fact (in the DEVELOP space). These pages
+complete `code-health` and `access-ownership` (ARCHITECTURE.md §6.9).
 
 Your pages are ALREADY declared in the table of contents (see Variables for which ones): change neither ids nor
 titles.

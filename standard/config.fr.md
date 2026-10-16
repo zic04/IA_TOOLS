@@ -260,7 +260,7 @@ Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "h
 
 ## Espaces, faits, suivi et économie des agents
 
-Exemples fictifs des clés ajoutées par le standard à deux espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+Exemples fictifs des clés ajoutées par le standard des espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 Aucune n'a de défaut qui change le comportement existant : un projet qui ne les règle pas continue de se
 construire exactement comme avant.
 

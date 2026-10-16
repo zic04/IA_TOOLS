@@ -23,7 +23,7 @@ parle, et ce qui manque.
 - Le **code de l'application** (chemin et version dans Variables) : variables lues (`process.env`,
   `os.environ`…), valeurs par défaut, Dockerfile, scripts de build et de déploiement, migrations lancées au
   démarrage.
-- Les pages Reprendre existantes (architecture, déploiement, exploitation, sécurité) et la page des points
+- Les pages techniques existantes (architecture, déploiement, exploitation, sécurité) et la page des points
   d'attention avec ses sous-pages (chemin dans Variables). La lecture complémentaire, s'il y en a, est listée
   dans Variables.
 

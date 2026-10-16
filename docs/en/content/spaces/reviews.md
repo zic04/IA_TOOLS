@@ -1,6 +1,6 @@
 ## In short
 
-Two reviews, on demand, written the same way as the rest of the takeover space: deterministic facts first, no
+Two reviews, on demand, written the same way as the rest of the takeover dossier, in the Develop space: deterministic facts first, no
 guesswork, then an agent writes the page from them.
 
 1. **`security-review`**: authentication, access control, input handling, secrets and configuration, findings

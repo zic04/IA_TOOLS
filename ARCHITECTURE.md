@@ -343,12 +343,12 @@ export default {
 ```json
 {
   "title": "…", "tagline": "…",
-  "spaces": ["business", { "id": "takeover", "subtitle": "…" }],
-  "sections": [{ "id": "use", "space": "business", "title": "…", "shortTitle": "…", "icon": "…", "subtitle": "…", "highlights": ["…"], "featured": false,
+  "spaces": ["use", "product", "admin", { "id": "develop", "subtitle": "…" }, { "id": "ops", "kind": "admin", "title": "…" }],
+  "sections": [{ "id": "use", "space": "use", "title": "…", "shortTitle": "…", "icon": "…", "subtitle": "…", "highlights": ["…"], "featured": false,
                  "groups": [{ "title": "…", "pages": [{ "id": "use/start", "title": "…", "menuTitle": "…", "summary": "…",
                                                        "level": 1, "template": "screen", "routes": ["/"], "permissions": ["…"],
-                                                       "space": "business", "counterpart": "take-over/orders-api" }] }] }],
-  "journeys": [{ "title": "…", "description": "…", "space": "business", "steps": ["use/start"] }],
+                                                       "space": "use", "counterpart": "take-over/orders-api" }] }] }],
+  "journeys": [{ "title": "…", "description": "…", "space": "use", "steps": ["use/start"] }],
   "suggestions": ["use/start"]
 }
 ```
@@ -361,23 +361,28 @@ export default {
 
 ### 6.1a Spaces (one source, one site per audience)
 
-A **space** is the part of the documentation written for one audience. The standard defines two (`standard/structure.md`):
-- `business` ("For the business"): what each feature does, for whom, its rules; read by users, key users, product owners and support;
-- `takeover` ("For the takeover team"): how the application is built, run and secured, and what to fix first; read by the developers, operators and security people who take the application over.
+A **space** is the part of the documentation written for one audience. The standard defines four, one per **kind** (`standard/structure.md`; the kinds are data, `standard/spaces.json`, schema `schemas/spaces.schema.json`, read once by `engine/core/space-profiles.mjs`):
+- `use` ("Using the application"): how to do each task, screen by screen; read by users, key users and support;
+- `product` ("The product"): what each feature does, for whom, its rules and its acceptance criteria; read by product owners, business analysts and key users;
+- `admin` ("Administering the application"): settings, access rights, operations and the technical architecture document; read by application administrators and operators;
+- `develop` ("Developing the application"): how the application is built and secured, and what to fix first; read by developers, the takeover team and security.
 
-One source, two kinds of output (DITA's single-sourcing): **one HTML file with a space selector**, where the filter only changes what is shown, and **one HTML file per space**, an export from which the other spaces' content is **physically removed**. Only the export is fit to hand to an audience that must not see the rest (the takeover space lists variables, hosts, risks).
+A **kind** (profile) says what the kit does differently for the pages of a space of that kind, so that the build, the site and the audit read flags, never space ids: `noCode` (its readers read without the code: a business page that cites a file is reported, §6.8; `use`, `product`), `proofs` (its written pages are expected to carry `file:line` proofs, and are the takeover pages of the audit, outside `written2`; `develop`), `glossaryTechnical` (its readers see the technical correspondence of the glossary, §6.8; `admin`, `develop`), `takeoverItems` (the required takeover pages that live in it, standard/maturity.md: `dat` and `operations` in `admin`, the five others in `develop`), `preferTypes` (the page types the audit guesses first) and `icon` (its default icon).
+
+One source, two kinds of output (DITA's single-sourcing): **one HTML file with a space selector**, where the filter only changes what is shown, and **one HTML file per space**, an export from which the other spaces' content is **physically removed**. Only the export is fit to hand to an audience that must not see the rest (the develop and admin spaces list variables, hosts, risks).
 
 **Declaring the spaces** (`content/toc.json`)
-- `spaces`: a list. Each item is a space id (string) or an object `{ id, title, shortTitle, subtitle, icon, for }`.
+- `spaces`: a list. Each item is a space id (string) or an object `{ id, kind, title, shortTitle, subtitle, icon, for }`.
   - `id`: `^[a-z][a-z0-9-]*$`, unique (`space.duplicate`, error).
-  - `business` and `takeover` have default texts in the site language (`ui.spaces.<id>.title|shortTitle|subtitle|for`) and a default icon (`SPACE_DEFAULTS` in `engine/build/spaces.mjs`, icons of the existing set); a field of the object overrides its default. Any other id must have a `title` (`space.title`, error); its `shortTitle` defaults to its `title`.
-  - `for`: one line naming the readers ("Users, key users, product owners, support"). Shown on the home page's space doors and as the tooltip of the selector.
+  - `kind`: a standard space (`use`, `product`, `admin`, `develop`) is its own kind and is declared by its id alone; a space of the project's own names its kind (`{ "id": "ops", "kind": "admin", "title": "…" }`). No kind, an unknown one, or a standard space given another kind: `space.kind`, error. A space of kit 0.3 (`business`, `takeover`: `retired` in `standard/spaces.json`): `space.retired`, error, which points to `doc-kit upgrade --apply` — migration 0.4.0 (`engine/migrations/0.4.0.mjs`, rules in `engine/migrations/0.4.0/spaces.mjs`) rewrites `content/toc.json` and its translations with the four spaces, gives a space of the project's own the kind of most of its typed pages, and moves the operating pages of the takeover section to a new `operate` section of `admin` (standard/structure.md).
+  - The standard spaces have default texts in the site language (`ui.spaces.<id>.title|shortTitle|subtitle|for`); every space takes the default icon of its kind; a field of the object overrides its default. Any other id must have a `title` (`space.title`, error); its `shortTitle` defaults to its `title`.
+  - `for`: one line naming the readers ("Users, key users, support"). Shown on the home page's space doors and as the tooltip of the selector.
   - Order: the order of the selector and of the home page doors.
 - `space` on a **section**: required for every section as soon as `spaces` is declared (`space.missing`, error); it must name a declared space (`space.unknown`, error).
 - `space` on a **page**: optional, overrides its section's space. A section then appears in every space where it has pages, with only those pages; its overview page (`#/<section>`) belongs to the section's own space.
 - `space` on a **journey**: optional; default: the space of its first step.
 - `space` anywhere while `spaces` is not declared: `space.undeclared`, error.
-- These errors (`space.missing`, `space.unknown`, `space.undeclared`, `space.duplicate`, `space.title`) stop any build, even a draft one, like an invalid outline (`resolveSpaces` in `engine/build/spaces.mjs`).
+- These errors (`space.missing`, `space.unknown`, `space.undeclared`, `space.duplicate`, `space.kind`, `space.retired`, `space.title`) stop any build, even a draft one, like an invalid outline (`resolveSpaces` in `engine/build/spaces.mjs`).
 - A declared space without any page: `space.empty`, warning.
 - The **effective space** of a page is its own `space`, else its section's.
 
@@ -388,7 +393,7 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
 
 **Site data** (§9: new keys are in English, and are emitted **only** when they are declared, so that a project without spaces keeps identical site data):
 - the texts of `i18n/<language>/spaces.json` are embedded only in a site that declares spaces or a counterpart;
-- `spaces: [{ id, title, shortTitle, subtitle, icon, for, pages }]`: texts resolved at build time, `icon` resolved like a section icon, `pages` = number of pages of the space;
+- `spaces: [{ id, kind, title, shortTitle, subtitle, icon, for, pages, tech? }]`: texts resolved at build time, `icon` resolved like a section icon, `pages` = number of pages of the space, `tech: true` when its kind shows the glossary's technical correspondence;
 - `sections[].space`, `pages[].space` (effective space), `journeys[].space`;
 - `pages[].counterpart: { id, anchor? }` when the page declares one;
 - in an export only: `meta.space` (the id of the exported space), `spaces` holding that space alone, and `journeys[].hidden` (number of steps removed, when > 0).
@@ -412,13 +417,13 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
   - images: only those used by the kept pages, the kept section introductions and the home page; `meta.stats` is recounted on what is kept (pages, screenshots, zones, diagrams), from what each rendered document uses (`render().used` of the Markdown engine);
   - **links**: in the kept pages, the kept section introductions and the home page, a link `#/<target>[~anchor]` whose target page or section is not in the export becomes its text in a `<span class="lien-exclu">`, followed by " (see the {space} documentation)" (`render.spaces.excludedLink`, `{space}` = the `shortTitle` of the target's space). Their number is `excludedLinks`, reported as a warning `space.excludedLinks` `{ space, n }` (never an error: it is what an export is for); a link whose target is unknown (a broken link, reported by the link check) is left as it is;
   - a `counterpart` whose target is not in the export is removed;
-  - the glossary is kept whole (§7 removes the technical correspondence from the exports other than `takeover`).
-- **Output**: `config.spaces.output`, a path containing `{space}`, relative to the project; default: the full site's output actually built (`--output` included) with `-{space}` inserted before its extension (`dist/Acme-Orders-Documentation.html` → `dist/Acme-Orders-Documentation-business.html`).
+  - the glossary is kept whole, but its technical correspondence (§6.8), kept only in the export of a space whose kind shows it (`tech`: `admin`, `develop`).
+- **Output**: `config.spaces.output`, a path containing `{space}`, relative to the project; default: the full site's output actually built (`--output` included) with `-{space}` inserted before its extension (`dist/Acme-Orders-Documentation.html` → `dist/Acme-Orders-Documentation-use.html`).
 - The links of each export are valid by construction: no other check runs per export. `check images` keeps working on the full site, which holds every page.
 
 **Audit** (`engine/audit/audit.mjs`, `standard/maturity.md`)
-- **Takeover pages.** When a space `takeover` is declared, the takeover pages are the pages whose effective space is `takeover`, and `takeoverSection` (the prefix of the suggested page ids) is the first section of that space (else the section of its first page). Otherwise, as before: the section `take-over` or `reprendre`, else the last section.
-- **Level by space.** With spaces, the result also holds `spaces: [{ id, title, pages, level, indicators, criteria }]`: the same criteria, the page indicators (`written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs`, `tooLong`) measured on the pages of the space, the project-wide ones (configuration, build, home page, glossary, journeys, coverage, blocking problems, wide tables, screenshot versions) shared. A criterion that does not concern a space counts as met and is shown `n/a`: `written2` (outside takeover) in the `takeover` space; `takeover4` and `proofs4` outside it. The global level is unchanged (every page).
+- **Takeover pages** (`engine/audit/takeover.mjs`). With spaces, their kinds decide: the takeover pages (proofs expected, outside `written2`, claims counted) are the pages whose effective space is of a kind with `proofs` (`develop`); for the project, each required takeover page is looked for in the pages of every space whose kind holds takeover pages (`takeoverItems`: `admin`, `develop`); it belongs to the first declared space whose kind holds it (else to the dossier's main space), whose own level counts it among that space's pages, and it is suggested in the usual part of that space (`parts` in `TAKEOVER_ITEMS`, standard/structure.md: Operate, Understand, Risks, Maintain), else in its section that already holds a page of that type, else in its first section — its `section` in `takeover[]`; `takeoverSection` is the first section of the `develop` space (else of the first space holding takeover pages, else none: `takeover.noSection`). Without spaces, as before: the section `take-over` or `reprendre`, else the last section.
+- **Level by space.** With spaces, the result also holds `spaces: [{ id, title, pages, level, indicators, criteria }]`: the same criteria, the page indicators (`written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs`, `tooLong`) measured on the pages of the space, the project-wide ones (configuration, build, home page, glossary, journeys, coverage, blocking problems, wide tables, screenshot versions) shared. `takeover4` of a space counts the required takeover pages that belong to it — each belongs to the first declared space whose kind holds it, else to the dossier's main space (`develop` without `admin`: all 7) — found among its own pages (its threshold: their number; the project's: all 7). A criterion that does not concern a space counts as met and is shown `n/a`, as its kind says: `written2` in a kind with `proofs` (`develop`), `proofs4` in the others, `takeover4` in a space no required takeover page belongs to (`use`, `product`, a second space of the same kind). The global level is unchanged (every page).
 - `audit.md` shows a table "Level by space" (`cli.audit.spaces.*`) under the global level; `audit.json` carries `spaces`. Without spaces, both are unchanged.
 
 ### 6.2 `images/zones/<id>.json`
@@ -615,9 +620,9 @@ Diagrams (`diagrams/*.svg`) use only the site's classes, so they follow the ligh
 - `doc-kit migrate` rewrites the JSON files in the current format (`sommaire.json` → `toc.json`, `glossaire.json` → `glossary.json`, zone files in place) and renames `accueil.md` to `home.md`. Capture plans are JavaScript modules: they are only normalised when read.
 - The Markdown keeps both spellings (§6.6): it is never rewritten.
 
-### 6.8 Business space: features, rules, roles
+### 6.8 Business pages: features, rules, roles (the Product space)
 
-The business space describes **each feature** for the people who use it, decide about it or support it: no code, no `file:line`. The page types follow the use case of Cockburn (actors, trigger, main scenario, numbered variants), the business rules of RuleSpeak (one statement, one example "Given / When / Then"), and the feature sheet of product documentation (an access box first).
+The business pages describe **each feature** for the people who use it, decide about it or support it — written for the Product space (and Use): no code, no `file:line`. The page types follow the use case of Cockburn (actors, trigger, main scenario, numbered variants), the business rules of RuleSpeak (one statement, one example "Given / When / Then"), and the feature sheet of product documentation (an access box first).
 
 **Page types** (`standard/templates/business.json`; templates `templates/pages/{en,fr}/<type>.md`; examples `docs/{en,fr}/content/examples/<type>.md`). Labels below in English; the French labels are in the fragment. `*` = required.
 
@@ -651,9 +656,9 @@ The business space describes **each feature** for the people who use it, decide 
   - `::features{}` (`::fonctionnalites{}`): every feature sheet, in table of contents order: Id · Feature (link) · Summary · Who (the page's `permissions`);
   - `::rules{}` (`::regles{}`): every rule: Id (link) · Rule · Defined in (link) · Cited by (the feature ids of the pages that cite it, else the pages);
   - `::roles{}`: rows = the feature sheets, columns = the distinct `permissions` of these sheets in order of first appearance, a cell "✔" (with a text alternative, `render.business.allowed`) when the sheet lists the permission.
-- **Business pages cite no code**: a page of a business type (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`) whose effective space is `business` (§6.1a) and that contains a `file:line` proof gets the warning `business.technical` (a `screen` or `editor` page keeps the proofs of its "How it works", whatever its space) ("move the technical detail to its counterpart").
+- **Business pages cite no code**: a page of a business type (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`) whose effective space is of a kind read without the code (`noCode`: `use`, `product`, §6.1a) and that contains a `file:line` proof gets the warning `business.technical` (a `screen` or `editor` page keeps the proofs of its "How it works", whatever its space) ("move the technical detail to its counterpart").
 
-**Glossary**: an entry may have `technical` (string): where the term lives in the code ("table `orders`, column `status`, enum `OrderStatus`"). Site data `glossary[].tech`, emitted only when at least one entry has it. The term's bubble shows it under the definition, introduced by `ui.glossary.technical`, when the project has no spaces, or when the current space is `takeover` or "everything". The exports other than `takeover` drop it.
+**Glossary**: an entry may have `technical` (string): where the term lives in the code ("table `orders`, column `status`, enum `OrderStatus`"). Site data `glossary[].tech`, emitted only when at least one entry has it. The term's bubble shows it under the definition, introduced by `ui.glossary.technical`, when the project has no spaces, or when the current space is "everything" or a space whose kind shows it (`glossaryTechnical`, site data `spaces[].tech`: `admin`, `develop`). The exports of the other spaces drop it.
 
 **Coverage adapters** (§5)
 - `openapi`: `file` (required: an OpenAPI 3 or Swagger 2 document in **JSON**, relative to the project), `family` (default "API"), `prefix`, `exclude`. One item per operation: id `GET /orders/{id}`, `label` = `summary` or `operationId`, `match` = the path in its `{id}`, `:id` and `[id]` forms. A YAML file: `{ available: false, reason: "yaml" }` (no YAML parser in the kit; FastAPI serves its document as JSON at `/openapi.json`).
@@ -663,9 +668,9 @@ The business space describes **each feature** for the people who use it, decide 
 
 **i18n fragment** `i18n/<language>/business.json`: `render.business.*`, `cli.build.feature.*`, `cli.build.rule.*`, `cli.build.business.*`, `cli.inventory.features.*`, `cli.adapter.reason.yaml`, `ui.glossary.technical`.
 
-### 6.9 Takeover space: facts and the takeover dossier
+### 6.9 Facts and the takeover dossier (the Develop and Administer spaces)
 
-The takeover space is the dossier a team needs to take over an application, especially one written largely by AI assistants ("vibe-coded"), whose usual risks are: missing access control (row-level security), secrets in the code or the client, packages that do not exist, duplicated code, missing or misleading tests, and agent instruction files that act as a hidden specification. Every claim is backed by a proof (`file:line`), or marked as deduced or unknown.
+The takeover dossier (the Develop space, with its operating pages in Administer) is what a team needs to take over an application, especially one written largely by AI assistants ("vibe-coded"), whose usual risks are: missing access control (row-level security), secrets in the code or the client, packages that do not exist, duplicated code, missing or misleading tests, and agent instruction files that act as a hidden specification. Every claim is backed by a proof (`file:line`), or marked as deduced or unknown.
 
 **Page types** (`standard/templates/takeover.json`; templates and examples as in §6.8). `*` = required.
 
@@ -1086,7 +1091,7 @@ The source lives in `skill/doc-kit/`:
 - `assets/briefs/{en,fr}/*.md`: brief templates with parameters such as `{{product}}`, `{{docDir}}`, `{{code}}`…, filled by `scripts/brief.mjs` from `doc.config.mjs` and `--var` values.
 - `scripts/*.mjs`: `brief.mjs`, `consolidation.mjs`, `usage.mjs` and their shared `common.mjs` (Node ≥ 20, no dependency).
   - `{{appDir}}`, the application code given to the agents: `--var appDir`, else `extra.briefs.appDir`, else `app.dir` (§3), else the nearest of the documentation folder's parent and grandparent that holds `.git`, else its grandparent (`docs/manual` → the application). `brief.mjs` warns when `appDir` was not configured, and when the coverage source sits in a sub-folder with its own `package.json` (a separate front end: the inventory of routes does not see the back end).
-  - `{{featuresFile}}` (the `features` coverage adapter's `file` option, else `features.json`) and `{{factsDir}}` (`paths.facts`, else `facts`), both relative to the documentation project: the inputs of the business and takeover spaces' briefs.
+  - `{{featuresFile}}` (the `features` coverage adapter's `file` option, else `features.json`) and `{{factsDir}}` (`paths.facts`, else `facts`), both relative to the documentation project: the inputs of the briefs of the business pages and of the takeover dossier.
   - `brief.mjs` speaks the project's language (`language` of `doc.config.mjs`; without a project, `--lang`, else English); `--list` prints the available languages and the templates of each.
 
 `doc-kit skill install [--target <skills folder>] [--force]` copies the skill to `<skills folder>/doc-kit/`:

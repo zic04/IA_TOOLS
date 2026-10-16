@@ -38,7 +38,7 @@ fichier :
 - `toc.json` : les **textes** seuls du sommaire — `title`, `tagline`, pour les sections `title`/`shortTitle`/
   `subtitle`/`highlights`, pour les groupes `title`, pour les pages `title`/`menuTitle`/`summary`, et les champs
   textuels propres aux parcours et aux espaces. Tout autre champ (ids, routes, permissions, `counterpart`,
-  `spaces[].id`…) vient toujours de la **source** : une valeur traduite qui en diffère est ignorée, avec un
+  `spaces[].id`, `spaces[].kind`…) vient toujours de la **source** : une valeur traduite qui en diffère est ignorée, avec un
   avertissement. Un titre absent retombe silencieusement sur la source (un `toc.json` traduit partiel ne pose pas
   de problème) ; une section, un groupe, une page, un parcours ou un espace manquant, ajouté ou réordonné, ou un
   nombre d'étapes différent, est l'erreur bloquante `translation.toc.structure` — même avec `--draft`, comme un
@@ -56,7 +56,7 @@ fichier :
 
 Le site construit ajoute un sélecteur (barre du haut, ou tête du menu latéral sur un écran étroit), un bouton par
 langue déclarée, étiqueté par son autonyme, la langue courante marquée. Chaque adresse gagne un préfixe de langue
-facultatif : `#/[<langue>/]<chemin>`, par exemple `#/fr/`, `#/fr/@business`, `#/fr/utiliser/commandes~validation`.
+facultatif : `#/[<langue>/]<chemin>`, par exemple `#/fr/`, `#/fr/@use`, `#/fr/utiliser/commandes~validation`.
 Un lien écrit dans le Markdown, ou généré par le site, ne porte jamais ce préfixe : il signifie « la langue
 affichée en ce moment ». Après avoir suivi un tel lien, la barre d'adresse est tout de même réécrite pour porter
 la langue courante, sans ajouter d'entrée d'historique — une adresse partagée ou mise en favori nomme donc
@@ -164,7 +164,7 @@ jamais le niveau de maturité.
 
 ## Pour aller plus loin
 
-- [Deux espaces, une seule source](#/spaces/overview) : `spaces`, l'autre mécanisme transversal qui refaçonne le
+- [Quatre espaces, une seule source](#/spaces/overview) : `spaces`, l'autre mécanisme transversal qui refaçonne le
   même build.
 - [Commandes : livrer et maintenir](#/reference/cli/deliver~doc-kit-translate) : la référence complète de
   `translate`.

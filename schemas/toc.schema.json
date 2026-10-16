@@ -19,6 +19,10 @@
           "required": ["id"],
           "properties": {
             "id": { "$ref": "#/$defs/spaceId" },
+            "kind": {
+              "enum": ["use", "product", "admin", "develop"],
+              "description": "The kind of a space of the project's own: use, product, admin or develop (standard/spaces.json)."
+            },
             "title": { "type": "string", "minLength": 1 },
             "shortTitle": { "type": "string", "minLength": 1 },
             "subtitle": { "type": "string" },

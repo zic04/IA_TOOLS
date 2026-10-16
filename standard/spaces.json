@@ -1,0 +1,54 @@
+{
+  "$schema": "../schemas/spaces.schema.json",
+  "description": "The kinds of spaces (ARCHITECTURE.md §6.1a): one per audience. A standard space is declared by its id; a space of the project's own declares its kind. Texts: ui.spaces.<id>.* (i18n/<language>/spaces.json).",
+  "version": 1,
+  "retired": ["business", "takeover"],
+  "profiles": [
+    {
+      "id": "use",
+      "icon": "book",
+      "noCode": true,
+      "proofs": false,
+      "glossaryTechnical": false,
+      "takeoverItems": [],
+      "preferTypes": ["screen"]
+    },
+    {
+      "id": "product",
+      "icon": "map",
+      "noCode": true,
+      "proofs": false,
+      "glossaryTechnical": false,
+      "takeoverItems": [],
+      "preferTypes": ["feature", "business-rules", "roles-matrix", "process", "release-notes"]
+    },
+    {
+      "id": "admin",
+      "icon": "gear",
+      "noCode": false,
+      "proofs": false,
+      "glossaryTechnical": true,
+      "takeoverItems": ["dat", "operations"],
+      "preferTypes": ["screen", "editor", "recipe", "architecture", "runbook", "variables", "resources", "access-ownership"]
+    },
+    {
+      "id": "develop",
+      "icon": "code",
+      "noCode": false,
+      "proofs": true,
+      "glossaryTechnical": true,
+      "takeoverItems": ["architecture", "journey", "troubleshooting", "findings", "maintaining"],
+      "preferTypes": [
+        "technical",
+        "journey",
+        "journey-step",
+        "troubleshooting",
+        "troubleshooting-area",
+        "findings",
+        "architecture",
+        "variables",
+        "resources"
+      ]
+    }
+  ]
+}

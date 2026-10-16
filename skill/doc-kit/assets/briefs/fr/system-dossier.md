@@ -3,10 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — dossier système : runbook, modèle de données, carte du code, ADR
 
-Tu rédiges une partie de l'espace DE REPRISE, dans la langue du projet : comment le système s'installe, se
-construit, se déploie et se restaure ; quelles données il porte ; comment ses pièces s'assemblent ; et les
-décisions qui l'ont façonné, reconstituées après coup. Ces pages complètent `code-health` et `access-ownership`
-(ARCHITECTURE.md §6.9).
+Tu rédiges une partie du dossier de reprise, dans la langue du projet : comment le système s'installe, se
+construit, se déploie et se restaure (le runbook, dans la partie Exploiter de l'espace ADMINISTRER) ; quelles
+données il porte ; comment ses pièces s'assemblent ; et les décisions qui l'ont façonné, reconstituées après coup
+(dans l'espace DÉVELOPPER). Ces pages complètent `code-health` et `access-ownership` (ARCHITECTURE.md §6.9).
 
 Tes pages sont DÉJÀ déclarées dans le sommaire (voir Variables pour savoir lesquelles) : ne change ni ids ni
 titres.

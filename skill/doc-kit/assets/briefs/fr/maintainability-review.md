@@ -3,7 +3,7 @@ agent: doc-kit-writer
 ---
 # Brief — revue de maintenabilité
 
-Tu rédiges la page `maintainability-review` de l'espace DE REPRISE, dans la langue du projet : les notes de A à E
+Tu rédiges la page `maintainability-review` de l'espace DÉVELOPPER, dans la langue du projet : les notes de A à E
 (duplication, complexité, taille, tests), les points chauds qui les combinent, et des recommandations classées
 par effort — construites à partir des faits `quality`, confirmées dans le code avant d'énoncer quoi que ce soit
 comme un fait.

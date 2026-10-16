@@ -1,6 +1,6 @@
 ---
 name: doc-kit
-description: "Build and maintain a complete, single-file HTML documentation site for any web application (offline, annotated screenshots, guided tour, search, glossary, SVG diagrams, sub-pages, light and dark themes) at the doc-kit quality standard, by orchestrating parallel agents and the doc-kit CLI: scoping (business space, takeover space, or both), deterministic code facts, code inventory, site plan and page templates, annotated screenshots (prepared demo or read-only production), writing in parallel batches, consolidation of findings, end-to-end journeys, troubleshooting by symptom, the takeover dossier of a vibe-coded application (access and ownership, API surface, dependencies, agent instructions, tests, threat model), production technical architecture, maturity audit, export, and following the application's later changes (facts, sync, triage, update) while keeping agent cost under control. Use when asked to document an application, write a user manual, a functional specification, feature sheets and business rules, an administration guide, a handover or takeover guide, a vibe-coding code-health review, annotated screenshots, an architecture dossier, end-to-end journeys, troubleshooting, findings or points of attention, or to update an existing documentation site after a release, even when doc-kit is not named."
+description: "Build and maintain a complete, single-file HTML documentation site for any web application (offline, annotated screenshots, guided tour, search, glossary, SVG diagrams, sub-pages, light and dark themes) at the doc-kit quality standard, by orchestrating parallel agents and the doc-kit CLI: scoping (use, product, admin and develop spaces), deterministic code facts, code inventory, site plan and page templates, annotated screenshots (prepared demo or read-only production), writing in parallel batches, consolidation of findings, end-to-end journeys, troubleshooting by symptom, the takeover dossier of a vibe-coded application (access and ownership, API surface, dependencies, agent instructions, tests, threat model), production technical architecture, maturity audit, export, and following the application's later changes (facts, sync, triage, update) while keeping agent cost under control. Use when asked to document an application, write a user manual, a functional specification, feature sheets and business rules, an administration guide, a handover or takeover guide, a vibe-coding code-health review, annotated screenshots, an architecture dossier, end-to-end journeys, troubleshooting, findings or points of attention, or to update an existing documentation site after a release, even when doc-kit is not named."
 ---
 
 Always answer the user, and write every message to them, in the user's language — including status updates
@@ -30,10 +30,12 @@ pages with 404 captures on a prepared demo.
 
 Ask the user (AskUserQuestion when available, otherwise a plain question), and write down the answers:
 
-1. **Which space(s)?** Business (what each feature does, for whom, by which rule — users, key users, product
-   owners, support) · Takeover (how it is built, run and secured, and what to fix first — developers, operators,
-   security) · both. Drives `content/toc.json`'s `spaces` (ARCHITECTURE.md §6.1a) and which of phases 5 and 8
-   below apply.
+1. **Which space(s)?** One per audience: Use (how to do each task, screen by screen — users, key users,
+   support) · Product (what each feature does, for whom, by which rule — product owners, business analysts) ·
+   Administer (settings, access, operations, the technical architecture document — administrators, operators) ·
+   Develop (how it is built and secured, and what to fix first — developers, the takeover team, security). All
+   four (what `doc-kit init` declares) or only those the project has readers for. Drives `content/toc.json`'s
+   `spaces` (ARCHITECTURE.md §6.1a) and which of phases 5 and 8 below apply.
 2. **Where will the screenshots be taken?** Local or demo application · **production, read-only** · no
    screenshots. Answer: `doc-kit init --target local|demo|production` (production: `--url <production address>`
    too) or `--capture none`. Read `references/capture-safety.md` first.
@@ -44,7 +46,7 @@ Ask the user (AskUserQuestion when available, otherwise a plain question), and w
    a price, ask for the per-million-token prices of the models in play and write `llm: { currency, prices: {
    haiku: {...}, sonnet: {...}, opus: {...} } }` into `doc.config.mjs` (ARCHITECTURE.md §6.11). Without it,
    estimates still show tokens, just no cost.
-5. **A security review? A maintainability review?** Optional, takeover space only — see phase 8a.
+5. **A security review? A maintainability review?** Optional, Develop space only — see phase 8a.
 
 For production, repeat before the first capture: a server-side write on `GET` is not blocked
 (`capture.forbidden`), the session file is a secret, real data needs the owner's written decision.
@@ -57,20 +59,20 @@ identical for a given template, so a wave shares its prompt cache).
 
 | Brief | Phase | Space | Agent type | Writes |
 |---|---|---|---|---|
-| `inventory` | 2 | both | `doc-kit-reviewer` (read-only) | nothing: the orchestrator saves its report |
-| `capture-plans` | 4 | business (screens) | `doc-kit-writer` (sonnet), one per set of screens | the first draft of a capture plan, checked with `capture --verify` and `--preview` |
-| `writing-batch` | 5 | business (screens) | `doc-kit-writer`, one per batch | its pages, capture plan, diagrams |
-| `functional-spec` | 5 | business (features) | `doc-kit-writer`, one per batch | feature/rules/roles/process pages |
-| `consolidation` | 6 | both | — (model of the consolidation file) | — |
-| `findings-verification` | 6 | both | `doc-kit-reviewer` | the findings pages only |
-| `page-corrections` | 6 | both | `doc-kit-writer` | reported pages and the glossary |
-| `journey`, `troubleshooting` | 7 | both | `doc-kit-writer`, one per journey | its pages, diagram, fact sheet |
-| `code-health` | 8 | takeover | `doc-kit-reviewer` | api-surface/dependencies/agent-instructions/tests-quality/threat-model |
-| `access-ownership` | 8 | takeover | `doc-kit-writer` | the access-ownership page |
-| `system-dossier` | 8 | takeover | `doc-kit-writer` | runbook/data-model/code-map/adr pages |
-| `production-technical` | 8 | takeover | `doc-kit-reviewer` | architecture document, resources, variables, diagram |
-| `triage` | maintenance | both | `doc-kit-triage` (read-only) | nothing: the orchestrator saves `.doc-kit/triage.json` |
-| `update` | maintenance | both | `doc-kit-writer` | the pages it was given, from their context files |
+| `inventory` | 2 | all | `doc-kit-reviewer` (read-only) | nothing: the orchestrator saves its report |
+| `capture-plans` | 4 | Use, Administer (screens) | `doc-kit-writer` (sonnet), one per set of screens | the first draft of a capture plan, checked with `capture --verify` and `--preview` |
+| `writing-batch` | 5 | Use, Administer (screens) | `doc-kit-writer`, one per batch | its pages, capture plan, diagrams |
+| `functional-spec` | 5 | Product | `doc-kit-writer`, one per batch | feature/rules/roles/process pages |
+| `consolidation` | 6 | all | — (model of the consolidation file) | — |
+| `findings-verification` | 6 | all (writes in Develop) | `doc-kit-reviewer` | the findings pages only |
+| `page-corrections` | 6 | all | `doc-kit-writer` | reported pages and the glossary |
+| `journey`, `troubleshooting` | 7 | Develop | `doc-kit-writer`, one per journey | its pages, diagram, fact sheet |
+| `code-health` | 8 | Develop | `doc-kit-reviewer` | api-surface/dependencies/agent-instructions/tests-quality/threat-model |
+| `access-ownership` | 8 | Administer (Operate) | `doc-kit-writer` | the access-ownership page |
+| `system-dossier` | 8 | Administer (runbook), Develop | `doc-kit-writer` | runbook/data-model/code-map/adr pages |
+| `production-technical` | 8 | Administer (Operate) | `doc-kit-reviewer` | architecture document, resources, variables, diagram |
+| `triage` | maintenance | all | `doc-kit-triage` (read-only) | nothing: the orchestrator saves `.doc-kit/triage.json` |
+| `update` | maintenance | all | `doc-kit-writer` | the pages it was given, from their context files |
 
 Agent types (`skill/doc-kit/agents/*.md`, Claude Code agent definitions, ARCHITECTURE.md §6.11): `doc-kit-triage`
 (`haiku`, Read/Grep/Glob only — cheap, read-only decisions), `doc-kit-writer` (`sonnet`, also Edit/Write/Bash — the
@@ -115,7 +117,7 @@ like the skill.
 
 ## The phases
 
-Each phase closes on its checks. Full detail, both spaces, the two example sites: `references/method.md`.
+Each phase closes on its checks. Full detail, the four spaces, the two example sites: `references/method.md`.
 
 ### 0 · Scoping
 Decide audience, language, capture mode, real data or not, routes never to open, deliverable, who signs in — see
@@ -128,15 +130,19 @@ the project. No LLM call, no judgment: a fact is a fact, not yet a finding. `doc
 
 ### 2 · Inventory by the reviewer
 One `doc-kit-reviewer` agent (read-only, "very thorough"), brief `inventory`, reads `.doc-kit/inventory.json`
-(`doc-kit inventory --json`) and the facts; saves its report as `.doc-kit/inventory-<slug>.md`. With a business
+(`doc-kit inventory --json`) and the facts; saves its report as `.doc-kit/inventory-<slug>.md`. With a Product
 space: also `doc-kit inventory --features --write` to get a starting `features.json` (ARCHITECTURE.md §6.8).
 
-### 3 · Plan, in two spaces
-Declare `spaces` in `content/toc.json` when both are in scope (ARCHITECTURE.md §6.1a); one section's `space` per
-reader. Business pages: `feature`, `business-rules`, `roles-matrix`, `process`. Takeover pages: the existing
-`architecture`/`variables`/`resources` plus `access-ownership`, `api-surface`, `runbook`, `data-model`,
-`dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`. `doc-kit check coverage`
-must reach 100 %. One approved reference page per space.
+### 3 · Plan, by space
+Declare `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a): `["use", "product", "admin", "develop"]`, as
+`init` writes it, or the subset in scope; one section's `space` per reader; a space of the project's own names its
+kind (`{ "id": "ops", "kind": "admin", "title": "Operations" }`). Use: `screen`. Product: `feature`,
+`business-rules`, `roles-matrix`, `process`, `release-notes`. Administer: `screen`, `editor`, `recipe`, and in its
+Operate part `architecture` (the technical architecture document), `runbook`, `variables`, `resources`,
+`access-ownership`. Develop: `technical`, `journey`, `troubleshooting`, `findings`, `api-surface`, `data-model`,
+`dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`. A kit-0.3 project
+(`business`/`takeover`): `doc-kit upgrade --apply` moves it to the four spaces. `doc-kit check coverage` must
+reach 100 %. One approved reference page per space.
 
 ### 4 · Captures
 Skipped with `capture.mode: "none"`. Otherwise `doc-kit demo` or `doc-kit connect` + the PRODUCTION banner, then a
@@ -149,9 +155,10 @@ which reads only and writes nothing, before any image is taken.
 One brief per batch, in parallel waves. **First**, for each page: `doc-kit context <page>` (the only reading an
 agent needs: dependencies, excerpts, exact labels, facts, glossary — never the full inventory or table of
 contents) and, when the page's type supports it (`variables`, `api-surface`, `data-model`, `dependencies`,
-`agent-instructions`), `doc-kit new <id> --prefill`. Business batches: brief `writing-batch` (screens) or
-`functional-spec` (features, rules, roles, process — no `file:line`, business pages cite no code). **Each writer
-ends with** `doc-kit sync --mark <page> --sources …`, from the documentation folder, once its checks pass.
+`agent-instructions`), `doc-kit new <id> --prefill`. Screens of Use and Administer: brief `writing-batch`; the
+Product space: `functional-spec` (features, rules, roles, process — no `file:line`: a business page of Use or
+Product cites no code; a screen keeps the proofs of its "How it works"). **Each writer ends with** `doc-kit sync --mark <page> --sources …`, from the documentation folder, once
+its checks pass.
 
 ### 6 · Consolidation
 `consolidation.mjs init`, paste the reports, `consolidation.mjs duplicates`, then **in parallel**
@@ -162,7 +169,8 @@ A reference journey first (briefs `journey`, optional fact sheets), then the oth
 in parallel (no new capture). A 2nd consolidation; home-page guided tours.
 
 ### 8 · Takeover dossier
-**Facts-grounded** (brief `code-health`, one `doc-kit-reviewer`): `api-surface` (authentication and tenant
+With spaces, its operating pages (`access-ownership`, `runbook`, the architecture document, resources, variables)
+go to the Operate part of the Administer space, the others to the Develop space. **Facts-grounded** (brief `code-health`, one `doc-kit-reviewer`): `api-surface` (authentication and tenant
 isolation of each route, row-level security), `dependencies` (packages that do not exist, licences),
 `agent-instructions` (each rule confirmed, obsolete or contradicted), `tests-quality`, `threat-model`; its gaps
 are numbered candidates for the risk register. **Ownership** (brief `access-ownership`, one `doc-kit-writer`): who
@@ -256,8 +264,9 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
 2. **Nothing invented**: every label, default, permission and behaviour checked in the code (`file:line`) or a
    facts file (`[[verified]]`/`[[deduced]]`/`[[unknown]]`); exact labels in bold; gaps in a NOTE callout, never
    fixed in the application.
-3. **Business pages cite no code**: no `file:line` in the business space; the technical reason lives on the
-   page's `counterpart` in the takeover space instead.
+3. **Business pages cite no code**: a `feature`, `business-rules`, `roles-matrix`, `process` or `release-notes`
+   page of a space read without the code (Use, Product) has no `file:line`; the technical reason lives on its
+   `counterpart` in the Develop space. A `screen` page keeps the proofs of its "How it works", whatever its space.
 4. **Reserved files**: an agent writes only its pages, capture plan and diagrams; `toc.json`, `glossary.json`,
    `features.json`, the config and the engine stay under central management (the orchestrator).
 5. **No commit**, no destructive git command: the user commits. **Secrets**: never a value, even one visible in a
@@ -269,7 +278,7 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
 - [ ] Cadrage written (space(s), capture target, LLM prices if a cost is wanted); the owner's "real data" decision
   if production
 - [ ] `init` + `doctor` green, `.doc-kit/` ignored, `facts/*.json` generated and committed
-- [ ] Inventory saved (and `features.json` for a business space), outdated existing documentation flagged
+- [ ] Inventory saved (and `features.json` for a Product space), outdated existing documentation flagged
 - [ ] Toc with templates and spaces, coverage 100 %, `WRITING-GUIDE.md`, reference page(s) approved
 - [ ] Batches defined (codes, prefixes, pages, reserved files), context files prepared, briefs generated and
   estimated
@@ -286,8 +295,8 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
   server code first, list such routes in `capture.forbidden`.
 - **Outdated existing documentation**: never copy it, re-check everything in the code or the facts.
 - **Giving a writer the full inventory**: slow and expensive; give context files instead (phase 5).
-- **A business page citing `file:line`**: `build --draft` warns (`business.technical`); move the detail to the
-  takeover `counterpart`.
+- **A business page citing `file:line`** in the Use or Product space: `build --draft` warns
+  (`business.technical`); move the detail to its `counterpart` in the Develop space.
 - **Central files edited in parallel**: two agents writing the toc, the glossary or `features.json` at the same
   time lose one's work; everything goes through the reports.
 - **Pages too long**: beyond the template's `maxWords`, `level: 2` sub-pages, while writing rather than

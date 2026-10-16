@@ -20,7 +20,7 @@ names it and gives its options next to it.
 | `i18n-registry` | The ids of a registry in a source file, covered by their label in an i18n file | `source`, `messages` (required), `key` (`"{id}"`), `block`, `pattern`, `flags` (`"m"`), `aliases`, `fallback`, `exclude`, `family` (`"Registry"`) |
 | `glob` | The files of a folder, cited under a form you choose | `pattern` (required), `base` (`"."`), `match` (`"{name}"`), `family` (`"Files"`), `exclude` |
 | `openapi` | The operations of an OpenAPI 3 or Swagger 2 document, in JSON | `file` (required), `family` (`"API"`), `prefix` (`""`), `exclude` |
-| `features` | The candidate business features of `features.json` ([Business space](#/write/markdown~business-space)) | `file` (`"features.json"`), `family` (`"Features"`) |
+| `features` | The candidate business features of `features.json` ([Features, rules and roles](#/write/markdown~features-rules-and-roles)) | `file` (`"features.json"`), `family` (`"Features"`) |
 | `fastapi` | The route handlers of a FastAPI application (`APIRouter(prefix)` and `include_router(prefix)` composed) | `app` (`"."`), `family` (`"API"`), `exclude` |
 | `facts` | One item per fact of a `doc-kit facts` source: `env`, `api`, `db`, the direct `dependencies`, or `agents` | `source` (required), `family` (by source), `dir` (`"facts"`), `exclude` |
 

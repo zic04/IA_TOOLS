@@ -4,9 +4,9 @@ This guide sets the rules **specific to this project**. The rules shared by ever
 
 | Topic | Standard file |
 |---|---|
-| The two spaces (Business, Takeover), required "Take over" pages | `structure.md` |
+| The four spaces (Use, Product, Administer, Develop) and their parts, the required takeover pages | `structure.md` |
 | The 28 page templates and their sections | `templates.md` |
-| Nothing made up, `file:line` proofs, exact labels, gaps, links, glossary, findings, diagrams; writing in the Business space; claim status; the risk register | `writing.md` |
+| Nothing made up, `file:line` proofs, exact labels, gaps, links, glossary, findings, diagrams; writing for readers without the code (Use, Product); claim status; the risk register | `writing.md` |
 <!-- doc-kit:capture=app -->
 | Capture safety and quality | `captures.md` |
 <!-- doc-kit:end -->
@@ -29,7 +29,7 @@ When this guide and the standard disagree, this guide wins for this project. Com
 <!-- doc-kit:capture=none -->
 7. **No screenshot**: each screen is described by a table of its elements (§3).
 <!-- doc-kit:end -->
-8. **No code in the Business space** (`use`, `features`, `configure`, `administer`): a business page cites no `file:line` proof; link its `counterpart` for the implementation detail.
+8. **No code in the Use and Product spaces** (`use`, `features`): a page read without the code cites no `file:line` proof; link its `counterpart` in the Develop space for the implementation detail. The Administer space (`configure`, `administer`, `operate`) is read by administrators and operators, not developers: its screen and editor pages name the file behind an observed gap, never its line number.
 
 ## 2. Sources of truth
 
@@ -89,8 +89,9 @@ doc-kit view <page-id> --theme dark
 
 ## 8. The Takeover dossier: facts, then sync
 
-The Takeover pages (`access-ownership`, `runbook`, `agent-instructions`, and any `api-surface`, `data-model`,
-`dependencies`, `code-map`, `tests-quality`, `threat-model` you add) follow a two-step cycle:
+The pages of the takeover dossier (`access-ownership` and `runbook` in the Administer space; `agent-instructions`,
+and any `api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `threat-model` you add, in the
+Develop space) follow a two-step cycle:
 
 1. **`doc-kit facts --source <name>`** reads the application's code (env names, API routes, database tables,
    dependencies, agent instruction files, secrets, tests) into `facts/<source>.json`, **committed** with this

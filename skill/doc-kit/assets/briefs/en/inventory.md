@@ -41,14 +41,16 @@ used throughout the inventory.
    controller, GET handler) calls a write function (`create…`, `ensure…`, `upsert…`, `update…`, `insert…`,
    `save…`, `sync…`): route, `file:line`, effect. These are the candidates for `capture.forbidden`.
 7. **Proposed site plan**
-   - The four sections of the standard (Use, Configure, Administer, Take over), with groups in each.
+   - The four spaces of the standard (Use, Product, Administer, Develop) and their parts (`use`; `features`,
+     `process`; `administer`, `operate`; `understand`, `secure`, `risks`, `maintain`), with groups in each.
    - For each page: `id` (lower-case path without accents, for example `use/orders/list`), title, routes,
      permissions, template among `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`,
      `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`,
      `resources`.
    - Every route appears in at least one page.
-   - In Take over: architecture, code map, database, storage, security, integrations, deployment, operations,
-     tests and quality, findings, maintaining the documentation.
+   - In Operate (Administer): the technical architecture document, deployment, operations. In Develop:
+     architecture, code map, database, storage, security, integrations, tests and quality, findings, maintaining
+     the documentation.
 8. **Proposed batches**: 6 to 10 batches of 10 to 15 pages, each with a short code (`u1`, `cf`, `a1`…), its
    pages and the screens they share; put heavy domains in a batch of their own.
 

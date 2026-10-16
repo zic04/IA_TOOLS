@@ -8,11 +8,11 @@ avec quelques extensions, dans `content/<id-de-page>.md`. La page n'a pas de tit
 3. **Des encadrés** : `> [!ASTUCE]`, `> [!ATTENTION]`, `> [!ERREUR]`, `> [!DROITS]`, `> [!NOTE]`, `> [!RECETTE]`,
    `> [!MECANISME]`.
 4. **Des badges en ligne** : `[[droit …]]`, `[[menu …]]`, `[[touche …]]`, `[[statut …]]`, `[[route …]]`, et ceux de
-   l'espace métier, `[[fonctionnalite …]]`, `[[regle …]]`.
+   l'espace Produit, `[[fonctionnalite …]]`, `[[regle …]]`.
 5. **Des liens internes** : `#/id-de-page` et `#/id-de-page~ancre`, vérifiés par le build.
-6. **L'espace métier** (§6.8) : un bloc avec un corps, `:::regle`, et des tableaux générés, `::fonctionnalites`,
+6. **Fonctionnalités, règles et rôles** (§6.8, l'espace Produit) : un bloc avec un corps, `:::regle`, et des tableaux générés, `::fonctionnalites`,
    `::regles`, `::roles`.
-7. **L'espace reprise technique** (§6.9) : `::faits` (un tableau à partir de `facts/<source>.json`) et les puces
+7. **Faits et affirmations** (§6.9, le dossier de reprise) : `::faits` (un tableau à partir de `facts/<source>.json`) et les puces
    d'affirmation `[[verifie …]]`, `[[deduit …]]`, `[[inconnu …]]`.
 
 Chaque extension a une graphie française et une graphie anglaise ; les deux sont acceptées dans tout projet, quelle
@@ -124,10 +124,10 @@ Un type inconnu (`[!DANGER]`) est un avertissement du build, et la citation est 
 - `[[route …]]` accepte des crochets à l'intérieur (`/orders/[id]`). Le contrôle de couverture trouve une route
   n'importe où dans le texte des pages, dans un badge ou non.
 
-## Espace métier
+## Fonctionnalités, règles et rôles
 
-L'espace métier (ARCHITECTURE.md §6.8) décrit chaque fonctionnalité pour les personnes qui l'utilisent, en décident
-ou la soutiennent : aucun code, aucun `file:line`.
+Ces directives servent l'espace Produit (ARCHITECTURE.md §6.8), qui décrit chaque fonctionnalité pour les personnes
+qui l'utilisent, en décident ou la soutiennent : aucun code, aucun `file:line`.
 
 | Français | Anglais | Ce que ça fait |
 |---|---|---|
@@ -159,16 +159,16 @@ des fonctionnalités candidates à partir de ce que voient les adaptateurs de co
 segment statique de leurs routes, routes API ou clés i18n.
 
 Le champ `technical` d'un terme du glossaire (où il vit dans le code) n'apparaît dans sa bulle que si le projet n'a
-pas d'espaces, ou que l'espace courant est `takeover` ou « tout » ([Glossaire](#/write/glossary)) ; les exports
-autres que `takeover` le retirent.
+pas d'espaces, ou que l'espace courant est « tout » ou un espace dont le type l'affiche, `admin` ou `develop`
+([Glossaire](#/write/glossary)) ; les exports des autres espaces (`use`, `product`) le retirent.
 
 [Exemple · Fiche de fonctionnalité](#/examples/feature), [Exemple · Règles métier](#/examples/business-rules) et
 [Exemple · Matrice des rôles](#/examples/roles-matrix) montrent chaque élément de cette section dans une vraie page.
 
-## Espace reprise technique
+## Faits et affirmations
 
-L'espace reprise technique (ARCHITECTURE.md §6.9) est le dossier dont une équipe a besoin pour reprendre une
-application : chaque affirmation s'appuie sur une preuve (`file:line`), ou est marquée déduite ou inconnue.
+Le dossier de reprise (ARCHITECTURE.md §6.9), écrit pour l'espace Développer, réunit ce dont une équipe a besoin
+pour reprendre une application : chaque affirmation s'appuie sur une preuve (`file:line`), ou est marquée déduite ou inconnue.
 
 | Français | Anglais | Ce que ça fait |
 |---|---|---|
@@ -193,7 +193,7 @@ Une source inconnue (`facts.missing`) ou une colonne qu'aucun élément ne poss�
 build strict ; lancez d'abord `doc-kit facts`. [Commandes : écrire et vérifier](#/reference/cli/write-check~doc-kit-facts)
 liste les sept sources. Les dix types de pages de reprise ([Les gabarits de page](#/write/page-templates)) sont
 construits autour de ces deux syntaxes : [Exemple · Surface d'API](#/examples/api-surface), [Exemple ·
-Dépendances](#/examples/dependencies) et les autres exemples de l'espace reprise les montrent dans une vraie page.
+Dépendances](#/examples/dependencies) et les autres exemples de la reprise les montrent dans une vraie page.
 
 ## Liens
 

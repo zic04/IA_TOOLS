@@ -29,7 +29,7 @@ Go through it before you hand a site over to its owner, or to the team that take
 | ☐ | Documented version of the application, and date of the capture run | "Maintaining the docs" (for example: version 2.4.0, captures of 1 October 2026) |
 | ☐ | Records already opened in production listed (server writes while rendering) | "Maintaining the docs" |
 | ☐ | Known limits of the tooling | "Maintaining the docs", "Known limits" |
-| ☐ | Findings consolidated: writers' candidates re-checked, deduplicated, numbered | `take-over/findings` |
+| ☐ | Findings consolidated: writers' candidates re-checked, deduplicated, numbered | `risks/findings` |
 | ☐ | Proposed terms added to the glossary | `content/glossary.json` |
 | ☐ | Project memory up to date: takeover notes, the assistant's memory if there is one, the documentation's `CHANGELOG` | Depends on the project |
 | ☐ | Facts up to date: no stale `facts/<source>.json` (ARCHITECTURE.md §6.9) | `doc-kit audit` ("Facts and claims"); refresh with `doc-kit facts --source <name>` |
@@ -40,7 +40,7 @@ Go through it before you hand a site over to its owner, or to the team that take
 | ✓ | Item | Command or rule |
 |---|---|---|
 | ☐ | A **self-contained** copy of the project, without `node_modules/`, `.doc-kit/` or session | `doc-kit export <target>`; `--with-dist` to include the built site, `--zip` for an archive |
-| ☐ | **One export per space**, when the project declares spaces (ARCHITECTURE.md §6.1a) | `doc-kit build` writes every space's export by default (`spaces.export`); check each one opens and shows only its own space |
+| ☐ | **One export per space**, when the project declares spaces (ARCHITECTURE.md §6.1a) | `doc-kit build` writes every space's export by default (`spaces.export`), named after the space id (`dist/Acme-Orders-Documentation-use.html`, `-product`, `-admin`, `-develop`); check each one opens and shows only its own space, then hand each one to its own readers |
 | ☐ | A handover README at the root | What the site is, how to open it, how to rebuild it (`npm ci`, `npm run site`), how to retake the captures, where the writing guide is |
 | ☐ | The export rebuilds elsewhere | In the copy: `npm ci`, then `npm run site`; Node.js 20 or later; `npx playwright install chromium` if the browser is missing |
 | ☐ | The coverage check is documented as skipped outside the repository | It needs the application's code |

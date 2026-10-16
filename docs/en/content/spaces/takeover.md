@@ -1,6 +1,6 @@
 ## In short
 
-The takeover space is the dossier a team needs to take over an application — especially one written largely by AI
+The takeover dossier is what a team needs to take over an application — especially one written largely by AI
 assistants ("vibe-coded"), whose usual risks are:
 
 | Risk | Where it usually hides |
@@ -12,8 +12,11 @@ assistants ("vibe-coded"), whose usual risks are:
 | Missing or misleading tests | A test that asserts nothing, or a critical flow with none |
 | Agent instruction files as a hidden specification | `AGENTS.md`, `CLAUDE.md` and the like, never read by the team that takes over |
 
-Every claim in this space is backed by a proof (`file:line`), or marked as deduced or unknown — never asserted on
-trust.
+Its pages live in the Develop space — architecture, journeys, security, risks, maintenance — but for the operating
+ones, read by operators: the technical architecture document, the runbook, variables, resources, access and
+ownership sit in the Operate part of the Administer space. Every claim of the dossier is backed by a proof
+(`file:line`), or marked as deduced or unknown — never asserted on trust; the audit expects those proofs on the
+pages of the Develop space.
 
 ## Where to start
 
@@ -127,8 +130,8 @@ lives, how to hand it over, and its status. The page is complete when "Unknown o
 
 ## Further reading
 
-- [Two spaces, one source](#/spaces/overview): declaring `takeover`, the export, `counterpart`.
-- [Documenting each feature](#/spaces/business): the counterpart space.
+- [Four spaces, one source](#/spaces/overview): declaring `develop` and `admin`, the export, `counterpart`.
+- [Documenting each feature](#/spaces/business): the Product space, the counterpart of this one.
 - [Keeping up with the application](#/publish/sync): what to do once the facts and the findings exist.
 - [Example · API surface](#/examples/api-surface), [Example · Dependencies](#/examples/dependencies), [Example ·
   Agent instruction files](#/examples/agent-instructions).

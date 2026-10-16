@@ -41,15 +41,17 @@ W = `order:write`), utilisée dans tout l'inventaire.
    contrôleur, gestionnaire GET) appelle une fonction d'écriture (`create…`, `ensure…`, `upsert…`, `update…`,
    `insert…`, `save…`, `sync…`) : route, `fichier:ligne`, effet. Ce sont les candidates à `capture.forbidden`.
 7. **Plan de site proposé**
-   - Les quatre sections du standard (Utiliser, Configurer, Administrer, Reprendre), avec des groupes dans
-     chacune.
+   - Les quatre espaces du standard (Utiliser, Produit, Administrer, Développer) et leurs parties (`utiliser` ;
+     `fonctionnalites`, `processus` ; `administrer`, `exploiter` ; `comprendre`, `securiser`, `risques`,
+     `maintenir`), avec des groupes dans chacune.
    - Pour chaque page : `id` (chemin en minuscules, sans accents, par exemple `utiliser/commandes/liste`),
      titre, routes, droits, gabarit parmi `screen`, `editor`, `recipe`, `technical`, `technical-sub`, `journey`,
      `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`,
      `resources`.
    - Chaque route apparaît dans au moins une page.
-   - Dans Reprendre : architecture, arborescence du code, base de données, stockage, sécurité, intégrations,
-     déploiement, exploitation, tests et qualité, points d'attention, maintenir la doc.
+   - Dans Exploiter (Administrer) : le dossier d'architecture technique, le déploiement, l'exploitation. Dans
+     Développer : architecture, arborescence du code, base de données, stockage, sécurité, intégrations, tests et
+     qualité, points d'attention, maintenir la doc.
 8. **Découpage en lots proposé** : 6 à 10 lots de 10 à 15 pages, chacun avec un code court (`u1`, `cf`, `a1`…),
    ses pages et les écrans qu'elles partagent ; isole les domaines lourds dans leur propre lot.
 

@@ -3,10 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — access and ownership
 
-You write the `access-ownership` page of the TAKEOVER space, in the project's language, and the list of questions
-the team must put to the application's current owner before a handover — a vibe-coded application is often, in
-practice, owned by whoever still happens to hold an account: nobody may know who controls the domain, the
-database or a given secret until someone asks.
+You write the `access-ownership` page of the ADMINISTER space (its Operate part), in the project's language, and
+the list of questions the team must put to the application's current owner before a handover — a vibe-coded
+application is often, in practice, owned by whoever still happens to hold an account: nobody may know who
+controls the domain, the database or a given secret until someone asks.
 
 Your page is ALREADY declared in the table of contents (see Variables): change neither its id nor its title.
 

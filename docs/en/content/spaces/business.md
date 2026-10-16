@@ -1,6 +1,6 @@
 ## In short
 
-The business space describes **each feature** for the people who use it, decide about it or support it: no code,
+The Product space describes **each feature** for the people who use it, decide about it or support it: no code,
 no `file:line`. Three ingredients, each with its own page type: a **feature sheet** per feature, **business rules**
 stated once and cited everywhere they apply, and a **roles matrix** of who can do what.
 
@@ -75,12 +75,15 @@ candidate features, each with a suggested id and the sheet that already cites it
 `features.json` (refused if it exists, unless `--force`, which only appends new candidates); the `features`
 coverage adapter then measures how many of its entries a sheet cites.
 
-## Keep the business space free of code
+## Keep the Product and Use spaces free of code
 
-A business page that contains a `file:line` proof gets the warning "move the technical detail to its counterpart":
-how the approval threshold is enforced belongs to the takeover space, behind the sheet's `counterpart`. A glossary
+The Product and Use spaces are read without the code. A business page (`feature`, `business-rules`, `roles-matrix`,
+`process`, `release-notes`) whose space is one of them — or a space of your own of one of their kinds — and that
+contains a `file:line` proof gets the warning `business.technical`, "move the technical detail to its counterpart":
+how the approval threshold is enforced belongs to the Develop space, behind the sheet's `counterpart`. A glossary
 term's `technical` field (where it lives in the code) follows the same rule: it only shows in its tooltip when the
-project has no spaces, or the current space is `takeover` or "everything".
+project has no spaces, or the current space is `admin`, `develop` or "everything"; only the Administer and Develop
+exports keep it.
 
 ## Pitfalls and observed gaps
 
@@ -94,8 +97,8 @@ project has no spaces, or the current space is `takeover` or "everything".
 
 ## Further reading
 
-- [Two spaces, one source](#/spaces/overview): declaring `business`, the selector, the export.
-- [Taking over a vibe-coded application](#/spaces/takeover): the counterpart of this space.
-- [Extended Markdown](#/write/markdown~business-space): every directive's full syntax.
+- [Four spaces, one source](#/spaces/overview): declaring `product`, the selector, the export.
+- [Taking over a vibe-coded application](#/spaces/takeover): the Develop space, the counterpart of this one.
+- [Extended Markdown](#/write/markdown~features-rules-and-roles): every directive's full syntax.
 - [Example · Feature sheet](#/examples/feature), [Example · Process](#/examples/process), [Example · Release
   notes](#/examples/release-notes).

@@ -85,6 +85,8 @@ par page.
 |---|---|---|
 | « pas de CHANGELOG.md dans le kit » | Une copie du moteur sans son journal des modifications | Les changements ne peuvent pas être listés ; les migrations s'exécutent quand même |
 | « la migration 0.2.0 a échoué : … » | Le projet diffère de ce qu'attend la migration | Rien n'a été écrit ; signalez le problème avec le `doc.config.mjs` du projet |
+| « migration 0.4.0 : content/toc.json est encore au format du kit 0.1 (clés françaises) » | Un sommaire du kit 0.1 qui déclare des espaces | Rien n'a été écrit ; lancez d'abord `doc-kit migrate`, puis de nouveau `doc-kit upgrade` |
+| Le diff de `content/toc.json` montre des lignes qui n'ont pas vraiment changé | La migration 0.4.0 réécrit le sommaire avec une indentation de 2 espaces, un élément de tableau par ligne et des fins de ligne LF | Attendu : seuls les espaces ont changé ; le build lit le fichier de la même façon |
 | « Chromium pour Playwright n'est pas installé » | Le nouveau kit utilise un Playwright plus récent | `npx playwright install chromium` dans le kit |
 
 ## Pièges et limites à connaître

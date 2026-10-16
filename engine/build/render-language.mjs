@@ -14,6 +14,7 @@ import { buildFeatureRegistry, resolveBusinessRefs, hasTechnicalProof, BUSINESS_
 import { withoutLanguageTexts } from "./languages.mjs";
 import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
+import { loadSpaceProfiles } from "../core/space-profiles.mjs";
 import { engineReadersFor } from "./build-context.mjs";
 
 export const HOME_FILES = ["home.md", "accueil.md"];
@@ -199,13 +200,16 @@ function renderPage(r, sec, g, p) {
   if (
     !missing &&
     site.spaces &&
-    (p.space ?? sec.space) === "business" &&
+    readWithoutCode(site.spaces, p.space ?? sec.space) &&
     BUSINESS_TYPES.includes(p.template) &&
     hasTechnicalProof(source)
   )
     r.reportLang(false, { kind: "business", key: "business.technical", vars: { page: p.id } });
   return p.id;
 }
+
+/** Whether the readers of a space read without the code (its kind's `noCode`, standard/spaces.json). */
+const readWithoutCode = (spaces, id) => !!loadSpaceProfiles().get(spaces.find((s) => s.id === id)?.kind)?.noCode;
 
 /** The home page (`home.md`, or the legacy `accueil.md`): { html, fallback }. */
 function renderHome(r) {

@@ -1,6 +1,6 @@
 // Spaces (ARCHITECTURE.md §6.1a): one source, one site per audience. content/toc.json declares the spaces; every
 // section names its own, a page or a journey may name another one. This module, shared by the build and the CLI:
-//   - checks the declaration (space.* problems) and resolves the texts of each space (SPACE_DEFAULTS);
+//   - checks the declaration (space.* problems) and resolves the kind (standard/spaces.json) and texts of each space;
 //   - derives the export of one space from the full site data (exportSite): the other spaces' pages are physically
 //     removed, the links to them become their text, the images and the statistics are recounted;
 //   - paths of the exports, declared ids and the --space option of the CLI.
@@ -11,15 +11,7 @@ import { closest } from "../project/validate.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-
-/**
- * The spaces of the standard (standard/structure.md): their texts are the keys ui.spaces.<id>.title, shortTitle,
- * subtitle and for, in the site language; their icon comes from the kit's set. Any other space needs a title.
- */
-export const SPACE_DEFAULTS = Object.freeze({
-  business: Object.freeze({ icon: "book" }),
-  takeover: Object.freeze({ icon: "code" }),
-});
+import { loadSpaceProfiles, spaceKind, isRetiredSpace } from "../core/space-profiles.mjs";
 
 /** Keys of the i18n fragment of the spaces (i18n/en/spaces.json): embedded only when the site uses them. */
 export const SPACE_TEXT_KEYS = Object.freeze(
@@ -39,8 +31,11 @@ export function withoutSpaceTexts(texts) {
  * @param {(key: string) => string} p.t        translator of the site language
  * @param {(name: string) => string} p.iconKey stored key of an icon name
  * @returns {{ spaces: object[]|null, errors: object[] }}
- *   spaces: [{ id, title, shortTitle, subtitle, icon?, for, pages: 0 }] in declaration order, null when none is
- *   declared; errors: { kind: "space", key, vars } (text: `cli.build.<key>`), blocking even a draft build.
+ *   spaces: [{ id, kind, title, shortTitle, subtitle, icon?, for, pages: 0, tech? }] in declaration order, null
+ *   when none is declared (`tech`: its readers see the glossary's technical correspondence); errors: { kind:
+ *   "space", key, vars } (text: `cli.build.<key>`), blocking even a draft build. The standard spaces (their ids
+ *   are the kinds of standard/spaces.json) take their texts from ui.spaces.<id>.* in the site language, and
+ *   every space its icon from its kind; any other space needs a title.
  */
 export function resolveSpaces({ toc, t, iconKey }) {
   const errors = [];
@@ -69,26 +64,36 @@ export function resolveSpaces({ toc, t, iconKey }) {
   for (const x of named)
     if (!ids.includes(x.space)) problem("space.unknown", { where: x.where, space: x.space, known });
 
+  const profiles = loadSpaceProfiles();
+  const kinds = [...profiles.keys()].join(", ");
   const spaces = [];
   for (const s of declared) {
     if (spaces.some((x) => x.id === s.id)) continue;
-    const standard = SPACE_DEFAULTS[s.id];
+    const kind = spaceKind(s);
+    if (!kind) {
+      // A space of kit 0.3 (business, takeover): doc-kit upgrade rewrites it.
+      problem(isRetiredSpace(s.id) && s.kind === undefined ? "space.retired" : "space.kind", { space: s.id, kinds });
+      continue;
+    }
+    const profile = profiles.get(kind);
+    const standard = profiles.has(s.id);
     // A field of the object wins over the default text of a standard space.
     const text = (field) => s[field] ?? (standard ? t(`ui.spaces.${s.id}.${field}`) : undefined);
     const title = text("title");
     if (!title) {
-      problem("space.title", { space: s.id });
+      problem("space.title", { space: s.id, kinds });
       continue;
     }
-    const icon = s.icon ?? standard?.icon;
     spaces.push({
       id: s.id,
+      kind,
       title,
       shortTitle: text("shortTitle") ?? title,
       subtitle: text("subtitle") ?? "",
-      ...(icon ? { icon: iconKey(icon) } : {}),
+      icon: iconKey(s.icon ?? profile.icon),
       for: text("for") ?? "",
       pages: 0,
+      ...(profile.glossaryTechnical ? { tech: true } : {}),
     });
   }
   return { spaces, errors };
@@ -180,8 +185,9 @@ export function exportSite({ data, space, used, t }) {
   d.meta.stats = { pages: d.order.length, captures: images.size, zones, diagrams: diagrams.size };
   d.meta.space = space;
   d.spaces = d.spaces.filter((s) => s.id === space);
-  // The glossary is kept whole (§7), except its technical correspondence (§6.8): only the takeover export keeps it.
-  if (space !== "takeover") d.glossary = d.glossary.map(({ tech, ...rest }) => rest);
+  // The glossary is kept whole (§7), except its technical correspondence (§6.8): only the export of a space whose
+  // kind shows it (admin, develop: `tech`) keeps it.
+  if (!d.spaces[0]?.tech) d.glossary = d.glossary.map(({ tech, ...rest }) => rest);
   return { data: d, images, excludedLinks };
 }
 
