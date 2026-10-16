@@ -6,6 +6,7 @@ import { parentPort } from "node:worker_threads";
 import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
 import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
+import { DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, expressRoutes, fastapiRoutes, nextHandlerGuards } from "../../engine/facts/api.mjs";
@@ -20,6 +21,14 @@ import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 const PREFIXES = [
   "@acme:registry=",
   "registry=",
+  '"@acme:registry" ',
+  "npmRegistryServer: ",
+  "npmScopes:\n  ",
+  "[install.scopes]\n",
+  "[[tool.poetry.source]]\nurl = ",
+  'corp = { source = "',
+  "corp = { version = ",
+  "name @ ",
   "--index-url ",
   "a/",
   "<script>",
@@ -115,6 +124,7 @@ export const CHECKS = [
     (s) => (re.global ? [...s.matchAll(re)].length : re.test(s)),
   ]),
   ["network LOCAL_SPEC", (s) => LOCAL_SPEC.test(s)],
+  ...Object.entries(DEPENDENCY_PATTERNS).map(([name, re]) => [`dependencies ${name}`, (s) => re.exec(s)]),
   ["js-scan closingBrace", (s) => closingBrace(s, 0)],
   ["js-scan braceDepths", (s) => braceDepths(s)],
 ];

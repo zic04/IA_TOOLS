@@ -119,11 +119,20 @@ shape) passes. Review the files before handing them to an agent, and `AGENTS.md`
 The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
-the application's direct dependencies to the npm and PyPI registries, except the private ones: an npm scope that has
-its own registry in the application's `.npmrc`, every npm package when `.npmrc` replaces the default registry, every
-pip package when a private index is declared (`pip.conf`, `pip.ini`, or `--index-url` / `--extra-index-url` in a
-requirements file), and any package taken from a folder, a workspace, a git repository or a URL. A private package
-that the application does not declare that way cannot be told apart: do not use `--network` on such a project.
+the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest
+version), except the private ones: the application's own packages (its workspaces), an npm scope that has its own
+registry, every npm package when a registry replaces the default one, every pip package when a private index is
+declared, any package taken from a folder, a workspace, a git repository, a URL or a private registry (as
+`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` or `poetry.lock` shows; a requirements line that is a path or a local archive
+is never read as a package name), and any package of an ecosystem other than npm and pip. The declarations are read
+in the application (every folder down to each manifest: `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `bunfig.toml`,
+`pip.conf`, `pip.ini`, requirements files, Poetry and uv indexes, `uv.toml`, Pipfile sources), in your own
+configuration (every home folder, `NPM_CONFIG_USERCONFIG`, `PIP_CONFIG_FILE`, `UV_CONFIG_FILE`, Poetry's
+repositories) and in the npm, yarn, bun, pip, uv and Poetry variables. A yarn or bun file that names scopes in a form the kit does not follow makes every
+npm package private. Not read: the global npm and pip configurations of the machine. A private package declared nowhere cannot be told apart: do not use `--network` on such a project.
+`facts --tools` runs `osv-scanner` **offline only**: its database is downloaded (public files, no package name sent)
+only with `--network`. The reports of the external tools are kept through an allowlist of fields (rule, file, line,
+package, version…): a matched secret, a line of code, an author or an e-mail address never reaches `facts/`.
 `probe` runs only on a local instance or one you declared a demo (`capture.target: "demo"`), with `GET` and `HEAD`
 only, never follows a redirect, and never requests a route of `capture.forbidden`. The generated site loads nothing
 from the network (its Content Security Policy forbids it).

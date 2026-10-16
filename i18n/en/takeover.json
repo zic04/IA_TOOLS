@@ -18,8 +18,22 @@
   "cli.build.facts.missing.help": "run {command} facts --source {source} first, or check paths.facts",
   "cli.facts.noApp": "no application to read",
   "cli.facts.noApp.help": "set app.dir in doc.config.mjs to the application root (an existing folder)",
+  "cli.facts.tool.failed": "⚠ {tool}: failed ({reason}); its facts are unknown, not empty",
+  "cli.facts.tool.findings": {
+    "one": "{tool}: ran, {n} finding",
+    "other": "{tool}: ran, {n} findings"
+  },
+  "cli.facts.tool.listed": {
+    "one": "{tool}: ran, {n} package listed",
+    "other": "{tool}: ran, {n} packages listed"
+  },
   "cli.facts.tool.missing": "{tool}: not installed",
-  "cli.facts.tool.ran": "{tool}: ran",
+  "cli.facts.tool.ok": "{tool}: ran, nothing found",
+  "cli.facts.tool.osvOffline": "osv-scanner runs offline only: download its vulnerability database once with --network (only public database files are fetched; no package name is sent)",
+  "cli.facts.tool.reason.exit": "exit code {code}",
+  "cli.facts.tool.reason.interrupted": "the process was interrupted (a signal or too much output)",
+  "cli.facts.tool.reason.output": "its report could not be read",
+  "cli.facts.tool.reason.version": "its version could not be read: not run, so as never to fall back to a mode that sends the package names",
   "cli.facts.unknownSource": "unknown source: “{name}”",
   "cli.facts.unknownSource.help": "known sources: {known}",
   "cli.facts.unreadable": "⚠ {file}: {reason}; its facts are unknown, not empty",

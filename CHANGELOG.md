@@ -31,6 +31,38 @@ entries between a project's `kit` range and the installed version.
   `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression
   literal); `eval(`, Python's `exec(` and `new Function(` are still reported.
 
+### Security
+
+- **`facts --source quality --network` sent the names of private packages** (an npm scope with its own registry, a
+  private pip index, workspace and local packages) to npm and PyPI while looking up their latest version: it now
+  goes through the same `isPrivatePackage` check as `dependencies --network` (AUDIT.md S13).
+- **More private names were sent and no longer are** (`dependencies` and `quality --network`): PEP 508 direct
+  references (`name @ file:…`, `name @ git+https:…`), Poetry `path`, `git`, `url` and private-`source`
+  dependencies, the application's own workspace packages (npm workspaces point at their siblings with plain
+  ranges), packages a lock file (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`) took from a private registry,
+  git, a file or a link, the file name of a local archive in a requirements file, scopes declared for yarn
+  (`.yarnrc`, `.yarnrc.yml`) or bun (`bunfig.toml`) — a form the kit does not follow makes every npm package
+  private —, uv indexes (`uv.toml`, `UV_INDEX_URL`…), and any ecosystem other than npm and pip.
+- What is private is now also read in **every folder down to each manifest** (a separate front end or a workspace
+  root with its own `.npmrc` was missed), in **your own** configuration (`.npmrc`, `.yarnrc`, `.yarnrc.yml`,
+  `.bunfig.toml`, pip, in every home folder — `HOME` and `USERPROFILE` can differ on Windows —, plus
+  `NPM_CONFIG_USERCONFIG` and `PIP_CONFIG_FILE`), and in the npm, yarn, bun and pip variables — where a company
+  usually declares its private registries. Poetry sources, uv indexes and Pipfile sources other than PyPI make every
+  pip package private.
+- **`osv-scanner` runs offline only** (`--tools`): its API mode sent every package name and version, private ones
+  included, to osv.dev. Its database is downloaded (public files, no name sent) only with `--network`; a version it
+  cannot read is never run.
+- **The reports of the external tools are normalised through an allowlist** of fields: semgrep's matched lines,
+  gitleaks' matches, authors and e-mail addresses no longer reach the facts, whatever a tool adds to its output.
+
+### Changed
+
+- **`facts/tool-<name>.json`** is now `{ tool, generator, generated, commit, app, status, reason?, code?,
+  truncated?, items }` (normalised items) instead of `{ tool, generator, generated, installed, ok, data }` (the raw
+  report). `status` (`ok`, `findings`, `failed`, `missing`) comes from each tool's exit codes and items: a tool that
+  found something was reported as failed, semgrep's findings and syft's inventory as "nothing found". Run
+  `doc-kit facts --tools` again to rewrite these files.
+
 ## [0.3.0] - 2026-10-03
 
 ### Changed

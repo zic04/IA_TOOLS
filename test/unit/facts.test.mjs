@@ -25,8 +25,8 @@ import { collectDb } from "../../engine/facts/db.mjs";
 import { collectAgents, hiddenCharacters } from "../../engine/facts/agents.mjs";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
-import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
-import { runTools, scrubGitleaks, TOOL_NAMES } from "../../engine/facts/tools.mjs";
+import { checkExistence, privateRegistries, isPrivatePackage } from "../../engine/facts/network.mjs";
+import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/capture/session.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
@@ -651,35 +651,560 @@ describe("--network never sends a private package's name (AUDIT.md S13)", () => 
   });
 });
 
-describe("--tools (simulated: never a real process)", () => {
-  test("a tool found on the PATH runs; one not found is reported, never an error; gitleaks is scrubbed", () => {
-    const exec = (bin) =>
-      bin === "gitleaks"
-        ? {
-            status: 0,
-            stdout: JSON.stringify([
-              { RuleID: "generic-api-key", Secret: "abc123", Match: "token=abc123", File: "config.ts" },
-            ]),
-          }
-        : null;
-    const results = runTools("/app", exec, ["gitleaks", "osv-scanner", "syft", "knip"]);
-    assert.deepEqual(
-      results.map((r) => [r.tool, r.installed]),
-      [
-        ["gitleaks", true],
-        ["osv-scanner", false],
-        ["syft", false],
-        ["knip", false],
-      ],
+describe("--network: what is private is read everywhere it can be declared (AUDIT.md S13)", () => {
+  /** A temporary application from `files` ({ relative path: text }); `fn(appDir)`, then removed. */
+  async function withApp(files, fn) {
+    const appDir = tempDir("doc-kit-network-app-");
+    try {
+      for (const [rel, text] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(appDir, rel)), { recursive: true });
+        fs.writeFileSync(path.join(appDir, rel), text);
+      }
+      return await fn(appDir);
+    } finally {
+      fs.rmSync(appDir, { recursive: true, force: true });
+    }
+  }
+  /** The URLs `--network` would request for the application's dependencies (direct ones), and the items. */
+  async function sentFor(appDir, env) {
+    const items = collectDependencies(appDir);
+    const urls = [];
+    const out = await checkExistence(
+      items,
+      async (url) => {
+        urls.push(url);
+        return { ok: true, status: 200 };
+      },
+      { registries: privateRegistries(appDir, { items, env }) },
     );
-    const gitleaks = results.find((r) => r.tool === "gitleaks");
-    assert.equal(gitleaks.ok, true);
-    assert.deepEqual(gitleaks.data, [{ RuleID: "generic-api-key", File: "config.ts" }]);
-    assert.ok(!JSON.stringify(gitleaks.data).includes("abc123"));
+    return { urls, out };
+  }
+
+  test("an .npmrc of a manifest folder or of any folder above it counts; a folder outside the application never", () =>
+    withApp(
+      {
+        "frontend/.npmrc": "@corp:registry=https://npm.corp.internal/\n",
+        "frontend/packages/ui/package.json": JSON.stringify({ dependencies: { "@corp/tokens": "^1.0.0" } }),
+      },
+      (appDir) => {
+        assert.deepEqual([...privateRegistries(appDir).npmScopes], [], "the root alone does not know the scope");
+        const items = [{ manifest: "frontend/packages/ui/package.json" }];
+        assert.deepEqual([...privateRegistries(appDir, { items }).npmScopes], ["@corp"], "the workspace root counts");
+        const outside = [{ manifest: "../../package.json" }];
+        assert.deepEqual([...privateRegistries(appDir, { items: outside }).npmScopes], [], "outside: ignored");
+      },
+    ));
+
+  test("PEP 508 direct references and URL lines of a requirements file never reach PyPI", () =>
+    withApp(
+      {
+        "requirements.txt": [
+          "mylib @ file:///opt/mylib",
+          "corp-sdk @ git+https://git.corp.internal/sdk.git",
+          "git+https://git.corp.internal/other.git#egg=other",
+          "./vendored/pkg",
+          "requests==2.32.0",
+        ].join("\n"),
+      },
+      async (appDir) => {
+        const { urls } = await sentFor(appDir);
+        assert.deepEqual(urls, ["https://pypi.org/pypi/requests/json"]);
+      },
+    ));
+
+  test("Poetry path / git / url / private-source dependencies, and a private index, never reach PyPI", async () => {
+    const pyproject = (extra = "") =>
+      [
+        '[tool.poetry]\nname = "acme-orders"\n',
+        "[tool.poetry.dependencies]",
+        'python = "^3.12"',
+        'corp-path = { path = "../corp-path" }',
+        'corp-git = { git = "https://git.corp.internal/x.git" }',
+        'corp-url = { url = "https://files.corp.internal/x.whl" }',
+        'corp-src = { version = "^1", source = "corp" }',
+        'fastapi = "^0.110"',
+        extra,
+      ].join("\n");
+    await withApp({ "pyproject.toml": pyproject() }, async (appDir) => {
+      const { urls } = await sentFor(appDir);
+      assert.deepEqual(urls, ["https://pypi.org/pypi/fastapi/json"]);
+    });
+    const source = '\n[[tool.poetry.source]]\nname = "corp"\nurl = "https://pypi.corp.internal/simple"\n';
+    await withApp({ "pyproject.toml": pyproject(source) }, async (appDir) => {
+      assert.deepEqual((await sentFor(appDir)).urls, [], "a private Poetry source: every pip package is private");
+    });
+    await withApp({ "pyproject.toml": '[[tool.uv.index]]\nurl = "https://pypi.corp/simple"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).pipAll, true, "uv index"),
+    );
+    await withApp({ Pipfile: '[[source]]\nurl = "https://pypi.corp/simple"\nname = "corp"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).pipAll, true, "Pipfile source"),
+    );
+    await withApp({ Pipfile: '[[source]]\nurl = "https://pypi.org/simple"\nname = "pypi"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).pipAll, false, "PyPI declared explicitly stays public"),
+    );
   });
 
-  test("scrubGitleaks removes Secret and Match at every depth", () => {
-    assert.deepEqual(scrubGitleaks([{ a: { Secret: "x", Match: "y", File: "f" } }]), [{ a: { File: "f" } }]);
+  test("npm workspaces: the application's own packages, links and private tarballs are never sent", () =>
+    withApp(
+      {
+        "package.json": JSON.stringify({
+          name: "acme",
+          workspaces: ["packages/*"],
+          dependencies: { "@acme/billing-core": "*", "acme-utils": "^1.0.0", "corp-private": "^2.0.0", next: "15.0.0" },
+        }),
+        "packages/billing-core/package.json": JSON.stringify({ name: "@acme/billing-core" }),
+        "package-lock.json": JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            "": { dependencies: { "@acme/billing-core": "*", "corp-private": "^2.0.0", next: "15.0.0" } },
+            "node_modules/@acme/billing-core": { resolved: "packages/billing-core", link: true },
+            "node_modules/corp-private": {
+              version: "2.1.0",
+              resolved: "https://npm.corp.internal/corp-private/-/x.tgz",
+            },
+            "node_modules/next": { version: "15.0.0", resolved: "https://registry.npmjs.org/next/-/next-15.0.0.tgz" },
+          },
+        }),
+        "utils/package.json": JSON.stringify({ name: "acme-utils" }),
+      },
+      async (appDir) => {
+        const { urls, out } = await sentFor(appDir);
+        assert.deepEqual(urls, ["https://registry.npmjs.org/next", "https://registry.npmjs.org/next"]);
+        for (const name of ["@acme/billing-core", "acme-utils", "corp-private"])
+          assert.ok(
+            out.filter((i) => i.name === name && i.direct).every((i) => i.private === true),
+            name,
+          );
+      },
+    ));
+
+  test("yarn (.yarnrc, .yarnrc.yml) and bun (bunfig.toml) registries count like an .npmrc", async () => {
+    const yml =
+      "nodeLinker: node-modules\nnpmScopes:\n  corp:\n    npmRegistryServer: https://npm.corp/\n  team:\n    npmAlwaysAuth: true\nenableTelemetry: false\n";
+    await withApp({ ".yarnrc.yml": yml }, (appDir) =>
+      assert.deepEqual([...privateRegistries(appDir).npmScopes].sort(), ["@corp", "@team"]),
+    );
+    await withApp({ ".yarnrc.yml": 'npmRegistryServer: "https://npm.corp/"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).npmAll, true),
+    );
+    await withApp({ ".yarnrc.yml": 'npmRegistryServer: "https://registry.yarnpkg.com"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).npmAll, false),
+    );
+    await withApp({ ".yarnrc": '"@corp:registry" "https://npm.corp/"\nregistry "https://npm.corp/"\n' }, (appDir) => {
+      const r = privateRegistries(appDir);
+      assert.deepEqual([...r.npmScopes], ["@corp"]);
+      assert.equal(r.npmAll, true);
+    });
+    await withApp(
+      { "bunfig.toml": '[install]\nregistry = "https://npm.corp/"\n\n[install.scopes]\ncorp = "https://npm.corp/"\n' },
+      (appDir) => {
+        const r = privateRegistries(appDir);
+        assert.deepEqual([...r.npmScopes], ["@corp"]);
+        assert.equal(r.npmAll, true);
+      },
+    );
+  });
+
+  test("yarn.lock and pnpm-lock.yaml: a package taken from a private registry, git or a file is never sent", async () => {
+    const pkg = JSON.stringify({ dependencies: { "@corp/ui": "^1.0.0", "corp-x": "^2.0.0", next: "15.0.0" } });
+    const yarnV1 = [
+      '"@corp/ui@^1.0.0":',
+      '  version "1.0.0"',
+      '  resolved "https://npm.corp.internal/@corp/ui/-/ui-1.0.0.tgz#abc"',
+      "",
+      'next@15.0.0:\n  version "15.0.0"\n  resolved "https://registry.yarnpkg.com/next/-/next-15.0.0.tgz#def"',
+    ].join("\n");
+    await withApp({ "package.json": pkg, "yarn.lock": yarnV1 }, async (appDir) => {
+      const { urls } = await sentFor(appDir);
+      assert.ok(!urls.some((u) => u.includes("corp%2Fui")), urls.join(", "));
+      assert.ok(urls.includes("https://registry.npmjs.org/next"));
+    });
+    const berry = [
+      '"corp-x@npm:^2.0.0":\n  version: 2.0.0\n  resolution: "corp-x@https://files.corp.internal/corp-x-2.0.0.tgz"',
+      "",
+      '"next@npm:15.0.0":\n  version: 15.0.0\n  resolution: "next@npm:15.0.0"',
+    ].join("\n");
+    await withApp({ "package.json": pkg, "yarn.lock": berry }, (appDir) => {
+      const items = collectDependencies(appDir).filter((i) => i.manifest === "yarn.lock");
+      assert.equal(items.find((i) => i.name === "corp-x").local, true);
+      assert.ok(!("local" in items.find((i) => i.name === "next")), "npm: protocol: the configured registry");
+    });
+    const pnpm = [
+      "lockfileVersion: '9.0'",
+      "packages:",
+      "  corp-x@2.0.0:",
+      "    resolution: {tarball: https://files.corp.internal/corp-x-2.0.0.tgz}",
+      "  next@15.0.0:",
+      "    resolution: {integrity: sha512-abc}",
+    ].join("\n");
+    await withApp({ "package.json": pkg, "pnpm-lock.yaml": pnpm }, (appDir) => {
+      const items = collectDependencies(appDir).filter((i) => i.manifest === "pnpm-lock.yaml");
+      assert.equal(items.find((i) => i.name === "corp-x").local, true);
+      assert.ok(!("local" in items.find((i) => i.name === "next")));
+    });
+  });
+
+  test("a requirements line that is a local archive or a path is never read as a package name", () =>
+    withApp(
+      {
+        "requirements.txt": [
+          "corp_lib-1.0-py3-none-any.whl",
+          "corp-tools-2.0.tar.gz",
+          "vendor/corp-pkg",
+          "mylib @ file:///opt/mylib",
+          "requests==2.32.0",
+        ].join("\n"),
+      },
+      async (appDir) => {
+        const items = collectDependencies(appDir);
+        assert.deepEqual(items.map((i) => i.name).sort(), ["mylib", "requests"], "a direct reference keeps its item");
+        assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/requests/json"]);
+      },
+    ));
+
+  test("on a doubt, nothing is sent: Poetry constraint lists, yarn and bun scopes in forms the reader does not follow", async () => {
+    const poetry = [
+      "[tool.poetry.dependencies]",
+      'corp-a = [ { path = "../a", markers = "sys_platform == \'linux\'" }, { version = "^1" } ]',
+      "corp-b = [",
+      '  { version = "^1", source = "corp" },',
+      "]",
+      'fastapi = "^0.110"',
+    ].join("\n");
+    await withApp({ "pyproject.toml": poetry }, async (appDir) => {
+      assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/fastapi/json"]);
+    });
+    await withApp({ ".yarnrc.yml": 'npmScopes: { corp: { npmRegistryServer: "https://npm.corp/" } }\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).npmAll, true, "flow style"),
+    );
+    await withApp({ ".yarnrc.yml": "npmScopes: # private\n  corp:\n    npmAlwaysAuth: true\n" }, (appDir) =>
+      assert.equal(privateRegistries(appDir).npmAll, true, "a comment after the key"),
+    );
+    await withApp({ "bunfig.toml": '[install.scopes.corp]\nurl = "https://npm.corp/"\n' }, (appDir) => {
+      const r = privateRegistries(appDir);
+      assert.deepEqual([...r.npmScopes], ["@corp"]);
+      assert.equal(r.npmAll, false);
+    });
+    await withApp(
+      { "bunfig.toml": '[install]\nscopes = { corp = "https://npm.corp/" } # install.scopes\n' },
+      (appDir) => assert.equal(privateRegistries(appDir).npmAll, true, "an inline scopes table"),
+    );
+  });
+
+  test("poetry.lock [package.source] other than PyPI, and Poetry's own repositories, keep a name private", async () => {
+    const pyproject = '[tool.poetry.dependencies]\npython = "^3.11"\ncorp-lib = "^1.0"\nfastapi = "^0.110"\n';
+    const lock = [
+      '[[package]]\nname = "corp-lib"\nversion = "1.0.0"\n',
+      '[package.source]\ntype = "legacy"\nurl = "https://pypi.corp.internal/simple"\nreference = "corp"\n',
+      '[[package]]\nname = "fastapi"\nversion = "0.110.0"\n',
+      '[[package]]\nname = "vendored"\nversion = "1.0.0"\n\n[package.source]\ntype = "directory"\nurl = "../vendored"\n',
+    ].join("\n");
+    await withApp({ "pyproject.toml": pyproject, "poetry.lock": lock }, async (appDir) => {
+      const items = collectDependencies(appDir).filter((i) => i.manifest === "poetry.lock");
+      assert.equal(items.find((i) => i.name === "vendored").local, true);
+      assert.ok(!("local" in items.find((i) => i.name === "fastapi")));
+      assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/fastapi/json"]);
+    });
+    const home = tempDir("doc-kit-network-poetry-home-");
+    try {
+      fs.mkdirSync(path.join(home, ".config", "pypoetry"), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, ".config", "pypoetry", "config.toml"),
+        '[repositories.corp]\nurl = "https://pypi.corp.internal/simple"\n',
+      );
+      await withApp({}, (appDir) => {
+        assert.equal(privateRegistries(appDir, { env: { HOME: home } }).pipAll, true);
+        const env = { POETRY_REPOSITORIES_CORP_URL: "https://pypi.corp/simple" };
+        assert.equal(privateRegistries(appDir, { env }).pipAll, true);
+      });
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("uv: an index in uv.toml (application or user) or in UV_* variables makes every pip package private", async () => {
+    await withApp({ "uv.toml": 'index-url = "https://pypi.corp/simple"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).pipAll, true),
+    );
+    await withApp({ "uv.toml": '[[index]]\nname = "corp"\nurl = "https://pypi.corp/simple"\n' }, (appDir) =>
+      assert.equal(privateRegistries(appDir).pipAll, true),
+    );
+    await withApp({}, (appDir) => {
+      assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.corp/simple" } }).pipAll, true);
+      assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.org/simple" } }).pipAll, false);
+    });
+  });
+
+  test("an ecosystem the kit does not know is never sent", () => {
+    const none = { npmScopes: new Set(), npmAll: false, pipAll: false, names: new Set() };
+    assert.equal(isPrivatePackage({ name: "golang.org/x/net", ecosystem: "go" }, none), true);
+    assert.equal(isPrivatePackage({ name: "next", ecosystem: "npm" }, none), false);
+  });
+
+  test("the person's own .npmrc / pip configuration and npm_config_* / PIP_* variables count too", () => {
+    const appDir = tempDir("doc-kit-network-user-");
+    const home = tempDir("doc-kit-network-home-");
+    try {
+      fs.writeFileSync(path.join(home, ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
+      const fromHome = privateRegistries(appDir, { env: { HOME: home } });
+      assert.deepEqual([...fromHome.npmScopes], ["@corp"]);
+      assert.equal(fromHome.pipAll, false);
+
+      fs.mkdirSync(path.join(home, "pip"));
+      fs.writeFileSync(path.join(home, "pip", "pip.ini"), "[global]\nindex-url = https://pypi.corp.internal/simple\n");
+      assert.equal(privateRegistries(appDir, { env: { USERPROFILE: home } }).pipAll, true);
+
+      const fromEnv = privateRegistries(appDir, {
+        env: { "npm_config_@team:registry": "https://npm.corp.internal/", PIP_EXTRA_INDEX_URL: "https://p/simple" },
+      });
+      assert.deepEqual([...fromEnv.npmScopes], ["@team"]);
+      assert.equal(fromEnv.pipAll, true);
+      assert.equal(privateRegistries(appDir, { env: { npm_config_registry: "https://npm.corp/" } }).npmAll, true);
+      assert.equal(
+        privateRegistries(appDir, { env: { npm_config_registry: "https://registry.npmjs.org/" } }).npmAll,
+        false,
+      );
+      assert.equal(isPrivatePackage({ name: "@team/x", ecosystem: "npm" }, fromEnv), true);
+      assert.equal(isPrivatePackage({ name: "@types/node", ecosystem: "npm" }, fromEnv), false);
+    } finally {
+      fs.rmSync(appDir, { recursive: true, force: true });
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test("every home is read (HOME and USERPROFILE can differ), and the files named by the environment", () => {
+    const appDir = tempDir("doc-kit-network-homes-");
+    const msys = tempDir("doc-kit-network-msys-");
+    const windows = tempDir("doc-kit-network-win-");
+    try {
+      fs.writeFileSync(path.join(windows, ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
+      fs.writeFileSync(
+        path.join(windows, ".yarnrc.yml"),
+        "npmScopes:\n  team:\n    npmRegistryServer: https://npm.corp/\n",
+      );
+      const both = privateRegistries(appDir, { env: { HOME: msys, USERPROFILE: windows } });
+      assert.deepEqual([...both.npmScopes].sort(), ["@corp", "@team"]);
+
+      const mac = path.join(msys, "Library", "Application Support", "pip");
+      fs.mkdirSync(mac, { recursive: true });
+      fs.writeFileSync(path.join(mac, "pip.conf"), "[global]\nextra-index-url = https://pypi.corp/simple\n");
+      assert.equal(privateRegistries(appDir, { env: { HOME: msys } }).pipAll, true, "macOS pip configuration");
+
+      const npmUser = path.join(windows, "custom-npmrc");
+      fs.writeFileSync(npmUser, "@named:registry=https://npm.corp/\n");
+      const pipFile = path.join(windows, "custom-pip.ini");
+      fs.writeFileSync(pipFile, "[global]\nindex-url = https://pypi.corp/simple\n");
+      const named = privateRegistries(appDir, { env: { NPM_CONFIG_USERCONFIG: npmUser, PIP_CONFIG_FILE: pipFile } });
+      assert.deepEqual([...named.npmScopes], ["@named"]);
+      assert.equal(named.pipAll, true);
+    } finally {
+      for (const d of [appDir, msys, windows]) fs.rmSync(d, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("--tools (simulated: never a real process)", () => {
+  /** An exec that answers `outputs[bin]` ({ status, stdout }) and records every call; null for any other binary. */
+  function fakeExec(outputs) {
+    const calls = [];
+    const exec = (bin, args) => {
+      calls.push([bin, ...args]);
+      if (bin === "osv-scanner" && args[0] === "--version") return outputs.osvVersion ?? null;
+      return outputs[bin] ?? null;
+    };
+    return { exec, calls };
+  }
+
+  test("a tool found on the PATH runs; one not found is reported as missing, never an error", () => {
+    const { exec } = fakeExec({ gitleaks: { status: 0, stdout: "[]" } });
+    const results = runTools("/app", exec);
+    assert.deepEqual(
+      results.map((r) => [r.tool, r.status]),
+      [
+        ["gitleaks", "ok"],
+        ["osv-scanner", "missing"],
+        ["syft", "missing"],
+        ["knip", "missing"],
+      ],
+    );
+  });
+
+  test("allowlist: whatever a tool adds (secret, matched line, e-mail, message) never reaches the items", () => {
+    const leak = "AKIA-not-a-real-key-123";
+    const { exec } = fakeExec({
+      gitleaks: {
+        status: 1,
+        stdout: JSON.stringify([
+          {
+            RuleID: "generic-api-key",
+            File: "/app/config.ts",
+            StartLine: 3,
+            Secret: leak,
+            Match: `token=${leak}`,
+            Line: `const token = "${leak}"`,
+            Email: "dev@example.org",
+            Author: "Dev",
+            Message: "add key",
+          },
+        ]),
+      },
+      semgrep: {
+        status: 0,
+        stdout: JSON.stringify({
+          results: [
+            {
+              check_id: "js.sql-injection",
+              path: "src/db.js",
+              start: { line: 9 },
+              extra: { severity: "ERROR", lines: `query("${leak}")`, message: leak, metadata: { cwe: ["CWE-89"] } },
+            },
+          ],
+        }),
+      },
+      knip: {
+        status: 1,
+        stdout: JSON.stringify({
+          files: ["src/old.js"],
+          issues: [{ file: "src/a.js", exports: [{ name: "unused", line: 4, pos: 10 }], dependencies: [] }],
+        }),
+      },
+    });
+    const gitleaks = runTool("gitleaks", "/app", exec);
+    assert.equal(gitleaks.status, "findings", "gitleaks exits with 1 when it finds something: a result, not a failure");
+    assert.deepEqual(gitleaks.items, [{ rule: "generic-api-key", file: "config.ts", line: 3 }]);
+    const semgrep = runTool("semgrep", "/app", exec, { semgrepConfig: "/rules" });
+    assert.deepEqual(semgrep.items, [
+      { rule: "js.sql-injection", file: "src/db.js", line: 9, severity: "ERROR", cwe: "CWE-89" },
+    ]);
+    const knip = runTool("knip", "/app", exec);
+    assert.equal(knip.status, "findings");
+    assert.deepEqual(knip.items, [
+      { kind: "file", file: "src/old.js" },
+      { kind: "export", file: "src/a.js", name: "unused", line: 4 },
+    ]);
+    for (const r of [gitleaks, semgrep, knip])
+      for (const forbidden of [leak, "dev@example.org", "add key", "query("])
+        assert.ok(!JSON.stringify(r).includes(forbidden), `${r.tool}: ${forbidden}`);
+  });
+
+  test("osv-scanner runs OFFLINE only (v2 and v1); its database is downloaded only when asked (--network)", () => {
+    const report = {
+      results: [
+        {
+          source: { path: "/app/package-lock.json", type: "lockfile" },
+          packages: [
+            {
+              package: { name: "lodash", version: "4.17.20", ecosystem: "npm" },
+              vulnerabilities: [{ id: "GHSA-35jh-r3h4-6jhm", aliases: ["CVE-2021-23337"], details: "long text" }],
+              groups: [{ ids: ["GHSA-35jh-r3h4-6jhm"], max_severity: "7.2" }],
+            },
+          ],
+        },
+      ],
+    };
+    const r = runTool("osv-scanner", "/app", (bin, args) =>
+      args[0] === "--version"
+        ? { status: 0, stdout: "osv-scanner version: 2.0.1" }
+        : { status: 1, stdout: JSON.stringify(report) },
+    );
+    assert.equal(r.status, "findings");
+    assert.deepEqual(r.items, [
+      {
+        id: "GHSA-35jh-r3h4-6jhm",
+        aliases: ["CVE-2021-23337"],
+        package: "lodash",
+        version: "4.17.20",
+        ecosystem: "npm",
+        source: "package-lock.json",
+        maxSeverity: 7.2,
+      },
+    ]);
+
+    const argsOf = (version, download) => {
+      const { exec, calls } = fakeExec({
+        osvVersion: { status: 0, stdout: `osv-scanner version: ${version}` },
+        "osv-scanner": { status: 0, stdout: "{}" },
+      });
+      runTool("osv-scanner", "/app", exec, { download });
+      return calls.find((c) => c[0] === "osv-scanner" && c[1] !== "--version").slice(1);
+    };
+    const offline2 = argsOf("2.0.1", false);
+    assert.deepEqual(offline2.slice(0, 4), ["scan", "source", "--recursive", "--offline"]);
+    assert.ok(!offline2.includes("--download-offline-databases"));
+    assert.ok(argsOf("2.0.1", true).includes("--download-offline-databases"));
+    const offline1 = argsOf("1.9.2", false);
+    assert.ok(offline1.includes("--experimental-offline") && offline1.includes("--recursive"));
+    assert.ok(!offline1.includes("--experimental-download-offline-databases"));
+    assert.ok(argsOf("1.9.2", true).includes("--experimental-download-offline-databases"));
+    for (const args of [offline2, offline1])
+      assert.ok(!args.some((a) => /offline-vulnerabilities/.test(a)), "never the half-offline mode");
+  });
+
+  test("exit codes per tool: osv-scanner 128 (no package) is a clean result, any unknown code is a failure", () => {
+    const run = (tool, status, stdout = "") =>
+      runTool(tool, "/app", (bin, args) =>
+        args[0] === "--version" ? { status: 0, stdout: "osv-scanner version: 2.0.1" } : { status, stdout },
+      );
+    assert.deepEqual(run("osv-scanner", 128), { tool: "osv-scanner", status: "ok", items: [] });
+    assert.equal(run("osv-scanner", 127).status, "failed");
+    assert.equal(run("syft", 1).status, "failed");
+    assert.deepEqual(run("knip", 2), { tool: "knip", status: "failed", reason: "exit", code: 2, items: [] });
+    assert.equal(run("syft", 0, "not json").reason, "output");
+    const syft = run(
+      "syft",
+      0,
+      JSON.stringify({
+        artifacts: [
+          {
+            name: "next",
+            version: "15.0.0",
+            type: "npm",
+            purl: "pkg:npm/next@15.0.0",
+            licenses: [{ value: "MIT" }],
+            locations: [{ path: "/x" }],
+          },
+        ],
+      }),
+    );
+    assert.deepEqual(syft.items, [
+      { name: "next", version: "15.0.0", type: "npm", purl: "pkg:npm/next@15.0.0", licenses: ["MIT"] },
+    ]);
+  });
+
+  test("the status comes from the items: semgrep exit 0 with a result is a finding; a 'found' code with no readable item is a failure", () => {
+    const semgrep = runTool("semgrep", "/app", () => ({
+      status: 0,
+      stdout: JSON.stringify({ results: [{ check_id: "r", path: "a.js", start: { line: 1 } }] }),
+    }));
+    assert.equal(semgrep.status, "findings");
+    const gitleaks = runTool("gitleaks", "/app", () => ({ status: 1, stdout: "" }));
+    assert.deepEqual(gitleaks, { tool: "gitleaks", status: "failed", reason: "output", items: [] });
+    assert.equal(runTool("knip", "/app", () => ({ status: 0, stdout: "" })).status, "ok");
+    assert.deepEqual(
+      runTool("syft", "/app", () => ({ status: null, stdout: "" })),
+      {
+        tool: "syft",
+        status: "failed",
+        reason: "interrupted",
+        items: [],
+      },
+    );
+  });
+
+  test("osv-scanner whose version cannot be read is never run (a wrong command line could go online)", () => {
+    for (const version of [
+      { status: 1, stdout: "" },
+      { status: 0, stdout: "dev build" },
+    ]) {
+      const calls = [];
+      const r = runTool("osv-scanner", "/app", (bin, args) => {
+        calls.push(args);
+        return args[0] === "--version" ? version : { status: 0, stdout: "{}" };
+      });
+      assert.deepEqual(r, { tool: "osv-scanner", status: "failed", reason: "version", items: [] });
+      assert.deepEqual(calls, [["--version"]], "no scan after an unreadable version");
+    }
+    assert.equal(runTool("osv-scanner", "/app", () => null).status, "missing");
   });
 
   test("TOOL_NAMES: the four tools of the contract", () => {
@@ -813,21 +1338,116 @@ describe("doc-kit facts (CLI)", () => {
     );
   });
 
-  test("--tools: writes facts/tool-<name>.json, a missing tool is reported and never fails the command", async () => {
+  test("--tools: writes facts/tool-<name>.json (normalised envelope), a missing tool is reported and never fails the command", async () => {
     const dir = mk(app("next-app"));
-    const exec = (bin, args, options) => {
-      if (bin === "git") return null;
+    const calls = [];
+    const exec = (bin, args) => {
+      calls.push([bin, ...args]);
       if (bin === "gitleaks")
-        return { status: 0, stdout: JSON.stringify({ findings: [{ RuleID: "x", Secret: "s", Match: "m" }] }) };
+        return {
+          status: 1,
+          stdout: JSON.stringify([{ RuleID: "x", File: "a.ts", StartLine: 2, Secret: "s3cr3t", Match: "m4tch" }]),
+        };
+      if (bin === "osv-scanner")
+        return args[0] === "--version" ? { status: 0, stdout: "2.0.1" } : { status: 127, stdout: "" };
       return null;
     };
-    const r = await cli(["facts", "--project", dir, "--source", "env", "--tools"], { commit: () => null, exec });
+    const r = await cli(["facts", "--project", dir, "--source", "env", "--tools"], { commit: () => "c0ffee", exec });
     assert.equal(r.code, 0);
     const gitleaks = JSON.parse(fs.readFileSync(path.join(dir, "facts", "tool-gitleaks.json"), "utf8"));
-    assert.equal(gitleaks.installed, true);
-    assert.ok(!JSON.stringify(gitleaks.data).includes('"s"'));
+    assert.equal(gitleaks.status, "findings");
+    assert.equal(gitleaks.commit, "c0ffee");
+    assert.deepEqual(gitleaks.items, [{ rule: "x", file: "a.ts", line: 2 }]);
+    assert.ok(!JSON.stringify(gitleaks).includes("s3cr3t") && !JSON.stringify(gitleaks).includes("m4tch"));
+    assert.ok(!("data" in gitleaks), "the raw report is never stored");
     const knip = JSON.parse(fs.readFileSync(path.join(dir, "facts", "tool-knip.json"), "utf8"));
-    assert.equal(knip.installed, false);
+    assert.equal(knip.status, "missing");
+    const osv = JSON.parse(fs.readFileSync(path.join(dir, "facts", "tool-osv-scanner.json"), "utf8"));
+    assert.equal(osv.status, "failed");
+    assert.match(r.out, /gitleaks: ran, 1 finding/);
+    assert.match(r.out, /osv-scanner runs offline only/, "without --network: how to get its database");
+    const osvScan = calls.find((c) => c[0] === "osv-scanner" && c[1] === "scan");
+    assert.ok(osvScan.includes("--offline") && !osvScan.includes("--download-offline-databases"));
+  });
+
+  test("--network --tools: osv-scanner may download its database; no private name ever reaches a request", async () => {
+    const appDir = tempDir("doc-kit-facts-private-app-");
+    dirs.push(appDir);
+    fs.mkdirSync(path.join(appDir, "web"));
+    fs.writeFileSync(path.join(appDir, "web", ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
+    fs.writeFileSync(
+      path.join(appDir, "web", "package.json"),
+      JSON.stringify({ name: "web", dependencies: { "@corp/design": "^2.0.0", react: "^17.0.0" } }),
+    );
+    const dir = mk(appDir);
+    const urls = [];
+    const calls = [];
+    const r = await cli(
+      ["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network", "--tools"],
+      {
+        commit: () => null,
+        exec: (bin, args) => (
+          calls.push([bin, ...args]),
+          bin === "osv-scanner" && args[0] === "--version" ? { status: 0, stdout: "2.1.0" } : null
+        ),
+        fetch: async (url) => {
+          urls.push(url);
+          return { ok: true, status: 200, json: async () => ({ version: "19.0.0" }) };
+        },
+      },
+    );
+    assert.equal(r.code, 0, r.err);
+    assert.ok(
+      urls.some((u) => u.includes("react")),
+      "the public package is checked",
+    );
+    assert.ok(!urls.some((u) => /corp/i.test(u)), `a private name was sent: ${urls.join(", ")}`);
+    const quality = JSON.parse(fs.readFileSync(path.join(dir, "facts", "quality.json"), "utf8"));
+    assert.equal(quality.summary.outdated, 1, "react 17 → 19; @corp/design never asked");
+    assert.ok(calls.some((c) => c[0] === "osv-scanner" && c.includes("--download-offline-databases")));
+  });
+
+  test("--network reads the person's own configuration (ctx.env): a scope declared only in ~/.npmrc is never sent", async () => {
+    const appDir = tempDir("doc-kit-facts-userconf-app-");
+    const home = tempDir("doc-kit-facts-userconf-home-");
+    dirs.push(appDir, home);
+    fs.writeFileSync(path.join(home, ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
+    fs.writeFileSync(
+      path.join(appDir, "package.json"),
+      JSON.stringify({ name: "web", dependencies: { "@corp/design": "^2.0.0", react: "^17.0.0" } }),
+    );
+    const dir = mk(appDir);
+    const urls = [];
+    const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {
+      env: { HOME: home },
+      commit: () => null,
+      exec: () => null,
+      fetch: async (url) => {
+        urls.push(url);
+        return { ok: true, status: 200, json: async () => ({ version: "19.0.0" }) };
+      },
+    });
+    assert.equal(r.code, 0, r.err);
+    assert.ok(urls.length > 0);
+    assert.ok(!urls.some((u) => /corp/i.test(u)), `a private name was sent: ${urls.join(", ")}`);
+  });
+
+  test("--tools prints a count for an inventory (syft) and a translated reason for a failure", async () => {
+    const dir = mk(app("next-app"));
+    const exec = (bin) => {
+      if (bin === "syft")
+        return { status: 0, stdout: JSON.stringify({ artifacts: [{ name: "next", version: "15" }] }) };
+      if (bin === "knip") return { status: 2, stdout: "" };
+      return null;
+    };
+    const en = await cli(["facts", "--project", dir, "--source", "env", "--tools"], { commit: () => null, exec });
+    assert.match(en.out, /syft: ran, 1 package listed/);
+    assert.match(en.out, /knip: failed \(exit code 2\)/);
+    const fr = await cli(["facts", "--project", dir, "--source", "env", "--tools", "--lang", "fr"], {
+      commit: () => null,
+      exec,
+    });
+    assert.match(fr.out, /knip : échec \(code de sortie 2\)/);
   });
 
   test("facts never writes into the application", async () => {

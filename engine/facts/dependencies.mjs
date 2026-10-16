@@ -8,7 +8,7 @@
 // not match them simply contributes nothing (never an error). A manifest that cannot be read, or a package.json /
 // package-lock.json that is not valid JSON, is listed in `unreadable` ({ file, reason: "read"|"json" }): its
 // dependencies are unknown, which is not the same as none (AUDIT.md M14).
-//   item: { name, version, ecosystem, direct, dev, manifest, license? }
+//   item: { name, version, ecosystem, direct, dev, manifest, license?, local? } (local: not from a public registry)
 // `direct` is read from the manifest itself when it says so (package.json; a lock file's own "root" entry, when
 // the format carries one: package-lock.json v2/v3, pnpm-lock.yaml); formats with no such self-contained signal
 // (yarn.lock, poetry.lock) report every item as `direct: false` rather than guessing from another file.
@@ -48,6 +48,36 @@ const readJson = (abs, manifest, unreadable) => {
   }
 };
 
+/**
+ * What tells a package that is not from a public registry (`local: true`, never sent by network.mjs). The manifests
+ * are untrusted: these expressions are linear (RULES.md S5, test/tools/redos-worker.mjs).
+ */
+export const DEPENDENCY_PATTERNS = Object.freeze({
+  /** A tarball of a public npm registry; any other `resolved` (a private registry, git, a file) is local. */
+  publicTarball: /^https:\/\/registry\.(?:npmjs\.org|yarnpkg\.com)\//i,
+  /** A requirements line that is a URL or a path: it names no PyPI package. */
+  urlLine: /^(?:git\+|https?:|file:|\.{0,2}[\\/])/i,
+  /** A requirements line holding a path before any "@" (a direct reference keeps its name: "name @ file:///x"). */
+  pathLine: /^[^@]*[\\/]/,
+  /** A requirements line that is a local archive (pip installs the file; its name would be read as a package). */
+  archiveLine: /\.(?:whl|zip|tgz|tar(?:\.(?:gz|bz2|xz))?)$/i,
+  /** yarn.lock: `resolved "<url>"` (v1) and `resolution: "<name>@<protocol>…"` (berry). */
+  yarnResolved: /^\s+resolved:?\s+"?([^"\s]+)/,
+  yarnResolution: /^\s+resolution:\s+"?([^"\s]+)/,
+  /** A berry resolution through the configured registry ("name@npm:1.0.0", a patch of one). */
+  yarnRegistryProtocol: /@(?:npm|patch):/,
+  /** poetry.lock `[package.source]`: its `type` (legacy: an index; directory, file, git, url: not an index) and `url`. */
+  poetrySource: /^(type|url)\s*=\s*"([^"]*)"/,
+  /** PyPI itself. */
+  publicIndex: /^https?:\/\/(?:pypi\.org|files\.pythonhosted\.org)(?:\/|$)/i,
+  /** pnpm-lock.yaml: a resolution that is not a registry tarball (an archive URL, a git repository, a folder). */
+  pnpmLocalResolution: /^\s+resolution:\s*\{[^}]*\b(?:tarball|repo|directory|commit):/,
+  /** A Poetry inline table taking the package from a folder, git or a URL. */
+  inlineLocal: /\b(?:path|git|url)\s*=/,
+  inlineSource: /\bsource\s*=\s*"([^"]*)"/,
+  inlineVersion: /\bversion\s*=\s*"([^"]*)"/,
+});
+
 /** Direct dependencies of one package.json: dependencies (dev: false) and devDependencies (dev: true). */
 function fromPackageJson(abs, manifest, unreadable) {
   const pkg = readJson(abs, manifest, unreadable);
@@ -80,6 +110,9 @@ function fromPackageLock(abs, manifest, unreadable) {
       const m = /node_modules\/((?:@[^/]+\/)?[^/]+)$/.exec(key);
       if (!m || seen.has(m[1])) continue;
       seen.add(m[1]);
+      // A workspace link, or a package not taken from a public registry: its name is never sent (network.mjs).
+      const local =
+        !!info.link || (typeof info.resolved === "string" && !DEPENDENCY_PATTERNS.publicTarball.test(info.resolved));
       out.push({
         name: m[1],
         version: info.version,
@@ -88,6 +121,7 @@ function fromPackageLock(abs, manifest, unreadable) {
         dev: dev.has(m[1]) || !!info.dev,
         manifest,
         ...(info.license ? { license: info.license } : {}),
+        ...(local ? { local } : {}),
       });
     }
   } else if (lock.dependencies) {
@@ -156,12 +190,18 @@ function fromPnpmLock(abs, manifest, unreadable) {
   const out = [];
   const seen = new Set();
   const re = /^ {2,4}'?\/?(@[^/'"\s]+\/[^@'"\s]+|[^@'"\s]+)@([^:'"\s(]+)(?:\([^)]*\))?'?"?:\s*$/;
+  /** @type {{ name: string, version: string, ecosystem: string, direct: boolean, dev: boolean, manifest: string,
+   *   local?: boolean }|null} */
+  let current = null;
   for (const line of text.split(/\r?\n/)) {
     const m = re.exec(line);
-    if (m && !seen.has(m[1])) {
+    if (m) {
+      current = null;
+      if (seen.has(m[1])) continue;
       seen.add(m[1]);
-      out.push({ name: m[1], version: m[2], ecosystem: "npm", direct: direct.has(m[1]), dev: dev.has(m[1]), manifest });
-    }
+      current = { name: m[1], version: m[2], ecosystem: "npm", direct: direct.has(m[1]), dev: dev.has(m[1]), manifest };
+      out.push(current);
+    } else if (current && DEPENDENCY_PATTERNS.pnpmLocalResolution.test(line)) current.local = true; // not the registry
   }
   return out;
 }
@@ -189,11 +229,18 @@ function fromYarnLock(abs, manifest, unreadable) {
       .replace(/^\s+version:?\s+/, "")
       .replace(/^"|"$/g, "")
       .trim();
+    // Taken from a private registry, git, a file or a URL (v1 `resolved`, berry `resolution` other than npm/patch):
+    // its name is never sent (network.mjs).
+    const resolved = lines.map((l) => DEPENDENCY_PATTERNS.yarnResolved.exec(l)?.[1]).find(Boolean);
+    const resolution = lines.map((l) => DEPENDENCY_PATTERNS.yarnResolution.exec(l)?.[1]).find(Boolean);
+    const local =
+      (!!resolved && !DEPENDENCY_PATTERNS.publicTarball.test(resolved)) ||
+      (!!resolution && !DEPENDENCY_PATTERNS.yarnRegistryProtocol.test(resolution.slice(1)));
     for (const spec of lines[0].replace(/:$/, "").split(",")) {
       const name = yarnSpecifierName(spec);
       if (name && !seen.has(name)) {
         seen.add(name);
-        out.push({ name, version, ecosystem: "npm", direct: false, dev: false, manifest });
+        out.push({ name, version, ecosystem: "npm", direct: false, dev: false, manifest, ...(local ? { local } : {}) });
       }
     }
   }
@@ -216,6 +263,10 @@ function fromRequirements(abs, manifest, unreadable) {
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.replace(/#.*/, "").split(";")[0].trim(); // env markers (; python_version>="3.8") dropped
     if (!line || line.startsWith("-")) continue;
+    // A URL, a path or a local archive: pip installs it as it is, it names no PyPI package (and its file name must
+    // never be sent as one).
+    const pattern = DEPENDENCY_PATTERNS;
+    if (pattern.urlLine.test(line) || pattern.pathLine.test(line) || pattern.archiveLine.test(line)) continue;
     const m = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[([^\]]*)\])?\s*(.*)$/.exec(line);
     if (!m) continue;
     const [, name, extrasRaw, specRaw] = m;
@@ -229,6 +280,8 @@ function fromRequirements(abs, manifest, unreadable) {
     const opMatch = /^(==|>=|<=|~=|!=|>|<)/.exec(spec);
     const operator = opMatch ? opMatch[1] : null;
     const pinned = /==\s*([^,\s]+)/.exec(spec);
+    // PEP 508 direct reference ("name @ file:///…", "name @ git+https://…"): not from PyPI, never sent.
+    const local = spec.startsWith("@");
     out.push({
       name,
       ...(extras.length ? { extras } : {}),
@@ -239,6 +292,7 @@ function fromRequirements(abs, manifest, unreadable) {
       direct: true,
       dev,
       manifest,
+      ...(local ? { local } : {}),
     });
   }
   return out;
@@ -260,15 +314,27 @@ function fromPyproject(abs, manifest, unreadable) {
     if (section !== "tool.poetry.dependencies" && !/^tool\.poetry\.group\.[\w-]+\.dependencies$/.test(section || ""))
       continue;
     const m = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*=\s*"?([^"#,{]*)/.exec(line);
-    if (m && m[1].toLowerCase() !== "python")
-      out.push({
-        name: m[1],
-        version: (m[2] || "*").trim() || "*",
-        ecosystem: "pip",
-        direct: true,
-        dev: section !== "tool.poetry.dependencies",
-        manifest,
-      });
+    if (!m || m[1].toLowerCase() === "python") continue;
+    // An inline table: { path = … }, { git = … }, { url = … } or { source = "<private index>" } is not from PyPI.
+    // A list of constraints ([ { … }, { … } ]) is read the same way; one that goes on past this line cannot be read
+    // here, so it counts as local (on a doubt, the name is never sent).
+    const table = line.slice(line.indexOf("=") + 1).trim();
+    const inline = table.startsWith("{") || table.startsWith("[");
+    const unclosed = table.startsWith("[") && !table.includes("]");
+    const source = inline ? DEPENDENCY_PATTERNS.inlineSource.exec(table)?.[1] : null;
+    const local =
+      inline &&
+      (unclosed || DEPENDENCY_PATTERNS.inlineLocal.test(table) || (!!source && source.toLowerCase() !== "pypi"));
+    const version = inline ? DEPENDENCY_PATTERNS.inlineVersion.exec(table)?.[1] : m[2];
+    out.push({
+      name: m[1],
+      version: (version || "*").trim() || "*",
+      ecosystem: "pip",
+      direct: true,
+      dev: section !== "tool.poetry.dependencies",
+      manifest,
+      ...(local ? { local } : {}),
+    });
   }
   return out;
 }
@@ -278,7 +344,7 @@ function fromPoetryLock(abs, manifest, unreadable) {
   const text = readText(abs, manifest, unreadable);
   if (text === null) return [];
   const out = [];
-  /** @type {{ name?: string, version?: string, dev?: boolean }|null} */
+  /** @type {{ name?: string, version?: string, dev?: boolean, local?: boolean }|null} */
   let current = null;
   const flush = () => {
     if (current?.name)
@@ -289,16 +355,30 @@ function fromPoetryLock(abs, manifest, unreadable) {
         direct: false,
         dev: !!current.dev,
         manifest,
+        ...(current.local ? { local: true } : {}),
       });
   };
+  let inSource = false;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (line === "[[package]]") {
       flush();
       current = {};
+      inSource = false;
       continue;
     }
     if (!current) continue;
+    if (line.startsWith("[")) {
+      inSource = line === "[package.source]";
+      continue;
+    }
+    if (inSource) {
+      // [package.source]: a folder, a file, git, a URL or an index other than PyPI — its name is never sent.
+      const s = DEPENDENCY_PATTERNS.poetrySource.exec(line);
+      if (s?.[1] === "type" && s[2] !== "legacy") current.local = true;
+      if (s?.[1] === "url" && !DEPENDENCY_PATTERNS.publicIndex.test(s[2])) current.local = true;
+      continue;
+    }
     const m = /^(name|version)\s*=\s*"([^"]+)"/.exec(line);
     if (m) current[m[1]] = m[2];
     const g = /^groups\s*=\s*\[([^\]]*)\]/.exec(line);

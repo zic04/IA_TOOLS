@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import { lineAt } from "./api.mjs";
 import { listFiles } from "./common.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
+import { isPrivatePackage, privateRegistries } from "./network.mjs";
 import { closingBrace } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
@@ -220,7 +221,8 @@ function detectTooling(appDir, allFiles) {
 
 // --network (ARCHITECTURE.md §6.13): direct dependencies behind their latest version (majors behind). Only the
 // package name is sent (never a file content); the same registries as `dependencies --network` (ARCHITECTURE.md
-// §6.9), but reading the latest version instead of checking mere existence.
+// §6.9), but reading the latest version instead of checking mere existence. A private package's name is never
+// sent (AUDIT.md S13, engine/facts/network.mjs isPrivatePackage).
 const REGISTRY_LATEST = {
   npm: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}/latest`,
   pip: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
@@ -250,9 +252,10 @@ async function latestVersion(item, fetchImpl, timeoutMs) {
   }
 }
 
-/** Direct dependencies at least one major behind their latest published version. */
-async function countOutdated(dependencies, fetchImpl, { concurrency = 8, timeoutMs = 5000 } = {}) {
-  const direct = [...new Map(dependencies.filter((d) => d.direct).map((d) => [d.name, d])).values()]; // de-duplicated by name
+/** Direct, public dependencies at least one major behind their latest published version. */
+async function countOutdated(dependencies, fetchImpl, { registries, concurrency = 8, timeoutMs = 5000 }) {
+  const sendable = dependencies.filter((d) => d.direct && !isPrivatePackage(d, registries));
+  const direct = [...new Map(sendable.map((d) => [d.name, d])).values()]; // de-duplicated by name
   const queue = [...direct];
   let outdated = 0;
   async function worker() {
@@ -281,9 +284,11 @@ export function rating(ratio, thresholds) {
  * @param {object} [options]
  * @param {(url: string) => Promise<{ok,status}>} [options.fetch]   --network: outdated direct dependencies
  * @param {Array<{name,version,ecosystem,direct}>} [options.dependencies]   --network: already-collected `dependencies` items
+ * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
+ *   the application alone when absent (a private name is never sent)
  * @returns {Promise<{ items: Array<object>, summary: object }>}
  */
-export async function collectQuality(appDir, { fetch: fetchImpl, dependencies } = {}) {
+export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries } = {}) {
   const allFiles = listFiles(appDir);
   const files = allFiles.filter((f) => CODE_EXT.test(f) && !TEST_FILE.test(f) && !GENERATED.test(f));
   const read = files.map((file) => ({ file, text: fs.readFileSync(path.join(appDir, file), "utf8") }));
@@ -334,6 +339,9 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies } 
     tooling: detectTooling(appDir, allFiles),
     ratings,
   };
-  if (fetchImpl && dependencies) summary.outdated = await countOutdated(dependencies, fetchImpl);
+  if (fetchImpl && dependencies)
+    summary.outdated = await countOutdated(dependencies, fetchImpl, {
+      registries: registries ?? privateRegistries(appDir),
+    });
   return { items, summary };
 }

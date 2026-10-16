@@ -57,10 +57,14 @@ maintenabilité](#/spaces/reviews).
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
-alimente. `--network` n'envoie que le nom d'une dépendance à son registre public, pour vérifier qu'elle existe ;
+alimente. `--network` n'envoie que le nom d'une dépendance publique à son registre, pour vérifier qu'elle existe et
+son retard — jamais le nom d'un paquet privé (un paquet de l'application elle-même, une portée à registre propre, un
+index privé, un paquet de workspace, local ou hébergé en privé), lu dans l'application, ses fichiers de
+verrouillage, chaque dossier jusqu'à chaque manifeste, et votre propre configuration npm, yarn, bun, pip et uv ;
 `--tools` lance ceux de `gitleaks`, `osv-scanner`, `syft` et `knip` qui sont sur le `PATH`, chacun dans son propre
-`facts/tool-<nom>.json` (un outil absent est seulement signalé). Sans `app.dir` configuré, `doc-kit facts` refuse
-de s'exécuter.
+`facts/tool-<nom>.json` avec un état (`ok`, `findings`, `failed`, `missing`) et seulement les champs utiles (règle,
+fichier, ligne, paquet, version…), jamais un secret ni une ligne de code. `osv-scanner` fonctionne hors ligne : sa
+base n'est téléchargée qu'avec `--network`. Sans `app.dir` configuré, `doc-kit facts` refuse de s'exécuter.
 
 ## Citer les faits sans les ressaisir : `::faits`
 

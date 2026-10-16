@@ -18,8 +18,22 @@
   "cli.build.facts.missing.help": "lancez d'abord {command} facts --source {source}, ou vérifiez paths.facts",
   "cli.facts.noApp": "aucune application à lire",
   "cli.facts.noApp.help": "renseignez app.dir dans doc.config.mjs, vers la racine de l'application (un dossier existant)",
+  "cli.facts.tool.failed": "⚠ {tool} : échec ({reason}) ; ses faits sont inconnus, pas vides",
+  "cli.facts.tool.findings": {
+    "one": "{tool} : exécuté, {n} constat",
+    "other": "{tool} : exécuté, {n} constats"
+  },
+  "cli.facts.tool.listed": {
+    "one": "{tool} : exécuté, {n} paquet listé",
+    "other": "{tool} : exécuté, {n} paquets listés"
+  },
   "cli.facts.tool.missing": "{tool} : non installé",
-  "cli.facts.tool.ran": "{tool} : exécuté",
+  "cli.facts.tool.ok": "{tool} : exécuté, rien trouvé",
+  "cli.facts.tool.osvOffline": "osv-scanner ne fonctionne que hors ligne : téléchargez une fois sa base de vulnérabilités avec --network (seuls les fichiers publics de la base sont récupérés ; aucun nom de paquet n'est envoyé)",
+  "cli.facts.tool.reason.exit": "code de sortie {code}",
+  "cli.facts.tool.reason.interrupted": "le processus a été interrompu (un signal ou une sortie trop longue)",
+  "cli.facts.tool.reason.output": "son rapport est illisible",
+  "cli.facts.tool.reason.version": "sa version est illisible : non lancé, pour ne jamais retomber dans un mode qui envoie les noms des paquets",
   "cli.facts.unknownSource": "source inconnue : « {name} »",
   "cli.facts.unknownSource.help": "sources connues : {known}",
   "cli.facts.unreadable": "⚠ {file} : {reason} ; ses faits sont inconnus, pas vides",

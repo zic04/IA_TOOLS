@@ -54,9 +54,14 @@ local or demo instance: see [Security and maintainability reviews](#/spaces/revi
 
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
-`--network` only sends a dependency's name to its public registry, to check it exists; `--tools` runs whichever of
-`gitleaks`, `osv-scanner`, `syft` and `knip` are on the `PATH`, each into its own `facts/tool-<name>.json` (a
-missing tool is only reported). Without `app.dir` configured, `doc-kit facts` refuses to run.
+`--network` only sends a public dependency's name to its registry, to check it exists and how far behind it is —
+never the name of a private package (one of the application's own packages, a scope with its own registry, a
+private index, a workspace, local or privately hosted package), read from the application, its lock files, every
+folder down to each manifest, and your own npm, yarn, bun, pip and uv configuration;
+`--tools` runs whichever of `gitleaks`, `osv-scanner`, `syft` and `knip` are on the `PATH`, each into its own
+`facts/tool-<name>.json` with a status (`ok`, `findings`, `failed`, `missing`) and only the fields that matter
+(rule, file, line, package, version…), never a secret or a line of code. `osv-scanner` runs offline: its database
+is downloaded only with `--network`. Without `app.dir` configured, `doc-kit facts` refuses to run.
 
 ## Citing facts without re-typing them: `::facts`
 
