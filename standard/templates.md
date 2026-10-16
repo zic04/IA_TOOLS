@@ -343,26 +343,35 @@ proof (see "Business pages cite no code" below). They follow the use case struct
 
 ## `feature` — Feature sheet
 
-One feature, end to end, for a business reader: who uses it, when it starts, what it does step by step, and
-the rules it enforces. Carries the page's `feature` id (`toc.json`, for example `"feature": "F-01"`) and, where
-a technical counterpart exists, its `counterpart`.
+One feature, end to end, as a specification a business reader and a product owner can check against the
+application: who uses it, its user stories, its usual path, each of its behaviours answered rubric by rubric, its
+rules, its messages, its rights by action and its acceptance criteria. Carries the page's `feature` id (`toc.json`,
+for example `"feature": "F-01"`) and, where a technical counterpart exists, its `counterpart`. A section that
+does not apply stays, with one line: "Not applicable — the reason".
 
 | Section | | Content |
 |---|---|---|
-| Access | ✱ | A two-column table, fixed rows: Module · Who can use it (`[[perm …]]`) · Prerequisites · Checked on (version, date) |
 | What it is for | ✱ | The business need in 2 to 4 sentences; the page's title in bold in the first sentence |
-| Who uses it | ✱ | One line per role: "**Role**: what they do" |
-| Trigger and preconditions | | Optional; delete when the trigger is simply "someone opens the screen" |
-| Main scenario | ✱ | `:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step clearer (neither is required here) |
-| Variants and exceptions | | Numbered after the step they branch from: "3a. If …" |
+| Who uses it | ✱ | A table, Role · What they do with it |
+| User stories | ✱ | One `:::story{id title role since ref}` per need: "As a …, I want … so that …" |
+| Main path | ✱ | `:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step clearer (neither is required here) |
+| Variants | | Numbered after the step they branch from: "3a. If …" |
+| Behaviours | ✱ | One `:::behaviour{kind title id}` card per behaviour (search, filter, sort, pagination, list, form, import, export, calculation, notification, workflow, scheduled job, permission check): each rubric of its kind answered, or "n/a — reason", or "unknown — question" |
 | Business rules | ✱ | Rules that belong only to this feature, defined with `:::rule`; a shared rule is only cited with `[[rule …]]` |
-| Data handled | | Business data read or changed, named the way a business reader knows it — never a table or column name |
-| Notifications and effects | | What the feature sets off beyond the screen: an email, an entry elsewhere, a counter that changes |
+| Fields and inputs | | A table: Field · Required · Format and accepted values · Default · Check and its message |
+| States | | The states an item goes through (`[[status …]]`), what moves it, and who can |
+| Messages | ✱ | Every message the reader can see, word for word: Message · When it appears · What to do |
+| Rights by action | ✱ | A table: Action · Right (`[[perm …]]`) · Condition; then what a reader without the right sees |
+| Acceptance criteria | ✱ | One `:::scenario{title story behaviour}` per criterion, Given / When / Then with real values |
 | Limits | | What the feature deliberately does not do, in business terms, never a code pitfall |
-| Questions people ask | | 2 to 5 real questions, each with a short, direct answer |
+| Open questions | | Each question nobody could answer yet (the cards' "unknown — …" included), with who can answer it |
 
-- **Length**: limit 2,500 words; most sheets fit well under it — a feature that needs more is usually several
-  features, or belongs partly in `process`.
+- **Length**: limit 4,000 words; its context file gets 24,000 tokens (`contextBudget`). A feature that needs more is
+  usually several features, or belongs partly in `process`.
+- **Behaviour cards** (`standard/behaviours.json`): the rubrics of each kind, required or not, and what each must say;
+  a required rubric left out is reported by the build (`behaviour.missing`). The syntax: ARCHITECTURE.md §6.8a.
+- **Headings of 0.3** still count: "Main scenario" for "Main path"; `doc-kit upgrade` adds the sections a sheet of
+  0.3 lacks, with their guidance.
 - **Example**: `features/two-step-approval` in Acme Orders: who can raise the threshold, the two approval steps,
   what happens to an order already pending when the chain changes.
 - **Common mistakes**:

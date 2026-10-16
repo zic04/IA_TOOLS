@@ -14,7 +14,7 @@ import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
-import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
+import { loadPageTemplates, contextBudgetOf } from "../../engine/core/page-templates.mjs";
 import { checkLanguageOption, translatedToc, translatedGlossary } from "../../engine/build/languages.mjs";
 import { readSources, translationState } from "../../engine/core/translations.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
@@ -94,18 +94,21 @@ async function readPlans(root, config) {
   }
 }
 
+/** The budget of a page's context: --budget when given, else its template's (contextBudgetOf). */
+const budgetOf = (budget, templates, entry) => budget ?? contextBudgetOf(templates, entry?.template);
+
+/** --budget, a whole number > 0; null without it: each page gets its template's (a feature sheet needs more). */
+function budgetOption(value) {
+  if (value === undefined) return null;
+  const budget = Number(value);
+  if (!Number.isInteger(budget) || budget <= 0)
+    throw new KitError(EXIT.USAGE, "option.value", { option: "budget", value, expected: "a whole number > 0" });
+  return budget;
+}
+
 export async function run({ ctx, values, positionals }) {
   if (!positionals.length) throw new KitError(EXIT.USAGE, "context.missingPage");
-  let budget = 16000;
-  if (values.budget !== undefined) {
-    budget = Number(values.budget);
-    if (!Number.isInteger(budget) || budget <= 0)
-      throw new KitError(EXIT.USAGE, "option.value", {
-        option: "budget",
-        value: values.budget,
-        expected: "a whole number > 0",
-      });
-  }
+  const budget = budgetOption(values.budget);
 
   const { project, config } = await ctx.loadProject();
   const root = project.root;
@@ -176,7 +179,7 @@ export async function run({ ctx, values, positionals }) {
       templates,
       report,
       update: !!values.update,
-      budget,
+      budget: budgetOf(budget, templates, findPageEntry(toc, pageId)),
       product,
       version,
       t: ctx.t,
@@ -240,7 +243,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
       glossaryL,
       templates,
       diff,
-      budget,
+      budget: budgetOf(budget, templates, page),
       t: ctx.t,
     });
     const file = translateContextFileName(pageId, lang);

@@ -6,11 +6,25 @@
 //     engine collects them as it renders (`engine.rules`) and citations ([[feature …]], [[rule …]]) are resolved
 //     only once every page has been rendered (a rule may be defined in a page further down the table of contents):
 //     markdown.mjs leaves a placeholder for each citation and each generated-table directive; resolveBusinessRefs
-//     replaces them in a second pass, after the build's page loop.
+//     replaces them in a second pass, after the build's page loop;
+//   - stories, behaviour cards and scenarios (§6.8a, engine/build/markdown-product.mjs) are collected the same way:
+//     the second pass links a scenario to its story and its card, and counts the acceptance criteria of each story.
 import { esc } from "../core/text.mjs";
 
-/** A citation placeholder left by the Markdown engine: <span class="ref-feature|rule" data-ref-id="…">id</span>. */
-const REF = /<span class="ref-(feature|rule)" data-ref-id="([^"]*)">([^<]*)<\/span>/g;
+/** A citation placeholder left by the Markdown engine: <span class="ref-feature|rule|story|behaviour" data-ref-id="…">id</span>. */
+const REF = /<span class="ref-(feature|rule|story|behaviour)" data-ref-id="([^"]*)">([^<]*)<\/span>/g;
+/** The place of a story's count of acceptance criteria (engine/build/behaviours.mjs, storyBlock). */
+const CRITERIA = /<span class="recit-criteres" data-story="([^"]*)"><\/span>/g;
+/** An id as written, from its escaped form in a placeholder (esc of engine/core/text.mjs, undone). */
+const unescaped = (s) => s.replace(/&(amp|lt|gt|quot);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"' })[e]);
+/** Citation kind → CSS class of its link, and the i18n key of the problem when the id is unknown. */
+const CITATIONS = {
+  feature: { cls: "fonctionnalite", unknown: "feature.unknown" },
+  rule: { cls: "regle", unknown: "rule.unknown" },
+  // Not .recit or .comportement: those are the classes of the blocks themselves (style.css).
+  story: { cls: "lien-recit", unknown: "story.unknown" },
+  behaviour: { cls: "lien-comportement", unknown: "behaviour.unknown" },
+};
 /** A generated-table placeholder left by the Markdown engine: <div class="biz-directive" data-biz="…"></div>. */
 const DIRECTIVE = /<div class="biz-directive" data-biz="(features|rules|roles)"><\/div>/g;
 /** A proof a business page should not carry (ARCHITECTURE.md §6.8, "Business pages cite no code"): an inline
@@ -115,37 +129,71 @@ function rolesTable(features, t) {
 
 /**
  * Second pass, once every page is rendered: resolves the citation and generated-table placeholders left by the
- * Markdown engine (`[[feature …]]`, `[[rule …]]`, `::features{}`, `::rules{}`, `::roles{}`), so that a rule defined
- * in a page further down the table of contents is still found. Mutates `pages[*].html` in place.
- * @param {{ pages: Record<string, { html: string, title: string }>, features: Map, rules: Map, t: Function }} p
- *   rules: engine.rules (id → { title, page, anchor }), collected while rendering (engine/build/markdown.mjs)
- * @returns {{ problems: Array<{ key: string, vars: object, strict: boolean }> }}  key: `feature.unknown` / `rule.unknown`
+ * Markdown engine (`[[feature …]]`, `[[rule …]]`, `[[story …]]`, a scenario's story and behaviour, `::features{}`,
+ * `::rules{}`, `::roles{}`), so that a rule defined in a page further down the table of contents is still found, and
+ * writes each story's number of acceptance criteria (its scenarios). Mutates `pages[*].html` in place.
+ * @param {{ pages: Record<string, { html: string, title: string }>, features: Map, rules: Map, stories?: Map,
+ *   behaviours?: Map, scenarios?: Array<{ story: string|null }>, t: Function }} p
+ *   rules, stories, behaviours, scenarios: engine.* (id → { title, page, anchor }), collected while rendering
+ *   (engine/build/markdown-product.mjs); a behaviour card without an id is keyed "page~anchor" and cannot be cited
+ * @returns {{ problems: Array<{ key: string, vars: object, strict: boolean }> }}
+ *   key: `feature.unknown` / `rule.unknown` / `story.unknown` / `behaviour.unknown`
  */
-export function resolveBusinessRefs({ pages, features, rules, t }) {
+export function resolveBusinessRefs({
+  pages,
+  features,
+  rules,
+  stories = new Map(),
+  behaviours = new Map(),
+  scenarios = [],
+  t,
+}) {
   const problems = [];
   const citedBy = new Map();
   const pageToFeature = new Map();
   for (const f of features.values()) pageToFeature.set(f.page, f.id);
+  const targets = {
+    feature: (id) => features.get(id) && { href: features.get(id).page, title: features.get(id).title },
+    rule: (id) =>
+      rules.get(id) && { href: `${rules.get(id).page}~${rules.get(id).anchor}`, title: rules.get(id).title },
+    story: (id) =>
+      stories.get(id) && { href: `${stories.get(id).page}~${stories.get(id).anchor}`, title: stories.get(id).title },
+    behaviour: (id) =>
+      !id.includes("~") &&
+      behaviours.get(id) && {
+        href: `${behaviours.get(id).page}~${behaviours.get(id).anchor}`,
+        title: behaviours.get(id).title,
+      },
+  };
 
   for (const [pageId, page] of Object.entries(pages))
-    page.html = page.html.replace(REF, (m, kind, id) => {
-      if (kind === "feature") {
-        const f = features.get(id);
-        if (!f) {
-          problems.push({ key: "feature.unknown", vars: { page: pageId, id }, strict: true });
-          return esc(id);
-        }
-        return `<a class="puce fonctionnalite" href="#/${esc(f.page)}" title="${esc(f.title)}">${esc(id)}</a>`;
-      }
-      const r = rules.get(id);
-      if (!r) {
-        problems.push({ key: "rule.unknown", vars: { page: pageId, id }, strict: true });
+    page.html = page.html.replace(REF, (m, kind, escaped) => {
+      const id = unescaped(escaped);
+      const target = targets[kind](id);
+      if (!target) {
+        problems.push({ key: CITATIONS[kind].unknown, vars: { page: pageId, id }, strict: true });
         return esc(id);
       }
-      const citer = pageToFeature.get(pageId) || pageId;
-      const set = citedBy.get(id) ?? citedBy.set(id, new Set()).get(id);
-      set.add(citer);
-      return `<a class="puce regle" href="#/${esc(r.page)}~${esc(r.anchor)}" title="${esc(r.title)}">${esc(id)}</a>`;
+      if (kind === "rule") {
+        const citer = pageToFeature.get(pageId) || pageId;
+        const set = citedBy.get(id) ?? citedBy.set(id, new Set()).get(id);
+        set.add(citer);
+      }
+      return `<a class="puce ${CITATIONS[kind].cls}" href="#/${esc(target.href)}" title="${esc(target.title)}">${esc(id)}</a>`;
+    });
+
+  // A card that names its feature (a card written outside the feature's own sheet) names a declared one.
+  for (const card of behaviours.values())
+    if (card.feature && !features.has(card.feature))
+      problems.push({ key: "feature.unknown", vars: { page: card.page, id: card.feature }, strict: true });
+
+  // Each story's acceptance criteria: the scenarios that name it.
+  const criteria = new Map();
+  for (const s of scenarios) if (s.story) criteria.set(s.story, (criteria.get(s.story) || 0) + 1);
+  for (const page of Object.values(pages))
+    page.html = page.html.replace(CRITERIA, (m, id) => {
+      const n = criteria.get(unescaped(id)) || 0;
+      return `<span class="puce criteres${n ? "" : " aucun"}">${esc(t(n ? "render.story.criteria" : "render.story.noCriteria", { n }))}</span>`;
     });
 
   const tables = {

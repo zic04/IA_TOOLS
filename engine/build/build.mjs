@@ -38,10 +38,14 @@ import { readUsage, USAGE_DIR } from "../stats/usage.mjs";
 import { readChanges } from "../facts/changes.mjs";
 import { createBuildContext, readZoneFolder, readTranslatedJson } from "./build-context.mjs";
 import { renderLanguage, siteDate, HOME_FILES } from "./render-language.mjs";
+import { loadBehaviours } from "./behaviours.mjs";
 
 export { siteDate, HOME_FILES };
 export const SITE_DIR = path.join(KIT_ROOT, "engine", "site");
 const IMAGE_TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
+
+/** The kit's standards a build reads: the page templates (§6.4), the kinds of behaviour cards with the project's (§6.8a). */
+const standardsOf = (b) => ({ templates: loadPageTemplates(KIT_ROOT), behaviours: loadBehaviours(b) });
 
 /**
  * @param {object} p
@@ -99,7 +103,6 @@ export function build({ project, config, options = {} }) {
   // Sync reference (ARCHITECTURE.md §6.10): which pages were marked as checked, and against which version —
   // common to every language (translations are never read by sync).
   const version = readProjectVersion(root, config.version);
-  const templates = loadPageTemplates(KIT_ROOT);
   const { reference: syncRef, problem: syncProblem } = readSyncReference(root, config);
   if (syncProblem) report(false, { kind: "sync", ...syncProblem });
   const site = {
@@ -110,7 +113,7 @@ export function build({ project, config, options = {} }) {
     iconKey,
     spaces,
     syncRef,
-    templates,
+    ...standardsOf(b),
     version,
     sourceLangId: languages ? languages[0] : null,
     recordedByLang: {},

@@ -177,12 +177,16 @@ next free number of its kind; never renumber to close a gap. A feature sheet dec
 (`"feature": "F-01"`), never in the Markdown; a rule declares its id on its `:::rule` container
 (`:::rule{id="BR-12" …}`, `:::regle{id="RG-12" …}`).
 
-**The access box.** A feature sheet opens with an "Access" table before any explanation: module, who can use
-it (`[[perm …]]`), prerequisites, the version and date this page was last checked. A `screen` or `editor` page
-puts its permissions **last** (`[!PERMISSIONS]`), because its reader wants to understand the screen first and
-checks who may use it afterwards; a feature sheet's reader often wants exactly the opposite — "can I even do
-this?" — before reading how it works. Put the access information where the page's own reader looks for it
-first.
+**Rights by action.** A feature sheet gives its rights action by action, in a table (Action · Right
+`[[perm …]]` · Condition), then says what a reader without the right sees: the action hidden, greyed out, or refused
+with a message. A `screen` or `editor` page puts its permissions **last** (`[!PERMISSIONS]`), because its reader
+wants to understand the screen first and checks who may use it afterwards.
+
+**Each behaviour, as a test would check it.** A feature sheet describes each behaviour with a card
+(`:::behaviour`, `standard/behaviours.json`): one line per rubric of its kind, answered precisely enough to be
+tested ("contains, whatever the case; accents count: cafe does not find Café"). A rubric that does not apply says
+"n/a — the reason"; one nobody can answer yet says "unknown — the question", and the question goes to "Open
+questions" too. Never leave a rubric out: the build reports it.
 
 **One rule, one statement, one example.** A business rule (`:::rule` / `:::regle`) is one or two sentences,
 followed by exactly one worked example in the form **Given** a starting condition, **when** the triggering

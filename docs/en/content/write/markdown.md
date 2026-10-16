@@ -7,10 +7,10 @@ Pages are **GitHub-flavoured Markdown** (tables, fenced code, task-free lists) w
 2. **One-line directives**: `::capture`, `::diagram` and `::before-after`.
 3. **Callouts**: `> [!TIP]`, `> [!WARNING]`, `> [!CAUTION]`, `> [!PERMISSIONS]`, `> [!NOTE]`, `> [!RECIPE]`, `> [!HOW]`.
 4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the Product space's
-   `[[feature …]]`, `[[rule …]]`.
+   `[[feature …]]`, `[[rule …]]`, `[[story …]]`.
 5. **Internal links**: `#/page-id` and `#/page-id~anchor`, checked by the build.
 6. **Features, rules and roles** (§6.8, the Product space): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
-   `::roles`.
+   `::roles`; and, to describe a feature in depth (§6.8a), `:::story`, `:::behaviour` and `:::scenario`.
 7. **Facts and claims** (§6.9, the takeover dossier): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
    `[[deduced …]]`, `[[unknown …]]`.
 
@@ -158,6 +158,59 @@ no spaces, or the current space is "everything" or one whose kind shows it, `adm
 
 [Example · Feature sheet](#/examples/feature), [Example · Business rules](#/examples/business-rules) and
 [Example · Roles matrix](#/examples/roles-matrix) show every element of this section in a real page.
+
+## A feature in depth: stories, behaviour cards, scenarios
+
+A feature sheet answers the questions a product owner and a tester ask about each behaviour of the feature, in
+business language (ARCHITECTURE.md §6.8a): its user stories, a card per behaviour, and its acceptance criteria.
+
+| English | French | What it does |
+|---|---|---|
+| `:::story{id="US-01" title="…" role="…" since="1.2" ref="ADO#1234"}` … `:::` | `:::recit{id="US-01" titre="…" role="…" depuis="1.2" ref="…"}` … `:::` | A user story: "As a …, I want … so that …". Rendered as an `h3` "US-01 · title", with its role, its version, its ticket and the number of its acceptance criteria. |
+| `:::behaviour{kind="search" title="…" id="B-01"}` … `:::` | `:::comportement{type="recherche" titre="…" id="B-01"}` … `:::` | A behaviour card: one `Rubric: value` line per rubric of its kind, each shown with its state. The title is an `h3`. |
+| `:::scenario{title="…" story="US-01" behaviour="B-01"}` … `:::` | `:::scenario{titre="…" recit="US-01" comportement="B-01"}` … `:::` | An acceptance criterion: one step per line, `Given`, `When`, `Then`, `And`, `But` (`Soit`, `Quand`, `Alors`, `Et`, `Mais`), linked to its story and its card. |
+| `[[story US-01]]` | `[[recit US-01]]` | A link chip to the story. |
+
+```markdown
+:::behaviour{kind="search" title="Find an order by customer" id="B-01"}
+Where: the **Customer** field, above the list.
+Fields searched: the customer's name only.
+Matching: contains, whatever the case; accents count: "cafe" does not find "Blue Harbor Café".
+Several words: one phrase, as typed.
+Trigger: at each keystroke.
+Order of results: n/a — the order the application sends is kept.
+No result: the table stays empty, with no message.
+Permissions: unknown — are the results limited to the reader's region?
+:::
+
+:::scenario{title="Accents count" story="US-02" behaviour="B-01"}
+Given the order of "Blue Harbor Café"
+When I type "cafe" in **Customer**
+Then no order is shown
+:::
+```
+
+- **Kinds** (`standard/behaviours.json`): `search`, `filter`, `sort`, `pagination`, `list`, `form`, `import`,
+  `export`, `calculation`, `notification`, `workflow`, `scheduled-job`, `permission-check` — or their French names
+  (`recherche`, `filtre`, `tri`, `liste`, `formulaire`, `calcul`, `circuit`, `traitement-planifie`,
+  `controle-droits`…). Each lists its rubrics, required or not, with what each one must say. A project adds its own
+  kinds with `behaviours.file` ([Project settings](#/reference/configuration/project)).
+- **Rubrics**: the label in English or in French, at the start of its line, in bold or as a list item if you like
+  (`- **Fields searched**: …`); a value may go on over the next lines, up to the next rubric — an indented line always
+  continues the value (a sub-list under "Columns:" stays there). The text before the first rubric introduces the card.
+- **Answers**: `n/a — reason` (or `not applicable`, `sans objet`) when a rubric does not apply; `unknown — the
+  question` (or `to confirm`, `inconnu`, `à confirmer`) when nobody knows yet — the question goes to "Open
+  questions" too. The word stands alone or is followed by a separator (`—`, `-`, `:`, `.`, `;`, `,`): "Unknown
+  customers are not listed" is an answer. A required rubric left out is shown as missing and reported (`behaviour.missing`, a warning; an error
+  of the strict build with `behaviours.strict`).
+- **Checks**: a card without `kind` or `title` (`behaviour.attributes`), of an unknown kind (`behaviour.kind`), an
+  id defined twice (`behaviour.duplicate`, `story.duplicate`), a story without `id` or `title`
+  (`story.attributes`), a scenario without a title (`scenario.attributes`) or naming a story or a card that does not
+  exist (`story.unknown`, `behaviour.unknown`) fail a strict build; a scenario without a `Then` after a `Given` or
+  a `When` is a warning (`scenario.steps`).
+
+A scenario is attached by its attributes, never nested inside a story or a card: the three containers sit side by
+side in their sections ("User stories", "Behaviours", "Acceptance criteria").
 
 ## Facts and claims
 

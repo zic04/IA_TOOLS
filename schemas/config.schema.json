@@ -360,6 +360,16 @@
         "semgrep": { "type": ["string", "null"], "default": null, "description": "Local semgrep rules folder, relative to the project. Without it, `facts --tools` never runs semgrep (never --config auto, which downloads rules)." }
       }
     },
+    "behaviours": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Behaviour cards of the feature sheets (standard/behaviours.json, ARCHITECTURE.md §6.8a): the project's own kinds, and whether a required rubric left out fails the strict build.",
+      "properties": {
+        "file": { "type": ["string", "null"], "default": null, "description": "A JSON file of the project's own kinds of behaviour (schemas/behaviours.schema.json, without answers), relative to the project. A kind may not take a spelling of the kit's." },
+        "strict": { "type": "boolean", "default": false, "description": "A required rubric left out of a card (behaviour.missing) is an error of the strict build instead of a warning." }
+      }
+    },
     "statuses": {
       "type": "object",
       "default": {},

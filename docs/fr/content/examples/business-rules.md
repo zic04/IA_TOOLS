@@ -3,7 +3,7 @@
 
 ## Comment lire cette page
 
-Une règle se définit une seule fois : ici, quand elle concerne plusieurs fonctionnalités, ou dans la section « Règles métier » de l'unique fiche de fonctionnalité à laquelle elle appartient ([[regle RG-01]] sur [la fiche de validation des commandes](#/examples/feature) en est un exemple). Partout ailleurs, une règle n'est que citée, avec `[[regle RG-12]]`, jamais redéfinie.
+Une règle se définit une seule fois : ici, quand elle concerne plusieurs fonctionnalités, ou dans la section « Règles de gestion » de l'unique fiche de fonctionnalité à laquelle elle appartient ([[regle RG-01]] sur [la fiche de validation des commandes](#/examples/feature) en est un exemple). Partout ailleurs, une règle n'est que citée, avec `[[regle RG-12]]`, jamais redéfinie.
 
 ## Les règles
 

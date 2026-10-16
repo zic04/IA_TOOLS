@@ -15,10 +15,14 @@ des rôles** de qui peut faire quoi.
 
 ## La fiche de fonctionnalité
 
-Une page `feature` ouvre par un **encadré d'accès** (lignes fixes : Module, Qui peut l'utiliser, Prérequis, Vérifié
-le), puis À quoi ça sert, Qui l'utilise, le scénario principal en étapes numérotées, Variantes et exceptions
-numérotées à partir de l'étape dont elles dérivent (« 4a. Si … »), les Règles métier propres à la fiche, et se
-termine par Limites et Questions fréquentes.
+Une page `feature` est une spécification qu'un product owner peut vérifier sur l'application. Elle ouvre par À quoi
+ça sert et Qui l'utilise, puis ses **user stories** (`:::recit`), le parcours principal en étapes numérotées, les
+Variantes numérotées à partir de l'étape dont elles dérivent (« 4a. Si … »), une **carte de comportement** par
+comportement (`:::comportement` : une recherche, un filtre, une liste, un formulaire, un circuit…, chaque rubrique de
+son type répondue), les Règles de gestion propres à la fiche, ses Champs et saisies, ses États, ses Messages mot pour
+mot, ses Droits par action, ses **critères d'acceptation** (`:::scenario`, Soit / Quand / Alors), et se termine par
+Limites et Questions ouvertes. Une section qui ne s'applique pas le dit, avec sa raison
+([Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-profondeur-stories-cartes-scenarios)).
 
 ```json
 { "id": "use/orders/approval", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] }
@@ -27,11 +31,11 @@ termine par Limites et Questions fréquentes.
 - `feature` est un champ de page de `content/toc.json`, seulement sur une page de gabarit `feature` : l'identifiant
   propre de la fiche, sous la forme `F-01`. Une fiche par identifiant ; une page typée `feature` sans identifiant ne
   fait qu'avertir, mais une deuxième fiche avec le même identifiant fait échouer le build.
-- `permissions` alimente « Qui peut l'utiliser » de l'encadré d'accès via `[[droit …]]`, et la matrice des rôles
-  ci-dessous.
+- `permissions` alimente la matrice des rôles ci-dessous ; les « Droits par action » de la fiche les citent avec
+  `[[droit …]]`.
 
 [Exemple · Fiche de fonctionnalité](#/examples/feature) en montre une complète : la validation des commandes
-d'Acme Orders, avec son encadré d'accès, son scénario et sa propre règle.
+d'Acme Orders, avec ses stories, ses trois cartes de comportement, sa propre règle et six critères d'acceptation.
 
 ## Règles métier : énoncées une fois, citées partout
 
@@ -94,7 +98,7 @@ règle : il n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que
 ## Pièges et écarts constatés
 
 > [!ATTENTION] Une page de concepts n'est pas une fiche de fonctionnalité
-> Une page sans scénario et sans encadré d'accès — un catalogue, une liste de réglages — n'est pas `feature` :
+> Une page sans parcours ni comportement — un catalogue, une liste de réglages — n'est pas `feature` :
 > laissez-la sans type, ou typez-la `technical`.
 
 > [!NOTE] Une règle, un propriétaire

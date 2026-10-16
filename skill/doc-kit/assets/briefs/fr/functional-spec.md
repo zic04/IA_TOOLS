@@ -32,14 +32,22 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
 
 ## Ce que porte chaque page
 
-- **Fiche de fonctionnalité** (`feature`) : `## Accès` (Module · Qui peut l'utiliser `[[droit …]]` · Prérequis ·
-  Vérifié le) ; `## À quoi ça sert` (2 à 4 phrases, langage métier) ; `## Qui l'utilise` ; `## Déclencheur et
-  prérequis` (facultatif) ; `## Scénario principal` (`:::etapes` ; un `:::ecran` ou un `::capture` seulement
-  quand une capture rend une étape plus claire — aucun des deux n'est obligatoire ici, contrairement à une page
-  `screen`/`editor`) ; `## Variantes et exceptions` (numérotées après l'étape dont elles partent, « 3a. ») ;
-  `## Règles métier` (`:::regle` pour une règle propre à cette seule fonctionnalité, `[[regle RG-xx]]` pour une
-  règle partagée — ne redéfinis jamais une règle qui a déjà un id ailleurs) ; `## Données traitées`,
-  `## Notifications et effets`, `## Limites`, `## Questions fréquentes` (tous facultatifs).
+- **Fiche de fonctionnalité** (`feature`) : une spécification que le product owner peut vérifier sur
+  l'application. `## À quoi ça sert` (2 à 4 phrases, langage métier) ; `## Qui l'utilise` (Rôle · Ce qu'il en
+  fait) ; `## User stories` (un `:::recit{id="US-xx" titre role depuis ref}` par besoin : « En tant que …, je veux …
+  afin de … ») ; `## Parcours principal` (`:::etapes` ; un `:::ecran` ou un `::capture` seulement quand une capture
+  rend une étape plus claire — aucun des deux n'est obligatoire ici, contrairement à une page `screen`/`editor`) ;
+  `## Variantes` (facultatif, numérotées après l'étape dont elles partent, « 3a. ») ; `## Comportements` (une carte
+  `:::comportement{type titre id="B-xx"}` par comportement — recherche, filtre, tri, pagination, liste, formulaire,
+  import, export, calcul, notification, circuit, traitement-planifie, controle-droits — avec une ligne
+  `Rubrique : valeur` pour chaque rubrique de son type dans `standard/behaviours.json` du kit, répondue aussi
+  précisément qu'un test le vérifierait, ou « Sans objet — raison », ou « Inconnu — la question ») ;
+  `## Règles de gestion` (`:::regle` pour une règle propre à cette seule fonctionnalité, `[[regle RG-xx]]` pour une
+  règle partagée — ne redéfinis jamais une règle qui a déjà un id ailleurs) ; `## Champs et saisies`, `## États`
+  (facultatifs) ; `## Messages` (mot pour mot) ; `## Droits par action` (Action · Droit `[[droit …]]` · Condition) ;
+  `## Critères d'acceptation` (un `:::scenario{titre recit="US-xx" comportement="B-xx"}` par critère, Soit / Quand /
+  Alors, une étape par ligne, des valeurs réelles) ; `## Limites`, `## Questions ouvertes` (facultatifs ; chaque
+  « Inconnu — … » d'une carte y va aussi). Une section qui ne s'applique pas reste, avec « Sans objet — la raison ».
 - **Registre des règles métier** (`business-rules`, en général une seule page pour tout le projet) : `## Comment
   lire cette page` ; `## Les règles` (`:::regle`, pour chaque règle sans fonctionnalité propriétaire unique) ;
   `## Les règles par fonctionnalité` (`::regles{}`) ; `## Règles retirées` (facultatif — garde l'id d'une règle

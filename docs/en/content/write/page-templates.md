@@ -39,7 +39,7 @@ Each type has a complete example, written for Acme Orders, in the **Examples** s
 
 | Type | For | Required sections | `maxWords` | Example |
 |---|---|---|---|---|
-| `feature` | One feature, end to end | 5 of 11 | 2,500 | [feature](#/examples/feature) |
+| `feature` | One feature, end to end: stories, behaviour cards, acceptance criteria | 9 of 14 | 4,000 | [feature](#/examples/feature) |
 | `business-rules` | Rules shared across features | 2 of 4 | 3,000 | [business-rules](#/examples/business-rules) |
 | `roles-matrix` | Every role and what it can do | 3 of 5 | 2,000 | [roles-matrix](#/examples/roles-matrix) |
 | `process` | The same feature, end to end | 4 of 8 | 2,200 | [process](#/examples/process) |

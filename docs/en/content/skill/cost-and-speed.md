@@ -16,7 +16,7 @@ Writes `.doc-kit/context/<page>.md`: the only reading an agent needs for that on
 inventory and table of contents. Built from the page's own dependencies (the same ones `doc-kit sync` computes) —
 direct files before shared ones, each trimmed to the lines near a cited proof, a short file given whole — plus the
 required sections of its template, the exact labels and facts rows these files touch, and the glossary terms that
-match. Tokens are estimated as characters ÷ 4; past the budget (default 16,000), the farthest excerpts are cut
+match. Tokens are estimated as characters ÷ 4; past the budget (default 16,000; 24,000 for a feature sheet), the farthest excerpts are cut
 first, each cut leaving a one-line note. `--update` adds the page's entry of the last `sync` report, its diff, and
 the paths of its captures' before/after sheets.
 

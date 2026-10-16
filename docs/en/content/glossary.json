@@ -12,7 +12,7 @@
   { "term": "Draft build", "pattern": "draft build|draft mode", "def": "A build that turns errors into warnings and replaces missing pages and captures with notes (doc-kit build --draft, doc-kit dev)." },
   { "term": "Equivalence check", "pattern": "equivalence check", "def": "The comparison of two builds of the same project, before and after a migration, from the HTML bytes to screenshots." },
   { "term": "Fact", "pattern": "facts?", "def": "An item read straight from the application's code by doc-kit facts (a dependency, a variable, a route, a table…), written to facts/<source>.json and cited with ::facts." },
-  { "term": "Feature sheet", "pattern": "feature sheets?", "def": "A page of template feature, written for the Product space: one F-xx id, its access box, scenario, business rules and limits." },
+  { "term": "Feature sheet", "pattern": "feature sheets?", "def": "A page of template feature, written for the Product space: one F-xx id, its user stories, behaviour cards, business rules and acceptance criteria." },
   { "term": "File:line proof", "pattern": "file:line proofs?", "def": "The file and line of the code that proves a statement, written in backticks: lib/orders.ts:42." },
   { "term": "Finding", "pattern": "findings?", "def": "A gap, risk or debt found while documenting, re-checked in the code and numbered by family (C, I, M, P, N)." },
   { "term": "Forbidden route", "pattern": "forbidden routes?", "def": "A route listed in capture.forbidden because its server writes while rendering: the kit never opens it." },

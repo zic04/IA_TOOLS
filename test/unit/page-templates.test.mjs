@@ -18,6 +18,7 @@ import {
   guessTemplate,
   closestTemplate,
   maxWordsOf,
+  contextBudgetOf,
   DEFAULT_MAX_WORDS,
   captureVariant,
   CAPTURE_MODES,
@@ -275,6 +276,33 @@ describe("matching a section", () => {
     const headings = ["À QUOI SERT l'écran", "Comment ca marche", "L’écran", "Pieges et limites", "Droits requis"];
     assert.deepEqual(presentSections({ table, type: "screen", headings, language: "fr" }), [0, 1, 2, 7, 9]);
     assert.deepEqual(presentSections({ table, type: "screen", headings, language: "en" }), []);
+  });
+
+  test("the feature sheet (§6.8a): 14 sections, 9 required, 4,000 words, a context budget of 24,000; the 0.3 headings still count", () => {
+    const def = table.types.feature;
+    assert.equal(def.sections.en.length, 14);
+    assert.equal(def.sections.fr.length, 14);
+    assert.deepEqual(
+      def.required.map((i) => def.sections.en[i]),
+      [
+        "What it is for",
+        "Who uses it",
+        "User stories",
+        "Main path",
+        "Behaviours",
+        "Business rules",
+        "Messages",
+        "Rights by action",
+        "Acceptance criteria",
+      ],
+    );
+    assert.equal(maxWordsOf(table, "feature"), 4000);
+    assert.equal(contextBudgetOf(table, "feature"), 24000);
+    assert.equal(contextBudgetOf(table, "screen"), 16000);
+    assert.equal(contextBudgetOf(table, undefined), 16000);
+    // A sheet of 0.3: "Main scenario" is "Main path", "Règles métier" is "Règles de gestion".
+    assert.deepEqual(presentSections({ table, type: "feature", headings: ["Main scenario"], language: "en" }), [3]);
+    assert.deepEqual(presentSections({ table, type: "feature", headings: ["Règles métier"], language: "fr" }), [6]);
   });
 
   test("headingsOf: # and ## headings, not ### nor the headings inside fenced code", () => {

@@ -14,9 +14,13 @@ stated once and cited everywhere they apply, and a **roles matrix** of who can d
 
 ## The feature sheet
 
-A `feature` page opens with an **access box** (fixed rows: Module, Who can use it, Prerequisites, Checked on), then
-What it is for, Who uses it, the main scenario as numbered steps, Variants and exceptions branching from the step
-they come from ("4a. If …"), the sheet's own Business rules, and closes with Limits and Questions people ask.
+A `feature` page is a specification a product owner can check against the application. It opens with What it is
+for and Who uses it, then its **user stories** (`:::story`), the main path as numbered steps, the Variants branching
+from the step they come from ("4a. If …"), one **behaviour card** per behaviour (`:::behaviour`: a search, a filter,
+a list, a form, a workflow…, each rubric of its kind answered), the sheet's own Business rules, its Fields and
+inputs, its States, its Messages word for word, its Rights by action, its **acceptance criteria** (`:::scenario`,
+Given / When / Then), and closes with Limits and Open questions. A section that does not apply says so, with its
+reason ([A feature in depth](#/write/markdown~a-feature-in-depth-stories-behaviour-cards-scenarios)).
 
 ```json
 { "id": "use/orders/approval", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] }
@@ -25,10 +29,10 @@ they come from ("4a. If …"), the sheet's own Business rules, and closes with L
 - `feature` is a page field of `content/toc.json`, only on a page of template `feature`: the sheet's own id, in the
   form `F-01`. One sheet per id; a page typed `feature` without one only warns, but a second sheet with the same id
   fails the build.
-- `permissions` feeds the access box's "Who can use it" through `[[perm …]]`, and the roles matrix below.
+- `permissions` feeds the roles matrix below; the sheet's "Rights by action" cites them with `[[perm …]]`.
 
-[Example · Feature sheet](#/examples/feature) is a complete one: order approval at Acme Orders, with its access
-box, its scenario and its own rule.
+[Example · Feature sheet](#/examples/feature) is a complete one: order approval at Acme Orders, with its stories,
+its three behaviour cards, its own rule and six acceptance criteria.
 
 ## Business rules: stated once, cited everywhere
 
@@ -88,7 +92,7 @@ exports keep it.
 ## Pitfalls and observed gaps
 
 > [!WARNING] A concept page is not a feature sheet
-> A page with no scenario and no access box — a catalogue, a list of settings — is not `feature`: leave it
+> A page with no path and no behaviour — a catalogue, a list of settings — is not `feature`: leave it
 > untyped, or type it `technical`.
 
 > [!NOTE] One rule, one owner

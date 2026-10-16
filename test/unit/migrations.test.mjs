@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { planSpaces, applySpaces } from "../../engine/migrations/0.4.0/spaces.mjs";
+import { withFeatureSections } from "../../engine/migrations/0.4.0/feature-sheets.mjs";
 import * as migration from "../../engine/migrations/0.4.0.mjs";
 import { createVirtualFiles, pendingMigrations, runMigrations } from "../../engine/migrations/runner.mjs";
 import { translatedToc } from "../../engine/build/languages.mjs";
@@ -327,7 +328,7 @@ describe("migrate (doc-kit upgrade)", () => {
       root: legacy,
     });
     assert.deepEqual(again[0].vars, { file: "content/sommaire.json" });
-    // Without spaces, there is nothing for 0.4.0 to do: it upgrades as before.
+    // Without spaces, the table of contents of 0.1 is left to `doc-kit migrate`; its feature sheets are completed.
     fs.writeFileSync(path.join(legacy, "content", "sommaire.json"), json({ titre: "x", sections: [] }));
     const plain = await runMigrations([{ version: "0.4.0", file }], {
       files: createVirtualFiles(legacy),
@@ -335,6 +336,38 @@ describe("migrate (doc-kit upgrade)", () => {
       root: legacy,
     });
     assert.deepEqual(plain, [{ version: "0.4.0" }]);
+  });
+
+  test("a table of contents of 0.1 without spaces: its feature sheets are completed all the same; a language folder without a table of contents too", async () => {
+    const root = tempDir("doc-kit-migration-");
+    dirs.push(root);
+    fs.mkdirSync(path.join(root, "content", "features"), { recursive: true });
+    fs.mkdirSync(path.join(root, "translations", "fr", "features"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "content", "sommaire.json"),
+      json({
+        titre: "x",
+        sections: [
+          { id: "features", titre: "F", groupes: [{ pages: [{ id: "features/a", titre: "A", gabarit: "feature" }] }] },
+        ],
+      }),
+    );
+    fs.writeFileSync(path.join(root, "content", "features", "a.md"), "## What it is for\n\nx\n");
+    fs.writeFileSync(path.join(root, "translations", "fr", "features", "a.md"), "## À quoi ça sert\n\nx\n");
+    const files = await run(root);
+    assert.deepEqual(
+      files
+        .changes()
+        .map((c) => c.file)
+        .sort(),
+      ["content/features/a.md", "translations/fr/features/a.md"],
+    );
+    files.apply();
+    assert.match(
+      fs.readFileSync(path.join(root, "translations", "fr", "features", "a.md"), "utf8"),
+      /## Comportements/,
+    );
+    assert.deepEqual((await run(root)).changes(), [], "idempotent");
   });
 
   test("folders written loosely in doc.config.mjs (./translations/, a backslash)", async () => {
@@ -358,6 +391,83 @@ describe("migrate (doc-kit upgrade)", () => {
       files.changes().map((c) => c.file),
       ["docs/toc.json", "i18n/fr/.sources.json", "i18n/fr/toc.json"],
     );
+  });
+
+  test("a feature sheet of 0.3 gets the required sections it lacks, in the template's order, with their guidance; its translation too", async () => {
+    const root = project();
+    const sheet =
+      "## Access\n\n| | |\n|---|---|\n| Module | Orders |\n\n## What it is for\n\nText.\n\n## Who uses it\n\n- **Manager**: approves.\n\n## Main scenario\n\n:::steps\n1. A step.\n:::\n\n## Business rules\n\n[[rule BR-12]].\n\n## Limits\n\n- One limit.\n";
+    const french = sheet
+      .replace("## What it is for", "## À quoi ça sert")
+      .replace("## Who uses it", "## Qui l'utilise")
+      .replace("## Main scenario", "## Scénario principal")
+      .replace("## Business rules", "## Règles métier")
+      .replace("## Limits", "## Limites");
+    fs.mkdirSync(path.join(root, "content", "features"));
+    fs.mkdirSync(path.join(root, "translations", "fr", "features"));
+    fs.writeFileSync(path.join(root, "content", "features", "track.md"), sheet);
+    fs.writeFileSync(path.join(root, "translations", "fr", "features", "track.md"), french);
+    const sources = read(root, "translations/fr/.sources.json");
+    fs.writeFileSync(
+      path.join(root, "translations", "fr", ".sources.json"),
+      json({ ...sources, "features/track.md": hashText(sheet) }),
+    );
+    const files = await run(root);
+    files.apply();
+    const after = fs.readFileSync(path.join(root, "content", "features", "track.md"), "utf8");
+    const headings = (text) => text.split("\n").filter((l) => l.startsWith("## "));
+    // "Main scenario" is the alias of "Main path": never added twice. Each new section before the next one of the template.
+    assert.deepEqual(headings(after), [
+      "## Access",
+      "## What it is for",
+      "## Who uses it",
+      "## User stories",
+      "## Main scenario",
+      "## Behaviours",
+      "## Business rules",
+      "## Messages",
+      "## Rights by action",
+      "## Acceptance criteria",
+      "## Limits",
+    ]);
+    assert.match(after, /## Behaviours\n\n<!-- guidance: one :::behaviour card per behaviour/);
+    assert.ok(after.includes("[[rule BR-12]].\n\n## Messages"), "the existing text is kept as it was");
+    const translated = fs.readFileSync(path.join(root, "translations", "fr", "features", "track.md"), "utf8");
+    assert.deepEqual(headings(translated).slice(3, 10), [
+      "## User stories",
+      "## Scénario principal",
+      "## Comportements",
+      "## Règles métier",
+      "## Messages",
+      "## Droits par action",
+      "## Critères d'acceptation",
+    ]);
+    assert.match(translated, /## Comportements\n\n<!-- consigne : une carte :::comportement/);
+    // The translation was up to date: it still is.
+    assert.equal(read(root, "translations/fr/.sources.json")["features/track.md"], hashText(after));
+    assert.deepEqual((await run(root)).changes(), [], "idempotent");
+  });
+
+  test("withFeatureSections: a conformant sheet is left as it is; line endings and fenced code are respected", () => {
+    const full = fs.readFileSync(path.join(KIT_ROOT, "templates", "pages", "en", "feature.md"), "utf8");
+    assert.equal(withFeatureSections(full, "en"), null);
+    const crlf = "## What it is for\r\n\r\nText.\r\n\r\n```md\r\n## Behaviours\r\n```\r\n";
+    const done = withFeatureSections(crlf, "en");
+    assert.ok(!/[^\r]\n/.test(done), "CRLF kept");
+    // The heading inside the fenced code is no section: Behaviours is added.
+    assert.equal(done.split("\r\n").filter((l) => l === "## Behaviours").length, 2);
+    // A language without a template of its own uses the English labels.
+    assert.match(withFeatureSections("## What it is for\n", "de"), /## User stories/);
+    // The headings the build counts, and only those: a link or code in a heading, a tab, an underlined heading are
+    // the section; a heading in indented code or in an HTML comment is none.
+    const base = "## What it is for\n\nx\n\n";
+    const added = (m) => (withFeatureSections(base + m + "\n", "en").match(/^## Messages$/gm) || []).length;
+    for (const m of ["## [Messages](#/f/y)", "## `Messages`", "##\tMessages", "Messages\n--------"])
+      assert.equal(added(m), 0, m);
+    assert.equal(added("    ## Messages"), 1, "in indented code");
+    assert.equal(added("> ## Messages"), 0, "in a quote: the build counts it");
+    assert.equal(added("- ## Messages"), 0, "in a list item: the build counts it");
+    assert.equal(added("<!--\n## Messages\n-->"), 2, "in an HTML comment: the heading is added after it");
   });
 
   test("a project of 0.3 is offered this migration by a kit of 0.4; the fixtures of the kit are already migrated", async () => {

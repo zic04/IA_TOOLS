@@ -186,7 +186,7 @@ est refusée (code de sortie 2).
 | Option | Effet |
 |---|---|
 | `page…` | Un ou plusieurs identifiants de page de `content/toc.json` |
-| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (16 000 par défaut) ; la page et ses sections requises ne sont jamais coupées — les extraits partagés partent d'abord, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
+| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (par défaut : le budget du gabarit de la page, 24 000 pour une fiche de fonctionnalité, 16 000 sinon) ; la page et ses sections requises ne sont jamais coupées — les extraits partagés partent d'abord, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
 | `--update` | Inclut aussi l'entrée de la page du dernier rapport `doc-kit sync` (toutes les catégories, avec leurs raisons), le diff de ses fichiers changés, et les chemins des planches avant/après de ses captures (`.doc-kit/compare/<id>.png`, jamais incluses) ; sans rapport encore (`doc-kit sync --mark`), code de sortie 2 |
 
 `--json` donne `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. Un dossier de contexte tient en quelques

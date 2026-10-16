@@ -179,7 +179,7 @@ yet is accepted (the context serves to write it); an unknown page is refused (ex
 | Option | Effect |
 |---|---|
 | `page…` | One or more page ids of `content/toc.json` |
-| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default 16,000); the page and its required sections are never cut — shared excerpts go first, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
+| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default: the budget of the page's template, 24,000 for a feature sheet, 16,000 otherwise); the page and its required sections are never cut — shared excerpts go first, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
 | `--update` | Also includes the page's entry of the last `doc-kit sync` report (every category, with its reasons), the diff of its changed files, and the paths of its captures' before/after sheets (`.doc-kit/compare/<id>.png`, never inlined); without a report yet (`doc-kit sync --mark`), exit code 2 |
 
 `--json` gives `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. A context folder runs to a few thousand

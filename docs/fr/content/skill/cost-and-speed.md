@@ -18,7 +18,7 @@ l'inventaire du code et de la table des matières. Construit à partir des dépe
 que calcule `doc-kit sync`) — les fichiers directs avant les partagés, chacun réduit aux lignes proches d'une
 preuve citée, un fichier court donné en entier — plus les sections requises de son gabarit, les libellés exacts et
 lignes de faits que ces fichiers touchent, et les termes du glossaire qui correspondent. Les jetons sont estimés en
-caractères ÷ 4 ; au-delà du budget (16 000 par défaut), les extraits les plus éloignés sont coupés en premier,
+caractères ÷ 4 ; au-delà du budget (16 000 par défaut ; 24 000 pour une fiche de fonctionnalité), les extraits les plus éloignés sont coupés en premier,
 chaque coupe laissant une ligne.
 
 Un dossier de contexte tient de quelques centaines de jetons, pour une page avec une ou deux petites dépendances,

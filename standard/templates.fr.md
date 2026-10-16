@@ -344,26 +344,36 @@ Quand / Alors »).
 
 ## `feature` — Fiche de fonctionnalité
 
-Une fonctionnalité, de bout en bout, pour un lecteur métier : qui l'utilise, quand elle démarre, ce qu'elle
-fait pas à pas, et les règles qu'elle impose. Porte l'identifiant `feature` de la page (`toc.json`, par
-exemple `"feature": "F-01"`) et, quand un pendant technique existe, son `counterpart`.
+Une fonctionnalité, de bout en bout, comme une spécification qu'un lecteur métier et un product owner peuvent
+vérifier sur l'application : qui l'utilise, ses user stories, son parcours habituel, chacun de ses comportements
+répondu rubrique par rubrique, ses règles, ses messages, ses droits par action et ses critères d'acceptation. Porte
+l'identifiant `feature` de la page (`toc.json`, par exemple `"feature": "F-01"`) et, quand un pendant technique
+existe, son `counterpart`. Une section qui ne s'applique pas reste, avec une ligne : « Sans objet — la raison ».
 
 | Section | | Contenu |
 |---|---|---|
-| Accès | ✱ | Un tableau à deux colonnes, lignes fixes : Module · Qui peut l'utiliser (`[[droit …]]`) · Prérequis · Vérifié le (version, date) |
 | À quoi ça sert | ✱ | Le besoin métier en 2 à 4 phrases ; le titre de la page en gras dans la première phrase |
-| Qui l'utilise | ✱ | Une ligne par rôle : « **Rôle** : ce qu'il fait » |
-| Déclencheur et prérequis | | Facultatif ; à supprimer quand le déclencheur est simplement « quelqu'un ouvre l'écran » |
-| Scénario principal | ✱ | `:::etapes` ; une capture `:::ecran` ou `::capture` seulement quand elle éclaire une étape (ni l'une ni l'autre n'est obligatoire ici) |
-| Variantes et exceptions | | Numérotées après l'étape dont elles bifurquent : « 3a. Si … » |
-| Règles métier | ✱ | Les règles propres à cette fonctionnalité, définies avec `:::regle` ; une règle partagée est seulement citée avec `[[regle …]]` |
-| Données traitées | | Les données métier lues ou modifiées, nommées comme les connaît un lecteur métier — jamais un nom de table ou de colonne |
-| Notifications et effets | | Ce que la fonctionnalité déclenche au-delà de l'écran : un e-mail, une entrée ailleurs, un compteur qui change |
+| Qui l'utilise | ✱ | Un tableau, Rôle · Ce qu'il en fait |
+| User stories | ✱ | Un `:::recit{id titre role depuis ref}` par besoin : « En tant que …, je veux … afin de … » |
+| Parcours principal | ✱ | `:::etapes` ; une capture `:::ecran` ou `::capture` seulement quand elle éclaire une étape (ni l'une ni l'autre n'est obligatoire ici) |
+| Variantes | | Numérotées après l'étape dont elles bifurquent : « 3a. Si … » |
+| Comportements | ✱ | Une carte `:::comportement{type titre id}` par comportement (recherche, filtre, tri, pagination, liste, formulaire, import, export, calcul, notification, circuit, traitement planifié, contrôle de droits) : chaque rubrique de son type répondue, ou « Sans objet — raison », ou « Inconnu — question » |
+| Règles de gestion | ✱ | Les règles propres à cette fonctionnalité, définies avec `:::regle` ; une règle partagée est seulement citée avec `[[regle …]]` |
+| Champs et saisies | | Un tableau : Champ · Obligatoire · Format et valeurs admises · Par défaut · Contrôle et son message |
+| États | | Les états par lesquels passe un élément (`[[statut …]]`), ce qui le fait passer, et qui le peut |
+| Messages | ✱ | Chaque message que le lecteur peut voir, mot pour mot : Message · Quand il apparaît · Que faire |
+| Droits par action | ✱ | Un tableau : Action · Droit (`[[droit …]]`) · Condition ; puis ce que voit un lecteur sans le droit |
+| Critères d'acceptation | ✱ | Un `:::scenario{titre recit comportement}` par critère, Soit / Quand / Alors avec des valeurs réelles |
 | Limites | | Ce que la fonctionnalité ne fait délibérément pas, en termes métier, jamais un piège de code |
-| Questions fréquentes | | 2 à 5 questions réelles, chacune avec une réponse courte et directe |
+| Questions ouvertes | | Chaque question à laquelle personne n'a encore su répondre (les « Inconnu — … » des cartes compris), avec qui peut y répondre |
 
-- **Longueur** : limite 2 500 mots ; la plupart des fiches restent bien en dessous — une fonctionnalité qui en
-  demande plus est souvent plusieurs fonctionnalités, ou relève en partie de `process`.
+- **Longueur** : limite 4 000 mots ; son dossier de contexte a 24 000 jetons (`contextBudget`). Une fonctionnalité qui
+  en demande plus est souvent plusieurs fonctionnalités, ou relève en partie de `process`.
+- **Cartes de comportement** (`standard/behaviours.json`) : les rubriques de chaque type, obligatoires ou non, et ce
+  que chacune doit dire ; une rubrique obligatoire omise est signalée par le build (`behaviour.missing`). La syntaxe :
+  ARCHITECTURE.md §6.8a.
+- **Titres de la 0.3** toujours reconnus : « Scénario principal » pour « Parcours principal », « Règles métier » pour
+  « Règles de gestion » ; `doc-kit upgrade` ajoute les sections qui manquent à une fiche de la 0.3, avec leur consigne.
 - **Exemple** : `fonctionnalites/validation-en-deux-temps` dans Acme Orders : qui peut relever le seuil, les
   deux étapes de validation, ce qui arrive à une commande déjà en attente quand le circuit change.
 - **Erreurs fréquentes** :

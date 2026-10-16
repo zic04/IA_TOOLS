@@ -178,12 +178,17 @@ genre ; ne renumérotez jamais pour combler un trou. Une fiche de fonctionnalit�
 `toc.json` (`"feature": "F-01"`), jamais dans le Markdown ; une règle déclare son id sur son conteneur
 `:::regle` (`:::regle{id="RG-12" …}`, `:::rule{id="BR-12" …}`).
 
-**L'encart d'accès.** Une fiche de fonctionnalité ouvre sur un tableau « Accès » avant toute explication :
-module, qui peut l'utiliser (`[[droit …]]`), prérequis, la version et la date de dernière vérification de
-cette page. Une page `screen` ou `editor` met ses permissions **en dernier** (`[!DROITS]`), parce que son
-lecteur veut d'abord comprendre l'écran et vérifie qui peut l'utiliser après coup ; le lecteur d'une fiche de
-fonctionnalité veut souvent l'inverse — « est-ce que je peux même faire ça ? » — avant de lire comment ça
-marche. Placez l'information d'accès là où le lecteur de la page la cherche en premier.
+**Les droits par action.** Une fiche de fonctionnalité donne ses droits action par action, dans un tableau
+(Action · Droit `[[droit …]]` · Condition), puis dit ce que voit un lecteur sans le droit : l'action masquée, grisée,
+ou refusée avec un message. Une page `screen` ou `editor` met ses permissions **en dernier** (`[!DROITS]`), parce
+que son lecteur veut d'abord comprendre l'écran et vérifie qui peut l'utiliser après coup.
+
+**Chaque comportement, comme un test le vérifierait.** Une fiche de fonctionnalité décrit chaque comportement avec
+une carte (`:::comportement`, `standard/behaviours.json`) : une ligne par rubrique de son type, répondue assez
+précisément pour être testée (« contient, sans tenir compte des majuscules ; les accents comptent : cafe ne trouve
+pas Café »). Une rubrique qui ne s'applique pas dit « Sans objet — la raison » ; une à laquelle personne ne sait
+encore répondre dit « Inconnu — la question », et la question va aussi dans « Questions ouvertes ». N'omettez
+jamais une rubrique : le build la signale.
 
 **Une règle, un énoncé, un exemple.** Une règle métier (`:::regle` / `:::rule`) tient en une ou deux phrases,
 suivies d'exactement un exemple travaillé sous la forme **Étant donné** une condition de départ, **quand**

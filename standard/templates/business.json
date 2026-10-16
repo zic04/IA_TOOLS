@@ -1,13 +1,25 @@
 {
+  "aliases": {
+    "en": {
+      "Main path": ["Main scenario"],
+      "Behaviours": ["Behaviors"]
+    },
+    "fr": {
+      "Parcours principal": ["Scénario principal"],
+      "Règles de gestion": ["Règles métier"],
+      "User stories": ["Récits utilisateur"]
+    }
+  },
   "types": {
     "feature": {
       "title": { "en": "Feature sheet", "fr": "Fiche de fonctionnalité" },
       "sections": {
-        "en": ["Access", "What it is for", "Who uses it", "Trigger and preconditions", "Main scenario", "Variants and exceptions", "Business rules", "Data handled", "Notifications and effects", "Limits", "Questions people ask"],
-        "fr": ["Accès", "À quoi ça sert", "Qui l'utilise", "Déclencheur et prérequis", "Scénario principal", "Variantes et exceptions", "Règles métier", "Données traitées", "Notifications et effets", "Limites", "Questions fréquentes"]
+        "en": ["What it is for", "Who uses it", "User stories", "Main path", "Variants", "Behaviours", "Business rules", "Fields and inputs", "States", "Messages", "Rights by action", "Acceptance criteria", "Limits", "Open questions"],
+        "fr": ["À quoi ça sert", "Qui l'utilise", "User stories", "Parcours principal", "Variantes", "Comportements", "Règles de gestion", "Champs et saisies", "États", "Messages", "Droits par action", "Critères d'acceptation", "Limites", "Questions ouvertes"]
       },
-      "required": [0, 1, 2, 4, 6],
-      "maxWords": 2500,
+      "required": [0, 1, 2, 3, 5, 6, 9, 10, 11],
+      "maxWords": 4000,
+      "contextBudget": 24000,
       "template": "templates/pages/{language}/feature.md",
       "example": "docs/{language}/content/examples/feature.md"
     },

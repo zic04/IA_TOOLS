@@ -251,7 +251,7 @@
         {
           "title": "Types métier",
           "pages": [
-            { "id": "examples/feature", "title": "Exemple · Fiche de fonctionnalité : la validation des commandes", "menuTitle": "feature", "summary": "Une fiche de fonctionnalité avec son encadré d'accès, ses règles métier et son scénario : la validation des commandes d'Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
+            { "id": "examples/feature", "title": "Exemple · Fiche de fonctionnalité : la validation des commandes", "menuTitle": "feature", "summary": "Une fiche de fonctionnalité avec ses user stories, ses cartes de comportement, ses règles de gestion et ses critères d'acceptation : la validation des commandes d'Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
             { "id": "examples/business-rules", "title": "Exemple · Règles métier", "menuTitle": "business-rules", "summary": "Des règles partagées entre fonctionnalités, chacune un :::regle avec son exemple Given/When/Then, et le tableau généré ::regles{}.", "template": "business-rules" },
             { "id": "examples/roles-matrix", "title": "Exemple · Matrice des rôles", "menuTitle": "roles-matrix", "summary": "Les rôles d'Acme Orders et qui peut faire quoi, avec le tableau généré ::roles{}.", "template": "roles-matrix" },
             { "id": "examples/process", "title": "Exemple · Processus : la validation des commandes", "menuTitle": "process", "summary": "La même validation des commandes, vue de bout en bout : états, ce qui avance seul, et ce qui attend quelqu'un.", "template": "process" },

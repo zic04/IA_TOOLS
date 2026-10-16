@@ -8,6 +8,25 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Feature sheets in depth** (ARCHITECTURE.md §6.8a): a sheet is now a specification a product owner can check
+  against the application. Its new sections: User stories, Behaviours, Fields and inputs, States, Messages, Rights
+  by action, Acceptance criteria, Open questions (template `feature`, 9 required sections of 14, 4,000 words, a
+  context budget of 24,000 tokens). Three new blocks, in English and French:
+  - `:::behaviour{kind title id}` (`:::comportement{type titre}`): a **behaviour card**, one `Rubric: value` line per
+    rubric of its kind — 13 kinds in `standard/behaviours.json` (search, filter, sort, pagination, list, form,
+    import, export, calculation, notification, workflow, scheduled job, permission check), each with the questions a
+    reader asks (a search: the fields searched, the matching, case and accents, several words, the trigger, the
+    order, no result, the rights). "n/a — reason" and "unknown — question" are answers; a required rubric left out
+    is shown as missing and reported (`behaviour.missing`, an error with `behaviours.strict`). A project adds its own
+    kinds with `behaviours.file`;
+  - `:::story{id title role since ref}` (`:::recit`): a **user story**, with its role, its version, its ticket and the
+    number of its acceptance criteria; cited with `[[story US-01]]` (`[[recit …]]`);
+  - `:::scenario{title story behaviour}`: an **acceptance criterion** in Given / When / Then (Soit / Quand / Alors),
+    linked to its story and its card.
+  The demo's two sheets are rewritten from the demo application's code, and the kit's example sheet shows every
+  part. `doc-kit upgrade` (migration 0.4.0) adds the required sections a sheet of 0.3 lacks, with their guidance;
+  "Main scenario" still counts as "Main path". `doc-kit context` gives each page the context budget of its template
+  when `--budget` is not given.
 - **The sources of a project** (ARCHITECTURE.md §6.19, `inputs.json`): what the kit reads besides the code of
   `app.dir` — other code (folders or **shared repositories**: GitHub, GitLab, Azure Repos), the infrastructure
   code, the application online by environment, the documents a team already has (a **technical architecture
@@ -56,6 +75,8 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- A `[[rule …]]` chip inherited the frame and the bottom margin of a rule's own block: in a numbered step, it drew a
+  bar on its left and pushed the next step down.
 - `doctor` reported the skill's agents as current when the kit had added an agent type that was not installed: they
   are now outdated (`doc-kit skill install --force`).
 - The descriptions of the `doc-kit-writer` and `doc-kit-reviewer` agents now name every brief they run

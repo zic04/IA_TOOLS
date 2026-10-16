@@ -653,6 +653,32 @@ describe("CLI: context <page…> [--budget] [--update]", () => {
     assert.equal(r2.code, 2);
   });
 
+  test("without --budget, a page gets its template's budget (24,000 tokens for a feature sheet, 16,000 for a screen)", async () => {
+    const { base, docs, app } = syncFixtureCopy();
+    try {
+      // The screen's own file grows to some 19,000 tokens: over a screen's budget, within a feature sheet's.
+      const file = path.join(app, "app", "orders", "page.tsx");
+      const line = `// ${"x".repeat(96)}\n`;
+      fs.appendFileSync(file, line.repeat(700));
+      const screen = JSON.parse((await cli(["context", "use/orders", "--project", docs, "--json"])).out);
+      assert.ok(screen[0].cuts > 0, "a screen: 16,000 tokens");
+      const tocFile = path.join(docs, "content", "toc.json");
+      fs.writeFileSync(
+        tocFile,
+        fs.readFileSync(tocFile, "utf8").replace('"template": "screen"', '"template": "feature"'),
+      );
+      const sheet = JSON.parse((await cli(["context", "use/orders", "--project", docs, "--json"])).out);
+      assert.equal(sheet[0].cuts, 0, "a feature sheet: 24,000 tokens");
+      assert.ok(sheet[0].tokens > 16_000 && sheet[0].tokens < 24_000, String(sheet[0].tokens));
+      const forced = JSON.parse(
+        (await cli(["context", "use/orders", "--budget", "16000", "--project", docs, "--json"])).out,
+      );
+      assert.ok(forced[0].cuts > 0, "--budget wins over the template's");
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   test("--update without a sync report → context.noSyncReport, exit code 2", async () => {
     const { base, docs } = syncFixtureCopy();
     try {

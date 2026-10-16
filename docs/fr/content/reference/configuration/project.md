@@ -106,6 +106,16 @@ construction du site. Voir [Suivre l'application](#/reference/cli/write-check~do
 
 Voir [Revues de sécurité et de maintenabilité](#/spaces/reviews).
 
+## Cartes de comportement
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `behaviours` | objet · `{}` | Les cartes de comportement des fiches de fonctionnalité (`:::comportement`, ARCHITECTURE.md §6.8a) | |
+| `behaviours.file` | chemin ou `null` · `null` | Un fichier JSON des types de comportement propres au projet, relatif au projet, au format de `standard/behaviours.json` (`schemas/behaviours.schema.json`, sans `answers`) ; un type ne peut pas prendre un nom du kit | `"behaviours.json"` |
+| `behaviours.strict` | oui/non · `false` | Une rubrique obligatoire omise dans une carte (`behaviour.missing`) fait échouer le build strict au lieu d'avertir | `true` |
+
+Voir [Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-profondeur-stories-cartes-scenarios).
+
 ## Pour aller plus loin
 
 - [La configuration](#/reference/configuration) : validation, priorités et valeurs par défaut déduites.

@@ -29,13 +29,21 @@ sub-pages): change neither ids nor titles. File of a page = the content folder's
 
 ## What each page holds
 
-- **Feature sheet** (`feature`): `## Access` (Module · Who can use it `[[perm …]]` · Prerequisites · Checked on);
-  `## What it is for` (2 to 4 sentences, business language); `## Who uses it`; `## Trigger and preconditions`
-  (optional); `## Main scenario` (`:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step
-  clearer — neither is required here, unlike a `screen`/`editor` page); `## Variants and exceptions` (numbered
-  after the step they branch from, "3a."); `## Business rules` (`:::rule` for a rule that belongs only to this
-  feature, `[[rule BR-xx]]` for a shared one — never redefine a rule that already has an id elsewhere);
-  `## Data handled`, `## Notifications and effects`, `## Limits`, `## Questions people ask` (all optional).
+- **Feature sheet** (`feature`): a specification the product owner can check against the application.
+  `## What it is for` (2 to 4 sentences, business language); `## Who uses it` (Role · What they do with it);
+  `## User stories` (one `:::story{id="US-xx" title role since ref}` per need: "As a …, I want … so that …");
+  `## Main path` (`:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step clearer — neither
+  is required here, unlike a `screen`/`editor` page); `## Variants` (optional, numbered after the step they branch
+  from, "3a."); `## Behaviours` (one `:::behaviour{kind title id="B-xx"}` card per behaviour — search, filter, sort,
+  pagination, list, form, import, export, calculation, notification, workflow, scheduled-job, permission-check — with
+  one `Rubric: value` line for each rubric of its kind in `standard/behaviours.json` of the kit, answered as
+  precisely as a test would check it, or "n/a — reason", or "unknown — the question"); `## Business rules`
+  (`:::rule` for a rule that belongs only to this feature, `[[rule BR-xx]]` for a shared one — never redefine a rule
+  that already has an id elsewhere); `## Fields and inputs`, `## States` (optional); `## Messages` (word for word);
+  `## Rights by action` (Action · Right `[[perm …]]` · Condition); `## Acceptance criteria` (one
+  `:::scenario{title story="US-xx" behaviour="B-xx"}` per criterion, Given / When / Then, one step per line, real
+  values); `## Limits`, `## Open questions` (optional; every "unknown — …" of a card goes there too). A section that
+  does not apply stays, with "Not applicable — the reason".
 - **Business rules register** (`business-rules`, usually one page for the whole project): `## How to read this
   page`; `## The rules` (`:::rule`, for every rule with no single owning feature); `## Rules by feature`
   (`::rules{}`); `## Retired rules` (optional — keep a retired rule's id, never reuse it for another rule).

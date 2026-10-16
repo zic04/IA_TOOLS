@@ -60,6 +60,7 @@ export function renderLanguage(
     changes: site.changes,
     llm: b.config.llm,
     locale: lang,
+    behaviours: site.behaviours,
   });
 
   /** The state of this language's pass, shared by the steps below. */
@@ -243,7 +244,16 @@ function checkLanguage(r, { langToc, features }) {
     unwritten,
   }))
     r.reportLang(true, problem);
-  const { problems: businessRefProblems } = resolveBusinessRefs({ pages, features, rules: r.engine.rules, t: r.langT });
+  const { engine } = r;
+  const { problems: businessRefProblems } = resolveBusinessRefs({
+    pages,
+    features,
+    rules: engine.rules,
+    stories: engine.stories,
+    behaviours: engine.behaviours,
+    scenarios: engine.scenarios,
+    t: r.langT,
+  });
   for (const { strict, ...problem } of businessRefProblems) r.reportLang(strict, { kind: "business", ...problem });
   if (isSource && site.spaces) {
     for (const s of site.spaces) s.pages = order.filter((id) => pages[id].space === s.id).length;

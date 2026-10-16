@@ -22,7 +22,7 @@ for (const language of ["en", "fr"]) {
     assert.deepEqual(
       r.warnings.map((w) => w.key),
       language === "fr"
-        ? [...Array(26).fill("template.missingSection"), ...Array(4).fill("space.excludedLinks")]
+        ? [...Array(32).fill("template.missingSection"), ...Array(4).fill("space.excludedLinks")]
         : Array(4).fill("space.excludedLinks"),
     );
     const html = stable(r.html);

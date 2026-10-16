@@ -60,7 +60,7 @@ in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewher
 
 | Type | For | Required sections | maxWords | Example |
 |---|---|---|---|---|
-| `feature` | one feature's sheet | Access · What it is for · Who uses it · Main scenario · Business rules (required); Trigger/preconditions, Variants, Data handled, Notifications, Limits, Questions (optional) | 2,500 | `features/two-step-approval` (`feature: "F-03"`) |
+| `feature` | one feature's sheet, as a specification | What it is for · Who uses it · User stories · Main path · Behaviours · Business rules · Messages · Rights by action · Acceptance criteria (required); Variants, Fields and inputs, States, Limits, Open questions (optional) | 4,000 | `features/two-step-approval` (`feature: "F-03"`) |
 | `business-rules` | the rules shared by several features | How to read this page · The rules (required); Rules by feature, Retired rules (optional) | 3,000 | `features/business-rules` |
 | `roles-matrix` | who can do what | In short · The roles · Who can do what (required); Responsibilities, How to get a role (optional) | 2,000 | `features/roles` |
 | `process` | a business process end to end | In short · Who takes part · The steps · What happens on its own, and what waits for someone (required); The states, Deadlines, When it goes wrong, Features involved (optional) | 2,200 | `process/order-to-cash` |

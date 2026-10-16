@@ -40,7 +40,7 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
-| `feature` | Une fonctionnalité de bout en bout | 5 sur 11 | 2 500 | [feature](#/examples/feature) |
+| `feature` | Une fonctionnalité de bout en bout : stories, cartes de comportement, critères d'acceptation | 9 sur 14 | 4 000 | [feature](#/examples/feature) |
 | `business-rules` | Les règles partagées entre fonctionnalités | 2 sur 4 | 3 000 | [business-rules](#/examples/business-rules) |
 | `roles-matrix` | Chaque rôle et ce qu'il peut faire | 3 sur 5 | 2 000 | [roles-matrix](#/examples/roles-matrix) |
 | `process` | La même fonctionnalité, de bout en bout | 4 sur 8 | 2 200 | [process](#/examples/process) |

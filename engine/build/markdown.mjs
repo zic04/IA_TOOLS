@@ -5,7 +5,9 @@
 //   > [!TIP|WARNING|CAUTION|PERMISSIONS|NOTE|RECIPE|HOW] (ASTUCE, ATTENTION, ERREUR, DROITS, RECETTE, MECANISME)
 //   [[perm …]] ([[droit …]])  [[menu …]]  [[key …]] ([[touche …]])  [[status …]] ([[statut …]])  [[route …]]
 // Business space (ARCHITECTURE.md §6.8): [[feature F-03]] ([[fonctionnalite F-03]])  [[rule BR-12]] ([[regle RG-12]])
-//   :::rule{id title} … ::: (:::regle)   ::features{} (::fonctionnalites{})   ::rules{} (::regles{})   ::roles{}
+//   [[story US-01]] ([[recit US-01]])   ::features{} (::fonctionnalites{})   ::rules{} (::regles{})   ::roles{}
+//   and the product blocks of engine/build/markdown-product.mjs (§6.8a): :::rule (:::regle), :::story (:::recit),
+//   :::behaviour (:::comportement), :::scenario
 //   A citation and a generated table cannot be resolved while their page renders (a rule or a feature sheet may sit
 //   further down the table of contents), so they are left as placeholders (`.ref-*`, `.biz-directive`) and resolved
 //   once every page has been rendered, after the build's page loop (engine/build/business.mjs, resolveBusinessRefs).
@@ -18,6 +20,8 @@ import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { createFactDirectives } from "./fact-directives.mjs";
+import { createProductBlocks, PRODUCT_CONTAINERS, PRODUCT_ATTRIBUTES } from "./markdown-product.mjs";
+import { behaviourRegistry } from "../core/behaviours.mjs";
 
 /** Spelling → canonical kind. */
 const DIRECTIVES = {
@@ -57,7 +61,7 @@ const CLAIMS = {
 };
 /** Canonical claim status → CSS class of the badge. */
 const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
-const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
+const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", ...PRODUCT_CONTAINERS };
 const BADGES = {
   perm: "perm",
   droit: "perm",
@@ -71,6 +75,8 @@ const BADGES = {
   fonctionnalite: "feature",
   rule: "rule",
   regle: "rule",
+  story: "story",
+  recit: "story",
 };
 const CALLOUTS = {
   tip: "tip",
@@ -105,6 +111,7 @@ const ATTRIBUTES = {
   "libelle-avant": "before-label",
   "libelle-apres": "after-label",
   colonnes: "columns",
+  ...PRODUCT_ATTRIBUTES,
 };
 /** Zone side → CSS class suffix of the pin. */
 const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
@@ -149,6 +156,8 @@ export function statusColour(c) {
  * @param {any} [p.llm]          `config.llm`
  * @param {string} [p.locale]    language of the page
  * @param {any[]} [p.changes]    recorded changes of the application, by version
+ * @param {{ registry: import("../core/behaviours.mjs").BehaviourRegistry, strict: boolean }} [p.behaviours]
+ *   the kinds of behaviour cards (default: the kit's), and whether a rubric left out fails the strict build
  */
 export function createMarkdownEngine({
   captures,
@@ -163,16 +172,17 @@ export function createMarkdownEngine({
   llm = {},
   locale = "en",
   changes = [],
+  behaviours = { registry: behaviourRegistry().registry, strict: false },
 }) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
-  // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
-  // Citations ([[rule …]]) and the generated tables are resolved once every page has rendered (engine/build/business.mjs).
-  const rules = new Map();
   let zoneCount = 0;
   let ctx = null;
   const signal = (strict, key, vars = {}) =>
     report(strict, { kind: key.split(".")[0], key, vars: { page: ctx?.pageId, ...vars } });
+  // Rules, stories, behaviour cards and scenarios (§6.8, §6.8a), registered as they render; their citations are
+  // resolved once every page has rendered (engine/build/business.mjs).
+  const product = createProductBlocks({ signal, t, icon, locale, behaviours, context: () => ctx });
   const factDirectives = createFactDirectives({ exists, read, paths, t, signal, changes });
   const STATUSES = Object.fromEntries(Object.entries(statuses).map(([k, [c, label]]) => [k, [statusColour(c), label]]));
 
@@ -280,29 +290,13 @@ export function createMarkdownEngine({
       const m = RE_CONTAINER.exec(src);
       if (!m) return;
       const tk = { type: "container", raw: m[0], kind: CONTAINERS[m[1]], a: attributes(m[2]), tokens: [] };
-      this.lexer.blockTokens(m[3], tk.tokens);
+      if (!product.tokenize(tk, m[3], this.lexer)) this.lexer.blockTokens(m[3], tk.tokens);
       return tk;
     },
     renderer(tk) {
       if (tk.kind === "steps")
         return this.parser.parse(tk.tokens).replace(/^<ol(?: start="\d+")?>/, '<ol class="etapes">');
-      if (tk.kind === "rule") {
-        const { id, title } = tk.a;
-        const body = this.parser.parse(tk.tokens);
-        if (!id || !title) {
-          signal(true, "rule.attributes", {});
-          return `<div class="regle">${body}</div>`;
-        }
-        if (rules.has(id)) signal(true, "rule.duplicate", { id });
-        else rules.set(id, { title, page: ctx.pageId, anchor: id.toLowerCase() });
-        // Rendered like a heading, so that the rule appears in the page outline, in the search index (search.mjs
-        // splits on `<h[23] id="…">`) and as a link target for its citations: id in lower case, "BR-12 · title".
-        const anchor = id.toLowerCase();
-        ctx.slugs.add(anchor);
-        ctx.toc.push({ id: anchor, title: plainText(`${id} · ${title}`), level: 3 });
-        const heading = `<h3 id="${esc(anchor)}">${esc(id)} · ${esc(title)}<a class="ancre" href="#/${ctx.pageId}~${anchor}" aria-label="${esc(t("render.sectionLink"))}">#</a></h3>`;
-        return `<div class="regle">${heading}${body}</div>`;
-      }
+      if (product.has(tk.kind)) return product.render(tk, this.parser);
       const id = tk.a.capture;
       const img = captureImage(id, tk.a.title);
       const list = tk.tokens.find((x) => x.type === "list");
@@ -342,7 +336,7 @@ export function createMarkdownEngine({
       const v = tk.value;
       // Business space citations (§6.8): the sheet or the rule may not have rendered yet, so a placeholder is left
       // for engine/build/business.mjs (resolveBusinessRefs), once every page has rendered.
-      if (tk.kind === "feature" || tk.kind === "rule")
+      if (tk.kind === "feature" || tk.kind === "rule" || tk.kind === "story")
         return `<span class="ref-${tk.kind}" data-ref-id="${esc(v)}">${esc(v)}</span>`;
       if (tk.kind === "key")
         return v
@@ -424,6 +418,7 @@ export function createMarkdownEngine({
       captures: 0,
       used: { images: new Set(), diagrams: new Set(), zones: 0 },
     };
+    product.startPage();
     let html = /** @type {string} */ (md.parse(source)); // synchronous: no async extension is registered
     // A table's own data-generated (set above, ::facts/::faits) is carried onto its wrapping div, so that
     // `check tables` can tell a directive's table apart from one the writer wrote by hand in Markdown.
@@ -448,7 +443,10 @@ export function createMarkdownEngine({
     render,
     usedCaptures,
     usedDiagrams,
-    rules,
+    rules: product.rules,
+    stories: product.stories,
+    behaviours: product.behaviours,
+    scenarios: product.scenarios,
     get zoneCount() {
       return zoneCount;
     },

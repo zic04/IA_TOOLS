@@ -104,6 +104,16 @@ A marked page's footer shows "Checked against version {version} on {date}" once 
 
 See [Security and maintainability reviews](#/spaces/reviews).
 
+## Behaviour cards
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `behaviours` | object · `{}` | The behaviour cards of the feature sheets (`:::behaviour`, ARCHITECTURE.md §6.8a) | |
+| `behaviours.file` | path or `null` · `null` | A JSON file of the project's own kinds of behaviour, relative to the project, in the format of `standard/behaviours.json` (`schemas/behaviours.schema.json`, without `answers`); a kind may not take a name of the kit's | `"behaviours.json"` |
+| `behaviours.strict` | yes/no · `false` | A required rubric left out of a card (`behaviour.missing`) fails the strict build instead of warning | `true` |
+
+See [A feature in depth](#/write/markdown~a-feature-in-depth-stories-behaviour-cards-scenarios).
+
 ## Further reading
 
 - [Configuration](#/reference/configuration): validation, precedence and derived defaults.

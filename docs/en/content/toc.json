@@ -251,7 +251,7 @@
         {
           "title": "Business types",
           "pages": [
-            { "id": "examples/feature", "title": "Example · Feature sheet: order approval", "menuTitle": "feature", "summary": "A feature sheet with its access box, business rules and scenario: order approval at Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
+            { "id": "examples/feature", "title": "Example · Feature sheet: order approval", "menuTitle": "feature", "summary": "A feature sheet with its user stories, behaviour cards, business rules and acceptance criteria: order approval at Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
             { "id": "examples/business-rules", "title": "Example · Business rules", "menuTitle": "business-rules", "summary": "Rules shared across features, each a :::rule with its Given/When/Then example, and the generated ::rules{} table.", "template": "business-rules" },
             { "id": "examples/roles-matrix", "title": "Example · Roles matrix", "menuTitle": "roles-matrix", "summary": "The roles of Acme Orders and who can do what, with the generated ::roles{} table.", "template": "roles-matrix" },
             { "id": "examples/process", "title": "Example · Process: order approval", "menuTitle": "process", "summary": "The same order approval, seen end to end: states, what proceeds on its own, and what waits for someone.", "template": "process" },

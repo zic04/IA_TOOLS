@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createMarkdownEngine } from "../../engine/build/markdown.mjs";
+import { projectBehaviours } from "../../engine/build/behaviours.mjs";
 import { checkLanguageOption } from "../../engine/build/languages.mjs";
 import { statusOf, markFiles, resolveItems } from "../../engine/translate/status.mjs";
 import { fixAnchors } from "../../engine/translate/anchors.mjs";
@@ -37,8 +38,9 @@ function targetLanguages(config, ctx) {
 
 /** A throwaway Markdown engine, just to get a page's outline (render().toc): no capture, no diagram, nothing
  * reported (ARCHITECTURE.md §6.12, `translate --fix-anchors`: the source and target outlines of every page). */
-function tocEngine() {
+function tocEngine(root, config) {
   return createMarkdownEngine({
+    behaviours: projectBehaviours(root, config),
     captures: {},
     exists: () => false,
     read: () => "",
@@ -62,7 +64,7 @@ function tocEntries(toc) {
 /** `tocs(pageId) => { source, target }` of every page/section (ARCHITECTURE.md §6.12 §5), rendered once. */
 function outlinesOf(root, config, toc, lang) {
   const { content, translations } = config.paths;
-  const engine = tocEngine();
+  const engine = tocEngine(root, config);
   const source = {};
   const target = {};
   for (const e of tocEntries(toc)) {

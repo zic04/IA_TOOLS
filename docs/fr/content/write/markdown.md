@@ -8,10 +8,10 @@ avec quelques extensions, dans `content/<id-de-page>.md`. La page n'a pas de tit
 3. **Des encadrés** : `> [!ASTUCE]`, `> [!ATTENTION]`, `> [!ERREUR]`, `> [!DROITS]`, `> [!NOTE]`, `> [!RECETTE]`,
    `> [!MECANISME]`.
 4. **Des badges en ligne** : `[[droit …]]`, `[[menu …]]`, `[[touche …]]`, `[[statut …]]`, `[[route …]]`, et ceux de
-   l'espace Produit, `[[fonctionnalite …]]`, `[[regle …]]`.
+   l'espace Produit, `[[fonctionnalite …]]`, `[[regle …]]`, `[[recit …]]`.
 5. **Des liens internes** : `#/id-de-page` et `#/id-de-page~ancre`, vérifiés par le build.
 6. **Fonctionnalités, règles et rôles** (§6.8, l'espace Produit) : un bloc avec un corps, `:::regle`, et des tableaux générés, `::fonctionnalites`,
-   `::regles`, `::roles`.
+   `::regles`, `::roles` ; et, pour décrire une fonctionnalité en profondeur (§6.8a), `:::recit`, `:::comportement` et `:::scenario`.
 7. **Faits et affirmations** (§6.9, le dossier de reprise) : `::faits` (un tableau à partir de `facts/<source>.json`) et les puces
    d'affirmation `[[verifie …]]`, `[[deduit …]]`, `[[inconnu …]]`.
 
@@ -164,6 +164,61 @@ pas d'espaces, ou que l'espace courant est « tout » ou un espace dont le type 
 
 [Exemple · Fiche de fonctionnalité](#/examples/feature), [Exemple · Règles métier](#/examples/business-rules) et
 [Exemple · Matrice des rôles](#/examples/roles-matrix) montrent chaque élément de cette section dans une vraie page.
+
+## Une fonctionnalité en profondeur : stories, cartes, scénarios
+
+Une fiche de fonctionnalité répond aux questions qu'un product owner et un testeur se posent sur chaque comportement
+de la fonctionnalité, en langage métier (ARCHITECTURE.md §6.8a) : ses user stories, une carte par comportement, et
+ses critères d'acceptation.
+
+| Français | Anglais | Ce que ça fait |
+|---|---|---|
+| `:::recit{id="US-01" titre="…" role="…" depuis="1.2" ref="ADO#1234"}` … `:::` | `:::story{id="US-01" title="…" role="…" since="1.2" ref="…"}` … `:::` | Une user story : « En tant que …, je veux … afin de … ». Rendue comme un `h3` « US-01 · titre », avec son rôle, sa version, son ticket et le nombre de ses critères d'acceptation. |
+| `:::comportement{type="recherche" titre="…" id="B-01"}` … `:::` | `:::behaviour{kind="search" title="…" id="B-01"}` … `:::` | Une carte de comportement : une ligne `Rubrique : valeur` par rubrique de son type, chacune affichée avec son état. Le titre est un `h3`. |
+| `:::scenario{titre="…" recit="US-01" comportement="B-01"}` … `:::` | `:::scenario{title="…" story="US-01" behaviour="B-01"}` … `:::` | Un critère d'acceptation : une étape par ligne, `Soit`, `Quand`, `Alors`, `Et`, `Mais` (`Given`, `When`, `Then`, `And`, `But`), relié à sa story et à sa carte. |
+| `[[recit US-01]]` | `[[story US-01]]` | Une puce-lien vers la story. |
+
+```markdown
+:::comportement{type="recherche" titre="Retrouver une commande par client" id="B-01"}
+Où : le champ **Client**, au-dessus de la liste.
+Champs cherchés : le nom du client seulement.
+Correspondance : contient, sans tenir compte des majuscules ; les accents comptent : « cafe » ne trouve pas « Café du Port ».
+Plusieurs mots : une seule expression, telle que tapée.
+Déclenchement : à chaque frappe.
+Ordre des résultats : Sans objet — l'ordre envoyé par l'application est gardé.
+Aucun résultat : le tableau reste vide, sans message.
+Droits : Inconnu — les résultats se limitent-ils à la région du lecteur ?
+:::
+
+:::scenario{titre="Les accents comptent" recit="US-02" comportement="B-01"}
+Soit la commande du « Café du Port »
+Quand je tape « cafe » dans **Client**
+Alors aucune commande n'apparaît
+:::
+```
+
+- **Types** (`standard/behaviours.json`) : `recherche`, `filtre`, `tri`, `pagination`, `liste`, `formulaire`,
+  `import`, `export`, `calcul`, `notification`, `circuit`, `traitement-planifie`, `controle-droits` — ou leurs noms
+  anglais (`search`, `filter`, `sort`, `list`, `form`, `calculation`, `workflow`, `scheduled-job`,
+  `permission-check`…). Chacun liste ses rubriques, obligatoires ou non, avec ce que chacune doit dire. Un projet ajoute
+  ses propres types avec `behaviours.file` ([Réglages du projet](#/reference/configuration/project)).
+- **Rubriques** : le libellé en français ou en anglais, en début de ligne, en gras ou en élément de liste si vous
+  voulez (`- **Champs cherchés** : …`) ; une valeur peut continuer sur les lignes suivantes, jusqu'à la rubrique
+  d'après — une ligne en retrait continue toujours la valeur (une sous-liste sous « Colonnes : » y reste). Le texte
+  avant la première rubrique présente la carte.
+- **Réponses** : `Sans objet — raison` (ou `n/a`, `non applicable`) quand une rubrique ne s'applique pas ;
+  `Inconnu — la question` (ou `à confirmer`, `unknown`) quand personne ne sait encore — la question va aussi dans
+  « Questions ouvertes ». Le mot est seul ou suivi d'un séparateur (`—`, `-`, `:`, `.`, `;`, `,`) : « Inconnu
+  au bataillon, le client n'est pas listé » est une réponse. Une rubrique obligatoire omise est affichée comme manquante et signalée
+  (`behaviour.missing`, un avertissement ; une erreur du build strict avec `behaviours.strict`).
+- **Contrôles** : une carte sans `type` ou sans `titre` (`behaviour.attributes`), d'un type inconnu
+  (`behaviour.kind`), un id défini deux fois (`behaviour.duplicate`, `story.duplicate`), une story sans `id` ou
+  sans `titre` (`story.attributes`), un scénario sans titre (`scenario.attributes`) ou qui nomme une story ou une
+  carte inexistante (`story.unknown`, `behaviour.unknown`) font échouer un build strict ; un scénario sans `Alors`
+  après un `Soit` ou un `Quand` est un avertissement (`scenario.steps`).
+
+Un scénario se rattache par ses attributs, jamais en étant imbriqué dans une story ou une carte : les trois blocs
+sont côte à côte dans leurs sections (« User stories », « Comportements », « Critères d'acceptation »).
 
 ## Faits et affirmations
 
