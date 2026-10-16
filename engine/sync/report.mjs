@@ -12,6 +12,13 @@ import { staleFacts } from "../facts/freshness.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
 import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
 
+/**
+ * The vias that make a dependency direct whatever its folder (ARCHITECTURE.md §6.10): the server code a page calls, its
+ * declared sources, and the code of a feature sheet's feature (engine/sync/feature-files.mjs) — a route's own file too,
+ * but for a layout.
+ */
+export const DIRECT_VIAS = Object.freeze(["api", "declared", "sources", "feature"]);
+
 const safeRead = (p) => (p && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 /** A fresh (non-global) test of the PROOF_REF family, for one code span. */
 const isProofSpan = (span) => new RegExp(PROOF_REF.source).test(span);
@@ -330,9 +337,7 @@ export async function compareWithReference({
       }
       if (!intact) continue;
       const isLayout = dep.via.includes("layout");
-      const reallyDirect = dep.via.some(
-        (v) => ["api", "declared", "sources"].includes(v) || (v === "route" && !isLayout),
-      );
+      const reallyDirect = dep.via.some((v) => DIRECT_VIAS.includes(v) || (v === "route" && !isLayout));
       if (dep.via.every((v) => v === "proof")) reason.proofsIntact = true;
       else if (!reallyDirect) reason.kind = "shared";
     }

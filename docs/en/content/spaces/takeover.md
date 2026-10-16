@@ -45,6 +45,7 @@ doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, whe
 | `env` | Names read by the code, and by an example `.env` file | A value |
 | `api` | Route handlers: Next.js, FastAPI, Express — with `auth` and `guards` (see below) | — |
 | `db` | Tables, columns, row-level security and policies: Prisma, SQLAlchemy, SQL migrations | — |
+| `behaviours` | How a search, a filter, an order, a page, a form behave: hints read in the code of every stack (array filters, Prisma, SQL, Django, SQLAlchemy, zod, pydantic, HTML forms, OpenAPI), for the feature sheets | A string as written, a test, a comment |
 | `agents` | `AGENTS.md`, `CLAUDE.md` and the like: size, and any hidden Unicode character | — |
 | `secrets` | File and rule of a likely secret | The value |
 | `security` | Eleven OWASP Top 10 heuristics: rule, file, line, severity | A value |

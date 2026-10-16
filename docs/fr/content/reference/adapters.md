@@ -35,8 +35,10 @@ configuration le nomme et donne ses options à côté.
 - **`openapi`** : l'id d'un élément est `METHODE /chemin` (p. ex. `GET /orders/{id}`), son libellé le `summary` ou
   l'`operationId` de l'opération. Le kit n'embarque aucun analyseur YAML : un fichier `.yaml` ou `.yml` répond « non
   disponible » (`yaml`), sans échouer ; servez plutôt le document en JSON (FastAPI : `/openapi.json`).
-- **`features`** : un élément par entrée de `features.json` (`[{ id, title, routes?, api?, keys? }]`, `doc-kit
-  inventory --features --write`), couvert quand son id est cité — en pratique sur le champ `feature` de sa fiche.
+- **`features`** : un élément par entrée de `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
+  `doc-kit inventory --features --write`, `schemas/features.schema.json`), couvert quand son id est cité — en pratique
+  sur le champ `feature` de sa fiche. `sources` (les motifs du code de la fonctionnalité, relatifs à `app.dir`) et
+  `behaviours` (les types de carte que décrit sa fiche) sont lus par `doc-kit context` et `doc-kit sync`.
 - **`facts`** : lit `facts/<source>.json`, écrit par `doc-kit facts` (ARCHITECTURE.md §6.9) ; un fichier manquant
   répond « indisponible » (`noFacts`), sans échouer. `dependencies` ne compte jamais que les paquets directs.
 

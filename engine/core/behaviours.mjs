@@ -18,6 +18,37 @@ import { comparable } from "./page-templates.mjs";
  * @typedef {"answered"|"na"|"unknown"|"missing"} RubricState
  */
 
+/**
+ * A family of behaviour hints (facts/behaviours.json, ARCHITECTURE.md §6.9) → the kinds of card it informs; trigger
+ * and values inform the cards of the others.
+ */
+export const FAMILY_KINDS = Object.freeze({
+  search: ["search"],
+  filter: ["filter"],
+  sort: ["sort"],
+  pagination: ["pagination"],
+  trigger: [],
+  values: [],
+  validation: ["form"],
+  scope: ["permission-check"],
+  export: ["export"],
+  import: ["import"],
+  notification: ["notification"],
+  schedule: ["scheduled-job"],
+});
+
+/**
+ * The kinds of card a list of hints points to, once each, in the order of FAMILY_KINDS. A field's type or an optional
+ * field alone is no form (a date filter has a type): a form is pointed to by a check (required, min, max, pattern…).
+ */
+export function kindsOfHints(items) {
+  const informative = items.filter(
+    (it) => !(it.family === "validation" && (it.signal === "type" || it.signal === "optional")),
+  );
+  const families = new Set(informative.map((it) => it.family));
+  return Object.entries(FAMILY_KINDS).flatMap(([family, kinds]) => (families.has(family) ? kinds : []));
+}
+
 /** A label longer than this is prose, not a rubric ("Rubric: value"). */
 const MAX_LABEL = 60;
 

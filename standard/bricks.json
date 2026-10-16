@@ -9,6 +9,7 @@
       "facts.env",
       "facts.api",
       "facts.db",
+      "facts.behaviours",
       "facts.agents",
       "facts.secrets",
       "facts.security",
@@ -66,6 +67,14 @@
       "needs": ["inputs.repos"],
       "steps": [{ "command": "facts", "source": "db" }],
       "freshness": { "rule": "envelope", "files": ["db"] }
+    },
+    {
+      "id": "facts.behaviours",
+      "kind": "facts",
+      "title": { "en": "Behaviours seen in the code", "fr": "Comportements vus dans le code" },
+      "needs": ["inputs.repos"],
+      "steps": [{ "command": "facts", "source": "behaviours" }],
+      "freshness": { "rule": "envelope", "files": ["behaviours"] }
     },
     {
       "id": "facts.agents",

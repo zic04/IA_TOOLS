@@ -8,6 +8,7 @@ import { collectDependencies } from "./dependencies.mjs";
 import { collectEnv } from "./env.mjs";
 import { collectApi } from "./api.mjs";
 import { collectDb } from "./db.mjs";
+import { collectBehaviours } from "./behaviours.mjs";
 import { collectAgents } from "./agents.mjs";
 import { collectSecrets } from "./secrets.mjs";
 import { collectSecurity } from "./security.mjs";
@@ -42,6 +43,7 @@ const FACT_SOURCES = Object.freeze([
   { name: "env", collect: ({ appDir }) => ({ items: collectEnv(appDir) }) },
   { name: "api", collect: ({ appDir, config }) => ({ items: collectApi(appDir, config.review?.guards) }) },
   { name: "db", collect: ({ appDir }) => ({ items: collectDb(appDir) }) },
+  { name: "behaviours", collect: ({ appDir }) => collectBehaviours(appDir) },
   { name: "agents", collect: ({ appDir }) => ({ items: collectAgents(appDir) }) },
   { name: "secrets", collect: ({ appDir, exec }) => ({ items: collectSecrets(appDir, exec) }) },
   { name: "security", collect: ({ appDir, exec }) => ({ items: collectSecurity(appDir, exec) }) },

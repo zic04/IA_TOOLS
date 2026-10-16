@@ -212,7 +212,8 @@ export function fastapiRoutes(sources, patterns = {}) {
   const varFiles = new Map(); // varName -> files that declare it (to resolve an unambiguous bare include)
   for (const [file, text] of sources) {
     const own = new Map();
-    for (const m of text.matchAll(/(\w+)\s*=\s*APIRouter\(/g)) {
+    // From the start of a name, bounded: a long run of letters is tried once, not from each of its characters.
+    for (const m of text.matchAll(/\b(\w{1,64})\s*=\s*APIRouter\(/g)) {
       const args = balancedParens(text, m.index + m[0].length - 1);
       const p = /prefix\s*=\s*["']([^"']*)["']/.exec(args);
       own.set(m[1], { prefix: p ? p[1] : "", guards: dependsNames(args) });

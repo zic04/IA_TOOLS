@@ -1,0 +1,28 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Orders", "version": "1.0.0" },
+  "paths": {
+    "/orders": {
+      "get": {
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 100 } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1, "minimum": 1 } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/Status" } }
+        ]
+      },
+      "post": {
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OrderIn" } } } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Status": { "type": "string", "enum": ["open", "closed"] },
+      "OrderIn": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string", "maxLength": 80 }, "email": { "type": "string", "format": "email" } }
+      }
+    }
+  }
+}

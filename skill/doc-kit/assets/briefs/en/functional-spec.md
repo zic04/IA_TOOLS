@@ -16,7 +16,11 @@ sub-pages): change neither ids nor titles. File of a page = the content folder's
 1. The features file (path in Variables): the features assigned to you — id, title, routes, API routes, i18n
    keys — and, for each page, its context file (path pattern in Variables, written by `doc-kit context <page>`
    when the orchestrator ran it before this brief): exact labels, the glossary terms that apply, and excerpts of
-   the files behind the feature, read for understanding only (see "Nothing to cite" below).
+   the files behind the feature, read for understanding only (see "Nothing to cite" below). For a feature sheet,
+   its part **Behaviours to describe** lists what the code says of each behaviour (hints, one per line: check each
+   one in the excerpts) and the cards to write with their rubrics: write every card it lists, answer every rubric,
+   and never turn a hint into a claim you have not checked. A feature's `sources` in the features file name more
+   of its code (globs relative to the application).
 2. The writing guide, and the templates of your page types (`feature`, `business-rules`, `roles-matrix`,
    `process`; path in Variables): the required sections, and the directives `::features{}`, `::rules{}`,
    `::roles{}` that build a table from every sheet instead of one written by hand.

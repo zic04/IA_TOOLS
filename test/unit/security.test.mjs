@@ -104,15 +104,19 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
   // Run in a worker (test/tools/redos-worker.mjs): an expression that never ends blocks its thread, so the test
   // terminates the worker after a timeout and names the check that was running.
   const BUDGET_MS = 300;
+  const GROWTH_RATIO = 8;
+  const GROWTH_MIN_MS = 20;
   const TIMEOUT_MS = 60_000;
   test(`every scanner of untrusted text stays under ${BUDGET_MS} ms on adversarial input`, async () => {
     const worker = new Worker(new URL("../tools/redos-worker.mjs", import.meta.url));
     const results = [];
+    let canary = null;
     let running = null;
     const outcome = await new Promise((resolve) => {
       const timer = setTimeout(() => resolve({ hang: running }), TIMEOUT_MS);
       worker.on("message", (m) => {
         if (m.start) running = m.start;
+        else if (m.canary) canary = m.canary;
         else if (m.done) {
           clearTimeout(timer);
           resolve({});
@@ -135,6 +139,17 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
       .filter((r) => r.ms >= BUDGET_MS)
       .map((r) => `${r.name}: ${r.ms.toFixed(0)} ms on ${JSON.stringify(r.input)}…`);
     assert.deepEqual(slow, []);
+    // Four times the input, more than eight times the time (and long enough to measure): quadratic, whatever its
+    // time at the size above — a quadratic scanner with a small constant would block on a large file. Measured from
+    // N to 4N and from 4N to 16N, so that a constant of a few milliseconds at 4N is seen too: the canary, a scanner
+    // written to be quadratic, proves it.
+    const quadratic = (steps) => steps.find((g) => g.ms >= GROWTH_MIN_MS && g.ratio > GROWTH_RATIO);
+    assert.ok(quadratic(canary || []), `the canary was not seen as quadratic: ${JSON.stringify(canary)}`);
+    const grown = results
+      .map((r) => [r.name, quadratic(r.growth)])
+      .filter(([, g]) => g)
+      .map(([name, g]) => `${name}: ×${g.ratio.toFixed(1)} (${g.ms.toFixed(0)} ms) on ${JSON.stringify(g.input)}…`);
+    assert.deepEqual(grown, []);
   });
 
   test("the private key detector still finds a key (headers, indentation, blank lines)", () => {

@@ -17,7 +17,11 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
    titre, routes, routes API, clés i18n — et, pour chaque page, son fichier de contexte (format du chemin dans
    Variables, produit par `doc-kit context <page>` quand l'orchestrateur l'a lancé avant ce brief) : libellés
    exacts, termes de glossaire pertinents, et extraits des fichiers derrière la fonctionnalité, lus pour
-   comprendre seulement (voir « Rien à citer » ci-dessous).
+   comprendre seulement (voir « Rien à citer » ci-dessous). Pour une fiche de fonctionnalité, sa partie
+   **Comportements à décrire** liste ce que le code dit de chaque comportement (des indices, un par ligne : vérifie
+   chacun dans les extraits) et les cartes à écrire avec leurs rubriques : écris chaque carte listée, réponds à
+   chaque rubrique, et ne fais jamais d'un indice une affirmation que tu n'as pas vérifiée. Les `sources` d'une
+   fonctionnalité dans le fichier des fonctionnalités nomment davantage de son code (motifs relatifs à l'application).
 2. Le guide de rédaction, et les gabarits de tes types de page (`feature`, `business-rules`, `roles-matrix`,
    `process` ; chemin dans Variables) : les sections obligatoires, et les directives `::fonctionnalites{}`,
    `::regles{}`, `::roles{}` qui construisent un tableau à partir de toutes les fiches au lieu d'un tableau écrit

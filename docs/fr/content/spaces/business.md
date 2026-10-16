@@ -85,6 +85,26 @@ leur premier segment — en fonctionnalités candidates, chacune avec un identif
 déjà, le cas échéant. `--write` écrit `features.json` (refusé s'il existe, sauf `--force`, qui n'ajoute que les
 nouvelles candidates) ; l'adaptateur de couverture `features` mesure ensuite combien de ses entrées une fiche cite.
 
+## Ce que le code dit de chaque comportement
+
+`doc-kit facts --source behaviours` lit le code de l'application pour savoir comment se comportent ses
+fonctionnalités — comment une liste est cherchée (contient, commence par, sans les majuscules, accents, plein texte),
+filtrée, triée et paginée, quels champs un formulaire contrôle et comment, les listes de valeurs qu'un écran propose,
+ce qui déclenche une recherche, la portée des données d'une requête, les exports, imports, notifications et
+traitements planifiés — quelle que soit la pile : le `.filter` d'un tableau dans le navigateur, Prisma, SQL, Knex,
+Django, SQLAlchemy, zod, pydantic, un formulaire HTML, un document OpenAPI. Chaque indice vient d'une ligne du code,
+à vérifier sur place : un indice n'est jamais une mesure.
+
+Une fonctionnalité de `features.json` peut nommer son code : `sources` (des motifs relatifs à `app.dir`), en plus de
+ses routes et routes API, et `behaviours`, les types de carte que décrit sa fiche (`inventory --features` les déduit
+des indices). `doc-kit context <sa fiche>` donne alors au rédacteur ce code — les gestionnaires de ses routes API et
+ce qu'ils importent sur deux niveaux — et une partie **Comportements à décrire** : les indices, une ligne par champ et
+par endroit, et les cartes à écrire avec leurs rubriques, les obligatoires marquées.
+
+```json
+[{ "id": "F-01", "title": "Suivre les commandes", "routes": ["/orders"], "sources": ["public/app.js"], "behaviours": ["search", "filter"] }]
+```
+
 ## Garder les espaces Produit et Utiliser libres de code
 
 Les espaces Produit et Utiliser se lisent sans le code. Une page métier (`feature`, `business-rules`, `roles-matrix`,

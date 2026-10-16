@@ -171,5 +171,10 @@
   "render.modules.imports": "Importe",
   "render.modules.more": "et {n} de plus",
   "render.modules.orphans": "Fichiers orphelins (aucun import statique vers eux ni depuis eux : un point d'entrée, un fichier chargé par son nom, ou du code mort)",
-  "render.modules.summary": "{files} fichiers, {edges} imports entre eux, {cycles} cycle(s) d'import, {orphans} fichier(s) orphelin(s)."
+  "render.modules.summary": "{files} fichiers, {edges} imports entre eux, {cycles} cycle(s) d'import, {orphans} fichier(s) orphelin(s).",
+  "cli.facts.unreadable.tooLarge": "plus de 512 Ko, non lu",
+  "cli.facts.unreadable.yaml": "un document YAML : le kit n'embarque aucun analyseur YAML",
+  "cli.facts.unreadable.limit": "la limite de 5 000 indices est atteinte dans ce fichier : ses derniers indices et les fichiers suivants ne sont pas lus",
+  "cli.facts.unreadable.openapi": "un document OpenAPI que le kit ne sait pas suivre",
+  "cli.facts.unreadable.limitNext": "la limite de 5 000 indices est atteinte avant ce fichier : lui et les suivants ne sont pas lus"
 }

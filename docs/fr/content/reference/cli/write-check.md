@@ -114,7 +114,7 @@ doc-kit facts [--source <nom>]... [--network] [--tools] [--json]
 
 Lit le code de l'application (`app.dir`) et écrit un fichier par source dans `paths.facts` (`facts/<source>.json`
 par défaut), dans le projet de documentation — jamais dans l'application : `dependencies`, `env`, `api`, `db`,
-`agents`, `secrets` et `tests`. `::faits{source="…"}` lit ces fichiers au moment de la construction, et les types de
+`behaviours`, `agents`, `secrets` et `tests`. `::faits{source="…"}` lit ces fichiers au moment de la construction, et les types de
 pages de reprise (`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`,
 `tests-quality`, `agent-instructions`, `adr`, `threat-model`) en sont écrits. Sans `app.dir`, code de sortie 2.
 

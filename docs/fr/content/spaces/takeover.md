@@ -47,6 +47,7 @@ doc-kit facts --tools              # aussi gitleaks, osv-scanner, syft, knip, qu
 | `env` | Les noms lus par le code, et par un fichier `.env` d'exemple | Une valeur |
 | `api` | Les gestionnaires de route : Next.js, FastAPI, Express — avec `auth` et `guards` (voir plus bas) | — |
 | `db` | Tables, colonnes, sécurité au niveau ligne et politiques : Prisma, SQLAlchemy, migrations SQL | — |
+| `behaviours` | Le comportement d'une recherche, d'un filtre, d'un tri, d'une pagination, d'un formulaire : des indices lus dans le code de chaque pile (filtres de tableaux, Prisma, SQL, Django, SQLAlchemy, zod, pydantic, formulaires HTML, OpenAPI), pour les fiches de fonctionnalité | Une chaîne telle qu'écrite, un test, un commentaire |
 | `agents` | `AGENTS.md`, `CLAUDE.md` et semblables : taille, et tout caractère Unicode invisible | — |
 | `secrets` | Fichier et règle d'un secret probable | La valeur |
 | `security` | Onze heuristiques de l'OWASP Top 10 : règle, fichier, ligne, sévérité | Une valeur |

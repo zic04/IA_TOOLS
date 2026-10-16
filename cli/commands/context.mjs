@@ -15,6 +15,9 @@ import { buildContext, contextFileName } from "../../engine/context/context.mjs"
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
 import { loadPageTemplates, contextBudgetOf } from "../../engine/core/page-templates.mjs";
+import { readFeatures, featuresFileOf } from "../../engine/core/features.mjs";
+import { featureOf } from "../../engine/sync/feature-files.mjs";
+import { projectBehaviours } from "../../engine/build/behaviours.mjs";
 import { checkLanguageOption, translatedToc, translatedGlossary } from "../../engine/build/languages.mjs";
 import { readSources, translationState } from "../../engine/core/translations.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
@@ -94,6 +97,13 @@ async function readPlans(root, config) {
   }
 }
 
+/** The kinds of behaviour cards (§6.8a), the features file told once when it cannot be read. */
+function behaviourKinds(ctx, root, config) {
+  const { problem } = readFeatures(root, featuresFileOf(config));
+  if (problem && !ctx.json) ctx.print(`⚠ ${ctx.t(`cli.${problem.key}`, problem.vars)}`);
+  return projectBehaviours(root, config).registry;
+}
+
 /** The budget of a page's context: --budget when given, else its template's (contextBudgetOf). */
 const budgetOf = (budget, templates, entry) => budget ?? contextBudgetOf(templates, entry?.template);
 
@@ -150,6 +160,8 @@ export async function run({ ctx, values, positionals }) {
   const product = config.product?.name ?? null;
   const version = readProjectVersion(root, config.version);
 
+  const registry = behaviourKinds(ctx, root, config);
+
   const dir = path.join(root, ".doc-kit", "context");
   fs.mkdirSync(dir, { recursive: true });
   const written = [];
@@ -182,6 +194,7 @@ export async function run({ ctx, values, positionals }) {
       budget: budgetOf(budget, templates, findPageEntry(toc, pageId)),
       product,
       version,
+      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId)) },
       t: ctx.t,
     });
     const file = contextFileName(pageId);

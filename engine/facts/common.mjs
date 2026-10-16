@@ -90,6 +90,39 @@ export function gitLsFiles(dir, exec) {
 export const appFiles = (dir, { skip, exec } = /** @type {{ skip?: string[], exec?: any }} */ ({})) =>
   (exec ? gitLsFiles(dir, exec) : null) ?? listFiles(dir, { skip });
 
+const itemsCache = new Map();
+
+/**
+ * The items of facts/<source>.json of a documentation project (`factsDir`: config.paths.facts, relative to it), or []
+ * when it is missing or unreadable (the build and `doc-kit facts` report that, not the readers). Read again only when
+ * the file changed (its time and size).
+ * @param {string} root
+ * @param {string} factsDir
+ * @param {string} source
+ * @returns {any[]}
+ */
+export function factsItems(root, factsDir, source) {
+  if (!factsDir) return [];
+  const file = path.join(root, factsDir, `${source}.json`);
+  let stamp;
+  try {
+    const stat = fs.statSync(file);
+    stamp = `${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    return [];
+  }
+  const cached = itemsCache.get(file);
+  if (cached?.stamp === stamp) return cached.items;
+  let items;
+  try {
+    items = JSON.parse(fs.readFileSync(file, "utf8")).items || [];
+  } catch {
+    items = [];
+  }
+  itemsCache.set(file, { stamp, items });
+  return items;
+}
+
 /**
  * Envelope of a facts file (ARCHITECTURE.md §6.9): `{ source, generator, generated, commit, app, items }`, same
  * for the same code and the same application, except `generated`. `extra` adds fields between `app` and `items`

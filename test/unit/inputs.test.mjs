@@ -175,6 +175,12 @@ describe("inputs.json: the model", () => {
     assert.equal(nameOf("../infra/terraform/"), "terraform");
     assert.equal(nameOf("C:\\work\\Back Office"), "back-office");
     assert.equal(nameOf("///"), "code");
+    assert.equal(nameOf("-a--b-"), "a-b");
+    assert.equal(nameOf("x".repeat(62) + "--y"), "x".repeat(62) + "-");
+    // Linear: 500,000 characters of "a-a-a…" (a string grown by += and read with endsWith was quadratic).
+    const start = performance.now();
+    assert.equal(nameOf("a-".repeat(250_000)), "a-".repeat(31) + "a");
+    assert.ok(performance.now() - start < 200);
   });
 
   test("add: each kind, the tool guessed from the address; a duplicate, an unsafe address, a bad branch refused", () => {

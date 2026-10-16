@@ -53,5 +53,22 @@
   "cli.new.noFacts": "aucun fait à partir duquel préremplir : {file}",
   "cli.new.noFacts.help": "lancez {command} facts --source {source} d'abord, puis recréez la page avec --prefill",
   "cli.new.noPrefill": "--prefill n'a rien à remplir pour « {template} »",
-  "cli.new.noPrefill.help": "types préremplissables : {known}"
+  "cli.new.noPrefill.help": "types préremplissables : {known}",
+  "cli.context.section.behaviours": "Comportements à décrire",
+  "cli.context.behaviours.intro": "Déduits du code, chacun d'une ligne : vérifiez-le dans les extraits ci-dessus avant de l'écrire. Un indice n'est jamais une mesure : ce qu'il ne dit pas, lisez-le dans le code.",
+  "cli.context.behaviours.cards": "Cartes à écrire, une par comportement (* rubrique obligatoire) : répondez à chaque rubrique, ou écrivez « Sans objet — raison » ou « Inconnu — question »",
+  "cli.context.behaviours.noCard": "Aucun type de comportement n'est encore connu pour cette fonctionnalité : lisez les extraits, et ajoutez une carte par comportement trouvé.",
+  "cli.context.behaviours.family.search": "Recherche",
+  "cli.context.behaviours.family.filter": "Filtres",
+  "cli.context.behaviours.family.sort": "Ordre",
+  "cli.context.behaviours.family.pagination": "Pagination",
+  "cli.context.behaviours.family.trigger": "Déclenchement (quand ça s'exécute)",
+  "cli.context.behaviours.family.validation": "Champs et contrôles",
+  "cli.context.behaviours.family.values": "Listes de valeurs",
+  "cli.context.behaviours.family.scope": "Portée des données",
+  "cli.context.behaviours.family.export": "Export",
+  "cli.context.behaviours.family.import": "Import",
+  "cli.context.behaviours.family.notification": "Notifications",
+  "cli.context.behaviours.family.schedule": "Traitements planifiés",
+  "cli.context.behaviours.unknownKind": "« {kind} » (le fichier des fonctionnalités) : aucun type de comportement ne porte ce nom — corrigez-le là, ou ajoutez le type avec behaviours.file"
 }

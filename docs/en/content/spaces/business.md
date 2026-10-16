@@ -79,6 +79,25 @@ candidate features, each with a suggested id and the sheet that already cites it
 `features.json` (refused if it exists, unless `--force`, which only appends new candidates); the `features`
 coverage adapter then measures how many of its entries a sheet cites.
 
+## What the code says of each behaviour
+
+`doc-kit facts --source behaviours` reads the code of the application for how its features behave — how a list is
+searched (contains, starts with, case ignored, accents, full text), filtered, sorted and paged, which fields a form
+checks and how, the lists of values a screen offers, what triggers a search, the data scope of a query, the exports,
+imports, notifications and scheduled jobs — whatever the stack: an array's `.filter` in the browser, Prisma, SQL,
+Knex, Django, SQLAlchemy, zod, pydantic, an HTML form, an OpenAPI document. Each hint comes from one line of the code,
+to be checked there: a hint is never a measure.
+
+A feature in `features.json` can name its code: `sources` (globs relative to `app.dir`), besides its routes and API
+routes, and `behaviours`, the kinds of card its sheet describes (`inventory --features` deduces them from the hints).
+Then `doc-kit context <its sheet>` gives the writer that code — the handlers of its API routes and what they import
+two levels deep — and a part **Behaviours to describe**: the hints, one line per field and place, and the cards to
+write with their rubrics, required ones marked.
+
+```json
+[{ "id": "F-01", "title": "Track orders", "routes": ["/orders"], "sources": ["public/app.js"], "behaviours": ["search", "filter"] }]
+```
+
 ## Keep the Product and Use spaces free of code
 
 The Product and Use spaces are read without the code. A business page (`feature`, `business-rules`, `roles-matrix`,

@@ -97,7 +97,26 @@ as untrusted input:
 - programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
   placed in the application cannot replace the real one on Windows;
 - every expression that scans the application's files is tested against catastrophic backtracking (a crafted file
-  cannot block `facts` or `check secrets`).
+  cannot block `facts` or `check secrets`);
+- what `facts --source behaviours` keeps of the code is a name (a field, a parameter), a number, a word of a fixed
+  list (asc, desc, a field's type, a library, a cron expression) or a short list of values, each through a whitelist
+  and refused when it looks like a key, a token or a long number (a card, a phone): never a string as written, a
+  default only as a number, and no value at all for a field whose name says it is secret (password, token, key…);
+  it never reads the tests, the comments, or a file over 512 KB;
+- the `sources` of a page (toc.json) and of a feature (features.json) are confined to the application: an absolute
+  glob, one that climbs (`..`) or one that holds a `:` (a drive, `C:x`; a data stream of a Windows file,
+  `.env::$DATA`) is left out, and so is what is not a file in `app.dir` once links are followed (a symbolic link, a
+  junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
+  name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
+  agent;
+- an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
+  512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
+  cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
+  written with escaped slashes) is read in a bounded time;
+- the ReDoS test also measures growth: the slowest inputs of each scanner are built again 4 and 16 times longer, and
+  a scanner more than eight times slower from one size to the next (a linear one takes four times as long, a
+  quadratic one sixteen) is quadratic, and fails; a scanner written to be quadratic (the canary) must be caught, so
+  that the check cannot pass by measuring nothing.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a

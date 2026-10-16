@@ -171,5 +171,10 @@
   "render.modules.imports": "Imports",
   "render.modules.more": "and {n} more",
   "render.modules.orphans": "Orphan files (no static import to or from them: an entry point, a file loaded by name, or dead code)",
-  "render.modules.summary": "{files} files, {edges} imports between them, {cycles} import cycle(s), {orphans} orphan file(s)."
+  "render.modules.summary": "{files} files, {edges} imports between them, {cycles} import cycle(s), {orphans} orphan file(s).",
+  "cli.facts.unreadable.tooLarge": "over 512 KB, not read",
+  "cli.facts.unreadable.yaml": "a YAML document: the kit carries no YAML parser",
+  "cli.facts.unreadable.limit": "the limit of 5,000 hints was reached in this file: its last hints and the next files are not read",
+  "cli.facts.unreadable.openapi": "an OpenAPI document the kit cannot follow",
+  "cli.facts.unreadable.limitNext": "the limit of 5,000 hints was reached before this file: it and the next ones are not read"
 }

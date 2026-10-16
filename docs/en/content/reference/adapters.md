@@ -34,8 +34,10 @@ names it and gives its options next to it.
 - **`openapi`**: an item's id is `METHOD /path` (e.g. `GET /orders/{id}`), its label the operation's `summary` or
   `operationId`. The kit carries no YAML parser: a `.yaml` or `.yml` file answers "not available" (`yaml`), not
   failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
-- **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys? }]`, `doc-kit inventory
-  --features --write`), covered when its id is cited — in practice on its feature sheet's `feature` field.
+- **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
+  `doc-kit inventory --features --write`, `schemas/features.schema.json`), covered when its id is cited — in practice
+  on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
+  `behaviours` (the kinds of card its sheet describes) are read by `doc-kit context` and `doc-kit sync`.
 - **`facts`**: reads `facts/<source>.json`, written by `doc-kit facts` (ARCHITECTURE.md §6.9); a missing file
   answers "not available" (`noFacts`), not failed. `dependencies` only ever counts the direct packages.
 

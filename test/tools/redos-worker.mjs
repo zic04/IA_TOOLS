@@ -1,7 +1,10 @@
 // Worker of the ReDoS test (test/unit/security.test.mjs): runs every expression that scans untrusted text on
-// adversarial inputs and posts { start: name } before each check, then { name, ms, input } after it. A check that
-// never ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and
-// names the last check started.
+// adversarial inputs and posts { start: name } before each check, then { name, ms, input, growth } after it —
+// `growth`: the three slowest inputs built again 4 and 16 times longer, each size's time against the size below
+// (a linear scanner takes about four times as long, a quadratic one sixteen), with its time and its input. Last,
+// { canary }: the growth of a scanner written to be quadratic, which the test must see as such. A check that never
+// ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and names the
+// last check started.
 import { parentPort } from "node:worker_threads";
 import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
 import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
@@ -21,6 +24,18 @@ import { pdfIndex } from "../../engine/inputs/pdf.mjs";
 import { htmlToText } from "../../engine/inputs/ingest.mjs";
 import { isSafeRepoUrl, nameOf, hasCredentials } from "../../engine/inputs/model.mjs";
 import { parseGitConfig } from "../../engine/util/safe-git.mjs";
+import { JS_PATTERNS, jsBehaviours } from "../../engine/facts/behaviour-js.mjs";
+import { SQL_PATTERNS, sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
+import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
+import { SCHEMA_PATTERNS, schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
+import { OPENAPI_FILE, OPENAPI_YAML, openapiBehaviours } from "../../engine/facts/openapi.mjs";
+import { sameRoute, apiHandlers } from "../../engine/sync/feature-files.mjs";
+import {
+  createSink,
+  jsCommentRanges,
+  pyCommentRanges,
+  htmlCommentRanges,
+} from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
@@ -99,6 +114,38 @@ const PREFIXES = [
   "<< /Type /Pages /Count ",
   "<< /Title (",
   "stream\n",
+  // The behaviour detectors (engine/facts/behaviour-*.mjs): a filter, a query, a schema, SQL, a form.
+  ".filter((o) => o.a",
+  ".filter((o) => o.a.toLowerCase().trim(",
+  "o.a.toLowerCase().includes(",
+  ".findMany({ where: { a: { contains: ",
+  "orderBy: [{ a: '",
+  ".sort((a, b) => a.",
+  "a: z.string().min(1).max(",
+  "a: z.enum([",
+  "type A = 'a' | ",
+  "enum A {",
+  "class A(BaseModel):\n    a: ",
+  "class A(models.TextChoices):\n    A = ",
+  "choices=[(",
+  "a__",
+  "a__icontains=",
+  ".order_by(",
+  "q: str = Query(",
+  "request.GET.get('",
+  "SELECT a FROM t WHERE a ILIKE ",
+  "select a from t where LOWER(",
+  "ORDER BY ",
+  "LIMIT ",
+  "MATCH (",
+  '<input name="a" ',
+  "<input onChange={(e) => ",
+  "<select>",
+  "<option>",
+  "cron.schedule('",
+  "setInterval(",
+  "searchParams.get('",
+  "{ a, b } = req.query",
 ];
 const UNITS = [
   " ",
@@ -141,7 +188,44 @@ const refusing = (fn) => (s) => {
     if (!(e instanceof KitError)) throw e;
   }
 };
-const INPUTS = PREFIXES.flatMap((p) => UNITS.map((u) => p + u.repeat(Math.ceil(N / u.length)) + "!"));
+/** An input of the prefix and the unit, about `n` characters long. */
+const built = (p, u, n) => p + u.repeat(Math.ceil(n / u.length)) + "!";
+const SHAPES = PREFIXES.flatMap((p) => UNITS.map((u) => [p, u]));
+const INPUTS = SHAPES.map(([p, u]) => built(p, u, N));
+/**
+ * An OpenAPI document made of a text: one route per 16 characters, none written as in the text (each is looked for
+ * in vain), each operation with a parameter to a $ref as long as the text and one to a parameter that is not a query
+ * one (no signal: the cap of the sink never stops the walk), and a body shared by all, without properties but with a
+ * required name per 4 characters.
+ */
+const openapiDoc = (s) => {
+  const parameters = [{ $ref: `#/${s}` }, { $ref: "#/components/parameters/P" }];
+  const requestBody = { content: { "application/json": { schema: { $ref: "#/components/schemas/B" } } } };
+  const required = Array.from({ length: Math.ceil(s.length / 4) }, (_, i) => s.slice(4 * i, 4 * i + 4));
+  const paths = {};
+  for (let i = 0; i < s.length; i += 16)
+    paths[`/${s.slice(i, i + 16)}${i}`] = { get: { parameters }, post: { parameters, requestBody } };
+  return {
+    paths,
+    components: {
+      parameters: { P: { name: "q", in: "path", schema: { $ref: `#/${s}` } } },
+      schemas: { B: { properties: {}, required } },
+    },
+  };
+};
+// Inputs whose end makes a match fail late (a "!" lets a lazy group succeed early): the forms the review of the
+// behaviour readers measured (a pydantic line, an order key, nested calls, SQL in lower case, a sort).
+INPUTS.push(
+  "class A(BaseModel):\n    a:" + " ".repeat(N) + "=" + "x".repeat(301),
+  "order:" + " ".repeat(N),
+  ".find(".repeat(200) + "order:" + " ".repeat(1000) + ")".repeat(200),
+  "a" + " ".repeat(N) + "x",
+  ".sort(" + " ".repeat(N),
+  "select a from t ".repeat(5) + "limit 1 ".repeat(N / 8),
+  "/* ".repeat(N / 3),
+  '"""'.repeat(N / 3),
+  "<select>".repeat(N / 8),
+);
 
 export const CHECKS = [
   ...GENERIC.map((d) => [
@@ -197,17 +281,73 @@ export const CHECKS = [
   ["inputs nameOf", (s) => nameOf(s)],
   ["inputs hasCredentials", (s) => hasCredentials(`https://h/x?${s}`) || hasCredentials(s)],
   ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
+  // The behaviour detectors: each expression alone, then each reader as a whole (its walks and small expressions).
+  ...Object.entries({ ...JS_PATTERNS, ...SQL_PATTERNS, ...PY_PATTERNS, ...SCHEMA_PATTERNS }).map(([name, re]) => [
+    `behaviours ${name}`,
+    (s) => (re.global ? [...s.matchAll(re)].length : re.exec(s)),
+  ]),
+  ["behaviours OPENAPI_FILE", (s) => OPENAPI_FILE.test(s) || OPENAPI_YAML.test(s)],
+  ["behaviours openapiBehaviours", (s) => openapiBehaviours(openapiDoc(s), s, createSink("o.json", s, []))],
+  ["sync sameRoute", (s) => sameRoute(s, `GET /${s}`)],
+  ["sync apiHandlers", (s) => apiHandlers({ api: [s, `GET ${s}`] }, [{ method: "GET", route: s, file: "a.js" }])],
+  ["behaviours jsBehaviours", (s) => jsBehaviours(s, createSink("x.js", s, []))],
+  ["behaviours sqlBehaviours", (s) => sqlBehaviours(s, createSink("x.sql", s, []))],
+  ["behaviours pyBehaviours", (s) => pyBehaviours(s, createSink("x.py", s, []))],
+  ["behaviours schemaBehaviours js", (s) => schemaBehaviours(s, "js", createSink("x.ts", s, []))],
+  ["behaviours schemaBehaviours py", (s) => schemaBehaviours(s, "py", createSink("x.py", s, []))],
+  [
+    "behaviours comment walks",
+    (s) => jsCommentRanges(s).length + pyCommentRanges(s).length + htmlCommentRanges(s).length,
+  ],
 ];
+
+const timed = (fn, input) => {
+  const t = performance.now();
+  fn(input);
+  return performance.now() - t;
+};
+/** The better of two runs: a pause of the collector during one of them is not taken for growth. */
+const best = (fn, input) => Math.min(timed(fn, input), timed(fn, input));
+
+/**
+ * The growth of a check: its three slowest built inputs (the extra inputs have no shape to build longer) built again
+ * at 4N and at 16N, each size's time against the size below.
+ * @returns {Array<{ ratio: number, ms: number, input: string }>}
+ */
+function growthOf(fn, times) {
+  const order = times.map((ms, i) => i).sort((a, b) => times[b] - times[a]);
+  const steps = [];
+  for (const i of order.slice(0, 3).filter((k) => k < SHAPES.length)) {
+    const [p, u] = SHAPES[i];
+    let before = times[i];
+    for (const n of [4 * N, 16 * N]) {
+      const long = built(p, u, n);
+      const ms = best(fn, long);
+      steps.push({ ratio: ms / Math.max(before, 0.05), ms, input: long.slice(0, 60) });
+      before = ms;
+    }
+  }
+  return steps;
+}
 
 for (const [name, fn] of CHECKS) {
   parentPort.postMessage({ start: name });
-  let worst = { ms: 0, input: "" };
-  for (const input of INPUTS) {
-    const t = performance.now();
-    fn(input);
-    const ms = performance.now() - t;
-    if (ms > worst.ms) worst = { ms, input: input.slice(0, 60) };
-  }
-  parentPort.postMessage({ name, ...worst });
+  const times = INPUTS.map((input) => timed(fn, input));
+  const top = times.indexOf(Math.max(...times));
+  parentPort.postMessage({ name, ms: times[top], input: INPUTS[top].slice(0, 60), growth: growthOf(fn, times) });
 }
+// The canary: a search from each character for one that is never there, quadratic with the constant of indexOf (a
+// few milliseconds at 4N) — the check must see it, or it would let such a scanner through.
+const canary = (s) => {
+  let found = 0;
+  for (let i = 0; i < s.length; i++) found += s.indexOf("\u0000", i);
+  return found;
+};
+parentPort.postMessage({ start: "canary" });
+parentPort.postMessage({
+  canary: growthOf(
+    canary,
+    INPUTS.map((input) => timed(canary, input)),
+  ),
+});
 parentPort.postMessage({ done: true });

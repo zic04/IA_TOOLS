@@ -8,6 +8,18 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **What the code says of each behaviour** (ARCHITECTURE.md §6.9, source `behaviours`): `doc-kit facts` now reads how
+  the features behave — how a list is searched (contains, starts with, case ignored, accents, full text, a search
+  engine), filtered, sorted and paged, which fields a form checks (required, bounds, pattern, email), the lists of
+  values offered, what triggers a search (each keystroke, a delay, a button), the data scope of a query, the exports,
+  imports, notifications and scheduled jobs — in an array's `.filter`, Prisma, TypeORM, Sequelize, Mongoose, Drizzle,
+  Knex, SQL, Django and DRF, SQLAlchemy, FastAPI, Flask, zod, pydantic, HTML and JSX forms, TypeScript and Python
+  enums, and OpenAPI documents. Hints, each from one line of the code; tests, comments and files over 512 KB are
+  never read, and what is kept of the code goes through a whitelist (names, numbers, short tokens and lists). A
+  feature of `features.json` can name its code (`sources`) and the kinds of card its sheet describes (`behaviours`,
+  deduced by `inventory --features`); `doc-kit context` then gives a feature sheet that code — the handlers of its API
+  routes and what they import two levels deep — and a part **Behaviours to describe**: the hints, and the cards to
+  write with their rubrics. New brick `facts.behaviours`.
 - **Feature sheets in depth** (ARCHITECTURE.md §6.8a): a sheet is now a specification a product owner can check
   against the application. Its new sections: User stories, Behaviours, Fields and inputs, States, Messages, Rights
   by action, Acceptance criteria, Open questions (template `feature`, 9 required sections of 14, 4,000 words, a
@@ -90,6 +102,16 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **The `sources` of a page could reach outside the application**: a glob of toc.json such as `../.env` put a file
+  of the documentation project — or any secret file — whole into the page's context file for an agent. The globs of
+  `sources` (a page's, and now a feature's in features.json) are now confined to `app.dir`, files only, never an
+  `.env` or a key — under any name Windows gives it too (a data stream `.env::$DATA`, a short name `ENV~1`).
+- **Crafted text slowed three scanners down quadratically**: `facts --source api` (a long run of letters before
+  `= APIRouter(`), the pydantic settings of `facts --source env` (a class followed by many blank lines, or a field
+  line with blanks after its colon), and the secret detector of an address with credentials (a long run such as
+  `a-a-a-…`, read by `check secrets` and by the credential check of the sources). Their expressions are now anchored
+  and bounded, and the ReDoS test measures growth: a scanner more than eight times slower on an input four times
+  longer fails, measured at 4 and 16 times the size, with a canary written to be quadratic that it must catch.
 - **A git setting written on its section's line was not seen** by the check that keeps git from running a
   program named in an untrusted repository (`[core] fsmonitor = …`, `[include] path = …` on one line, or after a
   lone carriage return): git reads it, and the kit now does too (`parseGitConfig`, `riskyGitConfig`).

@@ -188,10 +188,18 @@ export function nameOf(value) {
       .filter(Boolean)
       .pop() || "code";
   const base = last.endsWith(".git") ? last.slice(0, -4) : last;
-  let out = "";
-  for (const ch of base.toLowerCase()) out += /[a-z0-9]/.test(ch) ? ch : out.endsWith("-") ? "" : "-";
-  out = out.replace(/^-+|-+$/g, "").slice(0, 63);
-  return out || "code";
+  // Characters in a list, the last one looked at directly: a string grown by += and read with endsWith is flattened
+  // at each character, which is quadratic. A run of other characters gives one dash, never a leading one; 64
+  // characters are enough to give the 63 of the id.
+  const out = [];
+  for (const ch of base.toLowerCase()) {
+    const c = /[a-z0-9]/.test(ch) ? ch : "-";
+    if (c === "-" && (out.length === 0 || out[out.length - 1] === "-")) continue;
+    out.push(c);
+    if (out.length > 64) break;
+  }
+  if (out[out.length - 1] === "-") out.pop();
+  return out.join("").slice(0, 63) || "code";
 }
 
 /** Where the converted documents and their index are written (relative to the project, forward slashes). */

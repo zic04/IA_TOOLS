@@ -9,6 +9,7 @@ import { labelKeysInCode } from "../sync/labels.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
+import { behaviourParts } from "./behaviours-section.mjs";
 
 /** `use/orders` → `use__orders.md` (ARCHITECTURE.md §6.11): the context file's name, "/" replaced with "__". */
 export const contextFileName = (pageId) => `${pageId.replaceAll("/", "__")}.md`;
@@ -128,6 +129,9 @@ export function glossaryFor(glossary, texts) {
  * @param {number} [p.budget]        default 16000 (ARCHITECTURE.md §6.11)
  * @param {string|null} [p.product]  config.product.name, shown in the header (null: omitted)
  * @param {string|null} [p.version]  the documented version (readProjectVersion of engine/build/build.mjs), shown in the header (null: omitted)
+ * @param {{ registry: import("../core/behaviours.mjs").BehaviourRegistry|null, feature?: any }} [p.behaviours]
+ *   the kinds of behaviour cards, and the page's feature in features.json (engine/sync/feature-files.mjs): with
+ *   them, the behaviour hints of facts/behaviours.json and, for a feature sheet, the cards to write (§6.8a)
  * @param {(key: string, vars?: object) => string} p.t   translator, already in the site's language
  * @returns {{ text: string, tokens: number, cut: Array<{ kind: string, path?: string, lines?: [number, number] }> }}
  */
@@ -147,6 +151,7 @@ export function buildContext({
   budget = 16000,
   product = null,
   version = null,
+  behaviours = { registry: null, feature: null },
   t,
 }) {
   const page = deps.page;
@@ -251,7 +256,9 @@ export function buildContext({
 
   // ─── 5. Facts ──────────────────────────────────────────────────────────────────────────────────────────────
   const fileSet = new Set(deps.files.filter((f) => !isDocRef(f.path)).map((f) => f.path));
-  const rows = factsFor(facts, fileSet, deps.routes);
+  // The behaviour hints have their own part (below): never repeated as raw facts rows.
+  const { behaviours: behaviourItems = [], ...otherFacts } = facts || {};
+  const rows = factsFor(otherFacts, fileSet, deps.routes);
   /** @type {import("./budget.mjs").BudgetPart} */
   const factsPart = { kind: "facts", text: "", cutLine: cutLine("facts", t("cli.context.section.facts"), "—") };
   if (rows.length)
@@ -261,6 +268,18 @@ export function buildContext({
         "",
         ...rows.map((r) => `- \`${r.source}\`: ${JSON.stringify(r.item)}`),
       ].join("\n") + "\n";
+
+  // ─── 5b. Behaviours to describe (§6.8a): the hints of the page's code, and a feature sheet's cards ─────────────
+  const behaviourPart = behaviourParts({
+    items: behaviourItems,
+    deps,
+    sheet: page.template === "feature",
+    feature: behaviours.feature,
+    registry: behaviours.registry,
+    language: config.language,
+    cutLine: cutLine("facts", t("cli.context.section.behaviours"), "—"),
+    t,
+  });
 
   // ─── 6. Glossary ───────────────────────────────────────────────────────────────────────────────────────────
   const terms = glossaryFor(glossary, [page.title || "", page.summary || "", ...excerptTexts]);
@@ -317,6 +336,8 @@ export function buildContext({
     { kind: "page", text: `## ${t("cli.context.section.files")}\n`, cutLine: "" },
     ...fileParts,
     labelsPart,
+    behaviourPart.hints,
+    behaviourPart.cards,
     factsPart,
     { kind: "page", text: glossaryText, cutLine: "" },
     { kind: "page", text: updateText, cutLine: "" },

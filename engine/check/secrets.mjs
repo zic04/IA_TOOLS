@@ -102,6 +102,10 @@ export function ignoreRules(masking = {}) {
 const BUILT_IN_RULES = ignoreRules();
 const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
 const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
+/** Files never exported nor read for a page, at any depth: environment files, keys and certificates, tool credentials. */
+export const SECRET_FILE =
+  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
+
 /** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
 export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
 
@@ -120,7 +124,8 @@ export const GENERIC = Object.freeze([
   },
   {
     kind: "credentialsUrl",
-    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
+    // A scheme of 32 characters at most: from each word of "a-a-a…", never a run to the end of the text.
+    re: /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
     accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
   },
   {
