@@ -13,7 +13,7 @@
 // At most 2000 components and 5000 links are kept; beyond, the lists say they stop there.
 import zlib from "node:zlib";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { walkXml, inertMarkup } from "./xml.mjs";
+import { walkXml, inertMarkup } from "../core/xml.mjs";
 import {
   MAX_COMPONENTS,
   MAX_LINKS,

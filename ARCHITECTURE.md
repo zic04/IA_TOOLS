@@ -36,7 +36,9 @@ doc-kit/
 │  ├─ project/           find.mjs, load.mjs, validate.mjs, defaults.mjs, env.mjs, legacy.mjs (§6.7), semver.mjs, browser.mjs
 │  ├─ core/              shared by the folders below (no folder cycle, RULES.md M14): hash.mjs, text.mjs,
 │  │                     page-templates.mjs (required sections of §6.4), translations.mjs (translated files, §6.12),
-│  │                     behaviours.mjs (kinds of behaviour, cards and scenarios read, §6.8a)
+│  │                     behaviours.mjs (kinds of behaviour, cards and scenarios read, §6.8a), adapters.mjs and
+│  │                     adapters-matrix.mjs (what the kit reads: standard/adapters.json, §5), glob.mjs, xml.mjs (the
+│  │                     bounded XML reader of the sources and of the dependency manifests)
 │  ├─ build/             build.mjs (pure functions), markdown.mjs (extensions), markdown-product.mjs and behaviours.mjs
 │  │                     (rules, stories, behaviour cards, scenarios, §6.8a), fact-directives.mjs (the directives
 │  │                     drawn from the facts: ::facts, ::erd, ::changes, the developer views), search.mjs,
@@ -44,12 +46,14 @@ doc-kit/
 │  ├─ capture/           capture.mjs, targets.mjs, actions.mjs, masking.mjs, webp.mjs, plans.mjs, session.mjs (adapters)
 │  ├─ check/             coverage.mjs, links.mjs, tables.mjs, images.mjs, secrets.mjs (detectors, and the filter
 │  │                     withoutSecrets of every file written for people or agents)
-│  ├─ facts/             one module per source of `doc-kit facts` (§6.9), listed by registry.mjs; api.mjs shared with
-│  │                     the coverage adapters; deps/ (npm and Python manifests); network.mjs (the only network
+│  ├─ facts/             one module per source of `doc-kit facts` (§6.9), listed by registry.mjs; stacks.mjs (the stack
+│  │                     adapters of a run, §5), code-files.mjs (the files the readers of code are given), api.mjs
+│  │                     (sources api and screens), languages.mjs (source stack); deps/ (the manifests of npm,
+│  │                     Python, Maven and Gradle, NuGet, Composer, Go, Bundler, Cargo); network.mjs (the only network
 │  │                     gateway, RULES.md S12); freshness.mjs (stale facts files); tools.mjs (--tools)
 │  ├─ inputs/            the sources (§6.19): model.mjs (inputs.json), repos.mjs (the only git commands that write,
-│  │                     RULES.md S2), ingest.mjs, status.mjs, and the bounded readers zip.mjs, xml.mjs, docx.mjs,
-│  │                     diagrams.mjs, pdf.mjs
+│  │                     RULES.md S2), ingest.mjs, status.mjs, and the bounded readers zip.mjs, docx.mjs,
+│  │                     diagrams.mjs, pdf.mjs (and core/xml.mjs)
 │  ├─ audit/             audit.mjs (indicators, maturity level, actions), report.mjs (audit.md, audit.json),
 │  │                     optional.mjs (measures that may be "not measured")
 │  ├─ dev/               server.mjs (watch, rebuild, live reload via SSE), client.js, environment.mjs (shared by dev,
@@ -62,6 +66,7 @@ doc-kit/
 ├─ adapters/coverage/    next-app-router.mjs, react-router.mjs, i18n-registry.mjs, glob.mjs, openapi.mjs, features.mjs (§6.8),
 │                        fastapi.mjs, facts.mjs (§6.9)
 ├─ adapters/auth/        manual.mjs (default), none.mjs, nextauth.mjs, api-me.mjs
+├─ adapters/stack/       next.mjs, express.mjs, fastapi.mjs (the routes, guards, screens and hints of a framework, §5)
 ├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs (.schema.json)
 ├─ templates/project/    common/, en/, fr/ (skeleton written by `init`)
 ├─ templates/pages/      en/, fr/ (one Markdown template per page type, §7)
@@ -321,6 +326,15 @@ export default {
   detects: false,                                                      // true: connect polls session() (no Enter needed)
   async session(page, options, { appUrl, isSignInUrl }) { /* null | { who, details, expires } */ },
 };
+// adapters/stack/<name>.mjs (or a project's, config.stacks.adapters: ["local:adapters/x.mjs"])
+export default {
+  name: "express",
+  files: /\.(js|ts|mjs|cjs)$/,                                        // the files it is given, by their relative path
+  marker: /\b(?:app|router)\.(?:get|post)\(/,                         // optional: a file whose text does not match is not given
+  api({ sources }) { return [{ method, route, file, line, guards }]; },  // sources: Map(file → text)
+  screens({ sources }) { return [{ route, file, line, guards? }]; },     // the screens of a front-end router
+  behaviours(text, sink, file) { sink.push({ family, signal, field, via }, index); },
+};                                                                     // one of api, screens, behaviours at least
 ```
 
 - **Options.** `options` maps each option to a schema (validator of §3; `required: true` marks a mandatory option); the configuration entry is validated against it, defaults applied, and an error is reported with its path (`coverage[0].ap`, `auth.loginPatern`), exit code 2.
@@ -340,6 +354,11 @@ export default {
   - `connect` opens the app; the user signs in, then presses Enter in the terminal, and the session (`storageState`) is saved;
   - before a capture, the session is considered valid if the app does not redirect to a sign-in page;
   - the sign-in page is detected by the `auth.loginPattern` option, which defaults to `login|signin|sign-in|oauth|authorize`.
+- **Stack adapters** (`adapters/stack/`, engine/facts/stacks.mjs) read a framework for `doc-kit facts` (§6.9): its API routes and their guards (`api`), its screens (`screens`), its behaviour hints (`behaviours`).
+  - The kit gives each one the texts of its files (`files` on the path, then `marker` on the text), never a test, a fixture, a generated file or a file over 512 KB (engine/facts/code-files.mjs), and never runs anything of the application. It adds `framework` (the adapter's name unless the item names one) and classifies `auth` from the guards with `review.guards` (§6.13): an adapter returns names, never a verdict.
+  - Built-in: `next` (App Router `route.*` and `pages/api`; the screens of the App Router and of the Pages Router), `express`, `fastapi` (§6.9). `config.stacks.disabled` turns one off; `config.stacks.adapters` adds the project's own (`local:` only: a file of the documentation project, never of the application), loaded by `loadAdapter` and checked for its shape (`adapter.invalid`).
+  - Every expression of an adapter that scans the application's text is linear and in test/tools/redos-worker.mjs (RULES.md S5); a call's arguments are read once, 4,000 characters at most (`callSpan` of engine/facts/behaviour-common.mjs: a longer call keeps the arguments of its first 4,000 characters), and the line of a match comes from a binary search (`textIndex`), never from a walk of the text.
+- **The registry** (`standard/adapters.json`, `schemas/adapters.schema.json`, engine/core/adapters.mjs) lists what the kit reads of an application: its languages by extension (`core`: read by the kit's own sources — JavaScript, TypeScript, Python, HTML, SQL), and its adapters by family — `stack`, `deps` (the dependency readers of engine/facts/deps/), `lowcode` (a platform detected, never read), `coverage`, `auth`. The built-in adapters of `loadAdapter` are its entries. `detect` says what tells that an application uses a stack or a platform: a dependency (`ecosystem:name`, `*` for any characters) or a file (a glob); it is data, never a branch on an id. The compatibility matrix of the kit's documentation (`reference/compatibility`) is generated from it (`node test/tools/adapters-matrix.mjs --write`; test/unit/stacks.test.mjs fails when it is out of date).
 - **Project adapters.** An adapter specific to a project is declared as `adapter: "local:adapters/x.mjs"`.
 
 ## 6. File formats
@@ -728,13 +747,15 @@ The takeover dossier (the Develop space, with its operating pages in Administer)
 - `adr`: one page per reconstructed decision, as sub-pages of an `architecture` or `technical` page; "How it was reconstructed" says from which code, commits or people.
 - **`findings` becomes a risk register**: its tables gain Owner · Decision (fix, accept, transfer, avoid) · Status (open, in progress, done, accepted) · Due date, combined into one "Follow-up" column (four separate columns rarely fit the reading width once a proof and a recommendation are already tables; the example combines them). Its sections do not change: existing pages stay conformant.
 
-**`doc-kit facts [--source <name>] [--network] [--tools] [--json]`** reads the application code (`app.dir`, §3; without it: `facts.noApp`, exit code 2) and writes one file per source, `facts/<source>.json` (folder `paths.facts`, default `facts`, §3), in the documentation project, **committed with it**: `{ source, generator, generated, commit, app, items }` — `generated` the ISO date, `commit` the git HEAD of the application (or `null`), `app` the application folder relative to the project, items sorted, paths relative to the application, forward slashes. A file that is there but cannot be read (a manifest that is not valid JSON, a broken coverage report) is listed in `unreadable: [{ file, reason: "read"|"json" }]`, present only when not empty, and printed as a warning: those facts are unknown, which is not the same as none. Same code, same file (except `generated`). `--source` (repeatable) limits the sources. Nothing is ever written in the application. A folder below `app.dir` that holds a `doc.config.mjs` is a documentation project (often `docs/manual`, inside the application): no source reads it, whether the files come from a walk or from `git ls-files` (`withoutDocProjects` in `engine/facts/common.mjs`).
+**`doc-kit facts [--source <name>] [--network] [--tools] [--json]`** reads the application code (`app.dir`, §3; without it: `facts.noApp`, exit code 2) and writes one file per source, `facts/<source>.json` (folder `paths.facts`, default `facts`, §3), in the documentation project, **committed with it**: `{ source, generator, generated, commit, app, items }` — `generated` the ISO date, `commit` the git HEAD of the application (or `null`), `app` the application folder relative to the project, items sorted, paths relative to the application, forward slashes. A file that is there but cannot be read (a manifest that is not valid JSON, a broken coverage report) is listed in `unreadable: [{ file, reason: "read"|"json"|"xml" }]`, present only when not empty, and printed as a warning: those facts are unknown, which is not the same as none. Same code, same file (except `generated`). `--source` (repeatable) limits the sources. Nothing is ever written in the application. A folder below `app.dir` that holds a `doc.config.mjs` is a documentation project (often `docs/manual`, inside the application): no source reads it, whether the files come from a walk or from `git ls-files` (`withoutDocProjects` in `engine/facts/common.mjs`).
 
 | Source | Read from | Item |
 |---|---|---|
-| `dependencies` | Every `package.json`, `package-lock.json` (v2, v3), `pnpm-lock.yaml`, `yarn.lock` (v1, berry), `requirements*.txt`, `poetry.lock` and `pyproject.toml` found under the application, searched recursively (at most 4 folders deep: a vibe-coded application almost always splits a front end and an API into their own folders, each with its own manifest) | `{ name, version, ecosystem, direct, dev, manifest, license? }` |
+| `dependencies` | Every manifest and lock file found under the application, searched recursively (at most 4 folders deep: a vibe-coded application almost always splits a front end and an API into their own folders, each with its own manifest; `vendor/` and `target/` never walked), each read on its own: npm (`package.json`, `package-lock.json` v2 and v3, `pnpm-lock.yaml`, `yarn.lock` v1 and berry), pip (`requirements*.txt`, `poetry.lock`, `pyproject.toml`), maven (`pom.xml` with its own properties and dependency management, `build.gradle`, `build.gradle.kts`, `libs.versions.toml`, `gradle.lockfile`), nuget (`*.csproj`, `*.fsproj`, `*.vbproj`, `Directory.Packages.props`, `packages.config`, `packages.lock.json`), composer (`composer.json`, `composer.lock`), go (`go.mod`), rubygems (`Gemfile`, `Gemfile.lock`), cargo (`Cargo.toml`, `Cargo.lock`). `version`: the exact version the file states, else null with `spec` as written; `direct`: only when the file says so itself (a lock file without such a mark: false); `local`: not from the ecosystem's public registry (a folder, git, a workspace member, another registry) — never sent. No TOML, YAML or XML library: small line readers, and the bounded, DTD-free XML reader of §6.19 | `{ name, version, ecosystem, direct, dev, manifest, license?, local?, spec? }` |
 | `env` | `process.env.X`, `process.env["X"]`, a destructuring read (`const { X, Y } = process.env`), `import.meta.env.X`, `os.environ["X"]`, `os.environ.get("X")`, `os.getenv("X")`, a pydantic settings class (`class Settings(BaseSettings):`, `pydantic.BaseSettings` v1 or `pydantic_settings.BaseSettings` v2: one name per field, `env_prefix` + the field name upper-cased, replaced outright by `Field(..., alias=…)`, `validation_alias=…` or the v1 `env=…`); names of `.env.example`, `.env.sample`, `.env.template` (never the values, never `.env`) | `{ name, files: ["path:line"], example }` |
-| `api` | Next.js App Router (`route.ts|js`, exported methods), Next.js `pages/api`, FastAPI decorators (with `APIRouter(prefix)` and `include_router(prefix)` when found), Express (`app|router.<method>("/path")`) | `{ method, route, file, line, framework }` (`line`: the handler's decorator, export or call) |
+| `stack` | The stacks and low-code platforms the application uses (standard/adapters.json, `detect`), then each language of its code (by extension; tests, generated files and files over 512 KB left out): its files and lines, and whether the kit reads it here — by its own sources (`core`) or by the stack adapter of a stack detected (Spring reads Java where Spring is a dependency); `stacks` and `summary` (`share`: the part of the lines read, in percent) beside the items | `{ language, files, lines, read, by }` |
+| `api` | The stack adapters' route handlers (§5): Next.js App Router (`route.ts|js`, exported methods), Next.js `pages/api`, FastAPI decorators (with `APIRouter(prefix)` and `include_router(prefix)` when found), Express (`app|router.<method>("/path")`), and the project's own adapters | `{ method, route, file, line, framework, auth, guards }` (`line`: the handler's decorator, export or call) |
+| `screens` | The stack adapters' screens (§5): the pages of the Next.js App Router and Pages Router (their API, shell and error pages left out), the routes of the front-end routers | `{ route, file, line, framework, auth?, guards? }` (`auth` and `guards` only when the router declares guards) |
 | `db` | `schema.prisma` (models, `@@map`, relations), SQLAlchemy (`__tablename__`, `Column`, `mapped_column`), SQL migrations (`CREATE TABLE`, `ENABLE ROW LEVEL SECURITY`, `CREATE POLICY`) | `{ table, columns, file, rls, policies, references }` |
 | `behaviours` | the code of the application (JavaScript, TypeScript, JSX, Vue, Svelte, Python, HTML) and its OpenAPI documents in JSON — never its tests, its comments, a file over 512 KB; see **Source `behaviours`** below | `{ family, signal, file, line, field?, value?, values?, route?, via }` |
 | `agents` | at any depth (each package of a monorepo may have its own): `AGENTS.md`, `AGENT.md`, `CLAUDE.md`, `GEMINI.md`, `.claude/**/*.md`, `.agents/**/*.md`, `.cursorrules`, `.cursor/rules/**`, `.github/copilot-instructions.md`, `.github/instructions/**/*.md`, `.windsurfrules`, `.windsurf/rules/**`, `.clinerules`, `.junie/guidelines.md`, `.kiro/steering/**/*.md`, `.aider.conf.yml`, prompt files (`**/*.prompt.md`) | `{ file, lines, words, hidden: [{ line, codepoint }] }` |
@@ -749,7 +770,7 @@ The takeover dossier (the Develop space, with its operating pages in Administer)
 
 **`::facts{source="env" columns="name,files,example"}`** (`::faits{source="env" colonnes="…"}`): a table from `facts/<source>.json`, at build time. Columns: item keys (header from `render.facts.column.<key>` when known, else the key); lists joined with commas; booleans "✔" or "—". A caption gives the date and the commit. Missing file: `facts.missing`; unknown column: `facts.column` (errors in a strict build).
 
-**Coverage adapter `facts`**: `source` (required), `family` (default by source: "Environment variables", "API routes", "Tables", "Dependencies", "Agent instruction files"), `exclude`. One item per fact: `env` its name; `api` `METHOD route`, matched in its `{id}`, `:id` and `[id]` forms; `db` the table; `dependencies` the direct dependencies only, de-duplicated by name (the same package can be direct in more than one manifest); `agents` the file. Missing facts file: `{ available: false, reason: "noFacts" }`.
+**Coverage adapter `facts`**: `source` (required), `family` (default by source: "Environment variables", "API routes", "Screens", "Tables", "Dependencies", "Agent instruction files"), `exclude`. One item per fact: `env` its name; `api` `METHOD route`, matched in its `{id}`, `:id` and `[id]` forms; `screens` the route, in the same forms (an item of `api` or `screens` carries its file, through the facts file's `app`, so that sync follows the code of the page that cites it, §6.10); `db` the table; `dependencies` the direct dependencies only, de-duplicated by name (the same package can be direct in more than one manifest); `agents` the file. Missing facts file: `{ available: false, reason: "noFacts" }`.
 
 **Coverage adapters on the code**, sharing the parsers of `engine/facts/api.mjs`: `fastapi` (`app`, default `.`; `family` "API"; `exclude`) and the `api` option of `next-app-router` (default `false`; `apiFamily` "API"): one item per handler, `GET /api/orders/[id]`.
 
@@ -862,6 +883,7 @@ The agents of a wave are launched together, one page per agent for writing and u
 4. **exact labels**: the message entries (`sync.labels` files, §6.10) whose keys appear as string literals (`"a.b"`, `'a.b'`, `` `a.b` ``) in these files; a `useTranslations("ns")` / `getTranslations("ns")` call in the same file prefixes the keys passed to `t(…)` with `ns.`: key → value;
 5. **facts**: the rows of `facts/*.json` whose `file`, `files` or `route` names one of these files or one of the page's routes — but those of `behaviours`, which have their own part:
 5b. **behaviours to describe** (§6.8a, `engine/context/behaviours-section.mjs`): the behaviour hints of these files (or naming one of the page's routes, or of its feature's API routes), grouped by family, one line per field and place (`` `customer`: contains, caseInsensitive — app/orders/page.tsx:26 (array) ``), cut like the facts; a hint of a shared file (a layout, an import) is marked `shared`; and, for a feature sheet, the **cards to write**: the kinds the hints of its **direct** files (and of its API routes) point to (`FAMILY_KINDS` of engine/core/behaviours.mjs: a field's type or an optional field alone is no form; a layout's search box is no card of the feature) and those its feature names in `features.json` (`behaviours`, in any spelling of the kind; an unknown one is told: `cli.context.behaviours.unknownKind`), each with its container (`:::behaviour{kind="search"}`, `:::comportement{type="recherche"}` in French) and its rubrics in the site's language, required ones marked — never cut. The kinds are the kit's and the project's (`config.behaviours.file`); a `features.json` that does not follow its schema is told once (`features.invalid`);
+5c. **code the kit does not read** (`engine/context/unread-section.mjs`, source `stack` of §6.9): the languages of the application no reader of the kit reads here, with their part of the lines of code, and the page's own files in such a language — the agent reads that code itself; never cut, absent when the kit reads all the code it measured;
 6. the glossary terms whose `pattern` (or `term`) matches the page or the excerpts;
 7. with `--update`: the entries of the page in `.doc-kit/sync-report.json` (every category, with their reasons), the content of its diff file, and the paths of the before/after sheets of its captures (`.doc-kit/compare/<id>.png`, never inlined). Without a report: `context.noSyncReport`, exit code 2.
 
@@ -1141,8 +1163,10 @@ that `doc-kit init` and `doc-kit inputs add` write it without ever rewriting `do
 - `inputs [status]`: each source and its state (`engine/inputs/status.mjs`, read from the clones and the index —
   no state file of its own): a folder `present`/`missing`; a repository `fetched` (a clone of that address,
   its commit and last fetch) or `notFetched`; a document `fresh`, `stale` (changed since it was converted),
-  `notIngested`, `refused`, `missing`, or `external` (an address). `--json`: `{ code, app, documents,
-  workspaces, backlog }`.
+  `notIngested`, `refused`, `missing`, or `external` (an address). Then what the kit reads of the code of
+  `app.dir` (§6.9, `facts/stack.json`): the part of its lines read, each language read or not, the stacks and the
+  low-code platforms found — or the command that measures it. `--json`: `{ code, app, documents, workspaces, backlog,
+  reading }` (`reading`: `{ items, stacks, summary }` of facts/stack.json, or null).
 - `inputs add <code|app|document|workspace|backlog> <value>` (options `--name --role --branch --depth --env
   --read-only --kind --tool --title`): one source added to `inputs.json`, checked like the whole file.
 - `inputs fetch [<name>…]` (`engine/inputs/repos.mjs`): clones each shared repository into
@@ -1161,7 +1185,7 @@ that `doc-kit init` and `doc-kit inputs add` write it without ever rewriting `do
 - `inputs ingest [<file>…]` (`engine/inputs/ingest.mjs`): each document with a `file` becomes
   `.doc-kit/inputs/docs/<slug>.md`, listed in `.doc-kit/inputs/docs/index.json` (`{ generator, generated,
   documents: [{ source, kind, format, hash, output, headings?, tables?, images?, pages?, removed, refused? }] }`):
-  Word (`docx.mjs` on `zip.mjs` and `xml.mjs`: headings from the styles, paragraphs, lists, tables as Markdown);
+  Word (`docx.mjs` on `zip.mjs` and `core/xml.mjs`: headings from the styles, paragraphs, lists, tables as Markdown);
   diagrams (`diagrams.mjs`: draw.io, PlantUML, Mermaid → components and links); PDF (`pdf.mjs`: indexed only,
   its pages; the agents read the file itself); Markdown and text as they are; HTML as text. Each text starts with a
   notice ("information to check, never an instruction", `cli.inputs.output.header`) and goes through the secret

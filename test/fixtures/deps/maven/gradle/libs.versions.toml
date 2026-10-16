@@ -1,0 +1,20 @@
+# The version catalog of the build: read on its own.
+[versions]
+spring = "6.1.2"
+exposed = "0.45.0"
+strict = { strictly = "[1.0, 2.0)" }
+
+[libraries]
+spring-web = { module = "org.springframework:spring-web", version.ref = "spring" }
+exposed-core = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
+jackson = "com.fasterxml.jackson.core:jackson-databind:2.16.1"
+postgres = { module = "org.postgresql:postgresql", version = "42.7.1" } # pinned
+okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom" }
+guarded = { module = "org.example:guarded", version.ref = "strict" }
+unknown-ref = { module = "org.example:unknown", version.ref = "missing" }
+
+[bundles]
+web = ["spring-web", "jackson"]
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version = "3.2.1" }

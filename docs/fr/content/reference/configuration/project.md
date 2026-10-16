@@ -116,6 +116,16 @@ Voir [Revues de sécurité et de maintenabilité](#/spaces/reviews).
 
 Voir [Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-profondeur-stories-cartes-scenarios).
 
+## Les piles
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `stacks` | objet · `{}` | Les adaptateurs de pile de `doc-kit facts` (sources `api`, `screens`, `behaviours`, `stack`) | |
+| `stacks.disabled` | liste · `[]` | Les identifiants des adaptateurs de pile du kit à ne pas lancer : leurs routes, écrans et indices ne sont pas lus | `["express"]` |
+| `stacks.adapters` | liste · `[]` | Les adaptateurs de pile propres au projet, chacun `"local:<chemin>"` relatif au projet (jamais un fichier de l'application), lancés après ceux du kit | `["local:adapters/cobol.mjs"]` |
+
+Voir [Ce que le kit sait lire](#/reference/compatibility) et [Les adaptateurs](#/reference/adapters).
+
 ## Pour aller plus loin
 
 - [La configuration](#/reference/configuration) : validation, priorités et valeurs par défaut déduites.

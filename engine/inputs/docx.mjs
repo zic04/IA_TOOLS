@@ -1,6 +1,6 @@
 // Word (.docx) to Markdown for the documents of the sources (`doc-kit inputs ingest`, ARCHITECTURE.md §6.19): the
 // technical architecture document a team already has becomes text the documentation agents read. Only two parts
-// of the archive are read, through the bounded ZIP reader (zip.mjs) and the linear XML reader (xml.mjs):
+// of the archive are read, through the bounded ZIP reader (zip.mjs) and the linear XML reader (engine/core/xml.mjs):
 // word/document.xml (required) and word/styles.xml (when present). Nothing of the document is executed or
 // expanded: no macro, no embedded object, no external relationship, no entity.
 //   - Headings: a paragraph whose style is named "heading N" / "Titre N" (any case, with or without a space,
@@ -16,7 +16,7 @@
 //     mc:AlternateContent, are left out.
 import { KitError, EXIT } from "../project/errors.mjs";
 import { readZipEntries } from "./zip.mjs";
-import { walkXml, inertMarkup } from "./xml.mjs";
+import { walkXml, inertMarkup } from "../core/xml.mjs";
 
 const DOCUMENT = "word/document.xml";
 const STYLES = "word/styles.xml";

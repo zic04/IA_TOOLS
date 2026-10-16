@@ -17,6 +17,10 @@
   "cli.build.facts.missing": "[{page}] facts file not found: {file}",
   "cli.build.facts.missing.help": "run {command} facts --source {source} first, or check paths.facts",
   "cli.facts.noApp": "no application to read",
+  "cli.stacks.unknown": "stacks.disabled: the kit has no stack adapter “{name}”",
+  "cli.stacks.unknown.help": "the kit's stack adapters: {known}",
+  "cli.stacks.outside": "stack adapter “{name}”: not a file of the documentation project",
+  "cli.stacks.outside.help": "a project's stack adapter lives in the documentation project (stacks.adapters: [\"local:adapters/x.mjs\"]); nothing of the application is ever run",
   "cli.facts.noApp.help": "set app.dir in doc.config.mjs to the application root (an existing folder)",
   "cli.facts.tool.failed": "⚠ {tool}: failed ({reason}); its facts are unknown, not empty",
   "cli.facts.tool.findings": {
@@ -38,6 +42,7 @@
   "cli.facts.unknownSource.help": "known sources: {known}",
   "cli.facts.unreadable": "⚠ {file}: {reason}; its facts are unknown, not empty",
   "cli.facts.unreadable.json": "not valid JSON",
+  "cli.facts.unreadable.xml": "not well-formed XML",
   "cli.facts.unreadable.read": "cannot be read",
   "cli.facts.written": {
     "one": "{source}: {n} item → {file}",

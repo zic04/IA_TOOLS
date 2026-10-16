@@ -114,6 +114,16 @@ See [Security and maintainability reviews](#/spaces/reviews).
 
 See [A feature in depth](#/write/markdown~a-feature-in-depth-stories-behaviour-cards-scenarios).
 
+## Stacks
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `stacks` | object · `{}` | The stack adapters of `doc-kit facts` (sources `api`, `screens`, `behaviours`, `stack`) | |
+| `stacks.disabled` | list · `[]` | Ids of the kit's stack adapters not run: their routes, screens and hints are not read | `["express"]` |
+| `stacks.adapters` | list · `[]` | The project's own stack adapters, each `"local:<path>"` relative to the project (never a file of the application), run after the kit's | `["local:adapters/cobol.mjs"]` |
+
+See [What the kit reads](#/reference/compatibility) and [Adapters](#/reference/adapters).
+
 ## Further reading
 
 - [Configuration](#/reference/configuration): validation, precedence and derived defaults.

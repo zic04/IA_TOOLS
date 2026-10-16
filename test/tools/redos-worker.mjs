@@ -12,13 +12,18 @@ import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import { DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
-import { nextRouteHandlers, expressRoutes, fastapiRoutes, nextHandlerGuards } from "../../engine/facts/api.mjs";
+import next, { nextRouteHandlers, nextHandlerGuards, NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
+import { expressRoutes, EXPRESS_PATTERNS } from "../../adapters/stack/express.mjs";
+import { fastapiRoutes, FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
+import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
+import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
+import { loadAdapters, detectedBy } from "../../engine/core/adapters.mjs";
 import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
-import { walkXml, decodeEntities, inertMarkup } from "../../engine/inputs/xml.mjs";
+import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
 import { pdfIndex } from "../../engine/inputs/pdf.mjs";
 import { htmlToText } from "../../engine/inputs/ingest.mjs";
@@ -240,6 +245,44 @@ export const CHECKS = [
   ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
+  // The stack adapters (adapters/stack/): each expression alone, then each reader on files named after the text.
+  ...Object.entries({ ...NEXT_PATTERNS, ...EXPRESS_PATTERNS, ...FASTAPI_PATTERNS }).map(([name, re]) => [
+    `stack ${name}`,
+    (s) => (re.global ? [...s.matchAll(re)].length : re.exec(s)),
+  ]),
+  [
+    "stack next api and screens",
+    (s) => {
+      const sources = new Map([
+        [`app/${s.slice(0, 200)}/route.ts`, s],
+        [`pages/api/${s.slice(0, 200)}.ts`, s],
+        [`pages/${s.slice(0, 200)}.tsx`, s],
+      ]);
+      return next.api({ sources }).length + next.screens({ sources }).length;
+    },
+  ],
+  // The paths of the application: what is a test, a generated file; which files an adapter reads; what tells a stack.
+  ...Object.entries(CODE_PATTERNS).map(([name, re]) => [`code-files ${name}`, (s) => re.test(s) || re.test(`a/${s}`)]),
+  ...BUILT_IN_STACKS.flatMap((a) => [
+    [`stack ${a.name} files`, (s) => s.search(a.files) + `app/${s}.ts`.search(a.files)],
+    ...(a.marker ? [[`stack ${a.name} marker`, (s) => s.search(a.marker)]] : []),
+  ]),
+  [
+    "registry detectedBy",
+    (s) =>
+      loadAdapters().adapters.reduce(
+        (n, entry) =>
+          n +
+          detectedBy(entry, {
+            dependencies: [
+              { ecosystem: "maven", name: s },
+              { ecosystem: "npm", name: s },
+            ],
+            files: [s, `${s}/${s}`, `a/${s}.msapp`],
+          }).length,
+        0,
+      ),
+  ],
   ["env pydanticEnvNames", (s) => pydanticEnvNames(s)],
   ...ENV_PATTERNS.map((re, i) => [`c4 environment variable ${i}`, (s) => re.test(s)]),
   ...Object.entries(DB_PATTERNS).map(([name, re]) => [

@@ -70,5 +70,8 @@
   "cli.context.behaviours.family.import": "Import",
   "cli.context.behaviours.family.notification": "Notifications",
   "cli.context.behaviours.family.schedule": "Traitements planifiés",
-  "cli.context.behaviours.unknownKind": "« {kind} » (le fichier des fonctionnalités) : aucun type de comportement ne porte ce nom — corrigez-le là, ou ajoutez le type avec behaviours.file"
+  "cli.context.behaviours.unknownKind": "« {kind} » (le fichier des fonctionnalités) : aucun type de comportement ne porte ce nom — corrigez-le là, ou ajoutez le type avec behaviours.file",
+  "cli.context.section.unread": "Code que le kit ne lit pas",
+  "cli.context.unread.app": "Le kit ne lit pas le code {languages} de cette application ({share} % des lignes de code) : les faits ne disent rien de ce code (ses routes, ses gardes, ses comportements). Lisez-le vous-même avant d'en écrire.",
+  "cli.context.unread.files": "Les fichiers de cette page dans ce langage — lisez-les en entier :"
 }

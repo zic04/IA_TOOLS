@@ -1,0 +1,39 @@
+source "https://rubygems.org"
+git_source(:github) { |repo| "https://github.com/#{repo}.git" }
+
+ruby "3.2.2"
+
+gem "rails", "~> 7.1.2"
+gem 'pg', '~> 1.1', '>= 1.1.4'
+gem "puma", ">= 5.0"
+gem "bootsnap", require: false
+gem "sidekiq", "7.2.0"
+gem "devise", "= 4.9.3" # authentication
+gem "billing", path: "engines/billing"
+gem "acme-sso", git: "https://github.com/acme/acme-sso.git", branch: "main"
+gem :"skipped-symbol"
+gem "rubocop", group: :development, require: false
+gem "factory_bot_rails", groups: [:development, :test]
+gem "newrelic_rpm", group: :production
+
+group :development, :test do
+  gem "debug", platforms: %i[ mri windows ]
+  gem "rspec-rails", "~> 6.1"
+end
+
+group :development do
+  gem "web-console"
+  if ENV["PROFILE"]
+    gem "rack-mini-profiler"
+  end
+end
+
+group :test do
+  gem "capybara"
+end
+
+source "https://gems.acme.example" do
+  gem "acme-theme"
+end
+
+gem "tzinfo-data", platforms: %i[ windows jruby ]

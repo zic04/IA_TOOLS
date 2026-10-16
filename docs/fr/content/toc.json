@@ -156,6 +156,7 @@
           "title": "Étendre",
           "pages": [
             { "id": "reference/adapters", "title": "Les adaptateurs", "menuTitle": "Adaptateurs", "summary": "Adaptateurs de couverture et de connexion : ceux du kit, leurs options, et comment écrire le vôtre.", "template": "technical" },
+            { "id": "reference/compatibility", "title": "Ce que le kit sait lire", "menuTitle": "Compatibilité", "summary": "Les piles, écosystèmes de dépendances, plateformes low-code et langages que le kit lit, et ce qu'il laisse à ses agents.", "template": "technical" },
             { "id": "reference/i18n", "title": "Langues et textes", "menuTitle": "Langues et textes", "summary": "Les deux langues, les espaces de noms i18n, et les textes qu'un projet peut remplacer.", "template": "technical" },
             { "id": "reference/theme", "title": "Thème, couleurs et logo", "menuTitle": "Thème et logo", "summary": "Les couleurs des deux thèmes, le contrôle des contrastes, les icônes, le logo et les pastilles de statut.", "template": "technical" }
           ]

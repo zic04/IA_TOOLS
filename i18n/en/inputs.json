@@ -92,5 +92,12 @@
   "cli.inputs.unknownAction": "unknown action “{action}”",
   "cli.inputs.unknownAction.help": "{command} inputs [status] · add · fetch · ingest",
   "cli.inputs.unknownKind": "unknown kind of source “{kind}”",
-  "cli.inputs.unknownKind.help": "one of: {kinds}"
+  "cli.inputs.unknownKind.help": "one of: {kinds}",
+  "cli.inputs.section.reading": "What the kit reads of the code ({file})",
+  "cli.inputs.reading.share": "{share} % of {lines} lines of code read by the kit",
+  "cli.inputs.reading.read": "{language} — {lines} lines, read ({by})",
+  "cli.inputs.reading.unread": "{language} — {lines} lines, not read: the agents read it themselves",
+  "cli.inputs.reading.stacks": "Stacks found: {list}",
+  "cli.inputs.reading.lowcode": "{title} ({evidence}): a low-code platform the kit does not read — the agents read its export",
+  "cli.inputs.next.stack": "{command} facts --source stack: measure what the kit reads of the code"
 }

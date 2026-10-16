@@ -2,7 +2,7 @@
 // classes, the collector that keeps the components and links within their limits, the text of an HTML label, and
 // the C4 macros, which both Mermaid (C4Context, C4Container…) and C4-PlantUML write the same way. A diagram is
 // untrusted input (SECURITY.md): everything here scans with indexOf and single passes, no regular expression.
-import { decodeEntities } from "./xml.mjs";
+import { decodeEntities } from "../core/xml.mjs";
 
 export const MAX_COMPONENTS = 2000;
 export const MAX_LINKS = 5000;

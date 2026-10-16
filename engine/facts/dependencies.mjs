@@ -1,48 +1,149 @@
 // `dependencies` source (ARCHITECTURE.md §6.9): every manifest and lock file found under the application, searched
 // recursively (vibe-coded applications almost always split a front end and an API into their own folders, each
-// with its own manifest): package.json, package-lock.json (v2/v3), pnpm-lock.yaml, yarn.lock (v1 and berry),
-// requirements*.txt, poetry.lock, pyproject.toml. Each file is read ON ITS OWN, never merged with another: an
-// item keeps the `manifest` it was read from, so the same package named by two manifests (a package.json and its
-// own package-lock.json, for instance) gives two items. No YAML or TOML parser is used: pnpm-lock.yaml, yarn.lock
-// and poetry.lock have a predictable enough shape for small, targeted regular expressions; a lock file that does
-// not match them simply contributes nothing (never an error). A manifest that cannot be read, or a package.json /
-// package-lock.json that is not valid JSON, is listed in `unreadable` ({ file, reason: "read"|"json" }): its
-// dependencies are unknown, which is not the same as none (AUDIT.md M14).
-//   item: { name, version, ecosystem, direct, dev, manifest, license?, local? } (local: not from a public registry)
-// `direct` is read from the manifest itself when it says so (package.json; a lock file's own "root" entry, when
-// the format carries one: package-lock.json v2/v3, pnpm-lock.yaml); formats with no such self-contained signal
-// (yarn.lock, poetry.lock) report every item as `direct: false` rather than guessing from another file.
-// requirements*.txt items also carry `extras` (array, e.g. `uvicorn[standard]` → `["standard"]`, omitted when
-// there is none), `operator` (the first comparison found, e.g. "==", ">=", "~=", or null) and `spec` (the
-// constraint as written, e.g. ">=2.0,<3.0", or null): `version` itself is the exact pinned version from an
-// `==` constraint, else null — a range is never reported as if it were an installed version.
+// with its own manifest), by ecosystem:
+//   npm       package.json, package-lock.json (v2/v3), pnpm-lock.yaml, yarn.lock (v1 and berry)  (deps/npm.mjs)
+//   pip       requirements*.txt, poetry.lock, pyproject.toml                                        (deps/python.mjs)
+//   maven     pom.xml, build.gradle, build.gradle.kts, libs.versions.toml, gradle.lockfile          (deps/jvm.mjs)
+//   nuget     *.csproj, *.fsproj, *.vbproj, Directory.Packages.props, packages.config,
+//             packages.lock.json                                                                    (deps/dotnet.mjs)
+//   composer  composer.json, composer.lock                                                          (deps/php.mjs)
+//   go        go.mod                                                                                (deps/golang.mjs)
+//   rubygems  Gemfile, Gemfile.lock                                                                 (deps/ruby.mjs)
+//   cargo     Cargo.toml, Cargo.lock                                                                (deps/rust.mjs)
+// Each file is read ON ITS OWN, never merged with another: an item keeps the `manifest` it was read from, so the
+// same package named by two manifests (a package.json and its own package-lock.json, for instance) gives two items;
+// a version another file holds (a Maven parent, a Gradle catalog alias, a Cargo workspace, a central .NET version)
+// stays null. No YAML, TOML or XML library is used: pnpm-lock.yaml, yarn.lock, the TOML files, go.mod and the
+// Gemfiles have a predictable enough shape for small, targeted readers (a form they do not match contributes
+// nothing, never an error), and the XML files go through the bounded, DTD-free reader of the sources
+// (engine/core/xml.mjs). A manifest that cannot be read, a JSON one that is not valid JSON or an XML one that is
+// not well-formed is listed in `unreadable` ({ file, reason: "read"|"json"|"xml" }): its dependencies are unknown,
+// which is not the same as none (AUDIT.md M14). Nothing is executed, and these readers never touch the network.
+//   item: { name, version, ecosystem, direct, dev, manifest, license?, local? } (local: not from a public registry,
+//   or not identifiable: a folder, git, a workspace member, a private registry — its name is never sent)
+// `direct` is read from the manifest itself when it says so (a manifest's own declarations; a lock file's own
+// "root" entry or marks, when the format carries them: package-lock.json v2/v3, pnpm-lock.yaml, packages.lock.json,
+// Gemfile.lock, go.mod's `// indirect`); formats with no such self-contained signal (yarn.lock, poetry.lock,
+// gradle.lockfile, packages.config, composer.lock, Cargo.lock) report every item as `direct: false` rather than
+// guessing from another file.
+// `version` is the exact version the file states, else null — a range is never reported as if it were an installed
+// version; `spec` keeps the constraint as written when it is not that exact version (requirements*.txt, Maven and
+// Gradle, NuGet, Composer, Gemfile, Cargo.toml). requirements*.txt items also carry `extras` (array, e.g.
+// `uvicorn[standard]` → `["standard"]`, omitted when there is none), `operator` (the first comparison found, e.g.
+// "==", ">=", "~=", or null) and `spec` (the constraint as written, e.g. ">=2.0,<3.0", or null).
 import path from "node:path";
-import { listFiles } from "./common.mjs";
+import { GENERIC } from "../check/secrets.mjs";
+import { listFiles, SKIP_DIRS } from "./common.mjs";
 import { NPM_PATTERNS, NPM_READERS } from "./deps/npm.mjs";
 import { PYTHON_PATTERNS, pythonReader } from "./deps/python.mjs";
+import { JVM_PATTERNS, JVM_READERS } from "./deps/jvm.mjs";
+import { DOTNET_PATTERNS, dotnetReader } from "./deps/dotnet.mjs";
+import { PHP_PATTERNS, PHP_READERS } from "./deps/php.mjs";
+import { GO_PATTERNS, GO_READERS } from "./deps/golang.mjs";
+import { RUBY_PATTERNS, RUBY_READERS } from "./deps/ruby.mjs";
+import { RUST_PATTERNS, RUST_READERS } from "./deps/rust.mjs";
 
 /** Manifests and lock files searched for, by file name (case-insensitive). */
 const MANIFEST_NAME =
-  /^(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml)$/i;
+  /^(?:package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml|pom\.xml|build\.gradle(?:\.kts)?|libs\.versions\.toml|gradle\.lockfile|[^/]*\.(?:cs|fs|vb)proj|directory\.packages\.props|packages\.config|packages\.lock\.json|composer\.(?:json|lock)|go\.mod|gemfile(?:\.lock)?|cargo\.(?:toml|lock))$/i;
 /** How deep under the application a manifest may sit (ARCHITECTURE.md §6.9: a separate front end and API). */
 const MAX_DEPTH = 4;
+/**
+ * Folders never searched: those no facts source walks (SKIP_DIRS), the installed dependencies of PHP and Go (vendor/
+ * holds the composer.json of every installed package) and the build output of Maven and Cargo (target/).
+ */
+const SKIP = [...SKIP_DIRS, "vendor", "target"];
+
+/**
+ * The user and password of a URL ("https://user:token@host/…"), as a manifest may name a private source or a git
+ * dependency with them (bounded: linear).
+ */
+const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]{0,31}:\/\/)[^\s/@]{1,256}@/gi;
+
+/** A text a manifest gives an item (a version, a constraint) without a credential: a URL's user and password removed;
+ * null when what is left still looks like a secret to a detector of the kit, or is over 500 characters. */
+function withoutCredentials(text) {
+  if (typeof text !== "string") return text;
+  if (text.length > 500) return null;
+  const bare = text.replace(URL_CREDENTIALS, "$1");
+  return GENERIC.some((d) => {
+    d.re.lastIndex = 0;
+    for (const m of bare.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
+    return false;
+  })
+    ? null
+    : bare;
+}
+
+/** Whether a version or a constraint is an address, or is not kept as written (a credential, a secret). */
+const unusual = (raw, kept) => typeof raw === "string" && (raw.includes("://") || raw !== kept);
+
+/**
+ * An item as it is kept (AUDIT.md S8: a secret is never stored): its version and constraint without a credential;
+ * none when its name is not a package's name (a URL, a secret). One whose version or constraint is an address, or
+ * held what was removed, is `local`: not from a public registry, so its name is never sent (engine/facts/network.mjs).
+ */
+function kept(item) {
+  if (typeof item.name !== "string" || item.name.includes("://") || withoutCredentials(item.name) !== item.name)
+    return null;
+  const version = withoutCredentials(item.version) ?? null;
+  const out = { ...item, version };
+  if ("spec" in item) out.spec = withoutCredentials(item.spec) ?? null;
+  if (unusual(item.version, version) || ("spec" in item && unusual(item.spec, out.spec))) out.local = true;
+  return out;
+}
 
 /** Every expression the readers run on manifests (registered in test/tools/redos-worker.mjs, RULES.md S5). */
-export const DEPENDENCY_PATTERNS = Object.freeze({ ...NPM_PATTERNS, ...PYTHON_PATTERNS });
+export const DEPENDENCY_PATTERNS = Object.freeze({
+  URL_CREDENTIALS,
+  ...NPM_PATTERNS,
+  ...PYTHON_PATTERNS,
+  ...JVM_PATTERNS,
+  ...DOTNET_PATTERNS,
+  ...PHP_PATTERNS,
+  ...GO_PATTERNS,
+  ...RUBY_PATTERNS,
+  ...RUST_PATTERNS,
+});
+
+/** The readers known by their whole file name (lower case). */
+const READERS = Object.freeze({
+  ...NPM_READERS,
+  ...JVM_READERS,
+  ...PHP_READERS,
+  ...GO_READERS,
+  ...RUBY_READERS,
+  ...RUST_READERS,
+});
+
+/**
+ * The reader of a manifest or lock file, by its file name (lower case): by its whole name, or by its form
+ * (requirements*.txt, a .NET project file), or null.
+ * @param {string} name
+ * @returns {((abs: string, manifest: string, unreadable: Array<{ file: string, reason: string }>) => Array<object>)|null}
+ */
+export const dependencyReader = (name) =>
+  Object.hasOwn(READERS, name) ? READERS[name] : pythonReader(name) || dotnetReader(name);
 
 /**
  * The `dependencies` source: every manifest and lock file found under `appDir` (recursively, at most
  * {@link MAX_DEPTH} folders deep), each read independently.
  * @param {string} appDir
- * @param {Array<{ file: string, reason: "read"|"json" }>} [unreadable]  receives the manifests that could not be read
+ * @param {Array<{ file: string, reason: "read"|"json"|"xml" }>} [unreadable]  receives the manifests that could not
+ *   be read
  * @returns {Array<{name,version,ecosystem,direct,dev,manifest,license?}>} sorted by manifest, then ecosystem, then name
  */
 export function collectDependencies(appDir, unreadable = []) {
   const items = [];
-  for (const rel of listFiles(appDir, { maxDepth: MAX_DEPTH }).filter((f) => MANIFEST_NAME.test(f.split("/").pop()))) {
-    const name = rel.split("/").pop().toLowerCase();
-    const reader = NPM_READERS[name] || pythonReader(name);
-    if (reader) items.push(...reader(path.join(appDir, rel), rel, unreadable));
+  const push = (item) => {
+    const k = kept(item);
+    if (k) items.push(k);
+  };
+  for (const rel of listFiles(appDir, { maxDepth: MAX_DEPTH, skip: SKIP }).filter((f) =>
+    MANIFEST_NAME.test(f.split("/").pop()),
+  )) {
+    const reader = dependencyReader(rel.split("/").pop().toLowerCase());
+    if (reader) for (const item of reader(path.join(appDir, rel), rel, unreadable)) push(item);
   }
   return items.sort(
     (a, b) =>

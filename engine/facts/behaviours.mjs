@@ -7,12 +7,13 @@
 //   schedule; signal: the hint (contains, caseInsensitive, orderBy, limit, required, max…); field: the field or
 //   parameter named; value: a number or a short token (a page size, asc/desc, a cron expression); values: a list
 //   (a select's options, an enum); via: what it was read in (array, prisma, sql, django, zod, html, openapi…).
-// What is read: the code of the application (JavaScript, TypeScript, JSX, Vue, Svelte, Python, HTML) and its OpenAPI
-// documents in JSON; never its tests, its comments, its dependencies (SKIP_DIRS) or a file over 512 KB. What is kept
-// of the code: names, numbers, short tokens and short lists, each through a whitelist (engine/facts/behaviour-common.mjs).
-import fs from "node:fs";
+// What is read: the code of the application (JavaScript, TypeScript, JSX, Vue, Svelte, Python, HTML), its OpenAPI
+// documents in JSON, and the files the stack adapters read (Java, C#, PHP…: their `behaviours`); never its tests,
+// its comments, its dependencies or a file over 512 KB (engine/facts/code-files.mjs). What is kept of the code:
+// names, numbers, short tokens and short lists, each through a whitelist (engine/facts/behaviour-common.mjs).
 import path from "node:path";
-import { listFiles } from "./common.mjs";
+import { readableFiles, readCode } from "./code-files.mjs";
+import { BUILT_IN_STACKS, runningStacks } from "./stacks.mjs";
 import { createSink, jsCommentRanges, pyCommentRanges, htmlCommentRanges } from "./behaviour-common.mjs";
 import { jsBehaviours } from "./behaviour-js.mjs";
 import { sqlBehaviours } from "./behaviour-sql.mjs";
@@ -20,8 +21,6 @@ import { pyBehaviours } from "./behaviour-py.mjs";
 import { schemaBehaviours } from "./behaviour-schemas.mjs";
 import { openapiBehaviours, OPENAPI_FILE, OPENAPI_YAML } from "./openapi.mjs";
 
-/** A file larger than this is not read (a bundle, a generated file). */
-const MAX_BYTES = 512 * 1024;
 /** At most this many items in all. */
 const MAX_ITEMS = 5000;
 
@@ -40,19 +39,20 @@ const LANGUAGES = {
   ".htm": "html",
 };
 
-/** A test, a fixture or a story: never the behaviour of the application itself. */
-const TEST_FILE =
-  /(^|\/)(__tests__|__mocks__|tests?|spec|e2e|cypress|playwright|fixtures?|stories)\/|\.(test|spec|stories|cy)\.[cm]?[jt]sx?$|(^|\/)(test_[^/]*|[^/]*_test|conftest)\.py$/;
-/** A minified bundle or a generated declaration. */
-const GENERATED = /\.min\.[cm]?js$|\.d\.ts$|(^|\/)(vendor|public\/build|static\/dist)\//;
-
 /** A template, whose HTML comments (<!-- … -->) are comments too. */
 const TEMPLATE = /\.(?:vue|svelte)$/;
 
-/** The signals of one file of code, by its language; its comments (linear walks that skip strings) never read. */
-function fileSignals(rel, text, language) {
+/** A language whose comments start with "#" (Ruby, Elixir, Perl), for a file only a stack adapter reads. */
+const HASH_COMMENTS = /\.(?:rb|ex|exs|pl|pm)$/i;
+
+/**
+ * The signals of one file of code: the kit's readers of its language (js, py, html; none for a file only a stack
+ * adapter reads), then each stack adapter that reads it; its comments (linear walks that skip strings) never read —
+ * C-like (//, /* *\/) for the languages the kit does not read itself, "#" for those of HASH_COMMENTS.
+ */
+function fileSignals(rel, text, language, stacks) {
   const ranges =
-    language === "py"
+    language === "py" || (!language && HASH_COMMENTS.test(rel))
       ? pyCommentRanges(text)
       : language === "html"
         ? htmlCommentRanges(text)
@@ -60,10 +60,18 @@ function fileSignals(rel, text, language) {
   const sink = createSink(rel, text, ranges);
   if (language === "js") jsBehaviours(text, sink);
   if (language === "py") pyBehaviours(text, sink);
-  if (language !== "html") sqlBehaviours(text, sink);
-  schemaBehaviours(text, language, sink);
+  if (language && language !== "html") sqlBehaviours(text, sink);
+  if (language) schemaBehaviours(text, language, sink);
+  for (const adapter of stacks)
+    if (!sink.full && readsBehaviours(adapter, rel, text)) adapter.behaviours(text, sink, rel);
   return sink.items;
 }
+
+/** Whether a stack adapter reads the behaviours of a file (its `files`, then its `marker`). */
+const readsBehaviours = (adapter, rel, text) =>
+  typeof adapter.behaviours === "function" &&
+  rel.search(adapter.files) !== -1 &&
+  (!adapter.marker || text.search(adapter.marker) !== -1);
 
 /** One item per family, signal, file, line and field: the same hint found twice is kept once. */
 function deduplicated(items) {
@@ -79,16 +87,19 @@ function deduplicated(items) {
 /**
  * The behaviour signals of the application, in file then line order.
  * @param {string} appDir
+ * @param {readonly import("./stacks.mjs").StackAdapter[]} [stacks]
  * @returns {{ items: object[], unreadable: Array<{ file: string, reason: string }> }}
  */
-export function collectBehaviours(appDir) {
+export function collectBehaviours(appDir, stacks = BUILT_IN_STACKS) {
   const items = [];
   const unreadable = [];
-  for (const rel of listFiles(appDir)) {
-    if (TEST_FILE.test(rel) || GENERATED.test(rel)) continue;
+  const files = readableFiles(appDir);
+  const readers = runningStacks(appDir, stacks, files).filter((a) => typeof a.behaviours === "function");
+  for (const rel of files) {
     const openapi = OPENAPI_FILE.test(rel);
     const language = LANGUAGES[path.extname(rel).toLowerCase()];
-    if (!openapi && !language && !OPENAPI_YAML.test(rel)) continue;
+    const stacked = !language && readers.some((a) => rel.search(a.files) !== -1);
+    if (!openapi && !language && !stacked && !OPENAPI_YAML.test(rel)) continue;
     // The limit reached: this file and the next ones are not read, and this says so.
     if (items.length >= MAX_ITEMS) {
       unreadable.push({ file: rel, reason: "limitNext" });
@@ -98,18 +109,12 @@ export function collectBehaviours(appDir) {
       unreadable.push({ file: rel, reason: "yaml" });
       continue;
     }
-    const abs = path.join(appDir, rel);
-    let text;
-    try {
-      if (fs.statSync(abs).size > MAX_BYTES) {
-        unreadable.push({ file: rel, reason: "tooLarge" });
-        continue;
-      }
-      text = fs.readFileSync(abs, "utf8");
-    } catch {
-      unreadable.push({ file: rel, reason: "read" });
+    const read = readCode(appDir, rel);
+    if (!("text" in read)) {
+      unreadable.push({ file: rel, reason: read.reason });
       continue;
     }
+    const { text } = read;
     if (openapi) {
       let doc;
       try {
@@ -126,7 +131,7 @@ export function collectBehaviours(appDir) {
         continue;
       }
       items.push(...sink.items);
-    } else items.push(...fileSignals(rel, text, language));
+    } else items.push(...fileSignals(rel, text, language, readers));
     // This file took the last hints the limit allows: its others, and the next files, are not read — and this says so.
     if (items.length > MAX_ITEMS) {
       items.length = MAX_ITEMS;

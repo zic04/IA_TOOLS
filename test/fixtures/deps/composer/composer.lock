@@ -1,0 +1,71 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state"
+    ],
+    "content-hash": "0f1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "packages": [
+        {
+            "name": "acme/billing",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "./packages/acme/billing",
+                "reference": "3c8b1f2e"
+            },
+            "type": "library",
+            "license": [
+                "proprietary"
+            ]
+        },
+        {
+            "name": "guzzlehttp/guzzle",
+            "version": "7.8.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/guzzle/guzzle.git",
+                "reference": "41042bc7ab002487b876a0683fc8dce04ddce104"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/41042bc7ab002487b876a0683fc8dce04ddce104",
+                "reference": "41042bc7ab002487b876a0683fc8dce04ddce104",
+                "shasum": ""
+            },
+            "type": "library",
+            "license": [
+                "MIT"
+            ]
+        },
+        {
+            "name": "laravel/framework",
+            "version": "v10.40.0",
+            "type": "library",
+            "license": [
+                "MIT"
+            ]
+        },
+        {
+            "name": "ramsey/uuid",
+            "version": "4.7.5",
+            "type": "library",
+            "license": [
+                "MIT",
+                "Apache-2.0"
+            ]
+        }
+    ],
+    "packages-dev": [
+        {
+            "name": "phpunit/phpunit",
+            "version": "10.5.5",
+            "type": "library",
+            "license": "BSD-3-Clause"
+        }
+    ],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "platform": {
+        "php": "^8.2"
+    },
+    "plugin-api-version": "2.6.0"
+}

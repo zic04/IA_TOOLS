@@ -9,18 +9,11 @@ import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
 import { collectEnv } from "../../engine/facts/env.mjs";
-import {
-  collectApi,
-  nextAppRouteOf,
-  nextRouteMethods,
-  nextRouteHandlers,
-  pagesApiRouteOf,
-  fastapiRoutes,
-  expressRoutes,
-  pythonNonCodeRanges,
-  jsNonCodeRanges,
-  inNonCodeRange,
-} from "../../engine/facts/api.mjs";
+import { collectApi } from "../../engine/facts/api.mjs";
+import { nextAppRouteOf, nextRouteMethods, nextRouteHandlers, pagesApiRouteOf } from "../../adapters/stack/next.mjs";
+import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
+import { expressRoutes } from "../../adapters/stack/express.mjs";
+import { textIndex, pyCommentRanges, jsCommentRanges } from "../../engine/facts/behaviour-common.mjs";
 import { collectDb } from "../../engine/facts/db.mjs";
 import { collectAgents, hiddenCharacters } from "../../engine/facts/agents.mjs";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
@@ -289,19 +282,12 @@ describe("engine/facts sources on their fixtures", () => {
       ["a.py", 'router = APIRouter(prefix="/orders")\n@router.get("/{id}")\ndef f(): pass\n'],
       ["main.py", 'app.include_router(router, prefix="/api")\n'],
     ]);
+    // The extractors give the guards; collectApi classifies the access with the project's patterns.
     assert.deepEqual(fastapiRoutes(sources), [
-      {
-        method: "GET",
-        route: "/api/orders/{id}",
-        file: "a.py",
-        line: 2,
-        framework: "fastapi",
-        auth: "none",
-        guards: [],
-      },
+      { method: "GET", route: "/api/orders/{id}", file: "a.py", line: 2, framework: "fastapi", guards: [] },
     ]);
     assert.deepEqual(expressRoutes('// orders\nrouter.delete("/orders/:id", h)', "x.js"), [
-      { method: "DELETE", route: "/orders/:id", file: "x.js", line: 2, framework: "express", auth: "none", guards: [] },
+      { method: "DELETE", route: "/orders/:id", file: "x.js", line: 2, guards: [] },
     ]);
     assert.deepEqual(
       [...nextRouteHandlers("import x from 'y';\nexport async function GET() {}\n\nexport const POST = h;\n")],
@@ -330,7 +316,7 @@ describe("engine/facts sources on their fixtures", () => {
     assert.deepEqual(items.map((i) => `${i.method} ${i.route}`).sort(), ["GET /real", "WS /ws/orders"]);
     const ws = items.find((i) => i.method === "WS");
     assert.equal(ws.framework, "fastapi");
-    assert.equal(ws.auth, "none");
+    assert.deepEqual(ws.guards, []);
 
     // The same false positive, found via collectApi on a fixture-shaped app.
     const dir = tempDir("facts-api-nonco-");
@@ -364,18 +350,23 @@ describe("engine/facts sources on their fixtures", () => {
     );
   });
 
-  test("pythonNonCodeRanges/jsNonCodeRanges/inNonCodeRange: comments and triple-quoted strings masked, a normal quoted argument is not", () => {
+  test("the comments of a route reader: Python comments and docstrings masked, a normal quoted argument is not", () => {
     const py = 'x = "/kept"\n# comment /ignored\n"""\nblock /ignored\n"""\n';
-    const ranges = pythonNonCodeRanges(py);
-    assert.ok(!inNonCodeRange(ranges, py.indexOf('"/kept"')));
-    assert.ok(inNonCodeRange(ranges, py.indexOf("/ignored")));
-    assert.ok(inNonCodeRange(ranges, py.indexOf("block /ignored")));
+    const pyIndex = textIndex(py, pyCommentRanges(py, { docstrings: true }));
+    assert.ok(!pyIndex.inComment(py.indexOf('"/kept"')));
+    assert.ok(pyIndex.inComment(py.indexOf("/ignored")));
+    assert.ok(pyIndex.inComment(py.indexOf("block /ignored")));
+    assert.ok(
+      !textIndex(py, pyCommentRanges(py)).inComment(py.indexOf("block /ignored")),
+      "a docstring is code by default",
+    );
 
     const js = 'x("/kept");\n// comment /ignored\n/* block\n/ignored */\n';
-    const jsRanges = jsNonCodeRanges(js);
-    assert.ok(!inNonCodeRange(jsRanges, js.indexOf('"/kept"')));
-    assert.ok(inNonCodeRange(jsRanges, js.indexOf("/ignored")));
-    assert.ok(inNonCodeRange(jsRanges, js.indexOf("block")));
+    const jsIndex = textIndex(js, jsCommentRanges(js));
+    assert.ok(!jsIndex.inComment(js.indexOf('"/kept"')));
+    assert.ok(jsIndex.inComment(js.indexOf("/ignored")));
+    assert.ok(jsIndex.inComment(js.indexOf("block")));
+    assert.equal(jsIndex.lineOf(js.indexOf("block")), 3);
   });
 
   test("api: several FastAPI router modules that all name their variable `router` do not bleed into each other", () => {

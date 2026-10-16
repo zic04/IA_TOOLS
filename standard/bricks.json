@@ -6,8 +6,10 @@
     "inputs": ["inputs.repos", "inputs.docs"],
     "facts": [
       "facts.dependencies",
+      "facts.stack",
       "facts.env",
       "facts.api",
+      "facts.screens",
       "facts.db",
       "facts.behaviours",
       "facts.agents",
@@ -59,6 +61,22 @@
       "needs": ["inputs.repos"],
       "steps": [{ "command": "facts", "source": "api" }],
       "freshness": { "rule": "envelope", "files": ["api"] }
+    },
+    {
+      "id": "facts.screens",
+      "kind": "facts",
+      "title": { "en": "Screens of the front-end routers", "fr": "Écrans des routeurs du front" },
+      "needs": ["inputs.repos"],
+      "steps": [{ "command": "facts", "source": "screens" }],
+      "freshness": { "rule": "envelope", "files": ["screens"] }
+    },
+    {
+      "id": "facts.stack",
+      "kind": "facts",
+      "title": { "en": "Stacks, languages and the code the kit reads", "fr": "Piles, langages et code lu par le kit" },
+      "needs": ["inputs.repos"],
+      "steps": [{ "command": "facts", "source": "stack" }],
+      "freshness": { "rule": "envelope", "files": ["stack"] }
     },
     {
       "id": "facts.db",

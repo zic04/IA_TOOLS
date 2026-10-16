@@ -10,6 +10,7 @@ import { findPageEntry } from "../sync/dependencies.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
 import { behaviourParts } from "./behaviours-section.mjs";
+import { unreadPart } from "./unread-section.mjs";
 
 /** `use/orders` → `use__orders.md` (ARCHITECTURE.md §6.11): the context file's name, "/" replaced with "__". */
 export const contextFileName = (pageId) => `${pageId.replaceAll("/", "__")}.md`;
@@ -256,8 +257,8 @@ export function buildContext({
 
   // ─── 5. Facts ──────────────────────────────────────────────────────────────────────────────────────────────
   const fileSet = new Set(deps.files.filter((f) => !isDocRef(f.path)).map((f) => f.path));
-  // The behaviour hints have their own part (below): never repeated as raw facts rows.
-  const { behaviours: behaviourItems = [], ...otherFacts } = facts || {};
+  // The behaviour hints have their own part (below), the languages of the code theirs (5c): never raw facts rows.
+  const { behaviours: behaviourItems = [], stack: stackItems = [], ...otherFacts } = facts || {};
   const rows = factsFor(otherFacts, fileSet, deps.routes);
   /** @type {import("./budget.mjs").BudgetPart} */
   const factsPart = { kind: "facts", text: "", cutLine: cutLine("facts", t("cli.context.section.facts"), "—") };
@@ -280,6 +281,9 @@ export function buildContext({
     cutLine: cutLine("facts", t("cli.context.section.behaviours"), "—"),
     t,
   });
+
+  // ─── 5c. Code the kit does not read (§6.9, source stack): the agent reads it itself ─────────────────────────────
+  const unreadText = unreadPart({ items: stackItems, files: [...fileSet], t });
 
   // ─── 6. Glossary ───────────────────────────────────────────────────────────────────────────────────────────
   const terms = glossaryFor(glossary, [page.title || "", page.summary || "", ...excerptTexts]);
@@ -338,6 +342,7 @@ export function buildContext({
     labelsPart,
     behaviourPart.hints,
     behaviourPart.cards,
+    { kind: "page", text: unreadText, cutLine: "" },
     factsPart,
     { kind: "page", text: glossaryText, cutLine: "" },
     { kind: "page", text: updateText, cutLine: "" },

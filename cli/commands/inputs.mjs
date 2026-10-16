@@ -7,6 +7,7 @@
 // documentation agents, in .doc-kit/inputs/docs/, without a secret. A page of Confluence or SharePoint is read by
 // the skill through the session's connectors, never by the kit. Exit code 0; 1 when a source could not be fetched
 // or read; 2 for an invalid inputs.json or a usage error.
+import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { readInputs, writeInputs, addInput, INPUTS_FILE } from "../../engine/inputs/model.mjs";
@@ -99,11 +100,54 @@ function ingest(ctx, root, inputs, config, files) {
   return results.some((r) => r.state === "refused" || r.state === "missing") ? EXIT.CHECK : EXIT.OK;
 }
 
-function status(ctx, root, inputs, exists) {
+/** The `stack` facts of the project (facts/stack.json, ARCHITECTURE.md §6.9), or null: not collected, unreadable. */
+function stackFacts(root, config) {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(root, config.paths.facts, "stack.json"), "utf8"));
+    return Array.isArray(data?.items) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What the kit reads of the code of app.dir: the part of its lines, each language, the stacks and platforms found. */
+function printReading(ctx, config, stack) {
+  const file = `${config.paths.facts}/stack.json`;
+  ctx.print(`\n${ctx.t("cli.inputs.section.reading", { file })}`);
+  if (!stack) return ctx.print(`  → ${ctx.t("cli.inputs.next.stack")}`);
+  const { summary = {}, stacks = [] } = stack;
+  if (summary.lines)
+    ctx.print(`  ${ctx.t("cli.inputs.reading.share", { share: summary.share, lines: summary.lines })}`);
+  for (const i of stack.items)
+    ctx.print(
+      i.read
+        ? `  ${ctx.paint.ok("✔")} ${ctx.t("cli.inputs.reading.read", { language: i.language, lines: i.lines, by: i.by.join(", ") })}`
+        : `  ${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reading.unread", { language: i.language, lines: i.lines })}`,
+    );
+  const found = stacks.filter((x) => x.family === "stack");
+  if (found.length)
+    ctx.print(
+      `  ${ctx.t("cli.inputs.reading.stacks", { list: found.map((x) => `${x.title} (${x.evidence[0]})`).join(" · ") })}`,
+    );
+  for (const x of stacks.filter((y) => y.family === "lowcode"))
+    ctx.print(
+      `  ${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reading.lowcode", { title: x.title, evidence: x.evidence[0] })}`,
+    );
+}
+
+function status(ctx, root, inputs, exists, config) {
   const s = inputsStatus({ root, inputs, commit: ctx.commit });
-  if (ctx.json) return (ctx.print(JSON.stringify(s, null, 2)), EXIT.OK);
+  const stack = stackFacts(root, config);
+  if (ctx.json) {
+    const reading = stack ? { items: stack.items, stacks: stack.stacks ?? [], summary: stack.summary ?? null } : null;
+    return (ctx.print(JSON.stringify({ ...s, reading }, null, 2)), EXIT.OK);
+  }
   const total = s.code.length + s.app.length + s.documents.length + s.workspaces.length + (s.backlog ? 1 : 0);
-  if (!exists || !total) return (ctx.print(ctx.t("cli.inputs.empty", { file: INPUTS_FILE })), EXIT.OK);
+  if (!exists || !total) {
+    ctx.print(ctx.t("cli.inputs.empty", { file: INPUTS_FILE }));
+    printReading(ctx, config, stack);
+    return EXIT.OK;
+  }
   ctx.print(ctx.paint.bold(ctx.t("cli.inputs.title", { file: INPUTS_FILE })));
   const line = (state, text) => {
     const paint = { "✔": ctx.paint.ok, "⚠": ctx.paint.warn, "✖": ctx.paint.fail }[MARKS[state]] || ctx.paint.dim;
@@ -136,6 +180,7 @@ function status(ctx, root, inputs, exists) {
     s.documents.some((d) => d.state === "notIngested" || d.state === "stale") ? ctx.t("cli.inputs.next.ingest") : null,
   ].filter(Boolean);
   if (todo.length) ctx.print(`\n${todo.map((x) => `→ ${x}`).join("\n")}`);
+  printReading(ctx, config, stack);
   return EXIT.OK;
 }
 
@@ -154,6 +199,6 @@ export async function run({ ctx, values, positionals = [] }) {
       config,
       rest.map((f) => f.split(path.sep).join("/")),
     );
-  if (sub === "status") return status(ctx, root, inputs, exists);
+  if (sub === "status") return status(ctx, root, inputs, exists, config);
   throw new KitError(EXIT.USAGE, "inputs.unknownAction", { action: sub });
 }

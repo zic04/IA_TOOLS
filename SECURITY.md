@@ -103,6 +103,18 @@ as untrusted input:
   and refused when it looks like a key, a token or a long number (a card, a phone): never a string as written, a
   default only as a number, and no value at all for a field whose name says it is secret (password, token, key…);
   it never reads the tests, the comments, or a file over 512 KB;
+- the stack adapters that read the routes, screens and hints of a framework (`facts`: `api`, `screens`,
+  `behaviours`) are the kit's, or the project's own named `local:` in `stacks.adapters` — a file of the documentation
+  project, never of the application (the configuration accepts nothing else, and a path that leads out of the
+  project, links followed, is refused before anything is loaded). They are given the texts of the
+  application's files, never a test, a generated file or a file over 512 KB, and run nothing of it; the kit classifies
+  the access of a route itself, from the names they return;
+- the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
+  the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
+  sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
+- the `stack` source measures the languages of the code and names the stacks and low-code platforms found from the
+  dependency names and the file names only; what the kit does not read is told (`inputs status`, the context of a
+  page), never guessed;
 - the `sources` of a page (toc.json) and of a feature (features.json) are confined to the application: an absolute
   glob, one that climbs (`..`) or one that holds a `:` (a drive, `C:x`; a data stream of a Windows file,
   `.env::$DATA`) is left out, and so is what is not a file in `app.dir` once links are followed (a symbolic link, a

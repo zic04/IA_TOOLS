@@ -1,15 +1,18 @@
 ## En bref
 
-Les adaptateurs sont les deux points d'extension du kit. Chacun est un petit module qui exporte un objet ; la
+Les adaptateurs sont les points d'extension du kit. Chacun est un petit module qui exporte un objet ; la
 configuration le nomme et donne ses options à côté.
 
 1. **Les adaptateurs de couverture** (`coverage`) listent ce que contient l'application (routes, entrées de
    registre, fichiers). Le kit cherche chaque élément dans la documentation et signale ce qui n'est pas cité.
 2. **Les adaptateurs d'authentification** (`auth`) reconnaissent une session ouverte, pour `connect` et avant chaque
    capture.
-3. **Intégrés ou locaux.** Le kit en fournit quatre de chaque sorte ; un projet ajoute les siens avec
+3. **Intégrés ou locaux.** Le kit fournit les siens de chaque sorte ; un projet ajoute les siens avec
    `adapter: "local:adapters/x.mjs"`, un chemin relatif au projet de documentation.
-4. **Les options sont validées** comme la configuration : une option inconnue ou manquante est une erreur signalée
+4. **Les adaptateurs de pile** (`stacks`) lisent les routes, les gardes, les écrans et les indices de comportement
+   d'un framework, pour `doc-kit facts`. [Ce que le kit sait lire](#/reference/compatibility) les liste avec les piles
+   et les langages qu'ils lisent.
+5. **Les options sont validées** comme la configuration : une option inconnue ou manquante est une erreur signalée
    avec son chemin (`coverage[0].ap`, `auth.loginPatern`), code de sortie 2.
 
 ## Les adaptateurs de couverture
@@ -23,7 +26,7 @@ configuration le nomme et donne ses options à côté.
 | `openapi` | Les opérations d'un document OpenAPI 3 ou Swagger 2, en JSON | `file` (obligatoire), `family` (`"API"`), `prefix` (`""`), `exclude` |
 | `features` | Les candidates fonctionnalités métier de `features.json` ([Fonctionnalités, règles et rôles](#/write/markdown~fonctionnalites-regles-et-roles)) | `file` (`"features.json"`), `family` (`"Features"`) |
 | `fastapi` | Les gestionnaires de route d'une application FastAPI (`APIRouter(prefix)` et `include_router(prefix)` composés) | `app` (`"."`), `family` (`"API"`), `exclude` |
-| `facts` | Un élément par fait d'une source `doc-kit facts` : `env`, `api`, `db`, les `dependencies` directes, ou `agents` | `source` (obligatoire), `family` (selon la source), `dir` (`"facts"`), `exclude` |
+| `facts` | Un élément par fait d'une source `doc-kit facts` : `env`, `api`, `screens`, `db`, les `dependencies` directes, ou `agents` | `source` (obligatoire), `family` (selon la source), `dir` (`"facts"`), `exclude` |
 
 - **Next.js** : les groupes de routes `(marketing)` et les slots `@modal` n'ajoutent aucun segment ; les routes
   d'interception et les dossiers `_private` sont ignorés ; `[id]`, `[...slug]` et `[[...slug]]` sont conservés.
@@ -65,6 +68,18 @@ le rapport dit pourquoi (`introuvable : ../../app`).
 
 Tout adaptateur d'authentification accepte aussi `start` (`"/"`), `loginPattern`
 (`"login|signin|sign-in|oauth|authorize"`) et `browser` (`"chromium"` ou `"chrome"`).
+
+## Les adaptateurs de pile
+
+| Adaptateur | Lit | Dans les fichiers |
+|---|---|---|
+| `next` | Les gestionnaires de route de l'App Router (`route.ts`, un élément par méthode exportée) et de `pages/api`, avec les appels de session et les contrôles de rôle de chacun ; les écrans de l'App Router (`page.tsx`) et du Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
+| `express` | Express, et les routeurs écrits comme lui (Fastify, Hono, Koa) : `app.<méthode>("/chemin", …middlewares, gestionnaire)` et `router.<méthode>(…)`, `.ws(…)` ; les gardes sont les noms des middlewares | `.js`, `.ts`, `.mjs`, `.cjs` |
+| `fastapi` | Les décorateurs `@router.<méthode>("/chemin")`, composés avec `APIRouter(prefix=…)` et `include_router(…, prefix=…)` ; les gardes sont les `Depends(…)` | `.py` |
+
+Le kit donne à chacun le texte de ses fichiers : jamais un test, un fichier généré ou un fichier de plus de 512 Ko. Il
+classe l'accès d'une route d'après ses gardes avec `review.guards` (`none`, `user`, `role`, `unknown`). Rien de
+l'application n'est jamais exécuté. `stacks.disabled` en désactive un.
 
 ## Écrire un adaptateur
 
@@ -117,6 +132,38 @@ export default {
 
 `session()` renvoie `null` quand la page n'est pas connectée, sinon `{ who, details, expires }` : `connect` les
 affiche. Un adaptateur avec `none: true` désactive complètement la session.
+
+### Un adaptateur de pile
+
+```js
+// adapters/cobol.mjs, déclaré par stacks: { adapters: ["local:adapters/cobol.mjs"] }
+export default {
+  name: "cobol",
+  files: /\.cbl$/i,                       // les fichiers qu'il lit, par leur chemin dans l'application
+  marker: /PROCEDURE DIVISION/,           // facultatif : un fichier dont le texte ne le contient pas n'est pas donné
+  languages: ["cobol"],                   // facultatif, pour un adaptateur du projet : les langages de standard/adapters.json qu'il lit (source stack)
+  api({ sources }) {                      // sources : Map(fichier → texte), sans les tests ni les fichiers de plus de 512 Ko
+    const items = [];
+    for (const [file, text] of sources)
+      text.split("\n").forEach((line, i) => {   // une ligne à la fois : un numéro de ligne jamais recompté depuis le début (linéaire, RULES.md S5)
+        const m = /^ {7}ENTRY '([A-Z-]{1,30})'/.exec(line);
+        if (m) items.push({ method: "CALL", route: m[1], file, line: i + 1, guards: [] });
+      });
+    return items;
+  },
+};
+```
+
+| Partie | Contrat |
+|---|---|
+| `files` | Une expression sur le chemin d'un fichier dans l'application (barres obliques) : les fichiers qu'il reçoit |
+| `marker` | Facultatif : une expression que le texte d'un fichier doit contenir pour être donné (un filtre peu coûteux) |
+| `api({ sources })` | Les routes : `{ method, route, file, line, guards }` (et `framework` s'il diffère de `name`) |
+| `screens({ sources })` | Les écrans : `{ route, file, line }`, avec `guards` quand le routeur les déclare |
+| `behaviours(text, sink, file)` | Les indices d'un fichier : `sink.push({ family, signal, field?, value?, values?, via }, index)` ; le kit ne garde qu'un champ, un nombre ou un mot court, par sa liste blanche |
+
+Au moins un de `api`, `screens` ou `behaviours`. Toute expression qui parcourt le texte de l'application doit
+rester linéaire : les fichiers ne sont pas fiables (SECURITY.md).
 
 ## Pièges et écarts constatés
 

@@ -10,43 +10,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
+import { globRegex } from "../core/glob.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
 export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
-
-/** Regular expression of a glob: ** (any folders), * (any characters but /), ?, {a,b}. */
-export function globRegex(glob) {
-  let re = "";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*" && glob[i + 1] === "*") {
-      i++;
-      if (glob[i + 1] === "/") {
-        i++;
-        re += "(?:.*/)?";
-      } else re += ".*";
-    } else if (c === "*") re += "[^/]*";
-    else if (c === "?") re += "[^/]";
-    else if (c === "{") {
-      const end = glob.indexOf("}", i);
-      if (end < 0) re += "\\{";
-      else {
-        re +=
-          "(?:" +
-          glob
-            .slice(i + 1, end)
-            .split(",")
-            .map((s) => s.replace(/[.+^${}()|[\]\\]/g, "\\$&"))
-            .join("|") +
-          ")";
-        i = end;
-      }
-    } else re += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  }
-  return new RegExp("^" + re + "$");
-}
 
 /**
  * Tools given to the adapters; every path is relative to the project root (the documentation folder).

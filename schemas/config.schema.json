@@ -360,6 +360,16 @@
         "semgrep": { "type": ["string", "null"], "default": null, "description": "Local semgrep rules folder, relative to the project. Without it, `facts --tools` never runs semgrep (never --config auto, which downloads rules)." }
       }
     },
+    "stacks": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The stack adapters of the facts (ARCHITECTURE.md §5, standard/adapters.json): the kit's that are not run, and the project's own.",
+      "properties": {
+        "disabled": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [], "description": "Ids of the kit's stack adapters not run (express, next…): their routes, screens and hints are not read." },
+        "adapters": { "type": "array", "items": { "type": "string", "pattern": "^local:.+" }, "default": [], "description": "The project's own stack adapters, \"local:adapters/x.mjs\" (relative to the project; never a file of the application): run after the kit's." }
+      }
+    },
     "behaviours": {
       "type": "object",
       "additionalProperties": false,

@@ -156,6 +156,7 @@
           "title": "Extending",
           "pages": [
             { "id": "reference/adapters", "title": "Adapters", "menuTitle": "Adapters", "summary": "Coverage and authentication adapters: the built-in ones, their options, and how to write your own.", "template": "technical" },
+            { "id": "reference/compatibility", "title": "What the kit reads", "menuTitle": "Compatibility", "summary": "The stacks, dependency ecosystems, low-code platforms and languages the kit reads, and what it leaves to its agents.", "template": "technical" },
             { "id": "reference/i18n", "title": "Languages and texts", "menuTitle": "Languages and texts", "summary": "The two languages, the i18n namespaces, and the texts a project can override.", "template": "technical" },
             { "id": "reference/theme", "title": "Theme, colours and logo", "menuTitle": "Theme and logo", "summary": "Colour tokens for both themes, contrast checks, icons, logo and status badges.", "template": "technical" }
           ]

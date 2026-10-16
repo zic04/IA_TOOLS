@@ -12,7 +12,7 @@ import { zipFolder } from "../../engine/dev/zip.mjs";
 import { crc32 } from "../../engine/core/hash.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { readZipEntries, ZIP_LIMITS } from "../../engine/inputs/zip.mjs";
-import { walkXml, decodeEntities, inertMarkup } from "../../engine/inputs/xml.mjs";
+import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { docxToMarkdown } from "../../engine/inputs/docx.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
 import { pdfIndex } from "../../engine/inputs/pdf.mjs";

@@ -1,0 +1,31 @@
+{
+  "name": "acme/orders",
+  "type": "project",
+  "require": {
+    "php": "^8.2",
+    "ext-json": "*",
+    "ext-pdo": "*",
+    "lib-curl": ">=7.0",
+    "composer-runtime-api": "^2.2",
+    "laravel/framework": "^10.10",
+    "guzzlehttp/guzzle": "7.8.1",
+    "php-http/discovery": "v1.19.2",
+    "acme/billing": "@dev",
+    "acme/shared-kernel": "*@dev",
+    "acme/legacy-sdk": "dev-main"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.1",
+    "fakerphp/faker": "^1.9.1",
+    "acme/test-helpers": "dev-main"
+  },
+  "repositories": [
+    { "type": "path", "url": "./packages/acme/billing" },
+    { "type": "path", "url": "../shared-kernel/" },
+    { "type": "vcs", "url": "https://github.com/acme/legacy-sdk" },
+    {
+      "type": "package",
+      "package": { "name": "acme/test-helpers", "version": "dev-main", "dist": { "url": "https://example.com/helpers.zip", "type": "zip" } }
+    }
+  ]
+}

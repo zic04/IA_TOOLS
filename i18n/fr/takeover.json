@@ -17,6 +17,10 @@
   "cli.build.facts.missing": "[{page}] fichier de faits introuvable : {file}",
   "cli.build.facts.missing.help": "lancez d'abord {command} facts --source {source}, ou vérifiez paths.facts",
   "cli.facts.noApp": "aucune application à lire",
+  "cli.stacks.unknown": "stacks.disabled : le kit n'a pas d'adaptateur de pile « {name} »",
+  "cli.stacks.unknown.help": "les adaptateurs de pile du kit : {known}",
+  "cli.stacks.outside": "adaptateur de pile « {name} » : ce n'est pas un fichier du projet de documentation",
+  "cli.stacks.outside.help": "un adaptateur de pile du projet se trouve dans le projet de documentation (stacks.adapters: [\"local:adapters/x.mjs\"]) ; rien de l'application n'est jamais exécuté",
   "cli.facts.noApp.help": "renseignez app.dir dans doc.config.mjs, vers la racine de l'application (un dossier existant)",
   "cli.facts.tool.failed": "⚠ {tool} : échec ({reason}) ; ses faits sont inconnus, pas vides",
   "cli.facts.tool.findings": {
@@ -38,6 +42,7 @@
   "cli.facts.unknownSource.help": "sources connues : {known}",
   "cli.facts.unreadable": "⚠ {file} : {reason} ; ses faits sont inconnus, pas vides",
   "cli.facts.unreadable.json": "JSON non valide",
+  "cli.facts.unreadable.xml": "XML mal formé",
   "cli.facts.unreadable.read": "illisible",
   "cli.facts.written": {
     "one": "{source} : {n} élément → {file}",

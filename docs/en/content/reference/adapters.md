@@ -1,14 +1,16 @@
 ## In short
 
-Adapters are the kit's two extension points. Each one is a small module that exports an object; the configuration
+Adapters are the kit's extension points. Each one is a small module that exports an object; the configuration
 names it and gives its options next to it.
 
 1. **Coverage adapters** (`coverage`) list what the application contains (routes, registry entries, files). The kit
    searches the documentation for each element and reports what is not cited.
 2. **Authentication adapters** (`auth`) recognise a signed-in session, for `connect` and before every capture.
-3. **Built-in or local.** The kit ships four of each kind; a project adds its own with
+3. **Built-in or local.** The kit ships its own of each kind; a project adds its own with
    `adapter: "local:adapters/x.mjs"`, a path relative to the documentation project.
-4. **Options are validated** like the configuration: an unknown or missing option is an error with its path
+4. **Stack adapters** (`stacks`) read the routes, guards, screens and behaviour hints of a framework, for
+   `doc-kit facts`. [What the kit reads](#/reference/compatibility) lists them with the stacks and languages they read.
+5. **Options are validated** like the configuration: an unknown or missing option is an error with its path
    (`coverage[0].ap`, `auth.loginPatern`), exit code 2.
 
 ## Coverage adapters
@@ -22,7 +24,7 @@ names it and gives its options next to it.
 | `openapi` | The operations of an OpenAPI 3 or Swagger 2 document, in JSON | `file` (required), `family` (`"API"`), `prefix` (`""`), `exclude` |
 | `features` | The candidate business features of `features.json` ([Features, rules and roles](#/write/markdown~features-rules-and-roles)) | `file` (`"features.json"`), `family` (`"Features"`) |
 | `fastapi` | The route handlers of a FastAPI application (`APIRouter(prefix)` and `include_router(prefix)` composed) | `app` (`"."`), `family` (`"API"`), `exclude` |
-| `facts` | One item per fact of a `doc-kit facts` source: `env`, `api`, `db`, the direct `dependencies`, or `agents` | `source` (required), `family` (by source), `dir` (`"facts"`), `exclude` |
+| `facts` | One item per fact of a `doc-kit facts` source: `env`, `api`, `screens`, `db`, the direct `dependencies`, or `agents` | `source` (required), `family` (by source), `dir` (`"facts"`), `exclude` |
 
 - **Next.js**: route groups `(marketing)` and slots `@modal` add no segment; intercepting routes and `_private`
   folders are skipped; `[id]`, `[...slug]` and `[[...slug]]` are kept.
@@ -64,6 +66,18 @@ report says why (`not found: ../../app`).
 
 Every authentication adapter also accepts `start` (`"/"`), `loginPattern`
 (`"login|signin|sign-in|oauth|authorize"`) and `browser` (`"chromium"` or `"chrome"`).
+
+## Stack adapters
+
+| Adapter | Reads | Of the files |
+|---|---|---|
+| `next` | The route handlers of the App Router (`route.ts`, one item per exported method) and of `pages/api`, with the session calls and role checks of each; the screens of the App Router (`page.tsx`) and of the Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
+| `express` | Express, and the routers written like it (Fastify, Hono, Koa): `app.<method>("/path", …middleware, handler)` and `router.<method>(…)`, `.ws(…)`; the guards are the middleware's names | `.js`, `.ts`, `.mjs`, `.cjs` |
+| `fastapi` | The `@router.<method>("/path")` decorators, composed with `APIRouter(prefix=…)` and `include_router(…, prefix=…)`; the guards are the `Depends(…)` | `.py` |
+
+The kit gives each one the text of its files: never a test, a generated file or a file over 512 KB. It classifies
+the access of a route from its guards with `review.guards` (`none`, `user`, `role`, `unknown`). Nothing of the
+application is ever run. `stacks.disabled` turns one off.
 
 ## Writing an adapter
 
@@ -116,6 +130,38 @@ export default {
 
 `session()` returns `null` when the page is not signed in, otherwise `{ who, details, expires }`: `connect` prints
 them. An adapter with `none: true` disables the session altogether.
+
+### A stack adapter
+
+```js
+// adapters/cobol.mjs, declared as stacks: { adapters: ["local:adapters/cobol.mjs"] }
+export default {
+  name: "cobol",
+  files: /\.cbl$/i,                       // the files it reads, by their path in the application
+  marker: /PROCEDURE DIVISION/,           // optional: a file whose text does not hold it is not given
+  languages: ["cobol"],                   // optional, for a project adapter: languages of standard/adapters.json it reads (source stack)
+  api({ sources }) {                      // sources: Map(file → text), tests and files over 512 KB left out
+    const items = [];
+    for (const [file, text] of sources)
+      text.split("\n").forEach((line, i) => {   // one line at a time: a line number never counted again from the start (linear, RULES.md S5)
+        const m = /^ {7}ENTRY '([A-Z-]{1,30})'/.exec(line);
+        if (m) items.push({ method: "CALL", route: m[1], file, line: i + 1, guards: [] });
+      });
+    return items;
+  },
+};
+```
+
+| Part | Contract |
+|---|---|
+| `files` | An expression on the path of a file in the application (forward slashes): the files it is given |
+| `marker` | Optional: an expression a file's text must match to be given (a cheap filter) |
+| `api({ sources })` | The routes: `{ method, route, file, line, guards }` (and `framework` when it differs from `name`) |
+| `screens({ sources })` | The screens: `{ route, file, line }`, with `guards` when the router declares them |
+| `behaviours(text, sink, file)` | The hints of one file: `sink.push({ family, signal, field?, value?, values?, via }, index)`; the kit keeps a field, a number or a short word only, through its whitelist |
+
+One of `api`, `screens` or `behaviours` at least. Every expression that scans the application's text must stay
+linear: the files are untrusted (SECURITY.md).
 
 ## Pitfalls and observed gaps
 

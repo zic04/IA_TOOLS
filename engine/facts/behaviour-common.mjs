@@ -134,6 +134,28 @@ function upperBound(sorted, n) {
 }
 
 /**
+ * The index of a text: the 1-based line of a character index, and whether it falls in one of `ranges` (its
+ * comments) — each a binary search, so that a reader that finds many matches never walks the text again for each.
+ * @param {string} text
+ * @param {Array<[number, number]>} [ranges]   sorted or not
+ */
+export function textIndex(text, ranges = []) {
+  const newlines = [];
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) newlines.push(i);
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  const starts = sorted.map((r) => r[0]);
+  return {
+    /** @param {number} index */
+    lineOf: (index) => upperBound(newlines, index - 1) + 1,
+    /** @param {number} index */
+    inComment(index) {
+      const k = upperBound(starts, index) - 1;
+      return k >= 0 && index < sorted[k][1];
+    },
+  };
+}
+
+/**
  * The sink of one file: `push(signal, index)` keeps a signal found at a character index, with its 1-based line,
  * unless the index falls in one of `ranges` (its comments) or the file already gave MAX_PER_FILE signals (`full`:
  * a detector may stop). Undefined fields of a signal are left out.
@@ -142,14 +164,7 @@ function upperBound(sorted, n) {
  * @param {Array<[number, number]>} ranges   sorted or not
  */
 export function createSink(file, text, ranges) {
-  const newlines = [];
-  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) newlines.push(i);
-  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
-  const starts = sorted.map((r) => r[0]);
-  const inComment = (index) => {
-    const k = upperBound(starts, index) - 1;
-    return k >= 0 && index < sorted[k][1];
-  };
+  const { lineOf, inComment } = textIndex(text, ranges);
   const items = [];
   return {
     items,
@@ -159,7 +174,7 @@ export function createSink(file, text, ranges) {
     /** @param {{ family: string, signal: string, via: string, field?: any, value?: any, values?: any[], route?: string }} s */
     push(s, index) {
       if (items.length >= MAX_PER_FILE || inComment(index)) return;
-      const item = { family: s.family, signal: s.signal, file, line: upperBound(newlines, index - 1) + 1 };
+      const item = { family: s.family, signal: s.signal, file, line: lineOf(index) };
       const field = safeField(s.field);
       if (field) item.field = field;
       const value = safeValue(s.value, s);
@@ -185,7 +200,7 @@ export function createSink(file, text, ranges) {
  * @param {number} open
  * @param {number} [max]
  * @param {"js"|"py"} [language]
- * @returns {{ args: string, end: number }}
+ * @returns {{ args: string, end: number, closed: boolean }}   closed: false when it does not close within `max`
  */
 export function callSpan(text, open, max = 4000, language = "js") {
   let depth = 0;
@@ -204,10 +219,10 @@ export function callSpan(text, open, max = 4000, language = "js") {
     else if (ch === "(" || ch === "[" || ch === "{") depth++;
     else if (ch === ")" || ch === "]" || ch === "}") {
       depth--;
-      if (depth === 0) return { args: text.slice(open + 1, i), end: i + 1 };
+      if (depth === 0) return { args: text.slice(open + 1, i), end: i + 1, closed: true };
     }
   }
-  return { args: "", end };
+  return { args: "", end, closed: false };
 }
 
 /**
@@ -270,10 +285,13 @@ export function jsCommentRanges(text) {
 
 /**
  * The `#` comments of a Python text, by a linear walk that skips strings (triple-quoted ones included: they may
- * hold SQL, read as code).
+ * hold SQL, read as code) — and, with `docstrings`, its triple-quoted strings too (a route quoted as an example in
+ * a docstring is no route).
+ * @param {string} text
+ * @param {{ docstrings?: boolean }} [options]
  * @returns {Array<[number, number]>}
  */
-export function pyCommentRanges(text) {
+export function pyCommentRanges(text, { docstrings = false } = {}) {
   const out = /** @type {Array<[number, number]>} */ ([]);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
@@ -285,7 +303,9 @@ export function pyCommentRanges(text) {
       const triple = text.startsWith(ch.repeat(3), i);
       if (triple) {
         const end = text.indexOf(ch.repeat(3), i + 3);
-        i = end === -1 ? text.length : end + 2;
+        const stop = end === -1 ? text.length : end + 3;
+        if (docstrings) out.push([i, stop]);
+        i = stop - 1;
       } else for (i++; i < text.length && text[i] !== ch && text[i] !== "\n"; i++) if (text[i] === "\\") i++;
     }
   }

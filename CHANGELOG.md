@@ -8,6 +8,26 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Stack adapters, and what the kit reads of an application** (ARCHITECTURE.md §5, §6.9): the routes of the API,
+  their guards and the screens of a framework are read by **stack adapters** (`adapters/stack/`: `next`, `express`,
+  `fastapi`, the readers of 0.3 moved there and hardened). A project adds its own with
+  `stacks.adapters: ["local:adapters/x.mjs"]` (a file of the documentation project, never of the application) and
+  turns one of the kit's off with `stacks.disabled`. Two new facts sources: `screens` (the pages of the Next.js App
+  Router and Pages Router, the routes of the front-end routers) and `stack` (the stacks and low-code platforms the
+  application uses — Power Apps, Power Platform, OutSystems, Mendix, Salesforce are detected, never read — and each
+  language of its code with its files and lines, and whether the kit reads it). What the kit does not read is told:
+  `doc-kit inputs status` shows the part of the code read, and the context of a page tells its agent which code to
+  read itself. `standard/adapters.json` lists the languages and adapters; the documentation's new page **What the kit
+  reads** is generated from it. The `facts` coverage adapter cites the screens, and the files of a route let sync
+  follow its code. New bricks `facts.screens` and `facts.stack`.
+- **The dependencies of seven more ecosystems** (source `dependencies`): Maven and Gradle (`pom.xml`,
+  `build.gradle`, `build.gradle.kts`, `libs.versions.toml`, `gradle.lockfile`), NuGet (`*.csproj`, `*.fsproj`,
+  `*.vbproj`, `Directory.Packages.props`, `packages.config`, `packages.lock.json`), Composer, Go modules, Bundler and
+  Cargo — each file read on its own, offline, with what it says itself of each package: its exact version (else the
+  constraint as written), whether it is direct, a development one, or not from the public registry. An XML manifest
+  that is not well-formed is listed (`unreadable`, reason `xml`). The `vendor/` and `target/` folders are never
+  read as manifests.
+
 - **What the code says of each behaviour** (ARCHITECTURE.md §6.9, source `behaviours`): `doc-kit facts` now reads how
   the features behave — how a list is searched (contains, starts with, case ignored, accents, full text, a search
   engine), filtered, sorted and paged, which fields a form checks (required, bounds, pattern, email), the lists of
@@ -102,6 +122,15 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **A token in a dependency's address was kept**: `facts --source dependencies` stored a git dependency of a
+  package.json as written (`"x": "git+https://user:TOKEN@github.com/…"`) in `facts/dependencies.json`, and likewise
+  a requirements line (`y @ git+https://user:TOKEN@…`). The user and password of an address are now removed from
+  every version and constraint kept, of every ecosystem, and a value a secret detector of the kit finds is not kept.
+- **A crafted file blocked `facts --source api`**: a file of route calls never closed (`app.get(` written 32,000
+  times, 256 KB) took more than three minutes to read, and 32,000 FastAPI decorators more than twelve seconds — each
+  call was read to the end of the file, each line counted from its start. The routes are now read by the stack
+  adapters, which read each call once (4,000 characters at most), find a line by a binary search, and never read a
+  file over 512 KB, a test or a generated file (the same file: a few milliseconds).
 - **The `sources` of a page could reach outside the application**: a glob of toc.json such as `../.env` put a file
   of the documentation project — or any secret file — whole into the page's context file for an agent. The globs of
   `sources` (a page's, and now a feature's in features.json) are now confined to `app.dir`, files only, never an

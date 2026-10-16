@@ -70,5 +70,8 @@
   "cli.context.behaviours.family.import": "Import",
   "cli.context.behaviours.family.notification": "Notifications",
   "cli.context.behaviours.family.schedule": "Scheduled jobs",
-  "cli.context.behaviours.unknownKind": "“{kind}” (the features file): no kind of behaviour has this name — fix it there, or add the kind with behaviours.file"
+  "cli.context.behaviours.unknownKind": "“{kind}” (the features file): no kind of behaviour has this name — fix it there, or add the kind with behaviours.file",
+  "cli.context.section.unread": "Code the kit does not read",
+  "cli.context.unread.app": "The kit does not read the {languages} code of this application ({share} % of the lines of code): the facts say nothing of that code (its routes, its guards, its behaviours). Read it yourself before writing about it.",
+  "cli.context.unread.files": "The files of this page in such a language — read them whole:"
 }

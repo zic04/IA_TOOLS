@@ -18,7 +18,7 @@ import { sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
 import { schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
 import { openapiBehaviours } from "../../engine/facts/openapi.mjs";
-import { fastapiRoutes } from "../../engine/facts/api.mjs";
+import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { featuresFileOf } from "../../engine/core/features.mjs";
 import { behaviourRegistry } from "../../engine/core/behaviours.mjs";
 import { safeSources } from "../../engine/sync/feature-files.mjs";

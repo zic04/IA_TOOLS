@@ -3,7 +3,7 @@
 // are resolved across every Python file of `app` before the decorators are read).
 //   coverage: [{ adapter: "fastapi", app: "../../backend", exclude: ["^GET /health$"] }]
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
-import { fastapiRoutes } from "../../engine/facts/api.mjs";
+import { fastapiRoutes } from "../stack/fastapi.mjs";
 
 export default {
   name: "fastapi",
