@@ -132,6 +132,7 @@ const STEP_OF = Object.freeze({
   capture: "capture",
   record: "capture",
   facts: "facts",
+  bricks: "update",
   inventory: "analysis",
   probe: "analysis",
   new: "generate",

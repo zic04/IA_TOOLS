@@ -310,6 +310,8 @@ export default defineConfig({
 |---|---|---|
 | `spaces.export` | Écrire un export par espace déclaré, en plus du site complet | `true` |
 | `spaces.output` | Chemin de chaque export, doit contenir `{space}` | la sortie du site complet, `-{space}` inséré avant son extension |
+| `bricks.enabled` | Les briques du projet (`doc-kit bricks`) : ids ou préréglages (`facts`, `full`) | `null` : toutes les briques |
+| `bricks.disabled` | Briques ou préréglages écartés : ils ne sont jamais lancés | `[]` |
 | `paths.facts` | Dossier de `facts/<source>.json`, commité avec le projet | `"facts"` |
 | `paths.sync` | Dossier de `sync.json`, commité avec le projet | la racine du projet (`"."`) |
 | `sync.labels` | Fichiers de messages que `sync --apply --labels` peut toucher | les `messages` propres aux adaptateurs de couverture |

@@ -59,7 +59,9 @@ export async function run({ ctx, values }) {
   const appDir = path.resolve(project.root, config.app.dir);
   if (!fs.existsSync(appDir)) throw new KitError(EXIT.USAGE, "facts.noApp");
 
-  const requested = values.source?.length ? values.source : SOURCE_NAMES;
+  // `sourcesExactly` (internal, from `doc-kit bricks run`, never a command-line option): exactly these sources,
+  // possibly none (the external tools alone); otherwise no --source means every source.
+  const requested = values.sourcesExactly ? values.source || [] : values.source?.length ? values.source : SOURCE_NAMES;
   for (const name of requested)
     if (!SOURCE_NAMES.includes(name))
       throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCE_NAMES.join(", ") });

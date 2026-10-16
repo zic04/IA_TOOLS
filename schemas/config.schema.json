@@ -297,6 +297,16 @@
         "output": { "type": ["string", "null"], "minLength": 1, "default": null, "description": "Path of each export, relative to the project, containing {space}. Default: the output with -{space} before its extension." }
       }
     },
+    "bricks": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The bricks of the project (standard/bricks.json, ARCHITECTURE.md §6.18): the parts that `doc-kit bricks` reports on and runs again on their own.",
+      "properties": {
+        "enabled": { "type": ["array", "null"], "items": { "type": "string", "minLength": 1 }, "default": null, "description": "Brick ids or preset names (facts, full…). null: every brick." },
+        "disabled": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [], "description": "Brick ids or preset names left out." }
+      }
+    },
     "sync": {
       "type": "object",
       "additionalProperties": false,

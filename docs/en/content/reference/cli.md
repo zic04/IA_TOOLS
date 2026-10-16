@@ -82,6 +82,7 @@ exit code 2.
 | `doc-kit stats` | Time, tokens and models per block and per version (`usage/`) |
 | `doc-kit changes` | What changed in the application since a git reference: routes, tables, variables, dependencies, findings (`--record`: kept for `::changes`) |
 | `doc-kit pack` | Files for the next AI: `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets removed) |
+| `doc-kit bricks [<id\|preset>]` · `doc-kit bricks run [<id\|preset>…]` | The state of every brick (facts sources, tools, audit) and why; runs again only the bricks named, or every brick out of date (`--stale`) |
 | `doc-kit hooks install` | Git hooks: facts and sync after each pull and branch switch |
 | `doc-kit export <target>` | Writes a self-contained copy of the project |
 | `doc-kit upgrade` | Shows the changes since the project's kit version, applies the migrations |

@@ -307,6 +307,8 @@ export default defineConfig({
 |---|---|---|
 | `spaces.export` | Write one export per declared space, besides the full site | `true` |
 | `spaces.output` | Path of each export, must contain `{space}` | the full site's output, `-{space}` inserted before its extension |
+| `bricks.enabled` | The bricks of the project (`doc-kit bricks`): ids or presets (`facts`, `full`) | `null`: every brick |
+| `bricks.disabled` | Bricks or presets left out: they never run | `[]` |
 | `paths.facts` | Folder of `facts/<source>.json`, committed with the project | `"facts"` |
 | `paths.sync` | Folder of `sync.json`, committed with the project | the project root (`"."`) |
 | `sync.labels` | Message files `sync --apply --labels` is allowed to touch | the coverage adapters' own `messages` |

@@ -79,6 +79,8 @@ accepte :
 | `sync` | objet · `{}` | `doc-kit sync` (ARCHITECTURE.md §6.10) : ce que la documentation doit suivre après un changement de l'application | |
 | `sync.labels` | liste de globs · `[]` | Fichiers de messages dont les libellés sont suivis, relatifs au projet ; défaut : les `messages` de chaque adaptateur de couverture `i18n-registry` | `["../../src/messages/*.json"]` |
 | `capture.compareThreshold` | nombre de 0 à 1 · `0.005` | `capture --compare` : part de pixels différents au-delà de laquelle une capture est remplacée plutôt que gardée telle quelle | `0.01` |
+| `bricks.enabled` | liste d'ids de briques ou de préréglages, ou `null` · `null` | Les briques du projet, les parties que `doc-kit bricks run` peut relancer seules (ARCHITECTURE.md §6.18) ; `null` : toutes les briques | `["facts", "doc-audit"]` |
+| `bricks.disabled` | liste d'ids de briques ou de préréglages · `[]` | Briques écartées : jamais lancées, même nommées ou par un préréglage | `["facts.history"]` |
 
 Une fois une page marquée, son pied de page affiche « Vérifiée sur la version {version} le {date} » à la prochaine
 construction du site. Voir [Suivre l'application](#/reference/cli/write-check~doc-kit-sync).

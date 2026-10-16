@@ -1,0 +1,43 @@
+{
+  "cli.bricks.config": "doc.config.mjs : bricks.{field} nomme une brique ou un préréglage inconnu : « {id} »",
+  "cli.bricks.config.help": "le plus proche est « {closest} » ; les briques et préréglages sont : {ids}",
+  "cli.bricks.next": "Relancer ce qui n'est plus à jour : {command} bricks run --stale{options}",
+  "cli.bricks.run.agent": "à faire avec le skill : brief {agent} ({per}) pour {brick}",
+  "cli.bricks.run.allSkipped": "Rien n'a été lancé : toutes les briques à lancer ont été ignorées",
+  "cli.bricks.run.done": {
+    "one": "{n} brique lancée",
+    "other": "{n} briques lancées"
+  },
+  "cli.bricks.run.failed": "arrêt : {command} {step} s'est terminé avec le code de sortie {code} ; les briques suivantes n'ont pas été lancées",
+  "cli.bricks.run.nothing": "Rien à lancer : aucune brique demandée n'est absente ou périmée",
+  "cli.bricks.run.skipped": "{id} ignorée : {why}",
+  "cli.bricks.run.start": "Lancement : {ids}",
+  "cli.bricks.runNothing": "aucune brique à lancer",
+  "cli.bricks.runNothing.help": "nommez les briques ou les préréglages ({command} bricks run facts.api doc-audit), ou relancez toutes les briques périmées avec {command} bricks run --stale",
+  "cli.bricks.show.agent": "étape : brief {agent} du skill, un agent par {per}",
+  "cli.bricks.show.command": "étape : {command} {step}",
+  "cli.bricks.show.needs": "a besoin de : {ids}",
+  "cli.bricks.show.preset": {
+    "one": "{id} — préréglage de {n} brique",
+    "other": "{id} — préréglage de {n} briques"
+  },
+  "cli.bricks.show.requires": "demande l'option ou les options : {options}",
+  "cli.bricks.show.title": "{id} — {title} : {state}",
+  "cli.bricks.state.disabled": "désactivée",
+  "cli.bricks.state.fresh": "à jour",
+  "cli.bricks.state.missing": "jamais produite",
+  "cli.bricks.state.stale": "périmée",
+  "cli.bricks.state.volatile": "à la demande",
+  "cli.bricks.title": "Briques du projet",
+  "cli.bricks.unknown": "brique ou préréglage inconnu : « {id} »",
+  "cli.bricks.unknown.help": "la plus proche est « {closest} » ; la liste : {command} bricks",
+  "cli.bricks.why.age": "{file} date de {days} jours (au plus {max})",
+  "cli.bricks.why.commit": "{file} a été lu au commit {was} ; l'application est au commit {now}",
+  "cli.bricks.why.disabled": "écartée par bricks dans doc.config.mjs",
+  "cli.bricks.why.kit": "{file} a été écrit par le kit {was} ; ce kit est le {now}",
+  "cli.bricks.why.needs": "a besoin de {id}, qui n'est pas à jour",
+  "cli.bricks.why.noFile": "pas de {file}",
+  "cli.bricks.why.onDemand": "se lance quand vous le demandez",
+  "cli.bricks.why.requires": "demande l'option {option}",
+  "cli.bricks.why.unreadable": "{file} est illisible"
+}

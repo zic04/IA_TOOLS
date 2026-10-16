@@ -44,6 +44,51 @@ export function staleFacts(root, factsDir, commit) {
     .map((f) => f.source);
 }
 
+/** The "major.minor" of a generator tag ("doc-kit 0.4.2" → "0.4"), or null. Read on its first 64 characters. */
+const kitLine = (generator) =>
+  /(\d+)\.(\d+)\.\d+/
+    .exec(String(generator || "").slice(0, 64))
+    ?.slice(1, 3)
+    .join(".") ?? null;
+
+/**
+ * The state of one facts file (`facts/<name>.json`, a source or a tool report) for the bricks (ARCHITECTURE.md
+ * §6.18): `missing` (no file), `stale` (read from another commit than the application's HEAD, written by another
+ * kit line — major.minor —, older than `maxAgeDays`, or unreadable), else `fresh`. An unknown HEAD (no git) cannot
+ * make a file stale. `why`: the reasons, as message keys and their variables.
+ * @param {string} root
+ * @param {string} factsDir
+ * @param {string} name   file name without .json ("dependencies", "tool-knip")
+ * @param {{ commit: string|null, generator: string, now: Date, maxAgeDays?: number }} p
+ * @returns {{ state: "missing"|"stale"|"fresh", why: Array<{ key: string, vars: object }> }}
+ */
+export function envelopeState(root, factsDir, name, { commit, generator, now, maxAgeDays }) {
+  const file = `${factsDir}/${name}.json`;
+  const abs = path.join(root, file);
+  if (!fs.existsSync(abs)) return { state: "missing", why: [{ key: "noFile", vars: { file } }] };
+  let j;
+  try {
+    j = JSON.parse(fs.readFileSync(abs, "utf8"));
+  } catch {
+    j = null;
+  }
+  if (!j || typeof j !== "object" || Array.isArray(j))
+    return { state: "stale", why: [{ key: "unreadable", vars: { file } }] };
+  const why = [];
+  const recorded = typeof j.commit === "string" ? j.commit : null;
+  if (commit && recorded && recorded !== commit)
+    why.push({ key: "commit", vars: { file, was: recorded.slice(0, 7), now: commit.slice(0, 7) } });
+  const was = typeof j.generator === "string" ? kitLine(j.generator) : null;
+  const current = kitLine(generator);
+  if (was && current && was !== current) why.push({ key: "kit", vars: { file, was, now: current } });
+  const generated = Date.parse(j.generated);
+  if (maxAgeDays && Number.isFinite(generated)) {
+    const days = Math.floor((now.getTime() - generated) / 86_400_000);
+    if (days > maxAgeDays) why.push({ key: "age", vars: { file, days, max: maxAgeDays } });
+  }
+  return { state: why.length ? "stale" : "fresh", why };
+}
+
 /**
  * How many facts files there are, and how many are stale (the audit's informative `facts` indicator).
  * @param {string} root

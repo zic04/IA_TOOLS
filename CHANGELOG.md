@@ -8,6 +8,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Bricks** (ARCHITECTURE.md §6.18): `doc-kit bricks` gives the state of every part of the project that can be
+  run again on its own — each facts source, the external tools, the documentation audit — and why ("read at commit
+  939ed0c; the application is at 24b882c", "written by kit 0.1", "never produced"); `doc-kit bricks <id>` shows one
+  brick (or the bricks of a preset); `doc-kit bricks run [<id|preset>…]` runs again only what you name, or every brick out of date with
+  `--stale`, in the order of their needs (`--deps`, `--force`), the facts read in one run. The bricks are data
+  (`standard/bricks.json`); `bricks.enabled` / `bricks.disabled` in `doc.config.mjs` choose them.
 - **Developer views** in the site, drawn from the facts at build time (`engine/build/developer.mjs`):
   - `::modules{limit}`: the import graph, its cycles, the files most depended on and the orphan files;
   - `::hotspots{limit}` (`::points-chauds`): the files that change most often and are the most complex (git

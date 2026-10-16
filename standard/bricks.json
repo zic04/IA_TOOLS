@@ -1,0 +1,115 @@
+{
+  "$schema": "../schemas/bricks.schema.json",
+  "description": "The bricks of a documentation project (ARCHITECTURE.md §6.18): each part that can be run again on its own. `needs`: bricks that must be fresh first. `steps`: the deterministic commands the kit runs, and the briefs the skill's agents run. `freshness`: how the kit tells that a brick is up to date. Presets name sets of bricks for `bricks.enabled` and `doc-kit bricks run`.",
+  "version": 1,
+  "presets": {
+    "facts": [
+      "facts.dependencies",
+      "facts.env",
+      "facts.api",
+      "facts.db",
+      "facts.agents",
+      "facts.secrets",
+      "facts.security",
+      "facts.quality",
+      "facts.tests",
+      "facts.modules",
+      "facts.history"
+    ],
+    "full": ["facts", "facts.tools", "doc-audit"]
+  },
+  "bricks": [
+    {
+      "id": "facts.dependencies",
+      "kind": "facts",
+      "title": { "en": "Dependencies", "fr": "Dépendances" },
+      "steps": [{ "command": "facts", "source": "dependencies" }],
+      "freshness": { "rule": "envelope", "files": ["dependencies"] }
+    },
+    {
+      "id": "facts.env",
+      "kind": "facts",
+      "title": { "en": "Environment variables", "fr": "Variables d'environnement" },
+      "steps": [{ "command": "facts", "source": "env" }],
+      "freshness": { "rule": "envelope", "files": ["env"] }
+    },
+    {
+      "id": "facts.api",
+      "kind": "facts",
+      "title": { "en": "API routes", "fr": "Routes de l'API" },
+      "steps": [{ "command": "facts", "source": "api" }],
+      "freshness": { "rule": "envelope", "files": ["api"] }
+    },
+    {
+      "id": "facts.db",
+      "kind": "facts",
+      "title": { "en": "Data model", "fr": "Modèle de données" },
+      "steps": [{ "command": "facts", "source": "db" }],
+      "freshness": { "rule": "envelope", "files": ["db"] }
+    },
+    {
+      "id": "facts.agents",
+      "kind": "facts",
+      "title": { "en": "AI agent instructions", "fr": "Instructions des agents IA" },
+      "steps": [{ "command": "facts", "source": "agents" }],
+      "freshness": { "rule": "envelope", "files": ["agents"] }
+    },
+    {
+      "id": "facts.secrets",
+      "kind": "facts",
+      "title": { "en": "Secrets in the repository", "fr": "Secrets dans le dépôt" },
+      "steps": [{ "command": "facts", "source": "secrets" }],
+      "freshness": { "rule": "envelope", "files": ["secrets"] }
+    },
+    {
+      "id": "facts.security",
+      "kind": "facts",
+      "title": { "en": "Security rules", "fr": "Règles de sécurité" },
+      "steps": [{ "command": "facts", "source": "security" }],
+      "freshness": { "rule": "envelope", "files": ["security"] }
+    },
+    {
+      "id": "facts.quality",
+      "kind": "facts",
+      "title": { "en": "Code quality", "fr": "Qualité du code" },
+      "steps": [{ "command": "facts", "source": "quality" }],
+      "freshness": { "rule": "envelope", "files": ["quality"] }
+    },
+    {
+      "id": "facts.tests",
+      "kind": "facts",
+      "title": { "en": "Tests", "fr": "Tests" },
+      "steps": [{ "command": "facts", "source": "tests" }],
+      "freshness": { "rule": "envelope", "files": ["tests"] }
+    },
+    {
+      "id": "facts.modules",
+      "kind": "facts",
+      "title": { "en": "Modules and imports", "fr": "Modules et imports" },
+      "steps": [{ "command": "facts", "source": "modules" }],
+      "freshness": { "rule": "envelope", "files": ["modules"] }
+    },
+    {
+      "id": "facts.history",
+      "kind": "facts",
+      "title": { "en": "Git history", "fr": "Historique git" },
+      "steps": [{ "command": "facts", "source": "history" }],
+      "freshness": { "rule": "envelope", "files": ["history"] }
+    },
+    {
+      "id": "facts.tools",
+      "kind": "facts",
+      "title": { "en": "External tools (gitleaks, osv-scanner, syft, knip)", "fr": "Outils externes (gitleaks, osv-scanner, syft, knip)" },
+      "requires": ["tools"],
+      "steps": [{ "command": "facts", "tools": true }],
+      "freshness": { "rule": "envelope", "files": ["tool-gitleaks", "tool-osv-scanner", "tool-syft", "tool-knip"] }
+    },
+    {
+      "id": "doc-audit",
+      "kind": "report",
+      "title": { "en": "Documentation audit", "fr": "Audit de la documentation" },
+      "steps": [{ "command": "audit" }],
+      "freshness": { "rule": "volatile" }
+    }
+  ]
+}

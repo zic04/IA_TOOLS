@@ -77,6 +77,8 @@ The other keys of `auth` are the options of the adapter, validated by the adapte
 | `sync` | object · `{}` | `doc-kit sync` (ARCHITECTURE.md §6.10): what the documentation must follow after a change of the application | |
 | `sync.labels` | list of globs · `[]` | Message files whose labels are followed, relative to the project; default: the `messages` of every `i18n-registry` coverage adapter | `["../../src/messages/*.json"]` |
 | `capture.compareThreshold` | number 0 to 1 · `0.005` | `capture --compare`: share of differing pixels above which a screenshot is replaced rather than kept as is | `0.01` |
+| `bricks.enabled` | list of brick ids or presets, or `null` · `null` | The bricks of the project, the parts `doc-kit bricks run` can run again on their own (ARCHITECTURE.md §6.18); `null`: every brick | `["facts", "doc-audit"]` |
+| `bricks.disabled` | list of brick ids or presets · `[]` | Bricks left out: they never run, even named or through a preset | `["facts.history"]` |
 
 A marked page's footer shows "Checked against version {version} on {date}" once it is built again. See
 [Following the application](#/reference/cli/write-check~doc-kit-sync).
