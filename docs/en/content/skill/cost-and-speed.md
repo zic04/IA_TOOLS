@@ -43,7 +43,7 @@ guidance until someone — person or agent — writes them. Without the facts fi
 |---|---|---|---|
 | `doc-kit-triage` | Haiku | Read, Grep, Glob (read-only) | Deciding whether a page is intact, to edit, or to rewrite |
 | `doc-kit-writer` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Writing and updating pages |
-| `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (read-only use) | The inventory, verifying findings, the production dossier |
+| `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (read-only use) | The inventory, the code health and security reviews, verifying findings (on Sonnet by default), the production dossier |
 
 `doc-kit skill install` copies the three Claude Code agent definitions next to the skills folder; `doctor` reports
 them like the skill itself (current, missing, outdated, modified). Every brief names its agent type in a front

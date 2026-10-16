@@ -32,3 +32,19 @@ short:
 Check the diff against RULES.md, security first. A rule broken without a written reason is a blocking finding. So
 is a security fix without the test that would have caught it, or a protection promised in SECURITY.md without its
 test.
+
+## Agents of this repository
+
+Three agents in `.claude/agents/` help keep the kit's code clean; their names start with `kit-` so they never hide
+the skill's own `doc-kit-*` agents (installed by `doc-kit skill install`).
+
+- `kit-reviewer` (read-only): reviews a change against RULES.md and the ARCHITECTURE.md contract, security first.
+  Run it on the diff before every commit or pull request that touches `engine/`, `cli/`, `adapters/`, `skill/`,
+  `schemas/`, `i18n/`, `standard/` or SECURITY.md.
+- `kit-test-author`: writes the tests a change needs, following the repository's patterns (writes only under
+  `test/`). Use it when a change has no test, or when `kit-reviewer` reports one missing.
+- `kit-skill-editor`: applies a change to the skill's texts everywhere they live (briefs in English and French,
+  SKILL.md, references, agent definitions, docs).
+
+What a machine can check is a test rather than an agent: `test/unit/layers.test.mjs` (M1, M14),
+`test/unit/sizes.test.mjs` (M5), `test/unit/skill-briefs.test.mjs` (M15).

@@ -11,7 +11,7 @@ ou son test est mis à jour dans la même modification.
 - `test/unit/security.test.mjs`, lancé par `npm test`, ou seul par `npm run test:security` ;
 - `.github/workflows/ci.yml` : tests sous Linux, Windows et macOS, règles de sécurité et `npm audit` ;
 - la liste de contrôle de `.github/pull_request_template.md` ;
-- les consignes de relecture de `CLAUDE.md`.
+- les consignes de relecture de `CLAUDE.md`, et l'agent `kit-reviewer` (`.claude/agents/`).
 
 ## Sécurité
 
@@ -33,11 +33,11 @@ ou son test est mis à jour dans la même modification.
 
 | # | Règle |
 |---|---|
-| M1 | `engine/` n'importe jamais `cli/`, n'appelle jamais `process.exit` et n'écrit jamais dans la console. Les erreurs sont des `KitError`, avec un code de sortie et une clé i18n. |
+| M1 | `engine/` n'importe jamais `cli/`, n'appelle jamais `process.exit` et n'écrit jamais dans la console. Les erreurs sont des `KitError`, avec un code de sortie et une clé i18n. Les imports, la sortie du processus et la console sont vérifiés par `test/unit/layers.test.mjs`. |
 | M2 | Chaque message existe en anglais et en français (`i18n/en`, `i18n/fr`), et le test de parité passe. |
 | M3 | Chaque fonctionnalité ou correction arrive avec son test ; une correction de sécurité arrive avec le test qui l'aurait détectée. On ne saute, ne désactive ni n'affaiblit jamais un test pour passer au vert. |
 | M4 | Les tests ne dépendent pas de la machine : pas de vrai réseau, pas de vrai git, pas de Chromium installé dans les tests unitaires. On utilise les points d'injection du contexte (`exec`, `fetch`, `launch`, `commit`, `chromium`). |
-| M5 | Une nouvelle fonction reste sous 80 lignes environ, un fichier sous 600 environ ; au-delà, on découpe. On n'ajoute rien à `build()`, `runAudit()` ni `runCaptures()` : on en extrait une étape. |
+| M5 | Une nouvelle fonction reste sous 80 lignes environ ; un fichier JavaScript d'`engine/`, `cli/`, `adapters/` ou `skill/` a 600 lignes au plus (les tests ne sont pas concernés). Au-delà, on découpe. On n'ajoute rien à `build()`, `runAudit()` ni `runCaptures()` : on en extrait une étape. Les fichiers qui dépassent déjà 600 lignes sont tenus à leur taille par `test/unit/sizes.test.mjs` : ils ne peuvent que diminuer. |
 | M6 | Un seul utilitaire par tâche. Avant d'écrire un analyseur, un lecteur de sommaire ou un appel git, on cherche celui qui existe (`engine/project`, `engine/util`). |
 | M7 | Pas de délai magique : un délai ou une attente Playwright est une constante nommée, et attendre une condition vaut mieux qu'une pause fixe. |
 | M8 | Les références pointent vers des documents versionnés (ARCHITECTURE.md §, RULES.md), jamais vers un document hors du dépôt. |
@@ -47,6 +47,7 @@ ou son test est mis à jour dans la même modification.
 | M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passe : aucune erreur, et pas plus d'avertissements que son plafond `--max-warnings`. Le plafond compte les fonctions qui dépassent encore les règles de taille de M5 ; il ne fait que baisser, à mesure qu'elles sont découpées. |
 | M13 | `npm run typecheck` (TypeScript sur la JSDoc, `tsconfig.json`, rien n'est compilé) passe sans erreur. Une JSDoc qui ne correspond plus au code est corrigée, jamais réduite au silence : pas de `@ts-ignore` ; un `@ts-expect-error` seulement avec sa raison. |
 | M14 | Les dossiers d'`engine/` s'importent sans cycle : de bas en haut, `core`, `capture`, `check`, `facts`, `sync`, `build`. Un module que deux dossiers partagent va dans `engine/core/`. Vérifié par `test/unit/layers.test.mjs`. |
+| M15 | Le skill reste cohérent : chaque brief existe en anglais et en français avec le même en-tête et les mêmes variables ; chaque type d'agent sert, et sa description nomme les briefs qu'il exécute ; `DEFAULT_ROUTING` nomme de vrais briefs et correspond au tableau des modèles de `SKILL.md`. Vérifié par `test/unit/skill-briefs.test.mjs`. |
 
 ## Avant chaque version
 

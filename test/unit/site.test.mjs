@@ -205,6 +205,7 @@ describe("product neutrality", () => {
         "skill",
         "docs",
         "ci",
+        ".claude/agents",
       ]
         .filter((d) => fs.existsSync(path.join(KIT_ROOT, d)))
         .flatMap((d) => walk(path.join(KIT_ROOT, d)));
@@ -215,6 +216,10 @@ describe("product neutrality", () => {
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "SECURITY.md",
+        "CLAUDE.md",
+        "RULES.md",
+        "RULES.fr.md",
+        "AUDIT.md",
         "package.json",
       ]) {
         if (fs.existsSync(path.join(KIT_ROOT, f))) own.push(path.join(KIT_ROOT, f));

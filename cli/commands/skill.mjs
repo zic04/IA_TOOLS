@@ -229,7 +229,12 @@ export function agentsStatus({ env = process.env, target, source = SKILL_SOURCE,
   const present = fp.agentNames.filter((n) => fs.existsSync(path.join(folder, n)));
   if (!present.length) return { state: "missing", folder };
   const sourceNames = agentFileNames(source);
-  if (sourceNames.length && namedFilesHash(path.join(source, AGENTS_SUBDIR), fp.agentNames) !== fp.agentsSource)
+  // Outdated: an agent changed in the kit since install, or the kit now has an agent type that was not installed.
+  const added = sourceNames.some((n) => !fp.agentNames.includes(n));
+  if (
+    sourceNames.length &&
+    (added || namedFilesHash(path.join(source, AGENTS_SUBDIR), fp.agentNames) !== fp.agentsSource)
+  )
     return { state: "outdated", folder, version: fp.kit };
   if (namedFilesHash(folder, fp.agentNames) !== fp.agentsInstalled) return { state: "modified", folder };
   return { state: "current", folder, version: fp.kit, n: fp.agentNames.length };

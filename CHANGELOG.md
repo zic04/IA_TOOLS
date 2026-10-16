@@ -24,8 +24,25 @@ entries between a project's `kit` range and the installed version.
   tests, tooling, risks, hotspots, existing agent instructions) and `CLAUDE.md` (`@AGENTS.md`). A line where a
   secret detector fires is removed and reported (exit code 1).
 
+- **Guardrail tests for the kit's own code**: `test/unit/layers.test.mjs` now checks RULES.md M1 (the engine never
+  imports `cli/`, never calls `process.exit`, never prints); `test/unit/sizes.test.mjs` holds every JavaScript file of
+  `engine/`, `cli/`, `adapters/` and `skill/` at 600 lines or fewer, and the four files already over it at their
+  current size (a ratchet: they may only shrink);
+  `test/unit/skill-briefs.test.mjs` checks the skill's coherence (briefs in English and French with the same front
+  matter and placeholders, agent types used and named in their descriptions, routing equal to SKILL.md's model
+  table) — new rule M15. The neutrality scan now also reads `.claude/agents/`, `CLAUDE.md`, `RULES*.md` and `AUDIT.md`.
+- **Agents for the kit's own development** (`.claude/agents/`): `kit-reviewer` (read-only review against RULES.md,
+  security first), `kit-test-author` (tests that follow the repository's patterns), `kit-skill-editor` (one change
+  to the skill's texts, everywhere they live). See CLAUDE.md.
+
 ### Fixed
 
+- `doctor` reported the skill's agents as current when the kit had added an agent type that was not installed: they
+  are now outdated (`doc-kit skill install --force`).
+- The descriptions of the `doc-kit-writer` and `doc-kit-reviewer` agents now name every brief they run
+  (`capture-plans`; `inventory`, `code-health`, `security-review`, `findings-verification`,
+  `production-technical`), and SKILL.md no longer says `findings-verification` runs on `opus` (it runs on
+  `sonnet`, as the routing says). Run `doc-kit skill install --force` to update the installed copies.
 - `facts --source security`: the `code.eval` rule reported every `pattern.exec(text)` of JavaScript (a regular
   expression) as a high-severity code execution: 131 findings on the kit's own code, 24 after the fix. A method
   `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression

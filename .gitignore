@@ -4,3 +4,5 @@ dist/
 *.log
 # Private list of terms that must never appear in the kit (see test/unit/site.test.mjs).
 test/.forbidden-terms
+# Personal Claude Code settings (the shared agents in .claude/agents/ are committed).
+.claude/settings.local.json

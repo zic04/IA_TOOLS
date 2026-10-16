@@ -11,7 +11,7 @@ same change.
 - `test/unit/security.test.mjs`, run by `npm test` and on its own by `npm run test:security`;
 - `.github/workflows/ci.yml`: tests on Linux, Windows and macOS, the security rules, and `npm audit`;
 - the checklist of `.github/pull_request_template.md`;
-- the review instructions in `CLAUDE.md`.
+- the review instructions in `CLAUDE.md`, and the `kit-reviewer` agent (`.claude/agents/`).
 
 ## Security
 
@@ -33,11 +33,11 @@ same change.
 
 | # | Rule |
 |---|---|
-| M1 | `engine/` never imports `cli/`, never calls `process.exit`, never writes to the console. Errors are `KitError` with an exit code and an i18n key. |
+| M1 | `engine/` never imports `cli/`, never calls `process.exit`, never writes to the console. Errors are `KitError` with an exit code and an i18n key. The import, exit and console parts are checked by `test/unit/layers.test.mjs`. |
 | M2 | Every message exists in English and in French (`i18n/en`, `i18n/fr`). The parity test passes. |
 | M3 | Every feature or fix comes with its test; a security fix comes with the test that would have caught it. Never skip, disable or weaken a test to get to green. |
 | M4 | Tests do not depend on the machine: no real network, no real git, no installed Chromium in unit tests; use the context seams (`exec`, `fetch`, `launch`, `commit`, `chromium`). |
-| M5 | A new function stays under about 80 lines; a file under about 600. Past that, split it. Do not add to `build()`, `runAudit()` or `runCaptures()`: extract a step. |
+| M5 | A new function stays under about 80 lines; a JavaScript file of `engine/`, `cli/`, `adapters/` or `skill/` has at most 600 lines (tests are exempt). Past that, split it. Do not add to `build()`, `runAudit()` or `runCaptures()`: extract a step. The files already over 600 lines are held at their size by `test/unit/sizes.test.mjs`: they only shrink. |
 | M6 | One helper per job. Before writing a parser, a toc reader or a git call, look for the existing one (`engine/project`, `engine/util`). |
 | M7 | No magic delay: a Playwright timeout or wait is a named constant, and waiting on a condition beats a fixed sleep. |
 | M8 | References point to versioned documents (ARCHITECTURE.md §, RULES.md), never to a document outside the repository. |
@@ -47,6 +47,7 @@ same change.
 | M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passes: no error, and no more warnings than its `--max-warnings` ceiling. The ceiling counts the functions still over the size rules of M5; it only ever goes down, with the functions split. |
 | M13 | `npm run typecheck` (TypeScript on the JSDoc, `tsconfig.json`, nothing compiled) passes with no error. A JSDoc that no longer matches the code is fixed, never silenced: no `@ts-ignore`; a `@ts-expect-error` only with its reason. |
 | M14 | The folders of `engine/` import one another without a cycle: from the bottom up, `core`, `capture`, `check`, `facts`, `sync`, `build`. A module two folders share moves to `engine/core/`. Checked by `test/unit/layers.test.mjs`. |
+| M15 | The skill stays coherent: every brief exists in English and French with the same front matter and placeholders; every agent type is used and its description names the briefs it runs; `DEFAULT_ROUTING` names real briefs and matches the model table of `SKILL.md`. Checked by `test/unit/skill-briefs.test.mjs`. |
 
 ## Before every release
 

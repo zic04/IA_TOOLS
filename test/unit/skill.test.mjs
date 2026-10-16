@@ -148,6 +148,12 @@ describe("skill install", () => {
       // Reinstall cleanly first, from the ORIGINAL source, so the fingerprint matches what's on disk again.
       installSkill({ skills: path.join(config, "skills"), force: true });
       assert.equal(agentsStatus({ env, source }).state, "outdated");
+      // A newer kit that only ADDS an agent type (the existing ones unchanged) is outdated too.
+      const added = path.join(config, "source-added");
+      fs.cpSync(SKILL_SOURCE, added, { recursive: true });
+      fs.writeFileSync(path.join(added, "agents", "doc-kit-new.md"), "---\nname: doc-kit-new\nmodel: sonnet\n---\n");
+      assert.equal(agentsStatus({ env, source: SKILL_SOURCE }).state, "current");
+      assert.equal(agentsStatus({ env, source: added }).state, "outdated");
       assert.equal(skillStatus({ env, kitRoot: config }).state, "otherKit");
       assert.equal(agentsStatus({ env, kitRoot: config }).state, "otherKit");
     } finally {
@@ -436,26 +442,6 @@ describe("brief templates: agent type and common/variable split", () => {
       });
     }
   }
-
-  test("newer briefs (triage, update, functional-spec, code-health, access-ownership, system-dossier, security-review, maintainability-review): the same placeholders in en and fr", () => {
-    for (const name of [
-      "triage",
-      "update",
-      "functional-spec",
-      "code-health",
-      "access-ownership",
-      "system-dossier",
-      "security-review",
-      "maintainability-review",
-      "translate",
-      "capture-plans",
-    ]) {
-      const en = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "en", `${name}.md`), "utf8");
-      const fr = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "fr", `${name}.md`), "utf8");
-      const vars = (t) => [...new Set([...t.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((m) => m[1]))].sort();
-      assert.deepEqual(vars(fr), vars(en), `${name}: en/fr placeholder parity`);
-    }
-  });
 });
 
 describe("brief.mjs --estimate", () => {

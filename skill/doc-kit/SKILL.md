@@ -231,9 +231,10 @@ lever: measured on a real application (FastAPI + Next.js, 81 pages), capping a w
 the context file and the page's template, one `Write`, one build, cut agent cost 69 % and wall-clock time 49 %
 over the previous brief, same conformance (details: `references/agent-orchestration.md` §8).
 
-- **The right agent for each brief**: `haiku` for a read-only decision (`triage`), `sonnet` for writing and
-  updating, `opus` only where a wrong judgment costs every later page (`inventory`, `code-health`, `findings-
-  verification`, `production-technical`).
+- **The right agent for each brief**: `haiku` for a read-only decision (`triage`) and faithful rewriting
+  (`translate`), `sonnet` for writing and updating (and `findings-verification`; a high-severity finding may be
+  verified on `opus`), `opus` only where a wrong judgment costs every later page (`inventory`, `code-health`,
+  `security-review`, `production-technical`).
 - **Estimate before every wave**: `node scripts/brief.mjs <template> --estimate` for each brief of the wave (or
   `sync --estimate` for a maintenance wave), before launching a single agent.
 - **Every agent is recorded automatically** when the statistics hook is installed (`doc-kit skill install --hooks`,

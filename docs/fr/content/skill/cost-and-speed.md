@@ -45,7 +45,7 @@ d'abord) ; sur un type sans rien à préremplir, c'est une erreur d'usage.
 |---|---|---|---|
 | `doc-kit-triage` | Haiku | Read, Grep, Glob (lecture seule) | Décider si une page est intacte, à modifier, ou à réécrire |
 | `doc-kit-writer` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Écrire et mettre à jour les pages |
-| `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (usage en lecture seule) | L'inventaire, la vérification des constats, le dossier de production |
+| `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (usage en lecture seule) | L'inventaire, les revues de santé du code et de sécurité, la vérification des constats (sur Sonnet par défaut), le dossier de production |
 
 `doc-kit skill install` copie les trois définitions d'agent Claude Code près du dossier des skills ; `doctor` les
 signale comme le skill lui-même (actuels, absents, périmés, modifiés). Chaque brief nomme son type d'agent dans une
