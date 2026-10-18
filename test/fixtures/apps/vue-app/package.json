@@ -1,0 +1,12 @@
+{
+  "name": "acme-orders-portal",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "vue": "3.4.27",
+    "vue-router": "4.3.2"
+  },
+  "devDependencies": {
+    "vitest": "1.6.0"
+  }
+}

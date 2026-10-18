@@ -106,7 +106,8 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
   const BUDGET_MS = 300;
   const GROWTH_RATIO = 8;
   const GROWTH_MIN_MS = 20;
-  const TIMEOUT_MS = 60_000;
+  // A hang detector, not a budget: with every stack adapter registered the run takes 25 to 45 s on a loaded machine.
+  const TIMEOUT_MS = 180_000;
   test(`every scanner of untrusted text stays under ${BUDGET_MS} ms on adversarial input`, async () => {
     const worker = new Worker(new URL("../tools/redos-worker.mjs", import.meta.url));
     const results = [];

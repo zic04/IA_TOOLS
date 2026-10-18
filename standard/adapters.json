@@ -56,6 +56,271 @@
       "detect": { "dependencies": ["pip:fastapi"] }
     },
     {
+      "id": "nestjs",
+      "family": "stack",
+      "title": "NestJS",
+      "languages": [
+        "typescript"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:@nestjs/core",
+          "npm:@nestjs/common"
+        ],
+        "files": [
+          "**/nest-cli.json"
+        ]
+      }
+    },
+    {
+      "id": "angular",
+      "family": "stack",
+      "title": "Angular router",
+      "languages": [
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:@angular/router"
+        ],
+        "files": [
+          "**/angular.json"
+        ]
+      }
+    },
+    {
+      "id": "vue-router",
+      "family": "stack",
+      "title": "Vue Router",
+      "languages": [
+        "javascript",
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:vue-router"
+        ]
+      }
+    },
+    {
+      "id": "react-router",
+      "family": "stack",
+      "title": "React Router",
+      "languages": [
+        "javascript",
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:react-router",
+          "npm:react-router-dom"
+        ]
+      }
+    },
+    {
+      "id": "spring",
+      "family": "stack",
+      "title": "Spring (Spring MVC, Spring Data)",
+      "languages": [
+        "java",
+        "kotlin"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "maven:org.springframework.boot:*",
+          "maven:org.springframework:*"
+        ]
+      }
+    },
+    {
+      "id": "aspnet",
+      "family": "stack",
+      "title": "ASP.NET Core",
+      "languages": [
+        "csharp"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "nuget:Microsoft.AspNetCore*",
+          "nuget:Swashbuckle.AspNetCore*"
+        ],
+        "files": [
+          "**/appsettings.json",
+          "**/launchSettings.json"
+        ]
+      }
+    },
+    {
+      "id": "laravel",
+      "family": "stack",
+      "title": "Laravel",
+      "languages": [
+        "php"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "composer:laravel/framework"
+        ],
+        "files": [
+          "**/artisan"
+        ]
+      }
+    },
+    {
+      "id": "symfony",
+      "family": "stack",
+      "title": "Symfony",
+      "languages": [
+        "php"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "composer:symfony/framework-bundle"
+        ],
+        "files": [
+          "**/symfony.lock",
+          "config/bundles.php"
+        ]
+      }
+    },
+    {
+      "id": "django",
+      "family": "stack",
+      "title": "Django, Django REST framework",
+      "languages": [
+        "python"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "pip:django",
+          "pip:djangorestframework"
+        ],
+        "files": [
+          "**/manage.py"
+        ]
+      }
+    },
+    {
+      "id": "flask",
+      "family": "stack",
+      "title": "Flask",
+      "languages": [
+        "python"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "pip:flask",
+          "pip:apiflask"
+        ]
+      }
+    },
+    {
+      "id": "go",
+      "family": "stack",
+      "title": "Go: net/http, gin, echo, chi, gorilla/mux",
+      "languages": [
+        "go"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "go:github.com/gin-gonic/gin",
+          "go:github.com/labstack/echo*",
+          "go:github.com/go-chi/chi*",
+          "go:github.com/gorilla/mux"
+        ],
+        "files": [
+          "**/go.mod"
+        ]
+      }
+    },
+    {
+      "id": "rails",
+      "family": "stack",
+      "title": "Ruby on Rails",
+      "languages": [
+        "ruby"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "rubygems:rails",
+          "rubygems:railties"
+        ]
+      }
+    },
+    {
+      "id": "rust",
+      "family": "stack",
+      "title": "Rust: actix-web, axum",
+      "languages": [
+        "rust"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "cargo:actix-web",
+          "cargo:axum"
+        ]
+      }
+    },
+    {
       "id": "npm",
       "family": "deps",
       "title": "npm, pnpm, Yarn",

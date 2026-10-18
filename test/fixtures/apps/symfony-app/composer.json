@@ -1,0 +1,11 @@
+{
+  "name": "acme/orders",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "doctrine/orm": "^3.0",
+    "symfony/framework-bundle": "7.1.*",
+    "symfony/security-bundle": "7.1.*",
+    "symfony/validator": "7.1.*"
+  }
+}

@@ -21,6 +21,19 @@ A stack adapter reads the routes of the API, their guards, the screens or behavi
 | Next.js | JavaScript, TypeScript | `npm:next` | API routes, guards, screens |
 | Express, Fastify, Hono, Koa | JavaScript, TypeScript | `npm:express`, `npm:fastify`, `npm:hono`, `npm:koa-router`, `npm:@koa/router` | API routes, guards |
 | FastAPI | Python | `pip:fastapi` | API routes, guards |
+| NestJS | TypeScript | `npm:@nestjs/core`, `npm:@nestjs/common`, `**/nest-cli.json` | API routes, guards, behaviour hints |
+| Angular router | TypeScript | `npm:@angular/router`, `**/angular.json` | screens, guards |
+| Vue Router | JavaScript, TypeScript | `npm:vue-router` | screens, guards |
+| React Router | JavaScript, TypeScript | `npm:react-router`, `npm:react-router-dom` | screens, guards |
+| Spring (Spring MVC, Spring Data) | Java, Kotlin | `maven:org.springframework.boot:*`, `maven:org.springframework:*` | API routes, guards, behaviour hints |
+| ASP.NET Core | C# | `nuget:Microsoft.AspNetCore*`, `nuget:Swashbuckle.AspNetCore*`, `**/appsettings.json`, `**/launchSettings.json` | API routes, guards, behaviour hints |
+| Laravel | PHP | `composer:laravel/framework`, `**/artisan` | API routes, guards, behaviour hints |
+| Symfony | PHP | `composer:symfony/framework-bundle`, `**/symfony.lock`, `config/bundles.php` | API routes, guards, behaviour hints |
+| Django, Django REST framework | Python | `pip:django`, `pip:djangorestframework`, `**/manage.py` | API routes, guards |
+| Flask | Python | `pip:flask`, `pip:apiflask` | API routes, guards |
+| Go: net/http, gin, echo, chi, gorilla/mux | Go | `go:github.com/gin-gonic/gin`, `go:github.com/labstack/echo*`, `go:github.com/go-chi/chi*`, `go:github.com/gorilla/mux`, `**/go.mod` | API routes, guards, behaviour hints |
+| Ruby on Rails | Ruby | `rubygems:rails`, `rubygems:railties` | API routes, guards, behaviour hints |
+| Rust: actix-web, axum | Rust | `cargo:actix-web`, `cargo:axum` | API routes, guards |
 
 ### Dependencies
 
@@ -55,22 +68,22 @@ Each language of the code, and what reads it. A language read by nobody here is 
 
 | Language | Extensions | Read by |
 |---|---|---|
-| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue`, `.svelte` | the kit's own readers, Next.js, Express, Fastify, Hono, Koa |
-| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | the kit's own readers, Next.js, Express, Fastify, Hono, Koa |
-| Python | `.py` | the kit's own readers, FastAPI |
+| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue`, `.svelte` | the kit's own readers, Next.js, Express, Fastify, Hono, Koa, Vue Router, React Router |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | the kit's own readers, Next.js, Express, Fastify, Hono, Koa, NestJS, Angular router, Vue Router, React Router |
+| Python | `.py` | the kit's own readers, FastAPI, Django, Django REST framework, Flask |
 | HTML | `.html`, `.htm` | the kit's own readers |
 | SQL | `.sql` | the kit's own readers |
-| Java | `.java` | not read: the agents read it |
-| Kotlin | `.kt`, `.kts` | not read: the agents read it |
+| Java | `.java` | Spring (Spring MVC, Spring Data) |
+| Kotlin | `.kt`, `.kts` | Spring (Spring MVC, Spring Data) |
 | Groovy | `.groovy` | not read: the agents read it |
 | Scala | `.scala` | not read: the agents read it |
-| C# | `.cs`, `.cshtml`, `.razor` | not read: the agents read it |
+| C# | `.cs`, `.cshtml`, `.razor` | ASP.NET Core |
 | F# | `.fs` | not read: the agents read it |
 | Visual Basic | `.vb` | not read: the agents read it |
-| PHP | `.php` | not read: the agents read it |
-| Go | `.go` | not read: the agents read it |
-| Ruby | `.rb`, `.erb` | not read: the agents read it |
-| Rust | `.rs` | not read: the agents read it |
+| PHP | `.php` | Laravel, Symfony |
+| Go | `.go` | Go: net/http, gin, echo, chi, gorilla/mux |
+| Ruby | `.rb`, `.erb` | Ruby on Rails |
+| Rust | `.rs` | Rust: actix-web, axum |
 | Swift | `.swift` | not read: the agents read it |
 | Dart | `.dart` | not read: the agents read it |
 | Elixir | `.ex`, `.exs` | not read: the agents read it |

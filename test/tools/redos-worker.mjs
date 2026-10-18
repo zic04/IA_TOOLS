@@ -12,9 +12,9 @@ import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import { DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
-import next, { nextRouteHandlers, nextHandlerGuards, NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
-import { expressRoutes, EXPRESS_PATTERNS } from "../../adapters/stack/express.mjs";
-import { fastapiRoutes, FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
+import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
+import { expressRoutes } from "../../adapters/stack/express.mjs";
+import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
 import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { loadAdapters, detectedBy } from "../../engine/core/adapters.mjs";
@@ -46,6 +46,34 @@ import { KitError } from "../../engine/project/errors.mjs";
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
 const PREFIXES = [
+  // The declarations the stack adapters start from (adapters/stack/).
+  "@Controller('",
+  '@GetMapping("',
+  '[HttpGet("',
+  "Route::get('",
+  "#[Route('",
+  "urlpatterns = [path('",
+  "resources :a, only: [",
+  'r.GET("',
+  '#[get("',
+  '<Route path="',
+  "{ path: '",
+  // Well-formed declarations, so that the readers' deep paths run (a route table, a controller, a urls module…).
+  "const routes = [{ path: 'a', component: A, canActivate: [",
+  "createRouter({ routes: [{ path: '/a', children: [",
+  '@RestController\n@RequestMapping("/a")\nclass A {\n  @PreAuthorize("x")\n  @GetMapping("',
+  '[ApiController]\n[Route("api/[controller]")]\npublic class AController : ControllerBase {\n  [HttpGet("',
+  "urlpatterns = [\n  path('a/', include('",
+  "Route::prefix('a')->group(function () {\n  Route::resource('",
+  'r.Route("/a", func(r chi.Router) {\n  r.Use(',
+  "resources :a do\n  resources :",
+  "Rails.application.routes.draw do\n  namespace :a do\n    resources :",
+  "urlpatterns = [\n  path('a/', views.a),\n  path('",
+  '@bp.route("/a")\n@login_required\ndef a(): pass\n@bp.route("',
+  "class A extends AbstractController {\n  #[Route('/a', methods: ['GET'])]\n  public function a() {}\n  #[Route('",
+  'var g = app.MapGroup("/a").RequireAuthorization();\ng.MapGet("',
+  '<Routes>\n  <Route path="a" element={<RequireAuth><A /></RequireAuth>}>\n    <Route path="',
+  'App::new().service(web::scope("/a").wrap(',
   "@acme:registry=",
   "registry=",
   '"@acme:registry" ',
@@ -232,6 +260,77 @@ INPUTS.push(
   "<select>".repeat(N / 8),
 );
 
+/** The names of files a stack adapter reads by convention: each reader is given the text under those it reads. */
+const STACK_FILES = [
+  "x.js",
+  "x.ts",
+  "main.ts",
+  "src/app.routes.ts",
+  "src/router/index.ts",
+  "src/App.tsx",
+  "app/a/route.ts",
+  "app/a/page.tsx",
+  "pages/api/a.ts",
+  "pages/a.tsx",
+  "X.java",
+  "X.kt",
+  "X.cs",
+  "Program.cs",
+  "routes/api.php",
+  "routes/web.php",
+  "src/Controller/X.php",
+  "urls.py",
+  "views.py",
+  "app.py",
+  "x.go",
+  "config/routes.rb",
+  "app/controllers/a_controller.rb",
+  "app/models/a.rb",
+  "src/main.rs",
+];
+
+/**
+ * The checks of the stack adapters, whatever their number: every expression of each adapter's and each shared
+ * module's `*_PATTERNS` export (a sticky or global one reset first), then each reader of each adapter — api and
+ * screens on the files of STACK_FILES it reads, behaviours on the first of them.
+ */
+async function stackChecks() {
+  const checks = [];
+  const modules = [
+    ...BUILT_IN_STACKS.map((a) => [a.name, `../../adapters/stack/${a.name}.mjs`]),
+    ...["js", "c", "py", "php", "common"].map((x) => [`stack-${x}`, `../../engine/facts/stack-${x}.mjs`]),
+  ];
+  for (const [name, file] of modules) {
+    const mod = await import(file);
+    for (const [key, patterns] of Object.entries(mod))
+      if (key.endsWith("_PATTERNS"))
+        for (const [n, re] of Object.entries(patterns))
+          checks.push([
+            `stack ${name} ${n}`,
+            (s) => {
+              re.lastIndex = 0;
+              return re.global ? [...s.matchAll(re)].length : re.exec(s);
+            },
+          ]);
+  }
+  for (const adapter of BUILT_IN_STACKS) {
+    const files = STACK_FILES.filter((f) => f.search(adapter.files) !== -1);
+    if (!files.length) continue;
+    for (const hook of ["api", "screens"])
+      if (typeof adapter[hook] === "function")
+        checks.push([
+          `stack ${adapter.name} ${hook}`,
+          (s) => adapter[hook]({ sources: new Map(files.map((f) => [f, s])) }).length,
+        ]);
+    if (typeof adapter.behaviours === "function")
+      checks.push([
+        `stack ${adapter.name} behaviours`,
+        (s) => adapter.behaviours(s, createSink(files[0], s, []), files[0]),
+      ]);
+  }
+  return checks;
+}
+
 export const CHECKS = [
   ...GENERIC.map((d) => [
     `secret detector ${d.kind}`,
@@ -245,22 +344,8 @@ export const CHECKS = [
   ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
-  // The stack adapters (adapters/stack/): each expression alone, then each reader on files named after the text.
-  ...Object.entries({ ...NEXT_PATTERNS, ...EXPRESS_PATTERNS, ...FASTAPI_PATTERNS }).map(([name, re]) => [
-    `stack ${name}`,
-    (s) => (re.global ? [...s.matchAll(re)].length : re.exec(s)),
-  ]),
-  [
-    "stack next api and screens",
-    (s) => {
-      const sources = new Map([
-        [`app/${s.slice(0, 200)}/route.ts`, s],
-        [`pages/api/${s.slice(0, 200)}.ts`, s],
-        [`pages/${s.slice(0, 200)}.tsx`, s],
-      ]);
-      return next.api({ sources }).length + next.screens({ sources }).length;
-    },
-  ],
+  // The stack adapters (adapters/stack/) and the engine modules they share: each expression, then each reader.
+  ...(await stackChecks()),
   // The paths of the application: what is a test, a generated file; which files an adapter reads; what tells a stack.
   ...Object.entries(CODE_PATTERNS).map(([name, re]) => [`code-files ${name}`, (s) => re.test(s) || re.test(`a/${s}`)]),
   ...BUILT_IN_STACKS.flatMap((a) => [
@@ -377,6 +462,8 @@ for (const [name, fn] of CHECKS) {
   parentPort.postMessage({ start: name });
   const times = INPUTS.map((input) => timed(fn, input));
   const top = times.indexOf(Math.max(...times));
+  // The slowest input timed again, the better kept: a pause of the collector or a busy machine is no backtracking.
+  times[top] = Math.min(times[top], timed(fn, INPUTS[top]));
   parentPort.postMessage({ name, ms: times[top], input: INPUTS[top].slice(0, 60), growth: growthOf(fn, times) });
 }
 // The canary: a search from each character for one that is never there, quadratic with the constant of indexOf (a

@@ -8,6 +8,15 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Thirteen more stacks read** (ARCHITECTURE.md §5): the API routes and their guards of NestJS, Spring (Java,
+  Kotlin), ASP.NET Core (controllers and minimal APIs), Laravel, Symfony, Django and Django REST framework, Flask, Go
+  (net/http, gin, echo, chi, gorilla/mux), Ruby on Rails and Rust (actix-web, axum); the screens of the Angular, Vue
+  Router and React Router routers; the behaviour hints of Spring Data, Bean Validation, EF Core and DataAnnotations,
+  Eloquent and Laravel validation, Doctrine and Symfony constraints, class-validator, gorm and ActiveRecord. Each runs
+  where its stack is detected (a dependency, a file), or, in an application without a manifest of its ecosystem,
+  everywhere — a declaration two adapters read is then the framework's the file names. Each route keeps 32 guards and
+  each adapter 5,000 routes at most. The access of a route also recognises the user guards of these stacks (`auth`,
+  `Authorize`, `AuthGuard(…)`, `authenticate_user!`, `LoginRequiredMixin`, `jwt_required`); Django's `tests.py` is a test.
 - **Stack adapters, and what the kit reads of an application** (ARCHITECTURE.md §5, §6.9): the routes of the API,
   their guards and the screens of a framework are read by **stack adapters** (`adapters/stack/`: `next`, `express`,
   `fastapi`, the readers of 0.3 moved there and hardened). A project adds its own with
@@ -119,6 +128,19 @@ entries between a project's `kit` range and the installed version.
   expression) as a high-severity code execution: 131 findings on the kit's own code, 24 after the fix. A method
   `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression
   literal); `eval(`, Python's `exec(` and `new Function(` are still reported.
+
+### Changed
+
+- **The access of a route recognises more user guards by default** (`review.guards`, ARCHITECTURE.md §6.13): besides
+  `current_user`, `authenticated`, `login_required`, `require_auth`, `session` and `token`, a guard named exactly
+  `auth` or `auth:<guard>`, `Authorize`, `RequireAuthorization`, `AuthGuard(…)`, `authenticate` or `authenticate_user!`, or
+  holding `LoginRequired` or `jwt_required`, is a user guard. An Express middleware named `auth`, and a Next.js
+  handler that calls `auth()`, were `unknown` in 0.3 and are now `user`: `facts --source api` shows the change. A project
+  keeps its own patterns with `review.guards`.
+- **A route's secret segment is masked**: a segment of a route that looks like a key or a token (a webhook's path) is
+  written `…` in `facts/api.json` and `facts/screens.json`.
+- **`check secrets` finds Stripe keys**: a secret or restricted key (`sk_live_`, `sk_test_`, `rk_…`) and a webhook
+  secret (`whsec_`) are cloud keys, found in the code and never kept.
 
 ### Security
 

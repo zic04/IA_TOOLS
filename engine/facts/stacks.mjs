@@ -7,6 +7,19 @@
 import next from "../../adapters/stack/next.mjs";
 import express from "../../adapters/stack/express.mjs";
 import fastapi from "../../adapters/stack/fastapi.mjs";
+import nestjs from "../../adapters/stack/nestjs.mjs";
+import angular from "../../adapters/stack/angular.mjs";
+import vueRouter from "../../adapters/stack/vue-router.mjs";
+import reactRouter from "../../adapters/stack/react-router.mjs";
+import spring from "../../adapters/stack/spring.mjs";
+import aspnet from "../../adapters/stack/aspnet.mjs";
+import laravel from "../../adapters/stack/laravel.mjs";
+import symfony from "../../adapters/stack/symfony.mjs";
+import django from "../../adapters/stack/django.mjs";
+import flask from "../../adapters/stack/flask.mjs";
+import go from "../../adapters/stack/go.mjs";
+import rails from "../../adapters/stack/rails.mjs";
+import rust from "../../adapters/stack/rust.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
@@ -23,7 +36,24 @@ import { adaptersOf, detectedBy } from "../core/adapters.mjs";
  */
 
 /** The kit's stack adapters, in the order of standard/adapters.json (test/unit/stacks.test.mjs checks they agree). */
-export const BUILT_IN_STACKS = Object.freeze([next, express, fastapi]);
+export const BUILT_IN_STACKS = Object.freeze([
+  next,
+  express,
+  fastapi,
+  nestjs,
+  angular,
+  vueRouter,
+  reactRouter,
+  spring,
+  aspnet,
+  laravel,
+  symfony,
+  django,
+  flask,
+  go,
+  rails,
+  rust,
+]);
 
 /** The real path of a file or a folder (links, junctions and short names resolved), or null when there is none. */
 function realOrNull(p) {
@@ -42,7 +72,8 @@ const within = (real, dir) => real === dir || real.startsWith(dir + path.sep);
  * error, `stacks.unknown`), then the project's own. A project adapter is a file of the documentation project, links
  * followed, and never one of the application or of .doc-kit/ (the clones of the sources) when they sit in the
  * project: anything else is refused before it is loaded (`stacks.outside`), a file not found too
- * (`adapter.missing`), and the path loaded is the real one checked — the application is never run.
+ * (`adapter.missing`), and the path loaded is the real one checked — the application is never run. A project's
+ * adapter named like one of the kit's is refused (`stacks.name`).
  * @param {string} root   the documentation project
  * @param {{ app?: { dir?: string|null }, stacks?: { disabled?: string[], adapters?: string[] } }} config
  * @returns {Promise<StackAdapter[]>}
@@ -62,7 +93,10 @@ export async function loadStacks(root, config) {
     if (!real) throw new KitError(EXIT.USAGE, "adapter.missing", { kind: "stack", name: spec, file });
     if (!within(real, base) || inside.some((d) => within(real, d)))
       throw new KitError(EXIT.USAGE, "stacks.outside", { name: spec });
-    out.push((await loadAdapter("stack", { adapter: `local:${real}` }, root, `stacks.adapters[${i}]`)).adapter);
+    const { adapter } = await loadAdapter("stack", { adapter: `local:${real}` }, root, `stacks.adapters[${i}]`);
+    // A project's adapter takes a name of its own: the kit's names say which framework a route comes from.
+    if (known.includes(adapter.name)) throw new KitError(EXIT.USAGE, "stacks.name", { name: adapter.name, file: spec });
+    out.push(adapter);
   }
   return out;
 }

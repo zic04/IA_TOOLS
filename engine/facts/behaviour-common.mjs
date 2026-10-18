@@ -69,6 +69,112 @@ const secretName = (field) => {
   return SECRET_NAME.test(name) || PIN.test(name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase());
 };
 
+/** A letter outside a–z and A–Z (é, ü, ß…): a lowercase letter, and a vowel, to the walk below. */
+const isOther = (c) => c !== undefined && c.charCodeAt(0) > 127;
+const isLower = (c) => (c >= "a" && c <= "z") || isOther(c);
+const isUpper = (c) => c >= "A" && c <= "Z";
+const isDigit = (c) => c >= "0" && c <= "9";
+const isVowel = (c) => "aeiouyAEIOUY".includes(c) || isOther(c);
+/** A numeronym: a letter, one to three digits, three letters at most (k8s, i18n, a11y, x509, e2e, b2c). */
+const NUMERONYM = /^[A-Za-z]\d{1,3}[A-Za-z]{0,3}$/;
+/** The separators of a segment: each part between them is judged alone. */
+const SEPARATORS = /[-_.:]/;
+
+/** The end of the run of letters that starts at `i`: an acronym (capitals) stops before a capital starting a word. */
+function letterRunEnd(part, i) {
+  let j = i;
+  if (isUpper(part[j])) {
+    while (j < part.length && isUpper(part[j])) j++;
+    if (j < part.length && isLower(part[j]) && j - i > 1) return j - 1;
+  }
+  while (j < part.length && isLower(part[j])) j++;
+  return j;
+}
+
+/**
+ * The shape of a run of letters from `i` to `j` of a part: "acronym" (five capitals at most), "pair" (a capital and
+ * one lowercase letter: By, Id), "short" (one or two lowercase letters: a word only when it is the whole part),
+ * "word" (three letters or more holding a vowel, never five consonants in a row), or null: no word.
+ */
+function runShape(part, i, j) {
+  if (!isLower(part[j - 1])) return j - i <= 5 ? "acronym" : null;
+  if (j - i === 2 && isUpper(part[i])) return "pair";
+  if (j - i < 3) return isUpper(part[i]) ? "pair" : "short";
+  let vowel = false;
+  let consonants = 0;
+  for (let k = i; k < j; k++) {
+    const v = isVowel(part[k]);
+    vowel ||= v;
+    consonants = v ? 0 : consonants + 1;
+    if (consonants >= 5) return null;
+  }
+  return vowel ? "word" : null;
+}
+
+/**
+ * What one part between separators holds — its words, pairs, acronyms and digit runs glued to letters — or null when
+ * it does not read: a run of letters that is no word, a run of more than four digits, a short lowercase run that is
+ * not the whole part, another character. A part of digits alone (a date, 20240115) or a numeronym is a word part.
+ */
+function partShape(part) {
+  const shape = { words: 0, pairs: 0, acronyms: 0, glued: 0 };
+  if (/^\d{1,8}$/.test(part)) return shape;
+  if (NUMERONYM.test(part)) return { ...shape, words: 1 };
+  for (let i = 0; i < part.length;) {
+    let j = i + 1;
+    if (isDigit(part[i])) {
+      while (j < part.length && isDigit(part[j])) j++;
+      if (j - i > 4) return null;
+      shape.glued++;
+    } else if (isUpper(part[i]) || isLower(part[i])) {
+      j = letterRunEnd(part, i);
+      const run = runShape(part, i, j);
+      if (run === null || (run === "short" && (i > 0 || j < part.length))) return null;
+      if (run === "word") shape.words++;
+      else if (run === "pair") shape.pairs++;
+      else if (run === "acronym") shape.acronyms++;
+    } else return null;
+    i = j;
+  }
+  return shape;
+}
+
+/**
+ * Whether a segment reads as words (GetUserProfileByIdV2, how-to-set-up-a-new-account, documents:batchGetDocuments,
+ * k8s-cluster-node-pools, catégories-de-produits), each part between separators judged alone: every part reads,
+ * there are two words of three letters or more, no more capital-and-lowercase pairs than words (two at least), two
+ * acronyms at most and two digit runs glued to letters. The characters of a random token break one of these rules
+ * almost always; a single word of twenty letters or more (Rechtsschutzversicherungen) does not read either.
+ * @param {string} seg
+ */
+function readable(seg) {
+  const total = { words: 0, pairs: 0, acronyms: 0, glued: 0 };
+  for (const part of seg.split(SEPARATORS)) {
+    if (!part) continue;
+    const shape = partShape(part);
+    if (!shape) return false;
+    for (const k of Object.keys(total)) total[k] += shape[k];
+  }
+  return total.words >= 2 && total.pairs <= Math.max(2, total.words) && total.acronyms <= 2 && total.glued <= 2;
+}
+
+/** A parameter of a route, a name in the code: {id}, :id, [id], <int:id>, (?P<pk>…), *rest. */
+const isParameter = (seg) => "{:[<(*".includes(seg[0] ?? "");
+
+/**
+ * A route as written, but a segment that looks like a key or a token replaced by "…" — what a detector of the kit
+ * finds, or 20 characters or more that do not read as words (a parameter of the route excepted) — so that a webhook's
+ * secret path is never kept.
+ * @param {string} route
+ */
+export const routeWithoutSecrets = (route) =>
+  route
+    .split("/")
+    .map((seg) =>
+      seg.length >= 10 && (detected(seg) || (seg.length >= 20 && !isParameter(seg) && !readable(seg))) ? "…" : seg,
+    )
+    .join("/");
+
 /** A field name kept as written, or undefined. */
 export const safeField = (s) => (typeof s === "string" && FIELD.test(s) && !unsafe(s) ? s : undefined);
 

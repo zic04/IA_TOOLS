@@ -6,6 +6,8 @@
 //   screens item: { route, file, line, framework, auth?, guards? } — auth and guards when the router declares them.
 // Also the helpers the other sources share: the line of an index, the content of a call.
 import { BUILT_IN_STACKS, stackSources } from "./stacks.mjs";
+import { routeWithoutSecrets } from "./behaviour-common.mjs";
+import { MAX_GUARDS, MAX_ITEMS } from "./stack-common.mjs";
 
 /** 1-based line of a character index of a text. */
 export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
@@ -14,7 +16,14 @@ export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 // `auth` is classified from the `guards` found at the handler: "none" (no guard), "role" (a guard matching the
 // role pattern, checked first), "user" (a guard matching the user pattern), "unknown" (a guard matching neither).
 export const DEFAULT_ROLE_GUARD = /admin|role|permission|scope|owner|super|staff/i;
-export const DEFAULT_USER_GUARD = /current_user|authenticated|login_required|require_auth|session|token/i;
+/**
+ * The user guards: names that say a signed-in user (a session, a token), and the conventions of the stacks read,
+ * each a whole name — Laravel's `auth` and `auth:sanctum`, ASP.NET's `Authorize` and `RequireAuthorization`
+ * without a role or a policy, NestJS's `AuthGuard(…)`, Rails's `authenticate_user!`, Django's `LoginRequiredMixin`,
+ * Flask's `jwt_required`.
+ */
+export const DEFAULT_USER_GUARD =
+  /current_user|authenticated|login_required|require_auth|session|token|^auth(?::\w{1,40})?$|^authorize$|^requireauthorization$|^authguard\b|^authenticate(?:_\w{1,40})?!?$|loginrequired|jwt_required/i;
 
 /**
  * Guard patterns to classify `auth`, from `review.guards` (ARCHITECTURE.md §6.13: regular expressions as strings;
@@ -52,6 +61,54 @@ export function balancedParens(text, openIndex) {
 /** Whether an adapter's item has each of `keys` as a string (a project adapter may return anything: it is left out). */
 const complete = (r, keys) => r && typeof r === "object" && keys.every((k) => typeof r[k] === "string");
 
+/**
+ * The items of the adapter that owns each declaration (a file and a line), each item once. Where nothing tells the
+ * stack (no manifest), two of the kit's adapters may read one declaration — a `@router.get` is FastAPI's form and
+ * Flask's — and give different routes for it (with or without its router's prefix): the adapter whose name the file
+ * holds (`from fastapi import…`) owns it, else the one whose name another of its files holds, else the first in the
+ * registry. One adapter's items on one line (a Rails `resources`, a mapping of two paths) are all kept, and a
+ * project's adapter is never overruled: what it gives is what the project declared.
+ * @param {Array<{ adapter: string, kit: boolean, mentions: number, item: any }>} found   in the registry's order;
+ *   mentions: 2 the file names the adapter, 1 another of its files does, 0 none
+ * @param {(item: any) => string} key   what makes two items one
+ */
+function owned(found, key) {
+  const owner = new Map();
+  for (const f of found.filter((x) => x.kit)) {
+    const at = `${f.item.file}:${f.item.line}`;
+    const o = owner.get(at);
+    if (!o || (f.mentions > o.mentions && o.adapter !== f.adapter)) owner.set(at, f);
+  }
+  const seen = new Set();
+  return found
+    .filter((f) => !f.kit || owner.get(`${f.item.file}:${f.item.line}`).adapter === f.adapter)
+    .filter((f) => !seen.has(`${f.adapter}\n${key(f.item)}`) && seen.add(`${f.adapter}\n${key(f.item)}`))
+    .map((f) => f.item);
+}
+
+/** The kit's stack adapters themselves (a project's adapter is never one of them, whatever its name). */
+const kitStacks = () => /** @type {Set<unknown>} */ (new Set(BUILT_IN_STACKS));
+
+/**
+ * How much an adapter's framework is named where a declaration is: 2 the file names it (its text holds the adapter's
+ * name: fastapi, flask, express…), 1 another of the adapter's files does, 0 none.
+ */
+function namer(sources, adapter) {
+  const cache = new Map();
+  const names = (file) => (sources.get(file) ?? "").toLowerCase().includes(adapter.name);
+  let anywhere = null;
+  return (file) => {
+    if (!cache.has(file)) {
+      if (names(file)) cache.set(file, 2);
+      else {
+        anywhere ??= [...sources.keys()].some(names);
+        cache.set(file, anywhere ? 1 : 0);
+      }
+    }
+    return cache.get(file);
+  };
+}
+
 /** The order of the items of both sources: route, then method, then file. */
 const byRoute = (a, b) =>
   a.route.localeCompare(b.route) || (a.method ?? "").localeCompare(b.method ?? "") || a.file.localeCompare(b.file);
@@ -66,22 +123,30 @@ const byRoute = (a, b) =>
  */
 export function collectApi(appDir, guards = {}, stacks = BUILT_IN_STACKS) {
   const patterns = resolveGuardPatterns(guards);
-  const items = [];
-  for (const { adapter, sources } of stackSources(appDir, stacks, "api"))
+  const kit = kitStacks();
+  const found = [];
+  for (const { adapter, sources } of stackSources(appDir, stacks, "api")) {
+    const mentions = namer(sources, adapter);
+    let n = 0;
     for (const r of adapter.api({ sources })) {
+      // The bounds of every adapter, the project's own too: MAX_ITEMS routes, MAX_GUARDS guards each.
+      if (n === MAX_ITEMS) break;
       if (!complete(r, ["method", "route", "file"])) continue;
-      const g = Array.isArray(r.guards) ? r.guards.filter((x) => typeof x === "string") : [];
-      items.push({
+      n++;
+      const g = Array.isArray(r.guards) ? r.guards.filter((x) => typeof x === "string").slice(0, MAX_GUARDS) : [];
+      const item = {
         method: r.method,
-        route: r.route,
+        route: routeWithoutSecrets(r.route),
         file: r.file,
         line: Number.isInteger(r.line) ? r.line : 1,
         framework: typeof r.framework === "string" ? r.framework : adapter.name,
         auth: classifyAuth(g, patterns),
         guards: g,
-      });
+      };
+      found.push({ adapter: adapter.name, kit: kit.has(adapter), mentions: mentions(r.file), item });
     }
-  return items.sort(byRoute);
+  }
+  return owned(found, (i) => `${i.method} ${i.route} ${i.file}:${i.line}`).sort(byRoute);
 }
 
 /**
@@ -93,15 +158,24 @@ export function collectApi(appDir, guards = {}, stacks = BUILT_IN_STACKS) {
  */
 export function collectScreens(appDir, guards = {}, stacks = BUILT_IN_STACKS) {
   const patterns = resolveGuardPatterns(guards);
-  const items = [];
-  for (const { adapter, sources } of stackSources(appDir, stacks, "screens"))
+  const kit = kitStacks();
+  const found = [];
+  for (const { adapter, sources } of stackSources(appDir, stacks, "screens")) {
+    const mentions = namer(sources, adapter);
+    let n = 0;
     for (const r of adapter.screens({ sources })) {
+      if (n === MAX_ITEMS) break;
       if (!complete(r, ["route", "file"])) continue;
+      n++;
       const framework = typeof r.framework === "string" ? r.framework : adapter.name;
-      const item = { route: r.route, file: r.file, line: Number.isInteger(r.line) ? r.line : 1, framework };
-      const guards = Array.isArray(r.guards) ? r.guards.filter((x) => typeof x === "string") : null;
+      const line = Number.isInteger(r.line) ? r.line : 1;
+      const item = { route: routeWithoutSecrets(r.route), file: r.file, line, framework };
+      const guards = Array.isArray(r.guards)
+        ? r.guards.filter((x) => typeof x === "string").slice(0, MAX_GUARDS)
+        : null;
       if (guards) Object.assign(item, { auth: classifyAuth(guards, patterns), guards });
-      items.push(item);
+      found.push({ adapter: adapter.name, kit: kit.has(adapter), mentions: mentions(r.file), item });
     }
-  return items.sort(byRoute);
+  }
+  return owned(found, (i) => `${i.route} ${i.file}:${i.line}`).sort(byRoute);
 }

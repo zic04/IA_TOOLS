@@ -13,9 +13,9 @@ import { BUILT_IN_STACKS, loadStacks } from "../../engine/facts/stacks.mjs";
 import { collectApi, collectScreens } from "../../engine/facts/api.mjs";
 import { collectStack } from "../../engine/facts/languages.mjs";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
-import { expressRoutes } from "../../adapters/stack/express.mjs";
-import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
-import { nextRouteHandlers } from "../../adapters/stack/next.mjs";
+import { expressRoutes, EXPRESS_PATTERNS } from "../../adapters/stack/express.mjs";
+import { fastapiRoutes, FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
+import { nextRouteHandlers, NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
 import { unreadPart } from "../../engine/context/unread-section.mjs";
 import factsAdapter from "../../adapters/coverage/facts.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
@@ -71,6 +71,18 @@ describe("the registry (standard/adapters.json)", () => {
     );
   });
 
+  test("every adapter of the kit declares its expressions for the ReDoS harness (one *_PATTERNS of frozen RegExps)", async () => {
+    for (const patterns of [NEXT_PATTERNS, EXPRESS_PATTERNS, FASTAPI_PATTERNS])
+      assert.ok(Object.isFrozen(patterns) && Object.values(patterns).every((re) => re instanceof RegExp));
+    for (const adapter of BUILT_IN_STACKS) {
+      const mod = await import(`../../adapters/stack/${adapter.name}.mjs`);
+      const declared = Object.keys(mod).filter((k) => k.endsWith("_PATTERNS"));
+      assert.equal(declared.length, 1, `${adapter.name}: ${declared.join(", ")}`);
+      const patterns = mod[declared[0]];
+      assert.ok(Object.isFrozen(patterns) && Object.values(patterns).every((re) => re instanceof RegExp), adapter.name);
+    }
+  });
+
   test("a language by its extension, whatever its case; a file of no known language is none", () => {
     assert.equal(languageOf("src/App.TSX").id, "typescript");
     assert.equal(languageOf("api/Orders.java").id, "java");
@@ -117,7 +129,7 @@ describe("the project's own stack adapters (config.stacks)", () => {
       });
       assert.deepEqual(
         stacks.map((a) => a.name),
-        ["next", "fastapi", "java-routes"],
+        [...BUILT_IN_STACKS.map((a) => a.name).filter((n) => n !== "express"), "java-routes"],
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

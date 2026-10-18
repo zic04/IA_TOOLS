@@ -33,7 +33,7 @@ const TEST_TOOL_DIR = /(^|\/)(__tests__|__mocks__|cypress|playwright)\/|(^|\/)[^
 const TEST_DIR = /(^|\/)(tests?|spec|e2e|fixtures?|stories)\//;
 /** A test file (*.test.ts, test_x.py, x_test.go, x_spec.rb, OrderTest.java). */
 const TEST_NAME =
-  /\.(test|spec|stories|cy)\.[cm]?[jt]sx?$|(^|\/)(test_[^/]*|[^/]*_test|conftest)\.py$|_test\.go$|_spec\.rb$|Tests?\.(?:java|kt|cs|php|scala)$/;
+  /\.(test|spec|stories|cy)\.[cm]?[jt]sx?$|(^|\/)(test_[^/]*|[^/]*_test|conftest|tests)\.py$|_test\.go$|_spec\.rb$|Tests?\.(?:java|kt|cs|php|scala)$/;
 /** A folder whose sub-folders are routes (Next.js app/ and pages/): app/api/test/route.ts is the route /api/test. */
 const ROUTER_DIR = /^(?:src\/)?(?:app|pages)\//;
 /** The name of a file of a route of the App Router (a handler, a page). */

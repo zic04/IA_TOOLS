@@ -108,7 +108,14 @@ as untrusted input:
   project, never of the application (the configuration accepts nothing else, and a path that leads out of the
   project, links followed, is refused before anything is loaded). They are given the texts of the
   application's files, never a test, a generated file or a file over 512 KB, and run nothing of it; the kit classifies
-  the access of a route itself, from the names they return;
+  the access of a route itself, from the names they return, keeps 32 guards per route and 5,000 routes per adapter at
+  most, reading 128 entries of a guard list at most (engine/facts/stack-common.mjs: a guard after them is not seen,
+  so a route may look less guarded than it is, never more), and writes "…" for a segment of a route that looks like a key or a token — what a secret detector of the kit finds
+  (always), or 20 characters or more that do not read as words, each part between separators judged alone: a
+  heuristic, which masks a random token of 32 characters or more of the usual shapes (base62, base64url,
+  hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
+  the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
+  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;

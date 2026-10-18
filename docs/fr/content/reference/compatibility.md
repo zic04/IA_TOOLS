@@ -21,6 +21,19 @@ Un adaptateur de pile lit les routes de l'API, leurs gardes, les écrans ou les 
 | Next.js | JavaScript, TypeScript | `npm:next` | routes de l'API, gardes, écrans |
 | Express, Fastify, Hono, Koa | JavaScript, TypeScript | `npm:express`, `npm:fastify`, `npm:hono`, `npm:koa-router`, `npm:@koa/router` | routes de l'API, gardes |
 | FastAPI | Python | `pip:fastapi` | routes de l'API, gardes |
+| NestJS | TypeScript | `npm:@nestjs/core`, `npm:@nestjs/common`, `**/nest-cli.json` | routes de l'API, gardes, indices de comportement |
+| Angular router | TypeScript | `npm:@angular/router`, `**/angular.json` | écrans, gardes |
+| Vue Router | JavaScript, TypeScript | `npm:vue-router` | écrans, gardes |
+| React Router | JavaScript, TypeScript | `npm:react-router`, `npm:react-router-dom` | écrans, gardes |
+| Spring (Spring MVC, Spring Data) | Java, Kotlin | `maven:org.springframework.boot:*`, `maven:org.springframework:*` | routes de l'API, gardes, indices de comportement |
+| ASP.NET Core | C# | `nuget:Microsoft.AspNetCore*`, `nuget:Swashbuckle.AspNetCore*`, `**/appsettings.json`, `**/launchSettings.json` | routes de l'API, gardes, indices de comportement |
+| Laravel | PHP | `composer:laravel/framework`, `**/artisan` | routes de l'API, gardes, indices de comportement |
+| Symfony | PHP | `composer:symfony/framework-bundle`, `**/symfony.lock`, `config/bundles.php` | routes de l'API, gardes, indices de comportement |
+| Django, Django REST framework | Python | `pip:django`, `pip:djangorestframework`, `**/manage.py` | routes de l'API, gardes |
+| Flask | Python | `pip:flask`, `pip:apiflask` | routes de l'API, gardes |
+| Go: net/http, gin, echo, chi, gorilla/mux | Go | `go:github.com/gin-gonic/gin`, `go:github.com/labstack/echo*`, `go:github.com/go-chi/chi*`, `go:github.com/gorilla/mux`, `**/go.mod` | routes de l'API, gardes, indices de comportement |
+| Ruby on Rails | Ruby | `rubygems:rails`, `rubygems:railties` | routes de l'API, gardes, indices de comportement |
+| Rust: actix-web, axum | Rust | `cargo:actix-web`, `cargo:axum` | routes de l'API, gardes |
 
 ### Dépendances
 
@@ -55,22 +68,22 @@ Chaque langage du code, et ce qui le lit. Un langage que rien ne lit ici est mes
 
 | Langage | Extensions | Lu par |
 |---|---|---|
-| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue`, `.svelte` | les lecteurs du kit, Next.js, Express, Fastify, Hono, Koa |
-| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | les lecteurs du kit, Next.js, Express, Fastify, Hono, Koa |
-| Python | `.py` | les lecteurs du kit, FastAPI |
+| JavaScript | `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue`, `.svelte` | les lecteurs du kit, Next.js, Express, Fastify, Hono, Koa, Vue Router, React Router |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | les lecteurs du kit, Next.js, Express, Fastify, Hono, Koa, NestJS, Angular router, Vue Router, React Router |
+| Python | `.py` | les lecteurs du kit, FastAPI, Django, Django REST framework, Flask |
 | HTML | `.html`, `.htm` | les lecteurs du kit |
 | SQL | `.sql` | les lecteurs du kit |
-| Java | `.java` | non lu : les agents le lisent |
-| Kotlin | `.kt`, `.kts` | non lu : les agents le lisent |
+| Java | `.java` | Spring (Spring MVC, Spring Data) |
+| Kotlin | `.kt`, `.kts` | Spring (Spring MVC, Spring Data) |
 | Groovy | `.groovy` | non lu : les agents le lisent |
 | Scala | `.scala` | non lu : les agents le lisent |
-| C# | `.cs`, `.cshtml`, `.razor` | non lu : les agents le lisent |
+| C# | `.cs`, `.cshtml`, `.razor` | ASP.NET Core |
 | F# | `.fs` | non lu : les agents le lisent |
 | Visual Basic | `.vb` | non lu : les agents le lisent |
-| PHP | `.php` | non lu : les agents le lisent |
-| Go | `.go` | non lu : les agents le lisent |
-| Ruby | `.rb`, `.erb` | non lu : les agents le lisent |
-| Rust | `.rs` | non lu : les agents le lisent |
+| PHP | `.php` | Laravel, Symfony |
+| Go | `.go` | Go: net/http, gin, echo, chi, gorilla/mux |
+| Ruby | `.rb`, `.erb` | Ruby on Rails |
+| Rust | `.rs` | Rust: actix-web, axum |
 | Swift | `.swift` | non lu : les agents le lisent |
 | Dart | `.dart` | non lu : les agents le lisent |
 | Elixir | `.ex`, `.exs` | non lu : les agents le lisent |

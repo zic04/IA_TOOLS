@@ -17,6 +17,8 @@
   "cli.build.facts.missing": "[{page}] facts file not found: {file}",
   "cli.build.facts.missing.help": "run {command} facts --source {source} first, or check paths.facts",
   "cli.facts.noApp": "no application to read",
+  "cli.stacks.name": "stack adapter {file}: “{name}” is the name of one of the kit's adapters",
+  "cli.stacks.name.help": "give the project's adapter a name of its own (its \"name\"), or turn the kit's off with stacks.disabled",
   "cli.stacks.unknown": "stacks.disabled: the kit has no stack adapter “{name}”",
   "cli.stacks.unknown.help": "the kit's stack adapters: {known}",
   "cli.stacks.outside": "stack adapter “{name}”: not a file of the documentation project",

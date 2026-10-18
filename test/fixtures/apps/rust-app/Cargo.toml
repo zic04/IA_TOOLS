@@ -1,0 +1,11 @@
+[package]
+name = "shop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.5"
+actix-web-httpauth = "0.8"
+axum = "0.7"
+tower-http = { version = "0.5", features = ["trace"] }
+tokio = { version = "1", features = ["full"] }

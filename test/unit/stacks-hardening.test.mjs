@@ -9,13 +9,23 @@ import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { tempDir } from "../tools/helpers.mjs";
-import { loadStacks, stackSources } from "../../engine/facts/stacks.mjs";
+import { loadStacks, stackSources, BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { collectApi, collectScreens } from "../../engine/facts/api.mjs";
 import { isTestFile } from "../../engine/facts/code-files.mjs";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
 import { expressRoutes } from "../../adapters/stack/express.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import next from "../../adapters/stack/next.mjs";
+import {
+  MAX_GUARDS,
+  MAX_ITEMS,
+  withGuards,
+  singular,
+  STACK_COMMON_PATTERNS,
+} from "../../engine/facts/stack-common.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
+import spring from "../../adapters/stack/spring.mjs";
+import { GENERIC } from "../../engine/check/secrets.mjs";
 
 /** Writes files (relative path → text) under a new temporary folder; returns it. */
 function tree(prefix, files) {
@@ -254,6 +264,7 @@ describe("reading routes", () => {
       "app/__tests__/a.ts",
       "app/x.test.tsx",
       "spec/models/a_spec.rb",
+      "orders/tests.py",
       "app/tests/utils/factories.py",
       "src/app/orders/tests/helpers.ts",
       "app/api/test/helpers.ts",
@@ -332,6 +343,395 @@ describe("the manifests", () => {
       const unreadable = [];
       assert.deepEqual(collectDependencies(app, unreadable), []);
       assert.deepEqual(unreadable, [{ file: "pom.xml", reason: "xml" }]);
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("thirteen stacks, one route per declaration", () => {
+  test("an application without a manifest: a decorator FastAPI and Flask both read is the framework's the file names", () => {
+    const fastapiApp = tree("doc-kit-harden-owner-", {
+      "main.py":
+        'from fastapi import APIRouter\nrouter = APIRouter(prefix="/orders")\n@router.get("/{order_id}")\ndef one(order_id): pass\n',
+    });
+    const flaskApp = tree("doc-kit-harden-owner-", {
+      "app.py":
+        'from flask import Blueprint\nbp = Blueprint("orders", __name__, url_prefix="/orders")\n@bp.get("/<int:order_id>")\ndef one(order_id): pass\n',
+    });
+    try {
+      assert.deepEqual(
+        collectApi(fastapiApp).map((r) => `${r.framework} ${r.method} ${r.route}`),
+        ["fastapi GET /orders/{order_id}"],
+      );
+      assert.deepEqual(
+        collectApi(flaskApp).map((r) => `${r.framework} ${r.method} ${r.route}`),
+        ["flask GET /orders/<int:order_id>"],
+      );
+    } finally {
+      fs.rmSync(fastapiApp, { recursive: true, force: true });
+      fs.rmSync(flaskApp, { recursive: true, force: true });
+    }
+  });
+
+  test("the user guards of 0.5: an Express `auth` middleware and Next's auth() are user; requireAuth, currentUser are not", () => {
+    const app = tree("doc-kit-harden-guards-", {
+      "package.json": JSON.stringify({ dependencies: { express: "4.0.0", next: "15.0.0" } }),
+      "server.js": 'app.get("/a", auth, h);\napp.get("/b", requireAuth, h);\n',
+      "app/api/c/route.ts": "export async function GET() { const s = await auth(); }\n",
+      "app/api/d/route.ts": "export async function GET() { const u = await currentUser(); }\n",
+    });
+    try {
+      assert.deepEqual(
+        collectApi(app).map((r) => `${r.route} ${r.auth}`),
+        ["/a user", "/api/c user", "/api/d unknown", "/b unknown"],
+      );
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("a route's segment shaped like a token is written …; a word with digits is kept", () => {
+    const token = "Zq8vN3kT6wP1xR4mY7bLc2Hd9sF0";
+    const app = tree("doc-kit-harden-mask-", {
+      "package.json": JSON.stringify({ dependencies: { express: "4.0.0" } }),
+      "server.js": `app.post("/hooks/${token}", h);\napp.get("/oauth2callback", h);\n`,
+    });
+    try {
+      assert.deepEqual(
+        collectApi(app).map((r) => r.route),
+        ["/hooks/…", "/oauth2callback"],
+      );
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("guards composed are cut at MAX_GUARDS and kept once; the singular of a resource as the inflectors give it", () => {
+    const parent = withGuards(
+      Array.from({ length: 100 }, (_, i) => `p${i}`),
+      [],
+    );
+    assert.equal(parent.length, MAX_GUARDS);
+    assert.deepEqual(withGuards(["a", "b"], ["b", "c"]), ["a", "b", "c"]);
+    assert.equal(withGuards(parent, ["own"]).length, MAX_GUARDS);
+    const words = {
+      orders: "order",
+      categories: "category",
+      movies: "movie",
+      cookies: "cookie",
+      series: "series",
+      news: "news",
+      addresses: "address",
+      statuses: "status",
+      houses: "house",
+      boxes: "box",
+      people: "person",
+      class: "class",
+    };
+    for (const [plural, one] of Object.entries(words)) assert.equal(singular(plural), one, plural);
+    assert.ok(
+      Object.isFrozen(STACK_COMMON_PATTERNS) &&
+        Object.values(STACK_COMMON_PATTERNS).every((re) => re instanceof RegExp),
+    );
+  });
+});
+
+describe("the second review of the thirteen stacks", () => {
+  /** The best of three runs of `fn`, in milliseconds. */
+  const best = (fn) =>
+    Math.min(
+      ...[0, 1, 2].map(() => {
+        const start = performance.now();
+        fn();
+        return performance.now() - start;
+      }),
+    );
+
+  test("guards written thousands of times over compose in a bounded time (a Vue route of K children)", () => {
+    // One child whose guards are 31 names then thousands of copies of the last, mounted k times under a parent.
+    const app = (k, copies) => {
+      const guards = [...Array.from({ length: 31 }, (_, i) => `g${i}`), ...Array(copies).fill("g30")].join(", ");
+      return tree("doc-kit-harden-dup-", {
+        "package.json": JSON.stringify({ dependencies: { "vue-router": "4.0.0" } }),
+        "src/router/index.ts": `export const kidRoutes = [{ path: 'x', component: X, beforeEnter: [${guards}] }];\nconst routes = [{ path: '/a', component: A, children: [${"...kidRoutes, ".repeat(k)}] }];\n`,
+      });
+    };
+    const small = app(500, 6000);
+    const large = app(2000, 24000);
+    try {
+      const n = best(() => collectScreens(small));
+      const n4 = best(() => collectScreens(large));
+      const screens = collectScreens(large);
+      assert.ok(n4 < 1000, `${n4.toFixed(0)} ms`);
+      assert.ok(n4 < 20 || n4 / Math.max(n, 0.05) <= 8, `×${(n4 / n).toFixed(1)}`);
+      assert.ok(screens.length >= 1 && screens.every((x) => !x.guards || x.guards.length <= MAX_GUARDS));
+    } finally {
+      fs.rmSync(small, { recursive: true, force: true });
+      fs.rmSync(large, { recursive: true, force: true });
+    }
+    const start = performance.now();
+    const copies = Array(100_000).fill("b");
+    for (let i = 0; i < 10_000; i++) withGuards(["a"], copies);
+    assert.ok(performance.now() - start < 1000, "withGuards reads a bounded part of a list");
+  });
+
+  test("a project's adapter is never overruled by the kit's on the same line; the bounds hold for it too", () => {
+    const app = tree("doc-kit-harden-local-", {
+      "package.json": JSON.stringify({ dependencies: { express: "4.0.0" } }),
+      "server.js": 'app.get("/a", h);\n',
+    });
+    const acme = {
+      name: "acme-routes",
+      files: /server\.js$/,
+      api: () => [{ method: "GET", route: "/a", file: "server.js", line: 1, guards: ["acmeSession"] }],
+    };
+    const big = {
+      name: "big",
+      files: /server\.js$/,
+      api: () =>
+        Array.from({ length: 6000 }, (_, i) => ({
+          method: "GET",
+          route: `/r${i}`,
+          file: "server.js",
+          line: 2,
+          guards: Array.from({ length: 50 }, (_, g) => `g${g}`),
+        })),
+    };
+    try {
+      assert.deepEqual(
+        collectApi(app, {}, [...BUILT_IN_STACKS, acme])
+          .map((r) => `${r.framework} ${r.route} ${r.guards.join(",")}`)
+          .sort(),
+        ["acme-routes /a acmeSession", "express /a "],
+      );
+      const items = collectApi(app, {}, [big]);
+      assert.equal(items.length, MAX_ITEMS);
+      assert.ok(items.every((i) => i.guards.length === MAX_GUARDS));
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("Rust: a handler and a configure function by their module path; two of one name are never guessed", () => {
+    const app = tree("doc-kit-harden-rust-", {
+      "src/users.rs":
+        '#[get("/")]\nasync fn index() -> impl Responder { "" }\npub fn config(cfg: &mut web::ServiceConfig) { cfg.service(web::resource("/me").route(web::get().to(me))); }\n',
+      "src/orders.rs":
+        '#[get("/")]\nasync fn index() -> impl Responder { "" }\npub fn config(cfg: &mut web::ServiceConfig) { cfg.service(web::resource("/mine").route(web::get().to(mine))); }\n',
+      "src/main.rs":
+        'fn main() {\n  App::new()\n    .service(web::scope("/users").service(users::index).configure(users::config))\n    .service(web::scope("/orders").wrap(bearer).service(orders::index).configure(orders::config));\n}\n',
+    });
+    try {
+      const items = collectApi(app);
+      const of = (file) => items.filter((i) => i.file === file).map((i) => `${i.route} ${i.guards.join(",")}`);
+      assert.ok(
+        of("src/orders.rs").every((r) => r.startsWith("/orders") && r.endsWith("bearer")),
+        JSON.stringify(of("src/orders.rs")),
+      );
+      assert.ok(
+        of("src/users.rs").every((r) => r.startsWith("/users") && !r.includes("bearer")),
+        JSON.stringify(of("src/users.rs")),
+      );
+      assert.equal(of("src/orders.rs").length, 2);
+      assert.equal(of("src/users.rs").length, 2);
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("a route's readable segment is kept, a token's masked", () => {
+    for (const route of [
+      "/api/v3/WorkOrders2024Q3Summary",
+      "/api/GetUserProfileByIdV2",
+      "/api/v1/oauth2callback",
+      "/files/{fileId}",
+    ])
+      assert.equal(routeWithoutSecrets(route), route);
+    assert.equal(routeWithoutSecrets("/hooks/Zq8vN3kT6wP1xR4mY7bLc2Hd9sF0"), "/hooks/…");
+  });
+
+  test('Spring: a Java text block holding \\""", an empty Kotlin raw string, a Kotlin constructor on its own line keep the controller', () => {
+    const routes = (file, text) =>
+      spring.api({ sources: new Map([[file, text]]) }).map((r) => `${r.method} ${r.route}`);
+    const java = [
+      "@RestController",
+      '@RequestMapping("/a")',
+      "class A {",
+      '  String doc = """',
+      '    a \\""" b',
+      '    """;',
+      '  @GetMapping("/x")',
+      "  String x() { return null; }",
+      "}",
+    ].join("\n");
+    assert.deepEqual(routes("A.java", java), ["GET /a/x"]);
+    const kotlin = [
+      "@RestController",
+      '@RequestMapping("/k")',
+      "class K",
+      "@Autowired constructor(private val s: S) {",
+      '  val empty = """"""',
+      '  @GetMapping("/y")',
+      "  fun y(): String = s.y()",
+      "}",
+    ].join("\n");
+    assert.deepEqual(routes("K.kt", kotlin), ["GET /k/y"]);
+  });
+});
+
+describe("the third review of the thirteen stacks", () => {
+  /** A seeded generator (mulberry32): the same tokens on every run. */
+  const seeded = (seed) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  test("a random token in a route is masked (2,000 of each shape, a known key always); words and parameters are kept", () => {
+    const random = seeded(2026);
+    const token = (alphabet, n) =>
+      Array.from({ length: n }, () => alphabet[Math.floor(random() * alphabet.length)]).join("");
+    const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lower = upper.toLowerCase();
+    const digits = "0123456789";
+    const shapes = [
+      ["base62, 40", () => token(upper + lower + digits, 40), 2],
+      ["base64url, 32", () => token(upper + lower + digits + "-_", 32), 2],
+      ["a-z0-9, 32", () => token(lower + digits, 32), 2],
+      ["hex, 40", () => token("0123456789abcdef", 40), 0],
+      ["a Stripe secret key", () => "sk_" + "live_" + token(upper + lower + digits, 24), 0],
+    ];
+    for (const [name, make, allowed] of shapes) {
+      let kept = 0;
+      for (let i = 0; i < 2000; i++) if (routeWithoutSecrets(`/hooks/${make()}`) !== "/hooks/…") kept++;
+      assert.ok(kept <= allowed, `${name}: ${kept} of 2,000 kept`);
+    }
+    for (const route of [
+      "/blog/my-long-readable-article-title-2024",
+      "/news/release-notes-2024-10-17",
+      "/api/GetHTTPResponseCodesV2",
+      "/api/customer-subscriptions-by-region",
+      "/{someVeryLongParameterName}",
+      "/^orders/(?P<order_id>[0-9]+)/items",
+    ])
+      assert.equal(routeWithoutSecrets(route), route);
+  });
+
+  test("the secret detectors find a Stripe secret key and a webhook secret", () => {
+    const cloud = GENERIC.find((d) => d.kind === "cloudKey");
+    for (const key of [
+      "sk_" + "live_" + "Zq8vN3kT6wP1xR4mY7bLc2Hd",
+      "rk_" + "test_" + "Zq8vN3kT6wP1xR4mY7bLc2Hd",
+      "whsec_" + "Zq8vN3kT6wP1xR4mY7bLc2Hd9s",
+    ]) {
+      cloud.re.lastIndex = 0;
+      assert.ok(cloud.re.test(`key = "${key}"`), key.slice(0, 8));
+    }
+  });
+
+  test("a project's adapter named like one of the kit's is refused (stacks.name)", async () => {
+    const root = tree("doc-kit-harden-name-", {
+      "adapters/x.mjs": "export default { name: 'express', files: /x/, api: () => [] };\n",
+    });
+    try {
+      await assert.rejects(
+        loadStacks(root, { stacks: { adapters: ["local:adapters/x.mjs"] } }),
+        (e) => e.key === "stacks.name",
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("Rust: a handler two modules of one name could be is never given bare (no route without its scope's guards)", () => {
+    const handler = '#[get("/")]\nasync fn index() -> impl Responder { "" }\n';
+    const app = tree("doc-kit-harden-rust2-", {
+      "src/a/handlers.rs": handler,
+      "src/b/handlers.rs": handler,
+      "src/main.rs":
+        'fn main() {\n  App::new().service(web::scope("/orders").wrap(Auth).service(handlers::index));\n}\n',
+    });
+    try {
+      assert.ok(
+        !collectApi(app).some((i) => i.route === "/" && i.guards.length === 0),
+        JSON.stringify(collectApi(app)),
+      );
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("brackets nested far deeper than routes are counted, not built: linear (an Angular route table)", () => {
+    const at = (n) =>
+      new Map([
+        ["src/app.routes.ts", "const routes: Routes = [{ path: 'a', component: A, canActivate: [" + "{".repeat(n)],
+      ]);
+    const angular = BUILT_IN_STACKS.find((a) => a.name === "angular");
+    const time = (n) => {
+      const sources = at(n);
+      const start = performance.now();
+      angular.screens({ sources });
+      return performance.now() - start;
+    };
+    const small = Math.min(time(48_000), time(48_000));
+    const large = Math.min(time(192_000), time(192_000));
+    assert.ok(
+      large < 20 || large / Math.max(small, 0.05) <= 8,
+      `×${(large / small).toFixed(1)} (${large.toFixed(0)} ms)`,
+    );
+  });
+});
+
+describe("the fourth review of the thirteen stacks", () => {
+  test("readable route segments are kept: numeronyms, short words between separators, a date, a colon, accents", () => {
+    for (const seg of [
+      "k8s-cluster-node-pools",
+      "i18n-translation-bundles",
+      "e2e-test-fixtures-cleanup",
+      "a11y-accessibility-statement",
+      "x509-certificate-chains",
+      "documents:batchGetDocuments",
+      "how-to-set-up-a-new-account",
+      "faq-and-terms-of-use",
+      "getUserByIdAndTenantById",
+      "catégories-de-produits",
+      "20240115-backup-snapshot",
+      "SAMLAssertionConsumerService",
+      "OAuth2PKCEAuthorizationFlow",
+      "AzureADB2CUserFlows",
+    ])
+      assert.equal(routeWithoutSecrets(`/api/${seg}`), `/api/${seg}`, seg);
+  });
+
+  test("Rust: a handler a file brings in with use is its module's; one that stays ambiguous is given under its registration", () => {
+    const handler = '#[get("/")]\nasync fn index() -> impl Responder { "" }\n';
+    const app = tree("doc-kit-harden-rust3-", {
+      "src/orders.rs": handler,
+      "src/users.rs": handler,
+      "src/a/handlers.rs": '#[get("/list")]\nasync fn show() -> impl Responder { "" }\n',
+      "src/b/handlers.rs": '#[get("/list")]\nasync fn show() -> impl Responder { "" }\n',
+      "src/main.rs": [
+        "use crate::orders::index;",
+        "fn main() {",
+        '  App::new().service(web::scope("/orders").wrap(Auth).service(index))',
+        '    .service(web::scope("/reports").wrap(Auth).service(handlers::show));',
+        "}",
+      ].join("\n"),
+    });
+    try {
+      const items = collectApi(app);
+      const orders = items.find((i) => i.file === "src/orders.rs");
+      assert.ok(orders && orders.route.startsWith("/orders") && orders.guards.includes("Auth"), JSON.stringify(items));
+      const reports = items.filter((i) => i.route.startsWith("/reports"));
+      assert.ok(reports.length >= 1 && reports.every((i) => i.guards.includes("Auth")), JSON.stringify(items));
+      // users.rs registers nowhere: its route stays bare; the registered ones are never bare.
+      const registered = items.filter((i) => i.file !== "src/users.rs");
+      assert.ok(
+        registered.every((i) => i.guards.includes("Auth")),
+        JSON.stringify(items),
+      );
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
     }
