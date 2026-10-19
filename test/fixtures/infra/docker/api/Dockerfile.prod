@@ -1,0 +1,4 @@
+FROM registry.example.test:5000/acme/base AS runtime
+ENV LOG_LEVEL=info
+EXPOSE 9090/tcp
+USER app:app

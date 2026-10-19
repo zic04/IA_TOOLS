@@ -11,6 +11,7 @@
       "facts.api",
       "facts.screens",
       "facts.db",
+      "facts.infra",
       "facts.behaviours",
       "facts.agents",
       "facts.secrets",
@@ -85,6 +86,14 @@
       "needs": ["inputs.repos"],
       "steps": [{ "command": "facts", "source": "db" }],
       "freshness": { "rule": "envelope", "files": ["db"] }
+    },
+    {
+      "id": "facts.infra",
+      "kind": "facts",
+      "title": { "en": "Infrastructure: resources, workloads, images, environments", "fr": "Infrastructure : ressources, charges, images, environnements" },
+      "needs": ["inputs.repos"],
+      "steps": [{ "command": "facts", "source": "infra" }],
+      "freshness": { "rule": "envelope", "files": ["infra"] }
     },
     {
       "id": "facts.behaviours",

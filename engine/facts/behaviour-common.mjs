@@ -17,7 +17,7 @@ const LIST_VALUE = /^[\p{L}\p{N}][\p{L}\p{N} _.\-/&']{0,39}$/u;
 /** An operation of an OpenAPI document: "GET /orders/{id}". */
 const ROUTE = /^[A-Z]{3,7} \/[\w/{}:.*-]{0,200}$/;
 /** A cron expression: digits, *, /, ",", "-", ?, L, W, # and blanks. */
-const CRON = /^[\d*/,\-?LW# ]{9,64}$/;
+export const CRON = /^[\d*/,\-?LW# ]{9,64}$/;
 /** An interval of `schedule.every`: "10 minutes", "monday". */
 const INTERVAL =
   /^\d{0,6} ?(?:seconds?|minutes?|hours?|days?|weeks?|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/;

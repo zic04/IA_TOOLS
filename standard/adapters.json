@@ -321,6 +321,90 @@
       }
     },
     {
+      "id": "terraform",
+      "family": "infra",
+      "title": "Terraform, OpenTofu",
+      "reads": ["resources"],
+      "detect": { "files": ["**/*.tf"] }
+    },
+    {
+      "id": "bicep",
+      "family": "infra",
+      "title": "Azure Bicep",
+      "reads": ["resources"],
+      "detect": { "files": ["**/*.bicep"] }
+    },
+    {
+      "id": "arm",
+      "family": "infra",
+      "title": "Azure Resource Manager (ARM templates)",
+      "reads": ["resources"],
+      "detect": { "files": ["**/azuredeploy.json", "**/mainTemplate.json", "**/template.json"] }
+    },
+    {
+      "id": "cloudformation",
+      "family": "infra",
+      "title": "AWS CloudFormation, SAM",
+      "reads": ["resources"],
+      "detect": { "files": ["**/template.yaml", "**/template.yml", "**/*.template", "**/samconfig.toml"] }
+    },
+    {
+      "id": "dockerfile",
+      "family": "infra",
+      "title": "Dockerfile, Containerfile",
+      "reads": ["images"],
+      "detect": { "files": ["**/Dockerfile", "**/Dockerfile.*", "**/Containerfile", "**/*.dockerfile"] }
+    },
+    {
+      "id": "kubernetes",
+      "family": "infra",
+      "title": "Kubernetes, OpenShift",
+      "reads": ["workloads", "images", "resources", "environments"],
+      "detect": { "files": ["**/*.yaml", "**/*.yml"] }
+    },
+    {
+      "id": "helm",
+      "family": "infra",
+      "title": "Helm",
+      "reads": ["workloads", "images", "resources"],
+      "detect": { "files": ["**/Chart.yaml"] }
+    },
+    {
+      "id": "compose",
+      "family": "infra",
+      "title": "Docker Compose",
+      "reads": ["workloads", "images", "resources"],
+      "detect": { "files": ["**/docker-compose*.yml", "**/docker-compose*.yaml", "**/compose.yaml", "**/compose.yml"] }
+    },
+    {
+      "id": "github-actions",
+      "family": "infra",
+      "title": "GitHub Actions",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": [".github/workflows/*.yml", ".github/workflows/*.yaml"] }
+    },
+    {
+      "id": "gitlab-ci",
+      "family": "infra",
+      "title": "GitLab CI",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": ["**/.gitlab-ci.yml"] }
+    },
+    {
+      "id": "azure-pipelines",
+      "family": "infra",
+      "title": "Azure Pipelines",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": ["**/azure-pipelines.yml", "**/azure-pipelines.yaml", ".azure-pipelines/*.yml", ".pipelines/*.yml"] }
+    },
+    {
+      "id": "ansible",
+      "family": "infra",
+      "title": "Ansible (playbooks)",
+      "reads": ["pipelines", "environments"],
+      "detect": { "files": ["**/ansible.cfg", "**/site.yml", "**/playbook.yml"] }
+    },
+    {
       "id": "npm",
       "family": "deps",
       "title": "npm, pnpm, Yarn",

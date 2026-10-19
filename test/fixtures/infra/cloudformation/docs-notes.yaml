@@ -1,0 +1,3 @@
+# Mentions AWS::S3::Bucket in prose but is no template.
+notes:
+  - The bucket is an AWS::S3::Bucket made by hand.

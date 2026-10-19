@@ -1,0 +1,13 @@
+replicaCount: 5
+image:
+  tag: 1.4.2
+ingress:
+  enabled: true
+  className: nginx
+  tls:
+    - secretName: shop-tls
+      hosts:
+        - shop.example.test
+service:
+  type: LoadBalancer
+  port: 443

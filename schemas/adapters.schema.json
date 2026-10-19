@@ -47,10 +47,10 @@
       "required": ["id", "family", "title"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "family": { "enum": ["stack", "deps", "lowcode", "coverage", "auth"] },
+        "family": { "enum": ["stack", "infra", "deps", "lowcode", "coverage", "auth"] },
         "title": { "type": "string", "minLength": 1 },
         "languages": { "type": "array", "items": { "$ref": "#/$defs/id" } },
-        "reads": { "type": "array", "items": { "enum": ["api", "guards", "screens", "behaviours"] } },
+        "reads": { "type": "array", "items": { "enum": ["api", "guards", "screens", "behaviours", "resources", "workloads", "images", "environments", "pipelines"] } },
         "detect": { "$ref": "#/$defs/detect" },
         "ecosystem": { "$ref": "#/$defs/id" },
         "files": { "type": "array", "items": { "type": "string", "minLength": 1 } }

@@ -1,0 +1,16 @@
+on:
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+    secrets:
+      REGISTRY_TOKEN:
+        required: true
+jobs:
+  build:
+    uses: acme/platform/.github/workflows/build.yml@v2
+    with:
+      target: ${{ inputs.target }}
+    secrets:
+      token: ${{ secrets.REGISTRY_TOKEN }}

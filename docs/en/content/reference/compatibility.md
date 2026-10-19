@@ -50,6 +50,25 @@ Every manifest and lock file below is read on its own, four folders deep at most
 | Bundler (`rubygems`) | `Gemfile`, `Gemfile.lock` |
 | Cargo (`cargo`) | `Cargo.toml`, `Cargo.lock` |
 
+### Infrastructure
+
+An infra adapter reads what infrastructure files declare (source `infra`): cloud resources, workloads, images, environments — names and a few settings, never a value or a secret.
+
+| Tool | Detected by | What the kit reads |
+|---|---|---|
+| Terraform, OpenTofu | `**/*.tf` | resources |
+| Azure Bicep | `**/*.bicep` | resources |
+| Azure Resource Manager (ARM templates) | `**/azuredeploy.json`, `**/mainTemplate.json`, `**/template.json` | resources |
+| AWS CloudFormation, SAM | `**/template.yaml`, `**/template.yml`, `**/*.template`, `**/samconfig.toml` | resources |
+| Dockerfile, Containerfile | `**/Dockerfile`, `**/Dockerfile.*`, `**/Containerfile`, `**/*.dockerfile` | images |
+| Kubernetes, OpenShift | `**/*.yaml`, `**/*.yml` | workloads, images, resources, environments |
+| Helm | `**/Chart.yaml` | workloads, images, resources |
+| Docker Compose | `**/docker-compose*.yml`, `**/docker-compose*.yaml`, `**/compose.yaml`, `**/compose.yml` | workloads, images, resources |
+| GitHub Actions | `.github/workflows/*.yml`, `.github/workflows/*.yaml` | pipelines, environments, images |
+| GitLab CI | `**/.gitlab-ci.yml` | pipelines, environments, images |
+| Azure Pipelines | `**/azure-pipelines.yml`, `**/azure-pipelines.yaml`, `.azure-pipelines/*.yml`, `.pipelines/*.yml` | pipelines, environments, images |
+| Ansible (playbooks) | `**/ansible.cfg`, `**/site.yml`, `**/playbook.yml` | pipelines, environments |
+
 ### Low-code platforms
 
 Detected, never read: `doc-kit inputs status` and the facts say so, and the agents read the export themselves (an unpacked Power Apps app, an OutSystems module, a Salesforce project…).

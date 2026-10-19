@@ -1,0 +1,3 @@
+apiVersion: v2
+name: test-chart-never-read
+version: 9.9.9

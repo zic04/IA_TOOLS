@@ -16,6 +16,7 @@ import { collectDependencies } from "../../engine/facts/dependencies.mjs";
 import { privateRegistries } from "../../engine/facts/network.mjs";
 import { SOURCE_NAMES, collectSource } from "../../engine/facts/registry.mjs";
 import { loadStacks } from "../../engine/facts/stacks.mjs";
+import { loadInfra } from "../../engine/facts/infra.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
 
@@ -80,11 +81,12 @@ export async function run({ ctx, values }) {
 
   // The stack adapters of the run: the kit's but the disabled ones, then the project's own (config.stacks).
   const stacks = await loadStacks(project.root, config);
+  const infra = await loadInfra(project.root, config);
   const written = {};
   for (const name of SOURCE_NAMES) {
     if (!requested.includes(name)) continue;
     const end = ctx.timer?.start("facts", { sub: name });
-    const seams = { appDir, exec: ctx.exec, fetch: ctx.fetch, config, network, stacks };
+    const seams = { appDir, exec: ctx.exec, fetch: ctx.fetch, config, network, stacks, infra };
     let { items, extra, unreadable = [] } = await collectSource(name, seams).finally(() => end?.());
     // A file that is there but cannot be read: its facts are unknown, not empty (AUDIT.md M14).
     if (unreadable.length) extra = { ...extra, unreadable };

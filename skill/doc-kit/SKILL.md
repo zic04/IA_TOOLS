@@ -141,7 +141,7 @@ Cadrage above. **Exit**: written decisions.
 ### 1 · `doc-kit facts` first: the deterministic inventory, zero tokens
 Before any agent runs: `doc-kit init`, `doc-kit inputs fetch` and `doc-kit inputs ingest` when the cadrage
 named sources (`doc-kit inputs` shows their state), then `doc-kit facts [--network] [--tools]` reads the application's code and
-writes `facts/*.json` (dependencies, env, api, db, behaviours, agents, secrets, tests — ARCHITECTURE.md §6.9), committed with
+writes `facts/*.json` (dependencies, stack, env, api, screens, db, infra, behaviours, agents, secrets, security, quality, tests, modules, history — ARCHITECTURE.md §6.9), committed with
 the project. No LLM call, no judgment: a fact is a fact, not yet a finding. `doctor` must be green first.
 
 ### 2 · Inventory by the reviewer

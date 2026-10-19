@@ -8,6 +8,13 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **What the infrastructure declares** (ARCHITECTURE.md §5, §6.9, source `infra`): `doc-kit facts` reads the
+  Dockerfiles, Terraform, Bicep, ARM and CloudFormation templates, Kubernetes and OpenShift manifests, Helm charts,
+  Compose files, GitHub Actions, GitLab CI and Azure Pipelines, and Ansible playbooks: their cloud resources and
+  modules, workloads, services and ingresses, images (and their tag), environments and jobs, with a few settings
+  (replicas, ports, whether it runs as root, TLS, open to all) and the names of their variables — never a value or a
+  secret. A project adds its own with `infra.adapters` and turns one of the kit's off with `infra.disabled`. Shown with
+  `::facts{source="infra"}`; new brick `facts.infra`.
 - **Thirteen more stacks read** (ARCHITECTURE.md §5): the API routes and their guards of NestJS, Spring (Java,
   Kotlin), ASP.NET Core (controllers and minimal APIs), Laravel, Symfony, Django and Django REST framework, Flask, Go
   (net/http, gin, echo, chi, gorilla/mux), Ruby on Rails and Rust (actix-web, axum); the screens of the Angular, Vue

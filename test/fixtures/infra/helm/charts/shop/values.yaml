@@ -1,0 +1,23 @@
+# Default values for shop.
+replicaCount: 2
+image:
+  repository: ghcr.io/acme/shop
+  pullPolicy: IfNotPresent
+  tag: ""
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: false
+env:
+  DATABASE_URL: "helm-value-never-kept"
+worker:
+  replicaCount: 1
+  image:
+    registry: registry.example.test
+    repository: acme/shop-worker
+    tag: 2.0.1
+postgresql:
+  enabled: true
+  auth:
+    password: "helm-password-never-kept"

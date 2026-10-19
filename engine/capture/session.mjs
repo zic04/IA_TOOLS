@@ -21,11 +21,18 @@ import { TIMINGS } from "./timings.mjs";
 
 /** The kit's adapters of each family that is loaded by name (standard/adapters.json). */
 const BUILT_IN = Object.freeze(
-  Object.fromEntries(["auth", "coverage", "stack"].map((family) => [family, adaptersOf(family).map((a) => a.id)])),
+  Object.fromEntries(
+    ["auth", "coverage", "stack", "infra"].map((family) => [family, adaptersOf(family).map((a) => a.id)]),
+  ),
 );
 
 /** What an adapter of a family exports: the function it must have, as said by adapter.invalid. */
-const METHOD = Object.freeze({ auth: "session", coverage: "inventory", stack: "api|screens|behaviours" });
+const METHOD = Object.freeze({
+  auth: "session",
+  coverage: "inventory",
+  stack: "api|screens|behaviours",
+  infra: "infra",
+});
 
 /**
  * Whether an adapter's default export has the shape of its family: a stack adapter has `files` (an expression on
@@ -33,11 +40,12 @@ const METHOD = Object.freeze({ auth: "session", coverage: "inventory", stack: "a
  */
 function hasShape(kind, adapter) {
   if (!adapter) return false;
-  if (kind !== "stack") return typeof adapter[METHOD[kind]] === "function";
+  if (kind !== "stack" && kind !== "infra") return typeof adapter[METHOD[kind]] === "function";
+  const hooks = kind === "stack" ? ["api", "screens", "behaviours"] : ["infra"];
   return (
     adapter.files instanceof RegExp &&
     (adapter.marker === undefined || adapter.marker instanceof RegExp) &&
-    ["api", "screens", "behaviours"].some((m) => typeof adapter[m] === "function")
+    hooks.some((m) => typeof adapter[m] === "function")
   );
 }
 
@@ -69,7 +77,7 @@ export function isSignInUrl(url, appUrl, pattern = LOGIN_PATTERN) {
 
 /**
  * Loads an adapter and validates its options (the configuration entry minus `adapter`).
- * @param {"auth"|"coverage"|"stack"} kind
+ * @param {"auth"|"coverage"|"stack"|"infra"} kind
  * @param {object} spec        configuration entry: { adapter: "name" | "local:path", ...options }
  * @param {string} root        project root (local adapters are relative to it)
  * @param {string} where       path of the entry in the configuration, for messages ("auth", "coverage[0]")

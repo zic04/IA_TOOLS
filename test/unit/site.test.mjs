@@ -187,13 +187,17 @@ describe("product neutrality", () => {
     () => {
       const forbidden = new RegExp(terms.join("|"), "i");
       const skip = new Set(["node_modules", ".git"]);
+      // The kit's own texts, and those of its fixtures whatever their language (infrastructure files included).
+      const TEXT =
+        /\.(mjs|js|cjs|ts|tsx|jsx|vue|json|css|html|md|svg|ya?ml|tf|tfvars|bicep|bicepparam|template|toml|py|php|java|kt|cs|go|rb|rs|xml|gradle|txt|nomad)$|^(Dockerfile|Containerfile)(\.[\w.-]{1,40})?$/;
       const walk = (dir) =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
           if (skip.has(d.name)) return [];
           const p = path.join(dir, d.name);
-          return d.isDirectory() ? walk(p) : /\.(mjs|js|json|css|html|md|svg)$/.test(d.name) ? [p] : [];
+          return d.isDirectory() ? walk(p) : TEXT.test(d.name) ? [p] : [];
         });
       const own = [
+        "adapters",
         "cli",
         "engine",
         "i18n",

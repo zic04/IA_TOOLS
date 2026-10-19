@@ -1,0 +1,6 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment-never-read
+spec:
+  replicas: 1

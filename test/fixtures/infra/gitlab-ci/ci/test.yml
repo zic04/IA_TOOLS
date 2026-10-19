@@ -1,0 +1,7 @@
+unit:
+  stage: test
+  image:
+    name: mcr.microsoft.com/playwright:v1.48.0-jammy
+    entrypoint: [""]
+  script:
+    - npm test

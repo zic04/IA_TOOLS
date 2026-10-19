@@ -113,6 +113,41 @@ describe("the registry (standard/adapters.json)", () => {
       "c/three.msapp",
     ]);
     assert.deepEqual(detectedBy(entry, { dependencies: [], files: ["app.ts"] }), []);
+    const workflows = {
+      ...entry,
+      detect: { files: [".github/workflows/*.yml", "**/Chart.yaml", "*.tf", "ansible.cfg"] },
+    };
+    assert.deepEqual(
+      detectedBy(workflows, {
+        dependencies: [],
+        files: [
+          ".github/workflows/ci.yml",
+          "x/.github/workflows/ci.yml",
+          ".github/workflows/a/b.yml",
+          "Chart.yaml",
+          "main.tf",
+          "x/main.tf",
+        ],
+      }),
+      [".github/workflows/ci.yml", "Chart.yaml", "main.tf"],
+    );
+  });
+
+  test("the registry refuses a glob it could not test linearly: a wildcard in a folder", () => {
+    for (const glob of ["a/*/x.yml", "**/a/*.yml", "*/x.yml"]) {
+      const kit = tree("doc-kit-registry-", {
+        "standard/adapters.json": JSON.stringify({
+          languages: [],
+          adapters: [{ id: "x", family: "infra", title: "X", detect: { files: [glob] } }],
+        }),
+        "schemas/adapters.schema.json": fs.readFileSync(path.join(KIT_ROOT, "schemas", "adapters.schema.json"), "utf8"),
+      });
+      try {
+        assert.throws(() => loadAdapters(kit), new RegExp(`infra/x: glob ${glob.replaceAll("*", "\\*")}`));
+      } finally {
+        fs.rmSync(kit, { recursive: true, force: true });
+      }
+    }
   });
 
   test("the compatibility matrix of the documentation is up to date (node test/tools/adapters-matrix.mjs --write)", () => {

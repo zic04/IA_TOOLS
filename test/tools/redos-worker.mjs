@@ -17,6 +17,9 @@ import { expressRoutes } from "../../adapters/stack/express.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
 import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
+import { BUILT_IN_INFRA } from "../../engine/facts/infra.mjs";
+import { readYaml } from "../../engine/core/yaml.mjs";
+import { jsonTree, withoutJsonComments } from "../../engine/core/json-tree.mjs";
 import { loadAdapters, detectedBy } from "../../engine/core/adapters.mjs";
 import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
@@ -260,6 +263,25 @@ INPUTS.push(
   "<select>".repeat(N / 8),
 );
 
+/** The names of files an infra adapter reads by convention (Terraform, Kubernetes, Compose, CI…). */
+const INFRA_FILES = [
+  "Dockerfile",
+  "main.tf",
+  "main.bicep",
+  "azuredeploy.json",
+  "template.yaml",
+  "k8s/deployment.yaml",
+  "chart/Chart.yaml",
+  "chart/values.yaml",
+  "docker-compose.yml",
+  ".github/workflows/deploy.yml",
+  ".gitlab-ci.yml",
+  "azure-pipelines.yml",
+  ".pipelines/build.yml",
+  "network.template",
+  "playbook.yml",
+];
+
 /** The names of files a stack adapter reads by convention: each reader is given the text under those it reads. */
 const STACK_FILES = [
   "x.js",
@@ -299,6 +321,10 @@ async function stackChecks() {
   const modules = [
     ...BUILT_IN_STACKS.map((a) => [a.name, `../../adapters/stack/${a.name}.mjs`]),
     ...["js", "c", "py", "php", "common"].map((x) => [`stack-${x}`, `../../engine/facts/stack-${x}.mjs`]),
+    ["infra-common", "../../engine/facts/infra-common.mjs"],
+    ...BUILT_IN_INFRA.map((a) => [`infra ${a.name}`, `../../adapters/infra/${a.name}.mjs`]),
+    ["infra", "../../engine/facts/infra.mjs"],
+    ["yaml", "../../engine/core/yaml.mjs"],
   ];
   for (const [name, file] of modules) {
     const mod = await import(file);
@@ -328,6 +354,16 @@ async function stackChecks() {
         (s) => adapter.behaviours(s, createSink(files[0], s, []), files[0]),
       ]);
   }
+  for (const adapter of BUILT_IN_INFRA) {
+    const files = INFRA_FILES.filter((f) => f.search(adapter.files) !== -1);
+    if (files.length)
+      checks.push([
+        `infra ${adapter.name}`,
+        (s) => adapter.infra({ sources: new Map(files.map((f) => [f, s])) }).length,
+      ]);
+  }
+  checks.push(["yaml readYaml", (s) => readYaml(s).length + readYaml(`a:\n  ${s}`).length]);
+  checks.push(["json jsonTree", (s) => [jsonTree(s), jsonTree(withoutJsonComments(s))].filter(Boolean).length]);
   return checks;
 }
 
@@ -351,6 +387,10 @@ export const CHECKS = [
   ...BUILT_IN_STACKS.flatMap((a) => [
     [`stack ${a.name} files`, (s) => s.search(a.files) + `app/${s}.ts`.search(a.files)],
     ...(a.marker ? [[`stack ${a.name} marker`, (s) => s.search(a.marker)]] : []),
+  ]),
+  ...BUILT_IN_INFRA.flatMap((a) => [
+    [`infra ${a.name} files`, (s) => s.search(a.files) + `app/${s}.yml`.search(a.files)],
+    ...(a.marker ? [[`infra ${a.name} marker`, (s) => s.search(a.marker)]] : []),
   ]),
   [
     "registry detectedBy",

@@ -1,0 +1,67 @@
+# The orders API: its Deployment and its Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    app: orders
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: orders
+  template:
+    metadata:
+      labels:
+        app: orders
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      initContainers:
+        - name: migrate
+          image: ghcr.io/acme/orders-migrate:1.4.2
+          securityContext:
+            runAsUser: 0
+      containers:
+        - name: api
+          image: "ghcr.io/acme/orders:1.4.2"
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9090
+          env:
+            - name: DATABASE_URL
+              value: "k8s-value-never-kept"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orders-db
+                  key: password
+          envFrom:
+            - configMapRef:
+                name: settings
+            - secretRef:
+                name: orders-credentials
+        - name: sidecar
+          image: registry.example.test:5000/acme/proxy
+          securityContext:
+            runAsUser: 1000
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: commented-out-never-read
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+    - 10.0.0.0/8
+    - 0.0.0.0/0
+  ports:
+    - port: 443
+      targetPort: 8080
+    - port: 80

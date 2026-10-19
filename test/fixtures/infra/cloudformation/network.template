@@ -1,0 +1,9 @@
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.50.0.0/16
+  Reports:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: https://acme-templates.s3.amazonaws.com/reports.yaml

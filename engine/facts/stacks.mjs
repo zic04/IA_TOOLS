@@ -24,7 +24,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { readableFiles, readCode } from "./code-files.mjs";
+import { readableFiles, infraFiles, readCode } from "./code-files.mjs";
 import { collectDependencies } from "./dependencies.mjs";
 import { adaptersOf, detectedBy } from "../core/adapters.mjs";
 
@@ -78,24 +78,37 @@ const within = (real, dir) => real === dir || real.startsWith(dir + path.sep);
  * @param {{ app?: { dir?: string|null }, stacks?: { disabled?: string[], adapters?: string[] } }} config
  * @returns {Promise<StackAdapter[]>}
  */
-export async function loadStacks(root, config) {
-  const known = BUILT_IN_STACKS.map((a) => a.name);
-  const disabled = config.stacks?.disabled || [];
+export const loadStacks = (root, config) =>
+  loadProjectAdapters({ kind: "stack", key: "stacks", builtIn: BUILT_IN_STACKS, root, config });
+
+/**
+ * The adapters of a family for a run (stack: config.stacks, infra: config.infra): the kit's but those of
+ * `<key>.disabled` (an id the kit does not know is `stacks.unknown`), then the project's own of `<key>.adapters`,
+ * each a file of the documentation project as loadStacks says.
+ * @template T
+ * @param {{ kind: "stack"|"infra", key: string, builtIn: readonly T[], root: string, config: any }} p
+ * @returns {Promise<T[]>}
+ */
+export async function loadProjectAdapters({ kind, key, builtIn, root, config }) {
+  const known = builtIn.map((a) => /** @type {any} */ (a).name);
+  const disabled = config[key]?.disabled || [];
   for (const name of disabled)
-    if (!known.includes(name)) throw new KitError(EXIT.USAGE, "stacks.unknown", { name, known: known.join(", ") });
-  const out = BUILT_IN_STACKS.filter((a) => !disabled.includes(a.name));
+    if (!known.includes(name))
+      throw new KitError(EXIT.USAGE, "stacks.unknown", { key, kind, name, known: known.join(", ") });
+  const out = builtIn.filter((a) => !disabled.includes(/** @type {any} */ (a).name));
   const base = fs.realpathSync.native(path.resolve(root));
   const app = config.app?.dir ? realOrNull(path.resolve(root, config.app.dir)) : null;
   const inside = [app, realOrNull(path.join(root, ".doc-kit"))].filter((d) => d && d !== base && within(d, base));
-  for (const [i, spec] of (config.stacks?.adapters || []).entries()) {
+  for (const [i, spec] of (config[key]?.adapters || []).entries()) {
     const file = path.resolve(root, spec.slice("local:".length));
     const real = realOrNull(file);
-    if (!real) throw new KitError(EXIT.USAGE, "adapter.missing", { kind: "stack", name: spec, file });
+    if (!real) throw new KitError(EXIT.USAGE, "adapter.missing", { kind, name: spec, file });
     if (!within(real, base) || inside.some((d) => within(real, d)))
-      throw new KitError(EXIT.USAGE, "stacks.outside", { name: spec });
-    const { adapter } = await loadAdapter("stack", { adapter: `local:${real}` }, root, `stacks.adapters[${i}]`);
-    // A project's adapter takes a name of its own: the kit's names say which framework a route comes from.
-    if (known.includes(adapter.name)) throw new KitError(EXIT.USAGE, "stacks.name", { name: adapter.name, file: spec });
+      throw new KitError(EXIT.USAGE, "stacks.outside", { key, kind, name: spec });
+    const { adapter } = await loadAdapter(kind, { adapter: `local:${real}` }, root, `${key}.adapters[${i}]`);
+    // A project's adapter takes a name of its own: the kit's names say where an item comes from.
+    if (known.includes(adapter.name))
+      throw new KitError(EXIT.USAGE, "stacks.name", { key, kind, name: adapter.name, file: spec });
     out.push(adapter);
   }
   return out;
@@ -126,15 +139,16 @@ export function runningStacks(appDir, stacks, files = readableFiles(appDir)) {
 
 /**
  * For each stack adapter with `hook` that runs here (runningStacks), the texts of its files (`files`, then
- * `marker`): a file over 512 KB, a test or a generated file is never given (engine/facts/code-files.mjs).
+ * `marker`): a file over 512 KB, a test or a generated file is never given (engine/facts/code-files.mjs; for the
+ * infra adapters, a test/ folder is the test environment, infraFiles).
  * @param {string} appDir
  * @param {readonly StackAdapter[]} stacks
- * @param {"api"|"screens"} hook
+ * @param {"api"|"screens"|"infra"} hook
  * @returns {Array<{ adapter: StackAdapter, sources: Map<string, string> }>}
  */
 export function stackSources(appDir, stacks, hook) {
-  const files = readableFiles(appDir);
-  return runningStacks(appDir, stacks, files)
+  const files = hook === "infra" ? infraFiles(appDir) : readableFiles(appDir);
+  return (hook === "infra" ? stacks : runningStacks(appDir, stacks, files))
     .filter((adapter) => typeof adapter[hook] === "function")
     .map((adapter) => {
       const sources = new Map();

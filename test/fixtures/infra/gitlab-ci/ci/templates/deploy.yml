@@ -1,0 +1,5 @@
+.deploy:
+  stage: deploy
+  image: registry.example.test:5000/acme/kubectl:1.30
+  script:
+    - kubectl apply -f k8s/

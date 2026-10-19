@@ -1,0 +1,10 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-legacy-template-never-read
+spec:
+  template:
+    spec:
+      containers:
+        - name: job
+          image: busybox

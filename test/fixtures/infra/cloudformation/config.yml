@@ -1,0 +1,3 @@
+# Application settings: no template.
+service: shop
+regions: [eu-west-1]

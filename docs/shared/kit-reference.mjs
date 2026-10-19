@@ -41,7 +41,7 @@ export default {
     }
     const cli = [...options_].map(([name, command]) => ({ id: `--${name}`, label: command, match: [`--${name}`] }));
 
-    const adapters = ["auth", "coverage", "stack"].flatMap((kind) =>
+    const adapters = ["auth", "coverage", "stack", "infra"].flatMap((kind) =>
       tools
         .glob("*.mjs", path.join(options.kit, "adapters", kind))
         .map((f) => f.slice(0, -4))

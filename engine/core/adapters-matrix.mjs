@@ -44,6 +44,15 @@ export function adapterMatrix(t, registry = loadAdapters()) {
     ["ecosystem", "files"].map((k) => t(`cli.adapters.matrix.${k}`)),
     family("deps").map((a) => [`${a.title} (${code(a.ecosystem)})`, (a.files || []).map(code).join(", ")]),
   );
+  section("infra");
+  table(
+    ["tool", "detectedBy", "reads"].map((k) => t(`cli.adapters.matrix.${k}`)),
+    family("infra").map((a) => [
+      a.title,
+      detectedBy(a),
+      (a.reads || []).map((r) => t(`cli.adapters.matrix.read.${r}`)).join(", "),
+    ]),
+  );
   section("lowcode");
   table(
     ["platform", "detectedBy"].map((k) => t(`cli.adapters.matrix.${k}`)),

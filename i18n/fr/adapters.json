@@ -21,5 +21,13 @@
   "cli.adapters.matrix.extensions": "Extensions",
   "cli.adapters.matrix.readBy": "Lu par",
   "cli.adapters.matrix.core": "les lecteurs du kit",
-  "cli.adapters.matrix.agents": "non lu : les agents le lisent"
+  "cli.adapters.matrix.agents": "non lu : les agents le lisent",
+  "cli.adapters.matrix.infra": "Infrastructure",
+  "cli.adapters.matrix.infra.intro": "Un adaptateur d'infrastructure lit ce que déclarent les fichiers d'infrastructure (source `infra`) : ressources cloud, charges de travail, images, environnements — des noms et quelques réglages, jamais une valeur ni un secret.",
+  "cli.adapters.matrix.tool": "Outil",
+  "cli.adapters.matrix.read.resources": "ressources",
+  "cli.adapters.matrix.read.workloads": "charges de travail",
+  "cli.adapters.matrix.read.images": "images",
+  "cli.adapters.matrix.read.environments": "environnements",
+  "cli.adapters.matrix.read.pipelines": "chaînes de déploiement"
 }

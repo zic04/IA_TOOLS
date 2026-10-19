@@ -50,6 +50,25 @@ Chaque manifeste et fichier de verrouillage ci-dessous est lu seul, à quatre do
 | Bundler (`rubygems`) | `Gemfile`, `Gemfile.lock` |
 | Cargo (`cargo`) | `Cargo.toml`, `Cargo.lock` |
 
+### Infrastructure
+
+Un adaptateur d'infrastructure lit ce que déclarent les fichiers d'infrastructure (source `infra`) : ressources cloud, charges de travail, images, environnements — des noms et quelques réglages, jamais une valeur ni un secret.
+
+| Outil | Détectée par | Ce que le kit lit |
+|---|---|---|
+| Terraform, OpenTofu | `**/*.tf` | ressources |
+| Azure Bicep | `**/*.bicep` | ressources |
+| Azure Resource Manager (ARM templates) | `**/azuredeploy.json`, `**/mainTemplate.json`, `**/template.json` | ressources |
+| AWS CloudFormation, SAM | `**/template.yaml`, `**/template.yml`, `**/*.template`, `**/samconfig.toml` | ressources |
+| Dockerfile, Containerfile | `**/Dockerfile`, `**/Dockerfile.*`, `**/Containerfile`, `**/*.dockerfile` | images |
+| Kubernetes, OpenShift | `**/*.yaml`, `**/*.yml` | charges de travail, images, ressources, environnements |
+| Helm | `**/Chart.yaml` | charges de travail, images, ressources |
+| Docker Compose | `**/docker-compose*.yml`, `**/docker-compose*.yaml`, `**/compose.yaml`, `**/compose.yml` | charges de travail, images, ressources |
+| GitHub Actions | `.github/workflows/*.yml`, `.github/workflows/*.yaml` | chaînes de déploiement, environnements, images |
+| GitLab CI | `**/.gitlab-ci.yml` | chaînes de déploiement, environnements, images |
+| Azure Pipelines | `**/azure-pipelines.yml`, `**/azure-pipelines.yaml`, `.azure-pipelines/*.yml`, `.pipelines/*.yml` | chaînes de déploiement, environnements, images |
+| Ansible (playbooks) | `**/ansible.cfg`, `**/site.yml`, `**/playbook.yml` | chaînes de déploiement, environnements |
+
 ### Plateformes low-code
 
 Détectées, jamais lues : `doc-kit inputs status` et les faits le disent, et les agents lisent eux-mêmes l'export (une application Power Apps décompressée, un module OutSystems, un projet Salesforce…).

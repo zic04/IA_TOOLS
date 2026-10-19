@@ -110,8 +110,7 @@ doc-kit facts [--source <name>]... [--network] [--tools] [--json]
 ```
 
 Reads the application code (`app.dir`) and writes one file per source into `paths.facts` (`facts/<source>.json` by
-default), in the documentation project — never in the application: `dependencies`, `env`, `api`, `db`, `behaviours`,
-`agents`, `secrets` and `tests`. `::facts{source="…"}` reads these files at build time, and the takeover page types
+default), in the documentation project — never in the application: `dependencies`, `stack`, `env`, `api`, `screens`, `db`, `infra`, `behaviours`, `agents`, `secrets`, `security`, `quality`, `tests`, `modules` and `history`. `::facts{source="…"}` reads these files at build time, and the takeover page types
 (`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`,
 `agent-instructions`, `adr`, `threat-model`) are written from them. Without `app.dir`, exit code 2.
 

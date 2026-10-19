@@ -1,8 +1,8 @@
 // Behaviour signals of the OpenAPI documents of the application (ARCHITECTURE.md §6.9, source `behaviours`):
 // openapi.json, swagger.json or *.openapi.json found in its folder. For each operation: its query parameters (their
 // role from their name — page, sort, q… — their values, bounds and defaults) and the properties of its request body
-// (required, bounds, pattern, format, values). JSON only: the kit carries no YAML parser (a YAML document is left
-// unread and listed as such). A local $ref (#/components/schemas/X) is followed three levels deep at most; one longer
+// (required, bounds, pattern, format, values). JSON only: a YAML document is left unread and listed as such (the
+// kit's YAML reader, engine/core/yaml.mjs, serves the infrastructure files only). A local $ref (#/components/schemas/X) is followed three levels deep at most; one longer
 // than MAX_REF or of more than MAX_KEYS keys is not, and each is resolved once per document. A document is read for
 // MAX_STEPS parameters and properties at most, whether they give a signal or not: a crafted document (thousands of
 // parameters pointing to one long $ref, routes written with escaped slashes) costs a bounded time.

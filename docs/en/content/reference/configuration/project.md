@@ -124,6 +124,14 @@ See [A feature in depth](#/write/markdown~a-feature-in-depth-stories-behaviour-c
 
 See [What the kit reads](#/reference/compatibility) and [Adapters](#/reference/adapters).
 
+## Infrastructure
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `infra` | object · `{}` | The infra adapters of `doc-kit facts` (source `infra`) | |
+| `infra.disabled` | list · `[]` | Ids of the kit's infra adapters not run | `["ansible"]` |
+| `infra.adapters` | list · `[]` | The project's own infra adapters, each `"local:<path>"` relative to the project (never a file of the application), run after the kit's | `["local:adapters/nomad.mjs"]` |
+
 ## Further reading
 
 - [Configuration](#/reference/configuration): validation, precedence and derived defaults.

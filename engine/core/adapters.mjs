@@ -13,7 +13,7 @@ import { globRegex } from "./glob.mjs";
 /**
  * @typedef {{ id: string, title: string, extensions: string[], core?: boolean }} Language
  * @typedef {{ dependencies?: string[], files?: string[] }} Detect
- * @typedef {{ id: string, family: "stack"|"deps"|"lowcode"|"coverage"|"auth", title: string, languages?: string[],
+ * @typedef {{ id: string, family: "stack"|"infra"|"deps"|"lowcode"|"coverage"|"auth", title: string, languages?: string[],
  *   reads?: string[], detect?: Detect, ecosystem?: string, files?: string[] }} AdapterEntry
  * @typedef {{ languages: Language[], adapters: AdapterEntry[], byExtension: Map<string, Language> }} AdapterRegistry
  */
@@ -44,9 +44,12 @@ export function loadAdapters(kitRoot = KIT_ROOT) {
     if (seen.has(`${a.family}/${a.id}`)) problems.push(`${a.family}/${a.id}: twice`);
     seen.add(`${a.family}/${a.id}`);
     for (const l of a.languages || []) if (!known.has(l)) problems.push(`${a.family}/${a.id}: unknown language ${l}`);
-    // Linear tests only: a glob is a path without "*", or "**/" and a file name; a dependency has one "*" at most.
-    for (const g of a.detect?.files || [])
-      if (g.includes("*") && !/^\*\*\/[^/]+$/.test(g)) problems.push(`${a.family}/${a.id}: glob ${g}`);
+    // Linear tests only: a glob is a path without "*", or "**/" or a folder without "*", then a file name (with "*");
+    // a dependency has one "*" at most.
+    for (const g of a.detect?.files || []) {
+      const folder = g.slice(0, Math.max(g.lastIndexOf("/"), 0));
+      if (folder !== "**" && folder.includes("*")) problems.push(`${a.family}/${a.id}: glob ${g}`);
+    }
     for (const d of a.detect?.dependencies || [])
       if (d.split("*").length > 2) problems.push(`${a.family}/${a.id}: dependency ${d}`);
   }
@@ -67,13 +70,19 @@ export function languageOf(file, registry = loadAdapters()) {
 }
 
 /**
- * A glob of `detect.files` as a test on a path: "**\/x.msapp" on the file's name alone, any other (a path without
- * a wildcard) on the whole path — a linear test whatever the path's length.
+ * A glob of `detect.files` as a test on a path: "**\/x.msapp" on the file's name alone, ".github/workflows/*.yml" on
+ * its folder then its name, any other (a path without a wildcard) on the whole path — a linear test whatever the
+ * path's length.
  */
 function fileTest(glob) {
-  if (!glob.startsWith("**/")) return (f) => f === glob;
-  const re = globRegex(glob.slice(3));
-  return (f) => re.test(f.slice(f.lastIndexOf("/") + 1));
+  if (!glob.includes("*")) return (f) => f === glob;
+  const slash = glob.lastIndexOf("/");
+  const folder = glob.slice(0, Math.max(slash, 0));
+  const re = globRegex(glob.slice(slash + 1));
+  return (f) => {
+    const at = f.lastIndexOf("/");
+    return (folder === "**" || f.slice(0, Math.max(at, 0)) === folder) && re.test(f.slice(at + 1));
+  };
 }
 
 /** A dependency pattern ("maven:org.springframework.boot:*") as an expression on "ecosystem:name". */

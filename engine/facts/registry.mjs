@@ -3,13 +3,14 @@
 // source is one entry here (and its module), never a new branch in a command.
 // `collect` receives the seams of the run: the application folder, `exec` (external programs, git), `fetch` (only
 // with --network), the configuration, `network` — null, or `{ registries }`: what is private and never sent
-// (AUDIT.md S13, engine/facts/network.mjs) — and `stacks`, the stack adapters of the run (engine/facts/stacks.mjs;
-// the kit's when not given).
+// (AUDIT.md S13, engine/facts/network.mjs) — and `stacks` and `infra`, the stack and infra adapters of the run
+// (engine/facts/stacks.mjs, infra.mjs; the kit's when not given).
 import { collectDependencies } from "./dependencies.mjs";
 import { collectEnv } from "./env.mjs";
 import { collectApi, collectScreens } from "./api.mjs";
 import { collectStack } from "./languages.mjs";
 import { collectDb } from "./db.mjs";
+import { collectInfra } from "./infra.mjs";
 import { collectBehaviours } from "./behaviours.mjs";
 import { collectAgents } from "./agents.mjs";
 import { collectSecrets } from "./secrets.mjs";
@@ -25,7 +26,7 @@ import { checkExistence } from "./network.mjs";
  *   exec: (bin: string, args: string[], options?: any) => ({ status: any, stdout: any, stderr?: any }|null),
  *   fetch?: (url: string, options?: any) => Promise<any>, config: any,
  *   network: { registries: ReturnType<typeof import("./network.mjs").privateRegistries> }|null,
- *   stacks?: readonly import("./stacks.mjs").StackAdapter[] }} Seams
+ *   stacks?: readonly import("./stacks.mjs").StackAdapter[], infra?: readonly import("./infra.mjs").InfraAdapter[] }} Seams
  * @typedef {{ items: Array<object>, extra?: object, unreadable?: Array<{ file: string, reason: string }> }} Collected
  */
 
@@ -54,6 +55,7 @@ const FACT_SOURCES = Object.freeze([
     collect: ({ appDir, config, stacks }) => ({ items: collectScreens(appDir, config.review?.guards, stacks) }),
   },
   { name: "db", collect: ({ appDir }) => ({ items: collectDb(appDir) }) },
+  { name: "infra", collect: ({ appDir, infra }) => ({ items: collectInfra(appDir, infra) }) },
   { name: "behaviours", collect: ({ appDir, stacks }) => collectBehaviours(appDir, stacks) },
   { name: "agents", collect: ({ appDir }) => ({ items: collectAgents(appDir) }) },
   { name: "secrets", collect: ({ appDir, exec }) => ({ items: collectSecrets(appDir, exec) }) },

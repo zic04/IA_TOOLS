@@ -119,6 +119,18 @@ as untrusted input:
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
+- the `infra` source keeps what infrastructure files declare through one whitelist (names, types, an image and its
+  tag, replicas, ports, whether it runs as root, has TLS, is open to all, the names of its variables), the project's
+  adapters included: never an environment variable's value, a ConfigMap's or Secret's data, a parameter's default, a
+  connection string; a name a secret detector finds is written "…", the credentials of an address are taken off, and
+  so is a source's query (a SAS token, a presigned URL's signature) but its `ref`. The files of values are never
+  read: Terraform's `.tfvars`, Bicep's `.bicepparam`, an ARM parameters file; nor a CDK assembly (`cdk.out/`). A
+  folder named `test/` is read there as the test environment (`k8s/overlays/test/`); `tests/`, `spec/`, `fixtures/`
+  and a Maven `src/test/` never are. An address range written as a variable, a parameter or an expression leaves
+  "open to all" unknown — but open when an open range is written in it (a condition): the kit never says closed what
+  it cannot tell. YAML is read by a bounded reader that never
+  expands an alias (no billion laughs) nor resolves a tag, and gives what it could read of a text that is not YAML (a
+  Helm template); JSON (ARM, CloudFormation) by a walk that refuses more than 256 levels before JSON.parse;
 - the `stack` source measures the languages of the code and names the stacks and low-code platforms found from the
   dependency names and the file names only; what the kit does not read is told (`inputs status`, the context of a
   page), never guessed;

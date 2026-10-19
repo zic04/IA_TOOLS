@@ -1,0 +1,7 @@
+services:
+  api:
+    image: registry.example.test:5000/acme/shop-api:${TAG:-latest}
+    deploy:
+      replicas: 4
+    environment:
+      - NODE_ENV=production

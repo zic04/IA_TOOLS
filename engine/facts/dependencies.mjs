@@ -62,7 +62,7 @@ const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]{0,31}:\/\/)[^\s/@]{1,256}@/gi;
 
 /** A text a manifest gives an item (a version, a constraint) without a credential: a URL's user and password removed;
  * null when what is left still looks like a secret to a detector of the kit, or is over 500 characters. */
-function withoutCredentials(text) {
+export function withoutCredentials(text) {
   if (typeof text !== "string") return text;
   if (text.length > 500) return null;
   const bare = text.replace(URL_CREDENTIALS, "$1");

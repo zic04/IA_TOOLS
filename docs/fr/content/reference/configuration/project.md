@@ -126,6 +126,14 @@ Voir [Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-
 
 Voir [Ce que le kit sait lire](#/reference/compatibility) et [Les adaptateurs](#/reference/adapters).
 
+## L'infrastructure
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `infra` | objet · `{}` | Les adaptateurs d'infrastructure de `doc-kit facts` (source `infra`) | |
+| `infra.disabled` | liste · `[]` | Les identifiants des adaptateurs d'infrastructure du kit à ne pas lancer | `["ansible"]` |
+| `infra.adapters` | liste · `[]` | Les adaptateurs d'infrastructure propres au projet, chacun `"local:<chemin>"` relatif au projet (jamais un fichier de l'application), lancés après ceux du kit | `["local:adapters/nomad.mjs"]` |
+
 ## Pour aller plus loin
 
 - [La configuration](#/reference/configuration) : validation, priorités et valeurs par défaut déduites.

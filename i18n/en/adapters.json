@@ -21,5 +21,13 @@
   "cli.adapters.matrix.extensions": "Extensions",
   "cli.adapters.matrix.readBy": "Read by",
   "cli.adapters.matrix.core": "the kit's own readers",
-  "cli.adapters.matrix.agents": "not read: the agents read it"
+  "cli.adapters.matrix.agents": "not read: the agents read it",
+  "cli.adapters.matrix.infra": "Infrastructure",
+  "cli.adapters.matrix.infra.intro": "An infra adapter reads what infrastructure files declare (source `infra`): cloud resources, workloads, images, environments — names and a few settings, never a value or a secret.",
+  "cli.adapters.matrix.tool": "Tool",
+  "cli.adapters.matrix.read.resources": "resources",
+  "cli.adapters.matrix.read.workloads": "workloads",
+  "cli.adapters.matrix.read.images": "images",
+  "cli.adapters.matrix.read.environments": "environments",
+  "cli.adapters.matrix.read.pipelines": "pipelines"
 }

@@ -12,7 +12,10 @@ configuration le nomme et donne ses options à côté.
 4. **Les adaptateurs de pile** (`stacks`) lisent les routes, les gardes, les écrans et les indices de comportement
    d'un framework, pour `doc-kit facts`. [Ce que le kit sait lire](#/reference/compatibility) les liste avec les piles
    et les langages qu'ils lisent.
-5. **Les options sont validées** comme la configuration : une option inconnue ou manquante est une erreur signalée
+5. **Les adaptateurs d'infrastructure** (`infra`) lisent ce que déclarent les fichiers d'infrastructure
+   (ressources cloud, charges de travail, images, environnements, pipelines), pour `doc-kit facts` ; la même page les
+   liste.
+6. **Les options sont validées** comme la configuration : une option inconnue ou manquante est une erreur signalée
    avec son chemin (`coverage[0].ap`, `auth.loginPatern`), code de sortie 2.
 
 ## Les adaptateurs de couverture
@@ -36,7 +39,7 @@ configuration le nomme et donne ses options à côté.
 - **`glob`** : `match` est un modèle où `{path}` est le chemin relatif à `base` sans extension, `{name}` le nom du
   fichier sans extension, `{dir}` son dossier et `{file}` le nom du fichier.
 - **`openapi`** : l'id d'un élément est `METHODE /chemin` (p. ex. `GET /orders/{id}`), son libellé le `summary` ou
-  l'`operationId` de l'opération. Le kit n'embarque aucun analyseur YAML : un fichier `.yaml` ou `.yml` répond « non
+  l'`operationId` de l'opération. Le document n'est lu qu'en JSON : un fichier `.yaml` ou `.yml` répond « non
   disponible » (`yaml`), sans échouer ; servez plutôt le document en JSON (FastAPI : `/openapi.json`).
 - **`features`** : un élément par entrée de `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
   `doc-kit inventory --features --write`, `schemas/features.schema.json`), couvert quand son id est cité — en pratique
@@ -93,6 +96,36 @@ Tout adaptateur d'authentification accepte aussi `start` (`"/"`), `loginPattern`
 Le kit donne à chacun le texte de ses fichiers : jamais un test, un fichier généré ou un fichier de plus de 512 Ko. Il
 classe l'accès d'une route d'après ses gardes avec `review.guards` (`none`, `user`, `role`, `unknown`). Rien de
 l'application n'est jamais exécuté. `stacks.disabled` en désactive un.
+
+## Les adaptateurs d'infrastructure
+
+| Adaptateur | Lit | Dans les fichiers |
+|---|---|---|
+| `terraform` | Les ressources et sources de données, les modules (leur source, leur version et le nom de leurs entrées), les providers (et les `required_providers` avec leur version), les variables et les sorties ; une règle ouverte à tous (`cidr_blocks`, `source_address_prefix`…) | `.tf` (jamais `.tfvars` ni `.tf.json`) |
+| `bicep` | `resource` (existante, conditionnelle, en boucle, enfants d'un parent) avec son type, sa version et son nom ; `module` avec sa source ; le nom des `param` et des `output` ; une règle de sécurité ouverte à tous | `.bicep` (jamais `.bicepparam`) |
+| `arm` | Les ressources d'un modèle de déploiement (imbriquées sur trois niveaux, noms symboliques de `languageVersion` 2.0) avec leur type, leur `apiVersion` et leur nom tel qu'écrit ; les modèles liés ; le nom des paramètres et des sorties ; une règle de sécurité ouverte à tous | `.json` dont le `$schema` nomme un modèle de déploiement (jamais un fichier de paramètres) |
+| `cloudformation` | Chaque ressource (son type, son identifiant logique), les piles imbriquées et applications SAM avec leur source, le nom des variables d'une fonction, les planifications `cron(…)`, le nom des `Parameters` et des `Outputs` ; un groupe de sécurité ouvert à tous | `.yaml`, `.yml`, `.json`, `.template` qui nomment `AWSTemplateFormatVersion` ou des types `AWS::…` (jamais `cdk.out/`) |
+| `dockerfile` | Chaque étape : son image de base et son étiquette, ses ports exposés, si elle tourne en root (`USER`), le nom des `ENV` et `ARG` | `Dockerfile`, `Dockerfile.*`, `Containerfile`, `*.dockerfile` |
+| `kubernetes` | Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs, Pods et DeploymentConfigs OpenShift (réplicas, planification), l'image, les ports, le root et le nom des variables de chaque conteneur ; les Services (type, ports, `loadBalancerSourceRanges` ouverts à tous), les Ingress et les Routes OpenShift (TLS), le nom des ConfigMaps et des Secrets, les namespaces d'un environnement | `.yaml`, `.yml` avec `apiVersion` et `kind` (jamais ceux d'un chart Helm) |
+| `helm` | `Chart.yaml` (nom, version, dépendances et leur dépôt) ; `values*.yaml` : image et étiquette, réplicas, ingress et son TLS, type et port du service, l'environnement d'après le nom du fichier | `Chart.yaml`, `values*.yaml` (jamais les templates) |
+| `compose` | Chaque service : son image et son étiquette, ses ports côté conteneur, le root (`user`), les réplicas, le nom de ses variables d'environnement ; les volumes, réseaux, secrets et configs de premier niveau (leur nom) | `docker-compose*.yml`, `compose*.yml` (et `.yaml`) |
+| `github-actions` | Chaque workflow (son nom, sa première planification `schedule`, le nom de ses entrées), chaque job (un workflow réutilisable comme source, le nom de ses `env` et de ses secrets), les environnements, les images des conteneurs et services | `.github/workflows/*.yml` |
+| `gitlab-ci` | Chaque `.gitlab-ci.yml` et les fichiers qu'il inclut localement ; chaque job (étape, environnement, image et services, via `extends`), le nom des variables, les projets qu'il déclenche | `.gitlab-ci.yml` et ses inclusions locales |
+| `azure-pipelines` | Chaque pipeline (sa première planification, le nom de ses variables et paramètres, son modèle `extends`), ses jobs et déploiements avec ou sans étapes, les environnements, les images des conteneurs | `azure-pipelines*.yml`, `*.azure-pipelines.yml`, `.azure-pipelines/`, `.pipelines/` |
+| `ansible` | Chaque play (son nom ou ses hôtes, l'environnement de ses hôtes ou de son chemin, le nom de ses variables) et les rôles qu'il lance | Les playbooks : `.yml`, `.yaml` avec `hosts:` (jamais `roles/`, `group_vars/`, les inventaires) |
+
+Chaque élément passe par une seule liste blanche : sa nature, son fournisseur, son type, son nom, son fichier et sa
+ligne, et quand ils sont connus son environnement, son image et son étiquette, ses réplicas, ses ports, s'il tourne en
+root, a du TLS, est ouvert à tous, sa planification, le nom de ses variables, sa source et sa version — jamais une
+valeur, les données d'une ConfigMap ou d'un Secret, une valeur par défaut, une chaîne de connexion. Une source perd sa
+requête (un jeton SAS, une signature) sauf son `ref` ; une plage d'adresses écrite comme une variable, un paramètre ou
+une expression laisse « ouvert à tous » inconnu, jamais faux (ouvert quand une plage ouverte y est écrite, comme dans
+une condition). Le YAML est lu par le lecteur borné du kit (aucun alias
+développé, aucune balise résolue), le JSON par un parcours de 256 niveaux au plus (engine/core/json-tree.mjs). Pour
+eux, un dossier nommé `test/` est
+l'environnement de test (`k8s/overlays/test/`, `envs/test/`) ; `tests/`, `spec/`, `fixtures/` et le `src/test/` d'un
+projet Maven ne sont jamais lus. `infra.disabled` en désactive un ;
+`::facts{source="infra"}` montre ce qu'ils ont trouvé.
 
 ## Écrire un adaptateur
 
@@ -177,6 +210,35 @@ export default {
 
 Au moins un de `api`, `screens` ou `behaviours`. Toute expression qui parcourt le texte de l'application doit
 rester linéaire : les fichiers ne sont pas fiables (SECURITY.md).
+
+### Un adaptateur d'infrastructure
+
+```js
+// adapters/nomad.mjs, déclaré par infra: { adapters: ["local:adapters/nomad.mjs"] }
+export default {
+  name: "nomad",
+  files: /\.nomad(?:\.hcl)?$/i,
+  marker: /^job "/m,
+  infra({ sources }) {
+    const items = [];
+    for (const [file, text] of sources)
+      text.split("\n").forEach((line, i) => {
+        const m = /^job "([\w-]{1,64})"/.exec(line);
+        if (m) items.push({ kind: "job", type: "nomad-job", name: m[1], file, line: i + 1 });
+      });
+    return items;
+  },
+};
+```
+
+| Partie | Contrat |
+|---|---|
+| `files`, `marker` | Comme pour un adaptateur de pile |
+| `infra({ sources })` | Les éléments : `{ kind, type, name, file, line }` et, quand ils sont connus, `provider` (par défaut le nom de l'adaptateur), `env`, `image`, `tag`, `replicas`, `ports`, `root`, `tls`, `openToAll`, `schedule`, `variables` (des noms), `source`, `version` |
+
+`kind` vaut `resource`, `module`, `provider`, `variable`, `output`, `workload`, `service`, `ingress`, `config`,
+`secret`, `job`, `image`, `environment`, `pipeline` ou `volume` ; un élément d'une autre nature, ou sans fichier, est
+écarté, et tout autre champ aussi. Le nom d'un adaptateur du kit (`dockerfile`…) ne peut pas être repris.
 
 ## Pièges et écarts constatés
 

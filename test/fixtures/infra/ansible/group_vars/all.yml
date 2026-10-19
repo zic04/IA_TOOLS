@@ -1,0 +1,2 @@
+ntp_server: time.example.test
+api_secret: do-not-keep-group

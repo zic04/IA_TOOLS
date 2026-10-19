@@ -10,7 +10,9 @@ names it and gives its options next to it.
    `adapter: "local:adapters/x.mjs"`, a path relative to the documentation project.
 4. **Stack adapters** (`stacks`) read the routes, guards, screens and behaviour hints of a framework, for
    `doc-kit facts`. [What the kit reads](#/reference/compatibility) lists them with the stacks and languages they read.
-5. **Options are validated** like the configuration: an unknown or missing option is an error with its path
+5. **Infra adapters** (`infra`) read what the infrastructure files declare (cloud resources, workloads, images,
+   environments, pipelines), for `doc-kit facts`; the same page lists them.
+6. **Options are validated** like the configuration: an unknown or missing option is an error with its path
    (`coverage[0].ap`, `auth.loginPatern`), exit code 2.
 
 ## Coverage adapters
@@ -34,8 +36,8 @@ names it and gives its options next to it.
 - **`glob`**: `match` is a template where `{path}` is the path relative to `base` without extension, `{name}` the
   file name without extension, `{dir}` its folder and `{file}` the file name.
 - **`openapi`**: an item's id is `METHOD /path` (e.g. `GET /orders/{id}`), its label the operation's `summary` or
-  `operationId`. The kit carries no YAML parser: a `.yaml` or `.yml` file answers "not available" (`yaml`), not
-  failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
+  `operationId`. The document is read as JSON only: a `.yaml` or `.yml` file answers "not available" (`yaml`),
+  not failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
 - **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
   `doc-kit inventory --features --write`, `schemas/features.schema.json`), covered when its id is cited — in practice
   on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
@@ -91,6 +93,33 @@ Every authentication adapter also accepts `start` (`"/"`), `loginPattern`
 The kit gives each one the text of its files: never a test, a generated file or a file over 512 KB. It classifies
 the access of a route from its guards with `review.guards` (`none`, `user`, `role`, `unknown`). Nothing of the
 application is ever run. `stacks.disabled` turns one off.
+
+## Infra adapters
+
+| Adapter | Reads | Of the files |
+|---|---|---|
+| `terraform` | Resources and data sources, modules (their source, version and the names of their inputs), providers (and the `required_providers` with their version), variables and outputs; a rule open to all (`cidr_blocks`, `source_address_prefix`…) | `.tf` (never `.tfvars` nor `.tf.json`) |
+| `bicep` | `resource` (existing, conditional, in a loop, a parent's children) with its type, version and name; `module` with its source; the names of `param` and `output`; a security rule open to all | `.bicep` (never `.bicepparam`) |
+| `arm` | The resources of a deployment template (nested to three levels, the symbolic names of `languageVersion` 2.0) with their type, `apiVersion` and name as written; linked templates; the names of parameters and outputs; a security rule open to all | `.json` whose `$schema` names a deployment template (never a parameters file) |
+| `cloudformation` | Each resource (its type, its logical id), nested stacks and SAM applications with their source, the names of a function's variables, `cron(…)` schedules, the names of `Parameters` and `Outputs`; a security group open to all | `.yaml`, `.yml`, `.json`, `.template` naming `AWSTemplateFormatVersion` or `AWS::…` types (never `cdk.out/`) |
+| `dockerfile` | Each stage: its base image and tag, its exposed ports, whether it runs as root (`USER`), the names of `ENV` and `ARG` | `Dockerfile`, `Dockerfile.*`, `Containerfile`, `*.dockerfile` |
+| `kubernetes` | Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs, Pods and OpenShift DeploymentConfigs (replicas, schedule), each container's image, ports, root and variable names; Services (type, ports, `loadBalancerSourceRanges` open to all), Ingresses and OpenShift Routes (TLS), the names of ConfigMaps and Secrets, the namespaces of an environment | `.yaml`, `.yml` with `apiVersion` and `kind` (never a Helm chart's) |
+| `helm` | `Chart.yaml` (name, version, dependencies and their repository); `values*.yaml`: image and tag, replicas, ingress and its TLS, the service's type and port, the environment from the file's name | `Chart.yaml`, `values*.yaml` (never the templates) |
+| `compose` | Each service: its image and tag, its container ports, root (`user`), replicas, the names of its environment variables; the top-level volumes, networks, secrets and configs (their names) | `docker-compose*.yml`, `compose*.yml` (and `.yaml`) |
+| `github-actions` | Each workflow (its name, its first `schedule`, the names of its inputs), each job (a reusable workflow as its source, the names of its `env` and secrets), the environments, the images of containers and services | `.github/workflows/*.yml` |
+| `gitlab-ci` | Each `.gitlab-ci.yml` and the files it includes locally; each job (stage, environment, image and services, through `extends`), the names of variables, the projects it triggers | `.gitlab-ci.yml` and its local includes |
+| `azure-pipelines` | Each pipeline (its first schedule, the names of its variables and parameters, its `extends` template), its jobs and deployments with or without stages, the environments, the images of containers | `azure-pipelines*.yml`, `*.azure-pipelines.yml`, `.azure-pipelines/`, `.pipelines/` |
+| `ansible` | Each play (its name or hosts, the environment of its hosts or path, the names of its variables) and the roles it runs | Playbooks: `.yml`, `.yaml` with `hosts:` (never `roles/`, `group_vars/`, inventories) |
+
+Every item goes through one whitelist: its kind, provider, type, name, file and line, and when known its environment,
+image and tag, replicas, ports, whether it runs as root, has TLS, is open to all, its schedule, the names of its
+variables, its source and version — never a value, a ConfigMap's or Secret's data, a default, a connection string. A
+source loses its query (a SAS token, a signature) but its `ref`; an address range written as a variable, a parameter or
+an expression leaves "open to all" unknown, never false (open when an open range is written in it, as in a condition). YAML is read by the kit's bounded reader (no alias expanded,
+no tag resolved), JSON by a walk of 256 levels at most (engine/core/json-tree.mjs). A folder named `test/` is the test
+environment for them (`k8s/overlays/test/`, `envs/test/`); `tests/`, `spec/`, `fixtures/` and a Maven `src/test/` are
+never read. `infra.disabled` turns one off;
+`::facts{source="infra"}` shows what they found.
 
 ## Writing an adapter
 
@@ -175,6 +204,35 @@ export default {
 
 One of `api`, `screens` or `behaviours` at least. Every expression that scans the application's text must stay
 linear: the files are untrusted (SECURITY.md).
+
+### An infra adapter
+
+```js
+// adapters/nomad.mjs, declared as infra: { adapters: ["local:adapters/nomad.mjs"] }
+export default {
+  name: "nomad",
+  files: /\.nomad(?:\.hcl)?$/i,
+  marker: /^job "/m,
+  infra({ sources }) {
+    const items = [];
+    for (const [file, text] of sources)
+      text.split("\n").forEach((line, i) => {
+        const m = /^job "([\w-]{1,64})"/.exec(line);
+        if (m) items.push({ kind: "job", type: "nomad-job", name: m[1], file, line: i + 1 });
+      });
+    return items;
+  },
+};
+```
+
+| Part | Contract |
+|---|---|
+| `files`, `marker` | As for a stack adapter |
+| `infra({ sources })` | The items: `{ kind, type, name, file, line }` and, when known, `provider` (the adapter's name by default), `env`, `image`, `tag`, `replicas`, `ports`, `root`, `tls`, `openToAll`, `schedule`, `variables` (names), `source`, `version` |
+
+`kind` is one of `resource`, `module`, `provider`, `variable`, `output`, `workload`, `service`, `ingress`, `config`,
+`secret`, `job`, `image`, `environment`, `pipeline`, `volume`; an item of another kind, or without a file, is dropped,
+and any other field too. The kit's own name (`dockerfile`…) cannot be taken.
 
 ## Pitfalls and observed gaps
 

@@ -25,12 +25,18 @@ const CODE_SKIP = Object.freeze([
   ".turbo",
   ".cache",
   ".terraform",
+  "cdk.out",
 ]);
 
 /** A folder of tests whatever its place (__tests__/, a Cypress or Playwright folder, a .NET Orders.Tests/ project). */
 const TEST_TOOL_DIR = /(^|\/)(__tests__|__mocks__|cypress|playwright)\/|(^|\/)[^/]{1,200}\.Tests?\//;
 /** A folder of tests by its name (tests/, spec/, src/test/, fixtures/, e2e/, stories/) — a URL segment in a router. */
 const TEST_DIR = /(^|\/)(tests?|spec|e2e|fixtures?|stories)\//;
+/**
+ * A folder of tests for the infrastructure files: as TEST_DIR, but a folder named test/ is the test environment there
+ * (k8s/overlays/test/, envs/test/) — a Maven project's src/test/ excepted.
+ */
+const INFRA_TEST_DIR = /(^|\/)(tests|spec|e2e|fixtures?|stories|src\/test)\//;
 /** A test file (*.test.ts, test_x.py, x_test.go, x_spec.rb, OrderTest.java). */
 const TEST_NAME =
   /\.(test|spec|stories|cy)\.[cm]?[jt]sx?$|(^|\/)(test_[^/]*|[^/]*_test|conftest|tests)\.py$|_test\.go$|_spec\.rb$|Tests?\.(?:java|kt|cs|php|scala)$/;
@@ -47,6 +53,7 @@ const GENERATED = /\.min\.[cm]?js$|\.d\.ts$|(^|\/)(vendor|public\/build|static\/
 export const CODE_PATTERNS = Object.freeze({
   TEST_TOOL_DIR,
   TEST_DIR,
+  INFRA_TEST_DIR,
   TEST_NAME,
   ROUTER_DIR,
   ROUTE_NAME,
@@ -74,6 +81,12 @@ export const isTestFile = (file) =>
 /** The files of the application its code readers may read: relative paths, sorted; tests and generated files left out. */
 export const readableFiles = (appDir) =>
   listFiles(appDir, { skip: [...CODE_SKIP] }).filter((f) => !isTestFile(f) && !GENERATED.test(f));
+
+/** The files of the application the infra adapters may read: as readableFiles, but a test/ folder is an environment. */
+export const infraFiles = (appDir) =>
+  listFiles(appDir, { skip: [...CODE_SKIP] }).filter(
+    (f) => !TEST_NAME.test(f) && !TEST_TOOL_DIR.test(f) && !INFRA_TEST_DIR.test(f) && !GENERATED.test(f),
+  );
 
 /**
  * The text of a file of the application, or why it is not read: over MAX_BYTES (`tooLarge`), or not readable.
