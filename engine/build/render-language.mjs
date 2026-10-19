@@ -5,12 +5,13 @@
 // `report`, with `vars.lang` added for every language but the source).
 import { createMarkdownEngine } from "./markdown.mjs";
 import { indexPage } from "./search.mjs";
-import { checkPage } from "../core/page-templates.mjs";
+import { checkPage, analysePage } from "../core/page-templates.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { checkLinks } from "../check/links.mjs";
 import { EMBEDDED_NAMESPACES } from "../i18n.mjs";
 import { resolveSpaces, counterpartOf, withoutSpaceTexts } from "./spaces.mjs";
 import { buildFeatureRegistry, resolveBusinessRefs, hasTechnicalProof, BUSINESS_TYPES } from "./business.mjs";
+import { backlogModel } from "./backlog.mjs";
 import { withoutLanguageTexts } from "./languages.mjs";
 import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
@@ -77,6 +78,8 @@ export function renderLanguage(
     index: [],
     links: {},
     unwritten: new Set(),
+    /** page id → analysePage of the feature sheets written (engine/build/backlog.mjs, their depth). */
+    sheets: {},
     used: { pages: {}, intros: {}, home: null },
     counterparts: {},
     recorded: isSource ? {} : (site.recordedByLang[lang] ??= readSources(b.root, translations, lang)),
@@ -187,17 +190,7 @@ function renderPage(r, sec, g, p) {
   r.links[p.id] = out.links;
   r.order.push(p.id);
   indexPage(r.index, p.id, p.title, out.html);
-  const headings = out.toc.filter((x) => x.level === 2).map((x) => x.title);
-  if (!missing)
-    for (const { strict, ...problem } of checkPage({
-      pageId: p.id,
-      template: p.template,
-      headings,
-      source,
-      templates: site.templates,
-      language: r.lang,
-    }))
-      r.reportLang(strict, { kind: "template", ...problem });
+  if (!missing) checkTemplate(r, p, out, source);
   if (
     !missing &&
     site.spaces &&
@@ -207,6 +200,26 @@ function renderPage(r, sec, g, p) {
   )
     r.reportLang(false, { kind: "business", key: "business.technical", vars: { page: p.id } });
   return p.id;
+}
+
+/**
+ * A written page against its template (its required sections, the guidance left); a feature sheet's analysis is kept
+ * for its depth (r.sheets, engine/build/backlog.mjs).
+ */
+function checkTemplate(r, p, out, source) {
+  const headings = out.toc.filter((x) => x.level === 2).map((x) => x.title);
+  const { templates } = r.site;
+  for (const { strict, ...problem } of checkPage({
+    pageId: p.id,
+    template: p.template,
+    headings,
+    source,
+    templates,
+    language: r.lang,
+  }))
+    r.reportLang(strict, { kind: "template", ...problem });
+  if (p.template === "feature")
+    r.sheets[p.id] = analysePage({ table: templates, type: "feature", headings, source, language: r.lang });
 }
 
 /** Whether the readers of a space read without the code (its kind's `noCode`, standard/spaces.json). */
@@ -245,6 +258,17 @@ function checkLanguage(r, { langToc, features }) {
   }))
     r.reportLang(true, problem);
   const { engine } = r;
+  r.backlog = backlogModel({
+    toc: langToc,
+    features,
+    stories: engine.stories,
+    scenarios: engine.scenarios,
+    rules: engine.rules,
+    cards: engine.behaviours,
+    sheets: r.sheets,
+  });
+  if (isSource)
+    for (const { strict, ...problem } of r.backlog.problems) b.report(strict, { kind: "backlog", ...problem });
   const { problems: businessRefProblems } = resolveBusinessRefs({
     pages,
     features,
@@ -252,6 +276,8 @@ function checkLanguage(r, { langToc, features }) {
     stories: engine.stories,
     behaviours: engine.behaviours,
     scenarios: engine.scenarios,
+    backlog: r.backlog,
+    refs: b.config.backlog?.refs,
     t: r.langT,
   });
   for (const { strict, ...problem } of businessRefProblems) r.reportLang(strict, { kind: "business", ...problem });

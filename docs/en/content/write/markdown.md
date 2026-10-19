@@ -133,6 +133,7 @@ use it, decide about it or support it: no code, no `file:line`.
 | `::features{}` | `::fonctionnalites{}` | A table of every feature sheet: id, feature (linked), summary, who (its permissions). |
 | `::rules{}` | `::regles{}` | A table of every rule: id (linked), rule, defined in (linked), cited by. |
 | `::roles{}` | `::roles{}` (same spelling) | A table of every feature sheet's permissions, one row per sheet, `✔` where a permission unlocks it. |
+| `::stories{}` | `::recits{}` | A table of every user story of the feature sheets: id (linked), story, feature (linked), role, version (its own, else its feature's), acceptance criteria, ticket (linked with `backlog.refs`). |
 
 ```markdown
 :::rule{id="BR-12" title="An order above the threshold waits for a manager"}

@@ -1,5 +1,6 @@
 // Business space (ARCHITECTURE.md §6.8): the registry of features and business rules, the checks that keep them
-// consistent, and the generated tables (`::features`, `::rules`, `::roles`). Pure functions, called by the build:
+// consistent, the generated tables (`::features`, `::rules`, `::roles`, `::stories`) and the links of the stories'
+// tickets (config.backlog.refs). Pure functions, called by the build:
 //   - buildFeatureRegistry(toc): features are declared on toc.json pages (field `feature`, template "feature"),
 //     so the registry is complete before any page is rendered;
 //   - rules are defined inside the Markdown of any page (`:::rule{id title}`, engine/build/markdown.mjs), so the
@@ -10,6 +11,7 @@
 //   - stories, behaviour cards and scenarios (§6.8a, engine/build/markdown-product.mjs) are collected the same way:
 //     the second pass links a scenario to its story and its card, and counts the acceptance criteria of each story.
 import { esc } from "../core/text.mjs";
+import { parseRef, refUrl } from "../core/refs.mjs";
 
 /** A citation placeholder left by the Markdown engine: <span class="ref-feature|rule|story|behaviour" data-ref-id="…">id</span>. */
 const REF = /<span class="ref-(feature|rule|story|behaviour)" data-ref-id="([^"]*)">([^<]*)<\/span>/g;
@@ -26,7 +28,9 @@ const CITATIONS = {
   behaviour: { cls: "lien-comportement", unknown: "behaviour.unknown" },
 };
 /** A generated-table placeholder left by the Markdown engine: <div class="biz-directive" data-biz="…"></div>. */
-const DIRECTIVE = /<div class="biz-directive" data-biz="(features|rules|roles)"><\/div>/g;
+const DIRECTIVE = /<div class="biz-directive" data-biz="(features|rules|roles|stories)"><\/div>/g;
+/** A ticket reference left by a story block (engine/build/behaviours.mjs): linked when the project has its template. */
+const TICKET = /<span class="puce reference" data-ticket="([^"]*)">([^<]*)<\/span>/g;
 /** A proof a business page should not carry (ARCHITECTURE.md §6.8, "Business pages cite no code"): an inline
  * code span that looks like a source location ("lib/orders.ts:42"), or a claim badge ([[verified …]], [[deduced
  * …]]) which only makes sense next to one. Deliberately narrow: prose that merely mentions a file name is not a
@@ -127,13 +131,49 @@ function rolesTable(features, t) {
   return `<div class="tableau"><table><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+/** A ticket reference as a link (config.backlog.refs), or as written when the kit has no address for it. */
+function ticket(ref, refs, cls = "puce reference") {
+  const url = refUrl(parseRef(ref), refs);
+  return url
+    ? `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(ref)}</a>`
+    : `<span class="${cls}">${esc(ref)}</span>`;
+}
+
+/**
+ * `::stories{}`: Id (link) · Story · Feature (link) · Role · Version · Criteria · Ticket — every user story of a
+ * feature sheet, in the order of the features, from the backlog model (engine/build/backlog.mjs).
+ */
+function storiesTable(backlog, features, refs, t) {
+  const rows = (backlog?.stories ?? [])
+    .map((s) => {
+      const f = features.get(s.feature);
+      const cells = [
+        `<a href="#/${esc(s.page)}~${esc(s.anchor)}">${esc(s.id)}</a>`,
+        esc(s.title),
+        f ? `<a href="#/${esc(f.page)}">${esc(f.title)}</a>` : "—",
+        esc(s.role ?? "—"),
+        esc(s.since ?? t("render.backlog.noVersion")),
+        String(s.criteria),
+        s.ref ? ticket(s.ref, refs) : "—",
+      ];
+      return `<tr>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+    })
+    .join("");
+  const head = ["id", "story", "feature", "role", "version", "criteria", "ticket"]
+    .map((k) => `<th>${esc(t(`render.backlog.col.${k}`))}</th>`)
+    .join("");
+  return `<div class="tableau"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
 /**
  * Second pass, once every page is rendered: resolves the citation and generated-table placeholders left by the
  * Markdown engine (`[[feature …]]`, `[[rule …]]`, `[[story …]]`, a scenario's story and behaviour, `::features{}`,
- * `::rules{}`, `::roles{}`), so that a rule defined in a page further down the table of contents is still found, and
+ * `::rules{}`, `::roles{}`, `::stories{}`, a story's ticket — linked from config.backlog.refs), so that a rule defined in a page further down the table of contents is still found, and
  * writes each story's number of acceptance criteria (its scenarios). Mutates `pages[*].html` in place.
  * @param {{ pages: Record<string, { html: string, title: string }>, features: Map, rules: Map, stories?: Map,
- *   behaviours?: Map, scenarios?: Array<{ story: string|null }>, t: Function }} p
+ *   behaviours?: Map, scenarios?: Array<{ story: string|null }>, backlog?: any, refs?: Record<string, string>,
+ *   t: Function }} p
+ *   backlog: the model of engine/build/backlog.mjs (::stories{}); refs: config.backlog.refs
  *   rules, stories, behaviours, scenarios: engine.* (id → { title, page, anchor }), collected while rendering
  *   (engine/build/markdown-product.mjs); a behaviour card without an id is keyed "page~anchor" and cannot be cited
  * @returns {{ problems: Array<{ key: string, vars: object, strict: boolean }> }}
@@ -146,6 +186,8 @@ export function resolveBusinessRefs({
   stories = new Map(),
   behaviours = new Map(),
   scenarios = [],
+  backlog = null,
+  refs = undefined,
   t,
 }) {
   const problems = [];
@@ -200,7 +242,11 @@ export function resolveBusinessRefs({
     features: featuresTable(features, t),
     rules: rulesTable(rules, citedBy, pages, t),
     roles: rolesTable(features, t),
+    stories: storiesTable(backlog, features, refs, t),
   };
-  for (const page of Object.values(pages)) page.html = page.html.replace(DIRECTIVE, (m, kind) => tables[kind]);
+  for (const page of Object.values(pages))
+    page.html = page.html
+      .replace(DIRECTIVE, (m, kind) => tables[kind])
+      .replace(TICKET, (m, ref) => ticket(unescaped(ref), refs));
   return { problems };
 }

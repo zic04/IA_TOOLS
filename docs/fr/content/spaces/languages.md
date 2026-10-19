@@ -36,8 +36,8 @@ export default defineConfig({
 fichier :
 
 - `toc.json` : les **textes** seuls du sommaire — `title`, `tagline`, pour les sections `title`/`shortTitle`/
-  `subtitle`/`highlights`, pour les groupes `title`, pour les pages `title`/`menuTitle`/`summary`, et les champs
-  textuels propres aux parcours et aux espaces. Tout autre champ (ids, routes, permissions, `counterpart`,
+  `subtitle`/`highlights`, pour les groupes `title`/`summary`, pour les pages `title`/`menuTitle`/`summary`, et les champs
+  textuels propres aux parcours et aux espaces. Tout autre champ (ids, routes, permissions, `counterpart`, `epic`, `since`, `ref`,
   `spaces[].id`, `spaces[].kind`…) vient toujours de la **source** : une valeur traduite qui en diffère est ignorée, avec un
   avertissement. Un titre absent retombe silencieusement sur la source (un `toc.json` traduit partiel ne pose pas
   de problème) ; une section, un groupe, une page, un parcours ou un espace manquant, ajouté ou réordonné, ou un

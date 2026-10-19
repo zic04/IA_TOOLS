@@ -8,6 +8,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The backlog** (ARCHITECTURE.md §6.8b): a group of feature sheets in `toc.json` can be an epic (`epic`,
+  `summary`, `ref`); a feature sheet gives `since`, `ref`, `epic`; a story's ticket reference (`ADO#1234`, `AB#1234`,
+  `PROJ-123`, `owner/repo#42`, `group/sub/project#7`) is a link with `backlog.refs`; `::stories{}` (fr `::recits{}`)
+  lists every user story; one measure of a feature's depth. New checks `epic.duplicate`, `epic.unknown`,
+  `story.outside`, `backlog.ref`, `backlog.field`.
 - **Where the application runs** (ARCHITECTURE.md §6.9, §6.11): `::c4{view="deployment"}` (fr `vue="deploiement"`)
   draws the deployment view from `facts/infra.json` — one column per environment with its entry points, workloads,
   jobs and cloud resources, the pipelines that deploy to each, and a row per element with its settings and its

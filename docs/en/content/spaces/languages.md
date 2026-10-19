@@ -34,8 +34,8 @@ export default defineConfig({
 `translations/<lang>/` (`paths.translations`, default `"translations"`) mirrors `content/`, file for file:
 
 - `toc.json`: the table of contents' **texts** only — `title`, `tagline`, sections' `title`/`shortTitle`/
-  `subtitle`/`highlights`, groups' `title`, pages' `title`/`menuTitle`/`summary`, journeys' and spaces' own text
-  fields. Every other field (ids, routes, permissions, `counterpart`, `spaces[].id`, `spaces[].kind`…) always comes from the
+  `subtitle`/`highlights`, groups' `title`/`summary`, pages' `title`/`menuTitle`/`summary`, journeys' and spaces' own text
+  fields. Every other field (ids, routes, permissions, `counterpart`, `epic`, `since`, `ref`, `spaces[].id`, `spaces[].kind`…) always comes from the
   **source**: a translated value that differs there is ignored, with a warning. A missing title falls back to
   the source silently (a partial translated `toc.json` is fine); a section, group, page, journey or space
   missing, added or reordered, or a different number of steps, is the blocking error `translation.toc.structure`

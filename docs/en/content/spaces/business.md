@@ -54,7 +54,7 @@ unknown id, or missing its `id` or `title`, each fail a strict build.
 
 ## The generated tables
 
-Three directives build their table once every page has rendered, so a rule or a feature may be defined further down
+Four directives build their table once every page has rendered, so a rule or a feature may be defined further down
 the table of contents than the page that cites it:
 
 | Directive | Builds |
@@ -62,6 +62,7 @@ the table of contents than the page that cites it:
 | `::features{}` | Id · Feature (linked) · Summary · Who (its permissions) — one row per feature sheet |
 | `::rules{}` | Id (linked) · Rule · Defined in (linked) · Cited by — one row per rule |
 | `::roles{}` | One row per feature sheet, one column per distinct permission, `✔` where it unlocks the sheet |
+| `::stories{}` | Id (linked) · Story · Feature (linked) · Role · Version · Criteria · Ticket — one row per user story of a feature sheet |
 
 [Example · Business rules](#/examples/business-rules) and [Example · Roles matrix](#/examples/roles-matrix) show
 both tables rendered.

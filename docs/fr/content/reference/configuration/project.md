@@ -134,6 +134,13 @@ Voir [Ce que le kit sait lire](#/reference/compatibility) et [Les adaptateurs](#
 | `infra.disabled` | liste · `[]` | Les identifiants des adaptateurs d'infrastructure du kit à ne pas lancer | `["ansible"]` |
 | `infra.adapters` | liste · `[]` | Les adaptateurs d'infrastructure propres au projet, chacun `"local:<chemin>"` relatif au projet (jamais un fichier de l'application), lancés après ceux du kit | `["local:adapters/nomad.mjs"]` |
 
+## Le backlog
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `backlog` | objet · `{}` | Le backlog de la documentation : les epics, les fiches de fonctionnalité et leurs récits ([Les epics](#/write/table-of-contents~les-epics-le-haut-du-backlog)) | |
+| `backlog.refs` | objet · `{}` | L'adresse d'un élément dans chaque outil, pour qu'une référence (`ref`) soit un lien : `azure`, `jira`, `github`, `gitlab`, chacune une adresse `https://` avec `{id}` (et `{repo}` pour GitHub et GitLab). Avec GitHub et GitLab à la fois, `owner/repo#42` est celui de GitHub et `group/sub/project#7` celui de GitLab. Aucun jeton : le kit n'appelle jamais un outil | `{ "azure": "https://dev.azure.com/acme/shop/_workitems/edit/{id}" }` |
+
 ## Pour aller plus loin
 
 - [La configuration](#/reference/configuration) : validation, priorités et valeurs par défaut déduites.

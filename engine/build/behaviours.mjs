@@ -103,7 +103,7 @@ export function storyBlock({ heading, id, role, since, ref, bodyHtml, t, icon })
   const labels = [
     role ? `<span class="puce role">${icon("personne", "ico")}${esc(role)}</span>` : "",
     since ? `<span class="puce version">${esc(t("render.story.since", { version: since }))}</span>` : "",
-    ref ? `<span class="puce reference">${esc(ref)}</span>` : "",
+    ref ? `<span class="puce reference" data-ticket="${esc(ref)}">${esc(ref)}</span>` : "",
     `<span class="recit-criteres" data-story="${esc(id)}"></span>`,
   ].join("");
   return `<div class="recit"><div class="recit-tete">${heading}<span class="recit-etiquettes">${labels}</span></div><div class="recit-corps">${bodyHtml}</div></div>`;

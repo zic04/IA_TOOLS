@@ -413,7 +413,8 @@ describe(":::story (and :::recit), :::scenario", () => {
     );
     assert.match(
       r.html,
-      /<span class="puce role">.*?Order manager<\/span><span class="puce version">since 1.2<\/span><span class="puce reference">ADO#1235<\/span><span class="recit-criteres" data-story="US-01"><\/span>/s,
+      // The ticket: a placeholder the second pass links when the project has its address (engine/build/business.mjs).
+      /<span class="puce role">.*?Order manager<\/span><span class="puce version">since 1.2<\/span><span class="puce reference" data-ticket="ADO#1235">ADO#1235<\/span><span class="recit-criteres" data-story="US-01"><\/span>/s,
     );
     assert.match(r.html, /<div class="recit-corps"><p>As an <strong>order manager<\/strong>/);
     assert.ok(r.toc.some((x) => x.id === "us-01" && x.title === "US-01 · Find a customer"));

@@ -48,7 +48,7 @@ La page d'accueil est `content/home.md` ; chaque section peut avoir une introduc
 | `subtitle` | non | Une phrase sous le titre |
 | `highlights` | non | Trois points forts courts, sur la carte de la page d'accueil |
 | `featured` | non | `true` : la carte est mise en avant, et le bouton principal de la page d'accueil mène à cette section |
-| `groups` | oui | Liste de `{ title, pages }` ; `title` est facultatif |
+| `groups` | oui | Liste de `{ title, pages }` ; `title` est facultatif. Un groupe de fiches de fonctionnalité peut être un epic du backlog : `epic`, `summary`, `ref` (plus bas) |
 
 ## Les champs d'une page
 
@@ -63,6 +63,31 @@ La page d'accueil est `content/home.md` ; chaque section peut avoir une introduc
 | `routes` | non | Les routes de l'application documentées ici : des badges en haut de la page, et du texte pour le contrôle de couverture |
 | `permissions` | non | Des codes de permission : des badges en haut de la page |
 | `file` | non | Le fichier source, relatif à `content/`, quand ce n'est pas `<id>.md` |
+| `feature` | non | L'identifiant d'une fiche de fonctionnalité (`F-01`), avec `"template": "feature"` ([L'espace Produit](#/spaces/business)) |
+| `since` | non | Une fiche de fonctionnalité : la version où elle est sortie ; ses récits la reprennent s'ils ne donnent pas la leur |
+| `ref` | non | Une fiche de fonctionnalité : son élément dans un outil de backlog (plus bas), gardé dans le backlog |
+| `epic` | non | Une fiche de fonctionnalité dans un autre epic que celui de son groupe : l'identifiant de cet epic |
+
+## Les epics : le haut du backlog
+
+Un groupe de fiches de fonctionnalité devient un **epic** quand il donne un identifiant ; ses fiches sont ses
+fonctionnalités, leurs récits les siens :
+
+```json
+{ "title": "Trouver une commande", "epic": "E-01", "summary": "Retrouver une commande et savoir où elle en est.", "ref": "ADO#120",
+  "pages": [ { "id": "produit/suivre", "title": "Suivre les commandes", "template": "feature", "feature": "F-01", "since": "1.0" } ] }
+```
+
+| Champ | Rôle |
+|---|---|
+| `epic` | L'identifiant de l'epic, `E-01` : un groupe chacun (un second groupe avec le même identifiant est une erreur) |
+| `summary` | À quoi sert l'epic, en une phrase (traduite comme les titres) |
+| `ref` | Son élément dans un outil de backlog : `ADO#1234` ou `AB#1234` (Azure Boards), `PROJ-123` (Jira), `owner/repo#42` (GitHub), `group/sub/project#7` (GitLab). Gardée dans le backlog ; la `ref` propre d'un récit (`:::recit{… ref="…"}`) est un lien avec `backlog.refs` ([La configuration](#/reference/configuration/project~le-backlog)). Une référence que le kit ne sait pas lire : `backlog.ref`, un avertissement |
+
+Une fiche qui nomme un `epic` qu'aucun groupe ne déclare fait échouer la construction (`epic.unknown`) ; `epic`,
+`since` ou `ref` sur une page qui n'est pas une fiche de fonctionnalité est ignoré, avec un avertissement
+(`backlog.field`). Un groupe
+de fiches sans epic reste un groupe du backlog, par son titre.
 
 ## Les sous-pages
 

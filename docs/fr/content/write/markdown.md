@@ -137,6 +137,7 @@ qui l'utilisent, en décident ou la soutiennent : aucun code, aucun `file:line`.
 | `::fonctionnalites{}` | `::features{}` | Un tableau de chaque fiche de fonctionnalité : id, fonctionnalité (liée), résumé, qui (ses droits). |
 | `::regles{}` | `::rules{}` | Un tableau de chaque règle : id (lié), règle, définie dans (lié), citée par. |
 | `::roles{}` | `::roles{}` (même graphie) | Un tableau des droits de chaque fiche de fonctionnalité, une ligne par fiche, `✔` où un droit la débloque. |
+| `::recits{}` | `::stories{}` | Un tableau de chaque récit utilisateur des fiches de fonctionnalité : id (lié), récit, fonctionnalité (liée), rôle, version (la sienne, sinon celle de sa fonctionnalité), critères d'acceptation, ticket (lié avec `backlog.refs`). |
 
 ```markdown
 :::regle{id="RG-12" titre="Une commande au-dessus du seuil attend un responsable"}

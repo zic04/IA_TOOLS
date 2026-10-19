@@ -716,6 +716,36 @@ A feature sheet answers, for each behaviour of the feature, the questions a prod
 
 **Configuration**: `behaviours: { file: null, strict: false }` (`file`: the project's own kinds; `strict`: a rubric left out fails the strict build). **i18n fragment** `i18n/<language>/product.json`: `cli.build.behaviour.*`, `cli.build.story.*`, `cli.build.scenario.*`, `render.behaviour.*`, `render.story.*`.
 
+### 6.8b The backlog: epics, features, user stories
+
+The feature sheets and their stories are a backlog (§6.8a), read by the build from what it already knows — one model
+(`engine/build/backlog.mjs`), read today by the build's checks and `::stories{}`, and the one the Product board and
+the backlog export are to read:
+
+- **Epics** are groups of `toc.json`: `epic` (`E-01`), `summary` (a text field, translated), `ref`. A group of
+  feature sheets without `epic` is still a group of the backlog, by its title. Two groups with one id: `epic.duplicate` (strict,
+  the first kept). A feature is in its group's epic, or in the one its page names (`epic`; one no group declares:
+  `epic.unknown`, strict).
+- **Features** are the feature sheets (§6.8): their page may set `since` (the version it shipped in) and `ref`. A
+  feature's roles are its stories' roles, its kinds its behaviour cards' kinds (its sheet's, and those naming it).
+- **Stories** are the `:::story` of the feature sheets; a story's version is its own `since`, else its feature's, else
+  none. A story written elsewhere: `story.outside` (a warning), left out of the backlog. `epic`, `since` or `ref` on a page
+  that is no feature sheet: `backlog.field` (a warning), ignored.
+- **Depth** (`featureDepth`, the one measure the board and the audit are to share): the mean, from 0 to 100, of the criteria that
+  apply — the sheet written and conformant (1; 0.5 with a required section missing or guidance left; 0 not written),
+  at least one story, the share of its stories with acceptance criteria (a scenario naming them), at least one
+  business rule in its sheet, and the share of the rubrics of its behaviour cards answered (an explicit n/a counts;
+  without cards it does not apply).
+- **Ticket references** (`engine/core/refs.mjs`): `ADO#1234` or `AB#1234` (Azure Boards), `PROJ-123` (Jira),
+  `owner/repo#42` (GitHub), `group/sub/project#7` (GitLab; a `.` or `..` segment makes it no reference). A story's
+  reference is linked from `config.backlog.refs` (an `https://` address with `{id}`, and `{repo}`; with both GitHub
+  and GitLab, two parts are GitHub's, more GitLab's), the parts URL-encoded, the link opened with
+  `rel="noopener noreferrer"`; the epics' and features' are kept in the model. A reference the kit cannot read is kept as written,
+  without a link: `backlog.ref` (a warning). A story's ticket is a placeholder of the first pass (`data-ticket`), linked by the
+  second (`resolveBusinessRefs`).
+- **`::stories{}`** (fr `::recits{}`): every story of the feature sheets — id, story, feature, role, version,
+  criteria, ticket — resolved in the second pass like `::features{}`.
+
 ### 6.9 Facts and the takeover dossier (the Develop and Administer spaces)
 
 The takeover dossier (the Develop space, with its operating pages in Administer) is what a team needs to take over an application, especially one written largely by AI assistants ("vibe-coded"), whose usual risks are: missing access control (row-level security), secrets in the code or the client, packages that do not exist, duplicated code, missing or misleading tests, and agent instruction files that act as a hidden specification. Every claim is backed by a proof (`file:line`), or marked as deduced or unknown.
@@ -923,7 +953,7 @@ A documentation written in a **source language** and translated into others, ser
 **Declaring the languages**: `languages: ["fr", "en"]` in `doc.config.mjs` (§3). The first is the source; `content/` holds it, as today. The site language `language` is the source language. The ids of the table of contents are shared by every language: a section id, or the first segment of a page id, equal to a declared language is an error, `languages.idClash` `{ id, lang }`, blocking even a draft build (the URL grammar below reserves these segments).
 
 **The translations** (`<paths.translations>/<lang>/`, the same tree as `content/`, every file optional)
-- `toc.json`: the **texts** of the table of contents, same ids, same structure. `translatedToc(source, translated)` (`engine/build/languages.mjs`) returns a table of contents whose structure and non-text fields come from the **source** (`id`, `level`, `template`, `file`, `routes`, `permissions`, `space`, `counterpart`, `feature`, `sources`, `icon`, `featured`, `spaces[].id`, `spaces[].icon`, `journeys[].steps`, `journeys[].space`, `suggestions`) and whose text fields come from the **translation** (`title`, `tagline`, sections' `title`, `shortTitle`, `subtitle`, `highlights`, groups' `title`, pages' `title`, `menuTitle`, `summary`, journeys' `title`, `description`, spaces' `title`, `shortTitle`, `subtitle`, `for`). A structural difference (a section, group, page, journey or space missing, added or out of order; a different number of steps or suggestions) is `translation.toc.structure` `{ lang, path }`, blocking even a draft build, like an invalid outline. A non-text field whose translated value differs from the source is ignored, warning `translation.toc.ignored` `{ lang, path }`. A text field absent from the translation keeps the source text (no warning: the translated `toc.json` may be partial).
+- `toc.json`: the **texts** of the table of contents, same ids, same structure. `translatedToc(source, translated)` (`engine/build/languages.mjs`) returns a table of contents whose structure and non-text fields come from the **source** (`id`, `level`, `template`, `file`, `routes`, `permissions`, `space`, `counterpart`, `feature`, `sources`, `since`, `ref`, `epic`, groups' `epic` and `ref`, `icon`, `featured`, `spaces[].id`, `spaces[].icon`, `journeys[].steps`, `journeys[].space`, `suggestions`) and whose text fields come from the **translation** (`title`, `tagline`, sections' `title`, `shortTitle`, `subtitle`, `highlights`, groups' `title` and `summary`, pages' `title`, `menuTitle`, `summary`, journeys' `title`, `description`, spaces' `title`, `shortTitle`, `subtitle`, `for`). A structural difference (a section, group, page, journey or space missing, added or out of order; a different number of steps or suggestions) is `translation.toc.structure` `{ lang, path }`, blocking even a draft build, like an invalid outline. A non-text field whose translated value differs from the source is ignored, warning `translation.toc.ignored` `{ lang, path }`. A text field absent from the translation keeps the source text (no warning: the translated `toc.json` may be partial).
 - `glossary.json`: the same entries in the same order; `term`, `def` and `pattern` translated; `technical` from the source when absent. A different number of entries: `translation.glossary.structure` `{ lang, expected, found }`, error in a strict build, warning with `--draft` (the source glossary is then used).
 - `home.md`, `<section>/index.md`, `<page>.md` (the `file` of the source entry): the Markdown of that language, same syntax (§6.6, both spellings), same capture ids, same diagram ids, same rule ids.
 - `diagrams/<id>.svg`: a translated diagram; for that language it replaces `<paths.diagrams>/<id>.svg` (a diagram without translation is shared).

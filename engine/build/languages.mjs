@@ -13,7 +13,7 @@ import { KitError, EXIT } from "../project/errors.mjs";
 export const TEXT_FIELDS = Object.freeze({
   toc: ["title", "tagline"],
   section: ["title", "shortTitle", "subtitle", "highlights"],
-  group: ["title"],
+  group: ["title", "summary"],
   page: ["title", "menuTitle", "summary"],
   journey: ["title", "description"],
   space: ["title", "shortTitle", "subtitle", "for"],
@@ -74,6 +74,7 @@ function mergeGroup(sg, section, i, problems, basePath) {
   return {
     ...sg,
     title: pickText(sg, tg, "title"),
+    summary: pickText(sg, tg, "summary"),
     pages: (sg.pages || []).map((p, j) => mergePage(p, tg, j, problems, path)),
   };
 }

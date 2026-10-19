@@ -325,6 +325,8 @@ async function stackChecks() {
     ...BUILT_IN_INFRA.map((a) => [`infra ${a.name}`, `../../adapters/infra/${a.name}.mjs`]),
     ["infra", "../../engine/facts/infra.mjs"],
     ["yaml", "../../engine/core/yaml.mjs"],
+    // The ticket references of a backlog, as written in toc.json and in the pages (engine/core/refs.mjs).
+    ["refs", "../../engine/core/refs.mjs"],
   ];
   for (const [name, file] of modules) {
     const mod = await import(file);

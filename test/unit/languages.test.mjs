@@ -292,6 +292,33 @@ describe("translatedToc", () => {
       source.sections[0].groups[0].pages[0].routes,
       "non-text fields come from the source",
     );
+    // An epic's summary is a text field (§6.8b); its id and ticket are not.
+    const epicSource = {
+      ...source,
+      sections: source.sections.map((s, i) =>
+        i
+          ? s
+          : {
+              ...s,
+              groups: s.groups.map((g, j) => (j ? g : { ...g, epic: "E-01", summary: "Find it.", ref: "ADO#1" })),
+            },
+      ),
+    };
+    const epicTranslated = {
+      ...translated,
+      sections: translated.sections.map((s, i) =>
+        i
+          ? s
+          : {
+              ...s,
+              groups: s.groups.map((g, j) => (j ? g : { ...g, summary: "Le retrouver.", epic: "E-01", ref: "ADO#1" })),
+            },
+      ),
+    };
+    const epic = translatedToc({ source: epicSource, translated: epicTranslated });
+    assert.deepEqual(epic.problems, []);
+    assert.equal(epic.toc.sections[0].groups[0].summary, "Le retrouver.");
+    assert.equal(epic.toc.sections[0].groups[0].epic, "E-01");
   });
 
   test("no translated toc.json yet (a translation just started): the source's texts, no problem at all", () => {

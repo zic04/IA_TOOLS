@@ -67,6 +67,9 @@
               "required": ["pages"],
               "properties": {
                 "title": { "type": "string" },
+                "epic": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "The group is an epic of the backlog (ARCHITECTURE.md §6.8b): its id, E-01; its feature sheets are its features." },
+                "summary": { "type": "string", "description": "What the epic is for, in a sentence (kept in the backlog; translated like the titles)." },
+                "ref": { "type": "string", "maxLength": 300, "description": "The epic's item in a backlog tool: ADO#1234, AB#1234, PROJ-123, owner/repo#42, group/sub/project#7." },
                 "pages": {
                   "type": "array",
                   "items": {
@@ -86,6 +89,9 @@
                       "space": { "$ref": "#/$defs/spaceId" },
                       "counterpart": { "type": "string", "pattern": "^[^\\s~#]+(~[^\\s~#]+)?$" },
                       "feature": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+                      "since": { "type": "string", "pattern": "^[\\w.+-]{1,40}$", "description": "A feature sheet: the version the feature shipped in (its stories take it unless they say theirs)." },
+                      "ref": { "type": "string", "maxLength": 300, "description": "A feature sheet: its item in a backlog tool (ADO#1234, AB#1234, PROJ-123, owner/repo#42, group/sub/project#7)." },
+                      "epic": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "A feature sheet in an epic other than its group's: the id of a group's epic." },
                       "sources": { "$ref": "#/$defs/strings", "description": "Globs, relative to app.dir: declared dependencies of a page without routes, proofs or captures (ARCHITECTURE.md §6.10)." }
                     }
                   }

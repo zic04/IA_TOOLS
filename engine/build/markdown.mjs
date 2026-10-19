@@ -35,6 +35,8 @@ const DIRECTIVES = {
   rules: "rules",
   regles: "rules",
   roles: "roles",
+  stories: "stories",
+  recits: "stories",
   facts: "facts",
   faits: "facts",
   usage: "usage",
@@ -103,6 +105,8 @@ const CALLOUT_CLASSES = {
   recipe: "recette",
   how: "mecanisme",
 };
+/** The generated tables of the business space, filled once every page has rendered (engine/build/business.mjs). */
+const BIZ_TABLES = new Set(["features", "rules", "roles", "stories"]);
 /** French attribute spellings → English. */
 const ATTRIBUTES = {
   titre: "title",
@@ -232,8 +236,7 @@ export function createMarkdownEngine({
       if (fromFacts !== null) return fromFacts;
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
-      if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles")
-        return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
+      if (BIZ_TABLES.has(tk.kind)) return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
       // Production statistics (ARCHITECTURE.md §6.14): usage/<version>.jsonl, read by the build.
       if (tk.kind === "usage") {
         const view = tk.a.view || tk.a.vue;

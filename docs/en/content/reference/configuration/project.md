@@ -132,6 +132,13 @@ See [What the kit reads](#/reference/compatibility) and [Adapters](#/reference/a
 | `infra.disabled` | list · `[]` | Ids of the kit's infra adapters not run | `["ansible"]` |
 | `infra.adapters` | list · `[]` | The project's own infra adapters, each `"local:<path>"` relative to the project (never a file of the application), run after the kit's | `["local:adapters/nomad.mjs"]` |
 
+## The backlog
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `backlog` | object · `{}` | The backlog of the documentation: epics, feature sheets and their user stories ([Epics](#/write/table-of-contents~epics-the-top-of-the-backlog)) | |
+| `backlog.refs` | object · `{}` | The address of an item in each tool, so that a reference (`ref`) is a link: `azure`, `jira`, `github`, `gitlab`, each an `https://` address with `{id}` (and `{repo}` for GitHub and GitLab). With both GitHub and GitLab, `owner/repo#42` is GitHub's and `group/sub/project#7` GitLab's. No token: the kit never calls a tool | `{ "azure": "https://dev.azure.com/acme/shop/_workitems/edit/{id}" }` |
+
 ## Further reading
 
 - [Configuration](#/reference/configuration): validation, precedence and derived defaults.

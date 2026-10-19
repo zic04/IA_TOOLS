@@ -60,7 +60,7 @@ strict.
 
 ## Les tableaux générés
 
-Trois directives construisent leur tableau une fois que chaque page a été rendue, donc une règle ou une
+Quatre directives construisent leur tableau une fois que chaque page a été rendue, donc une règle ou une
 fonctionnalité peut être définie plus loin dans le sommaire que la page qui la cite :
 
 | Directive | Construit |
@@ -68,6 +68,7 @@ fonctionnalité peut être définie plus loin dans le sommaire que la page qui l
 | `::fonctionnalites{}` | Id · Fonctionnalité (liée) · Résumé · Qui (ses droits) — une ligne par fiche |
 | `::regles{}` | Id (lié) · Règle · Définie dans (lié) · Citée par — une ligne par règle |
 | `::roles{}` | Une ligne par fiche, une colonne par droit distinct, `✔` là où il la débloque |
+| `::recits{}` | Id (lié) · Récit · Fonctionnalité (liée) · Rôle · Version · Critères · Ticket — une ligne par récit utilisateur d'une fiche |
 
 [Exemple · Règles métier](#/examples/business-rules) et [Exemple · Matrice des rôles](#/examples/roles-matrix)
 montrent les deux tableaux rendus.
