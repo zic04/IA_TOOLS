@@ -23,7 +23,7 @@ const SECTION = {
   groupes: "groups",
   espace: "space",
 };
-const GROUP = { titre: "title" };
+const GROUP = { titre: "title", resume: "summary" };
 const PAGE = {
   titre: "title",
   titre_menu: "menuTitle",

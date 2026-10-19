@@ -98,6 +98,11 @@
     },
   };
 
+  // ─── Modules (engine/site/lib/*.js, spliced in at the line below by the build) ─────────────────────────────
+  // A module sees EXT.api only, and adds to EXT: its hydrators run on every content rendered (hydrate).
+  const EXT = { hydrators: [], api: { data: () => D, t, th, esc, icon, $, $$, memo } };
+  /* @lib */
+
   // ─── Spaces (one source, one site per audience) ───────────────────────────
   // The spaces apply when the build declares them (D.spaces). The current space, an id or null for "everything",
   // comes from the URL #/@<id>, else from the page or the section shown, else from the value remembered under
@@ -650,6 +655,7 @@
         </div>
       </section>
       <div class="accueil-corps">
+        ${SPACES && currentSpace && spacesById[currentSpace].board && D.board ? '<div class="tableau-produit" data-board></div>' : ""}
         <div class="portes">${doors}</div>
         ${D.meta.homeFallback ? translationBanner(D.meta.homeFallback) : ""}
         <div class="contenu">${D.homeHtml || ""}</div>
@@ -718,7 +724,7 @@
   // ─── Hydration of rendered content ────────────────────────────────────────
   function hydrate(root, page) {
     hydrateImages(root);
-    $$(".comparer-scene", root).forEach(enableComparer);
+    for (const h of EXT.hydrators) h(root, page);
     if (page) markGlossary($(".contenu", root));
     enableZones(root);
     document.body.classList.remove("menu-ouvert");
@@ -764,7 +770,7 @@
     if (!root || !TERMS.length) return;
     const remaining = new Set(TERMS);
     const excluded =
-      "a, code, pre, h1, h2, h3, h4, kbd, .puce, .gl, .ecran-barre, .pastille, figcaption, .tableau th, svg";
+      "a, code, pre, h1, h2, h3, h4, kbd, .puce, .gl, .ecran-barre, .pastille, figcaption, .tableau th, svg, [data-board]";
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: (n) =>
         !n.nodeValue.trim() || (n.parentElement && n.parentElement.closest(excluded))
@@ -1038,29 +1044,6 @@
     if (viewerState.open && viewerState.tour) goToStep(viewerState.i);
   });
 
-  // ─── Before / after ───────────────────────────────────────────────────────
-  function enableComparer(stage) {
-    const update = (x) => {
-      const r = stage.getBoundingClientRect();
-      const p = Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100));
-      stage.style.setProperty("--pos", p + "%");
-    };
-    let dragging = false;
-    stage.addEventListener("pointerdown", (e) => {
-      dragging = true;
-      stage.setPointerCapture(e.pointerId);
-      update(e.clientX);
-    });
-    stage.addEventListener("pointermove", (e) => dragging && update(e.clientX));
-    stage.addEventListener("pointerup", () => (dragging = false));
-    stage.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const current = parseFloat(stage.style.getPropertyValue("--pos")) || 50;
-      stage.style.setProperty("--pos", Math.max(0, Math.min(100, current + (e.key === "ArrowLeft" ? -5 : 5))) + "%");
-      e.preventDefault();
-    });
-  }
-
   // ─── Global clicks ────────────────────────────────────────────────────────
   document.addEventListener("click", (e) => {
     const action = e.target.closest("[data-action]");
@@ -1326,7 +1309,7 @@
           return `<section class="page-imprimee article"><div class="ariane">${esc(sectionsById[p.section].title)}${p.group ? " › " + esc(p.group) : ""}${parentOf[p.id] ? " › " + esc(D.pages[parentOf[p.id]].menuTitle || D.pages[parentOf[p.id]].title) : ""}</div><h1 class="page-titre">${esc(p.title)}</h1>${p.summary ? `<p class="page-resume">${esc(p.summary)}</p>` : ""}<div class="contenu">${p.html}</div></section>`;
         })
         .join("");
-    hydrateImages(target);
+    hydrate(target); // its images, its modules (a board in a page), its zones
     document.body.classList.add("impression-complete");
     const images = $$("img", target);
     // Eager: a `loading="lazy"` image far enough down this one long page (every page concatenated) may never be

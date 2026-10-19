@@ -12,6 +12,8 @@ import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { loadSpaceProfiles, spaceKind, isRetiredSpace } from "../core/space-profiles.mjs";
+import { BOARD_PLACEHOLDER } from "./business.mjs";
+import { withoutBoardTexts } from "./board.mjs";
 
 /** Keys of the i18n fragment of the spaces (i18n/en/spaces.json): embedded only when the site uses them. */
 export const SPACE_TEXT_KEYS = Object.freeze(
@@ -93,11 +95,17 @@ export function resolveSpaces({ toc, t, iconKey }) {
       icon: iconKey(s.icon ?? profile.icon),
       for: text("for") ?? "",
       pages: 0,
-      ...(profile.glossaryTechnical ? { tech: true } : {}),
+      ...flagsOf(profile),
     });
   }
   return { spaces, errors };
 }
+
+/** The flags of a kind the site reads: `tech` (the glossary's technical side), `board` (the Product board). */
+const flagsOf = (profile) => ({
+  ...(profile.glossaryTechnical ? { tech: true } : {}),
+  ...(profile.board ? { board: true } : {}),
+});
 
 /** "<page id>[~anchor]" → { id, anchor? } (site data, pages[].counterpart). */
 export function counterpartOf(value) {
@@ -108,6 +116,28 @@ export function counterpartOf(value) {
 // ─── Exports ──────────────────────────────────────────────────────────────────
 /** A link of the rendered HTML to a page or a section: <a … href="#/<target>[~anchor]" …>text</a>. */
 const LINK = /<a\b([^>]*?)\bhref="#\/([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g;
+
+/**
+ * The board of a space's export (ARCHITECTURE.md §6.8b), as for the whole site (engine/build/render-language.mjs):
+ * shown when its space's kind shows it or a page it keeps holds ::board{}; then the features whose sheet it keeps,
+ * their stories, the epics left with a feature. Null otherwise, or when it keeps no feature.
+ * @param {object} d  the export's site data, its spaces and pages already kept
+ * @param {Set<string>} keep  the ids of the pages kept
+ */
+function boardOfExport(d, keep) {
+  const shown = d.spaces[0]?.board || [...keep].some((id) => d.pages[id]?.html.includes(BOARD_PLACEHOLDER));
+  const features = shown ? d.board.features.filter((f) => keep.has(f.page)) : [];
+  if (!features.length) return null;
+  const ids = new Set(features.map((f) => f.id));
+  return {
+    ...d.board,
+    features,
+    stories: d.board.stories.filter((s) => ids.has(s.feature)),
+    epics: d.board.epics
+      .map((e) => ({ ...e, features: e.features.filter((id) => ids.has(id)) }))
+      .filter((e) => e.features.length),
+  };
+}
 
 /**
  * Site data of the export of one space (a copy: `data` is not changed).
@@ -188,6 +218,15 @@ export function exportSite({ data, space, used, t }) {
   // The glossary is kept whole (§7), except its technical correspondence (§6.8): only the export of a space whose
   // kind shows it (admin, develop: `tech`) keeps it.
   if (!d.spaces[0]?.tech) d.glossary = d.glossary.map(({ tech, ...rest }) => rest);
+  // The board: what the export keeps of it, or neither the board nor its texts.
+  if (d.board) {
+    const board = boardOfExport(d, keep);
+    if (board) d.board = board;
+    else {
+      delete d.board;
+      d.i18n = withoutBoardTexts(d.i18n);
+    }
+  }
   return { data: d, images, excludedLinks };
 }
 

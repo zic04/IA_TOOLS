@@ -67,6 +67,24 @@ the table of contents than the page that cites it:
 [Example · Business rules](#/examples/business-rules) and [Example · Roles matrix](#/examples/roles-matrix) show
 both tables rendered.
 
+## The Product board
+
+The home of the Product space shows the **board**: the backlog of the feature sheets, read from the table of contents
+and the sheets themselves ([Epics](#/write/table-of-contents~epics-the-top-of-the-backlog)). A page of any space
+shows it too with `::board{}` (fr `::tableau{}`), for a project without spaces.
+
+- **Map**: the epics in columns, with the share of their features specified; under each, its features as cards (id,
+  version, who, kinds of behaviour, stories · criteria · rules, a depth gauge, the ticket); then one row of user
+  stories per version — its own, else its feature's — a dot green when the story has acceptance criteria.
+- **List**: Epic › Feature › Story, each level folding the next, the same columns.
+- **Filters**: who (a story's role), epic, version, depth, and text (an id, a title, a story's title); the number of
+  features shown is read out.
+- **Depth** of a feature, from 0 to 100: the mean of its sheet written and conformant, at least one story, the share
+  of its stories with acceptance criteria, at least one business rule (defined in its sheet or cited by it), and the
+  share of the rubrics of its behaviour cards answered (when it has cards).
+- A card opens its sheet, a story its heading; the arrow keys go from card to card. The view chosen is remembered;
+  printed, the board is its list. A ticket is a link when `backlog.refs` gives its tool's address.
+
 ## Finding candidate features
 
 ```bash

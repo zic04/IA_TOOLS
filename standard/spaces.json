@@ -16,6 +16,7 @@
     {
       "id": "product",
       "icon": "map",
+      "board": true,
       "noCode": true,
       "proofs": false,
       "glossaryTechnical": false,

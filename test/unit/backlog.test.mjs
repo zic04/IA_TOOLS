@@ -83,8 +83,17 @@ describe("backlogModel", () => {
     features,
     stories,
     scenarios: [{ story: "US-01" }, { story: "US-01" }, { story: null }],
-    rules: new Map([["BR-1", { page: "p/track" }]]),
+    rules: new Map([
+      ["BR-1", { page: "p/track" }],
+      ["BR-2", { page: "p/rules" }],
+    ]),
     cards,
+    // p/track cites BR-1 (its own) and BR-2 (defined on p/rules): two rules; p/view cites BR-2 and BR-404 (defined
+    // nowhere, not a rule): one.
+    cited: new Map([
+      ["p/track", new Set(["BR-1", "BR-2"])],
+      ["p/view", new Set(["BR-2", "BR-404"])],
+    ]),
     sheets: { "p/track": { conformant: true, guidance: 0 }, "p/view": { conformant: true, guidance: 2 } },
   });
 
@@ -122,7 +131,7 @@ describe("backlogModel", () => {
         ref: null,
         roles: ["Manager"],
         kinds: ["search"],
-        rules: 1,
+        rules: 2,
         stories: ["US-01", "US-02"],
         criteria: 2,
         depth: Math.round(((1 + 1 + 0.5 + 1 + 1) / 5) * 100),
@@ -130,6 +139,7 @@ describe("backlogModel", () => {
     );
     const f2 = m.features.find((f) => f.id === "F-02");
     assert.equal(f2.since, "1.2");
+    assert.equal(f2.rules, 1, "a rule cited, defined on another page; a citation of a rule defined nowhere: none");
     assert.equal(f2.depth.criteria[0].value, 0.5, "guidance left in its sheet");
     assert.deepEqual(m.features.find((f) => f.id === "F-04").kinds, ["export"], "a card naming its feature");
     assert.equal(m.features.find((f) => f.id === "F-05").epic, null, "an unknown epic: none");

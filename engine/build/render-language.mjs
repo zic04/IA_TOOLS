@@ -10,8 +10,16 @@ import { escapeRegex } from "../core/text.mjs";
 import { checkLinks } from "../check/links.mjs";
 import { EMBEDDED_NAMESPACES } from "../i18n.mjs";
 import { resolveSpaces, counterpartOf, withoutSpaceTexts } from "./spaces.mjs";
-import { buildFeatureRegistry, resolveBusinessRefs, hasTechnicalProof, BUSINESS_TYPES } from "./business.mjs";
+import {
+  buildFeatureRegistry,
+  resolveBusinessRefs,
+  hasTechnicalProof,
+  BUSINESS_TYPES,
+  BOARD_PLACEHOLDER,
+  ruleCitations,
+} from "./business.mjs";
 import { backlogModel } from "./backlog.mjs";
+import { boardData, withoutBoardTexts } from "./board.mjs";
 import { withoutLanguageTexts } from "./languages.mjs";
 import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
@@ -222,6 +230,25 @@ function checkTemplate(r, p, out, source) {
     r.sheets[p.id] = analysePage({ table: templates, type: "feature", headings, source, language: r.lang });
 }
 
+/**
+ * The Product board's data (engine/build/board.mjs), or null: no feature sheet, or neither a space whose kind shows it
+ * (standard/spaces.json `board`) nor a page holding ::board{}.
+ */
+function boardOf(r) {
+  const { site, b } = r;
+  if (!r.backlog?.features.length) return null;
+  const shown =
+    site.spaces?.some((s) => loadSpaceProfiles().get(s.kind)?.board) ||
+    r.order.some((id) => r.pages[id].html.includes(BOARD_PLACEHOLDER));
+  if (!shown) return null;
+  return boardData(r.backlog, {
+    refs: b.config.backlog?.refs,
+    kinds: site.behaviours.registry.kinds,
+    language: r.lang,
+    iconKey: site.iconKey,
+  });
+}
+
 /** Whether the readers of a space read without the code (its kind's `noCode`, standard/spaces.json). */
 const readWithoutCode = (spaces, id) => !!loadSpaceProfiles().get(spaces.find((s) => s.id === id)?.kind)?.noCode;
 
@@ -266,6 +293,7 @@ function checkLanguage(r, { langToc, features }) {
     rules: engine.rules,
     cards: engine.behaviours,
     sheets: r.sheets,
+    cited: ruleCitations(pages),
   });
   if (isSource)
     for (const { strict, ...problem } of r.backlog.problems) b.report(strict, { kind: "backlog", ...problem });
@@ -299,6 +327,8 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
   const prefixes = languages ? [...EMBEDDED_NAMESPACES, "template."] : EMBEDDED_NAMESPACES;
   let embedded = langI18n.subset(prefixes);
   if (!spaced) embedded = withoutSpaceTexts(embedded);
+  const board = boardOf(r);
+  if (!board) embedded = withoutBoardTexts(embedded);
   if (!languages) embedded = withoutLanguageTexts(embedded);
 
   const siteSpaces = spaces
@@ -324,6 +354,7 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
       ...(home.fallback ? { homeFallback: home.fallback } : {}),
     },
     ...(siteSpaces ? { spaces: siteSpaces } : {}),
+    ...(board ? { board } : {}),
     icons: site.ICONS,
     sections,
     pages: r.pages,

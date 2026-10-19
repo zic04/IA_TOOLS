@@ -73,6 +73,26 @@ fonctionnalité peut être définie plus loin dans le sommaire que la page qui l
 [Exemple · Règles métier](#/examples/business-rules) et [Exemple · Matrice des rôles](#/examples/roles-matrix)
 montrent les deux tableaux rendus.
 
+## Le tableau Produit
+
+L'accueil de l'espace Produit montre le **tableau** : le backlog des fiches de fonctionnalité, lu dans la table des
+matières et dans les fiches elles-mêmes ([Les epics](#/write/table-of-contents~les-epics-le-haut-du-backlog)). Une page
+de n'importe quel espace le montre aussi avec `::tableau{}` (en `::board{}`), pour un projet sans espaces.
+
+- **Carte** : les epics en colonnes, avec la part de leurs fonctionnalités spécifiée ; sous chacun, ses
+  fonctionnalités en cartes (id, version, qui, types de comportement, récits · critères · règles, une jauge de
+  profondeur, le ticket) ; puis une ligne de récits utilisateur par version — la sienne, sinon celle de sa
+  fonctionnalité —, une pastille verte quand le récit a des critères d'acceptation.
+- **Liste** : Epic › Fonctionnalité › Récit, chaque niveau repliant le suivant, avec les mêmes colonnes.
+- **Filtres** : qui (le rôle d'un récit), epic, version, profondeur, et texte (un id, un titre, le titre d'un récit) ;
+  le nombre de fonctionnalités affichées est annoncé.
+- **Profondeur** d'une fonctionnalité, de 0 à 100 : la moyenne de sa fiche rédigée et conforme, d'au moins un récit, de
+  la part de ses récits qui ont des critères d'acceptation, d'au moins une règle de gestion (définie dans sa fiche ou
+  citée par elle), et de la part des rubriques de ses cartes de comportement renseignées (quand elle en a).
+- Une carte ouvre sa fiche, un récit son titre ; les flèches passent d'une carte à l'autre. La vue choisie est
+  mémorisée ; imprimé, le tableau est sa liste. Un ticket est un lien quand `backlog.refs` donne l'adresse de son
+  outil.
+
 ## Trouver les fonctionnalités candidates
 
 ```bash

@@ -11,7 +11,7 @@ import { KIT_ROOT } from "../tools/helpers.mjs";
 const LIMIT = 600;
 /** Files over the limit, held at their current number of lines. */
 const CEILINGS = Object.freeze({
-  "engine/site/app.js": 1379,
+  "engine/site/app.js": 1362,
   "cli/commands/init.mjs": 810,
   "engine/audit/audit.mjs": 667,
 });

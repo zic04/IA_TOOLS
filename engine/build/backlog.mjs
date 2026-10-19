@@ -23,7 +23,7 @@ import { compareVersions } from "../stats/usage.mjs";
  *   sheet     its sheet written and conformant (1), written with a required section missing or guidance left (0.5);
  *   stories   at least one user story;
  *   criteria  the share of its stories that have acceptance criteria (a scenario naming them);
- *   rules     at least one business rule defined in its sheet;
+ *   rules     at least one business rule, defined in its sheet or cited by it;
  *   rubrics   the share of the rubrics of its behaviour cards answered (an explicit "n/a" counts), when it has cards.
  * @param {{ sheet: SheetState, stories: number, storiesWithCriteria: number, rules: number,
  *   rubrics: { answered: number, total: number } }} f
@@ -101,7 +101,11 @@ function featureOf(f, ctx) {
   epic?.features.push(f.id);
   const own = ctx.storiesByPage.get(f.page) ?? [];
   const cards = [...(ctx.cardsByPage.get(f.page) ?? []), ...(ctx.cardsByFeature.get(f.id) ?? [])];
-  const rules = ctx.rulesByPage.get(f.page)?.length ?? 0;
+  // Its rules: those its sheet defines, and those it cites (a rule is defined once, cited everywhere) — a citation
+  // of a rule defined nowhere is not a rule (the build reports it: rule.unknown).
+  const defined = (ctx.rulesByPage.get(f.page) ?? []).map(([id]) => id);
+  const cited = [...(ctx.cited.get(f.page) ?? [])].filter((id) => ctx.rules.has(id));
+  const rules = new Set([...defined, ...cited]).size;
   const withCriteria = own.filter(([id]) => ctx.criteria.get(id)).length;
   return {
     id: f.id,
@@ -152,11 +156,12 @@ function storiesOf(stories, features, criteria, problems) {
 /**
  * The backlog of one language's build.
  * @param {{ toc: any, features: Map<string, any>, stories: Map<string, any>, scenarios: Array<{ story: string|null }>,
- *   rules: Map<string, { page: string }>, cards: Map<string, any>, sheets: Record<string, SheetState> }} p
- *   sheets: page id → the analysis of its sheet, for the feature sheets written
+ *   rules: Map<string, { page: string }>, cards: Map<string, any>, sheets: Record<string, SheetState>,
+ *   cited?: Map<string, Set<string>> }} p
+ *   sheets: page id → the analysis of its sheet, for the feature sheets written; cited: page id → the rules it cites
  * @returns {{ epics: any[], features: any[], stories: any[], versions: Array<string|null>, problems: Problem[] }}
  */
-export function backlogModel({ toc, features, stories, scenarios, rules, cards, sheets }) {
+export function backlogModel({ toc, features, stories, scenarios, rules, cards, sheets, cited = new Map() }) {
   /** @type {Problem[]} */
   const problems = [];
   const criteria = new Map();
@@ -175,10 +180,12 @@ export function backlogModel({ toc, features, stories, scenarios, rules, cards, 
     problems,
     criteria,
     sheets,
+    cited,
+    rules,
     storiesByPage: groupBy([...stories.entries()], ([, s]) => [s.page]),
     cardsByPage: groupBy([...cards.values()], (c) => [c.page]),
     cardsByFeature: groupBy([...cards.values()], (c) => [c.feature]),
-    rulesByPage: groupBy([...rules.values()], (r) => [r.page]),
+    rulesByPage: groupBy([...rules.entries()], ([, r]) => [r.page]),
   };
   const featureList = [...features.values()].map((f) => featureOf(f, ctx));
   const storyList = storiesOf(stories, featureList, criteria, problems);

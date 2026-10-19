@@ -56,7 +56,7 @@ No `file:line` here: a business page in a space read without the code (Use, Prod
 warning `business.technical` (move the detail to its `counterpart` in the Develop space). Identifiers: `F-01`… for a feature (`feature` field of the page), `BR-01`… (`RG-01`
 in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewhere with `[[rule BR-01]]`/
 `[[regle RG-01]]`. Generated tables: `::features{}`/`::fonctionnalites{}`, `::rules{}`/`::regles{}`,
-`::roles{}`.
+`::roles{}`, `::stories{}`/`::recits{}`; the Product board: `::board{}`/`::tableau{}` (already on the Product home).
 
 | Type | For | Required sections | maxWords | Example |
 |---|---|---|---|---|

@@ -58,7 +58,8 @@ doc-kit/
 │  │                     optional.mjs (measures that may be "not measured")
 │  ├─ dev/               server.mjs (watch, rebuild, live reload via SSE), client.js, environment.mjs (shared by dev,
 │  │                     doctor, init and the guided mode), zip.mjs (export --zip)
-│  ├─ site/              template.html, app.js, style.css, icons.mjs, default-logo.svg
+│  ├─ site/              template.html, app.js, style.css, icons.mjs, default-logo.svg, lib/ (the modules of app.js:
+│  │                     compare.js, board.js; spliced in by engine/build/site-script.mjs)
 │  ├─ theme/             default-tokens.json, tokens.mjs, contrast.mjs
 │  ├─ i18n.mjs           dictionary loading and merging, t(key, vars), plurals
 │  └─ migrations/        runner.mjs, <version>.mjs (used by upgrade)
@@ -420,10 +421,18 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
 
 **Site data** (§9: new keys are in English, and are emitted **only** when they are declared, so that a project without spaces keeps identical site data):
 - the texts of `i18n/<language>/spaces.json` are embedded only in a site that declares spaces or a counterpart;
-- `spaces: [{ id, kind, title, shortTitle, subtitle, icon, for, pages, tech? }]`: texts resolved at build time, `icon` resolved like a section icon, `pages` = number of pages of the space, `tech: true` when its kind shows the glossary's technical correspondence;
+- `spaces: [{ id, kind, title, shortTitle, subtitle, icon, for, pages, tech?, board? }]`: texts resolved at build time, `icon` resolved like a section icon, `pages` = number of pages of the space, `tech: true` when its kind shows the glossary's technical correspondence, `board: true` when its home shows the Product board (§6.8b);
+- `board`: the Product board (§6.8b), only when it is shown;
 - `sections[].space`, `pages[].space` (effective space), `journeys[].space`;
 - `pages[].counterpart: { id, anchor? }` when the page declares one;
 - in an export only: `meta.space` (the id of the exported space), `spaces` holding that space alone, and `journeys[].hidden` (number of steps removed, when > 0).
+
+**The modules of the site** (`engine/site/lib/*.js`): `app.js` stays one script; the build
+(`engine/build/site-script.mjs`) splices its modules in at its `/* @lib */` line, in file name order, each in a block
+of its own (strict mode: what it declares stays local). A module sees `EXT.api` only (`data()`, `t`, `th`, `esc`,
+`icon`, `$`, `$$`, `memo`) and adds to `EXT`: its `hydrators` run on every content rendered (`hydrate`). Its texts
+are `ui.*` keys, checked like `app.js`'s (no hard-coded text, every key embedded). A site folder without `lib/` (an
+older engine, `siteDir`) gives `app.js` as it is.
 
 **Site behaviour** (`engine/site/app.js`, `template.html`, `style.css`; only when `D.spaces` exists)
 - **Current space**: a space id, or `null` for "everything". It comes from, in this order: the URL `#/@<id>` (`#/@` = everything; an unknown id = everything); the effective space of the page shown (a section overview: the section's own space); the value remembered in `localStorage` under `__THEME_KEY__.space` (read and written inside `try`/`catch`, like the theme; `""` for everything); else `null`. Showing a page, a section overview or `#/@<id>` makes that space current and remembers it; the plain home page `#/` keeps the current one. `#/@<id>` shows the home page of that space.
@@ -444,7 +453,8 @@ One source, two kinds of output (DITA's single-sourcing): **one HTML file with a
   - images: only those used by the kept pages, the kept section introductions and the home page; `meta.stats` is recounted on what is kept (pages, screenshots, zones, diagrams), from what each rendered document uses (`render().used` of the Markdown engine);
   - **links**: in the kept pages, the kept section introductions and the home page, a link `#/<target>[~anchor]` whose target page or section is not in the export becomes its text in a `<span class="lien-exclu">`, followed by " (see the {space} documentation)" (`render.spaces.excludedLink`, `{space}` = the `shortTitle` of the target's space). Their number is `excludedLinks`, reported as a warning `space.excludedLinks` `{ space, n }` (never an error: it is what an export is for); a link whose target is unknown (a broken link, reported by the link check) is left as it is;
   - a `counterpart` whose target is not in the export is removed;
-  - the glossary is kept whole, but its technical correspondence (§6.8), kept only in the export of a space whose kind shows it (`tech`: `admin`, `develop`).
+  - the glossary is kept whole, but its technical correspondence (§6.8), kept only in the export of a space whose kind shows it (`tech`: `admin`, `develop`);
+  - `board` (§6.8b): kept when the export shows it, as for the whole site (its space's kind does, or a page it keeps holds `::board{}`), reduced to the features whose sheet it keeps, their stories and the epics left with one; otherwise, or when it keeps no feature, neither `board` nor the `ui.board.*` texts.
 - **Output**: `config.spaces.output`, a path containing `{space}`, relative to the project; default: the full site's output actually built (`--output` included) with `-{space}` inserted before its extension (`dist/Acme-Orders-Documentation.html` → `dist/Acme-Orders-Documentation-use.html`).
 - The links of each export are valid by construction: no other check runs per export. `check images` keeps working on the full site, which holds every page.
 
@@ -734,7 +744,7 @@ the backlog export are to read:
 - **Depth** (`featureDepth`, the one measure the board and the audit are to share): the mean, from 0 to 100, of the criteria that
   apply — the sheet written and conformant (1; 0.5 with a required section missing or guidance left; 0 not written),
   at least one story, the share of its stories with acceptance criteria (a scenario naming them), at least one
-  business rule in its sheet, and the share of the rubrics of its behaviour cards answered (an explicit n/a counts;
+  business rule defined in its sheet or cited by it, and the share of the rubrics of its behaviour cards answered (an explicit n/a counts;
   without cards it does not apply).
 - **Ticket references** (`engine/core/refs.mjs`): `ADO#1234` or `AB#1234` (Azure Boards), `PROJ-123` (Jira),
   `owner/repo#42` (GitHub), `group/sub/project#7` (GitLab; a `.` or `..` segment makes it no reference). A story's
@@ -745,6 +755,16 @@ the backlog export are to read:
   second (`resolveBusinessRefs`).
 - **`::stories{}`** (fr `::recits{}`): every story of the feature sheets — id, story, feature, role, version,
   criteria, ticket — resolved in the second pass like `::features{}`.
+- **The Product board** (`engine/build/board.mjs` → `D.board`, drawn by `engine/site/lib/board.js`): the model for the
+  site — epics, features (their depth as values), stories, versions, each ticket with its link already made (the
+  browser never builds an address), each kind of behaviour with its label and icon. In the site data only when a
+  feature sheet exists and the site has a space whose kind shows the board (`standard/spaces.json` `board`: the
+  `product` kind; site data `spaces[].board`) or a page holds `::board{}` (fr `::tableau{}`: a placeholder of the
+  second pass, `<div class="tableau-produit" data-board>`); otherwise neither `board` nor the `ui.board.*` texts are
+  embedded. A space's export keeps it by the same rule, reduced to the features whose sheet it keeps (§6.1a). The home of a space whose `board` flag is set holds its place; `board.js` draws a map
+  (epics × features, a row of stories per version) or a list (Epic › Feature › Story, folding), the filters (who, epic,
+  version, depth, text) with a `role="status"` count, links to the sheets and the stories' headings, the arrow keys
+  from card to card, the view remembered (`__THEME_KEY__.board`), the list printed.
 
 ### 6.9 Facts and the takeover dossier (the Develop and Administer spaces)
 

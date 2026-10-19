@@ -133,8 +133,9 @@ describe("the code only uses existing keys", () => {
   const read = (p) => fs.readFileSync(path.join(KIT_ROOT, p), "utf8");
   const uses = (source, re) => [...source.matchAll(re)].map((m) => m[1]);
 
-  test('app.js: each t("…") exists and is embedded (ui.* or home.*)', () => {
-    const keys = uses(read("engine/site/app.js"), /\bth?\("([\w.]+)"/g);
+  test('app.js and its modules: each t("…") exists and is embedded (ui.* or home.*)', () => {
+    const lib = fs.readdirSync(path.join(KIT_ROOT, "engine/site/lib")).map((f) => read(`engine/site/lib/${f}`));
+    const keys = uses([read("engine/site/app.js"), ...lib].join("\n"), /\bth?\("([\w.]+)"/g);
     assert.ok(keys.length > 25);
     for (const k of keys) {
       assert.ok(k in en, `missing key: ${k}`);

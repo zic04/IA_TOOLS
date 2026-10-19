@@ -37,6 +37,8 @@ const DIRECTIVES = {
   roles: "roles",
   stories: "stories",
   recits: "stories",
+  board: "board",
+  tableau: "board",
   facts: "facts",
   faits: "facts",
   usage: "usage",
@@ -106,7 +108,7 @@ const CALLOUT_CLASSES = {
   how: "mecanisme",
 };
 /** The generated tables of the business space, filled once every page has rendered (engine/build/business.mjs). */
-const BIZ_TABLES = new Set(["features", "rules", "roles", "stories"]);
+const BIZ_TABLES = new Set(["features", "rules", "roles", "stories", "board"]);
 /** French attribute spellings → English. */
 const ATTRIBUTES = {
   titre: "title",

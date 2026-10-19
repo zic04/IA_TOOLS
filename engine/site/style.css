@@ -2695,3 +2695,487 @@ tr.usage-part td:first-child {
 .c4-node-more {
   fill: var(--text-soft);
 }
+
+/* Product board (::board{}, the home of a space whose kind shows it; engine/site/lib/board.js, ARCHITECTURE.md
+   §6.8b): the backlog as a story map or a list. Theme colours only, so it follows light and dark. */
+.tableau-produit {
+  margin: 0 0 2rem;
+}
+.tb-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.tb-tete h2 {
+  margin: 0;
+}
+.tb-resume {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+.tb-resume dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+}
+.tb-resume dl div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.tb-resume dt {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-resume dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.tb-anneau {
+  --p: 0;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--brand) calc(var(--p) * 1%), var(--surface-2) 0);
+}
+.tb-anneau::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.tb-anneau b {
+  grid-area: 1 / 1;
+  font-size: 0.72rem;
+}
+.tb-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.tb-vues {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.tb-vues button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.tb-vues button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.tb-vues .ico {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.tb-filtre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-filtre select,
+.tb-filtre input {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  max-width: 14rem;
+}
+.tb-texte {
+  flex: 1 1 12rem;
+}
+.tb-texte input {
+  max-width: none;
+  width: 100%;
+}
+.tb-resultat {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-defile {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.tb-carte-histoires {
+  display: grid;
+  min-width: max-content;
+}
+.tb-etiquette {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.tb-etiquette-couloir {
+  background: var(--surface);
+}
+.tb-epic {
+  position: relative;
+  padding: 0.85rem 1rem 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.tb-epic::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--brand);
+}
+.tb-epic h3 {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+.tb-epic p {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-progres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-barre {
+  display: inline-block;
+  flex: 1;
+  min-width: 3.5rem;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.tb-barre i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+.tb-full .tb-barre i,
+.tb-barre.tb-full i {
+  background: var(--ok);
+}
+.tb-none .tb-barre i,
+.tb-barre.tb-none i {
+  background: var(--warn);
+}
+.tb-cellule {
+  padding: 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.tb-carte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  height: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.tb-carte:hover,
+.tb-carte:focus-within {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-md);
+}
+/* The title is the card's link, stretched over the whole card; the focus ring is the card's. */
+.tb-carte:has(.tb-carte-titre:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+a.tb-carte-titre {
+  color: inherit;
+  text-decoration: none;
+}
+a.tb-carte-titre:focus-visible {
+  outline: none;
+}
+a.tb-carte-titre::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tb-carte-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.tb-id {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--brand-strong);
+  margin-right: 0.4rem;
+}
+.tb-carte-titre {
+  font-weight: 600;
+  line-height: 1.35;
+}
+.tb-roles {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-roles .ico,
+.tb-genre .ico {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.tb-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.tb-genre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.4rem;
+}
+.tb-compte {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.tb-carte-pied {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.tb-jauge {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  min-width: 7rem;
+}
+.tb-puce,
+.tb-ticket {
+  font-size: 0.72rem;
+  white-space: nowrap;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+.tb-puce-version {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+.tb-ticket {
+  font-family: var(--mono);
+}
+a.tb-ticket {
+  position: relative;
+  z-index: 1;
+  color: var(--brand-strong);
+}
+.tb-couloir {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.tb-recit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+.tb-recit:hover,
+.tb-recit:focus-visible {
+  border-color: var(--brand-line);
+}
+.tb-recit-titre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tb-criteres {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.tb-point {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.tb-point.tb-ok {
+  background: var(--ok);
+}
+.tb-vide {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.tb-liste th,
+.tb-liste td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tb-liste tbody th a {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+.tb-liste tbody th a:hover span:last-child {
+  text-decoration: underline;
+}
+/* The rows of the list: their title cell (a th) reads as text, not as a column header; each level indented. */
+.tableau.tb-liste tbody th {
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  background: transparent;
+}
+.tableau.tb-liste .tb-niveau-epic th,
+.tableau.tb-liste .tb-niveau-epic td {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.tableau.tb-liste .tb-niveau-fonction th {
+  padding-left: 2rem;
+}
+.tableau.tb-liste .tb-niveau-recit th {
+  padding-left: 4.25rem;
+  font-weight: 400;
+  color: var(--text-soft);
+}
+.tb-plier {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.tb-plier .ico {
+  width: 0.9rem;
+  height: 0.9rem;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+.tb-plier[hidden] {
+  display: none;
+}
+.tb-plier[aria-expanded="false"] .ico {
+  transform: none;
+}
+.tb-aucun {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-soft);
+}
+@media (max-width: 640px) {
+  .tb-resultat {
+    margin-left: 0;
+  }
+  .tb-filtre select {
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-plier .ico {
+    transition: none;
+  }
+}
+@media print {
+  .tb-outils {
+    display: none;
+  }
+  .tb-liste th,
+  .tb-liste td {
+    white-space: normal;
+  }
+}

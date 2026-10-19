@@ -25,6 +25,7 @@ const LEGACY_TOC = {
       groupes: [
         {
           titre: "G",
+          resume: "GS",
           pages: [
             {
               id: "use/a",
@@ -61,6 +62,9 @@ describe("normalisation", () => {
       "highlights",
       "groups",
     ]);
+    assert.equal(value.sections[0].groups[0].title, "G");
+    assert.equal(value.sections[0].groups[0].summary, "GS", "a group's summary (an epic's)");
+    assert.equal(value.sections[0].groups[0].resume, undefined);
     assert.deepEqual(value.sections[0].groups[0].pages[0], {
       id: "use/a",
       title: "A",

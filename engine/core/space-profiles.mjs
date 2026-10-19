@@ -10,7 +10,7 @@ import { validate } from "../project/validate.mjs";
 
 /**
  * @typedef {{ id: string, icon: string, noCode: boolean, proofs: boolean, glossaryTechnical: boolean,
- *   takeoverItems: string[], preferTypes: string[] }} SpaceProfile
+ *   takeoverItems: string[], preferTypes: string[], board?: boolean }} SpaceProfile   board: its home shows the Product board
  */
 
 const cache = new Map();

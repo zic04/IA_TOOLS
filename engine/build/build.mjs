@@ -39,6 +39,7 @@ import { readChanges } from "../facts/changes.mjs";
 import { createBuildContext, readZoneFolder, readTranslatedJson } from "./build-context.mjs";
 import { renderLanguage, siteDate, HOME_FILES } from "./render-language.mjs";
 import { loadBehaviours } from "./behaviours.mjs";
+import { siteScript } from "./site-script.mjs";
 
 export { siteDate, HOME_FILES };
 export const SITE_DIR = path.join(KIT_ROOT, "engine", "site");
@@ -52,7 +53,8 @@ const standardsOf = (b) => ({ templates: loadPageTemplates(KIT_ROOT), behaviours
  * @param {{ root: string }} p.project
  * @param {object} p.config     validated and completed configuration (engine/project/load.mjs)
  * @param {{ draft?: boolean, date?: string, output?: string, siteDir?: string, space?: string, spaceOutput?: string, lang?: string }} [p.options]
- *   siteDir: alternative folder for template.html, app.js and style.css (equivalence tests of older engines).
+ *   siteDir: alternative folder for template.html, app.js (and its lib/) and style.css (equivalence tests of older
+ *   engines).
  *   space: only the export of that space in `sites` (the full site is still computed), even with
  *   spaces.export false; spaceOutput: the file of that export. lang (§6.12, a declared language other than the
  *   caller validates with checkLanguageOption): a mono-language file of that language alone, instead of the
@@ -337,7 +339,7 @@ function assembleOutputs(
   const brand = resolveTokens(themeTokens(config.theme, "light")).brand;
   const siteDir = options.siteDir || SITE_DIR;
   const template = fs.readFileSync(path.join(siteDir, "template.html"), "utf8");
-  const app = fs.readFileSync(path.join(siteDir, "app.js"), "utf8");
+  const app = siteScript(siteDir);
   const style = fs.readFileSync(path.join(siteDir, "style.css"), "utf8");
   const langTOf = (lang) => createI18n({ language: lang, overrides: config.texts });
   const mainT = monoLang ? langTOf(monoLang).t : i18n.t;

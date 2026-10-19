@@ -28,7 +28,9 @@ const CITATIONS = {
   behaviour: { cls: "lien-comportement", unknown: "behaviour.unknown" },
 };
 /** A generated-table placeholder left by the Markdown engine: <div class="biz-directive" data-biz="…"></div>. */
-const DIRECTIVE = /<div class="biz-directive" data-biz="(features|rules|roles|stories)"><\/div>/g;
+const DIRECTIVE = /<div class="biz-directive" data-biz="(features|rules|roles|stories|board)"><\/div>/g;
+/** Where the site draws the Product board (engine/site/lib/board.js, from D.board). */
+export const BOARD_PLACEHOLDER = '<div class="tableau-produit" data-board></div>';
 /** A ticket reference left by a story block (engine/build/behaviours.mjs): linked when the project has its template. */
 const TICKET = /<span class="puce reference" data-ticket="([^"]*)">([^<]*)<\/span>/g;
 /** A proof a business page should not carry (ARCHITECTURE.md §6.8, "Business pages cite no code"): an inline
@@ -129,6 +131,20 @@ function rolesTable(features, t) {
     })
     .join("");
   return `<div class="tableau"><table><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/**
+ * The rules each page cites, read from the placeholders the Markdown engine left before the second pass: page id →
+ * the ids of its [[rule …]] citations (engine/build/backlog.mjs: a feature's rules are those its sheet defines or cites).
+ * @param {Record<string, { html: string }>} pages
+ * @returns {Map<string, Set<string>>}
+ */
+export function ruleCitations(pages) {
+  const out = new Map();
+  for (const [id, page] of Object.entries(pages))
+    for (const [, kind, escaped] of page.html.matchAll(REF))
+      if (kind === "rule") (out.get(id) ?? out.set(id, new Set()).get(id)).add(unescaped(escaped));
+  return out;
 }
 
 /** A ticket reference as a link (config.backlog.refs), or as written when the kit has no address for it. */
@@ -243,6 +259,7 @@ export function resolveBusinessRefs({
     rules: rulesTable(rules, citedBy, pages, t),
     roles: rolesTable(features, t),
     stories: storiesTable(backlog, features, refs, t),
+    board: BOARD_PLACEHOLDER,
   };
   for (const page of Object.values(pages))
     page.html = page.html

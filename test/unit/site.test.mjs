@@ -55,8 +55,14 @@ describe("style.css", () => {
 });
 
 describe("app.js and template.html", () => {
-  test("no hard-coded user-facing text in app.js", () => {
-    const code = read("engine/site/app.js")
+  test("no hard-coded user-facing text in app.js and its modules (engine/site/lib)", () => {
+    const sources = [
+      "engine/site/app.js",
+      ...fs.readdirSync(path.join(KIT_ROOT, "engine/site/lib")).map((f) => `engine/site/lib/${f}`),
+    ];
+    const code = sources
+      .map(read)
+      .join("\n")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     assert.doesNotMatch(code, /[À-ÿŒœ]/, "accented letters");
