@@ -43,7 +43,8 @@ export function siteDate(date, i18n) {
  * @param {object} site   what every language shares: usage, changes, icons (ICONS, icon, iconKey), spaces,
  *   syncRef, templates, version, sourceLangId, recordedByLang (lang → recorded fingerprints, filled on demand)
  * @param {object} lang   lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang
- * @returns {{ data: object, used: object, engine: object, counterparts: object, pages: object }}
+ * @returns {{ data: object, used: object, engine: object, counterparts: object, pages: object, backlog: any }}
+ *   backlog: the backlog of that language (engine/build/backlog.mjs)
  */
 export function renderLanguage(
   b,
@@ -104,7 +105,7 @@ export function renderLanguage(
     diagrams: engine.usedDiagrams.size,
   };
   const data = languageData(r, { langToc, langGlossary, langI18n, sections, home, stats });
-  return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages };
+  return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages, backlog: r.backlog };
 }
 
 /**

@@ -425,6 +425,8 @@ describe(":::story (and :::recit), :::scenario", () => {
       role: "Order manager",
       since: "1.2",
       ref: "ADO#1235",
+      // Its text as plain lines, the markup's text glued to its neighbours (the backlog export).
+      text: ["As an order manager, I want to type part of a name."],
     });
   });
 
@@ -462,6 +464,12 @@ describe(":::story (and :::recit), :::scenario", () => {
       page: "p/one",
       story: "US-01",
       behaviour: "B-01",
+      // Its steps as plain text (the backlog export).
+      steps: [
+        { step: "given", keyword: "Given", text: "the orders of “Northwind Bistro”" },
+        { step: "when", keyword: "When", text: "I type north" },
+        { step: "then", keyword: "Then", text: "only #1041 and #1045 remain" },
+      ],
     });
     assert.equal(engine.scenarios.length, 4);
   });
@@ -469,7 +477,17 @@ describe(":::story (and :::recit), :::scenario", () => {
   test("the French spelling (titre, recit, comportement); scenario.attributes (error) and scenario.steps (warning)", () => {
     const { render, engine, reports } = testEngine({ language: "fr" });
     render(':::scenario{titre="Accents" recit="US-02" comportement="B-01"}\nSoit x\nQuand y\nAlors z\n:::');
-    assert.deepEqual(engine.scenarios[0], { title: "Accents", page: "page/test", story: "US-02", behaviour: "B-01" });
+    assert.deepEqual(engine.scenarios[0], {
+      title: "Accents",
+      page: "page/test",
+      story: "US-02",
+      behaviour: "B-01",
+      steps: [
+        { step: "given", keyword: "Soit", text: "x" },
+        { step: "when", keyword: "Quand", text: "y" },
+        { step: "then", keyword: "Alors", text: "z" },
+      ],
+    });
     render(':::scenario{}\nSoit x\nAlors y\n:::\n\n:::scenario{titre="Sans alors"}\nSoit x\n:::');
     assert.deepEqual(
       reports.map((x) => [x.key, x.strict]),

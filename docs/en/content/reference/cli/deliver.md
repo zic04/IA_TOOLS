@@ -37,6 +37,37 @@ Every file goes through the secret detectors of `doc-kit check secrets`. A line 
 notice and reported, and the command exits with code 1: fix the source (a page, a facts file) and run it again.
 Review `AGENTS.md` before copying it into the application's repository.
 
+## doc-kit backlog export
+
+```text
+doc-kit backlog export <azure|jira|github|gitlab|json> [--output <file>] [--all]
+```
+
+Writes the backlog of the documentation — its epics, feature sheets and user stories, with their acceptance
+criteria — in a backlog tool's import format, beside the built site (`<name>-backlog-<target>`; `--output` names
+the file, its extension replaced). The kit calls no tool and needs no token: you import the file.
+
+| Target | What it writes | Where you import it |
+|---|---|---|
+| `azure` | A CSV file (UTF-8, CRLF): the hierarchy by its title columns (Title 1 an epic, Title 2 its features, Title 3 their stories), the types of the project's process (`backlog.azure.process`), the description and the acceptance criteria in HTML, the version as a tag. At most 1,000 items a file, each epic whole | Azure Boards › Queries › Import work items |
+| `jira` | A CSV file: `Work item ID`, `Work type`, `Summary`, `Description` (wiki markup), `Parent` (a number of the file, or the key of an issue already in Jira), `Labels`. By default a feature is an Epic, a story a Story, an epic a label (`backlog.jira.types`) | Jira settings › System › External system import › CSV |
+| `gitlab` | A CSV file: `title`, `description` (Markdown), one issue per feature and per story | A project's Issues › Import CSV |
+| `github` | GitHub has no import: `…-github.json` (the issues in order, with their parent) and `…-github.md` (how to create them with `gh` and make each a sub-issue of its parent) | The GitHub CLI |
+| `json` | Every item (`schemas/backlog.schema.json`) | Any other tool |
+
+- An **error of the backlog** (an epic declared twice, a story without an id, a feature id used twice…) refuses
+  the export: exit code 1, nothing written. The other problems of the build do not.
+- **What the tool already holds** — an item whose `ref` is of that tool (`ADO#120`, `PROJ-7`,
+  `owner/repo#42`) — is left out, unless `--all`. Its children name it: as their parent in Jira and GitHub; in
+  their description in Azure DevOps and GitLab, to be linked after the import.
+- **Without a secret**: every text goes through the secret detectors of `doc-kit check secrets`; a line where one
+  fires is replaced by a notice and reported (exit code 1, the file is written).
+- **Inert text**: a cell a spreadsheet would read as a formula (starting with `=`, `+`, `-`, `@`) starts with an
+  apostrophe; in Markdown, a mention (`@name`) or a reference (`#12`) is no link — the import would notify someone
+  or mark another issue — and, in GitLab, a line starting with `/` no quick action.
+- The texts are in the documentation's language (`--lang` with `languages`); each item links to its page when
+  `backlog.docUrl` gives the address of the published site.
+
 ## doc-kit upgrade
 
 ```text

@@ -10,7 +10,7 @@
 // target). Each block is registered as it renders (rules, stories, behaviours, scenarios); the citations and the
 // links of a scenario to its story and its behaviour are placeholders, resolved once every page has rendered
 // (engine/build/business.mjs, resolveBusinessRefs), since they may point further down the table of contents.
-import { esc, plainText, slug } from "../core/text.mjs";
+import { esc, plainLines, plainText, slug } from "../core/text.mjs";
 import { findKind, readCard, readScenario, inLanguage } from "../core/behaviours.mjs";
 import { behaviourCard, storyBlock, scenarioBlock } from "./behaviours.mjs";
 
@@ -43,9 +43,9 @@ export const PRODUCT_ATTRIBUTES = {
  * @property {{ registry: import("../core/behaviours.mjs").BehaviourRegistry, strict: boolean }} behaviours
  * @property {() => any} context   the state of the page being rendered (markdown.mjs: pageId, slugs, toc)
  * @property {Map<string, object>} rules     id → { title, page, anchor } (§6.8)
- * @property {Map<string, object>} stories   id → { title, page, anchor, role, since, ref }
+ * @property {Map<string, object>} stories   id → { title, page, anchor, role, since, ref, text: its lines }
  * @property {Map<string, object>} cards     id (or page~anchor without one) → { id, kind, title, page, anchor, feature, counts }
- * @property {object[]} scenarios            { title, page, story, behaviour }
+ * @property {object[]} scenarios            { title, page, story, behaviour, steps: [{ step, keyword, text }] }
  * @property {number} scenarioCount          scenarios of the page being rendered
  */
 
@@ -146,6 +146,8 @@ function renderStory(s, tk, parser) {
       role: role || null,
       since: since || null,
       ref: ref || null,
+      // Its text as plain lines, for the backlog export (engine/backlog/).
+      text: plainLines(body),
     });
   const h = heading(s, anchor, `${esc(id)} · ${esc(title)}`, `${id} · ${title}`);
   return storyBlock({ heading: h, id, role, since, ref, bodyHtml: body, t: s.t, icon: s.icon });
@@ -199,11 +201,14 @@ function renderScenario(s, tk, parser) {
   if (!title) s.signal(true, "scenario.attributes", {});
   if (!tk.scenario.complete) s.signal(false, "scenario.steps", { title: title || "—" });
   s.scenarioCount++;
+  const steps = tk.steps.map((step) => ({ ...step, html: parser.parseInline(step.tokens) }));
   s.scenarios.push({
     title: title || "",
     page: s.context().pageId,
     story: story || null,
     behaviour: behaviour || null,
+    // Its steps as plain text, for the backlog export (engine/backlog/): given, when, then, and, but.
+    steps: steps.map((x) => ({ step: x.step, keyword: x.keyword, text: plainText(x.html) })),
   });
   return scenarioBlock({
     n: s.scenarioCount,
@@ -211,7 +216,7 @@ function renderScenario(s, tk, parser) {
     story,
     behaviour,
     introHtml: parser.parse(tk.tokens),
-    steps: tk.steps.map((step) => ({ ...step, html: parser.parseInline(step.tokens) })),
+    steps,
   });
 }
 

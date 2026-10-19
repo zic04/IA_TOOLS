@@ -36,13 +36,18 @@ export function parseRef(text) {
 }
 
 /**
- * The tool of a `repo#n` reference: GitHub or GitLab, whichever the project has a template for; with both, a path of
- * two parts is GitHub's `owner/repo`, a longer one GitLab's `group/subgroup/project`.
+ * The tool of a reference: Azure DevOps, Jira, or for `repo#n` GitHub or GitLab — whichever the project has a template
+ * for; with both or neither, a path of two parts is GitHub's `owner/repo`, a longer one GitLab's
+ * `group/subgroup/project`.
+ * @param {TicketRef} ref
+ * @param {Record<string, string>} [refs]   config.backlog.refs
+ * @returns {"azure"|"jira"|"github"|"gitlab"}
  */
-function repoTool(ref, refs) {
-  const deep = (ref.repo ?? "").split("/").length > 2;
-  if (refs.github && refs.gitlab) return deep ? "gitlab" : "github";
-  return refs.github ? "github" : refs.gitlab ? "gitlab" : null;
+export function refTool(ref, refs = {}) {
+  if (ref.tool !== "repo") return ref.tool;
+  if (refs.github && !refs.gitlab) return "github";
+  if (refs.gitlab && !refs.github) return "gitlab";
+  return (ref.repo ?? "").split("/").length > 2 ? "gitlab" : "github";
 }
 
 /**
@@ -54,8 +59,7 @@ function repoTool(ref, refs) {
  */
 export function refUrl(ref, refs) {
   if (!ref || !refs) return null;
-  const tool = ref.tool === "repo" ? repoTool(ref, refs) : ref.tool;
-  const template = tool ? refs[tool] : undefined;
+  const template = refs[refTool(ref, refs)];
   if (typeof template !== "string" || !template.startsWith("https://") || !template.includes("{id}")) return null;
   const repo = (ref.repo ?? "").split("/").map(encodeURIComponent).join("/");
   return template.replaceAll("{id}", encodeURIComponent(ref.id)).replaceAll("{repo}", repo);

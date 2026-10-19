@@ -411,6 +411,12 @@ export function absolutePath(p) {
   return /\s/.test(abs) ? `"${abs}"` : abs;
 }
 
+/** A file written by a command, as its summary shows it: relative to the project with "/" when inside it, else as is. */
+export function projectFile(root, file) {
+  const inside = path.relative(root, file);
+  return inside.startsWith("..") || path.isAbsolute(inside) ? file : inside.split(path.sep).join("/");
+}
+
 /** A path for the terminal: relative to the current folder when shorter, quoted when it contains spaces. */
 export function shownPath(p, from = process.cwd()) {
   const rel = path.relative(from, p);

@@ -143,6 +143,7 @@ const STEP_OF = Object.freeze({
   build: "build",
   optimize: "build",
   pack: "build",
+  backlog: "build",
   check: "check",
   audit: "audit",
 });

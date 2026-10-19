@@ -211,6 +211,26 @@ code 1), so a secret pasted in a page never reaches the pack.
 Limits: the detectors are patterns. A secret they do not recognise (a short password, a token of an unknown
 shape) passes. Review the files before handing them to an agent, and `AGENTS.md` before committing it.
 
+### The backlog export (`backlog export`)
+
+`doc-kit backlog export` writes files for a backlog tool's importer (Azure DevOps, Jira, GitLab, GitHub, JSON) in
+the documentation project, from the documentation only. It calls no tool and takes no token: the person imports the
+files. Every text goes through the secret detectors of `check secrets`: a line where one fires is replaced by a
+notice and reported (exit code 1). What the files say cannot act on the tool or on whoever opens them:
+
+- a CSV cell that a spreadsheet would read as a formula (one starting with `=`, `+`, `-`, `@`, a tab or a carriage
+  return) starts with an apostrophe;
+- in the Markdown of GitHub and GitLab, a mention (`@name`) or a reference (`#12`, `acme/shop#42`, `!12`, `&12`,
+  `GH-12`…) is followed by an invisible word joiner, so the import notifies no one and marks no other issue as
+  mentioned; `&` is escaped, so no entity (`&commat;`) becomes a mention; a GitLab line that starts with `/` is
+  escaped, so it is no quick action; every markup character of the text is escaped;
+- in Jira's wiki markup, the characters of links, mentions (`[~name]`), macros, images, tables and emphasis are
+  escaped (a dash or a heading prefix may still format a line); in Azure DevOps' HTML, the text is escaped.
+
+Limits: the detectors are patterns (above). An address of an issue written in full (`https://github.com/…/issues/12`)
+stays a link, and GitHub notes it as mentioned. The files name the product's epics, features and stories: share them
+as you share the documentation.
+
 ### Network
 
 The kit talks to nothing but the application you capture and, with `doc-kit inputs fetch`, the repositories you declared (through git, above): no telemetry, no update check. `doc-kit dev` listens on

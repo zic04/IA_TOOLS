@@ -8,6 +8,13 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The backlog export** (ARCHITECTURE.md §6.8b): `doc-kit backlog export <azure|jira|github|gitlab|json>` writes
+  the epics, feature sheets and user stories, with their acceptance criteria, in the import format of Azure DevOps
+  (CSV, the types of `backlog.azure.process`), Jira (CSV, `backlog.jira.types`), GitLab (CSV), for GitHub (the
+  issues as JSON and how to create them with `gh`) or as JSON (`schemas/backlog.schema.json`). What the tool
+  already holds is left out (`--all`); an error of the backlog refuses it; a line where a secret detector fires is
+  replaced; formulas, mentions, references and quick actions are inert. New keys `backlog.docUrl`, `backlog.idInTitle`, `backlog.azure`,
+  `backlog.jira.types`, `backlog.github.types`. No network, no token.
 - **The Product board** (ARCHITECTURE.md §6.8b): the home of the Product space shows the backlog of the feature
   sheets as a story map (epics in columns, their features as cards with a depth gauge, a row of user stories per
   version) or a list (Epic › Feature › Story), with filters (who, epic, version, depth, text); `::board{}` (fr

@@ -138,6 +138,12 @@ See [What the kit reads](#/reference/compatibility) and [Adapters](#/reference/a
 |---|---|---|---|
 | `backlog` | object · `{}` | The backlog of the documentation: epics, feature sheets and their user stories ([Epics](#/write/table-of-contents~epics-the-top-of-the-backlog)) | |
 | `backlog.refs` | object · `{}` | The address of an item in each tool, so that a reference (`ref`) is a link: `azure`, `jira`, `github`, `gitlab`, each an `https://` address with `{id}` (and `{repo}` for GitHub and GitLab). With both GitHub and GitLab, `owner/repo#42` is GitHub's and `group/sub/project#7` GitLab's. No token: the kit never calls a tool | `{ "azure": "https://dev.azure.com/acme/shop/_workitems/edit/{id}" }` |
+| `backlog.docUrl` | string · none | The address of the published site (its HTML file), without `#`: each exported item links to its page | `"https://docs.acme.example/Acme-Documentation.html"` |
+| `backlog.idInTitle` | boolean · `true` | An exported item's title starts with its id (`F-01 · Track orders`) | `false` |
+| `backlog.azure.process` | `agile`, `scrum`, `cmmi`, `basic` · `agile` | The process of the Azure DevOps project, which gives the work item types: Agile (Epic, Feature, User Story), Scrum (… Product Backlog Item), CMMI (… Requirement), Basic (Epic, Issue, Task). Only Agile and Scrum have an Acceptance Criteria field; otherwise the criteria end the description | `"scrum"` |
+| `backlog.azure.areaPath`, `backlog.azure.iterationPath` | string · none | The Area Path and the Iteration Path of every item imported (otherwise the project's root) | `"Acme\\Team"` |
+| `backlog.jira.types` | object · `{}` | The work type of an `epic`, a `feature` and a `story`, `null` for none: by default an epic is no item (a label of what it holds), a feature an Epic, a story a Story. A project with a level above Epic names it | `{ "epic": "Initiative" }` |
+| `backlog.github.types` | object · `{}` | The issue type (an organisation's) of an `epic`, a `feature` and a `story` (none by default) | `{ "feature": "Feature", "story": "Task" }` |
 
 ## Further reading
 

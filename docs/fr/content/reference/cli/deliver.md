@@ -37,6 +37,39 @@ Chaque fichier passe par les détecteurs de secrets de `doc-kit check secrets`. 
 déclenche est remplacée par un avis et signalée, et la commande se termine avec le code 1 : corrigez la source (une
 page, un fichier de faits) et relancez-la. Relisez `AGENTS.md` avant de le copier dans le dépôt de l'application.
 
+## doc-kit backlog export
+
+```text
+doc-kit backlog export <azure|jira|github|gitlab|json> [--output <fichier>] [--all]
+```
+
+Écrit le backlog de la documentation — ses epics, ses fiches de fonctionnalité et ses récits utilisateur, avec leurs
+critères d'acceptation — au format d'import d'un outil de backlog, à côté du site construit
+(`<nom>-backlog-<cible>` ; `--output` nomme le fichier, son extension remplacée). Le kit n'appelle aucun outil et
+n'a besoin d'aucun jeton : c'est vous qui importez le fichier.
+
+| Cible | Ce qu'elle écrit | Où l'importer |
+|---|---|---|
+| `azure` | Un fichier CSV (UTF-8, CRLF) : la hiérarchie par ses colonnes de titre (Title 1 un epic, Title 2 ses fonctionnalités, Title 3 leurs récits), les types du processus du projet (`backlog.azure.process`), la description et les critères d'acceptation en HTML, la version en étiquette. Au plus 1 000 éléments par fichier, chaque epic entier | Azure Boards › Queries › Import work items |
+| `jira` | Un fichier CSV : `Work item ID`, `Work type`, `Summary`, `Description` (balisage wiki), `Parent` (un numéro du fichier, ou la clé d'un ticket déjà dans Jira), `Labels`. Par défaut une fonctionnalité est un Epic, un récit une Story, un epic un label (`backlog.jira.types`) | Paramètres de Jira › Système › Import de système externe › CSV |
+| `gitlab` | Un fichier CSV : `title`, `description` (Markdown), un ticket par fonctionnalité et par récit | Issues › Import CSV d'un projet |
+| `github` | GitHub n'a pas d'import : `…-github.json` (les issues dans l'ordre, avec leur parent) et `…-github.md` (comment les créer avec `gh` et faire de chacune une sous-issue de son parent) | Le CLI de GitHub |
+| `json` | Tous les éléments (`schemas/backlog.schema.json`) | Tout autre outil |
+
+- Une **erreur du backlog** (un epic déclaré deux fois, un récit sans id, un id de fonctionnalité utilisé deux
+  fois…) refuse l'export : code de sortie 1, rien n'est écrit. Les autres problèmes du build, non.
+- **Ce que l'outil contient déjà** — un élément dont la `ref` est de cet outil (`ADO#120`, `PROJ-7`,
+  `owner/repo#42`) — est laissé de côté, sauf avec `--all`. Ses enfants le nomment : comme leur parent dans Jira et
+  GitHub ; dans leur description dans Azure DevOps et GitLab, à lier après l'import.
+- **Sans secret** : chaque texte passe par les détecteurs de secrets de `doc-kit check secrets` ; une ligne où l'un
+  d'eux se déclenche est remplacée par un avis et signalée (code de sortie 1, le fichier est écrit).
+- **Texte inerte** : une cellule qu'un tableur lirait comme une formule (commençant par `=`, `+`, `-`, `@`)
+  commence par une apostrophe ; en Markdown, une mention (`@nom`) ou une référence (`#12`) n'est pas un lien —
+  l'import notifierait quelqu'un ou marquerait un autre ticket — et, dans GitLab, une ligne qui commence par `/`
+  n'est pas une action rapide.
+- Les textes sont dans la langue de la documentation (`--lang` avec `languages`) ; chaque élément renvoie à sa
+  page quand `backlog.docUrl` donne l'adresse du site publié.
+
 ## doc-kit upgrade
 
 ```text

@@ -7,6 +7,15 @@
   "additionalProperties": false,
   "required": ["product"],
   "$defs": {
+    "backlogTypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "epic": { "type": ["string", "null"], "minLength": 1 },
+        "feature": { "type": ["string", "null"], "minLength": 1 },
+        "story": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
     "colour": {
       "type": "string",
       "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
@@ -406,6 +415,37 @@
             "jira": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key: https://acme.atlassian.net/browse/{id}" },
             "github": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key, {repo} its repository's path: https://github.com/{repo}/issues/{id}" },
             "gitlab": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key, {repo} its repository's path: https://gitlab.com/{repo}/-/issues/{id}" }
+          }
+        },
+        "docUrl": { "type": ["string", "null"], "default": null, "pattern": "^https://[^\\s#|()\\[\\]<>\"'`]+$", "description": "The address of the published documentation (the site's HTML file), without \"#\": each exported item links to its page. Without it, no link." },
+        "idInTitle": { "type": "boolean", "default": true, "description": "An exported item's title starts with its id in the documentation (F-01 · Track orders)." },
+        "azure": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to Azure DevOps (doc-kit backlog export azure).",
+          "properties": {
+            "process": { "enum": ["agile", "scrum", "cmmi", "basic"], "default": "agile", "description": "The process of the project, which gives the work item types: Agile (Epic, Feature, User Story), Scrum (Epic, Feature, Product Backlog Item), CMMI (Epic, Feature, Requirement), Basic (Epic, Issue, Task)." },
+            "areaPath": { "type": ["string", "null"], "default": null, "minLength": 1, "description": "The Area Path of every item imported (Project\\Team); without it, the project's root." },
+            "iterationPath": { "type": ["string", "null"], "default": null, "minLength": 1, "description": "The Iteration Path of every item imported (Project\\Sprint 1); without it, the project's root." }
+          }
+        },
+        "jira": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to Jira (doc-kit backlog export jira).",
+          "properties": {
+            "types": { "$ref": "#/$defs/backlogTypes", "default": {}, "description": "The work type of an epic, a feature and a story, null for none: by default an epic is no item (a label), a feature an Epic, a story a Story." }
+          }
+        },
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to GitHub (doc-kit backlog export github).",
+          "properties": {
+            "types": { "$ref": "#/$defs/backlogTypes", "default": {}, "description": "The issue type (an organisation's) of an epic, a feature and a story, null for none (the default)." }
           }
         }
       }

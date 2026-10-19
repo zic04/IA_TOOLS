@@ -85,6 +85,13 @@ shows it too with `::board{}` (fr `::tableau{}`), for a project without spaces.
 - A card opens its sheet, a story its heading; the arrow keys go from card to card. The view chosen is remembered;
   printed, the board is its list. A ticket is a link when `backlog.refs` gives its tool's address.
 
+## Exporting the backlog
+
+`doc-kit backlog export <azure|jira|github|gitlab|json>` writes the same backlog — epics, features, stories and
+their acceptance criteria — in the import format of Azure DevOps, Jira or GitLab (CSV), for GitHub (the issues and how
+to create them), or as JSON ([doc-kit backlog export](#/reference/cli/deliver~doc-kit-backlog-export)). What the tool
+already holds (a `ref` of that tool) is left out; give each its `ref` once imported, and the board links it.
+
 ## Finding candidate features
 
 ```bash

@@ -38,6 +38,9 @@ import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
 import { SCHEMA_PATTERNS, schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
 import { OPENAPI_FILE, OPENAPI_YAML, openapiBehaviours } from "../../engine/facts/openapi.mjs";
 import { sameRoute, apiHandlers } from "../../engine/sync/feature-files.mjs";
+import { plainLines } from "../../engine/core/text.mjs";
+import { markdownText, wikiText } from "../../engine/backlog/markup.mjs";
+import { csvFile } from "../../engine/backlog/csv.mjs";
 import {
   createSink,
   jsCommentRanges,
@@ -450,6 +453,11 @@ export const CHECKS = [
   ["inputs isSafeRepoUrl", (s) => isSafeRepoUrl(`https://github.com/${s}`) || isSafeRepoUrl(`git@h:${s}`)],
   ["inputs nameOf", (s) => nameOf(s)],
   ["inputs hasCredentials", (s) => hasCredentials(`https://h/x?${s}`) || hasCredentials(s)],
+  // The backlog export: a story's HTML as lines of text, then each tool's inert markup and its CSV cells.
+  ["backlog plainLines", (s) => plainLines(`<p>${s}</p><ul><li>${s}</li></ul>${s}`)],
+  ["backlog markdownText", (s) => markdownText(s, { quickActions: true })],
+  ["backlog wikiText", (s) => wikiText(s)],
+  ["backlog csvFile", (s) => csvFile([[s, s]])],
   ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
   // The behaviour detectors: each expression alone, then each reader as a whole (its walks and small expressions).
   ...Object.entries({ ...JS_PATTERNS, ...SQL_PATTERNS, ...PY_PATTERNS, ...SCHEMA_PATTERNS }).map(([name, re]) => [

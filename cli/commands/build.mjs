@@ -9,7 +9,7 @@ import { build } from "../../engine/build/build.mjs";
 import { declaredSpaceIds, checkSpaceOption } from "../../engine/build/spaces.mjs";
 import { checkLanguageOption } from "../../engine/build/languages.mjs";
 import { numbers } from "../../engine/build/format.mjs";
-import { checkDate } from "../common.mjs";
+import { checkDate, projectFile } from "../common.mjs";
 
 export const options = {
   draft: { type: "boolean" },
@@ -70,10 +70,7 @@ export async function run({ ctx, values }) {
     ctx.error("build.failed", { n: r.errors.length });
     return 1;
   }
-  const shown = (file) => {
-    const inside = path.relative(project.root, file);
-    return inside.startsWith("..") || path.isAbsolute(inside) ? file : inside.split(path.sep).join("/");
-  };
+  const shown = (file) => projectFile(project.root, file);
   const lines = files.map((f) => summary(ctx, f, config, shown(f.output)));
   // One summary line per OTHER declared language, after the files (ARCHITECTURE.md §6.12): current/stale/missing,
   // read from disk whether or not that language was actually rendered (always true without --lang; with --lang,

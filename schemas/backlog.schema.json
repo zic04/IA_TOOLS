@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit backlog export (doc-kit/backlog@1)",
+  "description": "The backlog of a documentation as `doc-kit backlog export json` writes it (ARCHITECTURE.md §6.8b, engine/backlog/json.mjs): every epic, feature sheet and user story, each before its children, its texts without a secret.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "product", "language", "items"],
+  "properties": {
+    "schema": { "const": "doc-kit/backlog@1" },
+    "product": { "type": "string" },
+    "language": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "kind", "title", "description", "criteria", "version", "link", "ref", "parent", "epic", "feature"],
+        "properties": {
+          "key": { "type": "string", "description": "Its id in the documentation: E-01, F-01, US-01." },
+          "kind": { "enum": ["epic", "feature", "story"] },
+          "title": { "type": "string", "description": "Its title, its id first when backlog.idInTitle (at most 255 characters)." },
+          "description": { "type": "array", "items": { "type": "string" }, "description": "Its text, as lines of plain text." },
+          "criteria": {
+            "type": "array",
+            "description": "A story's acceptance criteria: its scenarios.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["title", "steps"],
+              "properties": {
+                "title": { "type": "string" },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["step", "keyword", "text"],
+                    "properties": {
+                      "step": { "enum": ["given", "when", "then", "and", "but"] },
+                      "keyword": { "type": "string", "description": "The keyword as written (Given, Soit…)." },
+                      "text": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "version": { "type": ["string", "null"], "description": "Its version (a story: its own, else its feature's)." },
+          "link": { "type": ["string", "null"], "description": "Its page in the published documentation (backlog.docUrl)." },
+          "ref": { "type": ["string", "null"], "description": "Its item in a backlog tool, as the documentation writes it (ADO#1234, PROJ-123…)." },
+          "parent": { "type": ["string", "null"], "description": "The key of its parent." },
+          "epic": { "type": ["string", "null"] },
+          "feature": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

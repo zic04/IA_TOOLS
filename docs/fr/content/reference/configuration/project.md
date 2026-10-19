@@ -140,6 +140,12 @@ Voir [Ce que le kit sait lire](#/reference/compatibility) et [Les adaptateurs](#
 |---|---|---|---|
 | `backlog` | objet · `{}` | Le backlog de la documentation : les epics, les fiches de fonctionnalité et leurs récits ([Les epics](#/write/table-of-contents~les-epics-le-haut-du-backlog)) | |
 | `backlog.refs` | objet · `{}` | L'adresse d'un élément dans chaque outil, pour qu'une référence (`ref`) soit un lien : `azure`, `jira`, `github`, `gitlab`, chacune une adresse `https://` avec `{id}` (et `{repo}` pour GitHub et GitLab). Avec GitHub et GitLab à la fois, `owner/repo#42` est celui de GitHub et `group/sub/project#7` celui de GitLab. Aucun jeton : le kit n'appelle jamais un outil | `{ "azure": "https://dev.azure.com/acme/shop/_workitems/edit/{id}" }` |
+| `backlog.docUrl` | texte · aucun | L'adresse du site publié (son fichier HTML), sans `#` : chaque élément exporté renvoie à sa page | `"https://docs.acme.example/Acme-Documentation.html"` |
+| `backlog.idInTitle` | booléen · `true` | Le titre d'un élément exporté commence par son id (`F-01 · Suivre les commandes`) | `false` |
+| `backlog.azure.process` | `agile`, `scrum`, `cmmi`, `basic` · `agile` | Le processus du projet Azure DevOps, qui donne les types d'éléments : Agile (Epic, Feature, User Story), Scrum (… Product Backlog Item), CMMI (… Requirement), Basic (Epic, Issue, Task). Seuls Agile et Scrum ont un champ Acceptance Criteria ; sinon les critères terminent la description | `"scrum"` |
+| `backlog.azure.areaPath`, `backlog.azure.iterationPath` | texte · aucun | L'Area Path et l'Iteration Path de chaque élément importé (sinon la racine du projet) | `"Acme\\Equipe"` |
+| `backlog.jira.types` | objet · `{}` | Le type d'un `epic`, d'une `feature` et d'une `story`, `null` pour aucun : par défaut un epic n'est pas un ticket (un label de ce qu'il contient), une fonctionnalité un Epic, un récit une Story. Un projet qui a un niveau au-dessus d'Epic le nomme | `{ "epic": "Initiative" }` |
+| `backlog.github.types` | objet · `{}` | Le type d'issue (d'une organisation) d'un `epic`, d'une `feature` et d'une `story` (aucun par défaut) | `{ "feature": "Feature", "story": "Task" }` |
 
 ## Pour aller plus loin
 

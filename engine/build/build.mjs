@@ -48,6 +48,19 @@ const IMAGE_TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", j
 /** The kit's standards a build reads: the page templates (§6.4), the kinds of behaviour cards with the project's (§6.8a). */
 const standardsOf = (b) => ({ templates: loadPageTemplates(KIT_ROOT), behaviours: loadBehaviours(b) });
 
+/** What build() returns when the outline itself is wrong: nothing rendered, only its problems. */
+const failed = ({ errors, warnings, output }) => ({
+  html: null,
+  data: null,
+  stats: null,
+  errors,
+  warnings,
+  output,
+  sites: [],
+  languages: [],
+  backlog: null,
+});
+
 /**
  * @param {object} p
  * @param {{ root: string }} p.project
@@ -61,7 +74,10 @@ const standardsOf = (b) => ({ templates: loadPageTemplates(KIT_ROOT), behaviours
  *   multilingual file.
  * @returns {{ html: string|null, data: object|null, stats: object|null, errors: object[], warnings: object[], output: string,
  *   sites: Array<{ space: string, html: string, data: object, stats: object, output: string, excludedLinks: number }>,
- *   languages: Array<{ id: string, source: boolean, current: number, stale: number, unmarked: number, missing: number }> }}
+ *   languages: Array<{ id: string, source: boolean, current: number, stale: number, unmarked: number, missing: number }>,
+ *   backlog: ReturnType<typeof import("./backlog.mjs").backlogModel>|null }}
+ *   backlog: the backlog of the language built (`doc-kit backlog export`, engine/backlog/); null when the outline
+ *   itself is wrong (nothing is rendered).
  *   errors and warnings: { kind, key, vars } (text: i18n key `cli.build.<key>`);
  *   kind "validate": { kind, key, vars, file, path } (key `cli.validate.<key>`).
  *   sites: one export per declared space, in declaration order; [] without spaces (§6.1a).
@@ -73,7 +89,7 @@ export function build({ project, config, options = {} }) {
   const { root, errors, warnings, report, languages } = b;
   const outputRel = options.output || (options.lang ? languageOutput(config.output, options.lang) : config.output);
   const output = path.resolve(root, outputRel);
-  const fail = () => ({ html: null, data: null, stats: null, errors, warnings, output, sites: [], languages: [] });
+  const fail = () => failed({ errors, warnings, output });
   // Production statistics (ARCHITECTURE.md §6.14), for ::usage, and the recorded changes of the application
   // (doc-kit changes --record), for ::changes: read once, whatever the language.
   const usage = readUsage(path.join(root, USAGE_DIR));
@@ -410,6 +426,8 @@ function assembleOutputs(
     output,
     sites,
     languages: languagesSummary,
+    // The backlog of the language built (the source's, or --lang's): engine/build/backlog.mjs, for `backlog export`.
+    backlog: (monoLang ? byLang[monoLang] : sourcePass).backlog,
   };
 }
 

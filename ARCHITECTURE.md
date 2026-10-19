@@ -54,6 +54,8 @@ doc-kit/
 │  ├─ inputs/            the sources (§6.19): model.mjs (inputs.json), repos.mjs (the only git commands that write,
 │  │                     RULES.md S2), ingest.mjs, status.mjs, and the bounded readers zip.mjs, docx.mjs,
 │  │                     diagrams.mjs, pdf.mjs (and core/xml.mjs)
+│  ├─ backlog/           the backlog export (§6.8b): model.mjs (the items), index.mjs (the exporters), one module per
+│  │                     tool (azure, jira, gitlab, github, json), csv.mjs, markup.mjs (inert HTML, wiki, Markdown)
 │  ├─ audit/             audit.mjs (indicators, maturity level, actions), report.mjs (audit.md, audit.json),
 │  │                     optional.mjs (measures that may be "not measured")
 │  ├─ dev/               server.mjs (watch, rebuild, live reload via SSE), client.js, environment.mjs (shared by dev,
@@ -68,7 +70,7 @@ doc-kit/
 │                        fastapi.mjs, facts.mjs (§6.9)
 ├─ adapters/auth/        manual.mjs (default), none.mjs, nextauth.mjs, api-me.mjs
 ├─ adapters/stack/       next.mjs, express.mjs, fastapi.mjs (the routes, guards, screens and hints of a framework, §5)
-├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs (.schema.json)
+├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs, backlog (.schema.json)
 ├─ templates/project/    common/, en/, fr/ (skeleton written by `init`)
 ├─ templates/pages/      en/, fr/ (one Markdown template per page type, §7)
 ├─ standard/             quality standard, in en and fr (§7)
@@ -262,6 +264,7 @@ export default defineConfig({
 | `optimize` | `--threshold` (200 KB) `--quality` (0.68) | re-encodes the heavy screenshots, kept when 20 % lighter |
 | `migrate` | | rewrites legacy French-keyed files into the current format (§6.7) |
 | `export <target>` | `--with-dist --zip` | self-contained copy, engine vendored in `vendor/doc-kit/`; `--with-dist` includes the exports per space too |
+| `backlog export <azure\|jira\|github\|gitlab\|json>` | `--output --all` (global `--lang <l>`, `--json`) | the backlog in a tool's import format (§6.8b), beside the built site (`<name>-backlog-<target>`); refused (1, nothing written) on an error of the backlog; a line with a secret replaced (1, written); an unknown target is a usage error (2). `--json`: `{ target, files: [{ file, items }], skipped, toLink, removed }` |
 | `upgrade` | `--apply` | kit changes since the project's range, migrations as a diff; written with `--apply` |
 | `skill install` | `--target <skills folder> --force` | installs the Claude Code skill (§8) |
 
@@ -765,6 +768,36 @@ the backlog export are to read:
   (epics × features, a row of stories per version) or a list (Epic › Feature › Story, folding), the filters (who, epic,
   version, depth, text) with a `role="status"` count, links to the sheets and the stories' headings, the arrow keys
   from card to card, the view remembered (`__THEME_KEY__.board`), the list printed.
+- **The backlog export** (`doc-kit backlog export <target>`, `engine/backlog/`): `build()` returns the model of the
+  language built (`backlog`; `null` when the outline itself is wrong), its stories with their text and their
+  scenarios' steps as plain text (`plainLines`, `engine/core/text.mjs`). The command builds in memory, strict, the
+  spaces' exports off: an error whose key is `epic.*`, `feature.*`, `story.*`, `scenario.*` or `backlog.*`
+  (or any error of an outline that cannot be read) refuses the export, nothing written; a backlog without a feature
+  sheet is `backlog.empty` (1). `model.mjs` makes the items, each before its children — an epic with an id, its
+  features, their stories; a group without an epic is no item — with a title (its id first when
+  `backlog.idInTitle`, one line, at most 255 characters), lines of text, a story's criteria, its version, its link
+  (`backlog.docUrl` `#/<page>`, a story `#/<page>~<anchor>`). An item whose `ref` is of the target tool
+  (`refTool`, `engine/core/refs.mjs`) is left out unless `--all`; its children name it (`parentRef`). Every text
+  goes through `withoutSecrets` (`render.backlog.removed`; exit code 1, files written). The exporters
+  (`EXPORTERS`, one module each): **azure** — CSV, UTF-8 with BOM, CRLF; `Work Item Type`, `Title 1..n` (the
+  depth), `Description` (HTML), `Acceptance Criteria` (Agile and Scrum; otherwise the end of the description),
+  `Tags` (`v<version>`), `Area Path` and `Iteration Path` when set; the types of `backlog.azure.process`; at
+  most 1,000 items a file, each top item whole (`-1.csv`, `-2.csv`…), one of more refused
+  (`backlog.azure.tooLarge`); a parent already in Azure DevOps named in the description (`toLink`). **jira** —
+  CSV; `Work item ID` (1..n), `Work type` (`backlog.jira.types`, default `{ epic: null, feature: "Epic",
+  story: "Story" }`: an epic without a type is no item, its id a label of what it holds), `Summary`, `Description`
+  (wiki markup), `Parent` (a number of the file, or the key already in Jira), `Labels` (repeated). **gitlab** —
+  CSV `title`, `description` (Markdown, naming the epic and the feature), the features and the stories.
+  **github** — `-github.json` (`doc-kit/github-issues@1`: `key, title, body, labels, type?, parent,
+  parentRef?`, `backlog.github.types`) and `-github.md` (each issue put in a file with `jq` and sent with
+  `gh api …/issues --input`, never pasted into a shell string; then the REST `sub_issues` by the child's id; no API
+  call, no script). **json** — `doc-kit/backlog@1` (`schemas/backlog.schema.json`), every
+  item. Inert text (`markup.mjs`, character by character): HTML escaped; Jira's wiki characters escaped; Markdown's
+  escaped (`&` too: no entity becomes a mention), a mention `@name`, a reference's sign before a number whatever
+  precedes it (`#12`, `acme/shop#42`, `!12`, `&12`…) and `GH-12` followed by U+2060 (no notification, no
+  "mentioned in"), a GitLab line starting with `/` escaped (no quick action); a CSV cell starting with `=` `+`
+  `-` `@`, a tab or a carriage return prefixed with an apostrophe (`csv.mjs`). Texts: `render.backlog.*` in
+  the documentation's language, `cli.backlog.*`.
 
 ### 6.9 Facts and the takeover dossier (the Develop and Administer spaces)
 

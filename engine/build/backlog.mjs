@@ -6,7 +6,9 @@
 // measure of how far a feature is specified (featureDepth). Pure.
 //   epic     { id, title, summary, ref, section, features: [feature ids] }   id null: a group without an epic
 //   feature  { id, title, summary, page, epic, since, ref, roles, kinds, rules, stories: [ids], criteria, depth }
-//   story    { id, title, role, since, ref, feature, page, anchor, criteria }
+//   story    { id, title, role, since, ref, feature, page, anchor, criteria, text: [lines],
+//              scenarios: [{ title, steps: [{ step, keyword, text }] }] }   its text and acceptance criteria, as plain
+//              text (the backlog export, engine/backlog/)
 import { parseRef } from "../core/refs.mjs";
 import { compareVersions } from "../stats/usage.mjs";
 
@@ -131,7 +133,7 @@ function featureOf(f, ctx) {
 }
 
 /** Each story of a feature sheet, with its version (its own, else its feature's) and its acceptance criteria. */
-function storiesOf(stories, features, criteria, problems) {
+function storiesOf(stories, features, scenariosByStory, problems) {
   const featureOfStory = new Map(features.flatMap((f) => f.stories.map((id) => [id, f])));
   const out = [];
   for (const [id, s] of stories) {
@@ -147,7 +149,9 @@ function storiesOf(stories, features, criteria, problems) {
         feature: f.id,
         page: s.page,
         anchor: s.anchor,
-        criteria: criteria.get(id) || 0,
+        criteria: scenariosByStory.get(id)?.length ?? 0,
+        text: s.text ?? [],
+        scenarios: (scenariosByStory.get(id) ?? []).map((x) => ({ title: x.title, steps: x.steps ?? [] })),
       });
   }
   return out;
@@ -155,7 +159,8 @@ function storiesOf(stories, features, criteria, problems) {
 
 /**
  * The backlog of one language's build.
- * @param {{ toc: any, features: Map<string, any>, stories: Map<string, any>, scenarios: Array<{ story: string|null }>,
+ * @param {{ toc: any, features: Map<string, any>, stories: Map<string, any>,
+ *   scenarios: Array<{ story: string|null, title: string, steps?: any[] }>,
  *   rules: Map<string, { page: string }>, cards: Map<string, any>, sheets: Record<string, SheetState>,
  *   cited?: Map<string, Set<string>> }} p
  *   sheets: page id → the analysis of its sheet, for the feature sheets written; cited: page id → the rules it cites
@@ -164,8 +169,9 @@ function storiesOf(stories, features, criteria, problems) {
 export function backlogModel({ toc, features, stories, scenarios, rules, cards, sheets, cited = new Map() }) {
   /** @type {Problem[]} */
   const problems = [];
-  const criteria = new Map();
-  for (const s of scenarios) if (s.story) criteria.set(s.story, (criteria.get(s.story) || 0) + 1);
+  // A story's acceptance criteria: the scenarios that name it.
+  const scenariosByStory = groupBy(scenarios, (s) => [s.story]);
+  const criteria = new Map([...scenariosByStory].map(([id, list]) => [id, list.length]));
   const sheetPages = new Set([...features.values()].map((f) => f.page));
   const { epics, declared, byPage } = epicsOf(toc, sheetPages, problems);
   const tocPages = new Map(toc.sections.flatMap((sec) => sec.groups.flatMap((g) => g.pages.map((p) => [p.id, p]))));
@@ -188,7 +194,7 @@ export function backlogModel({ toc, features, stories, scenarios, rules, cards, 
     rulesByPage: groupBy([...rules.entries()], ([, r]) => [r.page]),
   };
   const featureList = [...features.values()].map((f) => featureOf(f, ctx));
-  const storyList = storiesOf(stories, featureList, criteria, problems);
+  const storyList = storiesOf(stories, featureList, scenariosByStory, problems);
 
   // A reference the kit cannot read: shown as written, without a link.
   for (const item of [...epics, ...featureList, ...storyList])

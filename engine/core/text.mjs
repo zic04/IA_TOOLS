@@ -40,6 +40,57 @@ export const plainText = (html) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/** Where an HTML fragment ends a line of text: a paragraph, a list item, a heading, a table row, a line break. */
+const LINE_ENDS = ["</p>", "</li>", "</h1>", "</h2>", "</h3>", "</h4>", "</h5>", "</h6>", "</tr>", "</pre>", "<br>"];
+
+/**
+ * An HTML fragment without its tags, in one pass: each "<…>" dropped, a "<" never closed kept as text with what
+ * follows it (an expression like /<[^>]*>/g would try every "<" to the end: quadratic on "<<<…").
+ */
+function withoutTags(html) {
+  let out = "";
+  let i = 0;
+  while (i < html.length) {
+    const open = html.indexOf("<", i);
+    const close = open < 0 ? -1 : html.indexOf(">", open);
+    if (close < 0) return out + html.slice(i);
+    out += html.slice(i, open);
+    i = close + 1;
+  }
+  return out;
+}
+
+/** The entities the Markdown engine writes, "&amp;" last (so that "&amp;lt;" stays "&lt;"). */
+const ENTITIES = [
+  ["&nbsp;", " "],
+  ["&lt;", "<"],
+  ["&gt;", ">"],
+  ["&quot;", '"'],
+  ["&#39;", "'"],
+  ["&amp;", "&"],
+];
+
+/**
+ * The lines of an HTML fragment as plain text, one per paragraph, list item, heading, row or line break, the empty
+ * ones left out (the text of a user story, for the backlog export). Linear: no expression but the blanks'.
+ * @param {string} html
+ * @returns {string[]}
+ */
+export function plainLines(html) {
+  let s = String(html ?? "");
+  for (const end of LINE_ENDS) s = s.split(end).join(end + "\u0000");
+  // Cells apart; any other tag is inline, its text glued to its neighbours ("<b>manager</b>," → "manager,").
+  for (const cell of ["</td>", "</th>"]) s = s.split(cell).join(" " + cell);
+  return s
+    .split("\u0000")
+    .map((line) => {
+      let text = withoutTags(line);
+      for (const [entity, ch] of ENTITIES) text = text.split(entity).join(ch);
+      return text.replace(/\s+/g, " ").trim();
+    })
+    .filter(Boolean);
+}
+
 /** Anchor of a heading: lower case, no accents, hyphens; at most 60 characters. */
 export const slug = (s) =>
   String(s)

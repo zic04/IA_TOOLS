@@ -93,6 +93,14 @@ de n'importe quel espace le montre aussi avec `::tableau{}` (en `::board{}`), po
   mémorisée ; imprimé, le tableau est sa liste. Un ticket est un lien quand `backlog.refs` donne l'adresse de son
   outil.
 
+## Exporter le backlog
+
+`doc-kit backlog export <azure|jira|github|gitlab|json>` écrit le même backlog — epics, fonctionnalités, récits et
+leurs critères d'acceptation — au format d'import d'Azure DevOps, de Jira ou de GitLab (CSV), pour GitHub (les issues
+et comment les créer), ou en JSON ([doc-kit backlog export](#/reference/cli/deliver~doc-kit-backlog-export)). Ce que
+l'outil contient déjà (une `ref` de cet outil) est laissé de côté ; donnez à chacun sa `ref` une fois importé, et
+le tableau le relie.
+
 ## Trouver les fonctionnalités candidates
 
 ```bash
