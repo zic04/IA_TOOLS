@@ -2,7 +2,7 @@
 // Creates <content>/<page-id>.md from templates/pages/<language>/<type>.md (never overwrites: exit code 1), in the
 // variant of the project's capture mode (capture.mode "none": tables instead of screenshots), and declares the page
 // in the table of contents. --prefill (ARCHITECTURE.md §6.11, types variables/api-surface/data-model/dependencies/
-// agent-instructions only): fills the page's main table from the facts (`doc-kit facts`) instead of leaving every
+// agent-instructions/runbook only): fills the page's main table from the facts (`doc-kit facts`) instead of leaving every
 // cell a placeholder; without the facts file, exit code 1; on another type, exit code 2.
 //   --parent <id>   right after the parent and its sub-pages, with level 2;
 //   otherwise       at the end of the group whose pages share the longest id prefix, or of the last group of

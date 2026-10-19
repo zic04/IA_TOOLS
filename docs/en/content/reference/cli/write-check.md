@@ -29,7 +29,7 @@ the table of contents. Never overwrites a file (exit code 1).
 | `--template <type>` | One of the 13 types; required unless the page is already declared with one |
 | `--title "…"` | Title and menu title; default: the last segment of the id, humanised |
 | `--parent <page-id>` | Makes it a sub-page (`"level": 2`), right after the parent and its sub-pages |
-| `--prefill` | Fills the page's main table from the facts (`variables`, `api-surface`, `data-model`, `dependencies` and `agent-instructions` only); the other cells stay guidance placeholders |
+| `--prefill` | Fills the page's main table from the facts (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` and `runbook` — its scheduled jobs — only); the other cells stay guidance placeholders |
 
 Page ids are lower-case segments separated by `/`, the first one being the section id: `use/orders/export`.
 [Page templates](#/write/page-templates~creating-a-page-doc-kit-new) gives the placement rules. `--prefill` reads
@@ -172,13 +172,14 @@ captures, `::facts` tables, `counterpart` and declared `sources`) — direct fil
 shared ones (merely imported): the page itself, the required sections of its template, the files to read (a file
 of 150 lines or fewer in full; otherwise ±40 lines around each cited line; a direct file with no cited line gives
 its first 80 lines; a shared file with no cited line is listed by its path alone), the exact labels and facts rows
-these files reference, and the glossary terms they match. A page declared in the table of contents but not written
+these files reference, and the glossary terms they match; a runbook also gets what the infrastructure declares
+(`facts/infra.json`), by environment, with the `file:line` to cite. A page declared in the table of contents but not written
 yet is accepted (the context serves to write it); an unknown page is refused (exit code 2).
 
 | Option | Effect |
 |---|---|
 | `page…` | One or more page ids of `content/toc.json` |
-| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default: the budget of the page's template, 24,000 for a feature sheet, 16,000 otherwise); the page and its required sections are never cut — shared excerpts go first, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
+| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default: the budget of the page's template, 24,000 for a feature sheet, 16,000 otherwise); the page and its required sections are never cut — a runbook's infrastructure overview goes first, then shared excerpts, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
 | `--update` | Also includes the page's entry of the last `doc-kit sync` report (every category, with its reasons), the diff of its changed files, and the paths of its captures' before/after sheets (`.doc-kit/compare/<id>.png`, never inlined); without a report yet (`doc-kit sync --mark`), exit code 2 |
 
 `--json` gives `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. A context folder runs to a few thousand

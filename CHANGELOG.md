@@ -8,6 +8,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Where the application runs** (ARCHITECTURE.md §6.9, §6.11): `::c4{view="deployment"}` (fr `vue="deploiement"`)
+  draws the deployment view from `facts/infra.json` — one column per environment with its entry points, workloads,
+  jobs and cloud resources, the pipelines that deploy to each, and a row per element with its settings and its
+  `file:line`. `doc-kit new <page> --template runbook --prefill` fills its scheduled jobs, each with its
+  `[[verified file:line]]` proof; `doc-kit context` gives a runbook what the infrastructure declares, by environment
+  (a page type's new `digests`).
 - **What the infrastructure declares** (ARCHITECTURE.md §5, §6.9, source `infra`): `doc-kit facts` reads the
   Dockerfiles, Terraform, Bicep, ARM and CloudFormation templates, Kubernetes and OpenShift manifests, Helm charts,
   Compose files, GitHub Actions, GitLab CI and Azure Pipelines, and Ansible playbooks: their cloud resources and

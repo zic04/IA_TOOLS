@@ -3,6 +3,7 @@
 // with a line right before it, `<!-- doc-kit:prefill source="env" -->`; `new` always removes the marker, with or
 // without `--prefill` (like the capture variant markers of ARCHITECTURE.md §6.4).
 import { KitError, EXIT } from "../project/errors.mjs";
+import { oneLine } from "../core/text.mjs";
 
 export const PREFILL_MARKER = /^[ \t]*<!--\s*doc-kit:prefill\s+source="([a-z]+)"\s*-->[ \t]*\r?\n/gm;
 
@@ -18,6 +19,7 @@ export const PREFILL_SOURCES = Object.freeze({
   "data-model": "db",
   dependencies: "dependencies",
   "agent-instructions": "agents",
+  runbook: "infra",
 });
 
 /** Is this template's own language French (detected from the "consigne" guidance marker it already uses)? */
@@ -32,6 +34,9 @@ const verifiedOf = (text) => (isFrench(text) ? "verifie" : "verified");
 
 /** path:line[-line] proofs of an env variable's reads, or "—" without any (ARCHITECTURE.md §6.11). */
 const filesCell = (files) => (files?.length ? files.map((f) => `\`${f}\``).join(", ") : "—");
+
+/** A text of the application in a table cell: on one line, a "|" would end the cell, a backquote its code span. */
+const cellText = (s) => oneLine(s).replaceAll("|", "\\|").replaceAll("`", "'");
 
 /**
  * Key cells of one row, by column index (0-based); a column not returned here falls back to the example row's
@@ -48,6 +53,13 @@ const KEY_CELLS = {
   api: (item, verified) => ({ 0: item.method, 1: `\`${item.route}\``, 5: `[[${verified} file]]` }),
   db: (item, verified) => ({ 0: `\`${item.table}\``, 1: (item.columns || []).join(", "), 3: `[[${verified} file]]` }),
   dependencies: (item) => ({ 0: `\`${item.name}\``, 1: item.version, ...(item.license ? { 3: item.license } : {}) }),
+  // A scheduled job of the infrastructure (a CronJob, a pipeline's schedule, an EventBridge rule): its proof is
+  // where it is declared, a path the build and sync check.
+  infra: (item, verified) => ({
+    0: `\`${cellText(item.name)}\``,
+    1: `\`${item.schedule}\``,
+    3: `[[${verified} ${cellText(item.file)}:${item.line}]]`,
+  }),
   agents: (item) => ({
     0: `\`${item.file}\``,
     1: String(item.lines),
@@ -56,8 +68,16 @@ const KEY_CELLS = {
   }),
 };
 
-/** Only the direct dependencies are prefilled (ARCHITECTURE.md §6.11): a dev or transitive package tells a reviewer little. */
-const itemsFor = (source, items) => (source === "dependencies" ? items.filter((i) => i.direct === true) : items);
+/**
+ * The items a table lists (ARCHITECTURE.md §6.11): only the direct dependencies (a dev or transitive package tells a
+ * reviewer little), only the infrastructure items that run on a schedule (the runbook's scheduled jobs).
+ */
+const itemsFor = (source, items) =>
+  source === "dependencies"
+    ? items.filter((i) => i.direct === true)
+    : source === "infra"
+      ? items.filter((i) => typeof i.schedule === "string" && i.schedule)
+      : items;
 
 /** Cells of a Markdown table row ("| a | b |" → ["a", "b"]), trimmed. */
 function cellsOf(row) {

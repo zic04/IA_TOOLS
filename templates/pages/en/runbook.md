@@ -38,6 +38,7 @@ The build command produces the production bundle.
 
 <!-- guidance: optional. Every cron job or scheduled task, what it does, and what happens when it fails silently. -->
 
+<!-- doc-kit:prefill source="infra" -->
 | Job | Schedule | What it does | Proof |
 |---|---|---|---|
 | Example job | Daily | What it does | [[deduced path/file.ts]] |

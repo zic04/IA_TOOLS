@@ -122,7 +122,8 @@ as untrusted input:
 - the `infra` source keeps what infrastructure files declare through one whitelist (names, types, an image and its
   tag, replicas, ports, whether it runs as root, has TLS, is open to all, the names of its variables), the project's
   adapters included: never an environment variable's value, a ConfigMap's or Secret's data, a parameter's default, a
-  connection string; a name a secret detector finds is written "…", the credentials of an address are taken off, and
+  connection string; a name a secret detector finds is written "…" (and, judged word by word, a word that reads as a
+  token), a name is kept on one line, the credentials of an address are taken off, and
   so is a source's query (a SAS token, a presigned URL's signature) but its `ref`. The files of values are never
   read: Terraform's `.tfvars`, Bicep's `.bicepparam`, an ARM parameters file; nor a CDK assembly (`cdk.out/`). A
   folder named `test/` is read there as the test environment (`k8s/overlays/test/`); `tests/`, `spec/`, `fixtures/`

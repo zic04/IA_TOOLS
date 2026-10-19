@@ -1,14 +1,32 @@
 // The directives drawn from the facts files (ARCHITECTURE.md §6.9, §6.13), rendered at build time by the Markdown
 // engine (engine/build/markdown.mjs): ::facts{source columns} (::faits), ::erd{tables title} (::mcd),
 // ::changes{version sources} (::changements), and the developer views ::modules, ::hotspots (::points-chauds),
-// ::health (::sante) and ::c4 (engine/build/developer.mjs, engine/build/c4.mjs). A missing facts file is a strict
+// ::health (::sante) and ::c4 (engine/build/developer.mjs, engine/build/c4.mjs; its deployment view,
+// engine/build/c4-deployment.mjs, from facts/infra.json). A missing facts file is a strict
 // `facts.missing`; an empty view says so in the page. One function per directive, chosen through RENDERERS: a new
 // view drawn from the facts is one more entry, never a new branch in the Markdown engine.
 import { esc } from "../core/text.mjs";
 import { renderErd } from "./erd.mjs";
 import { renderModules, renderHotspots, renderHealth, limitOf } from "./developer.mjs";
 import { systemModel, renderC4 } from "./c4.mjs";
+import { renderDeployment } from "./c4-deployment.mjs";
+import { deploymentModel } from "../facts/deployment.mjs";
 import { renderChanges } from "../facts/changes.mjs";
+
+/** The views of ::c4, by their spellings (view= or vue=): the containers (the default), or the deployment. */
+const C4_VIEWS = Object.freeze({
+  container: "container",
+  conteneurs: "container",
+  deployment: "deployment",
+  deploiement: "deployment",
+  déploiement: "deployment",
+});
+
+/** The view of a ::c4 token: "container", "deployment", or undefined when its view= is none of them. */
+const c4View = (tk) => {
+  const view = tk.a.view || tk.a.vue || "container";
+  return Object.hasOwn(C4_VIEWS, view) ? C4_VIEWS[/** @type {keyof typeof C4_VIEWS} */ (view)] : undefined;
+};
 
 /** Facts files read by the health summary (::health), in the order of its cards. */
 const HEALTH_SOURCES = ["quality", "security", "secrets", "tests", "modules", "history", "dependencies"];
@@ -140,6 +158,17 @@ function developerHtml(env, tk) {
     const quality = need(env, "quality");
     return history && quality ? renderHotspots(history, quality, { t, esc, limit }) : null;
   }
+  if (tk.kind === "c4" && c4View(tk) === undefined) {
+    env.signal(true, "c4.view", { view: tk.a.view || tk.a.vue });
+    return null;
+  }
+  if (tk.kind === "c4" && c4View(tk) === "deployment") {
+    const infra = need(env, "infra");
+    const title = tk.a.title || t("render.c4.deployment.title");
+    return infra
+      ? renderDeployment(deploymentModel(Array.isArray(infra.items) ? infra.items : []), { t, esc, title, limit })
+      : null;
+  }
   if (tk.kind === "c4") {
     const dependencies = need(env, "dependencies");
     if (!dependencies) return null;
@@ -160,8 +189,9 @@ function developerView(env, tk) {
   const html = developerHtml(env, tk);
   if (html === null) return "";
   if (!html) {
-    env.signal(false, "developer.empty", { kind: tk.kind });
-    return none(env, `render.${tk.kind}.empty`);
+    const deployment = tk.kind === "c4" && c4View(tk) === "deployment";
+    env.signal(false, deployment ? "c4.deployment.empty" : "developer.empty", { kind: tk.kind });
+    return none(env, deployment ? "render.c4.deployment.empty" : `render.${tk.kind}.empty`);
   }
   return html;
 }

@@ -320,3 +320,13 @@ describe("the project's own infra adapters (config.infra)", () => {
     }
   });
 });
+
+describe("a name that is a phrase (a workflow's, a job's, a play's)", () => {
+  test("is kept, each word judged on its own: a word that reads as a token written …, a detector's finding the whole", () => {
+    const name = (n) => keptInfra({ kind: "pipeline", file: "x.yml", name: n }, "g").name;
+    for (const phrase of ["Build and deploy to production", "Nightly database backup job", "Configure the web servers"])
+      assert.equal(name(phrase), phrase);
+    assert.equal(name("Deploy Xk9QmZ2vLp8RtY4wNb7HcJ3f"), "Deploy …");
+    assert.equal(name(`Deploy ${"gh" + "p_" + "Zq8vN3kT6wP1xR4mY7bLc2Hd9sF0gJ5aQ1wE"}`), "…");
+  });
+});

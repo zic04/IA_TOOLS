@@ -2674,3 +2674,24 @@ tr.usage-part td:first-child {
 .c4-arrow {
   fill: var(--text-faint);
 }
+/* Deployment view (::c4{view="deployment"}, engine/build/c4-deployment.mjs): a column per environment. */
+.c4-env rect {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+}
+.c4-pipeline rect {
+  fill: var(--brand-soft);
+  stroke: var(--brand);
+}
+.c4-node {
+  fill: var(--text);
+  font-size: 11.5px;
+}
+.c4-node-entry {
+  fill: var(--brand);
+  font-weight: 600;
+}
+.c4-node-resource,
+.c4-node-more {
+  fill: var(--text-soft);
+}

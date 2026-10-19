@@ -24,6 +24,7 @@ import { stackSources, loadProjectAdapters } from "./stacks.mjs";
 import { routeWithoutSecrets, safeField, CRON } from "./behaviour-common.mjs";
 import { withoutCredentials } from "./dependencies.mjs";
 import { withoutQuery } from "./infra-common.mjs";
+import { oneLine } from "../core/text.mjs";
 
 /**
  * @typedef {{ name: string, files: RegExp, marker?: RegExp, infra: (p: { sources: Map<string, string> }) => object[] }}
@@ -91,12 +92,22 @@ const clean = (v) => withoutCredentials(v) === v;
 
 const word = (v, max = 200) => (typeof v === "string" && v.length <= max && WORD.test(v) && clean(v) ? v : undefined);
 
-/** A name or a source as written, but what looks like a credential or a secret taken off ("…"); undefined if none. */
+/**
+ * A name or a source as written, on one line (a YAML block scalar's newlines a space: a name never opens a line in a
+ * table or a context file), but what looks like a credential or a secret taken off ("…"); undefined if none. Each
+ * word is judged on its own (routeWithoutSecrets reads a path's segments): a workflow's or a play's name is often a
+ * phrase ("Build and deploy to production"), which is kept, while a word that reads as a token is written "…".
+ */
 function named(v) {
   if (typeof v !== "string" || !v || v.length > 300) return undefined;
-  const bare = withoutCredentials(v);
+  const bare = withoutCredentials(oneLine(v).trim());
   if (bare === null) return "…"; // a secret a detector of the kit finds: masked whole
-  return typeof bare === "string" && bare ? routeWithoutSecrets(bare) : undefined;
+  return typeof bare === "string" && bare
+    ? bare
+        .split(" ")
+        .map((w) => routeWithoutSecrets(w))
+        .join(" ")
+    : undefined;
 }
 
 /** A name of a variable kept: a name (VARIABLE), never one that looks like a key or a token (safeField's check). */

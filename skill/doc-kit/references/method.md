@@ -262,7 +262,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   (never on the page), the question list for the real owner — domain, repository, hosting, database, payment,
   e-mail, each AI tool account, each secret by name. The orchestrator relays the questions; the agent never
   contacts the owner.
-- **`system-dossier`** (one `doc-kit-writer`, from `facts/db.json` and `facts/tool-knip.json` when present):
+- **`system-dossier`** (one `doc-kit-writer`, from `facts/db.json`, `facts/infra.json` and `facts/tool-knip.json` when present):
   `runbook` (install, build, deploy, roll back, scheduled jobs, backup and restore — every command checked in a
   script, a Dockerfile instruction or a CI workflow, never assumed); `data-model` (from `doc-kit new <id>
   --prefill` on `facts/db.json`: personal data, retention, processors); `code-map` (a C4-style context diagram,

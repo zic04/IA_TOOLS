@@ -193,7 +193,7 @@ are numbered candidates for the risk register. **Ownership** (brief `access-owne
 owns the domain, the repository, the hosting, the database, payment, e-mail, each AI account, each secret, and the
 questions still open for the real owner. **System dossier** (brief `system-dossier`, one `doc-kit-writer`):
 `runbook` (install, build, deploy, roll back, scheduled jobs, backup and restore — every command checked in the
-repository), `data-model` (from `new --prefill` and `facts/db.json`: personal data, retention, processors),
+repository; environments and jobs from `facts/infra.json`), `data-model` (from `new --prefill` and `facts/db.json`: personal data, retention, processors),
 `code-map` (C4 context/containers/components, integrations, duplicated or dead code from `facts/tool-knip.json`
 when present), `adr` (reconstructed decisions, marked as such, with how they were reconstructed). **Production
 infrastructure**, when portal screenshots are available (brief `production-technical`): architecture document,

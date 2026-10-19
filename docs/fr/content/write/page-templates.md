@@ -121,7 +121,7 @@ doc-kit new reprendre/deploiement/variables --template variables --prefill
 | `--template <type>` | Le type ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | `title` et `menuTitle` de l'entrée ; par défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id>` | Déclare une sous-page (`"level": 2`) juste après sa parente et les sous-pages de celle-ci |
-| `--prefill` | Remplit le tableau principal de la page à partir de `doc-kit facts`, pour les cinq types de reprise construits sur une seule source : `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`) |
+| `--prefill` | Remplit le tableau principal de la page à partir de `doc-kit facts`, pour les six types de reprise construits sur une seule source : `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`), `runbook` (`infra` : les tâches planifiées, chacune avec sa preuve `[[verifie fichier:ligne]]`) |
 
 Sans `--parent`, la page est ajoutée à la fin du groupe dont les pages partagent le plus long préfixe d'id, ou du
 dernier groupe de la section que nomme le premier segment de l'id. Le sommaire est modifié **comme du texte** : son

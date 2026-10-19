@@ -29,7 +29,7 @@ sommaire. N'écrase jamais un fichier (code de sortie 1).
 | `--template <type>` | L'un des 13 types ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | Titre et titre de menu ; défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id-page>` | En fait une sous-page (`"level": 2`), placée juste après le parent et ses sous-pages |
-| `--prefill` | Remplit le tableau principal de la page depuis les faits (`variables`, `api-surface`, `data-model`, `dependencies` et `agent-instructions` seulement) ; les autres cellules restent des consignes à remplir |
+| `--prefill` | Remplit le tableau principal de la page depuis les faits (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` et `runbook` — ses tâches planifiées — seulement) ; les autres cellules restent des consignes à remplir |
 
 Les ids de page sont des segments en minuscules séparés par `/`, le premier étant l'id de la section :
 `utiliser/commandes/export`. [Les gabarits de page](#/write/page-templates~creer-une-page-doc-kit-new) donnent les
@@ -178,14 +178,16 @@ ses `sources` déclarées) — les fichiers directs (la route propre de la page)
 importés) : la page elle-même, les sections requises de son gabarit, les fichiers à lire (un fichier de 150 lignes
 ou moins en entier ; sinon ±40 lignes autour de chaque ligne citée ; un fichier direct sans ligne citée donne ses
 80 premières lignes ; un fichier partagé sans ligne citée est listé par son seul chemin), les libellés exacts et
-les lignes de faits que ces fichiers citent, et les termes du glossaire qu'ils correspondent. Une page déclarée
+les lignes de faits que ces fichiers citent, et les termes du glossaire qu'ils correspondent ; un manuel
+d'exploitation reçoit aussi ce que déclare l'infrastructure (`facts/infra.json`), par environnement, avec le
+`fichier:ligne` à citer. Une page déclarée
 dans la table des matières mais pas encore écrite est acceptée (le contexte sert à l'écrire) ; une page inconnue
 est refusée (code de sortie 2).
 
 | Option | Effet |
 |---|---|
 | `page…` | Un ou plusieurs identifiants de page de `content/toc.json` |
-| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (par défaut : le budget du gabarit de la page, 24 000 pour une fiche de fonctionnalité, 16 000 sinon) ; la page et ses sections requises ne sont jamais coupées — les extraits partagés partent d'abord, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
+| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (par défaut : le budget du gabarit de la page, 24 000 pour une fiche de fonctionnalité, 16 000 sinon) ; la page et ses sections requises ne sont jamais coupées — la vue d'ensemble de l'infrastructure d'un manuel d'exploitation part d'abord, puis les extraits partagés, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
 | `--update` | Inclut aussi l'entrée de la page du dernier rapport `doc-kit sync` (toutes les catégories, avec leurs raisons), le diff de ses fichiers changés, et les chemins des planches avant/après de ses captures (`.doc-kit/compare/<id>.png`, jamais incluses) ; sans rapport encore (`doc-kit sync --mark`), code de sortie 2 |
 
 `--json` donne `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. Un dossier de contexte tient en quelques

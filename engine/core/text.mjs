@@ -4,6 +4,24 @@
 export const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+/**
+ * A text on one line: each run of control characters (a newline, a tab, NUL, U+0085, U+2028…) one space — so that a
+ * name read from an application never opens a new line in a Markdown table, a list or a context file. One pass, no
+ * expression.
+ */
+export function oneLine(s) {
+  let out = "";
+  let gap = false;
+  for (const ch of String(s ?? "")) {
+    const code = ch.charCodeAt(0);
+    const control = code < 32 || (code >= 127 && code <= 159) || code === 0x2028 || code === 0x2029;
+    if (!control) out += ch;
+    else if (!gap) out += " ";
+    gap = control;
+  }
+  return out;
+}
+
 /** Attributes of a directive: `id="x" title="y"` → { id: "x", title: "y" }. */
 export const attrs = (s) =>
   Object.fromEntries([...String(s || "").matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));

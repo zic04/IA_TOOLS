@@ -116,7 +116,7 @@ doc-kit new take-over/deployment/variables --template variables --prefill
 | `--template <type>` | The type; required unless the page is already declared with one |
 | `--title "…"` | `title` and `menuTitle` of the entry; default: the last segment of the id, humanised |
 | `--parent <id>` | Declares a sub-page (`"level": 2`) right after its parent and the parent's sub-pages |
-| `--prefill` | Fills the page's main table from `doc-kit facts`, for the five takeover types built from one source: `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`) |
+| `--prefill` | Fills the page's main table from `doc-kit facts`, for the six takeover types built from one source: `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`), `runbook` (`infra`: the scheduled jobs, each with its `[[verified file:line]]` proof) |
 
 Without `--parent`, the page is added at the end of the group whose pages share the longest id prefix, or of the
 last group of the section named by the first segment of the id. The table of contents is edited **as text**: its

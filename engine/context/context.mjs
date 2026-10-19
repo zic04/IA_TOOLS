@@ -4,13 +4,14 @@
 // dependencies, labels, facts and glossary, it always returns the same text.
 import fs from "node:fs";
 import path from "node:path";
-import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
+import { sectionLabel, sectionCount, digestsOf } from "../core/page-templates.mjs";
 import { labelKeysInCode } from "../sync/labels.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
 import { behaviourParts } from "./behaviours-section.mjs";
 import { unreadPart } from "./unread-section.mjs";
+import { digestText } from "./digests.mjs";
 
 /** `use/orders` → `use__orders.md` (ARCHITECTURE.md §6.11): the context file's name, "/" replaced with "__". */
 export const contextFileName = (pageId) => `${pageId.replaceAll("/", "__")}.md`;
@@ -259,6 +260,13 @@ export function buildContext({
   const fileSet = new Set(deps.files.filter((f) => !isDocRef(f.path)).map((f) => f.path));
   // The behaviour hints have their own part (below), the languages of the code theirs (5c): never raw facts rows.
   const { behaviours: behaviourItems = [], stack: stackItems = [], ...otherFacts } = facts || {};
+  // 5d. The digests its page type declares (standard/templates `digests`): added, the raw rows below kept whole.
+  /** @type {import("./budget.mjs").BudgetPart} */
+  const digestPart = {
+    kind: "digest",
+    text: digestText(digestsOf(templates, page.template), otherFacts, t),
+    cutLine: cutLine("facts", t("cli.context.section.infra"), "—"),
+  };
   const rows = factsFor(otherFacts, fileSet, deps.routes);
   /** @type {import("./budget.mjs").BudgetPart} */
   const factsPart = { kind: "facts", text: "", cutLine: cutLine("facts", t("cli.context.section.facts"), "—") };
@@ -343,6 +351,7 @@ export function buildContext({
     behaviourPart.hints,
     behaviourPart.cards,
     { kind: "page", text: unreadText, cutLine: "" },
+    digestPart,
     factsPart,
     { kind: "page", text: glossaryText, cutLine: "" },
     { kind: "page", text: updateText, cutLine: "" },

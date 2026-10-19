@@ -36,7 +36,7 @@ const PREFILLABLE_FILES = Object.keys(PREFILL_SOURCES).flatMap((type) => [
 ]);
 
 describe("stripPrefillMarkers", () => {
-  test("every one of the 10 templates carries exactly one marker, matching its PREFILL_SOURCES entry", () => {
+  test("every prefillable template, en and fr, carries exactly one marker, matching its PREFILL_SOURCES entry", () => {
     for (const type of Object.keys(PREFILL_SOURCES))
       for (const lang of ["en", "fr"]) {
         const text = fs.readFileSync(path.join(KIT_ROOT, "templates", "pages", lang, `${type}.md`), "utf8");
