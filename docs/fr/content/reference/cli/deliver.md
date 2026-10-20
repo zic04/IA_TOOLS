@@ -89,25 +89,6 @@ Amène un projet à la version installée du kit, même quand sa plage `kit` ref
 Sans `--apply`, rien n'est écrit : `Rien n'a été écrit (simulation). Pour appliquer : doc-kit upgrade --apply`. Code
 de sortie 1 quand une migration échoue (rien n'est écrit). Voir [Passer à un kit plus récent](#/migrate/upgrade).
 
-## doc-kit migrate
-
-```text
-doc-kit migrate
-```
-
-Réécrit au format courant les fichiers anciens à clés françaises d'un projet :
-
-| Fichier ancien | Devient |
-|---|---|
-| `<content>/sommaire.json` | `<content>/toc.json` |
-| `<content>/glossaire.json` | `<content>/glossary.json` |
-| `<content>/accueil.md` | `<content>/home.md` (renommé) |
-| `<images>/zones/*.json` à clés françaises | les mêmes fichiers, réécrits sur place |
-
-Les noms de dossier sont conservés (déclarez-les dans `paths`) ; les plans de capture sont du JavaScript et ne sont
-jamais réécrits ; le Markdown garde ses deux graphies. Rien n'est écrit quand le sommaire normalisé est invalide (code
-de sortie 1). Voir [Migrer un projet ancien](#/migrate/legacy-project).
-
 ## doc-kit skill install
 
 ```text

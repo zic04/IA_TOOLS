@@ -12,9 +12,8 @@ d'attention et ses sous-pages (chemin dans Variables) : ne touche pas ces fichie
 - Le fichier de consolidation (chemin dans Variables) : dans la section de chaque rédacteur, « Erreurs dans les
   pages existantes » et « Glossaire proposé ».
 - Le code (chemin dans Variables ; les libellés exacts de l'interface, s'il y en a, y sont aussi).
-- Le guide de rédaction, et le fichier du glossaire (une entrée : `term`, `def`, `pattern` optionnel ; un projet
-  antérieur au kit peut utiliser les clés françaises `terme`, `def`, `motif` : garde les clés déjà utilisées par
-  le fichier). Chemins : voir Variables.
+- Le guide de rédaction, et le fichier du glossaire (une entrée : `term`, `def`, `pattern` optionnel). Chemins :
+  voir Variables.
 
 ## Pour chaque erreur signalée
 

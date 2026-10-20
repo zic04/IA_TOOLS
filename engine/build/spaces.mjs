@@ -9,7 +9,7 @@ import path from "node:path";
 import { esc } from "../core/text.mjs";
 import { closest } from "../project/validate.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
-import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
+import { readToc } from "../project/toc.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { loadSpaceProfiles, spaceKind } from "../core/space-profiles.mjs";
 import { BOARD_PLACEHOLDER } from "./business.mjs";
@@ -29,7 +29,7 @@ export function withoutSpaceTexts(texts) {
 /**
  * Checks the spaces of a table of contents and resolves their texts.
  * @param {object} p
- * @param {object} p.toc                       normalised and validated table of contents
+ * @param {object} p.toc                       validated table of contents
  * @param {(key: string) => string} p.t        translator of the site language
  * @param {(name: string) => string} p.iconKey stored key of an icon name
  * @returns {{ spaces: object[]|null, errors: object[] }}
@@ -241,19 +241,11 @@ export function spaceOutput(root, config, space, output) {
 
 /** Ids of the spaces declared by the project's table of contents (read only for that), or null. */
 export function declaredSpaceIds(root, config) {
-  const file = [CURRENT_FILES.toc, LEGACY_FILES.toc]
-    .map((f) => path.join(root, config.paths.content, f))
-    .find((f) => fs.existsSync(f));
-  if (!file) return null;
-  try {
-    const toc = normalizeToc(JSON.parse(fs.readFileSync(file, "utf8"))).value;
-    if (!Array.isArray(toc?.spaces)) return null;
-    return [
-      ...new Set(toc.spaces.map((s) => (typeof s === "string" ? s : s?.id)).filter((id) => typeof id === "string")),
-    ];
-  } catch {
-    return null; // an unreadable table of contents is reported by the build
-  }
+  const { toc } = readToc(root, config.paths.content); // null when unreadable: reported by the build
+  if (!Array.isArray(toc?.spaces)) return null;
+  return [
+    ...new Set(toc.spaces.map((s) => (typeof s === "string" ? s : s?.id)).filter((id) => typeof id === "string")),
+  ];
 }
 
 /**

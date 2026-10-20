@@ -2,14 +2,13 @@
 // far. A problem is `report`ed as strict (an error, a warning with --draft) or not (always a warning).
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeZones } from "../project/legacy.mjs";
 import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 
 /**
  * @param {{ project: { root: string }, config: object, options: object }} p
  * @returns {object} the build context: root, config, options, draft, paths, languages, errors, warnings,
- *   legacyFiles, readFs, existsFs, report, readJson, validateContent
+ *   readFs, existsFs, report, readJson, validateContent
  */
 export function createBuildContext({ project, config, options }) {
   const root = project.root;
@@ -25,8 +24,6 @@ export function createBuildContext({ project, config, options }) {
     languages: config.languages || null,
     errors,
     warnings,
-    /** Legacy French-named files read (ARCHITECTURE.md §6.7), for the one `legacy.read` warning. */
-    legacyFiles: [],
     readFs: (p) => fs.readFileSync(path.join(root, p), "utf8"),
     existsFs: (p) => fs.existsSync(path.join(root, p)),
     report: (strict, s) => (strict && !draft ? errors : warnings).push(s),
@@ -48,22 +45,19 @@ export function createBuildContext({ project, config, options }) {
 }
 
 /**
- * The zone files of a folder (`<images>/zones`, or `<images>/<lang>/zones` for a language), normalised and
- * validated: { captures: { id: zones }, legacy: number of legacy files }; nothing without the folder.
+ * The zone files of a folder (`<images>/zones`, or `<images>/<lang>/zones` for a language), validated:
+ * { id: zones }; nothing without the folder.
  */
 export function readZoneFolder(b, dir) {
   const captures = {};
-  let legacy = 0;
-  if (!b.existsFs(dir)) return { captures, legacy };
+  if (!b.existsFs(dir)) return captures;
   for (const f of fs.readdirSync(path.join(b.root, dir)).filter((x) => x.endsWith(".json"))) {
     const file = `${dir}/${f}`;
     const raw = b.readJson(file);
     if (raw === undefined) continue;
-    const nz = normalizeZones(raw);
-    if (nz.legacy) legacy++;
-    if (b.validateContent(nz.value, "zones", file)) captures[f.slice(0, -5)] = nz.value;
+    if (b.validateContent(raw, "zones", file)) captures[f.slice(0, -5)] = raw;
   }
-  return { captures, legacy };
+  return captures;
 }
 
 /** Translated `<lang>.json` content file (toc.json / glossary.json): parsed, or null (missing / unreadable). */

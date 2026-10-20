@@ -149,7 +149,7 @@
             { "id": "reference/cli", "title": "Command line", "menuTitle": "Command line", "summary": "Global options, exit codes, message format, and the list of commands.", "template": "technical" },
             { "id": "reference/cli/start-capture", "title": "Commands: start and capture", "menuTitle": "Start and capture", "level": 2, "summary": "init, doctor, connect, probe, demo, capture and inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commands: write and check", "menuTitle": "Write and check", "level": 2, "summary": "dev, new, build, view, open, check, audit and optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, pack, upgrade, migrate, skill install and translate.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commands: deliver and maintain", "menuTitle": "Deliver and maintain", "level": 2, "summary": "export, pack, upgrade, skill install and translate.", "template": "technical-sub" }
           ]
         },
         {
@@ -199,16 +199,15 @@
     },
     {
       "id": "migrate",
-      "title": "Migrate and upgrade",
-      "shortTitle": "Migrate",
+      "title": "Upgrade",
+      "shortTitle": "Upgrade",
       "icon": "arrow",
-      "subtitle": "Bring a legacy French-keyed project to the current format, and a project to a newer kit.",
-      "highlights": ["Legacy keys read as they are", "doc-kit migrate rewrites the JSON files", "Equivalence check before and after"],
+      "subtitle": "Bring a project to a newer kit: what changed since its version, and the migrations it needs.",
+      "highlights": ["The changelog since your version", "A dry run before anything is written", "doc-kit upgrade --apply"],
       "groups": [
         {
-          "title": "Migrate",
+          "title": "Upgrade",
           "pages": [
-            { "id": "migrate/legacy-project", "title": "Migrate a legacy project", "menuTitle": "Legacy project", "summary": "paths, legacy keys, doc-kit migrate and the equivalence check of the two builds.", "template": "recipe" },
             { "id": "migrate/upgrade", "title": "Upgrade to a newer kit", "menuTitle": "Upgrade the kit", "summary": "doc-kit upgrade: the changelog since your version, the migrations, a dry run then --apply.", "template": "recipe" }
           ]
         }
@@ -313,8 +312,8 @@
     },
     {
       "title": "Take over an existing site",
-      "description": "Migrate a legacy project, upgrade the kit, measure, and hand over.",
-      "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+      "description": "Upgrade the kit, measure, and hand over.",
+      "steps": ["migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
     },
     {
       "title": "Four audiences, one source",

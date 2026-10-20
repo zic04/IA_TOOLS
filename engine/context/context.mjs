@@ -119,7 +119,7 @@ export function glossaryFor(glossary, texts) {
  * @param {object} p
  * @param {string} p.root            project root (the diff file of `--update` lives at <root>/.doc-kit/sync/)
  * @param {object} p.config          validated configuration (language, paths)
- * @param {object} p.toc             content/toc.json (normalised): the page's topic group, each member's title
+ * @param {object} p.toc             content/toc.json: the page's topic group, each member's title
  * @param {string} p.pageId
  * @param {import("../sync/dependencies.mjs").PageDependencies} p.deps   pageDependencies() of this page
  * @param {string|null} [p.appDir]   absolute path of app.dir, to read `deps.files` (null: no excerpt possible)

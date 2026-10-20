@@ -159,7 +159,7 @@ async function redirectChain(route, url, { appOrigin, forbidden }) {
  * @param {object} p
  * @param {string} p.root                project root
  * @param {object} p.config              validated configuration
- * @param {object[]} p.entries           normalised, validated plan entries (plans.mjs)
+ * @param {object[]} p.entries           validated plan entries (plans.mjs)
  * @param {string} p.appUrl              application URL, without trailing slash
  * @param {{ adapter, options }} p.auth  authentication adapter (loaded)
  * @param {string|null} p.session        session file, or null (no session)

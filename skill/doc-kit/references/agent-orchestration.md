@@ -126,7 +126,8 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
 | `contentDir`, `imagesDir`, `diagramsDir`, `factsDir` | `paths.*` (`factsDir` default `facts`) | content, images, diagrams, facts |
 | `featuresFile` | the `features` coverage adapter's `file` option, else `features.json` | features.json |
-| `tocFile`, `glossaryFile`, `targetsFile`, `guideFile` | the existing file (legacy names detected) | content/toc.json |
+| `tocFile`, `glossaryFile` | `<contentDir>/toc.json`, `<contentDir>/glossary.json` | content/toc.json |
+| `targetsFile`, `guideFile` | `captures/targets.mjs`, `WRITING-GUIDE.md` | captures/targets.mjs |
 | `findingsPage` | `extra.briefs.findingsPage`, default by language | take-over/findings |
 | `consolidationFile` | `.doc-kit/consolidation.md` | |
 | `captureMode` | `none` when `capture.mode` is `"none"`, `production` when `capture.target` is `"production"`, `demo` when it is `"demo"` or `capture.setup` is set, else to give | production · demo · none |

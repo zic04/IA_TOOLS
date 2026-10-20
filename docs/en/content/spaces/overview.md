@@ -132,9 +132,9 @@ an internal link: an unknown page or anchor, or a page naming itself, fails the 
 > The links inside an export are valid by construction (they come from the full site's own check); `check images`
 > still runs on the full site, which holds every page. Nothing extra to run per export.
 
-> [!NOTE] Legacy projects
+> [!NOTE] Projects without spaces
 > A project written before spaces existed is read as it is: `spaces`, `space` and `counterpart` are optional
-> everywhere. The legacy French keys `espaces`, `espace` and `pendant` are read the same way.
+> everywhere.
 
 ## Further reading
 

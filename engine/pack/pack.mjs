@@ -16,7 +16,7 @@ const COMMENT = /<!--[\s\S]*?-->\n?/g;
 /**
  * The pages of a table of contents in reading order: the home page, then each section's introduction (when its file
  * exists) and its pages.
- * @param {object} toc   content/toc.json, normalised
+ * @param {object} toc   content/toc.json
  * @param {(rel: string) => boolean} exists   relative to the content folder
  * @returns {Array<{ id: string, title: string, summary: string, file: string, section: string }>}
  */

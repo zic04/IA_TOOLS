@@ -145,7 +145,7 @@ function mergeJourney(sj, translated, i, problems) {
  * Merges a translated table of contents onto the source's structure (ARCHITECTURE.md §6.12): every non-text field
  * (ids, routes, permissions, counterparts, steps…) comes from the SOURCE; every text field (titles, summaries…)
  * comes from the TRANSLATION when present, else the source (a partial translation is accepted, without warning).
- * @param {{ source: object, translated: object|null }} p   normalised toc.json objects
+ * @param {{ source: object, translated: object|null }} p   toc.json objects
  * @returns {{ toc: object, problems: Array<{ key: string, vars: object, blocking: boolean }> }}
  *   problems: "translation.toc.structure" (blocking: a section/group/page/journey/space missing, added, out of
  *   order, or a different count of steps/suggestions) and "translation.toc.ignored" (a non-text field the

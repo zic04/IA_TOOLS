@@ -19,7 +19,7 @@ export const options = {
   check: { type: "boolean" },
 };
 
-/** The table of contents (current or legacy file name); throws like `build` when it cannot be read. */
+/** The table of contents (`<content>/toc.json`); throws like `build` when it cannot be read. */
 function readProjectToc(root, config) {
   const r = readToc(root, config.paths.content);
   if (!r.toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: r.file });

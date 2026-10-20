@@ -12,9 +12,7 @@ glossary terms. Another agent integrates the findings AT THE SAME TIME in the fi
 - The consolidation file (path in Variables): in each writer's section, "Errors in existing pages" and
   "Proposed glossary".
 - The code (path in Variables; exact interface labels, if any, are in Variables too).
-- The writing guide, and the glossary file (one entry: `term`, `def`, optional `pattern`; a project created
-  before the kit may use French keys `terme`, `def`, `motif`: keep the keys the file already uses). Paths: see
-  Variables.
+- The writing guide, and the glossary file (one entry: `term`, `def`, optional `pattern`). Paths: see Variables.
 
 ## For each reported error
 

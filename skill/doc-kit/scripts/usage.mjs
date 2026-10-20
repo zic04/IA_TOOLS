@@ -113,7 +113,7 @@ async function freshEstimate(brief, pages, docDir, config, lang) {
   const template = fs.readFileSync(file, "utf8");
   const inputTokens = Math.ceil(template.length / 4);
   const kitRoot = path.resolve(SKILL_ROOT, "..", "..");
-  const pagesOfToc = await flattenedPages(docDir, config, kitRoot);
+  const pagesOfToc = flattenedPages(docDir, config);
   const byId = new Map(pagesOfToc.map((p) => [p.id, p]));
   const table = await pageTemplatesTable(kitRoot);
   const contentDir = config?.paths?.content ?? "content";

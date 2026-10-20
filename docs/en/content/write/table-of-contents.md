@@ -119,10 +119,6 @@ plan: an unknown step is an error of the build ("journey “…”: unknown page
 > Older plans have a `product` field. The product name now comes from `doc.config.mjs`; the build warns when both
 > differ, and the configuration wins.
 
-> [!NOTE] Legacy French keys
-> A plan written before the kit (`contenu/sommaire.json` with `titre`, `groupes`, `niveau`…) is read as it is;
-> `doc-kit migrate` rewrites it ([Migrate a legacy project](#/migrate/legacy-project)).
-
 ## Further reading
 
 - [Page templates](#/write/page-templates): the `template` field and `doc-kit new`.

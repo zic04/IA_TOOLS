@@ -53,7 +53,7 @@ export function stableStringify(value) {
   return ser(value) ?? "null";
 }
 
-/** Hash of a normalised capture plan entry, without its `file` (the plan file name, added when the plans are loaded). */
+/** Hash of a capture plan entry, without its `file` (the plan file name, added when the plans are loaded). */
 export const hashPlanEntry = (entry) => hashText(stableStringify({ ...entry, file: undefined }));
 
 /** Table of the CRC-32 (IEEE 802.3, reflected polynomial 0xedb88320), one entry per byte value. */

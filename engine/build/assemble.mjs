@@ -23,7 +23,7 @@ import { withContentSecurityPolicy } from "./csp.mjs";
  * Dates and versions of the screenshots used by the pages: { id: { captured?, version? } }, or null when no
  * screenshot carries one.
  * @param {object} data      site data (pages[].html contains <img data-img="id">)
- * @param {Record<string, object>} [captures]  normalised zone files, by id
+ * @param {Record<string, object>} [captures]  zone files, by id
  */
 export function screenshotInfo(data, captures) {
   if (!captures) return null;

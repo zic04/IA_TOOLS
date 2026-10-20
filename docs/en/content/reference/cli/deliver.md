@@ -86,25 +86,6 @@ Brings a project to the installed kit version, even when its `kit` range refuses
 Without `--apply`, nothing is written: `Nothing written (dry run). To apply: doc-kit upgrade --apply`. Exit code 1
 when a migration fails (nothing is written). See [Upgrade to a newer kit](#/migrate/upgrade).
 
-## doc-kit migrate
-
-```text
-doc-kit migrate
-```
-
-Rewrites the legacy French-keyed files of a project in the current format:
-
-| Legacy file | Becomes |
-|---|---|
-| `<content>/sommaire.json` | `<content>/toc.json` |
-| `<content>/glossaire.json` | `<content>/glossary.json` |
-| `<content>/accueil.md` | `<content>/home.md` (renamed) |
-| `<images>/zones/*.json` with French keys | the same files, rewritten in place |
-
-Folder names are kept (declare them in `paths`); capture plans are JavaScript and are never rewritten; the Markdown
-keeps both spellings. Nothing is written when the normalised table of contents is invalid (exit code 1). See
-[Migrate a legacy project](#/migrate/legacy-project).
-
 ## doc-kit skill install
 
 ```text

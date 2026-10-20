@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "doc-kit/schemas/capture-plan.schema.json",
   "title": "Capture plan entry (captures/plans/*.mjs → CAPTURES[i])",
-  "description": "One capture of a plan (ARCHITECTURE.md §6.3; full syntax at the top of engine/capture/plans.mjs). Validated after the legacy normalisation (§6.7). Accepts what the engine executes (engine/capture/*.mjs), no more: strings or regular expressions where a text is matched; `eval` accepts a function or a string; margins may be negative (a tighter zone or frame); `nth` may be negative (counted from the last match); a viewport side, a `wheel.steps` count and the waits only need to be possible (≥ 1 px, ≥ 0). Exactly one kind per target and per action is checked by the engine.",
+  "description": "One capture of a plan (ARCHITECTURE.md §6.3; full syntax at the top of engine/capture/plans.mjs). Accepts what the engine executes (engine/capture/*.mjs), no more: strings or regular expressions where a text is matched; `eval` accepts a function or a string; margins may be negative (a tighter zone or frame); `nth` may be negative (counted from the last match); a viewport side, a `wheel.steps` count and the waits only need to be possible (≥ 1 px, ≥ 0). Exactly one kind per target and per action is checked by the engine.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "route"],

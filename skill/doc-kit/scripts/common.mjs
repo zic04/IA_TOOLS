@@ -215,11 +215,6 @@ export function today() {
 
 const slash = (p) => p.replace(/\\/g, "/");
 
-/** First existing file among the candidates (relative to docDir), else the first candidate. */
-function firstExisting(docDir, candidates) {
-  return slash(candidates.find((c) => fs.existsSync(path.join(docDir, c))) ?? candidates[0]);
-}
-
 // Option of each built-in coverage adapter that points into the application (adapters/coverage/<name>.mjs of the kit).
 const SOURCE_OPTIONS = ["app", "file", "source", "base"];
 
@@ -325,14 +320,14 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     contentDir,
     // Languages (ARCHITECTURE.md §6.12): translationsDir, for the `translate` brief ({{translationsDir}}/{{lang}}/…).
     translationsDir: slash(config.paths?.translations ?? "translations"),
-    tocFile: firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]),
-    glossaryFile: firstExisting(docDir, [`${contentDir}/glossary.json`, `${contentDir}/glossaire.json`]),
+    tocFile: `${contentDir}/toc.json`,
+    glossaryFile: `${contentDir}/glossary.json`,
     imagesDir: slash(config.paths?.images ?? "images"),
     diagramsDir: slash(config.paths?.diagrams ?? "diagrams"),
     factsDir: slash(config.paths?.facts ?? "facts"),
     featuresFile: featuresFileOf(config),
-    targetsFile: firstExisting(docDir, ["captures/targets.mjs", "captures/cibles.mjs"]),
-    guideFile: firstExisting(docDir, ["WRITING-GUIDE.md", "GUIDE-REDACTION.md"]),
+    targetsFile: "captures/targets.mjs",
+    guideFile: "WRITING-GUIDE.md",
     findingsPage: FINDINGS_PAGE[language] ?? FINDINGS_PAGE.en,
     consolidationFile: `${WORK_DIR}/consolidation.md`,
   };
@@ -495,23 +490,19 @@ async function importKitModule(kitRoot, relPath) {
 }
 
 /**
- * Flattened pages of the project's table of contents (id, template, file…), legacy keys normalised when the
- * kit's own normaliser can be reached (`importKitModule`); read as plain JSON otherwise (current keys only).
- * `[]` when there is no table of contents or it cannot be parsed.
+ * Flattened pages of the project's table of contents (`<content>/toc.json`: id, template, file…), a byte-order
+ * mark tolerated. `[]` when there is no table of contents or it cannot be parsed.
  */
-export async function flattenedPages(docDir, config, kitRoot) {
-  const contentDir = config?.paths?.content ?? "content";
-  const file = firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]);
-  const abs = path.join(docDir, file);
+export function flattenedPages(docDir, config) {
+  const abs = path.join(docDir, config?.paths?.content ?? "content", "toc.json");
   if (!fs.existsSync(abs)) return [];
-  let raw;
+  let toc;
   try {
-    raw = JSON.parse(fs.readFileSync(abs, "utf8"));
+    const text = fs.readFileSync(abs, "utf8");
+    toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
   } catch {
     return [];
   }
-  const legacy = await importKitModule(kitRoot, "engine/project/legacy.mjs");
-  const toc = legacy?.normalizeToc ? legacy.normalizeToc(raw).value : raw;
   const pages = [];
   for (const sec of toc?.sections || [])
     for (const g of sec.groups || []) for (const p of g.pages || []) if (p && p.id) pages.push(p);

@@ -1,4 +1,4 @@
-// CLI: dispatching, exit codes (0 / 1 / 2 / 3), messages "✖ … / → …", build, check links, migrate, open.
+// CLI: dispatching, exit codes (0 / 1 / 2 / 3), messages "✖ … / → …", build, check links, open; `migrate` removed.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -85,7 +85,6 @@ describe("dispatching", () => {
       "view",
       "open",
       "optimize",
-      "migrate",
       "export",
       "upgrade",
       "skill",
@@ -250,7 +249,16 @@ describe("build", () => {
   });
 });
 
-describe("check links, migrate, open", () => {
+describe("check links, migrate (removed), open", () => {
+  test("migrate no longer exists (removed in 0.4.0, ARCHITECTURE.md §6.7): an unknown command, exit code 2", async () => {
+    const r = await cli(["migrate", "--project", DEMO]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /^✖ unknown command: migrate\n {2}→ available commands: /);
+    assert.doesNotMatch(r.err.split("\n")[1], /\bmigrate\b/, "not listed among the available commands");
+    assert.equal((await cli(["help", "migrate"])).code, 2);
+    assert.doesNotMatch((await cli(["--help"])).out, /\bmigrate\b/);
+  });
+
   test("check links: OK on the demo, exit code 1 on a broken link", async () => {
     assert.equal((await cli(["check", "links", "--project", DEMO])).code, 0);
     const dir = demoCopy();
@@ -269,12 +277,6 @@ describe("check links, migrate, open", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
-  });
-
-  test("migrate on a current project: nothing to do", async () => {
-    const r = await cli(["migrate", "--project", DEMO]);
-    assert.equal(r.code, 0);
-    assert.match(r.out, /nothing to migrate/);
   });
 
   test("open: prints the address (DOC_KIT_NO_OPEN), exit code 1 when the site is not built", async () => {

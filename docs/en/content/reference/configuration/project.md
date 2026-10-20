@@ -25,8 +25,9 @@ See [Documenting in multiple languages](#/spaces/languages) for `languages` and 
 | `paths.translations` | folder · `"translations"` | Holds `translations/<lang>/`, the per-language mirror of `paths.content` (ARCHITECTURE.md §6.12); must not be inside `paths.content` | `"i18n-content"` |
 | `paths.sync` | folder · `"."` (the project root) | Where `sync.json`, the reference of `doc-kit sync`, lives (ARCHITECTURE.md §6.10) | `"."` |
 
-Folder names may not contain `< > : " | ? *`. Older projects keep their own names through `paths`
-([Migrate a legacy project](#/migrate/legacy-project)).
+Folder names may not contain `< > : " | ? *`. A project may name its folders in its own language through `paths`
+(`{ content: "contenu", diagrams: "schemas" }`); the files inside keep their names (`toc.json`, `glossary.json`,
+`home.md`) and their English keys.
 
 ## The documented version
 

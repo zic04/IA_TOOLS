@@ -253,7 +253,7 @@ describe("business.technical: a business page citing code", () => {
 });
 
 describe("glossary `technical` (§6.8)", () => {
-  test("site data glossaire[].tech: present with the field, absent without it", async () => {
+  test("site data glossary[].tech: present with the field, absent without it", async () => {
     const r = await buildBusiness();
     const byTerm = Object.fromEntries(r.data.glossary.map((g) => [g.term, g]));
     assert.equal(byTerm.Order.tech, "table `orders`, column `status`");

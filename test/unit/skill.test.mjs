@@ -21,7 +21,7 @@ import {
   FINGERPRINT,
 } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
-import { AGENT_TYPES } from "../../skill/doc-kit/scripts/common.mjs";
+import { AGENT_TYPES, baseVariables, flattenedPages } from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -597,6 +597,48 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
       /KitError|invalid/i,
       "no negative price",
     );
+  });
+});
+
+describe("the project's files, read by the skill's scripts: the current names only (ARCHITECTURE.md §6.7)", () => {
+  test("flattenedPages reads <content>/toc.json (a byte-order mark tolerated); a sommaire.json alone gives no page", () => {
+    const dir = tempDir("doc-kit-skill-toc-");
+    try {
+      const content = path.join(dir, "contenu");
+      fs.mkdirSync(content);
+      const config = { paths: { content: "contenu" } };
+      fs.writeFileSync(
+        path.join(content, "sommaire.json"),
+        JSON.stringify({ sections: [{ id: "use", groupes: [{ pages: [{ id: "use/a", gabarit: "screen" }] }] }] }),
+      );
+      assert.deepEqual(flattenedPages(dir, config), []);
+      const toc = {
+        sections: [{ id: "use", groups: [{ pages: [{ id: "use/a", template: "screen" }, { title: "x" }] }] }],
+      };
+      fs.writeFileSync(path.join(content, "toc.json"), "﻿" + JSON.stringify(toc));
+      assert.deepEqual(flattenedPages(dir, config), [{ id: "use/a", template: "screen" }]);
+      fs.writeFileSync(path.join(content, "toc.json"), "{ not json");
+      assert.deepEqual(flattenedPages(dir, config), []);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("tocFile, glossaryFile, targetsFile and guideFile name the current files, even when only the former ones exist", () => {
+    const dir = tempDir("doc-kit-skill-vars-");
+    try {
+      fs.mkdirSync(path.join(dir, "contenu"));
+      fs.mkdirSync(path.join(dir, "captures"));
+      for (const f of ["contenu/sommaire.json", "contenu/glossaire.json", "captures/cibles.mjs", "GUIDE-REDACTION.md"])
+        fs.writeFileSync(path.join(dir, f), "[]");
+      const vars = baseVariables(dir, { product: { name: "Acme" }, paths: { content: "contenu" } }, "en", {});
+      assert.equal(vars.tocFile, "contenu/toc.json");
+      assert.equal(vars.glossaryFile, "contenu/glossary.json");
+      assert.equal(vars.targetsFile, "captures/targets.mjs");
+      assert.equal(vars.guideFile, "WRITING-GUIDE.md");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

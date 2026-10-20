@@ -244,6 +244,18 @@ describe("doctor", () => {
     }
   });
 
+  test("the former content/sommaire.json is not a table of contents (ARCHITECTURE.md §6.7) → ✖ and exit code 1", async () => {
+    const dir = project();
+    try {
+      fs.renameSync(path.join(dir, "content/toc.json"), path.join(dir, "content/sommaire.json"));
+      const r = await cli(["doctor", "--project", dir]);
+      assert.equal(r.code, 1);
+      assert.match(r.out, /^✖ table of contents not found: content\/toc\.json\n {2}→ create it/m);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("invalid configuration → 2 (details), incompatible kit → 3 (upgrade), no project → 2", async () => {
     const dir = project({ ...base, capture: { storgae: {} } });
     try {

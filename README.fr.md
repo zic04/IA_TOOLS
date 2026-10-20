@@ -117,7 +117,7 @@ node cli/doc-kit.mjs open --project docs/fr
 Elle couvre l'installation, la rédaction (Markdown étendu, gabarits de page, sommaire, glossaire, schémas), la
 capture (plans, cibles, zones, sessions, sécurité, masquage), le contrôle et la publication (build, contrôles, audit,
 export, CI), la référence de chaque clé de configuration, commande, option, variable et adaptateur, la méthode, le
-skill Claude Code, la migration d'un projet ancien et le diagnostic. Sa section **Exemples de pages** contient une
+skill Claude Code, la mise à jour du kit et le diagnostic. Sa section **Exemples de pages** contient une
 page complète de chacun des 13 types.
 
 Le standard de qualité derrière le kit est dans [standard/README.fr.md](standard/README.fr.md) (anglais :

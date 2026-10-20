@@ -173,12 +173,11 @@ const ACTIONS = {
     const candidates = untyped.filter((p) => p.guess);
     const still = need(THRESHOLDS.typed3, x.total, x.typed.length);
     const out = [];
-    const key = x.tocInfo.legacy ? "gabarit" : "template";
     if (candidates.length)
       out.push({
         key: "typedDeclare",
-        vars: { n: candidates.length, need: still, file: x.tocInfo.file, field: key },
-        items: candidates.map((p) => ({ id: p.id, key: "typeAs", vars: { template: p.guess.type, field: key } })),
+        vars: { n: candidates.length, need: still, file: x.tocInfo.file },
+        items: candidates.map((p) => ({ id: p.id, key: "typeAs", vars: { template: p.guess.type } })),
       });
     const others = untyped.filter((p) => !p.guess && !p.untyped && p.hasFile);
     if (candidates.length < still && others.length) {
@@ -187,7 +186,6 @@ const ACTIONS = {
         vars: {
           n: others.length,
           need: Math.min(others.length, still - candidates.length),
-          field: key,
           file: x.tocInfo.file,
         },
         items: others.map((p) =>

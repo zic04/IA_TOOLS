@@ -156,7 +156,7 @@ async function printEstimate({ name, agent, text, vars, docDir, config }) {
   if (!pageIds.length) {
     console.log(t("estimateOutputNone", { reason: t("estimateOutputNone_noPages") }));
   } else {
-    const pages = await flattenedPages(docDir, config, vars.kitPath);
+    const pages = flattenedPages(docDir, config);
     const byId = new Map(pages.map((p) => [p.id, p]));
     const table = await pageTemplatesTable(vars.kitPath);
     const contentDir = vars.contentDir || "content";

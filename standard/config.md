@@ -325,6 +325,6 @@ When the documentation must be written without any access to the application, de
 
 `capture` and `connect` then explain the mode and stop (exit code 2), `doctor` and the guided mode stop asking for a session, `doc-kit new` writes "The screen" as a table `| Element | What it shows |`, and `doc-kit audit` counts `annotated` as `n/a` ([maturity.md](maturity.md)).
 
-## Older projects
+## Folder names and older projects
 
-A project written before doc-kit, with French folder names, keeps working: declare its folders in `paths`, for example `paths: { content: "contenu", diagrams: "schemas" }`. Its French-keyed JSON files are read as they are; `doc-kit migrate` rewrites them in the current format.
+A project may name its folders in its own language: declare them in `paths`, for example `paths: { content: "contenu", diagrams: "schemas" }`. The files inside keep their names and their English keys (`toc.json`, `glossary.json`, `home.md`, zone files, capture plans). The French-keyed files of the projects written before 0.4.0 (`sommaire.json`, `glossaire.json`, `accueil.md`, `titre`, `groupes`…) are no longer read, and `doc-kit migrate` was removed: such a project starts again from `doc-kit init`.

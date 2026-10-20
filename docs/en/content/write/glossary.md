@@ -43,10 +43,6 @@ centrally: when several people write, they propose terms with their definition, 
 > "glossary: invalid pattern for “Scope” (…)": the pattern is a regular expression; escape `(`, `)`, `.` and `?`
 > when you mean them literally.
 
-> [!NOTE] Legacy files
-> A legacy `glossaire.json` (`terme`, `motif`, `def`) is read as it is; `doc-kit migrate` rewrites it as
-> `glossary.json`.
-
 ## Further reading
 
 - [Table of contents, sub-pages and journeys](#/write/table-of-contents): the other central file of the content.

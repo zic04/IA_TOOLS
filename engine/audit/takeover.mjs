@@ -21,7 +21,7 @@ const SECTION_TYPES = Object.freeze({
 
 /**
  * Where the dossier lives in a table of contents.
- * @param {object} toc   normalised table of contents
+ * @param {object} toc   table of contents
  * @returns {{ declared: ReturnType<typeof declaredSpaces>, takeoverId: string|null,
  *   itemSpaces: Record<string, string|null>, itemSections: Record<string, string|null>,
  *   roleOf: (sec: object, p: object) => { space: string|null, takeover: boolean, inDossier: boolean, prefer: string[] } }}

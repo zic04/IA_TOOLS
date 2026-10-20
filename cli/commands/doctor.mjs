@@ -18,7 +18,7 @@ import { findProject, KIT_ROOT, kitVersion, CONFIG_FILE } from "../../engine/pro
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
 import { checkContrasts } from "../../engine/theme/contrast.mjs";
-import { normalizeToc } from "../../engine/project/legacy.mjs";
+import { readToc, TOC_FILE } from "../../engine/project/toc.mjs";
 import { languageCounts } from "../../engine/build/languages.mjs";
 import { staleFacts } from "../../engine/facts/freshness.mjs";
 import { describeProblem } from "../common.mjs";
@@ -262,26 +262,16 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     return !r.startsWith("..") && !path.isAbsolute(r);
   };
 
-  // Table of contents (current or legacy name).
-  const content = path.join(root, config.paths.content);
-  const toc = ["toc.json", "sommaire.json"].map((f) => path.join(content, f)).find((f) => fs.existsSync(f));
-  if (toc) add("toc", "ok", "project", "cli.doctor.toc.ok", { file: rel(toc) });
-  else
-    add("toc", "fail", "project", "cli.doctor.toc.fail", {
-      file: `${config.paths.content}/toc.json`,
-      command: BRAND.command,
-    });
+  // Table of contents.
+  const toc = readToc(root, config.paths.content);
+  if (toc.found) add("toc", "ok", "project", "cli.doctor.toc.ok", { file: rel(path.join(root, toc.file)) });
+  else add("toc", "fail", "project", "cli.doctor.toc.fail", { file: toc.file, command: BRAND.command });
 
   // Languages (ARCHITECTURE.md §6.12): one line per declared language but the source.
-  if (config.languages && toc) {
-    let parsedToc;
-    try {
-      parsedToc = normalizeToc(JSON.parse(fs.readFileSync(toc, "utf8"))).value;
-    } catch {
-      parsedToc = null;
-    }
+  if (config.languages && toc.found) {
+    const parsedToc = toc.toc;
     for (const lang of config.languages.slice(1)) {
-      if (!fs.existsSync(path.join(root, config.paths.translations, lang, "toc.json"))) {
+      if (!fs.existsSync(path.join(root, config.paths.translations, lang, TOC_FILE))) {
         add(`languages.${lang}`, "fail", "project", "cli.doctor.languagesToc", { lang });
         continue;
       }

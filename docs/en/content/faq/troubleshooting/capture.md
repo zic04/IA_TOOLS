@@ -84,7 +84,8 @@
 ### "capture plans captures/plans: 2 errors"
 
 - **Likely causes**
-  1. An entry has an unknown key (a typo, a legacy key), a value of the wrong type, or no `id` or `route`.
+  1. An entry has an unknown key (a typo, a French key of a plan written before 0.4.0), a value of the wrong
+     type, or no `id` or `route`.
 - **Check**: the lines below it, one per mistake: `file › id (CAPTURES[index]) › path: what is wrong`.
 - **Fix**: correct each entry listed: one invalid entry stops the command. A negative margin, a 150 px viewport or
   `steps: 0` are valid.

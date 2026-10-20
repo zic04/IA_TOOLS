@@ -26,8 +26,7 @@ import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
 import { loadSpaceProfiles } from "../core/space-profiles.mjs";
 import { engineReadersFor } from "./build-context.mjs";
-
-export const HOME_FILES = ["home.md", "accueil.md"];
+import { HOME_FILE } from "../project/toc.mjs";
 
 /** Displayed date: --date YYYY-MM-DD (reproducible, independent of the time zone) or now. */
 export function siteDate(date, i18n) {
@@ -255,15 +254,12 @@ function boardOf(r) {
 /** Whether the readers of a space read without the code (its kind's `noCode`, standard/spaces.json). */
 const readWithoutCode = (spaces, id) => !!loadSpaceProfiles().get(spaces.find((s) => s.id === id)?.kind)?.noCode;
 
-/** The home page (`home.md`, or the legacy `accueil.md`): { html, fallback }. */
+/** The home page (`<content>/home.md`): { html, fallback }. */
 function renderHome(r) {
   const { b } = r;
-  const content = b.paths.content;
-  const homeFile = HOME_FILES.map((f) => `${content}/${f}`).find(b.existsFs);
-  if (r.isSource && homeFile && homeFile.endsWith(HOME_FILES[1])) b.legacyFiles.push(homeFile);
-  if (!homeFile) return { html: "", fallback: null };
-  const homeRel = HOME_FILES.find((f) => b.existsFs(`${content}/${f}`)) || HOME_FILES[0];
-  const { text, fallback } = resolveDoc(r, homeRel, b.readFs(homeFile), false);
+  const homeFile = `${b.paths.content}/${HOME_FILE}`;
+  if (!b.existsFs(homeFile)) return { html: "", fallback: null };
+  const { text, fallback } = resolveDoc(r, HOME_FILE, b.readFs(homeFile), false);
   const out = r.engine.render(text, "accueil");
   r.used.home = out.used;
   return { html: out.html, fallback };
@@ -273,7 +269,7 @@ function renderHome(r) {
  * Checks once every page has rendered. Internal links: target page and anchor exist; journey steps exist.
  * Counterparts: checked once, on the source (the declared anchor is always a source slug, §6.12); mapped by
  * position for the other languages by the caller (the counterpart's target may come later in the table of
- * contents). Then the business references, the empty spaces and the legacy files read.
+ * contents). Then the business references and the empty spaces.
  */
 function checkLanguage(r, { langToc, features }) {
   const { b, site, isSource } = r;
@@ -319,8 +315,6 @@ function checkLanguage(r, { langToc, features }) {
     for (const s of site.spaces.filter((x) => !x.pages))
       b.warnings.push({ kind: "space", key: "space.empty", vars: { space: s.id } });
   }
-  if (isSource && b.legacyFiles.length)
-    b.warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: b.legacyFiles.join(", ") } });
 }
 
 /** The data object embedded in the site (#site-data), with the key names of toc.json (see build.mjs). */

@@ -21,5 +21,4 @@ et le contrôle.
 | Documenter votre propre application | [Les gabarits de page](#/write/page-templates), puis [Les plans de capture](#/capture/plans) |
 | Retrouver une clé, une commande ou une option | [La configuration](#/reference/configuration), [La ligne de commande](#/reference/cli) |
 | Savoir si un site est prêt à être transmis | [L'audit et les niveaux de maturité](#/publish/audit) |
-| Reprendre un site construit avant doc-kit | [Migrer un projet ancien](#/migrate/legacy-project) |
 | Corriger une erreur | [Diagnostic par symptôme](#/faq/troubleshooting) |

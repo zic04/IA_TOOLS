@@ -93,8 +93,6 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   - `capture.cookies` / `capture.storage`: language and theme set before each capture
     (for example `[{ name: "NEXT_LOCALE", value: "en" }]`);
   - `capture.forbidden`: route regular expressions never opened (filled after reading the detail pages' code).
-- A project created before the kit keeps its French folders through `paths` (`contenu/`, `schemas/`); `doc-kit migrate`
-  rewrites its JSON files in the current format.
 - `doc-kit doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
   starts until it has no ✖ (exit code 3 environment, 2 configuration, 1 project).
 - **Then, before any agent**: `doc-kit facts [--network] [--tools]` (ARCHITECTURE.md §6.9) reads the application's

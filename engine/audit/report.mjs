@@ -285,7 +285,7 @@ export function renderMarkdown(result, i18n) {
   if (result.indicators?.typed?.measured && result.indicators.typed.n === 0 && result.pages)
     out.push(
       `> [!NOTE] ${t("cli.audit.untypedTitle")}`,
-      `> ${t("cli.audit.untypedNote", { file: result.tocFile, field: result.legacyToc ? "gabarit" : "template" })}`,
+      `> ${t("cli.audit.untypedNote", { file: result.tocFile })}`,
       "",
     );
   let current = 0;

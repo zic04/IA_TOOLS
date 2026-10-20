@@ -19,5 +19,4 @@ signs in with your session, captures the screens **read-only**, measures the zon
 | Document your own application | [Page templates](#/write/page-templates), then [Capture plans](#/capture/plans) |
 | Look up a key, a command or an option | [Configuration](#/reference/configuration), [Command line](#/reference/cli) |
 | Know whether a site is ready to hand over | [Audit and maturity levels](#/publish/audit) |
-| Take over a site built before doc-kit | [Migrate a legacy project](#/migrate/legacy-project) |
 | Fix an error | [Troubleshooting by symptom](#/faq/troubleshooting) |

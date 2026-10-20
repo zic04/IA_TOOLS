@@ -120,11 +120,10 @@ doc-kit new take-over/deployment/variables --template variables --prefill
 
 Without `--parent`, the page is added at the end of the group whose pages share the longest id prefix, or of the
 last group of the section named by the first segment of the id. The table of contents is edited **as text**: its
-indentation and line endings are kept, and a legacy French-keyed file receives keys in its own style. The entry's
-summary is a placeholder, which `doc-kit audit` reports until you write it. An existing file is never overwritten
-(exit code 1). `--prefill` needs `facts/<source>.json` to exist (`doc-kit facts` first, exit code 1 otherwise) and
-a type that has one (exit code 2 otherwise); it fills the key cells and their proof, row by row, and leaves the
-rest as guidance — see [Cost and speed](#/skill/cost-and-speed~starting-from-the-facts-new-prefill).
+indentation and line endings are kept. The entry's summary is a placeholder, which `doc-kit audit` reports until
+you write it. An existing file is never overwritten (exit code 1). `--prefill` needs `facts/<source>.json` to exist
+(`doc-kit facts` first, exit code 1 otherwise) and a type that has one (exit code 2 otherwise); it fills the key
+cells and their proof, row by row, and leaves the rest as guidance — see [Cost and speed](#/skill/cost-and-speed~starting-from-the-facts-new-prefill).
 
 ## Untyped pages
 

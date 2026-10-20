@@ -150,7 +150,7 @@ export function statusColour(c) {
 /**
  * Factory of the Markdown engine of one build.
  * @param {object} p
- * @param {Record<string, object>} p.captures       screenshot metadata (normalised zone files), by id
+ * @param {Record<string, object>} p.captures       screenshot metadata (zone files), by id
  * @param {(file: string) => boolean} p.exists      does a project file exist
  * @param {(file: string) => string} p.read         reads a project text file
  * @param {(strict: boolean, s: {kind: string, key: string, vars: object}) => void} p.report

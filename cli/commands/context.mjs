@@ -22,8 +22,7 @@ import { checkLanguageOption, translatedToc, translatedGlossary } from "../../en
 import { readSources, translationState } from "../../engine/core/translations.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { hashText } from "../../engine/core/hash.mjs";
-import { normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
-import { readToc, stripBom } from "../../engine/project/toc.mjs";
+import { readToc, stripBom, TOC_FILE, GLOSSARY_FILE } from "../../engine/project/toc.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
@@ -35,22 +34,18 @@ export const options = {
   translate: { type: "string" },
 };
 
-/** Reads content/toc.json (or the legacy sommaire.json), normalised; null when missing or invalid. */
+/** Reads content/toc.json; null when missing or invalid. */
 function readProjectToc(root, config) {
   const { toc } = readToc(root, config.paths.content);
   return toc && !validate(toc, readSchema("toc")).errors.length ? toc : null;
 }
 
-/** Reads content/glossary.json (or the legacy glossaire.json); [] when missing or invalid. */
+/** Reads content/glossary.json; [] when missing or invalid. */
 function readGlossary(root, config) {
-  const { content } = config.paths;
-  const rel = [CURRENT_FILES.glossary, LEGACY_FILES.glossary]
-    .map((f) => `${content}/${f}`)
-    .find((f) => fs.existsSync(path.join(root, f)));
-  if (!rel) return [];
+  const file = path.join(root, config.paths.content, GLOSSARY_FILE);
+  if (!fs.existsSync(file)) return [];
   try {
-    const raw = JSON.parse(stripBom(fs.readFileSync(path.join(root, rel), "utf8")));
-    const glossary = normalizeGlossary(raw).value;
+    const glossary = JSON.parse(stripBom(fs.readFileSync(file, "utf8")));
     return validate(glossary, readSchema("glossary")).errors.length ? [] : glossary;
   } catch {
     return [];
@@ -123,7 +118,7 @@ export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
   const root = project.root;
   const toc = readProjectToc(root, config);
-  if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${CURRENT_FILES.toc}` });
+  if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${TOC_FILE}` });
   for (const id of positionals)
     if (!findPageEntry(toc, id)) throw new KitError(EXIT.USAGE, "context.unknownPage", { page: id });
 
@@ -218,10 +213,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
   const rawTranslatedToc = readProjectToc(root, translationsConfig);
   const tocL = rawTranslatedToc ? translatedToc({ source: toc, translated: rawTranslatedToc }).toc : null;
   const glossary = readGlossary(root, config);
-  const glossaryLExists = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].some((f) =>
-    fs.existsSync(path.join(root, translations, lang, f)),
-  );
-  const glossaryL = glossaryLExists
+  const glossaryL = fs.existsSync(path.join(root, translations, lang, GLOSSARY_FILE))
     ? translatedGlossary({ source: glossary, translated: readGlossary(root, translationsConfig) }).glossary
     : null;
   const recorded = readSources(root, translations, lang);

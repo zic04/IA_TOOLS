@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "doc-kit/schemas/toc.schema.json",
   "title": "content/toc.json",
-  "description": "Site outline (ARCHITECTURE.md §6.1; spaces, space and counterpart: §6.1a; feature: §6.8). Legacy French-keyed files (contenu/sommaire.json) are normalised by engine/project/legacy.mjs before validation. `product` is deprecated: the name comes from doc.config.mjs.",
+  "description": "Site outline (ARCHITECTURE.md §6.1; spaces, space and counterpart: §6.1a; feature: §6.8). `product` is deprecated: the name comes from doc.config.mjs.",
   "type": "object",
   "additionalProperties": false,
   "required": ["title", "sections"],

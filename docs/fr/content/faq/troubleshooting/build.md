@@ -39,6 +39,17 @@
 - **Corriger** : `doc-kit upgrade`, puis `doc-kit upgrade --apply` ; ou utilisez le kit qu'attend le projet.
 - **Comprendre** : [Passer à un kit plus récent](#/migrate/upgrade).
 
+### « sommaire introuvable : content/toc.json »
+
+- **Causes probables**
+  1. Le projet n'a pas été créé par `doc-kit init`, ou `paths.content` nomme un autre dossier.
+  2. Le projet a été écrit avant la 0.4.0 dans l'ancien format à clés françaises (`sommaire.json`, `glossaire.json`,
+     `accueil.md`) : ces fichiers ne sont plus lus, et `doc-kit migrate` a été retiré.
+- **Vérifier** : `doc-kit doctor`, ligne « sommaire » ; les fichiers du dossier de contenu.
+- **Corriger** : faites pointer `paths.content` vers le bon dossier ; pour un projet de l'ancien format, repartez de
+  `doc-kit init` et écrivez `toc.json`, `glossary.json` et `home.md` avec leurs clés anglaises.
+- **Comprendre** : [Sommaire, sous-pages et parcours](#/write/table-of-contents).
+
 ## Rédiger
 
 ### « [utiliser/commandes] lien cassé : #/utiliser/commande » ou « ancre introuvable »

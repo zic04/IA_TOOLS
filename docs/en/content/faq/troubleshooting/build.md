@@ -36,6 +36,17 @@
 - **Fix**: `doc-kit upgrade`, then `doc-kit upgrade --apply`; or use the kit the project expects.
 - **Understand**: [Upgrade to a newer kit](#/migrate/upgrade).
 
+### "table of contents not found: content/toc.json"
+
+- **Likely causes**
+  1. The project was not created by `doc-kit init`, or `paths.content` names another folder.
+  2. The project was written before 0.4.0 in the French-keyed format (`sommaire.json`, `glossaire.json`,
+     `accueil.md`): those files are no longer read, and `doc-kit migrate` was removed.
+- **Check**: `doc-kit doctor`, line "table of contents"; the files of the content folder.
+- **Fix**: point `paths.content` at the right folder; for a project of the former format, start again from
+  `doc-kit init` and write `toc.json`, `glossary.json` and `home.md` with their English keys.
+- **Understand**: [Table of contents, sub-pages and journeys](#/write/table-of-contents).
+
 ## Writing
 
 ### "[use/orders] broken link: #/use/order" or "anchor not found"

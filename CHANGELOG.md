@@ -48,7 +48,7 @@ entries between a project's `kit` range and the installed version.
   `summary`, `ref`); a feature sheet gives `since`, `ref`, `epic`; a story's ticket reference (`ADO#1234`, `AB#1234`,
   `PROJ-123`, `owner/repo#42`, `group/sub/project#7`) is a link with `backlog.refs`; `::stories{}` (fr `::recits{}`)
   lists every user story; one measure of a feature's depth. New checks `epic.duplicate`, `epic.unknown`,
-  `story.outside`, `backlog.ref`, `backlog.field`. A legacy `sommaire.json` group's `resume` is read as its `summary`.
+  `story.outside`, `backlog.ref`, `backlog.field`.
 - **Where the application runs** (ARCHITECTURE.md §6.9, §6.11): `::c4{view="deployment"}` (fr `vue="deploiement"`)
   draws the deployment view from `facts/infra.json` — one column per environment with its entry points, workloads,
   jobs and cloud resources, the pipelines that deploy to each, and a row per element with its settings and its
@@ -166,6 +166,16 @@ entries between a project's `kit` range and the installed version.
 - **Agents for the kit's own development** (`.claude/agents/`): `kit-reviewer` (read-only review against RULES.md,
   security first), `kit-test-author` (tests that follow the repository's patterns), `kit-skill-editor` (one change
   to the skill's texts, everywhere they live). See CLAUDE.md.
+
+### Removed
+
+- **The legacy French-keyed formats and `doc-kit migrate`** (ARCHITECTURE.md §6.7): projects start again from
+  `doc-kit init`. The kit no longer reads `sommaire.json`, `glossaire.json` or `accueil.md` (only `toc.json`,
+  `glossary.json` and `home.md`: a `sommaire.json` alone is `toc.missing`), nor renames the French keys of the
+  table of contents, the glossary, the zone files and the capture plans (`titre`, `groupes`, `fichier`, `libelle`,
+  `clic`…): each one is now an unknown key reported by the schema (ignored in a zone file, whose required keys are
+  then missing). The `legacy.read` warning, `engine/project/legacy.mjs` and `doc-kit migrate` (now an unknown
+  command, exit code 2) are gone; folder names stay free through `paths`, and the Markdown keeps its French spelling.
 
 ### Fixed
 

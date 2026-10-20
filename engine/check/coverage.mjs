@@ -11,6 +11,7 @@ import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
 import { globRegex } from "../core/glob.mjs";
+import { TOC_FILE, stripBom } from "../project/toc.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
@@ -76,9 +77,6 @@ export function routeMatches(route) {
   return [...forms];
 }
 
-/** Table of contents files (current and legacy names), at the root of the content folder. */
-const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
-
 /**
  * The table of contents without the pages not written yet (`isUnwritten(file)`, file relative to the content):
  * neither their entry (id, title, `routes`) nor their id in the journeys and suggestions. `planned` receives the
@@ -87,14 +85,14 @@ const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
 function tocText(text, isUnwritten, planned) {
   let toc;
   try {
-    toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+    toc = JSON.parse(stripBom(text));
   } catch {
     return text; // reported by the build
   }
   const ids = new Set();
-  const unwrittenEntry = (p) => p && typeof p === "object" && isUnwritten(String(p.file || p.fichier || `${p.id}.md`));
+  const unwrittenEntry = (p) => p && typeof p === "object" && isUnwritten(String(p.file || `${p.id}.md`));
   for (const s of Array.isArray(toc?.sections) ? toc.sections : [])
-    for (const g of [...(s?.groups || []), ...(s?.groupes || [])])
+    for (const g of s?.groups || [])
       if (Array.isArray(g?.pages))
         g.pages = g.pages.filter((p) => {
           if (!unwrittenEntry(p)) return true;
@@ -103,11 +101,8 @@ function tocText(text, isUnwritten, planned) {
           return false;
         });
   const keep = (list) => (Array.isArray(list) ? list.filter((id) => !ids.has(id)) : list);
-  for (const j of [
-    ...(Array.isArray(toc?.journeys) ? toc.journeys : []),
-    ...(Array.isArray(toc?.parcours) ? toc.parcours : []),
-  ])
-    if (j && typeof j === "object") for (const k of ["steps", "etapes"]) if (k in j) j[k] = keep(j[k]);
+  for (const j of Array.isArray(toc?.journeys) ? toc.journeys : [])
+    if (j && typeof j === "object" && "steps" in j) j.steps = keep(j.steps);
   if (toc && typeof toc === "object") toc.suggestions = keep(toc.suggestions);
   return JSON.stringify(toc);
 }
@@ -131,7 +126,7 @@ function documentationTexts(root, content) {
   const text = normalize(
     files
       .filter((f) => !drafts.has(f))
-      .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
+      .map((f) => (f === TOC_FILE ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
       .join("\n"),
   );
   return { text, planned };

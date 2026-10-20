@@ -22,7 +22,7 @@ options, in the language of the messages: `doc-kit init --help` shows `--lang` a
 |---|---|
 | [Commands: start and capture](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commands: write and check](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
-| [Commands: deliver and maintain](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes`, `pack` |
+| [Commands: deliver and maintain](#/reference/cli/deliver) | `export`, `upgrade`, `skill install`, `translate`, `changes`, `pack` |
 
 ## Global options
 
@@ -87,7 +87,6 @@ exit code 2.
 | `doc-kit hooks install` | Git hooks: facts and sync after each pull and branch switch |
 | `doc-kit export <target>` | Writes a self-contained copy of the project |
 | `doc-kit upgrade` | Shows the changes since the project's kit version, applies the migrations |
-| `doc-kit migrate` | Rewrites legacy French-keyed files in the current format |
 | `doc-kit skill install` | Installs the Claude Code skill |
 | `doc-kit translate status \| --mark <page…> \| --mark --all \| --fix-anchors [page…]` | The state of the translations, or marks or fixes them |
 

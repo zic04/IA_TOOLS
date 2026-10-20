@@ -122,10 +122,6 @@ de page du plan : une étape inconnue est une erreur du build (« parcours « �
 > Les plans plus anciens ont un champ `product`. Le nom du produit vient désormais de `doc.config.mjs` ; le build
 > avertit quand les deux diffèrent, et la configuration l'emporte.
 
-> [!NOTE] Les anciennes clés françaises
-> Un plan écrit avant le kit (`contenu/sommaire.json`, avec `titre`, `groupes`, `niveau`…) est lu tel quel ;
-> `doc-kit migrate` le réécrit ([Migrer un projet ancien](#/migrate/legacy-project)).
-
 ## Pour aller plus loin
 
 - [Les gabarits de page](#/write/page-templates) : le champ `template` et `doc-kit new`.

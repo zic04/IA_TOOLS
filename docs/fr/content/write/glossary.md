@@ -47,10 +47,6 @@ personne les ajoute.
 > « glossaire : motif invalide pour « Périmètre » (…) » : le motif est une expression régulière ; échappez `(`, `)`,
 > `.` et `?` quand vous voulez ces caractères tels quels.
 
-> [!NOTE] Les anciens fichiers
-> Un ancien `glossaire.json` (`terme`, `motif`, `def`) est lu tel quel ; `doc-kit migrate` le réécrit en
-> `glossary.json`.
-
 ## Pour aller plus loin
 
 - [Sommaire, sous-pages et parcours](#/write/table-of-contents) : l'autre fichier central du contenu.

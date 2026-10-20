@@ -22,7 +22,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 |---|---|
 | [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
-| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes`, `pack` |
+| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `skill install`, `translate`, `changes`, `pack` |
 
 ## Les options globales
 
@@ -88,7 +88,6 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit hooks install` | Hooks git : faits et sync après chaque pull et changement de branche |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |
-| `doc-kit migrate` | Réécrit au format courant les fichiers anciens à clés françaises |
 | `doc-kit skill install` | Installe le skill Claude Code |
 | `doc-kit translate status \| --mark <page…> \| --mark --all \| --fix-anchors [page…]` | L'état des traductions, ou leur marquage, ou la réécriture de leurs ancres |
 

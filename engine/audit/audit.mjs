@@ -10,7 +10,7 @@
 // dossier lives (takeover.mjs); the result also holds the level of each space (`spaces`).
 import fs from "node:fs";
 import path from "node:path";
-import { build, HOME_FILES } from "../build/build.mjs";
+import { build } from "../build/build.mjs";
 import { readProjectVersion } from "../project/version.mjs";
 import {
   loadPageTemplates,
@@ -20,13 +20,12 @@ import {
   headingsOf,
   countGuidance,
 } from "../core/page-templates.mjs";
-import { normalizeZones } from "../project/legacy.mjs";
 import { languageCounts } from "../build/languages.mjs";
 import { createI18n, LANGUAGES } from "../i18n.mjs";
 import { generatorTag } from "../brand.mjs";
 import { measureCoverage, measureSecrets } from "./optional.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
-import { readToc } from "../project/toc.mjs";
+import { readToc, HOME_FILE } from "../project/toc.mjs";
 import { factsSummary } from "../facts/freshness.mjs";
 import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
 import { ratio, count, notMeasured, criteriaOf, levelOf } from "./criteria.mjs";
@@ -95,7 +94,6 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     language,
     version,
     tocFile: tocInfo.file,
-    legacyToc: !!tocInfo.legacy,
   };
   // Facts and claims (§6.9) are informative: computed whichever the level, never part of a criterion.
   const facts = factsSummary(root, config.paths.facts, measure.commit ?? null);
@@ -151,7 +149,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const emptySections = toc.sections
     .filter((s) => !pages.some((p) => p.section === s.id && p.hasFile))
     .map((s) => s.id);
-  const homeFile = HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
+  const homeFile = fs.existsSync(path.join(root, content, HOME_FILE)) ? `${content}/${HOME_FILE}` : undefined;
   const project1 = { emptySections, homeFile, linkLegend: m.linkLegend };
   const criteria = criteriaOf(indicators, project1);
   const level = levelOf(criteria);
@@ -516,7 +514,7 @@ function readCaptures(root, images) {
     .filter((x) => x.endsWith(".json"))
     .sort()) {
     try {
-      const z = normalizeZones(JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"))).value;
+      const z = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
       out.push({ id: f.slice(0, -5), version: typeof z?.version === "string" ? z.version : null });
     } catch {
       // An invalid zone file is reported by the build (blocking).
@@ -530,13 +528,10 @@ function readCaptures(root, images) {
  * (`<section>/index.md`). The declared pages that hold guidance are drafts, counted by `written`.
  */
 function leftoverGuidance(root, content, toc) {
-  const files = [
-    HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f))),
-    ...toc.sections.map((s) => `${content}/${s.id}/index.md`),
-  ];
+  const files = [`${content}/${HOME_FILE}`, ...toc.sections.map((s) => `${content}/${s.id}/index.md`)];
   const out = [];
   for (const file of files) {
-    if (!file || !fs.existsSync(path.join(root, file))) continue;
+    if (!fs.existsSync(path.join(root, file))) continue;
     const n = countGuidance(fs.readFileSync(path.join(root, file), "utf8"));
     if (n) out.push({ id: file, key: "guidanceLeft", vars: { n } });
   }

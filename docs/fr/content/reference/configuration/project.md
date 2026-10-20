@@ -25,8 +25,9 @@ Voir [Documenter en plusieurs langues](#/spaces/languages) pour `languages` et `
 | `paths.translations` | dossier · `"translations"` | Porte `translations/<langue>/`, le miroir par langue de `paths.content` (ARCHITECTURE.md §6.12) ; ne doit pas être à l'intérieur de `paths.content` | `"i18n-content"` |
 | `paths.sync` | dossier · `"."` (la racine du projet) | Où vit `sync.json`, la référence de `doc-kit sync` (ARCHITECTURE.md §6.10) | `"."` |
 
-Les noms de dossier ne peuvent pas contenir `< > : " | ? *`. Les projets anciens gardent leurs propres noms grâce à
-`paths` ([Migrer un projet ancien](#/migrate/legacy-project)).
+Les noms de dossier ne peuvent pas contenir `< > : " | ? *`. Un projet peut nommer ses dossiers dans sa langue grâce
+à `paths` (`{ content: "contenu", diagrams: "schemas" }`) ; les fichiers qu'ils contiennent gardent leur nom
+(`toc.json`, `glossary.json`, `home.md`) et leurs clés anglaises.
 
 ## La version documentée
 

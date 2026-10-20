@@ -1,6 +1,7 @@
 // Spaces (ARCHITECTURE.md §6.1a): declaration and its errors, site data emitted only when declared, one export per
 // space (other spaces physically removed, links replaced, journeys, images and statistics recounted, output paths),
-// counterparts, CLI (build, --space, --json, open, export, dev), audit by space, legacy aliases, site variants.
+// counterparts, CLI (build, --space, --json, open, export, dev), audit by space, the former French keys refused,
+// site variants.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,7 +11,6 @@ import { spaceOutput, SPACE_TEXT_KEYS, checkSpaceOption } from "../../engine/bui
 import { loadSpaceProfiles } from "../../engine/core/space-profiles.mjs";
 import { checkLinks } from "../../engine/check/links.mjs";
 import { prepareConfig, loadProject } from "../../engine/project/load.mjs";
-import { normalizeToc } from "../../engine/project/legacy.mjs";
 import { runAudit } from "../../engine/audit/audit.mjs";
 import { renderMarkdown } from "../../engine/audit/report.mjs";
 import { startDevServer } from "../../engine/dev/server.mjs";
@@ -784,52 +784,22 @@ describe("audit", () => {
   });
 });
 
-describe("legacy", () => {
-  test("espaces, espace, pendant → spaces, space, counterpart", () => {
-    const { value, legacy } = normalizeToc({
-      titre: "Docs",
-      espaces: ["use", { id: "develop", subtitle: "x" }],
-      sections: [
-        {
-          id: "use",
-          titre: "Use",
-          espace: "use",
-          groupes: [{ pages: [{ id: "use/a", titre: "A", espace: "develop", pendant: "use/b~x" }] }],
-        },
-      ],
-      parcours: [{ titre: "J", etapes: ["use/a"], espace: "develop" }],
-    });
-    assert.equal(legacy, true);
-    assert.deepEqual(value.spaces, ["use", { id: "develop", subtitle: "x" }]);
-    assert.equal(value.sections[0].space, "use");
-    assert.deepEqual(value.sections[0].groups[0].pages[0], {
-      id: "use/a",
-      title: "A",
-      space: "develop",
-      counterpart: "use/b~x",
-    });
-    assert.deepEqual(value.journeys[0], { title: "J", steps: ["use/a"], space: "develop" });
-  });
-
-  test("a legacy table of contents with spaces builds like the current one", async () => {
+describe("the former French keys (ARCHITECTURE.md §6.7)", () => {
+  test("espaces, espace, pendant are not renamed: unknown keys of the table of contents, the build stops", async () => {
     const dir = spacesCopy();
     try {
       const file = path.join(dir, "content", "toc.json");
-      const legacy = fs
+      const french = fs
         .readFileSync(file, "utf8")
         .replace('"spaces":', '"espaces":')
         .replace(/"space":/g, '"espace":')
         .replace(/"counterpart":/g, '"pendant":');
-      fs.writeFileSync(file, legacy);
+      fs.writeFileSync(file, french);
       const r = await buildSpaces({ root: dir });
-      assert.deepEqual(r.errors, []);
-      assert.ok(r.warnings.some((w) => w.key === "legacy.read"));
-      const current = await buildSpaces();
-      assert.deepEqual(
-        r.sites.map((s) => s.data.meta.stats),
-        current.sites.map((s) => s.data.meta.stats),
-      );
-      assert.deepEqual(dataOf(r.html).spaces, dataOf(current.html).spaces);
+      assert.ok(r.errors.length > 0);
+      assert.ok(r.errors.every((e) => e.kind === "validate" && e.file === "content/toc.json"));
+      assert.deepEqual([...new Set(r.errors.map((e) => e.vars.key))].sort(), ["espace", "espaces", "pendant"]);
+      assert.ok(!r.warnings.some((w) => w.key === "legacy.read"));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

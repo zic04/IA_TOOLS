@@ -1,6 +1,6 @@
 // new (cli/commands/new.mjs): page created from its template, entry added to the table of contents without
-// reformatting it (indentation, inline arrays, line endings, legacy French keys), placement (after the parent and
-// its sub-pages, end of the group with the longest id prefix), refusals and exit codes.
+// reformatting it (indentation, inline arrays, line endings), placement (after the parent and its sub-pages, end of
+// the group with the longest id prefix), refusals and exit codes; the former French-keyed files are not read.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,7 +12,8 @@ import { build } from "../../engine/build/build.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir } from "../tools/helpers.mjs";
 
-const LEGACY = path.join(KIT_ROOT, "test", "fixtures", "audit-legacy");
+/** A French project whose folders are named in French through `paths` (contenu/, schemas/). */
+const FRENCH = path.join(KIT_ROOT, "test", "fixtures", "audit-untyped");
 const SUMMARY = "To write.";
 
 async function withDir(make, fn) {
@@ -23,18 +24,16 @@ async function withDir(make, fn) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
-const legacyCopy = () => {
+const frenchCopy = () => {
   const dir = tempDir("doc-kit-new-");
-  fs.cpSync(LEGACY, dir, { recursive: true });
+  fs.cpSync(FRENCH, dir, { recursive: true });
   return dir;
 };
 const config = async (dir) => (await loadProject({ project: dir, env: {} })).config;
 const read = (dir, f) => fs.readFileSync(path.join(dir, f), "utf8");
 /** Ids of the pages of a toc, with their level, in order. */
 const outline = (toc) =>
-  toc.sections.flatMap((s) =>
-    (s.groups || s.groupes).flatMap((g) => g.pages.map((p) => `${p.id}:${p.level ?? p.niveau ?? 1}`)),
-  );
+  toc.sections.flatMap((s) => s.groups.flatMap((g) => g.pages.map((p) => `${p.id}:${p.level ?? 1}`)));
 /** Every line of `before` is still in `after`, in the same order (nothing was reformatted). */
 function assertOnlyAdded(before, after) {
   const b = before.split("\n");
@@ -92,7 +91,7 @@ describe("locating and editing JSON as text", () => {
       '{\n  "id": "a",\n  "title": "A",\n  "template": "screen"\n}',
     );
     const inline = '{ "id": "a" }';
-    assert.equal(addProperty(inline, locateJson(inline), "gabarit", "screen"), '{ "id": "a", "gabarit": "screen" }');
+    assert.equal(addProperty(inline, locateJson(inline), "template", "screen"), '{ "id": "a", "template": "screen" }');
   });
 
   test("page ids", () => {
@@ -266,9 +265,9 @@ describe("creating a page", () => {
       fails({ id: "use/x", template: "screen", parent: "maintain/architecture" }, "new.parentSection");
     }));
 
-  test("a legacy table of contents (contenu/sommaire.json): French keys, French template", () =>
-    withDir(legacyCopy, async (dir) => {
-      const before = read(dir, "contenu/sommaire.json");
+  test("a French project (contenu/toc.json): the French template, the entry in the keys of toc.json", () =>
+    withDir(frenchCopy, async (dir) => {
+      const before = read(dir, "contenu/toc.json");
       const r = createPage({
         root: dir,
         config: await config(dir),
@@ -277,16 +276,16 @@ describe("creating a page", () => {
         title: "Maintenir la doc",
         summary: "À écrire.",
       });
-      assert.equal(r.toc, "contenu/sommaire.json");
+      assert.equal(r.toc, "contenu/toc.json");
       assert.deepEqual(r.entry, {
         id: "reprendre/maintenir-doc",
-        titre: "Maintenir la doc",
-        titre_menu: "Maintenir la doc",
-        resume: "À écrire.",
-        gabarit: "technical",
+        title: "Maintenir la doc",
+        menuTitle: "Maintenir la doc",
+        summary: "À écrire.",
+        template: "technical",
       });
       assert.match(read(dir, "contenu/reprendre/maintenir-doc.md"), /<!-- consigne :/);
-      assertOnlyAdded(before, read(dir, "contenu/sommaire.json"));
+      assertOnlyAdded(before, read(dir, "contenu/toc.json"));
       const sub = createPage({
         root: dir,
         config: await config(dir),
@@ -295,7 +294,26 @@ describe("creating a page", () => {
         parent: "reprendre/dat",
         summary: "À écrire.",
       });
-      assert.equal(sub.entry.niveau, 2);
+      assert.equal(sub.entry.level, 2);
+    }));
+
+  test("the former French-keyed files are not read (ARCHITECTURE.md §6.7)", () =>
+    withDir(frenchCopy, async (dir) => {
+      const cfg = await config(dir);
+      const create = () =>
+        createPage({ root: dir, config: cfg, id: "utiliser/export", template: "screen", summary: SUMMARY });
+      const toc = path.join(dir, "contenu/toc.json");
+      const text = fs.readFileSync(toc, "utf8");
+      // A sommaire.json alone: no table of contents.
+      fs.renameSync(toc, path.join(dir, "contenu/sommaire.json"));
+      assert.throws(create, (e) => e.code === 1 && e.key === "new.noToc" && e.vars.file === "contenu/toc.json");
+      // A toc.json with French keys: an invalid table of contents, nothing written.
+      fs.rmSync(path.join(dir, "contenu/sommaire.json"));
+      const french = text.replace(/"title":/g, '"titre":').replace(/"groups":/g, '"groupes":');
+      fs.writeFileSync(toc, french);
+      assert.throws(create, (e) => e.code === 1 && e.key === "new.invalidToc" && e.vars.error === "schema");
+      assert.equal(fs.readFileSync(toc, "utf8"), french);
+      assert.ok(!fs.existsSync(path.join(dir, "contenu/utiliser/export.md")));
     }));
 });
 
@@ -312,7 +330,7 @@ describe("CLI", () => {
   }
 
   test("messages in the project's language, next steps; --json; exit codes", () =>
-    withDir(legacyCopy, async (dir) => {
+    withDir(frenchCopy, async (dir) => {
       const r = await cli([
         "new",
         "reprendre/parcours-commande/archivage",
@@ -327,12 +345,12 @@ describe("CLI", () => {
       assert.equal(
         r.out,
         "✔ contenu/reprendre/parcours-commande/archivage.md créée à partir du gabarit « journey-step »\n" +
-          "✔ contenu/sommaire.json : « reprendre/parcours-commande/archivage » ajoutée après « reprendre/parcours-commande/facture », en sous-page\n" +
-          "→ rédigez la page (contenu/reprendre/parcours-commande/archivage.md) et son résumé dans contenu/sommaire.json, puis regardez-la : doc-kit dev\n",
+          "✔ contenu/toc.json : « reprendre/parcours-commande/archivage » ajoutée après « reprendre/parcours-commande/facture », en sous-page\n" +
+          "→ rédigez la page (contenu/reprendre/parcours-commande/archivage.md) et son résumé dans contenu/toc.json, puis regardez-la : doc-kit dev\n",
       );
-      const toc = JSON.parse(read(dir, "contenu/sommaire.json"));
-      const added = toc.sections[1].groupes[1].pages.find((p) => p.id === "reprendre/parcours-commande/archivage");
-      assert.equal(added.resume, "À écrire : une phrase qui dit ce que le lecteur trouve sur cette page.");
+      const toc = JSON.parse(read(dir, "contenu/toc.json"));
+      const added = toc.sections[1].groups[1].pages.find((p) => p.id === "reprendre/parcours-commande/archivage");
+      assert.equal(added.summary, "À écrire : une phrase qui dit ce que le lecteur trouve sur cette page.");
       const again = await cli([
         "new",
         "reprendre/parcours-commande/archivage",

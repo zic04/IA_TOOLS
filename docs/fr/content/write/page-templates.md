@@ -125,11 +125,10 @@ doc-kit new reprendre/deploiement/variables --template variables --prefill
 
 Sans `--parent`, la page est ajoutée à la fin du groupe dont les pages partagent le plus long préfixe d'id, ou du
 dernier groupe de la section que nomme le premier segment de l'id. Le sommaire est modifié **comme du texte** : son
-indentation et ses fins de ligne sont conservées, et un ancien fichier à clés françaises reçoit des clés dans son
-propre style. Le résumé de l'entrée est un texte provisoire, que `doc-kit audit` signale tant que vous ne l'avez pas
-écrit. Un fichier existant n'est jamais écrasé (code de sortie 1). `--prefill` a besoin que `facts/<source>.json`
-existe déjà (`doc-kit facts` d'abord, sinon code de sortie 1) et d'un type qui en a un (sinon code de sortie 2) ;
-il remplit les cellules clés et leur preuve, ligne par ligne, et laisse le reste en consigne — voir
+indentation et ses fins de ligne sont conservées. Le résumé de l'entrée est un texte provisoire, que `doc-kit audit`
+signale tant que vous ne l'avez pas écrit. Un fichier existant n'est jamais écrasé (code de sortie 1). `--prefill` a
+besoin que `facts/<source>.json` existe déjà (`doc-kit facts` d'abord, sinon code de sortie 1) et d'un type qui en a
+un (sinon code de sortie 2) ; il remplit les cellules clés et leur preuve, ligne par ligne, et laisse le reste en consigne — voir
 [Coût et vitesse](#/skill/cost-and-speed~partir-des-faits-new-prefill).
 
 ## Les pages sans type

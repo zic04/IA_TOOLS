@@ -98,7 +98,7 @@ JavaScript de la page est affichée et donne le code de sortie 1. Dans Git Bash,
 
 > [!NOTE] Des builds reproductibles
 > Avec `--date`, le build est déterministe : les mêmes sources et le même kit donnent le même fichier. C'est sur quoi
-> repose le contrôle d'équivalence d'une migration ([Migrer un projet ancien](#/migrate/legacy-project)).
+> repose la comparaison de deux builds, avant et après [une mise à jour du kit](#/migrate/upgrade).
 
 ## Pour aller plus loin
 

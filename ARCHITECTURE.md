@@ -33,7 +33,7 @@ doc-kit/
 ├─ cli/common.mjs        shared helpers of the commands: context, messages, prompts
 ├─ engine/
 │  ├─ brand.mjs          product name, command name, site generator tag
-│  ├─ project/           find.mjs, load.mjs, validate.mjs, defaults.mjs, env.mjs, legacy.mjs (§6.7), semver.mjs, browser.mjs
+│  ├─ project/           find.mjs, load.mjs, validate.mjs, defaults.mjs, env.mjs, toc.mjs, semver.mjs, browser.mjs
 │  ├─ core/              shared by the folders below (no folder cycle, RULES.md M14): hash.mjs, text.mjs,
 │  │                     page-templates.mjs (required sections of §6.4), translations.mjs (translated files, §6.12),
 │  │                     behaviours.mjs (kinds of behaviour, cards and scenarios read, §6.8a), adapters.mjs and
@@ -265,7 +265,6 @@ export default defineConfig({
 | `inputs [status]` · `inputs add <kind> <value>` · `inputs fetch [<name>…]` · `inputs ingest [<file>…]` | `--name --role --branch --depth --env --read-only --kind --tool --title` (global `--json`) | the sources of the project (inputs.json): their state; declares one; clones or updates the shared repositories; converts the documents for the agents (§6.19) |
 | `view <page[~anchor]>` · `open [page]` | `--theme light\|dark --height --full --tour N --output --space <id>` | screenshot of a page of the built site (`--full`: the whole page in one image) · the site in the default browser; `--space <id>`: the export of that space instead of the full site (same usage errors as `build`) |
 | `optimize` | `--threshold` (200 KB) `--quality` (0.68) | re-encodes the heavy screenshots, kept when 20 % lighter |
-| `migrate` | | rewrites legacy French-keyed files into the current format (§6.7) |
 | `export <target>` | `--with-dist --zip` | self-contained copy, engine vendored in `vendor/doc-kit/`; `--with-dist` includes the exports per space too |
 | `backlog export <azure\|jira\|github\|gitlab\|json>` | `--output --all` (global `--lang <l>`, `--json`) | the backlog in a tool's import format (§6.8b), beside the built site (`<name>-backlog-<target>`); refused (1, nothing written) on an error of the backlog; a line with a secret replaced (1, written); an unknown target is a usage error (2). `--json`: `{ target, files: [{ file, items }], skipped, toLink, removed }` |
 | `upgrade` | `--apply` | kit changes since the project's range, migrations as a diff; written with `--apply` |
@@ -497,7 +496,7 @@ Each `captures/plans/*.mjs` file exports `CAPTURES`. The full syntax is document
 - **Grouping zones:** a zone is either a target or `{ union: [target, …] }`. A union covers the bounding box of all its targets, for example several fields on the same row. Zone options: `caption` (written as `label` in the zone file), `side`, `margin`.
 - **Masks:** every match of a `masks` target is masked, unless `nth` or `last` names one.
 - **Duplicates:** an id that appears in two files is an error.
-- **Validation:** entries are checked against `schemas/capture-plan.schema.json` after the legacy normalisation (§6.7). The schema accepts what the engine executes (`engine/capture/*.mjs`), no more: a negative `margin` / `marginY` tightens a zone or a frame; a negative `nth` counts from the last match; a `viewport` side is any whole number of pixels ≥ 1 (a 150 px strip); `wheel.steps` may be 0; `delay`, `settle` and a numeric `wait` are any number ≥ 0; `wheel.direction` stays `-1` or `1`.
+- **Validation:** entries are checked against `schemas/capture-plan.schema.json` as they are written (a French key of a former plan is an unknown key, §6.7). The schema accepts what the engine executes (`engine/capture/*.mjs`), no more: a negative `margin` / `marginY` tightens a zone or a frame; a negative `nth` counts from the last match; a `viewport` side is any whole number of pixels ≥ 1 (a 150 px strip); `wheel.steps` may be 0; `delay`, `settle` and a numeric `wait` are any number ≥ 0; `wheel.direction` stays `-1` or `1`.
 - **Plan errors:** every entry of every file is checked before anything runs. The errors are listed together under one `capture.planInvalid` (`{ folder, n }`), one line each: `<file> › <id> (CAPTURES[<index>]) › <path>: <what is wrong>` (each detail carries `file`, `entry`, `path`, `key`, `vars`). One invalid entry still stops the command (exit code 2); a duplicate id is reported once the entries are valid.
 - **Safety:** with a session, every request other than `GET`/`HEAD`/`OPTIONS` is aborted and counted (`capture.readOnly: "auto"`); with `capture.target: "production"`, always (§3). The only declared exception is `capture.sessionRefresh` (§6.3a), sent once before the run starts, outside any page. A route matching `capture.forbidden` is refused before the run (exit code 1). During the run, a server renders a page for any `GET` of its route, so every request to a forbidden path is aborted in the browser, whatever its kind (`requestGuard` in `engine/capture/capture.mjs`):
   - a **prefetch or sub-resource** (fetch, XHR, framework payload such as a React Server Components request, `<link rel=prefetch>`, an iframe…) is aborted silently and counted: the capture goes on, and the last lines say "N prefetch request(s) to forbidden routes aborted — list" (`prefetched` and `prefetchedRequests` in `--json`). Aborting it is exactly what prevents the server-side render;
@@ -635,35 +634,7 @@ Diagrams (`diagrams/*.svg`) use only the site's classes, so they follow the ligh
 
 ### 6.7 Legacy format (projects created before doc-kit)
 
-`engine/project/legacy.mjs` normalises the earlier French-keyed formats **when they are read**:
-
-| Legacy | Current |
-|---|---|
-| `contenu/sommaire.json` | `content/toc.json` |
-| `titre` | `title` |
-| `titre_menu` | `menuTitle` |
-| `resume` | `summary` |
-| `niveau` | `level` |
-| `groupes` | `groups` |
-| `droits` | `permissions` |
-| `parcours` + `etapes` | `journeys` + `steps` |
-| `accroche` | `tagline` |
-| `sous_titre` | `subtitle` |
-| `points` | `highlights` |
-| `icone` | `icon` |
-| `vedette` | `featured` |
-| `glossaire.json` (`terme`, `motif`, `def`) | `glossary.json` (`term`, `pattern`, `def`) |
-| `contenu/accueil.md` | `content/home.md` |
-| `espaces`, `espace`, `pendant` (toc) | `spaces`, `space`, `counterpart` |
-| page fields `fichier`, `gabarit` | `file`, `template` |
-| zone files (`fichier`, `titre`, `largeur`, `hauteur`, `l`, `libelle`, `cote`) | `file`, `title`, `width`, `height`, `w`, `label`, `side` (`coin` → `corner`, `droit` → `right`, `bas` → `bottom`, `droit-bas` → `bottom-right`) |
-| capture plans (`titre`, `contexte`, `vue`, `stockage`, `delai`, `stabiliser`, `cadre`, `masques`) | `title`, `context` (`bureau` → `desktop`), `view`, `storage`, `delay`, `settle`, `frame`, `masks` |
-| plan actions (`clic`, `survol`, `saisir`, `choisir`, `touche`, `defiler`, `attendre`, `molette` { `crans`, `sens` }, `valeur`) | the English actions of §6.3 (`wheel` { `steps`, `direction` }, `value`) |
-| plan targets, wherever they sit: zones, union members, frame, masks, actions (`nom`, `texte`, `champ`, `bloc`, `dans`, `parent`, `encadre`, `dernier`, `filtre`, `cote`, `marge`, `margeV`, `libelle`) | `name`, `text`, `field`, `block`, `within`, `up`, `framed`, `last`, `has`, `side`, `margin`, `marginY`, `caption` |
-
-- The legacy folder names (`contenu/`, `schemas/`) are declared through `paths`.
-- `doc-kit migrate` rewrites the JSON files in the current format (`sommaire.json` → `toc.json`, `glossaire.json` → `glossary.json`, zone files in place) and renames `accueil.md` to `home.md`. Capture plans are JavaScript modules: they are only normalised when read.
-- The Markdown keeps both spellings (§6.6): it is never rewritten.
+The French-keyed formats of the projects written before doc-kit (`contenu/sommaire.json`, `glossaire.json`, `accueil.md`, and French keys such as `titre`, `groupes`, `fichier`, `libelle`, `clic` in the table of contents, the glossary, the zone files and the capture plans) and the `doc-kit migrate` command that rewrote them were **removed in 0.4.0**: such a project starts again from `doc-kit init`. The kit reads only `toc.json`, `glossary.json` and `home.md` (§2.1), with the English keys of their schemas (`schemas/*.schema.json`): a file under a former name is not read, and a French key is treated like any other unknown key — an error of the schema, except in a zone file (a tolerant reader, §6.2) where it is ignored and the required key it replaced is reported missing. Folder names stay free (`paths`, §3), and the Markdown keeps both spellings (§6.6).
 
 ### 6.8 Business pages: features, rules, roles (the Product space)
 
@@ -899,7 +870,7 @@ When the application changes, `doc-kit sync` says exactly what the documentation
 - `proofs`: every `file:line` (or `file:line-line`) proof of a marked page: `hash` of the cited lines, `text` = the first 120 characters of the trimmed first cited line. A proof whose file does not exist in the application when the page is marked is not recorded and is reported once (`sync.proofUnresolved`, a warning: URLs with a port look like proofs).
 - `labels`: for the message files of `sync.labels` (config, globs relative to the project; default: the `messages` of the `i18n-registry` adapters; nested JSON is flattened to dotted keys), only the entries whose value (2 characters or more) is cited verbatim (case-sensitive) in the Markdown of a written page.
 - `inventory`: the item ids of every coverage adapter (by `<adapter>/<family>`; two configuration entries with the same adapter and family are merged) and of every facts source (`facts/<source>`: env names, `METHOD route`, tables, direct dependencies, agent files).
-- `captures`: the hash of each capture plan entry (normalised, after legacy normalisation, serialised with sorted keys, `RegExp` and functions as their source text, `file` left out), for the captures used by marked pages.
+- `captures`: the hash of each capture plan entry (serialised with sorted keys, `RegExp` and functions as their source text, `file` left out), for the captures used by marked pages.
 
 **Dependencies of a page** (`engine/sync/dependencies.mjs`; deduced, never typed). `pageDependencies({ root, config, toc, pageId, inventory, tools, factsDir, plans?, declared? })` is async (it loads the coverage adapters' own options itself, cached per process, since `runCoverage`'s result does not carry them) and also accepts `plans` (the capture plan entries already loaded once by the caller, `loadPlans().captures`) and `declared` (the page's `sync.json` `declared` list, read by the caller): neither is produced by `pageDependencies` itself, so callers (`markPages`, `compareWithReference`, `buildContext`) load them once and pass them in.
 - its proofs (`PROOF_REF` of `engine/sync/proofs.mjs`, the same file family as `PROOF`), resolved in `app.dir`: the path as written when it exists, else the one application file whose path ends with it (writers cite `tokens.py:81` once the full path was given; two candidates are never guessed between); a code span that starts with `[[` (a badge shown to explain its syntax) is not a proof, and the file is the last word before `:line`. A verified claim badge that names its source (`[[verified lib/orders.ts:42]]`, `[[verifie …]]`, §6.9) outside a code span is a proof too: followed by `sync` (moved, broken, rewritten by `--apply`) and counted by `audit` (`PROOF`); a badge without a `file:line` stays a claim;
@@ -1162,7 +1133,7 @@ is a normal browser without the read-only guard. The `codegen` context seam repl
   Every line carries `at`, `version` (the documented version), `run`, `command`, `phase` (`create` without
   `sync.json`, `update` with it, `translate`) and `actor` (`kit`). Agents (`actor: "agent"`, with `model` and
   `tokens: { in, out, cacheRead, cacheWrite }`) and people (`actor: "human"`) use the same format.
-- **Not recorded:** `dev`, `open`, `view`, `doctor`, `init`, `skill`, `stats`, `export`, `upgrade` and `migrate`.
+- **Not recorded:** `dev`, `open`, `view`, `doctor`, `init`, `skill`, `stats`, `export` and `upgrade`.
 - **Read:** `stats [--by step|version|command|model|phase|page|actor] [--since <v>] [--csv] [--json]`. For
   `--by step`, each step is followed by its parts, with their share of the step. The overall total counts only the
   commands' own spans, so nothing is counted twice.

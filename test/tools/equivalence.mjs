@@ -6,8 +6,9 @@
 //      node test/tools/equivalence.mjs prepare --source <project dir> --name <n> --config <doc.config.mjs>
 //           --work <work dir> [--date 2026-10-01] [--overlay <dir copied over the kit copies>]
 //    → <work>/<n>-old/       copy built by its own pre-kit engine (generer.mjs), clock frozen (fixed-date.mjs)
-//    → <work>/<n>-kit/       copy without that engine + doc.config.mjs, built by the kit (legacy files as is)
-//    → <work>/<n>-migrated/  same, after `migrate`, built by the kit
+//    → <work>/<n>-kit/       copy without that engine + doc.config.mjs (+ overlay), built by the kit; the kit only
+//                            reads the current format (toc.json, glossary.json, home.md, English keys: ARCHITECTURE.md
+//                            §6.7), so the overlay holds the project's files already rewritten in that format
 //    → <work>/<n>-step4.html the kit copy built with the old engine's site assets (template, app.js, style.css
 //                            converted to the kit's markers): byte comparison of the build pipeline itself
 //
@@ -138,7 +139,6 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
   fs.mkdirSync(work, { recursive: true });
   const old = path.join(work, `${name}-old`);
   const kit = path.join(work, `${name}-kit`);
-  const migrated = path.join(work, `${name}-migrated`);
   const conf = (await import(pathToFileURL(path.resolve(config)).href)).default;
   const env = cleanEnv([conf.env?.prefix || name.toUpperCase().replace(/-/g, "_")]);
   const log = (label, r) => process.stdout.write(`[${label}] ${r.stdout || ""}${r.stderr || ""}`);
@@ -155,22 +155,14 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
   log("old", r1);
   if (r1.status !== 0) throw new Error(`old engine build failed (${r1.status})`);
 
-  // Candidates: copies without the old engine, an equivalent doc.config.mjs (+ overlay), built by the kit.
-  for (const dir of [kit, migrated]) {
-    copy(source, dir);
-    for (const f of OLD_ENGINE_FILES) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
-    fs.copyFileSync(path.resolve(config), path.join(dir, "doc.config.mjs"));
-    if (overlay) fs.cpSync(path.resolve(overlay), dir, { recursive: true });
-  }
+  // Candidate: a copy without the old engine, an equivalent doc.config.mjs (+ overlay), built by the kit.
+  copy(source, kit);
+  for (const f of OLD_ENGINE_FILES) fs.rmSync(path.join(kit, f), { recursive: true, force: true });
+  fs.copyFileSync(path.resolve(config), path.join(kit, "doc.config.mjs"));
+  if (overlay) fs.cpSync(path.resolve(overlay), kit, { recursive: true });
   const r2 = runKit(["build", "--project", kit, "--date", date], env);
   log("kit", r2);
   if (r2.status !== 0) throw new Error(`kit build failed (${r2.status})`);
-  const r3 = runKit(["migrate", "--project", migrated], env);
-  log("migrate", r3);
-  if (r3.status !== 0) throw new Error(`migrate failed (${r3.status})`);
-  const r4 = runKit(["build", "--project", migrated, "--date", date], env);
-  log("migrated", r4);
-  if (r4.status !== 0) throw new Error(`build after migrate failed (${r4.status})`);
 
   // Step 4: the build pipeline of the kit with the old engine's site assets.
   const legacySite = path.join(work, `${name}-site-old`);
@@ -187,7 +179,6 @@ export async function prepare({ source, name, config, work, date = "2026-10-01",
   return {
     reference: path.join(old, output),
     kit: path.join(kit, output),
-    migrated: path.join(migrated, output),
     step4: step4File,
   };
 }

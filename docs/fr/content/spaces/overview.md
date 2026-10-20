@@ -139,9 +139,9 @@ inconnue, ou une page qui se cite elle-même, fait échouer le build.
 > `check images` continue de s'exécuter sur le site complet, qui porte chaque page. Rien de plus à lancer par
 > export.
 
-> [!NOTE] Projets anciens
+> [!NOTE] Projets sans espaces
 > Un projet écrit avant que les espaces existent se lit tel qu'il est : `spaces`, `space` et `counterpart` sont
-> facultatifs partout. Les anciennes clés françaises `espaces`, `espace` et `pendant` se lisent de la même façon.
+> facultatifs partout.
 
 ## Pour aller plus loin
 

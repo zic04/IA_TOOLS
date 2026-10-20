@@ -149,7 +149,7 @@
             { "id": "reference/cli", "title": "La ligne de commande", "menuTitle": "Ligne de commande", "summary": "Options globales, codes de sortie, forme des messages, et la liste des commandes.", "template": "technical" },
             { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, probe, demo, capture et inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commandes : rédiger et vérifier", "menuTitle": "Rédiger et vérifier", "level": 2, "summary": "dev, new, build, view, open, check, audit et optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, pack, upgrade, migrate, skill install et translate.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, pack, upgrade, skill install et translate.", "template": "technical-sub" }
           ]
         },
         {
@@ -199,16 +199,15 @@
     },
     {
       "id": "migrate",
-      "title": "Migrer et mettre à jour",
-      "shortTitle": "Migrer",
+      "title": "Mettre à jour",
+      "shortTitle": "Mettre à jour",
       "icon": "arrow",
-      "subtitle": "Amener un ancien projet à clés françaises au format courant, et un projet vers un kit plus récent.",
-      "highlights": ["Les anciennes clés lues telles quelles", "doc-kit migrate réécrit les fichiers JSON", "Contrôle d'équivalence avant et après"],
+      "subtitle": "Amener un projet vers un kit plus récent : ce qui a changé depuis sa version, et les migrations qu'il demande.",
+      "highlights": ["Le journal des modifications depuis votre version", "Une simulation avant toute écriture", "doc-kit upgrade --apply"],
       "groups": [
         {
-          "title": "Migrer",
+          "title": "Mettre à jour",
           "pages": [
-            { "id": "migrate/legacy-project", "title": "Migrer un projet ancien", "menuTitle": "Projet ancien", "summary": "paths, anciennes clés, doc-kit migrate et le contrôle d'équivalence des deux builds.", "template": "recipe" },
             { "id": "migrate/upgrade", "title": "Passer à un kit plus récent", "menuTitle": "Mettre à jour le kit", "summary": "doc-kit upgrade : le journal des modifications depuis votre version, les migrations, une simulation puis --apply.", "template": "recipe" }
           ]
         }
@@ -313,8 +312,8 @@
     },
     {
       "title": "Reprendre un site existant",
-      "description": "Migrer un projet ancien, mettre à jour le kit, mesurer, et transmettre.",
-      "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+      "description": "Mettre à jour le kit, mesurer, et transmettre.",
+      "steps": ["migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
     },
     {
       "title": "Quatre publics, une seule source",

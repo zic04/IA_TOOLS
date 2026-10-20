@@ -328,6 +328,6 @@ Quand la documentation doit s'écrire sans aucun accès à l'application, décla
 
 `capture` et `connect` expliquent alors le mode et s'arrêtent (code de sortie 2), `doctor` et le mode guidé ne demandent plus de session, `doc-kit new` écrit « L'écran » sous forme de tableau `| Élément | Ce qu'il montre |`, et `doc-kit audit` compte `annotated` comme `n/a` ([maturity.fr.md](maturity.fr.md)).
 
-## Les projets plus anciens
+## Les noms de dossiers et les projets plus anciens
 
-Un projet écrit avant doc-kit, avec des noms de dossiers en français, continue de fonctionner : déclarez ses dossiers dans `paths`, par exemple `paths: { content: "contenu", diagrams: "schemas" }`. Ses fichiers JSON à clés françaises sont lus tels quels ; `doc-kit migrate` les réécrit au format actuel.
+Un projet peut nommer ses dossiers dans sa langue : déclarez-les dans `paths`, par exemple `paths: { content: "contenu", diagrams: "schemas" }`. Les fichiers qu'ils contiennent gardent leur nom et leurs clés anglaises (`toc.json`, `glossary.json`, `home.md`, fichiers de zones, plans de capture). Les fichiers à clés françaises des projets écrits avant la 0.4.0 (`sommaire.json`, `glossaire.json`, `accueil.md`, `titre`, `groupes`…) ne sont plus lus, et `doc-kit migrate` a été retiré : un tel projet repart de `doc-kit init`.

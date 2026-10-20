@@ -14,7 +14,7 @@ export default defineConfig({
   language: "{{language}}", // "en" | "fr" : langue du site et des messages de la CLI
 {{languagesLine}}  // output: "dist/{{slug}}-documentation.html", // par défaut : dist/<nom du produit>-Documentation.html
 
-  // Dossiers du projet. Un projet ancien déclare les siens ici, par exemple { content: "contenu", diagrams: "schemas" }.
+  // Dossiers du projet, qui peuvent porter des noms français, par exemple { content: "contenu", diagrams: "schemas" }.
   paths: { content: "content", images: "images", diagrams: "diagrams" },
 
   // Version affichée dans le bandeau du site, lue dans le code de l'application. La valeur de repli sert quand le

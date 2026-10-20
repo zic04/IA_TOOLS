@@ -7,7 +7,6 @@
 // Each problem is { key, vars }: key under `cli.` (e.g. "check.images.orphan", "build.capture.notFound").
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeZones } from "../project/legacy.mjs";
 
 const IMAGE_EXTENSIONS = /\.(webp|png|jpe?g)$/i;
 
@@ -33,7 +32,7 @@ export function embeddedLanguageCaptures(html, lang) {
   return new Set([...String(html).matchAll(re)].map((m) => unescape(m[1])));
 }
 
-/** Zone files of one folder (`<images>/[<lang>/]zones/*.json`), normalised like the build does. */
+/** Zone files of one folder (`<images>/[<lang>/]zones/*.json`), parsed. */
 function readZones(root, zonesDir) {
   const zones = {};
   for (const f of fs.existsSync(path.join(root, zonesDir))
@@ -43,7 +42,7 @@ function readZones(root, zonesDir) {
         .sort()
     : []) {
     try {
-      zones[f.slice(0, -5)] = normalizeZones(JSON.parse(fs.readFileSync(path.join(root, zonesDir, f), "utf8"))).value;
+      zones[f.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(root, zonesDir, f), "utf8"));
     } catch {
       /* reported by the build */
     }
