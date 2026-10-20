@@ -10,7 +10,8 @@ import { validate } from "../project/validate.mjs";
 
 /**
  * @typedef {{ id: string, icon: string, noCode: boolean, proofs: boolean, glossaryTechnical: boolean,
- *   takeoverItems: string[], preferTypes: string[], board?: boolean }} SpaceProfile   board: its home shows the Product board
+ *   takeoverItems: string[], preferTypes: string[], board?: boolean, depth?: boolean }} SpaceProfile   board: its home
+ *   shows the Product board; depth: the audit measures the depth of its feature sheets (engine/audit/depth.mjs)
  */
 
 const cache = new Map();

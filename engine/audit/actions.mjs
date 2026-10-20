@@ -1,7 +1,8 @@
 // The actions of `audit` (standard/maturity.md): for each criterion not met above the level reached, what to do,
 // on which pages, ordered by level, then by effort. Pure: the audit (audit.mjs) passes what it measured.
 import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
-import { THRESHOLDS } from "./thresholds.mjs";
+import { THRESHOLDS, need } from "./thresholds.mjs";
+import { DEPTH_ACTIONS } from "./depth.mjs";
 
 /** Effort of each kind of action (1 = minutes, 5 = real writing): orders the actions inside a level. */
 const EFFORT = {
@@ -29,9 +30,10 @@ const EFFORT = {
   coverage: 5,
   proofs: 5,
   takeover: 5,
+  behaviourDepth: 3,
+  featureStories: 4,
+  scenarios: 4,
 };
-
-const need = (threshold, total, n) => Math.max(0, Math.ceil(threshold * total - 1e-9) - n);
 
 /** The one action of a project whose build fails: fix the build first (level 0). */
 export function draftBuildAction(errors) {
@@ -296,7 +298,8 @@ const ACTIONS = {
 };
 
 /** Actions that satisfy a failed criterion (none for a criterion without actions). */
-const actionsFor = (c, x) => ACTIONS[c.id]?.(c, x) ?? [];
+const ALL_ACTIONS = { ...ACTIONS, ...DEPTH_ACTIONS };
+const actionsFor = (c, x) => ALL_ACTIONS[c.id]?.(c, x) ?? [];
 
 /** Counts of a list of pages not written yet: { n, missing (no file), drafts (template guidance left) }. */
 function unwrittenVars(list) {

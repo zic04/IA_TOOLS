@@ -67,14 +67,23 @@ espace** : voir « Le niveau par espace » plus bas. Sans espaces, rien ne chang
 | 6 | Points d'attention | Une page `findings`, et au moins un constat numéroté (`C1`, `I1`, `M1`, `P1`, `N1` ou `R1`…) dans cette page ou dans ses sous-pages | Développer |
 | 7 | Maintenir la doc | Une page dont l'id se termine par `/maintaining-docs` ou `/maintenir-doc` | Développer |
 
+Trois indicateurs mesurent la profondeur des fiches de fonctionnalité (voir « La profondeur des fiches de
+fonctionnalité ») :
+
+| Indicateur | Formule |
+|---|---|
+| `featureSheets` | Fiches de fonctionnalité écrites (une page avec `feature` dans `toc.json`) qui ont au moins un récit utilisateur (`:::recit`) ÷ fiches de fonctionnalité écrites |
+| `scenarios` | Récits utilisateur des fiches écrites qui ont des critères d'acceptation — un `:::scenario` qui les nomme (`recit="US-01"`) ÷ ces récits |
+| `behaviourDepth` | Rubriques des cartes de comportement des fiches écrites qui ont une réponse — une valeur, ou un `sans objet — pourquoi` explicite — ÷ leurs rubriques (`inconnu — question`, ou une rubrique omise, n'est pas une réponse) ; `n/a` sans carte |
+
 ## Les critères de chaque niveau
 
 | Niveau | Critères |
 |---|---|
 | **1 Squelette** | `doc.config.mjs` est valide · `doc-kit build --draft` réussit · chaque section a au moins 1 page avec son fichier (un brouillon compte : c'est le squelette) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors pages de la reprise · `annotated` ≥ 80 % (ou `n/a`) · `coverage` ≥ 80 % (ou `n/a`) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `written` = 100 % · `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) · `upToDatePages` ≥ 90 % (ou `n/a`) |
+| **3 Complet** | `written` = 100 % · `blocking` = 0 (build strict, liens, couverture à 100 %, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (ou `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 · `featureSheets` = 100 % (ou `n/a`) |
+| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou `n/a`) · `upToDatePages` ≥ 90 % (ou `n/a`) · `scenarios` ≥ 80 % (ou `n/a`) · `behaviourDepth` ≥ 90 % (ou `n/a`) |
 
 Les seuils viennent des sites les plus aboutis construits avec cette méthode : on peut les atteindre sans exploit, et un site qui en manque un a une lacune qu'un lecteur remarquera.
 
@@ -111,6 +120,7 @@ l'espace Développer (seuil 7).
 | `written2` (pages écrites hors pages de la reprise) | Développer | Ses pages sont les pages de la reprise |
 | `proofs4` (preuves sur les pages de la reprise) | Utiliser, Produit, Administrer | Seul le type Développer attend des preuves `fichier:ligne` |
 | `takeover4` (les pages obligatoires de la reprise) | Utiliser, Produit | Leurs types ne portent aucune page obligatoire de la reprise |
+| `featureSheets3`, `scenarios4`, `behaviourDepth4` (la profondeur des fiches de fonctionnalité) | Utiliser, Administrer, Développer | Seul le type Produit la mesure (`depth`) |
 
 Rien d'autre n'est ignoré — un espace Utiliser dont les écrans n'ont aucune capture échoue quand même sur
 `annotated`, et `conformant`, `completeness`… sont mesurés sur les propres pages de chaque espace.
@@ -119,6 +129,26 @@ Le **niveau global reste ce qu'il a toujours été** : toutes les pages, sans di
 peut être au niveau 2 globalement alors que son espace Produit seul est déjà au niveau 3 — utile pour savoir
 quel public est réellement servi en premier. Sans espaces déclarés, cette section ne produit rien : le
 rapport est exactement ce qu'il était avant les espaces.
+
+## La profondeur des fiches de fonctionnalité
+
+`featureSheets`, `scenarios` et `behaviourDepth` lisent le backlog que le build strict tire des fiches de
+fonctionnalité (ARCHITECTURE.md §6.8b) — la mesure de la jauge du tableau Produit. Comme tout indicateur de page, ils
+ne comptent que les fiches écrites : une fiche pas encore écrite relève de `written`.
+
+- **n/a** sans fiche de fonctionnalité écrite, et quand des espaces sont déclarés sans qu'aucun soit d'un type qui
+  mesure la profondeur (`standard/spaces.json` `depth` : le type Produit). Sans espaces, une documentation qui a
+  des fiches de fonctionnalité est mesurée.
+- **Par espace**, ils sont mesurés dans un espace de type Produit, sur ses propres fiches, et `n/a` dans les autres.
+  Le niveau du projet compte toutes les fiches écrites, quel que soit leur espace : une fiche placée dans un espace
+  Utiliser y est `n/a`, jamais exclue du projet.
+- Les actions nomment les fiches sans récit, les récits sans critères d'acceptation (et sur quelle page), et les
+  fiches dont les cartes ont encore des rubriques sans réponse.
+- Le rapport montre **Profondeur des fiches de fonctionnalité** : le backlog en une ligne (epics, fonctionnalités,
+  récits utilisateur et combien ont des critères d'acceptation, versions), puis chaque fonctionnalité — sa fiche et
+  son état, sa profondeur de 0 à 100 %, et les cinq critères de cette profondeur (la fiche écrite et conforme, au
+  moins un récit, les critères des récits, au moins une règle, les rubriques renseignées). Informatif : seuls les
+  trois indicateurs ci-dessus sont des critères ; `audit.json` le porte en `depth: { backlog, features }`.
 
 ## Faits et affirmations (informatif)
 

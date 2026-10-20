@@ -20,6 +20,9 @@ export const INDICATORS = [
   "tours",
   "blocking",
   "wideTables",
+  "featureSheets",
+  "scenarios",
+  "behaviourDepth",
 ];
 /** Indicators whose thresholds are ratios (shown as percentages). */
 const RATIOS = new Set([
@@ -33,6 +36,9 @@ const RATIOS = new Set([
   "tooLong",
   "upToDateCaptures",
   "upToDatePages",
+  "featureSheets",
+  "scenarios",
+  "behaviourDepth",
 ]);
 /** Items listed per action in the Markdown report (all of them are in audit.json). */
 const MAX_ITEMS = 50;
@@ -257,6 +263,8 @@ export function renderMarkdown(result, i18n) {
     out.push("");
   }
 
+  if (result.depth) out.push(...depthSection(f, result.depth));
+
   // Facts and claims (ARCHITECTURE.md §6.9): informative, no criterion uses them yet.
   if (result.facts?.files || result.claims?.verified || result.claims?.deduced || result.claims?.unknown) {
     out.push(`## ${t("cli.audit.facts.title")}`, "");
@@ -315,6 +323,46 @@ export function renderMarkdown(result, i18n) {
   }
   out.push(`---`, "", t("cli.audit.footer"), "");
   return out.join("\n");
+}
+
+/** The criteria of a feature's depth (engine/build/backlog.mjs, featureDepth), in the order of the report. */
+const DEPTH_CRITERIA = ["sheet", "stories", "criteria", "rules", "rubrics"];
+
+/**
+ * The depth of the feature sheets (engine/audit/depth.mjs): the backlog in one line, then each feature — its sheet,
+ * its score, and its criteria (a share, or n/a).
+ */
+function depthSection(f, depth) {
+  const { t } = f;
+  const b = depth.backlog;
+  const share = (v) => (v === null || v === undefined ? t("cli.audit.na") : f.percent(v));
+  const head = ["feature", "sheet", "score", ...DEPTH_CRITERIA.map((k) => `criterion.${k}`)].map((k) =>
+    t(`cli.audit.depth.col.${k}`),
+  );
+  return [
+    `## ${t("cli.audit.depth.title")}`,
+    "",
+    t("cli.audit.depth.backlog", {
+      epics: f.count("cli.audit.depth.epics", b.epics),
+      features: f.count("cli.audit.depth.features", b.features),
+      stories: f.count("cli.audit.depth.stories", b.stories),
+      withCriteria: f.nf.format(b.withCriteria),
+      versions: b.versions.length ? b.versions.join(", ") : t("cli.audit.na"),
+    }),
+    "",
+    `| ${head.join(" | ")} |`,
+    `|${head.map(() => "---").join("|")}|`,
+    ...depth.features.map((x) => {
+      const cells = [
+        `${x.id} · ${x.title}`,
+        `\`${x.page}\` (${t(`cli.audit.depth.state.${x.state}`)})`,
+        f.percent(x.score / 100),
+        ...DEPTH_CRITERIA.map((k) => share(x.criteria[k])),
+      ];
+      return `| ${cells.join(" | ")} |`;
+    }),
+    "",
+  ];
 }
 
 /** Compact summary for the terminal: level, indicators on two lines, the 5 first actions. */

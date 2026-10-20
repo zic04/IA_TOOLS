@@ -44,6 +44,9 @@ see "Level by space" below. Without spaces, nothing in this file changes.
 | `tours` | Number of home-page guided tours (`journeys` in `toc.json`) |
 | `blocking` | Strict build errors outside the pages not written yet + elements cited by no page, not even by the entry of a page not written yet (when `coverage` is measured) + secrets found by `doc-kit check secrets` (see [quality.md](quality.md)). The errors of the pages not written yet (`page.missing`, the errors of a draft) are shown next to it, counted by `written` |
 | `wideTables` | Tables that overflow at 1,440 px (every page is opened in the browser); not measured without a browser, or with `DOC_KIT_NO_BROWSER=1` |
+| `featureSheets` | Written feature sheets (a page with `feature` in `toc.json`) that hold at least one user story (`:::story`) ÷ written feature sheets (see "The depth of the feature sheets") |
+| `scenarios` | User stories of the written feature sheets that have acceptance criteria — a `:::scenario` naming them (`story="US-01"`) ÷ those user stories |
+| `behaviourDepth` | Rubrics of the behaviour cards of the written feature sheets that are answered — a value, or an explicit `n/a — why` — ÷ their rubrics (`unknown — question`, or a rubric left out, is not answered); `n/a` without a card |
 
 **The takeover pages** are the pages the takeover dossier is judged on: `proofs` is measured on them, `written`
 at level 2 (`written2`) leaves them out, and the claims (below) are counted in them.
@@ -73,8 +76,8 @@ at level 2 (`written2`) leaves them out, and the claims (below) are counted in t
 |---|---|
 | **1 Skeleton** | `doc.config.mjs` is valid · `doc-kit build --draft` succeeds · each section has at least 1 page with its file (a draft counts: this is the skeleton) · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 User** | `written` ≥ 90 % outside the takeover pages · `annotated` ≥ 80 % (or `n/a`) · `coverage` ≥ 80 % (or `n/a`) · no broken link and no legend that differs from its zones, even in draft mode |
-| **3 Complete** | `written` = 100 % · `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) · `upToDatePages` ≥ 90 % (or `n/a`) |
+| **3 Complete** | `written` = 100 % · `blocking` = 0 (strict build, links, 100 % coverage, secrets) · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % (or `n/a`) · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 · `featureSheets` = 100 % (or `n/a`) |
+| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or `n/a`) · `upToDatePages` ≥ 90 % (or `n/a`) · `scenarios` ≥ 80 % (or `n/a`) · `behaviourDepth` ≥ 90 % (or `n/a`) |
 
 The thresholds come from the most complete sites built with this method: they can be reached without heroics, and a site that misses one of them has a gap a reader will notice.
 
@@ -110,6 +113,7 @@ the Develop space (threshold 7).
 | `written2` (written pages outside the takeover pages) | Develop | Its pages are the takeover pages |
 | `proofs4` (proofs on the takeover pages) | Use, Product, Administer | Only the Develop kind expects `file:line` proofs |
 | `takeover4` (the required takeover pages) | Use, Product | Their kinds hold no required takeover page |
+| `featureSheets3`, `scenarios4`, `behaviourDepth4` (the depth of the feature sheets) | Use, Administer, Develop | Only the Product kind measures it (`depth`) |
 
 Nothing else is skipped — a Use space whose screens have no screenshot still fails `annotated`, and
 `conformant`, `completeness`… are measured on each space's own pages.
@@ -118,6 +122,26 @@ The **global level stays what it always was**: every page, regardless of space. 
 globally while its Product space alone is already level 3 — useful to know which audience is actually served
 first. Without spaces declared, this section produces nothing: the report is exactly as it was before spaces
 existed.
+
+## The depth of the feature sheets
+
+`featureSheets`, `scenarios` and `behaviourDepth` read the backlog that the strict build makes of the feature
+sheets (ARCHITECTURE.md §6.8b) — the measure of the Product board's gauge. Like every page indicator, they count the
+written sheets only: a sheet not written yet is `written`'s.
+
+- **n/a** without a written feature sheet, and when spaces are declared but none is of a kind that measures depth
+  (`standard/spaces.json` `depth`: the Product kind). Without spaces, a documentation with feature sheets is
+  measured.
+- **By space**, they are measured in a space of the Product kind, on its own sheets, and `n/a` in the others.
+  The project's level counts every written sheet, whatever its space: a sheet kept in a Use space is `n/a` in
+  that space, never left out of the project.
+- The actions name the sheets without a story, the stories without acceptance criteria (and on which page), and the
+  sheets whose cards still have rubrics without an answer.
+- The report shows **Depth of the feature sheets**: the backlog in one line (epics, features, user stories and how
+  many have acceptance criteria, versions), then each feature — its sheet and its state, its depth from 0 to 100 %,
+  and the five criteria of that depth (the sheet written and conformant, at least one story, the stories' criteria,
+  at least one rule, the rubrics answered). Informative: only the three indicators above are criteria;
+  `audit.json` carries it as `depth: { backlog, features }`.
 
 ## Facts and claims (informative)
 

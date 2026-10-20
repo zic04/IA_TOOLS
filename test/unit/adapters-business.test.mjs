@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../../engine/capture/session.mjs";
-import { adapterTools } from "../../engine/check/coverage.mjs";
+import { adapterTools, runCoverage } from "../../engine/check/coverage.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
 let root;
@@ -95,16 +95,40 @@ describe("openapi", () => {
 });
 
 describe("features", () => {
-  test("one item per entry of features.json, match: [id]", async () => {
+  test("one item per entry of features.json, match: [id], whole (F-01 is not cited by F-010)", async () => {
     const r = await inventory({ adapter: "features" });
     assert.equal(r.families[0].name, "Features");
     assert.deepEqual(
-      r.families[0].items.map((i) => ({ id: i.id, label: i.label, match: i.match })),
+      r.families[0].items.map((i) => ({ id: i.id, label: i.label, match: i.match, whole: i.whole })),
       [
-        { id: "F-01", label: "Order approval", match: ["F-01"] },
-        { id: "F-02", label: "Exports", match: ["F-02"] },
+        { id: "F-01", label: "Order approval", match: ["F-01"], whole: true },
+        { id: "F-02", label: "Exports", match: ["F-02"], whole: true },
       ],
     );
+  });
+
+  test("the coverage of a documentation: a page citing F-010 alone does not cover F-01", async () => {
+    const docs = tempDir("doc-kit-features-whole-");
+    try {
+      fs.writeFileSync(
+        path.join(docs, "features.json"),
+        JSON.stringify([{ id: "F-01" }, { id: "F-010" }, { id: "F-02" }]),
+      );
+      fs.mkdirSync(path.join(docs, "content"));
+      fs.writeFileSync(path.join(docs, "content", "a.md"), "# A\n\nThe sheet of F-010, and F-02.\n");
+      const config = { paths: { content: "content" }, coverage: [{ adapter: "features" }] };
+      const r = await runCoverage({ root: docs, config });
+      assert.deepEqual(
+        r.adapters[0].families[0].items.map((i) => [i.id, i.covered]),
+        [
+          ["F-01", false],
+          ["F-010", true],
+          ["F-02", true],
+        ],
+      );
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+    }
   });
 
   test('another file, default "features.json" otherwise', async () => {

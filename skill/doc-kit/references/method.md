@@ -287,8 +287,9 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 - `doc-kit check all`: coverage, links, tables (no overflow), images (orphans, heavy), secrets.
 - `doc-kit audit`: score and maturity level (1 Skeleton → 4 Takeover), with the "to do for the next level" list;
   with `spaces` declared, also a "Level by space" table, each space held to the criteria of its kind (`n/a`:
-  `written2` in Develop, `proofs4` outside Develop, `takeover4` in Use and Product; Administer's `takeover4`
-  counts only its two required pages, the technical architecture document and Operate).
+  `written2` in Develop, `proofs4` outside Develop, `takeover4` in Use and Product, the depth of the feature sheets —
+  `featureSheets3`, `scenarios4`, `behaviourDepth4` — outside Product; Administer's `takeover4` counts only its two
+  required pages, the technical architecture document and Operate).
 - Visual review: `doc-kit view <page> --theme light|dark`, `--tour 2` for the guided tour, diagrams in light and dark.
 - `doc-kit optimize` when the HTML is heavier than what is easy to share.
 - `node scripts/usage.mjs report`: totals the phase's cost by brief, agent type and model, against the waves'

@@ -19,7 +19,14 @@ export const THRESHOLDS = Object.freeze({
   tooLong4: 0.05,
   upToDate4: 0.9,
   upToDatePages4: 0.9,
+  // The depth of the feature sheets (engine/audit/depth.mjs).
+  featureSheets3: 1,
+  scenarios4: 0.8,
+  behaviourDepth4: 0.9,
 });
+
+/** How many more of `total` must meet a ratio criterion to reach `threshold`, when `n` meet it. */
+export const need = (threshold, total, n) => Math.max(0, Math.ceil(threshold * total - 1e-9) - n);
 
 /**
  * The 7 required Take over pages (standard/maturity.md). `suggest`: suggested id, after the section id; `parts`:

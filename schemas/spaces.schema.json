@@ -25,6 +25,7 @@
           "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
           "icon": { "type": "string", "minLength": 1, "description": "Default icon of the space, from the kit's set." },
           "board": { "type": "boolean", "description": "Its home shows the Product board (ARCHITECTURE.md §6.8b): the backlog of the feature sheets." },
+          "depth": { "type": "boolean", "description": "The audit measures the depth of its feature sheets (standard/maturity.md: featureSheets, scenarios, behaviourDepth); with spaces declared, n/a when none is of such a kind." },
           "noCode": {
             "type": "boolean",
             "description": "Its pages are read without the code: a business page that cites a file is reported (business.technical)."

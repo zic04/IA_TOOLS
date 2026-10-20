@@ -67,6 +67,9 @@ The summary line "Pages: … to write" says how far the plan is from the written
 | `glossary` · `tours` | Glossary terms · home-page journeys |
 | `blocking` | Strict build errors outside the pages not written yet + elements no page cites + secrets found |
 | `wideTables` | Tables that scroll at 1,440 px (every page is opened in Chromium) |
+| `featureSheets` | Written feature sheets that hold at least one user story (`:::story`) |
+| `scenarios` | Their user stories with acceptance criteria (a `:::scenario` naming them) |
+| `behaviourDepth` | The rubrics of their behaviour cards that are answered (a value, or `n/a — why`); `n/a` without a card |
 
 ## The levels and their criteria
 
@@ -74,8 +77,8 @@ The summary line "Pages: … to write" says how far the plan is from the written
 |---|---|
 | **1 Skeleton** | The configuration is valid · `doc-kit build --draft` succeeds · each section has a page with its file (a draft counts) · `home.md` exists · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 User** | `written` ≥ 90 % outside Take over · `annotated` ≥ 80 % (or n/a) · `coverage` ≥ 80 % (or not measured) · no broken link and no legend that differs from its zones, even in draft mode |
-| **3 Complete** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or n/a) · `upToDatePages` ≥ 90 % (or n/a) |
+| **3 Complete** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 · `featureSheets` = 100 % (or n/a) |
+| **4 Takeover** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (or n/a) · `upToDatePages` ≥ 90 % (or n/a) · `scenarios` ≥ 80 % (or n/a) · `behaviourDepth` ≥ 90 % (or n/a) |
 
 The **Take over** section is the one whose id is `take-over` (or `reprendre`); otherwise, the last section of the
 plan when there are at least two. Its 7 required pages are: an architecture overview (id ending with
@@ -116,11 +119,12 @@ here, for the same skeleton:
   Administer, 5 for Develop; the project's own `takeover4` still counts all 7.
 - A criterion that does not concern a space counts as met, shown `n/a`, as its kind says:
 
-| Kind | `written2` | `proofs4` | `takeover4` |
-|---|---|---|---|
-| `use`, `product` | measured | `n/a` | `n/a` |
-| `admin` | measured | `n/a` | measured (its 2 pages) |
-| `develop` | `n/a` | measured | measured (its 5 pages) |
+| Kind | `written2` | `proofs4` | `takeover4` | The depth (`featureSheets3`, `scenarios4`, `behaviourDepth4`) |
+|---|---|---|---|---|
+| `use` | measured | `n/a` | `n/a` | `n/a` |
+| `product` | measured | `n/a` | `n/a` | measured |
+| `admin` | measured | `n/a` | measured (its 2 pages) | `n/a` |
+| `develop` | `n/a` | measured | measured (its 5 pages) | `n/a` |
 
   This is why the skeleton's Develop space is already level 2 while the others are level 1: its pages are not
   expected to be written for level 2.
@@ -128,6 +132,16 @@ here, for the same skeleton:
   Use space alone already reaches level 3 — useful to know which audience is actually served first.
   `audit.json` carries `spaces: [{ id, title, pages, level, indicators, criteria }]`; without spaces declared,
   nothing changes in the report.
+
+## The depth of the feature sheets
+
+The three depth indicators read the backlog of the feature sheets (the measure of the
+[Product board](#/spaces/business~the-product-board)'s gauge), on the written sheets. They are `n/a` without a
+written feature sheet, and when the spaces declared include no Product space; without spaces, a documentation with
+feature sheets is measured. The actions name the sheets without a story, the stories without acceptance criteria,
+and the sheets whose cards still have rubrics without an answer. The report adds **Depth of the feature sheets**:
+the backlog in one line, then each feature with its sheet, its depth and its five criteria — informative, never a
+criterion.
 
 ## Facts and claims (informative)
 

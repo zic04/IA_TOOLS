@@ -17,6 +17,7 @@
       "id": "product",
       "icon": "map",
       "board": true,
+      "depth": true,
       "noCode": true,
       "proofs": false,
       "glossaryTechnical": false,

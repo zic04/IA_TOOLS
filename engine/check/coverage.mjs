@@ -137,10 +137,25 @@ function documentationTexts(root, content) {
   return { text, planned };
 }
 
-/** Does an item appear in the documentation text? */
+/** A letter or a digit, of any script: what continues an id (punctuation — “ ” … ’ — does not). One character. */
+const ID_CHAR = /^[\p{L}\p{N}]$/u;
+const isIdChar = (ch) => ch !== undefined && ID_CHAR.test(ch);
+
+/** Whether `needle` appears in `text` whole: no letter or digit right before or after it (F-01 is not in F-010). */
+function containsWhole(text, needle) {
+  for (let i = text.indexOf(needle); i !== -1; i = text.indexOf(needle, i + 1))
+    if (!isIdChar(text[i - 1]) && !isIdChar(text[i + needle.length])) return true;
+  return false;
+}
+
+/** Does an item appear in the documentation text? An item marked `whole` (an id: F-01) only as a whole. */
 export const isCovered = (item, text) =>
   (item.match || []).some(
-    (m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)),
+    (m) =>
+      m !== undefined &&
+      m !== null &&
+      String(m).trim() !== "" &&
+      (item.whole ? containsWhole(text, normalize(m)) : text.includes(normalize(m))),
   );
 
 /** Applies an `exclude` option (regular expressions, or exact ids) to a list of items. */
@@ -191,6 +206,7 @@ export async function runCoverage({ root, config }) {
         id: String(it.id),
         ...(it.label !== undefined ? { label: it.label } : {}),
         match: it.match || [String(it.id)],
+        ...(it.whole ? { whole: true } : {}),
         covered: false,
       }));
       for (const it of items) {

@@ -39,8 +39,8 @@ names it and gives its options next to it.
   `operationId`. The document is read as JSON only: a `.yaml` or `.yml` file answers "not available" (`yaml`),
   not failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
 - **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
-  `doc-kit inventory --features --write`, `schemas/features.schema.json`), covered when its id is cited — in practice
-  on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
+  `doc-kit inventory --features --write`, `schemas/features.schema.json`), covered when its id is cited whole (`F-01`
+  is not cited by `F-010`) — in practice on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
   `behaviours` (the kinds of card its sheet describes) are read by `doc-kit context` and `doc-kit sync`.
 - **`facts`**: reads `facts/<source>.json`, written by `doc-kit facts` (ARCHITECTURE.md §6.9); a missing file
   answers "not available" (`noFacts`), not failed. `dependencies` only ever counts the direct packages.
@@ -145,7 +145,7 @@ export default {
 |---|---|
 | `options` | Each option is a small schema: `type`, `default`, `enum`, `pattern`, `minLength`, `items`… and `required: true` |
 | `inventory()` | Receives `root` (the documentation project), the validated `options` and `tools`; returns `{ available: true, families }` or `{ available: false, reason, vars }` |
-| An item | `{ id, label?, match: [texts] }`: covered when one of its texts appears in the documentation, ignoring case and spaces |
+| An item | `{ id, label?, match: [texts], whole? }`: covered when one of its texts appears in the documentation, ignoring case and spaces; with `whole: true` (an id), only whole — no letter or digit right before or after it |
 | `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey`; every path is relative to the documentation project |
 | `reason` | `notFound`, `blockNotFound` and `error` are translated; any other text is shown as it is |
 

@@ -84,7 +84,11 @@ indicator that cannot be measured (no coverage adapter, no browser for the table
 failed. With `spaces` declared, `audit.md` also shows a table "Level by space" (the same criteria, measured on
 each space's own pages; `n/a` where the space's kind is not concerned: `written2` in Develop, `proofs4` outside
 it, `takeover4` in Use and Product, while Administer's counts its two required pages). `facts` (files, staleness) and `claims` (verified/deduced/unknown ratio) are informative indicators;
-`upToDatePages` (pages marked by `sync` at the current version) is a level-4 criterion, `n/a` without `sync.json`. A project
+`upToDatePages` (pages marked by `sync` at the current version) is a level-4 criterion, `n/a` without `sync.json`.
+The depth of the feature sheets is measured too, on the written sheets: `featureSheets` (each has a user story, level
+3), `scenarios` (the stories with acceptance criteria, level 4) and `behaviourDepth` (the rubrics of the behaviour
+cards answered, level 4) — `n/a` without a Product space when spaces are declared; `audit.md` lists each feature's
+depth. A project
 handover aims at level 4: journeys, troubleshooting, the takeover dossier and consolidated findings come from
 phases 6 to 8.
 

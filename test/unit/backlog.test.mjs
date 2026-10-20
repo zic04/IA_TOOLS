@@ -135,6 +135,8 @@ describe("backlogModel", () => {
         stories: ["US-01", "US-02"],
         criteria: 2,
         depth: Math.round(((1 + 1 + 0.5 + 1 + 1) / 5) * 100),
+        // The rubrics of its cards, counted for the audit (behaviourDepth): all four answered.
+        rubrics: { answered: 4, total: 4 },
       },
     );
     const f2 = m.features.find((f) => f.id === "F-02");

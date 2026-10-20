@@ -39,6 +39,7 @@ import { SCHEMA_PATTERNS, schemaBehaviours } from "../../engine/facts/behaviour-
 import { OPENAPI_FILE, OPENAPI_YAML, openapiBehaviours } from "../../engine/facts/openapi.mjs";
 import { sameRoute, apiHandlers } from "../../engine/sync/feature-files.mjs";
 import { plainLines } from "../../engine/core/text.mjs";
+import { isCovered } from "../../engine/check/coverage.mjs";
 import { markdownText, wikiText } from "../../engine/backlog/markup.mjs";
 import { csvFile } from "../../engine/backlog/csv.mjs";
 import {
@@ -453,6 +454,8 @@ export const CHECKS = [
   ["inputs isSafeRepoUrl", (s) => isSafeRepoUrl(`https://github.com/${s}`) || isSafeRepoUrl(`git@h:${s}`)],
   ["inputs nameOf", (s) => nameOf(s)],
   ["inputs hasCredentials", (s) => hasCredentials(`https://h/x?${s}`) || hasCredentials(s)],
+  // An id cited whole in the documentation (check coverage): every occurrence, its two neighbours.
+  ["coverage isCovered whole", (s) => isCovered({ match: ["f-01"], whole: true }, `${s} f-01${s}f-01`)],
   // The backlog export: a story's HTML as lines of text, then each tool's inert markup and its CSV cells.
   ["backlog plainLines", (s) => plainLines(`<p>${s}</p><ul><li>${s}</li></ul>${s}`)],
   ["backlog markdownText", (s) => markdownText(s, { quickActions: true })],

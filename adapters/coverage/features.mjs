@@ -1,5 +1,6 @@
 // Coverage adapter of a candidate-features registry (ARCHITECTURE.md §6.8): one item per feature of features.json,
-// covered when a written page cites its id — in practice its sheet, the `feature` field of a toc.json page.
+// covered when a written page cites its id, whole (F-01 is not cited by F-010) — in practice its sheet, the
+// `feature` field of a toc.json page.
 //   coverage: [{ adapter: "features", file: "features.json" }]
 export default {
   name: "features",
@@ -14,6 +15,7 @@ export default {
       id: String(f.id),
       ...(f.title ? { label: f.title } : {}),
       match: [String(f.id)],
+      whole: true,
     }));
     return { available: true, families: [{ name: options.family, items }] };
   },

@@ -42,8 +42,8 @@ configuration le nomme et donne ses options à côté.
   l'`operationId` de l'opération. Le document n'est lu qu'en JSON : un fichier `.yaml` ou `.yml` répond « non
   disponible » (`yaml`), sans échouer ; servez plutôt le document en JSON (FastAPI : `/openapi.json`).
 - **`features`** : un élément par entrée de `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
-  `doc-kit inventory --features --write`, `schemas/features.schema.json`), couvert quand son id est cité — en pratique
-  sur le champ `feature` de sa fiche. `sources` (les motifs du code de la fonctionnalité, relatifs à `app.dir`) et
+  `doc-kit inventory --features --write`, `schemas/features.schema.json`), couvert quand son id est cité en entier
+  (`F-01` n'est pas cité par `F-010`) — en pratique sur le champ `feature` de sa fiche. `sources` (les motifs du code de la fonctionnalité, relatifs à `app.dir`) et
   `behaviours` (les types de carte que décrit sa fiche) sont lus par `doc-kit context` et `doc-kit sync`.
 - **`facts`** : lit `facts/<source>.json`, écrit par `doc-kit facts` (ARCHITECTURE.md §6.9) ; un fichier manquant
   répond « indisponible » (`noFacts`), sans échouer. `dependencies` ne compte jamais que les paquets directs.
@@ -151,7 +151,7 @@ export default {
 |---|---|
 | `options` | Chaque option est un petit schéma : `type`, `default`, `enum`, `pattern`, `minLength`, `items`… et `required: true` |
 | `inventory()` | Reçoit `root` (le projet de documentation), les `options` validées et `tools` ; renvoie `{ available: true, families }` ou `{ available: false, reason, vars }` |
-| Un élément | `{ id, label?, match: [textes] }` : couvert quand l'un de ses textes apparaît dans la documentation, sans tenir compte de la casse ni des espaces |
+| Un élément | `{ id, label?, match: [textes], whole? }` : couvert quand l'un de ses textes apparaît dans la documentation, sans tenir compte de la casse ni des espaces ; avec `whole: true` (un id), seulement en entier — sans lettre ni chiffre juste avant ou juste après |
 | `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey` ; chaque chemin est relatif au projet de documentation |
 | `reason` | `notFound`, `blockNotFound` et `error` sont traduits ; tout autre texte est affiché tel quel |
 

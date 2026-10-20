@@ -29,6 +29,8 @@ import { readSyncReference } from "../sync/reference.mjs";
 import { readToc } from "../project/toc.mjs";
 import { factsSummary } from "../facts/freshness.mjs";
 import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
+import { ratio, count, notMeasured, criteriaOf, levelOf } from "./criteria.mjs";
+import { depthOf, depthReport, measuresDepth } from "./depth.mjs";
 import { actionsOf, draftBuildAction } from "./actions.mjs";
 import { dossierLayout, evaluateTakeover, takeoverIndicator } from "./takeover.mjs";
 
@@ -57,16 +59,6 @@ const CLAIM_STATUS = Object.freeze({
   deduit: "deduced",
   unknown: "unknown",
   inconnu: "unknown",
-});
-
-const ratio = (n, total) => ({ kind: "ratio", measured: true, n, total, value: total ? n / total : null });
-const count = (n) => ({ kind: "count", measured: true, n, value: n });
-const notMeasured = (kind, reason, error) => ({
-  kind,
-  measured: false,
-  reason,
-  ...(error ? { error } : {}),
-  value: null,
 });
 
 /** Placeholders of the page summary written by `new` (both languages): a page that still has one is unfinished. */
@@ -148,7 +140,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     toc,
     pages,
     subPages,
-    itemSections: layout.itemSections,
+    layout,
     table,
     version,
   });
@@ -163,7 +155,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const project1 = { emptySections, homeFile, linkLegend: m.linkLegend };
   const criteria = criteriaOf(indicators, project1);
   const level = levelOf(criteria);
-  const spaces = spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language });
+  const spaces = spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language, built });
 
   const ctx = {
     ...m,
@@ -181,21 +173,6 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     language,
   };
   const actions = actionsOf(criteria, level, ctx);
-
-  const typing = pages
-    .filter((p) => p.guess)
-    .map((p) => ({ page: p.id, template: p.guess.type, completeness: p.guess.completeness }));
-  const { verified, deduced, unknown } = claimCounts;
-  const claims = { verified, deduced, unknown, ratio: verified + deduced ? verified / (verified + deduced) : null };
-  // Languages (ARCHITECTURE.md §6.12): informative only, like facts and claims — never a criterion, so the level
-  // never changes because a translation is behind.
-  const languages = config.languages
-    ? config.languages.slice(1).map((id) => {
-        const c = languageCounts({ root, config, toc, lang: id });
-        const totalFiles = c.current + c.stale + c.unmarked + c.missing;
-        return { ...c, ratio: totalFiles ? c.current / totalFiles : null };
-      })
-    : null;
   return {
     ...base,
     level,
@@ -204,15 +181,35 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     indicators,
     criteria,
     takeover: m.takeover,
-    typing,
     facts,
-    claims,
+    ...informative({ root, config, toc, pages, built, claimCounts }),
     actions,
     errors: built.errors,
     warnings: built.warnings,
     ...(spaces ? { spaces } : {}),
-    ...(languages ? { languages } : {}),
   };
+}
+
+/**
+ * What the audit reports beside the level, never a criterion (the level never changes because of it): the pages
+ * whose type it guesses, the claims of the takeover pages (§6.9), the translated files of each other language
+ * (§6.12), the depth of each feature and the backlog in one line (engine/audit/depth.mjs).
+ */
+function informative({ root, config, toc, pages, built, claimCounts }) {
+  const typing = pages
+    .filter((p) => p.guess)
+    .map((p) => ({ page: p.id, template: p.guess.type, completeness: p.guess.completeness }));
+  const { verified, deduced, unknown } = claimCounts;
+  const claims = { verified, deduced, unknown, ratio: verified + deduced ? verified / (verified + deduced) : null };
+  const languages = config.languages
+    ? config.languages.slice(1).map((id) => {
+        const c = languageCounts({ root, config, toc, lang: id });
+        const totalFiles = c.current + c.stale + c.unmarked + c.missing;
+        return { ...c, ratio: totalFiles ? c.current / totalFiles : null };
+      })
+    : null;
+  const depth = depthReport(built.backlog, pages);
+  return { typing, claims, ...(languages ? { languages } : {}), ...(depth ? { depth } : {}) };
 }
 
 /**
@@ -301,7 +298,8 @@ function readPage(
 /**
  * The indicators of standard/maturity.md, and what the actions need to name the pages behind them. `written` owns
  * the pages not written yet (missing or draft); the other page indicators are measured on the written pages only,
- * so that an unwritten page is counted once (standard/maturity.md, "Who counts what").
+ * so that an unwritten page is counted once (standard/maturity.md, "Who counts what") — the depth of the feature
+ * sheets too (engine/audit/depth.mjs).
  */
 async function measureIndicators({
   project,
@@ -312,7 +310,7 @@ async function measureIndicators({
   toc,
   pages,
   subPages,
-  itemSections,
+  layout,
   table,
   version,
 }) {
@@ -357,7 +355,7 @@ async function measureIndicators({
   const takeover = evaluateTakeover({
     pages: pages.filter((p) => p.inDossier),
     subPages,
-    sections: itemSections,
+    sections: layout.itemSections,
     table,
     language,
   });
@@ -366,6 +364,7 @@ async function measureIndicators({
   const uncovered = coverage.measured ? coverage.total - Math.max(coverage.n, coverage.planned ?? 0) : 0;
 
   const P = measured.indicators;
+  const depth = depthOf(built.backlog, pages, measuresDepth(layout.declared));
   const indicators = {
     written: P.written,
     typed: P.typed,
@@ -398,6 +397,7 @@ async function measureIndicators({
       ...(secrets.measured ? {} : { secretsReason: secrets.reason, secretsError: secrets.error }),
     },
     wideTables: tables.measured ? count(tables.problems.length) : notMeasured("count", tables.reason, tables.error),
+    ...depth.indicators,
   };
   return {
     indicators,
@@ -419,141 +419,28 @@ async function measureIndicators({
     written,
     unwritten,
     syncRef,
+    depth,
   };
-}
-
-const atLeast = (ind, x) =>
-  !ind.measured
-    ? { ok: true, measured: false }
-    : ind.value === null
-      ? { ok: true, na: true }
-      : { ok: ind.value >= x - 1e-9 };
-const atMost = (ind, x) =>
-  !ind.measured
-    ? { ok: true, measured: false }
-    : ind.value === null
-      ? { ok: true, na: true }
-      : { ok: ind.value <= x + 1e-9 };
-
-/**
- * The criteria of standard/maturity.md, on a set of indicators (the project's, or those of a space); the level 1
- * and 2 criteria that are not indicators are the project's (`emptySections`, `homeFile`, `linkLegend`).
- */
-function criteriaOf(indicators, { emptySections, homeFile, linkLegend }) {
-  const T = THRESHOLDS;
-  return [
-    { level: 1, id: "config", ok: true },
-    { level: 1, id: "draftBuild", ok: true },
-    { level: 1, id: "sectionsWritten", ok: emptySections.length === 0 },
-    { level: 1, id: "home", ok: !!homeFile },
-    {
-      level: 1,
-      id: "glossary1",
-      indicator: "glossary",
-      threshold: T.glossary1,
-      ...atLeast(indicators.glossary, T.glossary1),
-    },
-    { level: 1, id: "tours1", indicator: "tours", threshold: T.tours1, ...atLeast(indicators.tours, T.tours1) },
-    {
-      level: 2,
-      id: "written2",
-      indicator: "written",
-      threshold: T.written2,
-      ...atLeast(indicators.written.outsideTakeover, T.written2),
-    },
-    {
-      level: 2,
-      id: "annotated2",
-      indicator: "annotated",
-      threshold: T.annotated2,
-      ...atLeast(indicators.annotated, T.annotated2),
-    },
-    {
-      level: 2,
-      id: "coverage2",
-      indicator: "coverage",
-      threshold: T.coverage2,
-      ...atLeast(indicators.coverage, T.coverage2),
-    },
-    { level: 2, id: "linksLegend", ok: linkLegend.length === 0, n: linkLegend.length },
-    { level: 3, id: "written3", indicator: "written", threshold: 1, ...atLeast(indicators.written, 1) },
-    { level: 3, id: "blocking3", indicator: "blocking", threshold: 0, ...atMost(indicators.blocking, 0) },
-    { level: 3, id: "typed3", indicator: "typed", threshold: T.typed3, ...atLeast(indicators.typed, T.typed3) },
-    {
-      level: 3,
-      id: "conformant3",
-      indicator: "conformant",
-      threshold: T.conformant3,
-      ...atLeast(indicators.conformant, T.conformant3),
-    },
-    {
-      level: 3,
-      id: "annotated3",
-      indicator: "annotated",
-      threshold: T.annotated3,
-      ...atLeast(indicators.annotated, T.annotated3),
-    },
-    { level: 3, id: "guidance3", indicator: "guidance", threshold: 0, ...atMost(indicators.guidance, 0) },
-    { level: 3, id: "wideTables3", indicator: "wideTables", threshold: 0, ...atMost(indicators.wideTables, 0) },
-    {
-      level: 3,
-      id: "glossary3",
-      indicator: "glossary",
-      threshold: T.glossary3,
-      ...atLeast(indicators.glossary, T.glossary3),
-    },
-    { level: 3, id: "tours3", indicator: "tours", threshold: T.tours3, ...atLeast(indicators.tours, T.tours3) },
-    {
-      level: 4,
-      id: "takeover4",
-      indicator: "takeover",
-      threshold: Math.min(T.takeover4, indicators.takeover.total),
-      ok: indicators.takeover.n >= Math.min(T.takeover4, indicators.takeover.total),
-    },
-    { level: 4, id: "proofs4", indicator: "proofs", threshold: T.proofs4, ...atLeast(indicators.proofs, T.proofs4) },
-    {
-      level: 4,
-      id: "completeness4",
-      indicator: "completeness",
-      threshold: T.completeness4,
-      ...atLeast(indicators.completeness, T.completeness4),
-    },
-    {
-      level: 4,
-      id: "tooLong4",
-      indicator: "tooLong",
-      threshold: T.tooLong4,
-      ...atMost(indicators.tooLong, T.tooLong4),
-    },
-    {
-      level: 4,
-      id: "upToDate4",
-      indicator: "upToDateCaptures",
-      threshold: T.upToDate4,
-      ...atLeast(indicators.upToDateCaptures, T.upToDate4),
-    },
-    {
-      level: 4,
-      id: "upToDatePages4",
-      indicator: "upToDatePages",
-      threshold: T.upToDatePages4,
-      ...atLeast(indicators.upToDatePages, T.upToDatePages4),
-    },
-  ];
 }
 
 /**
  * Level by space (§6.1a), null without spaces: the page indicators of each space are measured on its pages; the
  * project-wide ones are shared, but for the required takeover pages: those that belong to it (`itemSpaces` of the
- * dossier layout), looked for in its pages. A criterion that does not concern a space is met and shown n/a, as its
+ * dossier layout), looked for in its pages; the depth of the feature sheets in a space of a kind that measures it
+ * (standard/spaces.json `depth`), n/a in the others. A criterion that does not concern a space is met and shown n/a, as its
  * kind says (standard/spaces.json): `written2` in a kind with `proofs` (develop), `proofs4` in the others,
  * `takeover4` in a space no required takeover page belongs to.
  */
-function spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language }) {
+function spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language, built }) {
   if (!layout.declared) return null;
   return layout.declared.map(({ id, profile }) => {
     const list = pages.filter((p) => p.space === id);
-    const own = { ...indicators, ...measurePages(list, config).indicators };
+    const own = {
+      ...indicators,
+      ...measurePages(list, config).indicators,
+      // The depth, in a space of a kind that measures it (Product); n/a in the others.
+      ...depthOf(built.backlog, list, !!profile?.depth).indicators,
+    };
     const items = TAKEOVER_ITEMS.filter((item) => layout.itemSpaces[item.id] === id);
     const dossier = { subPages, sections: layout.itemSections, items, table, language };
     if (items.length)
@@ -569,16 +456,6 @@ function spaceLevels({ layout, pages, subPages, indicators, config, data, projec
       criteria: crit,
     };
   });
-}
-
-/** Level reached by a list of criteria: every criterion of each level up to it is met. */
-function levelOf(criteria) {
-  let level = 0;
-  for (const L of [1, 2, 3, 4]) {
-    if (criteria.filter((c) => c.level === L).every((c) => c.ok)) level = L;
-    else break;
-  }
-  return level;
 }
 
 /**

@@ -69,6 +69,9 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 | `glossary` · `tours` | Termes du glossaire · parcours de la page d'accueil |
 | `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments qu'aucune page ne cite + secrets trouvés |
 | `wideTables` | Les tableaux qui défilent à 1 440 px (chaque page est ouverte dans Chromium) |
+| `featureSheets` | Les fiches de fonctionnalité écrites qui ont au moins un récit utilisateur (`:::recit`) |
+| `scenarios` | Leurs récits utilisateur qui ont des critères d'acceptation (un `:::scenario` qui les nomme) |
+| `behaviourDepth` | Les rubriques de leurs cartes de comportement qui ont une réponse (une valeur, ou `sans objet — pourquoi`) ; `n/a` sans carte |
 
 ## Les niveaux et leurs critères
 
@@ -76,8 +79,8 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 |---|---|
 | **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page avec son fichier (un brouillon compte) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou n/a) · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) · `upToDatePages` ≥ 90 % (ou n/a) |
+| **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 · `featureSheets` = 100 % (ou n/a) |
+| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) · `upToDatePages` ≥ 90 % (ou n/a) · `scenarios` ≥ 80 % (ou n/a) · `behaviourDepth` ≥ 90 % (ou n/a) |
 
 La section **Reprendre** est celle dont l'id est `reprendre` (ou `take-over`) ; sinon, la dernière section du plan
 quand il y en a au moins deux. Ses 7 pages obligatoires sont : une vue d'ensemble de l'architecture (id qui se termine
@@ -121,11 +124,12 @@ espace — ici, pour le même squelette :
   pages : 2 pour Administrer, 5 pour Développer ; le `takeover4` du projet compte toujours les 7.
 - Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a`, selon son type :
 
-| Type | `written2` | `proofs4` | `takeover4` |
-|---|---|---|---|
-| `use`, `product` | mesuré | `n/a` | `n/a` |
-| `admin` | mesuré | `n/a` | mesuré (ses 2 pages) |
-| `develop` | `n/a` | mesuré | mesuré (ses 5 pages) |
+| Type | `written2` | `proofs4` | `takeover4` | La profondeur (`featureSheets3`, `scenarios4`, `behaviourDepth4`) |
+|---|---|---|---|---|
+| `use` | mesuré | `n/a` | `n/a` | `n/a` |
+| `product` | mesuré | `n/a` | `n/a` | mesurée |
+| `admin` | mesuré | `n/a` | mesuré (ses 2 pages) | `n/a` |
+| `develop` | `n/a` | mesuré | mesuré (ses 5 pages) | `n/a` |
 
   C'est pourquoi l'espace Développer du squelette est déjà au niveau 2 alors que les autres sont au niveau 1 : ses
   pages n'ont pas à être écrites pour le niveau 2.
@@ -133,6 +137,16 @@ espace — ici, pour le même squelette :
   dans l'ensemble alors que son espace Utiliser atteint déjà le niveau 3 — utile pour savoir quel public est
   vraiment servi en premier. `audit.json` porte `spaces : [{ id, title, pages, level, indicators, criteria }]` ;
   sans espaces déclarés, rien ne change dans le rapport.
+
+## La profondeur des fiches de fonctionnalité
+
+Les trois indicateurs de profondeur lisent le backlog des fiches de fonctionnalité (la mesure de la jauge du
+[tableau Produit](#/spaces/business~le-tableau-produit)), sur les fiches écrites. Ils valent `n/a` sans fiche de
+fonctionnalité écrite, et quand les espaces déclarés ne comptent aucun espace Produit ; sans espaces, une
+documentation qui a des fiches de fonctionnalité est mesurée. Les actions nomment les fiches sans récit, les récits
+sans critères d'acceptation, et les fiches dont les cartes ont encore des rubriques sans réponse. Le rapport ajoute
+**Profondeur des fiches de fonctionnalité** : le backlog en une ligne, puis chaque fonctionnalité avec sa fiche, sa
+profondeur et ses cinq critères — informatif, jamais un critère.
 
 ## Faits et affirmations (informatif)
 

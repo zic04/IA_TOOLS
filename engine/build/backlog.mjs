@@ -5,7 +5,8 @@
 // build's checks and `::stories{}`, and the one the Product board and the backlog export are to read — and one
 // measure of how far a feature is specified (featureDepth). Pure.
 //   epic     { id, title, summary, ref, section, features: [feature ids] }   id null: a group without an epic
-//   feature  { id, title, summary, page, epic, since, ref, roles, kinds, rules, stories: [ids], criteria, depth }
+//   feature  { id, title, summary, page, epic, since, ref, roles, kinds, rules, stories: [ids], criteria, depth,
+//              rubrics: { answered, total } }   rubrics: those of its behaviour cards (the audit's behaviourDepth)
 //   story    { id, title, role, since, ref, feature, page, anchor, criteria, text: [lines],
 //              scenarios: [{ title, steps: [{ step, keyword, text }] }] }   its text and acceptance criteria, as plain
 //              text (the backlog export, engine/backlog/)
@@ -109,6 +110,7 @@ function featureOf(f, ctx) {
   const cited = [...(ctx.cited.get(f.page) ?? [])].filter((id) => ctx.rules.has(id));
   const rules = new Set([...defined, ...cited]).size;
   const withCriteria = own.filter(([id]) => ctx.criteria.get(id)).length;
+  const rubrics = rubricsOf([...new Set(cards)]);
   return {
     id: f.id,
     title: f.title,
@@ -127,8 +129,9 @@ function featureOf(f, ctx) {
       stories: own.length,
       storiesWithCriteria: withCriteria,
       rules,
-      rubrics: rubricsOf([...new Set(cards)]),
+      rubrics,
     }),
+    rubrics,
   };
 }
 

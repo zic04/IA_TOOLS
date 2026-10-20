@@ -8,6 +8,13 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The depth of the feature sheets in the audit** (standard/maturity.md): `featureSheets` (every written feature
+  sheet has a user story, level 3), `scenarios` (≥ 80 % of their stories have acceptance criteria, level 4) and
+  `behaviourDepth` (≥ 90 % of the rubrics of their behaviour cards are answered, level 4), measured on the backlog
+  of the strict build; `n/a` without a written sheet, or with spaces declared but no Product space; by space, in
+  the Product space only. The actions name the sheets and stories; `audit.md` shows the depth of each feature and
+  the backlog in one line (`audit.json` `depth`). New kind flag `depth` (`standard/spaces.json`). A project with
+  feature sheets may reach a lower level than before: its sheets' stories, criteria and rubrics now count.
 - **The backlog export** (ARCHITECTURE.md §6.8b): `doc-kit backlog export <azure|jira|github|gitlab|json>` writes
   the epics, feature sheets and user stories, with their acceptance criteria, in the import format of Azure DevOps
   (CSV, the types of `backlog.azure.process`), Jira (CSV, `backlog.jira.types`), GitLab (CSV), for GitHub (the
@@ -146,6 +153,8 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- `check coverage` (adapter `features`): a feature id is cited only whole — a page citing `F-010` no longer
+  covers `F-01`.
 - A `[[rule …]]` chip inherited the frame and the bottom margin of a rule's own block: in a numbered step, it drew a
   bar on its left and pushed the next step down.
 - `doctor` reported the skill's agents as current when the kit had added an agent type that was not installed: they
