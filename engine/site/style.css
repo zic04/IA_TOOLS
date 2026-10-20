@@ -2218,8 +2218,32 @@ figcaption,
   border: 1px solid var(--brand-line);
   color: var(--brand-strong);
 }
+/* The topic line (engine/site/lib/topics.js): its title, then one chip per page of the group, the page read marked. */
 .pendant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: -10px 0 24px;
+}
+.pendant-titre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.pendant strong {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 .pendant a {
   display: inline-flex;

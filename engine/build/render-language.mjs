@@ -9,7 +9,8 @@ import { checkPage, analysePage } from "../core/page-templates.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { checkLinks } from "../check/links.mjs";
 import { EMBEDDED_NAMESPACES } from "../i18n.mjs";
-import { resolveSpaces, counterpartOf, withoutSpaceTexts } from "./spaces.mjs";
+import { resolveSpaces, withoutSpaceTexts } from "./spaces.mjs";
+import { topicGroups } from "../core/counterparts.mjs";
 import {
   buildFeatureRegistry,
   resolveBusinessRefs,
@@ -43,7 +44,7 @@ export function siteDate(date, i18n) {
  * @param {object} site   what every language shares: usage, changes, icons (ICONS, icon, iconKey), spaces,
  *   syncRef, templates, version, sourceLangId, recordedByLang (lang → recorded fingerprints, filled on demand)
  * @param {object} lang   lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang
- * @returns {{ data: object, used: object, engine: object, counterparts: object, pages: object, backlog: any }}
+ * @returns {{ data: object, used: object, engine: object, pages: object, backlog: any }}
  *   backlog: the backlog of that language (engine/build/backlog.mjs)
  */
 export function renderLanguage(
@@ -95,6 +96,9 @@ export function renderLanguage(
   };
 
   const sections = langToc.sections.map((sec) => renderSection(r, sec));
+  // Topic groups (engine/core/counterparts.mjs): each page of one names the others, whoever declared the counterpart.
+  for (const [id, topic] of topicGroups(r.order.map((x) => ({ id: x, counterpart: r.counterparts[x] }))))
+    r.pages[id].topic = topic;
   const home = renderHome(r);
   checkLanguage(r, { langToc, features });
 
@@ -105,7 +109,7 @@ export function renderLanguage(
     diagrams: engine.usedDiagrams.size,
   };
   const data = languageData(r, { langToc, langGlossary, langI18n, sections, home, stats });
-  return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages, backlog: r.backlog };
+  return { data, used: r.used, engine, pages: r.pages, backlog: r.backlog };
 }
 
 /**
@@ -190,7 +194,6 @@ function renderPage(r, sec, g, p) {
     toc: out.toc,
     captures: out.captures,
     ...(site.spaces ? { space: p.space ?? sec.space } : {}),
-    ...(p.counterpart ? { counterpart: counterpartOf(p.counterpart) } : {}),
     ...(verified ? { verified: { version: verified.version, date: verified.verified } } : {}),
     ...(fallback ? { fallback } : {}),
   };

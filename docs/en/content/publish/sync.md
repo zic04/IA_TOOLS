@@ -18,7 +18,7 @@ doc-kit sync --mark --all
 Records, for each written page, hashes of the page itself, of the files behind its `routes` (direct: the page's own
 route; shared: merely imported, up to 3 levels and 200 files), of every `file:line` proof it cites, of the capture
 plan entries behind its `:::screen` blocks, of the message labels it quotes verbatim, and of its `::facts` tables,
-`counterpart` and declared `sources`. `sync.json` lives at the project root by default (`paths.sync`) and is
+topic group (the other pages a `counterpart` joins) and declared `sources`. `sync.json` lives at the project root by default (`paths.sync`) and is
 **committed with the documentation**, like `facts/*.json`.
 
 ## Reading the report

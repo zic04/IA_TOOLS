@@ -134,7 +134,7 @@ doc-kit sync [--since <ref>] [--apply [--labels]] [--mark <page…> | --mark --a
 What the documentation must follow after a change of the application (`app.dir`): a report comparing it now with
 the reference, `sync.json` (`paths.sync`), or, with `--since <ref>`, a git commit — git is only ever read, never
 written to. `--mark <page…>` or `--all` record, for each page, the application files it depends on: its `routes`,
-its `file:line` proofs, the captures it cites, its `::facts` tables, its `counterpart` and its `sources` (a page
+its `file:line` proofs, the captures it cites, its `::facts` tables, its topic group (`counterpart`) and its `sources` (a page
 field for a page with none of the above). The report then lists the pages to review, grouped by priority
 (`direct`: a file of the page itself changed; `shared`: only a file it merely imports did; `probablyIntact`: that
 shared file changed, but nothing the page names), the `file:line` proofs that moved or broke, the labels whose
@@ -168,7 +168,7 @@ doc-kit context <page…> [--budget <tokens>] [--update]
 Writes `.doc-kit/context/<page>.md`, one file per page (`/` replaced with `__` in the file name): the only reading
 an agent needs to write or update that page, instead of the whole code inventory and table of contents. It is
 built from the page's **dependencies** (the same ones `doc-kit sync` computes: its routes, `file:line` proofs,
-captures, `::facts` tables, `counterpart` and declared `sources`) — direct files (the page's own route) before
+captures, `::facts` tables, topic group (`counterpart`) and declared `sources`) — direct files (the page's own route) before
 shared ones (merely imported): the page itself, the required sections of its template, the files to read (a file
 of 150 lines or fewer in full; otherwise ±40 lines around each cited line; a direct file with no cited line gives
 its first 80 lines; a shared file with no cited line is listed by its path alone), the exact labels and facts rows

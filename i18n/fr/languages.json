@@ -16,7 +16,7 @@
   "cli.build.translation.toc.ignored": "toc.json : {path} ignoré (champ non textuel, repris de la source)",
   "cli.build.translation.glossary.structure": "glossary.json : {found} entrées, {expected} attendues",
   "cli.build.translation.glossary.structure.help": "mêmes entrées, dans le même ordre",
-  "cli.build.translation.anchor": "{page} : l'ancre de la contrepartie ne peut pas être reportée, retirée",
+  "cli.build.translation.anchor": "{page} : l'ancre {anchor} d'un groupe de sujet n'a pas de titre à sa place dans la traduction (son plan diffère) ; le lien mène au haut de la page",
   "cli.build.languages.idClash": "l'id « {id} » est aussi une langue déclarée ({lang})",
   "cli.build.languages.idClash.help": "renommez la section ou la page : l'URL #/{lang}/… est réservée",
   "cli.build.languages.summary": "{lang} : {current} à jour · {stale} en retard · {missing} manquantes",

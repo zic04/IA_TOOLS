@@ -97,7 +97,7 @@ Each export is named after its space id: `dist/Acme-Orders-Documentation-use.htm
 `-admin.html`, `-develop.html`. It is rendered from the same pages, then **filtered**: sections, pages, search
 index, suggestions and journey steps outside the space are dropped (a journey's remaining steps are counted, "+ *n*
 steps in another part of the documentation"); a link into the dropped content becomes plain text, "(see the
-{space} documentation)"; a `counterpart` outside the export is removed. The glossary is kept whole, except the
+{space} documentation)"; the pages of a topic group outside the export leave its line. The glossary is kept whole, except the
 `technical` field of a term (where it lives in the code): only the exports of the spaces whose kind shows it
 (`admin`, `develop`) keep it, and the full site shows it when one of those spaces is current, in "everything" mode,
 or when the project has no spaces.
@@ -110,19 +110,21 @@ or when the project has no spaces.
 `--space <id>` also narrows `view`, `open` and `dev`'s extra servers; an unknown id, or no space declared, is a
 usage error. `export --with-dist` copies the exports wherever they were written, alongside the full site.
 
-## `counterpart`: the same subject, seen twice
+## `counterpart`: one subject, for each of its readers
 
-A feature sheet and the technical page that documents the same mechanism share their `F-xx` identifier and point to
-each other:
+A feature sheet, its screen, its technical page and its runbook treat one subject, each for its readers. A page's
+`counterpart` names another page of that subject, or a list of them, each with an anchor when it starts further
+down:
 
 ```json
-{ "id": "features/order-approval", "counterpart": "understand/orders-api~approval-endpoint" }
+{ "id": "features/order-approval", "counterpart": ["understand/orders-api~approval-endpoint", "operate/runbook"] }
 ```
 
-Rendered as one line under the page's badges, "Same topic, for {space}: {title} →" (or "Related: {title} →" without
-spaces, or when both pages share one). It is checked like an internal link — an unknown page or anchor fails the
-build — but it need not be reciprocal: a technical page can point to its feature sheet without the sheet pointing
-back.
+The pages a counterpart joins, either way, form a **topic group**: declared once, on any of its pages, it is shown on
+each of them. Under the page's badges, one line names the others by their space, "This topic for: Use · **Product** ·
+Administer · Develop" — the page being read marked, the spaces in their order, a page's title beside its space when
+that space holds two pages of the group. Without spaces: "Related: {title} · {title}". Each target is checked like
+an internal link: an unknown page or anchor, or a page naming itself, fails the build.
 
 ## Pitfalls and observed gaps
 

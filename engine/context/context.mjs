@@ -7,6 +7,7 @@ import path from "node:path";
 import { sectionLabel, sectionCount, digestsOf } from "../core/page-templates.mjs";
 import { labelKeysInCode } from "../sync/labels.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
+import { topicOf } from "../core/counterparts.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
 import { behaviourParts } from "./behaviours-section.mjs";
@@ -118,7 +119,7 @@ export function glossaryFor(glossary, texts) {
  * @param {object} p
  * @param {string} p.root            project root (the diff file of `--update` lives at <root>/.doc-kit/sync/)
  * @param {object} p.config          validated configuration (language, paths)
- * @param {object} p.toc             content/toc.json (normalised), to look up the counterpart's own title/summary
+ * @param {object} p.toc             content/toc.json (normalised): the page's topic group, each member's title
  * @param {string} p.pageId
  * @param {import("../sync/dependencies.mjs").PageDependencies} p.deps   pageDependencies() of this page
  * @param {string|null} [p.appDir]   absolute path of app.dir, to read `deps.files` (null: no excerpt possible)
@@ -178,12 +179,12 @@ export function buildContext({
   ].filter(Boolean);
   for (const m of meta) push(`- ${m}`);
   if (page.summary) push(`\n${page.summary}`);
-  if (page.counterpart) {
-    const targetId = page.counterpart.split("~")[0];
-    const target = findPageEntry(toc, targetId);
-    push(
-      `\n${t("cli.context.counterpart", { id: targetId, title: target?.title || "", summary: target?.summary || "" })}`,
-    );
+  // The other pages of its topic group (engine/core/counterparts.mjs): the same subject, for other readers.
+  const topic = topicOf(toc, pageId);
+  if (topic.length) push("");
+  for (const { id } of topic) {
+    const target = findPageEntry(toc, id);
+    push(t("cli.context.counterpart", { id, title: target?.title || "", summary: target?.summary || "" }));
   }
   push("");
 

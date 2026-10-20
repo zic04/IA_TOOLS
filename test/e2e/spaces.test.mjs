@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildSpaces, tempDir } from "../tools/helpers.mjs";
+import { buildSpaces, spacesCopy, tempDir } from "../tools/helpers.mjs";
 
 let browser;
 let dir;
@@ -26,6 +26,42 @@ before(async () => {
   for (const s of r.sites) {
     files[s.space] = path.join(dir, `${s.space}.html`);
     fs.writeFileSync(files[s.space], s.html);
+  }
+  // A topic group of three pages, two of them in Use: joined by a list on the settings page alone.
+  const grouped = spacesCopy((toc) => {
+    const pages = toc.sections.flatMap((s) => s.groups).flatMap((g) => g.pages);
+    pages.find((p) => p.id === "use/settings").counterpart = ["take-over/orders-api"];
+    return toc;
+  });
+  try {
+    const g = await buildSpaces({ root: grouped });
+    assert.deepEqual(g.errors, []);
+    files.grouped = path.join(dir, "grouped.html");
+    fs.writeFileSync(files.grouped, g.html);
+  } finally {
+    fs.rmSync(grouped, { recursive: true, force: true });
+  }
+  // The same project without spaces: no `spaces`, no `space`; its counterparts kept.
+  const plain = spacesCopy((toc) => {
+    const drop = (x) =>
+      Array.isArray(x)
+        ? x.map(drop)
+        : x && typeof x === "object"
+          ? Object.fromEntries(
+              Object.entries(x)
+                .filter(([k]) => k !== "space" && k !== "spaces")
+                .map(([k, v]) => [k, drop(v)]),
+            )
+          : x;
+    return drop(toc);
+  });
+  try {
+    const p = await buildSpaces({ root: plain });
+    assert.deepEqual(p.errors, []);
+    files.plain = path.join(dir, "plain.html");
+    fs.writeFileSync(files.plain, p.html);
+  } finally {
+    fs.rmSync(plain, { recursive: true, force: true });
   }
   browser = await chromium.launch();
 });
@@ -224,19 +260,65 @@ describe("page", () => {
       ["Home", "Use", "Using Acme Orders", "Getting started"],
     );
     assert.equal(await page.locator(".ariane a").nth(1).getAttribute("href"), "#/@use");
+    // The topic line: its title, the page read (its space, marked), the other page of its group.
+    assert.equal(await page.getAttribute(".pendant", "aria-label"), "This topic for:");
+    assert.equal((await text(page, ".pendant-titre")).trim(), "This topic for:");
+    assert.equal((await text(page, '.pendant strong[aria-current="page"]')).trim(), "Use");
     const counterpart = page.locator(".pendant a");
-    assert.equal((await counterpart.textContent()).trim(), "Same topic, for Develop: The orders API →");
+    assert.equal((await counterpart.textContent()).trim(), "Develop");
     assert.equal(await counterpart.getAttribute("href"), "#/take-over/orders-api");
     await counterpart.click();
     await page.waitForTimeout(100);
     assert.equal(await text(page, "h1.page-titre"), "The orders API");
     assert.deepEqual(await pressed(page), ["Everything:false", "Use:false", "Develop:true"]);
-    assert.equal((await text(page, ".pendant a")).trim(), "Same topic, for Use: The orders list →");
+    assert.equal((await text(page, '.pendant strong[aria-current="page"]')).trim(), "Develop");
+    assert.equal((await text(page, ".pendant a")).trim(), "Use");
     await page.locator(".pendant a").click();
     await page.waitForTimeout(150);
     assert.equal(await page.evaluate(() => location.hash), "#/use/orders~the-screen");
     const top = await page.evaluate(() => document.getElementById("the-screen").getBoundingClientRect().top);
     assert.ok(top >= 0 && top < 200, `anchor scrolled into view (${top})`);
+    await page.context().close();
+  });
+
+  test("a topic group of three, declared once: in the order of the spaces, then of the site, the same on each page", async () => {
+    const chipsOf = (page) =>
+      page.$$eval(".pendant strong, .pendant a", (els) =>
+        els.map((e) => [e.tagName, e.textContent.trim(), e.getAttribute("href")]),
+      );
+    const orders = await open("use/orders", { file: "grouped" });
+    const settings = await orders.evaluate(() => document.querySelector(".pendant a").textContent.trim());
+    assert.deepEqual(await chipsOf(orders), [
+      ["STRONG", "Use · The orders list", null],
+      ["A", settings, "#/use/settings"],
+      ["A", "Develop", "#/take-over/orders-api"],
+    ]);
+    assert.match(settings, /^Use · /, "a title beside a space that holds two");
+    await orders.context().close();
+    const page = await open("use/settings", { file: "grouped" });
+    assert.deepEqual(await chipsOf(page), [
+      ["A", "Use · The orders list", "#/use/orders~the-screen"],
+      ["STRONG", settings, null],
+      ["A", "Develop", "#/take-over/orders-api"],
+    ]);
+    // Declared on the settings page alone: the orders API names it too.
+    await page.locator(".pendant a").last().click();
+    await page.waitForTimeout(100);
+    assert.deepEqual(await page.$$eval(".pendant a", (els) => els.map((e) => e.getAttribute("href"))), [
+      "#/use/orders~the-screen",
+      "#/use/settings",
+    ]);
+    await page.context().close();
+  });
+
+  test('without spaces: "Related:", then the titles of the other pages', async () => {
+    const page = await open("use/orders", { file: "plain" });
+    assert.equal((await text(page, ".pendant-titre")).trim(), "Related:");
+    assert.equal(await page.locator(".pendant strong").count(), 0);
+    assert.deepEqual(
+      await page.$$eval(".pendant a", (els) => els.map((e) => [e.textContent.trim(), e.getAttribute("href")])),
+      [["The orders API", "#/take-over/orders-api"]],
+    );
     await page.context().close();
   });
 });
@@ -349,6 +431,8 @@ describe("accessibility", () => {
         '#espaces .espace-choix[aria-pressed="false"]',
         ".page-meta .puce.espace",
         ".pendant a",
+        ".pendant strong",
+        ".pendant-titre",
       ])
         checks[sel] = await contrastOf(page, sel);
       await page.keyboard.press("Control+k");

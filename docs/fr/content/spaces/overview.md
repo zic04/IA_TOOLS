@@ -102,8 +102,8 @@ Chaque export porte l'identifiant de son espace : `dist/Acme-Orders-Documentatio
 `-admin.html`, `-develop.html`. Il est construit à partir des mêmes pages, puis **filtré** : sections, pages, index
 de recherche, suggestions et étapes de parcours hors de l'espace sont retirées (les étapes restantes d'un parcours
 sont comptées, « + *n* étapes dans une autre partie de la documentation ») ; un lien vers le contenu retiré
-devient du texte simple, « (voir la documentation {espace}) » ; un `counterpart` (« pendant ») hors de l'export
-est retiré. Le glossaire reste entier, sauf le champ `technical` d'un terme (où il vit dans le code) : seuls les
+devient du texte simple, « (voir la documentation {espace}) » ; les pages d'un groupe de sujet hors de l'export
+quittent sa ligne. Le glossaire reste entier, sauf le champ `technical` d'un terme (où il vit dans le code) : seuls les
 exports des espaces dont le type l'affiche (`admin`, `develop`) le gardent, et le site complet l'affiche quand l'un
 de ces espaces est courant, en mode « tout », ou quand le projet n'a pas d'espaces.
 
@@ -115,19 +115,22 @@ de ces espaces est courant, en mode « tout », ou quand le projet n'a pas d'esp
 `--space <id>` réduit aussi `view`, `open` et les serveurs supplémentaires de `dev` ; un identifiant inconnu, ou
 aucun espace déclaré, est une erreur d'usage. `export --with-dist` copie les exports là où ils ont été écrits.
 
-## `counterpart` : le même sujet, vu deux fois
+## `counterpart` : un sujet, pour chacun de ses lecteurs
 
-Une fiche de fonctionnalité et la page technique qui documente le même mécanisme partagent leur identifiant `F-xx`
-et se renvoient l'une à l'autre :
+Une fiche de fonctionnalité, son écran, sa page technique et son manuel d'exploitation traitent un même sujet, chacun
+pour ses lecteurs. Le `counterpart` d'une page nomme une autre page de ce sujet, ou une liste, chacune avec une ancre
+quand elle commence plus bas :
 
 ```json
-{ "id": "fonctionnalites/validation-commande", "counterpart": "comprendre/api-commandes~point-validation" }
+{ "id": "fonctionnalites/validation-commande", "counterpart": ["comprendre/api-commandes~point-validation", "exploiter/manuel"] }
 ```
 
-Affiché comme une ligne sous les badges de la page, « Même sujet, pour {espace} : {titre} → » (ou « Voir aussi :
-{titre} → » sans espaces, ou quand les deux pages partagent le même). C'est vérifié comme un lien interne — une
-page ou une ancre inconnue fait échouer le build — mais ça n'a pas besoin d'être réciproque : une page technique
-peut renvoyer à sa fiche de fonctionnalité sans que la fiche renvoie en retour.
+Les pages qu'un counterpart relie, dans un sens ou dans l'autre, forment un **groupe de sujet** : déclaré une fois,
+sur n'importe laquelle de ses pages, il s'affiche sur chacune. Sous les badges de la page, une ligne nomme les autres
+par leur espace, « Ce sujet pour : Utiliser · **Produit** · Administrer · Développer » — la page lue marquée, les
+espaces dans leur ordre, le titre d'une page à côté de son espace quand cet espace porte deux pages du groupe. Sans
+espaces : « Voir aussi : {titre} · {titre} ». Chaque cible est vérifiée comme un lien interne : une page ou une ancre
+inconnue, ou une page qui se cite elle-même, fait échouer le build.
 
 ## Pièges et écarts constatés
 

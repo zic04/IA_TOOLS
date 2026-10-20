@@ -303,10 +303,11 @@ describe("site data", () => {
     assert.deepEqual([...loadSpaceProfiles().keys()], ["use", "product", "admin", "develop"]);
   });
 
-  test("counterpart: { id, anchor? } in the page data, with or without spaces", async () => {
+  test("topic: the other members of its group, { id, anchor? }, in the page data, with or without spaces", async () => {
     const data = dataOf((await buildSpaces()).html);
-    assert.deepEqual(data.pages["use/orders"].counterpart, { id: "take-over/orders-api" });
-    assert.deepEqual(data.pages["take-over/orders-api"].counterpart, { id: "use/orders", anchor: "the-screen" });
+    assert.deepEqual(data.pages["use/orders"].topic, [{ id: "take-over/orders-api" }]);
+    assert.deepEqual(data.pages["take-over/orders-api"].topic, [{ id: "use/orders", anchor: "the-screen" }]);
+    assert.equal("counterpart" in data.pages["use/orders"], false);
     // Without spaces, a counterpart alone brings the code and the texts it needs, nothing else.
     const dir = noSpacesCopy();
     try {
@@ -316,10 +317,11 @@ describe("site data", () => {
       fs.writeFileSync(file, JSON.stringify(toc));
       const r = await buildDemo({ root: dir });
       const plain = dataOf(r.html);
-      assert.deepEqual(plain.pages["use/orders"].counterpart, { id: "maintain/architecture" });
+      assert.deepEqual(plain.pages["use/orders"].topic, [{ id: "maintain/architecture" }]);
+      assert.deepEqual(plain.pages["maintain/architecture"].topic, [{ id: "use/orders" }], "declared once, on both");
       assert.equal("spaces" in plain, false);
-      assert.equal(plain.i18n["ui.counterpart.plain"], "Related: {title} →");
-      assert.match(r.html, /function counterpartLine/);
+      assert.equal(plain.i18n["ui.topic.plain"], "Related:");
+      assert.match(r.html, /function drawTopic/);
       assert.deepEqual(r.sites, []);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

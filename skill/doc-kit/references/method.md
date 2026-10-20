@@ -145,8 +145,8 @@ keeps the same items.
      permissions)` with permission abbreviations taken from the inventory legend).
    **With spaces**: declare `spaces: ["use", "product", "admin", "develop"]` (what `doc-kit init` writes; keep
    only the spaces the project has readers for) and give each section a `space` (ARCHITECTURE.md §6.1a); a
-   page's own `space` overrides its section's, and `counterpart` links a feature sheet to its technical page (and
-   back). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
+   page's own `space` overrides its section's, and `counterpart` joins the pages of one subject — a feature sheet, its
+   screen, its technical page, its runbook — in a topic group (one page or a list; declared once, shown on each). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
    "Operations" }`.
 2. **Coverage**: `doc-kit check coverage` must find each route in the `routes` field of a page (the `features`
    adapter too, when `features.json` exists: a feature is covered once a written `feature` page cites its id).

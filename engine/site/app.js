@@ -200,17 +200,6 @@
     const s = SPACES && spacesById[id];
     return s ? `<a href="#/@${esc(s.id)}">${esc(s.shortTitle)}</a><span class="sep">›</span>` : "";
   };
-  /** "Same topic, for {space}: {title} →" (another space), else "Related: {title} →". */
-  function counterpartLine(p) {
-    const c = p.counterpart;
-    const target = c && D.pages[c.id];
-    if (!target) return "";
-    const other = SPACES && target.space !== p.space ? spacesById[target.space] : null;
-    const text = other
-      ? t("ui.counterpart", { space: other.shortTitle, title: target.title })
-      : t("ui.counterpart.plain", { title: target.title });
-    return `<p class="pendant"><a href="#/${c.id}${c.anchor ? "~" + c.anchor : ""}">${icon("lien")}<span>${esc(text)}</span></a></p>`;
-  }
   /** Home page, "everything" mode: one door per space. */
   const spaceDoors = () =>
     SPACES.map(
@@ -543,7 +532,7 @@
       <h1 class="page-titre">${esc(p.title)}</h1>
       ${p.summary ? `<p class="page-resume">${esc(p.summary)}</p>` : ""}
       ${pageBadges(p)}
-      ${counterpartLine(p)}
+      ${p.topic ? '<nav class="pendant" data-topic hidden></nav>' : ""}
       ${p.fallback ? translationBanner(p.fallback) : ""}
       <div class="contenu">${p.html}</div>
       ${footerNav(id)}

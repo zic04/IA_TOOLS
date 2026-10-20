@@ -387,13 +387,27 @@ describe("buildContext with hand-built dependencies (labels, glossary, counterpa
     }
   });
 
-  test("counterpart: the target's id, title and summary are shown (looked up in toc, not re-fetched as dependencies)", () => {
+  test("its topic group: each other page's id, title and summary (looked up in toc), whoever declared the counterpart", () => {
     const deps = baseDeps({ title: "Orders", counterpart: "tech/orders" });
     const tocWithTarget = {
       sections: [
         {
           id: "s",
-          groups: [{ pages: [{ id: "tech/orders", title: "Orders (technical)", summary: "How it is built." }] }],
+          groups: [
+            {
+              pages: [
+                { id: "p", title: "Orders", counterpart: "tech/orders" },
+                { id: "tech/orders", title: "Orders (technical)", summary: "How it is built." },
+                // Declared on the runbook alone: the runbook joins the group of p.
+                {
+                  id: "ops/orders",
+                  title: "Orders (operations)",
+                  summary: "How it runs.",
+                  counterpart: ["tech/orders"],
+                },
+              ],
+            },
+          ],
         },
       ],
     };
@@ -408,6 +422,7 @@ describe("buildContext with hand-built dependencies (labels, glossary, counterpa
       t: en,
     });
     assert.match(text, /Counterpart: tech\/orders — Orders \(technical\) — How it is built\./);
+    assert.match(text, /Counterpart: ops\/orders — Orders \(operations\) — How it runs\./);
   });
 
   test("header: product and documented version shown first when given, omitted when not (ARCHITECTURE.md §6.11)", () => {

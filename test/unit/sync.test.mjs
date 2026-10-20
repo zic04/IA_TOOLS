@@ -423,6 +423,31 @@ describe("engine/sync/dependencies.mjs", () => {
     assert.equal(deps.truncated, false);
   });
 
+  test("its topic group: the files of the other pages, declared on them alone (one level, never direct)", async () => {
+    const depsOf = async (tocOf) =>
+      pageDependencies({
+        root: fx.root,
+        config,
+        toc: tocOf,
+        pageId: "use/orders",
+        inventory,
+        tools: adapterTools(fx.root),
+        factsDir: config.paths.facts,
+      });
+    const viaGroup = (deps) => deps.files.filter((f) => f.via.includes("counterpart"));
+    assert.deepEqual(viaGroup(await depsOf(toc)), [], "no group: no file of another page");
+    // The orders API names use/orders as its counterpart: use/orders follows the API page's files.
+    const grouped = structuredClone(toc);
+    const pages = grouped.sections.flatMap((s) => s.groups).flatMap((g) => g.pages);
+    pages.find((p) => p.id === "take-over/orders-api").counterpart = ["use/orders"];
+    const files = viaGroup(await depsOf(grouped));
+    assert.ok(files.length > 0, "the API page's files");
+    assert.ok(
+      files.every((f) => f.kind !== "direct" || f.via.length > 1),
+      "never direct through the group alone",
+    );
+  });
+
   test("use/orders/detail: page+layout direct, lib/orders.ts shared (reached only by import, no proof here)", async () => {
     const deps = await pageDependencies({
       root: fx.root,

@@ -39,8 +39,8 @@
   "home.spaces.showAll": "Show everything",
   "render.spaces.excludedLink": " (see the {space} documentation)",
   "template.spaces": "Spaces",
-  "ui.counterpart": "Same topic, for {space}: {title} →",
-  "ui.counterpart.plain": "Related: {title} →",
+  "ui.topic": "This topic for:",
+  "ui.topic.plain": "Related:",
   "ui.journey.hidden": {
     "one": "+ {n} step in another part of the documentation",
     "other": "+ {n} steps in another part of the documentation"

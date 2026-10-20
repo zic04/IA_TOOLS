@@ -21,7 +21,7 @@
     "test:security": "node --test test/unit/security.test.mjs",
     "format": "prettier --write \"**/*.{js,mjs}\"",
     "format:check": "prettier --check \"**/*.{js,mjs}\"",
-    "lint": "eslint . --max-warnings 53",
+    "lint": "eslint . --max-warnings 52",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

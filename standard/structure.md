@@ -110,15 +110,17 @@ same subject with its proof (`technical-sub`, `api-surface`, a journey step) on 
 
 ## `counterpart` links
 
-`counterpart` (a page field, with or without declared spaces) points at "the same subject, for the other
-audience": `"<page id>"` or `"<page id>~<anchor>"`. A feature sheet and the technical page that implements it
-point at each other and share their `F-xx` identifier; a business process and the journey that automates part
-of it do the same. The site renders it as one line under the page's badges ("Same topic, for {space}: {title}
-→"), and the build checks it like an internal link (unknown page: `link.counterpart`, error).
+`counterpart` (a page field, with or without declared spaces) names "the same subject, for other readers": a
+page, `"<page id>"` or `"<page id>~<anchor>"`, or a list of them. A feature sheet, its screen, the technical page
+that implements it and its runbook share their `F-xx` identifier; a business process and the journey that
+automates part of it do the same. The pages a counterpart joins, either way, form a **topic group**: declared once,
+on any of its pages, it is shown on each of them, as one line under the page's badges ("This topic for: Use ·
+**Product** · Develop", the page read marked), and the build checks each target like an internal link (unknown
+page, or the page itself: `link.counterpart`, error).
 
-`counterpart` is **not required to be reciprocal**: a technical page often has no business equivalent (nobody
-needs a business explanation of the database schema), and that is fine. Add it only where a real reader would
-otherwise have to guess that the other page exists.
+A page **need not join a group**: a technical page often has no business equivalent (nobody needs a business
+explanation of the database schema), and that is fine. Add a counterpart only where a real reader would otherwise
+have to guess that the other page exists — and only once: every page of the group shows it.
 
 ## The required takeover pages
 

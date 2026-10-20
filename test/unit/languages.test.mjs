@@ -218,8 +218,29 @@ describe("multilingual build (draft)", () => {
     const anchorProblem = r.warnings.concat(r.errors).find((p) => p.key === "link.anchor" && p.vars.lang === "fr");
     assert.ok(anchorProblem, "the deliberately wrong #/use/settings~what-it-is-for link is reported for fr");
     const dataFr = dataOf(r.html, "fr");
-    // take-over/orders-api~ (counterpart of use/orders) maps "the-screen" (en slug) to "l-ecran" (fr slug).
-    assert.equal(dataFr.pages["take-over/orders-api"].counterpart.anchor, "l-ecran");
+    // take-over/orders-api's topic names use/orders~the-screen: "the-screen" (en slug) maps to "l-ecran" (fr slug).
+    assert.deepEqual(dataFr.pages["take-over/orders-api"].topic, [{ id: "use/orders", anchor: "l-ecran" }]);
+  });
+
+  test("an anchor of a topic group that cannot be mapped: dropped, one warning on the page it points into", async () => {
+    const dir = languagesCopy();
+    try {
+      // The French outline of use/orders gets one more heading: the-screen has no place to map to.
+      const page = path.join(dir, "translations", "fr", "use", "orders.md");
+      fs.writeFileSync(page, `## En plus\n\nUn titre de plus.\n\n${fs.readFileSync(page, "utf8")}`);
+      const r = await buildLanguages({ root: dir, draft: true });
+      const dataFr = dataOf(r.html, "fr");
+      assert.deepEqual(dataFr.pages["take-over/orders-api"].topic, [{ id: "use/orders" }], "the link goes to the page");
+      assert.deepEqual(
+        r.warnings.filter((w) => w.key === "translation.anchor").map((w) => w.vars),
+        [{ lang: "fr", page: "use/orders", anchor: "the-screen" }],
+      );
+      assert.deepEqual(dataOf(r.html).pages["take-over/orders-api"].topic, [
+        { id: "use/orders", anchor: "the-screen" },
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("languages.idClash: a section or page id equal to a declared language is blocking, even a draft build", async () => {

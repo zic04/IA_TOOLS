@@ -8,6 +8,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **Topic groups** (ARCHITECTURE.md §6.1a): a page's `counterpart` may name a list of pages; the pages it joins,
+  either way, form one group, declared once and shown on each: "This topic for: Use · **Product** · Administer ·
+  Develop" under the page's badges, the page read marked (without spaces, "Related:" and the titles). `context`
+  lists the group's other pages and `sync` follows their files. The site data `pages[].counterpart` becomes
+  `pages[].topic`; the texts `ui.counterpart*` become `ui.topic*`; the line is a module of the site
+  (`engine/site/lib/topics.js`).
 - **The depth of the feature sheets in the audit** (standard/maturity.md): `featureSheets` (every written feature
   sheet has a user story, level 3), `scenarios` (≥ 80 % of their stories have acceptance criteria, level 4) and
   `behaviourDepth` (≥ 90 % of the rubrics of their behaviour cards are answered, level 4), measured on the backlog

@@ -118,16 +118,19 @@ la même page — pas « le circuit de validation saute le responsable quand la 
 
 ## Les liens `counterpart`
 
-`counterpart` (un champ de page, avec ou sans espaces déclarés) désigne « le même sujet, pour l'autre public » :
-`"<id de page>"` ou `"<id de page>~<ancre>"`. Une fiche de fonctionnalité et la page technique qui l'implémente
-se désignent l'une l'autre et partagent leur identifiant `F-xx` ; un processus métier et le parcours qui en
-automatise une partie font de même. Le site l'affiche comme une ligne sous les puces de la page (« Même sujet,
-pour {espace} : {titre} → »), et le build le contrôle comme un lien interne (page inconnue : `link.counterpart`,
-erreur).
+`counterpart` (un champ de page, avec ou sans espaces déclarés) désigne « le même sujet, pour d'autres
+lecteurs » : une page, `"<id de page>"` ou `"<id de page>~<ancre>"`, ou une liste. Une fiche de fonctionnalité,
+son écran, la page technique qui l'implémente et son manuel d'exploitation partagent leur identifiant `F-xx` ; un
+processus métier et le parcours qui en automatise une partie font de même. Les pages qu'un counterpart relie, dans
+un sens ou dans l'autre, forment un **groupe de sujet** : déclaré une fois, sur n'importe laquelle de ses pages, il
+s'affiche sur chacune, comme une ligne sous les puces de la page (« Ce sujet pour : Utiliser · **Produit** ·
+Développer », la page lue marquée), et le build contrôle chaque cible comme un lien interne (page inconnue, ou la
+page elle-même : `link.counterpart`, erreur).
 
-`counterpart` **n'a pas besoin d'être réciproque** : une page technique n'a souvent pas d'équivalent métier
-(personne n'a besoin d'une explication métier du schéma de base de données), et c'est normal. N'en ajoutez un
-que là où un vrai lecteur devrait sinon deviner que l'autre page existe.
+Une page **n'a pas besoin d'entrer dans un groupe** : une page technique n'a souvent pas d'équivalent métier
+(personne n'a besoin d'une explication métier du schéma de base de données), et c'est normal. N'ajoutez un
+counterpart que là où un vrai lecteur devrait sinon deviner que l'autre page existe — et une seule fois : chaque
+page du groupe l'affiche.
 
 ## Les pages obligatoires de la reprise
 

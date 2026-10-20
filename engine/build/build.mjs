@@ -303,24 +303,27 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
 }
 
 /**
- * Counterpart anchors (§5): mapped by position from the source target's outline to this language's, once every
- * page of both languages has rendered. Unmappable: the anchor is dropped, warning `translation.anchor`.
+ * The anchors of the topic groups (§5): each member's, mapped by position from its source outline to this
+ * language's, once every page of both languages has rendered. Unmappable (the translated outline differs): the
+ * anchor is dropped, warning `translation.anchor` once per page it points into — the page whose translation to fix.
  */
 function mapCounterpartAnchors(b, lang, pass, sourceData) {
-  for (const pageId of Object.keys(pass.counterparts)) {
-    const page = pass.pages[pageId];
-    if (!page?.counterpart?.anchor) continue;
-    const targetId = page.counterpart.id;
-    const sourceToc = sourceData.pages[targetId]?.toc;
-    const targetToc = pass.pages[targetId]?.toc;
-    const i = sourceToc ? sourceToc.findIndex((h) => h.id === page.counterpart.anchor) : -1;
-    const mapped = i >= 0 && targetToc && targetToc.length === sourceToc.length ? targetToc[i]?.id : null;
-    if (mapped) page.counterpart.anchor = mapped;
-    else {
-      delete page.counterpart.anchor;
-      b.report(false, { kind: "translation", key: "translation.anchor", vars: { lang, page: pageId } });
+  const dropped = new Map();
+  for (const page of Object.values(pass.pages))
+    for (const member of page.topic ?? []) {
+      if (!member.anchor) continue;
+      const sourceToc = sourceData.pages[member.id]?.toc;
+      const targetToc = pass.pages[member.id]?.toc;
+      const i = sourceToc ? sourceToc.findIndex((h) => h.id === member.anchor) : -1;
+      const mapped = i >= 0 && targetToc && targetToc.length === sourceToc.length ? targetToc[i]?.id : null;
+      if (mapped) member.anchor = mapped;
+      else {
+        dropped.set(member.id, member.anchor);
+        delete member.anchor;
+      }
     }
-  }
+  for (const [page, anchor] of dropped)
+    b.report(false, { kind: "translation", key: "translation.anchor", vars: { lang, page, anchor } });
 }
 
 /**

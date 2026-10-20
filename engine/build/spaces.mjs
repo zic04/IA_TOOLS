@@ -106,12 +106,6 @@ const flagsOf = (profile) => ({
   ...(profile.board ? { board: true } : {}),
 });
 
-/** "<page id>[~anchor]" → { id, anchor? } (site data, pages[].counterpart). */
-export function counterpartOf(value) {
-  const [id, anchor] = String(value).split("~");
-  return anchor ? { id, anchor } : { id };
-}
-
 // ─── Exports ──────────────────────────────────────────────────────────────────
 /** A link of the rendered HTML to a page or a section: <a … href="#/<target>[~anchor]" …>text</a>. */
 const LINK = /<a\b([^>]*?)\bhref="#\/([^"]*)"([^>]*)>([\s\S]*?)<\/a>/g;
@@ -188,7 +182,9 @@ export function exportSite({ data, space, used, t }) {
     });
   for (const p of Object.values(d.pages)) {
     p.html = rewrite(p.html);
-    if (p.counterpart && !keep.has(p.counterpart.id)) delete p.counterpart;
+    // The topic group (§6.1a): the members the export keeps; none, no line.
+    if (p.topic) p.topic = p.topic.filter((m) => keep.has(m.id));
+    if (p.topic?.length === 0) delete p.topic;
   }
   // A section kept for some of its pages loses its introduction, subtitle and highlights: they belong to its own
   // space, with its overview.

@@ -13,6 +13,7 @@ import { resolveImports } from "../facts/imports.mjs";
 import { extractProofs } from "./proofs.mjs";
 import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
+import { topicOf } from "../core/counterparts.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -244,9 +245,8 @@ export async function pageDependencies({
   // ─── ::facts tables ────────────────────────────────────────────────────────────────────────────────────────
   for (const source of factsSources) add(`doc:${factsDir}/${source}.json`, { via: "facts" });
 
-  // ─── Counterpart: one level of recursion, never beyond ────────────────────────────────────────────────────
-  if (entry.counterpart && _counterpartDepth < 1) {
-    const targetId = entry.counterpart.split("~")[0];
+  // ─── Its topic group (engine/core/counterparts.mjs): the other pages, one level of recursion, never beyond
+  for (const { id: targetId } of _counterpartDepth < 1 ? topicOf(toc, pageId) : []) {
     const target = await pageDependencies({
       root,
       config,

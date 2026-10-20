@@ -39,8 +39,8 @@
   "home.spaces.showAll": "Tout afficher",
   "render.spaces.excludedLink": " (voir la documentation {space})",
   "template.spaces": "Espaces",
-  "ui.counterpart": "Même sujet, pour {space} : {title} →",
-  "ui.counterpart.plain": "Voir aussi : {title} →",
+  "ui.topic": "Ce sujet pour :",
+  "ui.topic.plain": "Voir aussi :",
   "ui.journey.hidden": {
     "one": "+ {n} étape dans une autre partie de la documentation",
     "other": "+ {n} étapes dans une autre partie de la documentation"

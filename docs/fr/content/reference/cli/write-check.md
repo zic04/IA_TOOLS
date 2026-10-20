@@ -138,7 +138,7 @@ Ce que la documentation doit suivre après un changement de l'application (`app.
 l'application maintenant avec la référence, `sync.json` (`paths.sync`), ou, avec `--since <réf>`, un commit git —
 git n'est jamais qu'en lecture. `--mark <page…>` ou `--all` enregistrent, pour chaque page, les fichiers de
 l'application dont elle dépend : ses `routes`, ses preuves `fichier:ligne`, les captures qu'elle cite, ses tableaux
-`::faits`, son `counterpart` et ses `sources` (un champ de page pour une page sans rien de tout cela). Le rapport
+`::faits`, son groupe de sujet (`counterpart`) et ses `sources` (un champ de page pour une page sans rien de tout cela). Le rapport
 liste ensuite les pages à relire, groupées par priorité (`direct` : un fichier de la page elle-même a changé ;
 `shared` : seul un fichier qu'elle importe a changé ; `probablyIntact` : ce fichier partagé a changé, mais rien que
 la page cite), les preuves `fichier:ligne` déplacées ou rompues, les libellés dont la valeur a changé
@@ -173,8 +173,8 @@ doc-kit context <page…> [--budget <jetons>] [--update]
 Écrit `.doc-kit/context/<page>.md`, un fichier par page (`/` remplacé par `__` dans le nom de fichier) : la seule
 lecture dont un agent a besoin pour écrire ou mettre à jour cette page, au lieu de tout l'inventaire du code et de
 la table des matières. Il est construit à partir des **dépendances** de la page (les mêmes que calcule
-`doc-kit sync` : ses routes, ses preuves `fichier:ligne`, ses captures, ses tableaux `::faits`, son `counterpart` et
-ses `sources` déclarées) — les fichiers directs (la route propre de la page) avant les partagés (seulement
+`doc-kit sync` : ses routes, ses preuves `fichier:ligne`, ses captures, ses tableaux `::faits`, son groupe de sujet
+(`counterpart`) et ses `sources` déclarées) — les fichiers directs (la route propre de la page) avant les partagés (seulement
 importés) : la page elle-même, les sections requises de son gabarit, les fichiers à lire (un fichier de 150 lignes
 ou moins en entier ; sinon ±40 lignes autour de chaque ligne citée ; un fichier direct sans ligne citée donne ses
 80 premières lignes ; un fichier partagé sans ligne citée est listé par son seul chemin), les libellés exacts et
