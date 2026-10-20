@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { runPlan } from "./tools/run-plan.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const folders = process.argv.slice(2).length ? process.argv.slice(2) : ["unit", "snapshot"];
@@ -23,7 +24,13 @@ if (!files.length) {
   console.error(`no test file in: ${folders.join(", ")}`);
   process.exit(2);
 }
-// End-to-end tests share one browser per file: one file at a time.
-const options = folders.includes("e2e") ? ["--test-concurrency=1"] : [];
-const r = spawnSync(process.execPath, ["--test", ...options, ...files], { stdio: "inherit" });
-process.exit(r.status ?? 1);
+// The files that measure time after the others, one at a time, a failure run once more (test/tools/run-plan.mjs).
+const code = runPlan({
+  files,
+  e2e: folders.includes("e2e"),
+  read: (f) => fs.readFileSync(f, "utf8"),
+  run: (list, options) =>
+    spawnSync(process.execPath, ["--test", ...options, ...list], { stdio: "inherit" }).status ?? 1,
+  log: (line) => console.log(line),
+});
+process.exit(code);

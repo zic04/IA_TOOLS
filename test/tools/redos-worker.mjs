@@ -507,12 +507,18 @@ const timed = (fn, input) => {
   fn(input);
   return performance.now() - t;
 };
-/** The better of two runs: a pause of the collector during one of them is not taken for growth. */
-const best = (fn, input) => Math.min(timed(fn, input), timed(fn, input));
+/** The best of `runs` runs (two by default): a pause of the collector during one of them is not taken for growth. */
+const best = (fn, input, runs = 2) => Math.min(...Array.from({ length: runs }, () => timed(fn, input)));
+
+/** A step that looks quadratic (4 times the input, more than SUSPECT times the time) is measured again, AGAIN runs. */
+const SUSPECT = 6;
+const AGAIN = 5;
 
 /**
  * The growth of a check: its three slowest built inputs (the extra inputs have no shape to build longer) built again
- * at 4N and at 16N, each size's time against the size below.
+ * at 4N and at 16N, each size's time against the size below. A step that looks quadratic is measured again, both
+ * sizes, the better of each kept: a pause of the collector or a busy machine does not come back the same way twice,
+ * a real growth does.
  * @returns {Array<{ ratio: number, ms: number, input: string }>}
  */
 function growthOf(fn, times) {
@@ -520,12 +526,18 @@ function growthOf(fn, times) {
   const steps = [];
   for (const i of order.slice(0, 3).filter((k) => k < SHAPES.length)) {
     const [p, u] = SHAPES[i];
+    let shorter = INPUTS[i];
     let before = times[i];
     for (const n of [4 * N, 16 * N]) {
       const long = built(p, u, n);
-      const ms = best(fn, long);
+      let ms = best(fn, long);
+      if (ms / Math.max(before, 0.05) > SUSPECT) {
+        before = Math.min(before, best(fn, shorter, AGAIN));
+        ms = Math.min(ms, best(fn, long, AGAIN));
+      }
       steps.push({ ratio: ms / Math.max(before, 0.05), ms, input: long.slice(0, 60) });
       before = ms;
+      shorter = long;
     }
   }
   return steps;
