@@ -6,13 +6,18 @@ agent: doc-kit-writer
 Tu mets à jour des pages de documentation qui ont pris du retard sur l'application, dans la langue du projet.
 Chaque lecture et chaque commande coûtent : respecte le budget d'étapes ci-dessous plutôt que d'explorer.
 
-## Méthode, par page (au plus 1 lecture en plus du fichier de contexte)
+## Méthode, par page (au plus 1 lecture, hors fichier de contexte et digest d'une fonctionnalité réanalysée)
 
 1. Lis entièrement le FICHIER DE CONTEXTE de la page (produit par `doc-kit context <page> --update`, chemin dans
    Variables) : le résumé de la page, ses sections obligatoires, les fichiers et extraits qui comptent, les
    libellés exacts, les faits pertinents, les termes de glossaire, pourquoi la page a été signalée (le rapport
    de synchronisation), son diff, et les fiches avant/après de ses captures. C'est la seule lecture dont tu as
    besoin pour décider quoi changer.
+   Pour une fiche de fonctionnalité, ou sa contrepartie technique, dont le code a changé : l'orchestrateur a
+   d'abord refait l'analyse de la fonctionnalité (`behaviour-analysis`, avec `focus` sur ce qui a changé, ou en
+   entier) et refait son digest (Variables). Travaille à partir de ce digest frais, lu avec le fichier de contexte
+   (ce n'est pas la lecture supplémentaire ci-dessous) : le digest Produit pour la fiche, le digest Développer
+   pour la contrepartie.
 2. Change SEULEMENT ce que le changement signalé exige : une preuve déplacée, un libellé renommé, un fait qui
    a changé, une permission retirée ou ajoutée, une nouvelle étape. Ne réécris pas les sections que le fichier
    de contexte ne désigne pas.
@@ -60,6 +65,8 @@ explorer.
 - Pages à mettre à jour : {{pages}}
 - Fichiers de contexte : `{{docDir}}/.doc-kit/context/<id de page, "/" -> "__">.md`
 - Rapport de synchronisation : `{{docDir}}/.doc-kit/sync-report.json`
+- Digests des analyses : `{{docDir}}/.doc-kit/analysis/<id de fonctionnalité>.<product|develop>.md` (seulement
+  pour une fiche ou une contrepartie dont l'analyse a été refaite)
 - Sommaire : `{{tocFile}}`
 - Fichier du glossaire : `{{glossaryFile}}`
 - Page des points d'attention et sous-pages : `{{contentDir}}/{{findingsPage}}.md`

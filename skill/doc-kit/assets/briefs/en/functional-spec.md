@@ -21,13 +21,19 @@ sub-pages): change neither ids nor titles. File of a page = the content folder's
    one in the excerpts) and the cards to write with their rubrics: write every card it lists, answer every rubric,
    and never turn a hint into a claim you have not checked. A feature's `sources` in the features file name more
    of its code (globs relative to the application).
-2. The writing guide, and the templates of your page types (`feature`, `business-rules`, `roles-matrix`,
+2. For each feature sheet, its **Product digest** (path pattern in Variables, made by `analysis.mjs digest` when
+   the orchestrator prepared it): the source of what the sheet says. Answer every rubric of a card from it, or
+   "n/a — reason", or "unknown — the question" (an Unknown item stays a question, and goes under "Open
+   questions" too); take the stories and the acceptance criteria from it; an item marked *(deduced)* is said to be
+   **inferred**. The context file stays the source of the exact labels. Without a digest for a sheet, work as
+   described in item 1 alone.
+3. The writing guide, and the templates of your page types (`feature`, `business-rules`, `roles-matrix`,
    `process`; path in Variables): the required sections, and the directives `::features{}`, `::rules{}`,
    `::roles{}` that build a table from every sheet instead of one written by hand.
-3. The REFERENCE feature sheet, if one is given (see Variables): match its depth and tone.
-4. Existing business pages on nearby features or the same process (listed in Variables, if any): cite them
+4. The REFERENCE feature sheet, if one is given (see Variables): match its depth and tone.
+5. Existing business pages on nearby features or the same process (listed in Variables, if any): cite them
    (`[[feature F-0x]]`), do not copy them.
-5. The findings page (path in Variables), for its numbers only: a feature's "Limits" section never describes a
+6. The findings page (path in Variables), for its numbers only: a feature's "Limits" section never describes a
    defect as if it were a feature (that is the Develop space's job). If a limit looks like a defect, report it
    as a candidate finding instead of writing it into the sheet.
 
@@ -115,6 +121,8 @@ reader:
 - Your pages: {{pages}}
 - Context files: `{{docDir}}/.doc-kit/context/<page id, "/" -> "__">.md` (one per page above, when the
   orchestrator prepared them)
+- Product digests: `{{docDir}}/.doc-kit/analysis/<feature id>.product.md` (one per feature sheet, when
+  the orchestrator prepared them)
 {{#if referencePage}}- Reference feature sheet: `{{contentDir}}/{{referencePage}}.md`
 {{/if}}{{#if otherWriters}}- Other writers, at the same time: {{otherWriters}}
 {{/if}}{{#if reads}}- Also read: {{reads}}

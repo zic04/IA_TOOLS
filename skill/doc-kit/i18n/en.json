@@ -118,7 +118,7 @@
     "missingCommand": "missing command"
   },
   "analysis": {
-    "usage": "Usage:\n  node analysis.mjs check [<feature>…] --project <docDir>\n  node analysis.mjs digest <feature> --for use|product|admin|develop --project <docDir> [--output <file>]\n  node analysis.mjs questions --project <docDir> [--output <file>]\n  node analysis.mjs findings --project <docDir> [--json]\n  node analysis.mjs depth --project <docDir> [--audit <file>] [--json]",
+    "usage": "Usage:\n  node analysis.mjs check [<feature>…] --project <docDir>\n  node analysis.mjs digest <feature> --for use|product|admin|develop --project <docDir> [--output <file>]\n  node analysis.mjs questions --project <docDir> [--output <file>]\n  node analysis.mjs findings --project <docDir> [--json]\n  node analysis.mjs depth --project <docDir> [--audit <file>] [--reset [<feature>…]] [--json]",
     "commandUnknown": "unknown command: \"{command}\"",
     "noKit": "the kit's engine cannot be reached (engine/, schemas/)",
     "noKit_todo": "run doc-kit skill install from the kit, or run the script from the kit's source tree",
@@ -136,8 +136,9 @@
     "noFinding": "no candidate finding in the analyses",
     "auditMissing": "{file} cannot be read",
     "auditMissing_todo": "run doc-kit audit first: it writes .doc-kit/audit.json",
-    "depthDone": "✔ nothing open in the feature sheets: the depth loop ends here",
+    "depthDone": "✔ nothing left to deepen or to analyse again: the depth loop ends here (what stays open: node analysis.mjs questions)",
     "depthLeft": "{n} gaps left to the product owner: node analysis.mjs questions",
+    "namesWithoutReset": "depth names a feature only with --reset (it then starts a new loop for it)",
     "depth.deepen": "deepen from the analysis:",
     "depth.reanalyse": "analyse again:",
     "depth.questions": "already open questions:",

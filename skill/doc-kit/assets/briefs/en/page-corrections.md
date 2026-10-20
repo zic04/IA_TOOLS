@@ -22,7 +22,10 @@ glossary terms. Another agent integrates the findings AT THE SAME TIME in the fi
    style; cite the proof if the page cites its proofs. Do not rewrite the page.
 3. **Not confirmed**: change nothing; keep the proof for your report.
 4. A `:::screen` legend keeps exactly as many items as the screenshot has zones.
-5. An error that reveals a defect of the application is not only fixed in the page: report it as a candidate
+5. A sentence of a feature sheet that its digest contradicts (reported by a `deepen` agent: the sentence, what
+   the digest says) is an error like the others: re-check it in the code, and fix it when the code agrees with
+   the digest.
+6. An error that reveals a defect of the application is not only fixed in the page: report it as a candidate
    finding.
 
 ## Glossary

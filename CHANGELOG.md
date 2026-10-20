@@ -8,6 +8,14 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The method uses the analyses** (the skill, ARCHITECTURE.md §6.11a): a scoping question "How detailed?"
+  (essential, standard, detailed: `extra.briefs.level`); phase 4b, one analyst per feature, then its digests; phase
+  5b, the depth loop (`analysis.mjs depth`, `deepen` on haiku, a second analysis on what is missing, at most two
+  rounds, then the open questions for the product owner). `functional-spec` writes each sheet from its Product
+  digest; `inventory` gives each feature its size, its epic and the behaviours to document in depth; `triage` may
+  decide `deepen`; the orchestration reference shows the words and proofs the sober method had lost.
+  `analysis.mjs depth` ends the loop (✔) when nothing is left to deepen or to analyse again, prints each feature
+  with its page, and `--reset [<feature>…]` starts a new loop.
 - **The analyst agent and its briefs** (ARCHITECTURE.md §6.11a): a fourth agent type, `doc-kit-analyst`
   (sonnet), runs the new brief `behaviour-analysis`: one feature traced in the code, its analysis written and checked,
   the reading budget by its size (S, M, L) and the content by the level of detail (essential, standard, detailed).

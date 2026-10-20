@@ -23,7 +23,10 @@ d'attention et ses sous-pages (chemin dans Variables) : ne touche pas ces fichie
    la page ; cite la preuve si la page cite ses preuves. Ne réécris pas la page.
 3. **Non confirmée** : ne change rien ; garde la preuve pour ton rapport.
 4. Une légende `:::ecran` garde exactement autant d'éléments que la capture a de zones.
-5. Une erreur qui révèle un défaut de l'application ne se corrige pas seulement dans la page : signale-la comme
+5. Une phrase d'une fiche de fonctionnalité que son digest contredit (signalée par un agent `deepen` : la phrase,
+   ce que dit le digest) est une erreur comme les autres : revérifie-la dans le code, et corrige-la quand le code
+   donne raison au digest.
+6. Une erreur qui révèle un défaut de l'application ne se corrige pas seulement dans la page : signale-la comme
    candidat constat.
 
 ## Glossaire

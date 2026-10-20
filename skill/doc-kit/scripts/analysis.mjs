@@ -14,10 +14,12 @@
 //       writes the open questions for the product owner (default .doc-kit/open-questions.md).
 //   node analysis.mjs findings --project <docDir> [--json]
 //       prints the candidate findings, ready for the consolidation file.
-//   node analysis.mjs depth --project <docDir> [--audit <file>] [--json]
+//   node analysis.mjs depth --project <docDir> [--audit <file>] [--reset [<feature>…]] [--json]
 //       plans one round of the depth loop from the audit (default .doc-kit/audit.json, `doc-kit audit`): what to
 //       deepen from the analyses, what to analyse again, what is left to the product owner; at most two rounds per
-//       feature, recorded in .doc-kit/analysis/depth.json.
+//       feature, recorded in .doc-kit/analysis/depth.json. The loop ends when nothing is left to deepen or to analyse
+//       again (✔). --reset first forgets the rounds and what was left of the features named (all without a name):
+//       a new loop, after a release or a new analysis.
 // questions, findings and depth read only the analyses that follow the format and hold no secret; the others are
 // named, and skipped.
 // Every text of an analysis printed on the console is put on one line, without control characters.
@@ -253,7 +255,9 @@ async function findings(values) {
   return 0;
 }
 
-async function depth(values) {
+async function depth(values, names) {
+  if (names.length && !values.reset) throw new ExitError(2, t("namesWithoutReset"), t("usage"));
+  for (const n of names) if (!FEATURE_ID.test(n)) throw new ExitError(2, t("featureInvalid", { value: n }));
   const ctx = await setup(values);
   const auditFile = values.audit ? path.resolve(values.audit) : path.join(ctx.docDir, WORK_DIR, "audit.json");
   let audit;
@@ -265,6 +269,12 @@ async function depth(values) {
   const features = audit.depth?.features ?? [];
   const analyses = new Map(readableAnalyses(ctx).map((d) => [d.feature, d]));
   const saved = readDepth(ctx.docDir);
+  // A new loop: the rounds and what was left of the features named (every one without a name) are forgotten.
+  if (values.reset) {
+    const forget = (id) => !names.length || names.includes(id);
+    for (const id of Object.keys(saved.features)) if (forget(id)) delete saved.features[id];
+    saved.left = saved.left.filter((l) => !forget(l.feature));
+  }
   const plan = depthPlan({ features, analyses, state: saved.features, rubricLabel: ctx.rubricLabel });
   // What was left of a feature the audit measured again is replaced by this round's (none when its gaps closed).
   const measured = new Set(features.map((f) => f.id));
@@ -275,12 +285,13 @@ async function depth(values) {
     console.log(JSON.stringify({ actions: plan.actions, left: plan.left }, null, 2));
     return 0;
   }
-  if (!plan.actions.length && !plan.left.length) console.log(t("depthDone"));
+  // Done when nothing is left to deepen or to analyse again: the open questions are the product owner's.
+  if (!plan.actions.some((a) => a.deepen.length || a.reanalyse.length)) console.log(t("depthDone"));
   const print = (s) => console.log(ctx.oneLine(s));
   for (const a of plan.actions) {
     const named = (gaps) =>
       gaps.map((g) => (a.labels[g] && a.labels[g] !== g ? `${g} (${a.labels[g]})` : g)).join(", ");
-    print(`${a.feature} · ${a.title}`);
+    print(`${a.feature} · ${a.title} (${a.page})`);
     if (a.deepen.length) print(`  ${t("depth.deepen")} ${named(a.deepen)}`);
     if (a.reanalyse.length) print(`  ${t("depth.reanalyse")} ${named(a.reanalyse)}`);
     if (a.questions.length) print(`  ${t("depth.questions")} ${named(a.questions)}`);
@@ -297,6 +308,7 @@ await run(async () => {
       output: { type: "string" },
       audit: { type: "string" },
       json: { type: "boolean" },
+      reset: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
     t("usage"),

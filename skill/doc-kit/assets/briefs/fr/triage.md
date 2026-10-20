@@ -18,6 +18,10 @@ page a été signalée (le rapport de synchronisation), son diff, et les fiches 
 - `rewrite` : le changement est structurel, ou touche la majeure partie de la page (une fonctionnalité
   supprimée, un nouveau modèle de permissions, de nombreux faits changés) : un agent rédacteur doit la
   refaire à partir du fichier de contexte.
+- `deepen` : une fiche de fonctionnalité encore juste mais qui a des manques que la boucle de profondeur mesure
+  (rubriques d'une carte de comportement omises ou inconnues, récits sans critère d'acceptation) : l'orchestrateur
+  lance alors `analysis.mjs depth` et le brief `deepen` pour elle. Pas pour une fiche dont le contenu est faux :
+  c'est `edit` ou `rewrite`.
 
 Une phrase courte de raison par page, citant ce qui a changé (une route, un libellé, une permission, un extrait
 de diff, ou une ligne de fait).
@@ -34,8 +38,8 @@ de diff, ou une ligne de fait).
 ## Rapport final
 
 Un objet JSON, une entrée par page, dans l'ordre donné : `{ "<id de page>": { "decision":
-"intact"|"edit"|"rewrite", "reason": "…" }, … }`. L'orchestrateur l'enregistre sous `.doc-kit/triage.json` :
-tu n'écris aucun fichier toi-même.
+"intact"|"edit"|"rewrite"|"deepen", "reason": "…" }, … }`. L'orchestrateur l'enregistre sous
+`.doc-kit/triage.json` : tu n'écris aucun fichier toi-même.
 
 ## Variables
 

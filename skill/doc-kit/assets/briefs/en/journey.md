@@ -16,6 +16,10 @@ other paths are in Variables.
 - Your pages' context files (path pattern in Variables, written by `doc-kit context <page>` when the
   orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
   — the reading you need for the application, besides what is listed below.
+- Optionally, when a step goes through a feature that has an analysis, that feature's Develop digest
+  (`{{docDir}}/.doc-kit/analysis/<feature id>.develop.md`, made by `analysis.mjs digest`, when the orchestrator
+  prepared it): the mechanism and the proofs it holds can serve as your own, re-checked in the code. One more
+  read.
 - The writing guide (extended syntax: `:::steps`, `:::screen`, `::capture`, `::diagram`, callouts `> [!HOW]`,
   `> [!WARNING]`, `> [!NOTE]`, chips `[[perm …]]`, `[[menu …]]`, `[[status …]]`, `[[route …]]`, links `#/id`
   and `#/id~anchor`, diagrams).

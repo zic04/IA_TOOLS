@@ -668,6 +668,43 @@ describe("analysis.mjs on a project", () => {
     }
   });
 
+  test("depth: done when nothing is left to deepen or analyse again; --reset starts a new loop; the page printed", () => {
+    const { root, docs } = project((d) => {
+      d.behaviours[0].rubrics.match = { text: "", status: "unknown", question: "Accents?" };
+      return d;
+    });
+    try {
+      const audit = (features) =>
+        fs.writeFileSync(path.join(docs, ".doc-kit", "audit.json"), JSON.stringify({ depth: { features } }));
+      const depthState = () =>
+        JSON.parse(fs.readFileSync(path.join(docs, ".doc-kit", "analysis", "depth.json"), "utf8"));
+      // Only a question already open: the loop is done.
+      audit([feature({ cards: [card([{ id: "match", state: "unknown" }])] })]);
+      let r = script(["depth", "--project", docs]);
+      assert.match(r.stdout, /^✔ nothing left to deepen/);
+      assert.match(r.stdout, /\nF-01 · Track orders \(features\/track\)\n {2}already open questions: B-01\.match/);
+      // Two rounds spent: nothing more to deepen; --reset forgets them, and --reset with an id only that feature's.
+      audit([feature({ cards: [card([{ id: "fields", state: "missing" }])] })]);
+      for (let i = 0; i <= MAX_ROUNDS; i++) script(["depth", "--project", docs]);
+      assert.equal(depthState().features["F-01"].rounds, MAX_ROUNDS);
+      r = script(["depth", "--project", docs, "--json"]);
+      assert.deepEqual(JSON.parse(r.stdout).actions, []);
+      r = script(["depth", "F-09", "--reset", "--project", docs, "--json"]);
+      assert.deepEqual(JSON.parse(r.stdout).actions, [], "another feature's reset changes nothing here");
+      r = script(["depth", "F-01", "--reset", "--project", docs, "--json"]);
+      assert.deepEqual(JSON.parse(r.stdout).actions[0].deepen, ["B-01.fields"]);
+      assert.equal(depthState().features["F-01"].rounds, 1);
+      r = script(["depth", "--reset", "--project", docs, "--json"]);
+      assert.equal(depthState().features["F-01"].rounds, 1, "all forgotten, then this round counted");
+      assert.equal(script(["depth", "F01", "--reset", "--project", docs]).status, 2);
+      const named = script(["depth", "F-01", "--project", docs]);
+      assert.equal(named.status, 2, "a feature named without --reset");
+      assert.match(named.stderr, /depth names a feature only with --reset/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("depth: once the gaps of a feature are closed, what it had left goes", () => {
     const { root, docs } = project();
     try {
@@ -680,7 +717,7 @@ describe("analysis.mjs on a project", () => {
       assert.equal(depthState().left.length, 1, "left after the rounds");
       audit([feature({ cards: [], stories: [], noStory: false, noRule: false })]);
       const r = script(["depth", "--project", docs]);
-      assert.match(r.stdout, /nothing open in the feature sheets/);
+      assert.match(r.stdout, /^✔ nothing left to deepen or to analyse again: the depth loop ends here/);
       assert.deepEqual(depthState().left, []);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

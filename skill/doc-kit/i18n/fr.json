@@ -118,7 +118,7 @@
     "missingCommand": "commande manquante"
   },
   "analysis": {
-    "usage": "Usage :\n  node analysis.mjs check [<fonctionnalité>…] --project <dossierDoc>\n  node analysis.mjs digest <fonctionnalité> --for use|product|admin|develop --project <dossierDoc> [--output <fichier>]\n  node analysis.mjs questions --project <dossierDoc> [--output <fichier>]\n  node analysis.mjs findings --project <dossierDoc> [--json]\n  node analysis.mjs depth --project <dossierDoc> [--audit <fichier>] [--json]",
+    "usage": "Usage :\n  node analysis.mjs check [<fonctionnalité>…] --project <dossierDoc>\n  node analysis.mjs digest <fonctionnalité> --for use|product|admin|develop --project <dossierDoc> [--output <fichier>]\n  node analysis.mjs questions --project <dossierDoc> [--output <fichier>]\n  node analysis.mjs findings --project <dossierDoc> [--json]\n  node analysis.mjs depth --project <dossierDoc> [--audit <fichier>] [--reset [<fonctionnalité>…]] [--json]",
     "commandUnknown": "commande inconnue : « {command} »",
     "noKit": "le moteur du kit est inaccessible (engine/, schemas/)",
     "noKit_todo": "lancez doc-kit skill install depuis le kit, ou lancez le script depuis les sources du kit",
@@ -136,8 +136,9 @@
     "noFinding": "aucun point d'attention candidat dans les analyses",
     "auditMissing": "{file} est illisible",
     "auditMissing_todo": "lancez d'abord doc-kit audit : il écrit .doc-kit/audit.json",
-    "depthDone": "✔ rien d'ouvert dans les fiches : la boucle de profondeur s'arrête là",
+    "depthDone": "✔ plus rien à approfondir ni à analyser de nouveau : la boucle de profondeur s'arrête là (ce qui reste ouvert : node analysis.mjs questions)",
     "depthLeft": "{n} manques laissés au responsable produit : node analysis.mjs questions",
+    "namesWithoutReset": "depth ne nomme une fonctionnalité qu'avec --reset (pour lui faire recommencer une boucle)",
     "depth.deepen": "à approfondir d'après l'analyse :",
     "depth.reanalyse": "à analyser de nouveau :",
     "depth.questions": "questions déjà ouvertes :",

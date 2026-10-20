@@ -27,7 +27,9 @@ plans, plus a separate production plan with its own prefix.
 
 **With a Product space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
 entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
-`process` pages, usually their own small batch since they are not tied to one feature). **For the takeover
+`process` pages, usually their own small batch since they are not tied to one feature). The **analysis wave**
+comes before them: one `behaviour-analysis` analyst per feature of `features.json` (ARCHITECTURE.md §6.11a), so
+that each `functional-spec` batch starts from the Product digests of its features. **For the takeover
 dossier** (the Develop space, and the Operate part of Administer): `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
 `tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
 `access-ownership` and `system-dossier` (`runbook`, `data-model`, `code-map`, `adr` together). None of the three
@@ -68,7 +70,9 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 | 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
 | 1 | inventory (1 Explore) | facts generated |
 | 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
-| 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8) | reference page(s) approved, captures tried |
+| 2b | the analysis wave: `behaviour-analysis`, one `doc-kit-analyst` per feature (up to 8 at a time), then `analysis.mjs check` and the digests | toc written, captures tried; only with a Product space or any feature sheet |
+| 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8); the technical counterparts of the feature sheets (`feature-mechanism`, one per feature) | reference page(s) approved, captures tried, digests made |
+| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `doc-kit audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
@@ -137,7 +141,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `pages`, `reads`, `topic`, `diagram` | `--var` | page ids, pages to read, "the journey of an order", t-order-journey |
 | `portalCaptures`, `infraDir` | `--var` (`production-technical` brief) | folder of screenshots, infrastructure code |
 | `description`, `stack`, `labels`, `referencePage` | `extra.briefs` | "order management", "Next.js App Router, Prisma", `messages/en.json`, `configure/approvals/chains` |
-| `feature`, `featureTitle`, `size`, `level` | `--var` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
+| `feature`, `featureTitle`, `size`, `level` | `--var` or, for `level`, `extra.briefs.level` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
 | `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
 | `focus` | `--var` (optional, `behaviour-analysis`): the items `analysis.mjs depth` lists to analyse again; the brief then asks for a second pass on those items only | B-01.match (Search an order · Matching), US-02.criteria |
 | `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder; `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
@@ -206,16 +210,18 @@ runs a build, whether it reviews a screenshot mid-way.
 Measured on a real application (FastAPI + Next.js, 81 pages): nine admin screen pages, one `writing-batch` agent
 per page, three methods compared.
 
-| Method | Avg. cost (token-equivalent) | Round-trips | Duration | Conformant |
-|---|---|---|---|---|
-| Old brief: writing guide + reference page + full inventory + free exploration + repeated checks | 1,039,000 | 47 | 13.6 min | 3/3 |
-| + a context folder, same free exploration | 890,000 (−14 %) | 42 | 11.4 min | 3/3 |
-| **Sober**: context folder + template only, at most 3 targeted reads, the page written once, one build, `view` only with screenshots | **323,000 (−69 %)** | **21** | **7 min (−49 %)** | 3/3 |
+| Method | Avg. cost (token-equivalent) | Round-trips | Duration | Words | Proofs | Conformant |
+|---|---|---|---|---|---|---|
+| Old brief: writing guide + reference page + full inventory + free exploration + repeated checks | 1,039,000 | 47 | 13.6 min | 1,719 | 52 | 3/3 |
+| + a context folder, same free exploration | 890,000 (−14 %) | 42 | 11.4 min | 1,652 | 54 | 3/3 |
+| **Sober**: context folder + template only, at most 3 targeted reads, the page written once, one build, `view` only with screenshots | **323,000 (−69 %)** | **21** | **7 min (−49 %)** | 1,303 | 42 | 3/3 |
 
 ("Token-equivalent" cost: input × 1 + cache write × 1.25 + cache read × 0.1 + output × 5 — cache reads are cheap
 per token, but there are far more of them per round-trip than any other kind.) The context folder alone bought
 14 %; the step budget bought the rest. Conformance to the standard did not move: fewer steps did not mean fewer
-checks, only fewer *exploratory* ones.
+checks, only fewer *exploratory* ones. The sober method also cut words by 24 % and proofs by 19 % at equal
+conformance: conformance measures structure, not depth. The analysis of each feature and the depth loop
+(ARCHITECTURE.md §6.11a) are what bring the depth back.
 
 **The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
 rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply

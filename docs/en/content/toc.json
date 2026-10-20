@@ -185,13 +185,13 @@
       "shortTitle": "Skill",
       "icon": "gear",
       "subtitle": "A skill that drives Claude Code through the whole method, with parallel agents and the CLI.",
-      "highlights": ["Installed in one command", "Eleven phases, each with its exit checks", "Four agent types, priced and measured"],
+      "highlights": ["Installed in one command", "Eleven phases plus the analysis and the depth loop, each with its exit checks", "Four agent types, priced and measured"],
       "groups": [
         {
           "title": "The skill",
           "pages": [
             { "id": "skill/install", "title": "Install the skill", "menuTitle": "Install", "summary": "doc-kit skill install, its target folder, and how doctor reports an outdated copy.", "template": "recipe" },
-            { "id": "skill/phases", "title": "The phases of the skill", "menuTitle": "Phases", "summary": "From scoping to delivery: what each phase does, which commands and agents it uses, and when it is done.", "template": "technical" },
+            { "id": "skill/phases", "title": "The phases of the skill", "menuTitle": "Phases", "summary": "From scoping to delivery, with the analysis and the depth loop: what each phase does, which commands and agents it uses, and when it is done.", "template": "technical" },
             { "id": "skill/cost-and-speed", "title": "Cost and speed", "menuTitle": "Cost and speed", "summary": "What costs no token, doc-kit context, new --prefill, the four agent types, and estimating versus measuring what agents spend.", "template": "technical" }
           ]
         }

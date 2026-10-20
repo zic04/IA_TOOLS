@@ -22,14 +22,20 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
    chacun dans les extraits) et les cartes à écrire avec leurs rubriques : écris chaque carte listée, réponds à
    chaque rubrique, et ne fais jamais d'un indice une affirmation que tu n'as pas vérifiée. Les `sources` d'une
    fonctionnalité dans le fichier des fonctionnalités nomment davantage de son code (motifs relatifs à l'application).
-2. Le guide de rédaction, et les gabarits de tes types de page (`feature`, `business-rules`, `roles-matrix`,
+2. Pour chaque fiche de fonctionnalité, son **digest Produit** (format du chemin dans Variables, produit par
+   `analysis.mjs digest` quand l'orchestrateur l'a préparé) : la source de ce que dit la fiche. Réponds à chaque
+   rubrique d'une carte à partir de lui, ou « Sans objet — raison », ou « Inconnu — la question » (un point
+   Inconnu reste une question, et va aussi sous « Questions ouvertes ») ; prends-y les récits et les critères
+   d'acceptation ; un point marqué *(déduit)* est dit **déduit**. Le fichier de contexte reste la source des
+   libellés exacts. Sans digest pour une fiche, travaille comme le décrit le seul point 1.
+3. Le guide de rédaction, et les gabarits de tes types de page (`feature`, `business-rules`, `roles-matrix`,
    `process` ; chemin dans Variables) : les sections obligatoires, et les directives `::fonctionnalites{}`,
    `::regles{}`, `::roles{}` qui construisent un tableau à partir de toutes les fiches au lieu d'un tableau écrit
    à la main.
-3. La fiche de RÉFÉRENCE, si on t'en donne une (voir Variables) : imite son niveau et son ton.
-4. Les pages métier existantes sur des fonctionnalités voisines ou le même processus (listées dans Variables,
+4. La fiche de RÉFÉRENCE, si on t'en donne une (voir Variables) : imite son niveau et son ton.
+5. Les pages métier existantes sur des fonctionnalités voisines ou le même processus (listées dans Variables,
    s'il y en a) : cite-les (`[[fonctionnalite F-0x]]`), ne les recopie pas.
-5. La page des points d'attention (chemin dans Variables), pour ses numéros seulement : la section « Limites »
+6. La page des points d'attention (chemin dans Variables), pour ses numéros seulement : la section « Limites »
    d'une fiche ne décrit jamais un défaut comme s'il s'agissait d'une fonctionnalité (c'est le rôle de l'espace
    Développer). Si une limite ressemble à un défaut, signale-la comme candidat constat au lieu de l'écrire dans
    la fiche.
@@ -125,6 +131,8 @@ Ce que tu dois tout de même au lecteur :
 - Tes pages : {{pages}}
 - Fichiers de contexte : `{{docDir}}/.doc-kit/context/<id de page, "/" -> "__">.md` (un par page ci-dessus, quand
   l'orchestrateur les a préparés)
+- Digests Produit : `{{docDir}}/.doc-kit/analysis/<id de fonctionnalité>.product.md` (un par fiche de
+  fonctionnalité, quand l'orchestrateur les a préparés)
 {{#if referencePage}}- Fiche de fonctionnalité de référence : `{{contentDir}}/{{referencePage}}.md`
 {{/if}}{{#if otherWriters}}- Autres rédacteurs, en même temps : {{otherWriters}}
 {{/if}}{{#if reads}}- À lire aussi : {{reads}}

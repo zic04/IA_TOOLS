@@ -1,15 +1,16 @@
 ## En bref
 
-Le skill applique la méthode du standard en **onze phases**, numérotées de 0 à 10. Chaque phase se termine par des
-vérifications qui disent qu'elle est achevée. Claude orchestre ; des agents écrivent en parallèle à partir de
-**briefs** ; la ligne de commande vérifie tout.
+Le skill applique la méthode du standard en **onze phases**, numérotées de 0 à 10, plus deux phases intermédiaires,
+4b (analyse des fonctionnalités) et 5b (boucle de profondeur), pour un projet qui a des fiches de fonctionnalité.
+Chaque phase se termine par des vérifications qui disent qu'elle est achevée. Claude orchestre ; des agents écrivent
+en parallèle à partir de **briefs** ; la ligne de commande vérifie tout.
 
 1. **Cadrer, mettre en place, inventorier** (phases 0 à 2) : des décisions écrites, le projet créé, le code
    inventorié.
-2. **Planifier et capturer** (phases 3 et 4) : le sommaire avec un type par page, une page de référence approuvée,
-   les captures prises sans risque.
-3. **Écrire et consolider** (phases 5 à 8) : des lots de pages écrits en parallèle, les constats consolidés, les
-   parcours, le diagnostic et les pages de production.
+2. **Planifier, capturer et analyser** (phases 3, 4 et 4b) : le sommaire avec un type par page, une page de
+   référence approuvée, les captures prises sans risque, chaque fonctionnalité suivie une fois dans le code.
+3. **Écrire et consolider** (phases 5 à 8, avec 5b) : des lots de pages écrits en parallèle, les manques des fiches
+   de fonctionnalité comblés, les constats consolidés, les parcours, le diagnostic et les pages de production.
 4. **Contrôler et livrer** (phases 9 et 10) : build strict, contrôles, audit, relecture, export, maintenance.
 
 Le skill répond dans la langue de l'utilisateur ; le site est écrit dans la langue du projet (`language`).
@@ -18,12 +19,14 @@ Le skill répond dans la langue de l'utilisateur ; le site est écrit dans la la
 
 | Phase | But | Commandes et agents | Terminée quand |
 |---|---|---|---|
-| 0 · Cadrage | Public et espaces, langue, sections, mode de capture, données réelles ou non, routes à ne jamais ouvrir, qui se connecte ; Claude demande si les captures se font sur la production (en lecture seule) et s'il faut ouvrir le navigateur maintenant | `doc-kit init --spaces … --target …`, `doc-kit connect` | Décisions écrites ; la décision du propriétaire sur les données réelles |
+| 0 · Cadrage | Public et espaces, langue, sections, mode de capture, données réelles ou non, routes à ne jamais ouvrir, qui se connecte ; Claude demande si les captures se font sur la production (en lecture seule) et s'il faut ouvrir le navigateur maintenant ; avec des fiches de fonctionnalité, « Quel niveau de détail ? » (`essential`, `standard`, `detailed` : le niveau des analyses, et le coût croît avec lui) | `doc-kit init --spaces … --target …`, `doc-kit connect` | Décisions écrites ; la décision du propriétaire sur les données réelles |
 | 1 · Mise en place | Créer et configurer le projet, depuis la racine de l'application ; relire le récapitulatif d'`init` | `doc-kit init`, `doc-kit doctor` | `doctor` sans erreur ; `build --draft` passe |
 | 2 · Inventaire | La navigation réelle, les routes et les permissions, les pages qui écrivent pendant leur rendu | `doc-kit inventory --json` ; 1 agent en lecture seule, brief `inventory` | Inventaire enregistré ; documentation périmée signalée |
 | 3 · Plan | Sommaire avec types, guide de rédaction, une page de référence | `doc-kit new`, `doc-kit check coverage` | Couverture de 100 % ; lots définis |
 | 4 · Captures | Données de démo ou session de production ; un essai avec aperçus. Sautée sans captures (`capture.mode: "none"`) | `doc-kit demo` ou `doc-kit connect` ; `doc-kit capture --preview` | Zones justes, aucun secret, lecture seule constatée |
-| 5 · Rédaction | Un agent par lot, par vagues parallèles | Brief `writing-batch` | Chaque rapport : pages, captures, constats candidats |
+| 4b · Analyse | Chaque fonctionnalité suivie une fois dans le code (écran, API, service, requête), puis un digest par lecteur. Avec un espace Produit ou une fiche de fonctionnalité | Un `doc-kit-analyst` par fonctionnalité, brief `behaviour-analysis`, chiffré d'abord ; `scripts/analysis.mjs check`, `findings`, `digest` | Chaque analyse vérifiée ; digests produits ; constats candidats transmis à la phase 6 |
+| 5 · Rédaction | Un agent par lot, par vagues parallèles ; une fiche de fonctionnalité part de son digest Produit, sa contrepartie technique du digest Développer | Briefs `writing-batch`, `functional-spec`, `feature-mechanism` | Chaque rapport : pages, captures, constats candidats |
+| 5b · Boucle de profondeur | Mesurer ce qui manque encore aux fiches et le combler, deux tours au plus par fonctionnalité | `doc-kit build --draft`, `doc-kit audit`, `scripts/analysis.mjs depth` et `questions` ; brief `deepen` (`haiku`), ou `behaviour-analysis` avec `focus` | `depth` affiche ✔ (plus rien à approfondir ni à réanalyser) ; une nouvelle boucle commence par `depth --reset` ; `.doc-kit/open-questions.md` remis au product owner |
 | 6 · Consolidation | Dédupliquer et numéroter les constats, corriger les pages | `scripts/consolidation.mjs` ; briefs `findings-verification`, `page-corrections` | Build strict au vert |
 | 7 · Parcours | Parcours de bout en bout et diagnostic, en réutilisant les captures | Briefs `journey`, `troubleshooting` | Parcours guidés de l'accueil ajoutés |
 | 8 · Pages de production | DAT, ressources, variables | Brief `production-technical` | Écarts consignés en constats P |
@@ -42,7 +45,11 @@ node <skill>/scripts/brief.mjs writing-batch --project docs/manual --var code=u1
 | Brief | Phase | Écrit |
 |---|---|---|
 | `inventory` | 2 | Rien : l'orchestrateur enregistre son rapport |
+| `behaviour-analysis` | 4b | Le fichier d'analyse de sa fonctionnalité `.doc-kit/analysis/<feature>.json`, rien d'autre |
 | `writing-batch` | 5 | Ses pages, son plan de capture, ses schémas |
+| `functional-spec` | 5 | Les pages de fonctionnalités, de règles, de rôles et de processus de son lot |
+| `feature-mechanism` | 5 | La contrepartie technique d'une fiche de fonctionnalité |
+| `deepen` | 5b | Les manques d'une fiche de fonctionnalité, d'après son digest Produit |
 | `findings-verification` | 6 | Les pages des points d'attention, et elles seules |
 | `page-corrections` | 6 | Les pages signalées et le glossaire |
 | `journey`, `troubleshooting` | 7 | Ses pages, son schéma |
