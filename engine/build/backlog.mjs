@@ -6,7 +6,10 @@
 // measure of how far a feature is specified (featureDepth). Pure.
 //   epic     { id, title, summary, ref, section, features: [feature ids] }   id null: a group without an epic
 //   feature  { id, title, summary, page, epic, since, ref, roles, kinds, rules, stories: [ids], criteria, depth,
-//              rubrics: { answered, total } }   rubrics: those of its behaviour cards (the audit's behaviourDepth)
+//              rubrics: { answered, total }, gaps }   rubrics: those of its behaviour cards (the audit's
+//              behaviourDepth); gaps: what is still open in its sheet (the skill's depth loop, ARCHITECTURE.md
+//              §6.11a) — { cards: [{ id, kind, title, rubrics: [{ id, state: missing|unknown }] }], stories: [ids
+//              without acceptance criteria], noStory, noRule }
 //   story    { id, title, role, since, ref, feature, page, anchor, criteria, text: [lines],
 //              scenarios: [{ title, steps: [{ step, keyword, text }] }] }   its text and acceptance criteria, as plain
 //              text (the backlog export, engine/backlog/)
@@ -110,7 +113,8 @@ function featureOf(f, ctx) {
   const cited = [...(ctx.cited.get(f.page) ?? [])].filter((id) => ctx.rules.has(id));
   const rules = new Set([...defined, ...cited]).size;
   const withCriteria = own.filter(([id]) => ctx.criteria.get(id)).length;
-  const rubrics = rubricsOf([...new Set(cards)]);
+  const unique = [...new Set(cards)];
+  const rubrics = rubricsOf(unique);
   return {
     id: f.id,
     title: f.title,
@@ -132,6 +136,14 @@ function featureOf(f, ctx) {
       rubrics,
     }),
     rubrics,
+    gaps: {
+      cards: unique
+        .filter((c) => c.open?.length)
+        .map((c) => ({ id: c.id, kind: c.kind, title: c.title, rubrics: c.open })),
+      stories: own.filter(([id]) => !ctx.criteria.get(id)).map(([id]) => id),
+      noStory: own.length === 0,
+      noRule: rules === 0,
+    },
   };
 }
 

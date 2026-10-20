@@ -36,8 +36,9 @@ export function depthOf(backlog, pages, applies) {
 export const measuresDepth = (declared) => !declared || declared.some((s) => s.profile?.depth);
 
 /**
- * What the report shows (informative): each feature's depth — its sheet's state, its score and its criteria — and
- * the backlog in one line; null without a feature sheet.
+ * What the report shows (informative): each feature's depth — its sheet's state, its score, its criteria and what
+ * is still open in its sheet (`gaps`, read by the skill's depth loop, ARCHITECTURE.md §6.11a) — and the backlog in
+ * one line; null without a feature sheet.
  * @param {{ epics: any[], features: any[], stories: any[], versions: Array<string|null> }|null} backlog
  * @param {Array<{ id: string, state: string }>} pages
  */
@@ -59,6 +60,7 @@ export function depthReport(backlog, pages) {
       state: state.get(f.page) ?? "missing",
       score: f.depth.score,
       criteria: Object.fromEntries(f.depth.criteria.map((c) => [c.key, c.value])),
+      gaps: f.gaps,
     })),
   };
 }

@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit analysis of a feature (doc-kit/behaviour-analysis@1)",
+  "description": "What an agent found in the code about one feature (ARCHITECTURE.md §6.11a): .doc-kit/analysis/<feature>.json. Each finding is an item: its text for a reader without the code, its mechanism for a developer, a status and the proofs. The writers read digests made from it (scripts/analysis.mjs digest), never the file itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "feature", "title", "size", "summary"],
+  "properties": {
+    "format": { "const": "doc-kit/behaviour-analysis@1" },
+    "feature": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "Its id in features.json and toc.json (F-01); the file is named after it." },
+    "title": { "type": "string", "minLength": 1 },
+    "size": { "enum": ["S", "M", "L"], "description": "Its size in the inventory: the analyst's reading budget, and the writers' output estimate." },
+    "level": { "enum": ["essential", "standard", "detailed"], "description": "The level of detail chosen at scoping (default standard)." },
+    "summary": { "$ref": "#/$defs/item" },
+    "roles": { "$ref": "#/$defs/items" },
+    "stories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "role", "text", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+          "role": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "description": "What the role wants and why, in business words." },
+          "mechanism": { "type": "string" },
+          "status": { "$ref": "#/$defs/status" },
+          "proofs": { "$ref": "#/$defs/proofs" },
+          "question": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "flow": { "$ref": "#/$defs/items", "description": "The main path, step by step: screen, then API, service and query in `mechanism`." },
+    "behaviours": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "title", "rubrics"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "The id of its card in the sheet (:::behaviour{id})." },
+          "kind": { "type": "string", "minLength": 1, "description": "A kind of standard/behaviours.json, or of the project's config.behaviours.file." },
+          "title": { "type": "string", "minLength": 1 },
+          "rubrics": { "type": "object", "additionalProperties": { "$ref": "#/$defs/item" }, "description": "One item per rubric id of its kind; every required rubric answered (an explicit n/a or unknown counts)." }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+          "text": { "type": "string" },
+          "mechanism": { "type": "string" },
+          "status": { "$ref": "#/$defs/status" },
+          "proofs": { "$ref": "#/$defs/proofs" },
+          "question": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "fields": { "$ref": "#/$defs/items" },
+    "states": { "$ref": "#/$defs/items" },
+    "messages": { "$ref": "#/$defs/items", "description": "Each message exactly as the application shows it, and when." },
+    "permissions": { "$ref": "#/$defs/items" },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["story", "given", "when", "then", "status"],
+        "properties": {
+          "story": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+          "behaviour": { "type": "string" },
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" },
+          "status": { "$ref": "#/$defs/status" },
+          "proofs": { "$ref": "#/$defs/proofs" },
+          "question": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "limits": { "$ref": "#/$defs/items" },
+    "findings": {
+      "type": "array",
+      "description": "Gaps, risks and debts seen while tracing the feature: candidates for the risk register (consolidation), never a page of their own.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "text", "proofs"],
+        "properties": {
+          "severity": { "enum": ["high", "medium", "low"] },
+          "text": { "type": "string", "minLength": 1 },
+          "mechanism": { "type": "string" },
+          "proofs": { "$ref": "#/$defs/proofs" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": ["verified", "deduced", "unknown", "n/a"],
+      "description": "verified: read in the code (a proof); deduced: inferred from the code (its proofs say from what); unknown: not found (a question); n/a: does not apply (a reason)."
+    },
+    "proofs": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "line"],
+        "properties": {
+          "file": { "type": "string", "minLength": 1, "description": "Relative to the application folder (app.dir), with forward slashes." },
+          "line": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "status"],
+      "properties": {
+        "text": { "type": "string", "description": "For a reader without the code: no file, no identifier." },
+        "mechanism": { "type": "string", "description": "How it works, for a developer: names of code allowed." },
+        "status": { "$ref": "#/$defs/status" },
+        "proofs": { "$ref": "#/$defs/proofs" },
+        "question": { "type": "string", "description": "With unknown: what to ask the product owner or the team." },
+        "reason": { "type": "string", "description": "With n/a: why it does not apply." }
+      }
+    },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/item" } }
+  }
+}

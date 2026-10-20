@@ -8,6 +8,13 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The analyses of the features** (ARCHITECTURE.md §6.11a): the format `doc-kit/behaviour-analysis@1`
+  (`.doc-kit/analysis/<feature>.json`: each item its text for a reader without the code, its mechanism, a status —
+  verified, deduced, unknown, n/a — and its proofs), and the skill's `scripts/analysis.mjs`: `check` (a proof
+  outside the application folder refused without being read), `digest` by reader (no mechanism, no proof, no
+  finding for Use and Product), `questions` for the product owner, `findings`, and `depth`, one round of the depth loop from
+  `audit.json`, whose depth report now says what is open in each sheet (`gaps`). `brief.mjs --estimate` reads a
+  brief's `output-tokens` by size (`--var size=S|M|L`).
 - **The spaces at `init`** (ARCHITECTURE.md §2.1): `doc-kit init --spaces <id,…>|none`, or the question "Who is the
   documentation for?" — the four spaces (default), users and product, a takeover (administer and develop), users
   alone, or none. The skeleton keeps the sections, pages and journeys of the spaces chosen; with Develop but not

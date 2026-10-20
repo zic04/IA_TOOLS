@@ -132,6 +132,13 @@ describe("the depth in the audit", () => {
         ["F-02", "written", 90, 0.5],
       ],
     );
+    // What is still open in each sheet, for the skill's depth loop (audit.json).
+    assert.deepEqual(r.depth.features[0].gaps, { cards: [], stories: [], noStory: false, noRule: false });
+    assert.deepEqual(
+      r.depth.features[1].gaps.cards.map((c) => [c.id, c.kind, c.rubrics.map((x) => `${x.id}:${x.state}`)]),
+      [["B-03", "notification", ["channel:unknown", "content:unknown"]]],
+      "the two rubrics behaviourDepth counts as left",
+    );
   });
 
   test("a sheet without a story, stories without criteria: the criteria fail, their actions name them", async () => {

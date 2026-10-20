@@ -76,7 +76,18 @@ describe("backlogModel", () => {
   ]);
   const cards = new Map([
     ["B-01", { id: "B-01", kind: "search", page: "p/track", feature: null, counts: counts(3, 1, 0, 0) }],
-    ["B-02", { id: "B-02", kind: "export", page: "p/rules", feature: "F-04", counts: counts(1, 0, 1, 0) }],
+    [
+      "B-02",
+      {
+        id: "B-02",
+        kind: "export",
+        title: "Export the orders",
+        page: "p/rules",
+        feature: "F-04",
+        counts: counts(1, 0, 1, 0),
+        open: [{ id: "format", state: "unknown" }],
+      },
+    ],
   ]);
   const m = backlogModel({
     toc,
@@ -137,6 +148,8 @@ describe("backlogModel", () => {
         depth: Math.round(((1 + 1 + 0.5 + 1 + 1) / 5) * 100),
         // The rubrics of its cards, counted for the audit (behaviourDepth): all four answered.
         rubrics: { answered: 4, total: 4 },
+        // What is still open in its sheet (the skill's depth loop): US-02 has no acceptance criterion.
+        gaps: { cards: [], stories: ["US-02"], noStory: false, noRule: false },
       },
     );
     const f2 = m.features.find((f) => f.id === "F-02");
@@ -144,6 +157,15 @@ describe("backlogModel", () => {
     assert.equal(f2.rules, 1, "a rule cited, defined on another page; a citation of a rule defined nowhere: none");
     assert.equal(f2.depth.criteria[0].value, 0.5, "guidance left in its sheet");
     assert.deepEqual(m.features.find((f) => f.id === "F-04").kinds, ["export"], "a card naming its feature");
+    // What is open in a sheet without a story or a rule, whose card has a rubric to confirm.
+    assert.deepEqual(m.features.find((f) => f.id === "F-04").gaps, {
+      cards: [
+        { id: "B-02", kind: "export", title: "Export the orders", rubrics: [{ id: "format", state: "unknown" }] },
+      ],
+      stories: [],
+      noStory: true,
+      noRule: true,
+    });
     assert.equal(m.features.find((f) => f.id === "F-05").epic, null, "an unknown epic: none");
   });
 

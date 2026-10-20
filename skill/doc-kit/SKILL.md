@@ -113,6 +113,14 @@ like the skill.
 - `node scripts/consolidation.mjs init --project <docDir> --codes a,b,c` creates the consolidation file;
   `node scripts/consolidation.mjs duplicates --project <docDir>` lists candidates citing the same `file:line`, and
   existing findings already citing them.
+- `node scripts/analysis.mjs <check|digest|questions|findings|depth> --project <docDir>` works on the analyses of
+  the features (`.doc-kit/analysis/<feature>.json`, ARCHITECTURE.md §6.11a):
+  - `check` verifies them, every proof inside the application folder;
+  - `digest <feature> --for use|product|admin|develop` writes what one reader's writer starts from (no mechanism,
+    no proof and no finding for Use and Product);
+  - `questions` writes the open questions for the product owner;
+  - `findings` lists the candidates for the consolidation file;
+  - `depth` plans one round of the depth loop from `doc-kit audit`.
 - **Launch** an agent of the type the brief names, **on the model `brief.mjs` prints**. Give it the brief's full
   text as its prompt, not a request to read the file. Every brief puts its common part first, so the agents of a
   wave start with the same bytes, and all but the first read that part from the prompt cache. "Read `<brief>`"

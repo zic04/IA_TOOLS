@@ -148,7 +148,15 @@ as untrusted input:
 - the ReDoS test also measures growth: the slowest inputs of each scanner are built again 4 and 16 times longer, and
   a scanner more than eight times slower from one size to the next (a linear one takes four times as long, a
   quadratic one sixteen) is quadratic, and fails; a scanner written to be quadratic (the canary) must be caught, so
-  that the check cannot pass by measuring nothing.
+  that the check cannot pass by measuring nothing;
+- the skill's `scripts/analysis.mjs check` reads the files that the proofs of an analysis name (an agent's output,
+  written from the application's code, ARCHITECTURE.md §6.11a), only to count their lines. A path that is not
+  relative, has an empty, `.` or `..` segment, a backslash, a colon or a NUL is refused without being read.
+  Otherwise its real path, links followed, must stay in the application folder, and the file must be 8 MB at most.
+  No text of an analysis may hold a value that a secret detector of the kit finds: the place and the kind are
+  reported, never the value. The texts it prints are put on one line, without control characters. Limit: without
+  `app.dir`, the application folder is guessed from the documentation's (its git parent, else its grandparent),
+  which can be wider than the application; the script warns.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a

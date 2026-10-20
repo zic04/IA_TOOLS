@@ -51,6 +51,7 @@ import {
   htmlCommentRanges,
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
+import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
@@ -500,6 +501,9 @@ export const CHECKS = [
     "behaviours comment walks",
     (s) => jsCommentRanges(s).length + pyCommentRanges(s).length + htmlCommentRanges(s).length,
   ],
+  // The texts of an analysis an agent wrote from the application code (skill/doc-kit/scripts/analysis-model.mjs).
+  ["analysis codeInText", (s) => codeInText(s)],
+  ["analysis safeProofPath", (s) => safeProofPath(s)],
 ];
 
 const timed = (fn, input) => {

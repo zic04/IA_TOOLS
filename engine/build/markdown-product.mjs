@@ -177,6 +177,10 @@ function renderBehaviour(s, tk, parser) {
       anchor,
       feature: feature || null,
       counts: card.counts,
+      // Its required rubrics still open, in its kind's order: left out, or answered "unknown" (the depth loop).
+      open: card.rows
+        .filter((r) => r.rubric.required && (r.state === "missing" || r.state === "unknown"))
+        .map((r) => ({ id: r.rubric.id, state: r.state })),
     });
   if (card.missing.length)
     s.signal(s.behaviours.strict, "behaviour.missing", {

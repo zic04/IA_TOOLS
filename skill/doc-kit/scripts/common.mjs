@@ -16,7 +16,7 @@ export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewe
 
 // ─── Messages (en, fr) ───────────────────────────────────────────────────────
 // skill/doc-kit/i18n/<lang>.json, installed with the skill: a `common` section, then one section per script
-// (brief, usage, consolidation), chosen by useMessages(). Same keys and {variables} in en and fr
+// (brief, usage, consolidation, analysis), chosen by useMessages(). Same keys and {variables} in en and fr
 // (test/unit/skill.test.mjs).
 const MESSAGES = Object.fromEntries(
   LANGUAGES.map((l) => [l, JSON.parse(fs.readFileSync(path.join(SKILL_ROOT, "i18n", `${l}.json`), "utf8"))]),
@@ -30,7 +30,7 @@ export function setMessageLanguage(language) {
   return messageLanguage;
 }
 
-/** The section of the messages of the running script (brief, usage, consolidation), on top of `common`. */
+/** The section of the messages of the running script (brief, usage, consolidation, analysis), on top of `common`. */
 export function useMessages(section) {
   messageSection = section;
 }
@@ -435,6 +435,20 @@ function frontMatterField(text, field) {
 export const templateAgent = (template) => frontMatterField(template, "agent");
 
 /**
+ * The output of a brief by the size of its subject — `output-tokens: S=6000,M=12000,L=20000` in its front matter,
+ * for a brief whose subject is a feature rather than pages — or null without a complete one.
+ * @returns {{ S: number, M: number, L: number }|null}
+ */
+export function outputBySize(template) {
+  const sizes = {};
+  for (const part of frontMatterField(template, "output-tokens").split(",")) {
+    const [size, tokens] = part.split("=");
+    if (/^[SML]$/.test(size) && /^\d{1,7}$/.test(tokens ?? "")) sizes[size] = Number(tokens);
+  }
+  return ["S", "M", "L"].every((s) => s in sizes) ? /** @type {any} */ (sizes) : null;
+}
+
+/**
  * Model of each brief by default (ETUDE-CAPTURES.md §7, G4): the cheapest model whose quality suffices for the
  * task, instead of the agent type's own model. A brief absent here runs on its agent type's model
  * (agents/<type>.md). `llm.routing` in doc.config.mjs overrides any entry ({ "<brief>": "<model>" }).
@@ -478,7 +492,7 @@ export function agentModel(type, agentsDir = AGENTS_DIR) {
  * Dynamically imports a module of the kit's engine, by path relative to the kit root. The installed skill does
  * not carry `engine/`: callers degrade gracefully (null) when the kit root is unknown or the file is missing.
  */
-async function importKitModule(kitRoot, relPath) {
+export async function importKitModule(kitRoot, relPath) {
   if (!kitRoot) return null;
   const file = path.join(kitRoot, ...relPath.split("/"));
   if (!fs.existsSync(file)) return null;

@@ -21,7 +21,7 @@ import {
   FINGERPRINT,
 } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
-import { AGENT_TYPES, baseVariables, flattenedPages } from "../../skill/doc-kit/scripts/common.mjs";
+import { AGENT_TYPES, baseVariables, flattenedPages, outputBySize } from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -523,6 +523,34 @@ describe("brief.mjs --estimate", () => {
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
     }
+  });
+
+  test("a brief by the size of its subject (output-tokens): the output of the size given; without it, said", () => {
+    const { app, docs } = briefProject({ language: "en" });
+    try {
+      const template = path.join(app, "sized.md");
+      fs.writeFileSync(template, "---\nagent: doc-kit-writer\noutput-tokens: S=100,M=250,L=900\n---\n# Brief\n");
+      let r = brief([template, "--project", docs, "--estimate", "--var", "size=m"], app);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /^ {2}output: 250 tokens \(a subject of size M, the brief's output-tokens\)\n/m);
+      r = brief([template, "--project", docs, "--estimate"], app);
+      assert.match(
+        r.out,
+        /^ {2}output: 0 tokens \(no page list to estimate from: this brief's output depends on the size/m,
+      );
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("outputBySize: S, M and L, or nothing", () => {
+    assert.deepEqual(outputBySize("---\noutput-tokens: S=1,M=2,L=3\n---\n"), { S: 1, M: 2, L: 3 });
+    for (const t of [
+      "---\noutput-tokens: S=1,M=2\n---\n",
+      "---\noutput-tokens: S=a,M=2,L=3\n---\n",
+      "# no front matter",
+    ])
+      assert.equal(outputBySize(t), null, t);
   });
 
   test("a read-only template (inventory, no pages): input tokens only, no output", () => {

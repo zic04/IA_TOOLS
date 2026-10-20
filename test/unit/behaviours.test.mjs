@@ -342,6 +342,15 @@ describe(":::behaviour (and :::comportement): the card", () => {
       anchor: "b-01",
       feature: null,
       counts: { required: 8, answered: 1, na: 1, unknown: 1, missing: 5 },
+      // Its required rubrics still open, in its kind's order (the depth loop): unknown, or left out.
+      open: [
+        { id: "match", state: "unknown" },
+        { id: "words", state: "missing" },
+        { id: "trigger", state: "missing" },
+        { id: "order", state: "missing" },
+        { id: "empty", state: "missing" },
+        { id: "rights", state: "missing" },
+      ],
     });
     // A required rubric left out: a warning, naming the rubrics.
     assert.deepEqual(reports, [

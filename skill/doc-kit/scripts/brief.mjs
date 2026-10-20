@@ -19,8 +19,9 @@
 // reports it after writing the brief ("launch it with the agent type …").
 // --estimate (no file written): input tokens (the filled brief, plus the files it cites in backticks when they
 // exist on disk, characters ÷ 4) and output tokens (1.4 per word of the template's `maxWords` for a new page,
-// 0.3 for an update), read from `{{pages}}` and the project's table of contents; the cost when `llm.prices` of
-// the agent's model is set in doc.config.mjs.
+// 0.3 for an update), read from `{{pages}}` and the project's table of contents — or, for a brief whose front
+// matter has `output-tokens: S=…,M=…,L=…` (its subject is a feature), the value of `--var size=S|M|L`; the cost
+// when `llm.prices` of the agent's model is set in doc.config.mjs.
 // Exit codes: 0 OK · 1 placeholders left unfilled (the file is written anyway) · 2 usage or configuration.
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +49,7 @@ import {
   setMessageLanguage,
   t,
   templateAgent,
+  outputBySize,
   templateVariables,
   warn,
 } from "./common.mjs";
@@ -111,12 +113,45 @@ function appDirWarnings(docDir, config, given) {
 }
 
 /**
+ * The output part of an estimate, printed; its tokens. A brief whose subject is a feature (output-tokens in its
+ * front matter): its output by the size given. Otherwise the pages of {{pages}}: 1.4 × maxWords for a page not
+ * written yet, 0.3 × maxWords for one that has its content file.
+ */
+async function printOutputEstimate({ vars, docDir, config, bySize, pageIds }) {
+  const size = String(vars.size ?? "").toUpperCase();
+  if (bySize?.[size]) {
+    console.log(t("estimateOutputSize", { tokens: bySize[size], size }));
+    return bySize[size];
+  }
+  if (bySize || !pageIds.length) {
+    const reason = t(bySize ? "estimateOutputNone_noSize" : "estimateOutputNone_noPages");
+    console.log(t("estimateOutputNone", { reason }));
+    return 0;
+  }
+  const byId = new Map(flattenedPages(docDir, config).map((p) => [p.id, p]));
+  const table = await pageTemplatesTable(vars.kitPath);
+  const contentDir = vars.contentDir || "content";
+  let outputTokens = 0;
+  let fresh = 0;
+  for (const id of pageIds) {
+    const page = byId.get(id);
+    const maxWords = maxWordsOf(table, page?.template);
+    const written = fs.existsSync(path.join(docDir, contentDir, page?.file || `${id}.md`));
+    if (!written) fresh++;
+    outputTokens += maxWords * (written ? 0.3 : 1.4);
+  }
+  outputTokens = Math.ceil(outputTokens);
+  console.log(t("estimateOutput", { tokens: outputTokens, n: pageIds.length, fresh, update: pageIds.length - fresh }));
+  return outputTokens;
+}
+
+/**
  * Token and cost estimate of a filled brief (ARCHITECTURE.md §6.11): input (the brief plus the files it cites
  * that exist on disk, characters ÷ 4) and output (the pages named by `{{pages}}`, 1.4 × maxWords for a page not
  * written yet, 0.3 × maxWords for one that already has a content file); cost when `llm.prices` of the agent's
  * model is set.
  */
-async function printEstimate({ name, agent, text, vars, docDir, config }) {
+async function printEstimate({ name, agent, text, vars, docDir, config, bySize }) {
   const model = agent ? briefModel(name, agent, config) : "";
   console.log(t(agent ? "estimateTitle" : "estimateNoAgent", { template: name, agent, model }));
   if (!agent) console.log(t("noAgent"));
@@ -152,32 +187,7 @@ async function printEstimate({ name, agent, text, vars, docDir, config }) {
     }),
   );
 
-  let outputTokens = 0;
-  if (!pageIds.length) {
-    console.log(t("estimateOutputNone", { reason: t("estimateOutputNone_noPages") }));
-  } else {
-    const pages = flattenedPages(docDir, config);
-    const byId = new Map(pages.map((p) => [p.id, p]));
-    const table = await pageTemplatesTable(vars.kitPath);
-    const contentDir = vars.contentDir || "content";
-    let fresh = 0;
-    let update = 0;
-    for (const id of pageIds) {
-      const page = byId.get(id);
-      const maxWords = maxWordsOf(table, page?.template);
-      const file = path.join(docDir, contentDir, page?.file || `${id}.md`);
-      if (fs.existsSync(file)) {
-        update++;
-        outputTokens += maxWords * 0.3;
-      } else {
-        fresh++;
-        outputTokens += maxWords * 1.4;
-      }
-    }
-    outputTokens = Math.ceil(outputTokens);
-    console.log(t("estimateOutput", { tokens: outputTokens, n: pageIds.length, fresh, update }));
-  }
-
+  const outputTokens = await printOutputEstimate({ vars, docDir, config, bySize, pageIds });
   console.log(t("estimateTotal", { tokens: inputTokens + outputTokens }));
   const prices = model ? config.llm?.prices?.[model] : null;
   if (prices) {
@@ -254,7 +264,7 @@ async function main() {
   const base = path.basename(templateFile, ".md");
 
   if (o.estimate) {
-    await printEstimate({ name: base, agent, text, vars, docDir, config });
+    await printEstimate({ name: base, agent, text, vars, docDir, config, bySize: outputBySize(template) });
     return 0;
   }
 
