@@ -82,13 +82,25 @@ exit code 2.
 | `doc-kit stats` | Time, tokens and models per block and per version (`usage/`) |
 | `doc-kit changes` | What changed in the application since a git reference: routes, tables, variables, dependencies, findings (`--record`: kept for `::changes`) |
 | `doc-kit pack` | Files for the next AI: `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets removed) |
-| `doc-kit inputs [status]` · `doc-kit inputs add <kind> <value>` · `doc-kit inputs fetch` · `doc-kit inputs ingest` | The sources of the project (inputs.json): their state; declare one; clone or update the shared repositories with your own git credentials; convert the documents (Word, PDF, diagrams) for the agents |
+| `doc-kit inputs [status]` · `doc-kit inputs add <kind> <value>` · `doc-kit inputs fetch` · `doc-kit inputs ingest` · `doc-kit inputs reconcile [--json]` | The sources of the project (inputs.json): their state; declare one; clone or update the shared repositories with your own git credentials; convert the documents (Word, PDF, diagrams) for the agents; `reconcile`: compare the technologies and addresses of the DAT with the facts (see below) |
 | `doc-kit bricks [<id\|preset>]` · `doc-kit bricks run [<id\|preset>…]` | The state of every brick (facts sources, tools, audit) and why; runs again only the bricks named, or every brick out of date (`--stale`) |
 | `doc-kit hooks install` | Git hooks: facts and sync after each pull and branch switch |
 | `doc-kit export <target>` | Writes a self-contained copy of the project |
 | `doc-kit upgrade` | Shows the changes since the project's kit version, applies the migrations |
 | `doc-kit skill install` | Installs the Claude Code skill |
 | `doc-kit translate status \| --mark <page…> \| --mark --all \| --fix-anchors [page…]` | The state of the translations, or marks or fixes them |
+
+### `inputs reconcile [--json]`
+
+The first pass of the reconciliation of the technical architecture documents (DAT) with the code. It reads the
+converted texts of the documents of kind `dat` (run `inputs ingest` first) and the facts `dependencies`, `infra`,
+`stack` and `env` (run `doc-kit facts`; a source without its file is named in `missing`). Each technology the DAT
+names or the code shows comes out in one of three outcomes: `confirmed` (both), `datOnly` (said by the DAT, no
+trace in the code: a managed service outside the repository, or a gap) or `codeOnly` (in the code, named by no
+DAT). It also lists the hosts of the addresses the DAT gives, `declared` when they are those of the application. It
+writes `.doc-kit/inputs/reconcile.json` and prints a summary. A trace is evidence, never proof: the brief
+`architecture-reconcile` checks each one. Without a document of kind `dat`, the command says so and writes nothing.
+Nothing of the application is run.
 
 ## Adding a command
 

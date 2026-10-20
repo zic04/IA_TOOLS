@@ -8,6 +8,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The DAT and the code** (ARCHITECTURE.md §6.19): `doc-kit inputs reconcile` compares the technologies and the
+  addresses each ingested technical architecture document names with the facts of the code — found in the code,
+  said by the DAT without a trace, in the code but not in the DAT — into `.doc-kit/inputs/reconcile.json`, from a
+  registry of 55 technologies (`standard/technologies.json`). The skill's brief `architecture-reconcile` checks this
+  first pass and writes the page of the gaps between the DAT and reality.
 - **The method uses the analyses** (the skill, ARCHITECTURE.md §6.11a): a scoping question "How detailed?"
   (essential, standard, detailed: `extra.briefs.level`); phase 4b, one analyst per feature, then its digests; phase
   5b, the depth loop (`analysis.mjs depth`, `deepen` on haiku, a second analysis on what is missing, at most two

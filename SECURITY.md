@@ -202,6 +202,13 @@ Both are untrusted input.
 - **Pages of Confluence, SharePoint, Teams or Notion** are never fetched by the kit: the skill reads them through
   the connectors of the session (Claude Code, Claude Cowork), with your consent, and saves each one where
   `inputs status` says (`.doc-kit/inputs/pages/`); `inputs ingest` then filters it like a file.
+- **The DAT and the code** (`inputs reconcile`): reads only the converted texts (already filtered) and the facts
+  files the kit wrote, in one pass each (the ReDoS test runs its scanners, an image reference of the facts too); it
+  runs nothing and fetches nothing. It reads only a converted text the index places in `.doc-kit/inputs/docs/`, a
+  plain file — never a link — of 64 MB at most whose real path lies in that folder, itself really in the project
+  (a junction that leads out is never followed), and keeps of it only the technologies it names (from the kit's
+  registry), the lines and headings where it names them, and the hosts of its addresses (letters, digits, dots and
+  dashes only; a user name before `@` skipped, never kept).
 
 Limits: a document can still hold false or misleading statements, or text written to steer an AI: the notice and
 the skill's briefs make the agents check every statement against the code, but review what a document claims

@@ -1,16 +1,20 @@
 // inputs [status] · inputs add <code|app|document|workspace|backlog> <value> [options] · inputs fetch [<name>…] ·
-// inputs ingest [<file>…]
+// inputs ingest [<file>…] · inputs reconcile
 // The sources of the documentation project (ARCHITECTURE.md §6.19, inputs.json): what the kit reads to document
 // the application, besides the code of app.dir. `status` (the default) lists them and their state; `add` declares
 // one; `fetch` clones or updates the shared repositories into .doc-kit/inputs/repos/ with the user's own git
 // credentials; `ingest` converts the documents (Word, PDF, Markdown, text, HTML, diagrams) into text for the
-// documentation agents, in .doc-kit/inputs/docs/, without a secret. A page of Confluence or SharePoint is read by
+// documentation agents, in .doc-kit/inputs/docs/, without a secret; `reconcile` compares the technologies and
+// addresses each ingested DAT names with the facts of the code (engine/inputs/reconcile.mjs), into
+// .doc-kit/inputs/reconcile.json, the first pass of the brief architecture-reconcile. A page of Confluence or SharePoint is read by
 // the skill through the session's connectors, never by the kit. Exit code 0; 1 when a source could not be fetched
 // or read; 2 for an invalid inputs.json or a usage error.
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
-import { readInputs, writeInputs, addInput, INPUTS_FILE } from "../../engine/inputs/model.mjs";
+import { readInputs, writeInputs, addInput, readIndex, INPUTS_FILE, INPUTS_DIR } from "../../engine/inputs/model.mjs";
+import { reconcileProject } from "../../engine/inputs/reconcile.mjs";
+import { oneLine } from "../../engine/core/text.mjs";
 import { fetchRepos } from "../../engine/inputs/repos.mjs";
 import { ingestDocuments } from "../../engine/inputs/ingest.mjs";
 import { inputsStatus } from "../../engine/inputs/status.mjs";
@@ -184,6 +188,57 @@ function status(ctx, root, inputs, exists, config) {
   return EXIT.OK;
 }
 
+/** At most 8 names, then how many more. */
+const listOf = (names) =>
+  names.length > 8 ? `${names.slice(0, 8).join(", ")} +${names.length - 8}` : names.join(", ");
+
+/** The DAT and the code: the first pass of the reconciliation, written for the agent that checks it. */
+function reconcileCommand(ctx, root, inputs, config) {
+  const r = reconcileProject({ root, config, inputs, index: readIndex(root) });
+  const file = `${INPUTS_DIR.split(path.sep).join("/")}/reconcile.json`;
+  if (!r.documents.length) {
+    if (ctx.json) return (ctx.print(JSON.stringify(r, null, 2)), EXIT.OK);
+    ctx.print(ctx.t("cli.inputs.reconcile.noDat"));
+    ctx.print(`→ ${ctx.t("cli.inputs.reconcile.noDat.help")}`);
+    return EXIT.OK;
+  }
+  const generated = { generator: generatorTag(), generated: new Date(ctx.now?.() ?? Date.now()).toISOString(), ...r };
+  fs.mkdirSync(path.join(root, INPUTS_DIR), { recursive: true });
+  fs.writeFileSync(path.join(root, file), JSON.stringify(generated, null, 2) + "\n");
+  if (ctx.json) return (ctx.print(JSON.stringify(generated, null, 2)), EXIT.OK);
+  ctx.print(
+    ctx.paint.bold(
+      ctx.t("cli.inputs.reconcile.title", {
+        n: r.documents.length,
+        docs: listOf(r.documents.map((d) => oneLine(d.source))),
+      }),
+    ),
+  );
+  const of = (status) => r.technologies.filter((x) => x.status === status).map((x) => x.name);
+  for (const [status, mark] of [
+    ["confirmed", ctx.paint.ok("✔")],
+    ["datOnly", ctx.paint.warn("⚠")],
+    ["codeOnly", ctx.paint.warn("⚠")],
+  ]) {
+    const names = of(status);
+    if (names.length)
+      ctx.print(`  ${mark} ${ctx.t(`cli.inputs.reconcile.${status}`, { n: names.length, list: listOf(names) })}`);
+  }
+  const hosts = (declared) => r.hosts.filter((h) => h.declared === declared).map((h) => h.host);
+  if (hosts(true).length)
+    ctx.print(`  ${ctx.paint.ok("✔")} ${ctx.t("cli.inputs.reconcile.hostsDeclared", { list: listOf(hosts(true)) })}`);
+  if (hosts(false).length)
+    ctx.print(`  ${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reconcile.hostsUnknown", { list: listOf(hosts(false)) })}`);
+  if (r.missing.length) {
+    ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reconcile.missing", { sources: r.missing.join(", ") })}`);
+    ctx.print(
+      `  → ${ctx.t("cli.inputs.reconcile.missing.help", { sources: r.missing.map((s) => `--source ${s}`).join(" ") })}`,
+    );
+  }
+  ctx.print(`${ctx.paint.ok("✔")} ${ctx.t("cli.inputs.reconcile.written", { file })}`);
+  return EXIT.OK;
+}
+
 export async function run({ ctx, values, positionals = [] }) {
   const { project, config } = await ctx.loadProject();
   const root = project.root;
@@ -200,5 +255,6 @@ export async function run({ ctx, values, positionals = [] }) {
       rest.map((f) => f.split(path.sep).join("/")),
     );
   if (sub === "status") return status(ctx, root, inputs, exists, config);
+  if (sub === "reconcile") return reconcileCommand(ctx, root, inputs, config);
   throw new KitError(EXIT.USAGE, "inputs.unknownAction", { action: sub });
 }

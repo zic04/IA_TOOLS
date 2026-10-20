@@ -52,6 +52,7 @@ import {
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
+import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
 // expression explore an exponential (or high-polynomial) number of paths.
@@ -259,6 +260,8 @@ const openapiDoc = (s) => {
 // Inputs whose end makes a match fail late (a "!" lets a lazy group succeed early): the forms the review of the
 // behaviour readers measured (a pydantic line, an order key, nested calls, SQL in lower case, a sort).
 INPUTS.push(
+  // A run of ":" then a "/": the shape that made a name-and-tag expression quadratic (an image reference).
+  ":".repeat(N) + "/x",
   "class A(BaseModel):\n    a:" + " ".repeat(N) + "=" + "x".repeat(301),
   "order:" + " ".repeat(N),
   ".find(".repeat(200) + "order:" + " ".repeat(1000) + ")".repeat(200),
@@ -504,6 +507,20 @@ export const CHECKS = [
   // The texts of an analysis an agent wrote from the application code (skill/doc-kit/scripts/analysis-model.mjs).
   ["analysis codeInText", (s) => codeInText(s)],
   ["analysis safeProofPath", (s) => safeProofPath(s)],
+  // The texts of an ingested DAT (engine/inputs/reconcile.mjs).
+  ["reconcile wordsOf", (s) => wordsOf(s).length],
+  ["reconcile mentionsOf", (s) => mentionsOf(s, loadTechnologies()).size],
+  ["reconcile hostsOf", (s) => hostsOf(s).length],
+  // An image of the facts (the application's), against every technology's images; "/x" after it, so that a run of
+  // ":" before a "/" (what makes a name-and-tag expression quadratic) grows with the input.
+  [
+    "reconcile tracesOf",
+    (s) =>
+      loadTechnologies().reduce(
+        (n, t) => n + tracesOf(t, { infra: [{ image: `${s}/x`, type: s, file: s }] }).length,
+        0,
+      ),
+  ],
 ];
 
 const timed = (fn, input) => {

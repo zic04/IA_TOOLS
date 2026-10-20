@@ -77,7 +77,7 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
 | 7 | 2nd consolidation (2) | reports of wave 6 |
-| apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical` (each its own agent) | facts generated (the first three) or portal screenshots received (production-technical); disjoint files, so each can join any wave |
+| apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical`, `architecture-reconcile` (each its own agent) | facts generated (the first three), portal screenshots received (production-technical), or a DAT ingested and `inputs reconcile` run (architecture-reconcile); disjoint files, so each can join any wave |
 
 - Translations (ARCHITECTURE.md §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
   same target language (never mixed); each batch can join any wave once its pages are written.
@@ -142,7 +142,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `portalCaptures`, `infraDir` | `--var` (`production-technical` brief) | folder of screenshots, infrastructure code |
 | `description`, `stack`, `labels`, `referencePage` | `extra.briefs` | "order management", "Next.js App Router, Prisma", `messages/en.json`, `configure/approvals/chains` |
 | `feature`, `featureTitle`, `size`, `level` | `--var` or, for `level`, `extra.briefs.level` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
-| `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
+| `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the page of the gaps between the DAT and reality for `architecture-reconcile`; the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
 | `focus` | `--var` (optional, `behaviour-analysis`): the items `analysis.mjs depth` lists to analyse again; the brief then asks for a second pass on those items only | B-01.match (Search an order · Matching), US-02.criteria |
 | `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder; `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
 | `otherWriters`, `productionNotes`, `dataPolicy`, `factSheet`, `referenceJourney` | `--var` or `extra.briefs` (optional) | "inv, ast, tbl"; "open no order other than…"; "fictitious customers only"; yes; take-over/order-journey |

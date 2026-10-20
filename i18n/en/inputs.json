@@ -99,5 +99,16 @@
   "cli.inputs.reading.unread": "{language} — {lines} lines, not read: the agents read it themselves",
   "cli.inputs.reading.stacks": "Stacks found: {list}",
   "cli.inputs.reading.lowcode": "{title} ({evidence}): a low-code platform the kit does not read — the agents read its export",
-  "cli.inputs.next.stack": "{command} facts --source stack: measure what the kit reads of the code"
+  "cli.inputs.next.stack": "{command} facts --source stack: measure what the kit reads of the code",
+  "cli.inputs.reconcile.title": "The DAT and the code — {n} DAT read: {docs}",
+  "cli.inputs.reconcile.confirmed": "found in the code ({n}): {list}",
+  "cli.inputs.reconcile.datOnly": "said by the DAT, no trace in the code ({n}): {list}",
+  "cli.inputs.reconcile.codeOnly": "in the code, not in the DAT ({n}): {list}",
+  "cli.inputs.reconcile.hostsDeclared": "addresses of the application: {list}",
+  "cli.inputs.reconcile.hostsUnknown": "addresses the DAT gives that are not the application's (app.url, the app of inputs.json): {list}",
+  "cli.inputs.reconcile.missing": "facts missing: {sources} — the code's side is incomplete",
+  "cli.inputs.reconcile.missing.help": "run {command} facts {sources}",
+  "cli.inputs.reconcile.noDat": "no technical architecture document (DAT) ingested: nothing to reconcile",
+  "cli.inputs.reconcile.noDat.help": "declare it with {command} inputs add document <file> --kind dat, then {command} inputs ingest",
+  "cli.inputs.reconcile.written": "{file}: the first pass, for the agent that checks it (brief architecture-reconcile) — a trace is evidence, never proof"
 }

@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit technologies (standard/technologies.json)",
+  "description": "The technologies a technical architecture document names, and their traces in the facts of the code (ARCHITECTURE.md §6.19, `doc-kit inputs reconcile`).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "technologies"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "technologies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "names"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "names": {
+            "$ref": "#/$defs/words",
+            "description": "How a document names it, the first its display name: matched word for word, case and accents ignored."
+          },
+          "case": {
+            "type": "boolean",
+            "description": "A name that is also a common word (React, Sentry, Stripe…): matched only as written, case included."
+          },
+          "packages": {
+            "$ref": "#/$defs/words",
+            "description": "facts/dependencies.json: a name, exact or a prefix ending with \"/\", \":\" or \".\" (case ignored)."
+          },
+          "images": {
+            "$ref": "#/$defs/words",
+            "description": "facts/infra.json `image`: the name, or its last part after \"/\"."
+          },
+          "infra": {
+            "$ref": "#/$defs/words",
+            "description": "facts/infra.json `type`: contains (case ignored)."
+          },
+          "providers": {
+            "$ref": "#/$defs/words",
+            "description": "facts/infra.json `provider`: exact."
+          },
+          "files": {
+            "$ref": "#/$defs/words",
+            "description": "facts/infra.json `file`: ends with."
+          },
+          "stacks": {
+            "$ref": "#/$defs/words",
+            "description": "facts/stack.json `stacks[].id`: exact."
+          },
+          "env": {
+            "$ref": "#/$defs/words",
+            "description": "facts/env.json `name`: starts with."
+          },
+          "languages": {
+            "$ref": "#/$defs/words",
+            "description": "facts/stack.json `items[].language`: exact."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "words": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

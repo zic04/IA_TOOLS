@@ -53,7 +53,8 @@ doc-kit/
 │  │                     gateway, RULES.md S12); freshness.mjs (stale facts files); tools.mjs (--tools)
 │  ├─ inputs/            the sources (§6.19): model.mjs (inputs.json), repos.mjs (the only git commands that write,
 │  │                     RULES.md S2), ingest.mjs, status.mjs, and the bounded readers zip.mjs, docx.mjs,
-│  │                     diagrams.mjs, pdf.mjs (and core/xml.mjs)
+│  │                     diagrams.mjs, pdf.mjs (and core/xml.mjs), reconcile.mjs (the DAT and the code,
+│  │                     standard/technologies.json)
 │  ├─ backlog/           the backlog export (§6.8b): model.mjs (the items), index.mjs (the exporters), one module per
 │  │                     tool (azure, jira, gitlab, github, json), csv.mjs, markup.mjs (inert HTML, wiki, Markdown)
 │  ├─ audit/             audit.mjs (indicators), criteria.mjs (criteria, level), actions.mjs, thresholds.mjs,
@@ -72,7 +73,8 @@ doc-kit/
 │                        fastapi.mjs, facts.mjs (§6.9)
 ├─ adapters/auth/        manual.mjs (default), none.mjs, nextauth.mjs, api-me.mjs
 ├─ adapters/stack/       next.mjs, express.mjs, fastapi.mjs (the routes, guards, screens and hints of a framework, §5)
-├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs, backlog (.schema.json)
+├─ schemas/              config, toc, glossary, zones, capture-plan, spaces, bricks, inputs, backlog, technologies,
+│                        behaviour-analysis (.schema.json)
 ├─ templates/project/    common/, en/, fr/ (skeleton written by `init`)
 ├─ templates/pages/      en/, fr/ (one Markdown template per page type, §7)
 ├─ standard/             quality standard, in en and fr (§7)
@@ -1283,6 +1285,30 @@ that `doc-kit init` and `doc-kit inputs add` write it without ever rewriting `do
   kit: the skill reads it through the session's connectors (Claude Code, Claude Cowork) and saves it in its
   `page` (`pageFile`: `.doc-kit/inputs/pages/<name>-<hash>.md`, given by `inputs status`), which `inputs ingest`
   then converts like a file (state `external` until then).
+- `inputs reconcile [--json]` (`engine/inputs/reconcile.mjs`): the first pass of the reconciliation of the technical
+  architecture documents with the code, deterministic, which the skill's brief `architecture-reconcile` checks. It
+  reads the converted texts of the documents of kind `dat` (the index above) and the facts `dependencies`, `infra`,
+  `stack` and `env` (§6.9; a source without its file is named in `missing`: the code's side is then incomplete).
+  The technologies are those of `standard/technologies.json` (`schemas/technologies.schema.json`): for each, its
+  `names` — matched word for word in the text, read as a stream (`wordsOf`: letters, digits, `+` and `#`, a `.`
+  inside a word joins it, a `-` does not; case and accents ignored, but as written for a technology with `case`: a
+  name that is also a common word, React, Sentry, Stripe; the longest name first, its words not read again; one
+  mention per line, 20 kept per technology, the rest counted; each mention with the Markdown heading of its line and
+  the name found) — and its traces in the facts: a package (`packages`: exact, or
+  a prefix ending with `/`, `:` or `.`, case ignored), a container image (`images`: its name without tag or digest,
+  or its last part), an infrastructure type (`infra`: contains), provider (`providers`: exact) or file (`files`:
+  ends with), a stack detected (`stacks`), an environment variable (`env`: starts with), a language with lines
+  (`languages`); 5 traces per source at most. An image's name is read with `indexOf`, once per item. Each technology the documents name or the code shows is `confirmed`
+  (both), `datOnly` (said by a document, no trace: a managed service outside the repository, or a gap) or
+  `codeOnly` (in the code, named by no document), listed in that order. The hosts of the `http(s)` addresses of the
+  documents (200 at most; a user name before `@` skipped, never kept) are `declared` when they are those of the
+  application (`app.url`, `inputs.json` `app`). Only a converted text the index places in `.doc-kit/inputs/docs/`
+  (`<name>.md`, one segment) is read, a plain file — never a link — of 64 MB at most, whose real path lies in that
+  folder, itself really in the project (a junction or a link that leads out is never followed).
+  It writes `.doc-kit/inputs/reconcile.json` (`{ generator, generated, documents: [{ source, output }], missing,
+  technologies: [{ id, name, status, dat: [{ doc, line, heading }], more, code: [{ source, what, file?, line? }] }],
+  hosts: [{ host, declared, dat }] }`) and prints a summary; without a document of kind `dat`, it says so and
+  writes nothing. A trace is evidence, never proof; nothing of the application is run; every scan is linear.
 - Exit code 0; 1 when a source could not be fetched or read; 2 for an invalid `inputs.json` or a usage error.
 
 **Questions of `doc-kit init`** (`cli/init-answers.mjs`): after the main answers, "Declare the other sources

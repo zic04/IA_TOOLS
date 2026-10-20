@@ -53,6 +53,14 @@ Word, Markdown, text, HTML and diagrams (draw.io, PlantUML, Mermaid) become text
 secrets removed; a PDF is indexed and read by the agents page by page. A page given by its address is never fetched
 by the kit: the skill reads it through the connectors of the session, with your consent.
 
+### Then, with a DAT: the reconciliation
+
+Once the DAT is converted and `doc-kit facts` has run, `doc-kit inputs reconcile` compares what the DAT names with
+what the code shows: technologies found in the code, said by the DAT without a trace, in the code but not in the
+DAT, and the hosts of its addresses. It is a first pass, in `.doc-kit/inputs/reconcile.json`: a trace is evidence,
+never proof. The skill then runs the brief `architecture-reconcile`, which checks each item and writes the page of
+the gaps between the DAT and reality.
+
 ## How to check it works
 
 `doc-kit inputs` lists each source with its state: a folder **here**, a repository **fetched**, a document

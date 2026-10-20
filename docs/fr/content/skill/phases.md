@@ -30,6 +30,7 @@ Le skill répond dans la langue de l'utilisateur ; le site est écrit dans la la
 | 6 · Consolidation | Dédupliquer et numéroter les constats, corriger les pages | `scripts/consolidation.mjs` ; briefs `findings-verification`, `page-corrections` | Build strict au vert |
 | 7 · Parcours | Parcours de bout en bout et diagnostic, en réutilisant les captures | Briefs `journey`, `troubleshooting` | Parcours guidés de l'accueil ajoutés |
 | 8 · Pages de production | DAT, ressources, variables | Brief `production-technical` | Écarts consignés en constats P |
+| 8 · Le DAT et la réalité | Avec un DAT : la première passe, puis la page des écarts entre le DAT et le code | `doc-kit inputs reconcile` ; brief `architecture-reconcile` | Chaque affirmation citée et prouvée ; écarts à risque remis à la phase 6 |
 | 9 · Contrôles | Build strict, chaque contrôle, audit, relecture visuelle | `doc-kit build`, `check all`, `audit`, `view` | Niveau cible atteint (4 pour une reprise) |
 | 10 · Livraison | Transmettre, puis maintenir | `doc-kit connect --forget`, `doc-kit export` | Liste de contrôle de `standard/delivery.fr.md` remplie |
 
@@ -54,6 +55,7 @@ node <skill>/scripts/brief.mjs writing-batch --project docs/manual --var code=u1
 | `page-corrections` | 6 | Les pages signalées et le glossaire |
 | `journey`, `troubleshooting` | 7 | Ses pages, son schéma |
 | `production-technical` | 8 | DAT, ressources, variables, schéma |
+| `architecture-reconcile` | 8 | La page des écarts entre le DAT et la réalité |
 
 `scripts/consolidation.mjs` crée le fichier de consolidation de la phase 6 et liste les constats candidats qui citent
 le même `fichier:ligne`. Les briefs remplis vont dans `.doc-kit/brief-<template>.md` ; un paramètre resté vide arrête

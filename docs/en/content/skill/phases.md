@@ -28,6 +28,7 @@ The skill answers in the user's language; the site is written in the project's `
 | 6 · Consolidation | Deduplicate and number the findings, fix the pages | `scripts/consolidation.mjs`; briefs `findings-verification`, `page-corrections` | Strict build green |
 | 7 · Journeys | End-to-end journeys and troubleshooting, reusing the captures | Briefs `journey`, `troubleshooting` | Home-page tours added |
 | 8 · Production pages | Architecture document, resources, variables | Brief `production-technical` | Gaps recorded as P findings |
+| 8 · The DAT and reality | With a DAT: the first pass, then the page of the gaps between the DAT and the code | `doc-kit inputs reconcile`; brief `architecture-reconcile` | Each statement cited and proved; risky gaps handed to phase 6 |
 | 9 · Checks | Strict build, every check, audit, visual review | `doc-kit build`, `check all`, `audit`, `view` | Target level reached (4 for a takeover) |
 | 10 · Delivery | Hand over, then maintain | `doc-kit connect --forget`, `doc-kit export` | Checklist of `standard/delivery.md` done |
 
@@ -52,6 +53,7 @@ node <skill>/scripts/brief.mjs writing-batch --project docs/manual --var code=u1
 | `page-corrections` | 6 | The reported pages and the glossary |
 | `journey`, `troubleshooting` | 7 | Its pages, its diagram |
 | `production-technical` | 8 | Architecture document, resources, variables, diagram |
+| `architecture-reconcile` | 8 | The page of the gaps between the DAT and reality |
 
 `scripts/consolidation.mjs` creates the consolidation file of phase 6 and lists the candidate findings that cite the
 same `file:line`. The filled briefs go to `.doc-kit/brief-<template>.md`; an unfilled placeholder stops the script

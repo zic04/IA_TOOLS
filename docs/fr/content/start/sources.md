@@ -55,6 +55,14 @@ Word, Markdown, texte, HTML et schémas (draw.io, PlantUML, Mermaid) deviennent 
 son adresse n'est jamais récupérée par le kit : le skill la lit grâce aux connecteurs de la session, avec votre
 accord.
 
+### Puis, avec un DAT : le rapprochement
+
+Une fois le DAT converti et `doc-kit facts` lancé, `doc-kit inputs reconcile` confronte ce que nomme le DAT à ce que
+montre le code : technologies trouvées dans le code, dites par le DAT sans trace, dans le code mais pas dans le DAT,
+et les hôtes de ses adresses. C'est une première passe, dans `.doc-kit/inputs/reconcile.json` : une trace est un
+indice, jamais une preuve. Le skill lance ensuite le brief `architecture-reconcile`, qui vérifie chaque item et
+rédige la page des écarts entre le DAT et la réalité.
+
 ## Comment savoir que ça marche
 
 `doc-kit inputs` liste chaque source avec son état : un dossier **présent**, un dépôt **récupéré**, un document

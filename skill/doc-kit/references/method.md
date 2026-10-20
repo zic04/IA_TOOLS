@@ -293,6 +293,12 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   answer it rests on — never a bare "from the code". No git command: a decision's history comes from what is
   already readable (comments, `CHANGELOG.md`, an answer the orchestrator already obtained), not from running
   `git log` itself.
+- **`architecture-reconcile`** (one `doc-kit-reviewer`), when a DAT was ingested: inputs are the first pass
+  `doc-kit inputs reconcile` writes (`.doc-kit/inputs/reconcile.json`: confirmed, said by the DAT without a trace,
+  in the code but not in the DAT, the hosts), the converted DAT and the facts. One Develop page, linked from
+  Administer: what the code confirms, what only the DAT says, what only the code does, addresses and
+  environments, flows, questions for the DAT's author. A trace is evidence, never proof; each statement cites
+  the DAT ("Source: DAT v2.3 § 4.1") and its proof. Risky gaps are candidate findings.
 - **`production-technical`** (one `doc-kit-reviewer`), when portal screenshots are available: inputs are the
   screenshots provided by the owner (site A: the 24 resources of the group, 30 application variables, 7 of them
   vault references) and the infrastructure code, **read-only** (Terraform, Bicep, CloudFormation, Pulumi…).

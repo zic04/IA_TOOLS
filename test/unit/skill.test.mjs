@@ -410,6 +410,11 @@ const TEMPLATE_VARIANTS = {
     ["--var", "code=cp1", "--var", "pages=/orders"],
     ["--var", "code=cp2", "--var", "pages=/settings"],
   ],
+  // The DAT and reality (ARCHITECTURE.md §6.19): one page per agent.
+  "architecture-reconcile": [
+    ["--var", "page=take-over/dat-gaps"],
+    ["--var", "page=reprendre/ecarts-dat"],
+  ],
   // The analyses of the features (ARCHITECTURE.md §6.11a): one feature per agent.
   "behaviour-analysis": [
     [
