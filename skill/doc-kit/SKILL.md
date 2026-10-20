@@ -156,9 +156,7 @@ kind (`{ "id": "ops", "kind": "admin", "title": "Operations" }`). Use: `screen`.
 `business-rules`, `roles-matrix`, `process`, `release-notes`. Administer: `screen`, `editor`, `recipe`, and in its
 Operate part `architecture` (the technical architecture document), `runbook`, `variables`, `resources`,
 `access-ownership`. Develop: `technical`, `journey`, `troubleshooting`, `findings`, `api-surface`, `data-model`,
-`dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`. A kit-0.3 project
-(`business`/`takeover`): `doc-kit upgrade --apply` moves it to the four spaces. `doc-kit check coverage` must
-reach 100 %. One approved reference page per space.
+`dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`. `doc-kit check coverage` must reach 100 %. One approved reference page per space.
 
 ### 4 · Captures
 Skipped with `capture.mode: "none"`. Otherwise `doc-kit demo` or `doc-kit connect` + the PRODUCTION banner, then a

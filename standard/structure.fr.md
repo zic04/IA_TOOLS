@@ -103,12 +103,7 @@ Le rôle complet, les sections obligatoires et la longueur des 31 types sont dan
 - **Les quatre** : le cas courant d'un projet de documentation produit également remis à la reprise, ou d'une
   application « vibe-codée » dont le dossier de reprise (ARCHITECTURE.md §6.9) est le livrable principal.
 
-Un projet peut ajouter un espace **plus tard** : le déclarer et donner leur `space` à ses parties. Un projet du
-kit 0.3, avec les deux espaces `business` et `takeover`, est migré par `doc-kit upgrade --apply` (migration
-0.4.0) : Utiliser reste Utiliser ; Fonctionnalités, Règles, Rôles et Processus vont dans Produit ; Configurer et
-Administrer dans Administrer ; la partie de reprise dans Développer, sauf ses pages d'exploitation (le DAT, le
-manuel d'exploitation, l'exploitation et le déploiement, les variables, les ressources, les accès et la
-propriété), qui passent dans une nouvelle partie Exploiter de l'espace Administrer.
+Un projet peut ajouter un espace **plus tard** : le déclarer et donner leur `space` à ses parties.
 
 ## Une page, un lecteur (Diátaxis)
 

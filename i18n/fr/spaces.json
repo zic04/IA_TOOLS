@@ -22,8 +22,6 @@
   "cli.build.space.kind.help": "déclarez un des espaces standard ({kinds}) par son id, ou donnez à un espace à vous un \"kind\" parmi eux ; un espace standard garde son propre type",
   "cli.build.space.missing": "la section « {section} » n'a pas d'espace",
   "cli.build.space.missing.help": "dès que \"spaces\" est déclaré, chaque section en nomme un : {known}",
-  "cli.build.space.retired": "l'espace « {space} » est un espace du kit 0.3",
-  "cli.build.space.retired.help": "lancez {command} upgrade --apply : la migration 0.4.0 réécrit les espaces de content/toc.json en {kinds}",
   "cli.build.space.title": "l'espace « {space} » n'a pas de titre",
   "cli.build.space.title.help": "seuls les espaces standard ({kinds}) ont des textes par défaut : donnez-lui un \"title\"",
   "cli.build.space.undeclared": "{where} : \"space\" est utilisé mais le sommaire ne déclare aucun \"spaces\"",

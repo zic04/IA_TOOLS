@@ -37,7 +37,7 @@ export function demoCopy() {
   return dir;
 }
 
-/** The test project with two spaces, business and takeover (ARCHITECTURE.md §6.1a). */
+/** The test project with two spaces, use and develop (ARCHITECTURE.md §6.1a). */
 export const SPACES = path.join(KIT_ROOT, "test", "fixtures", "spaces");
 
 /** Configuration of the spaces project (validated, completed), optionally modified first. */

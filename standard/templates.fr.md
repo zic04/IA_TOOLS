@@ -373,7 +373,7 @@ existe, son `counterpart`. Une section qui ne s'applique pas reste, avec une lig
   que chacune doit dire ; une rubrique obligatoire omise est signalée par le build (`behaviour.missing`). La syntaxe :
   ARCHITECTURE.md §6.8a.
 - **Titres de la 0.3** toujours reconnus : « Scénario principal » pour « Parcours principal », « Règles métier » pour
-  « Règles de gestion » ; `doc-kit upgrade` ajoute les sections qui manquent à une fiche de la 0.3, avec leur consigne.
+  « Règles de gestion ».
 - **Exemple** : `fonctionnalites/validation-en-deux-temps` dans Acme Orders : qui peut relever le seuil, les
   deux étapes de validation, ce qui arrive à une commande déjà en attente quand le circuit change.
 - **Erreurs fréquentes** :

@@ -98,19 +98,16 @@
 - **Corriger** : déclarez `spaces` d'abord, ou retirez le champ `space`.
 - **Comprendre** : [Quatre espaces, une seule source](#/spaces/overview~declarer-les-espaces).
 
-### « l'espace « ops » n'a pas de type connu », « l'espace « business » est un espace du kit 0.3 » ou « l'espace « ops » n'a pas de titre »
+### « l'espace « ops » n'a pas de type connu » ou « l'espace « ops » n'a pas de titre »
 
 - **Causes probables**
   1. Un espace propre au projet (tout identifiant autre que `use`, `product`, `admin` et `develop`) n'a pas de
      `kind`, ou un type qui n'existe pas.
   2. Un espace standard a reçu un autre type (`{ "id": "use", "kind": "admin" }`).
-  3. Le projet a été écrit pour le kit 0.3 et déclare encore `business` ou `takeover`, qui ne sont plus des espaces
-     standard (« est un espace du kit 0.3 », `space.retired`).
-  4. Un espace propre au projet n'a pas de `title` : seuls les quatre espaces standard ont des textes par défaut.
+  3. Un espace propre au projet n'a pas de `title` : seuls les quatre espaces standard ont des textes par défaut.
 - **Vérifier** : la liste `spaces` en tête de `content/toc.json` ; l'erreur nomme l'espace.
 - **Corriger** : donnez à un espace propre au projet son `kind` et son `title` (`{ "id": "ops", "kind": "admin",
-  "title": "Exploitation" }`) ; retirez le `kind` d'un espace standard ; pour un projet du kit 0.3, lancez
-  `doc-kit upgrade --apply`, qui répartit `business` et `takeover` dans les quatre espaces.
+  "title": "Exploitation" }`) ; retirez le `kind` d'un espace standard.
 - **Comprendre** : [Quatre espaces, une seule source](#/spaces/overview~un-espace-propre-au-projet-kind).
 
 ### « aucune application à lire » avec `doc-kit facts` ou `doc-kit sync`

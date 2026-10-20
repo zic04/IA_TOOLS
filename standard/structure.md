@@ -95,11 +95,7 @@ The full purpose, required sections and length of each of the 31 types are in
 - **All four**: the common case for a product documentation project that is also handed over, or for a
   "vibe-coded" application whose takeover dossier (ARCHITECTURE.md §6.9) is the main deliverable.
 
-A project can add a space **later**: declare it and give its parts their `space`. A project of kit 0.3, with
-the two spaces `business` and `takeover`, is migrated by `doc-kit upgrade --apply` (migration 0.4.0): Use
-stays Use; Features, Rules, Roles and Process go to Product; Configure and Administer to Administer; the takeover
-part to Develop, but for its operating pages (the technical architecture document, the runbook, operations and
-deployment, variables, resources, access and ownership), which move to a new Operate part of Administer.
+A project can add a space **later**: declare it and give its parts their `space`.
 
 ## One page, one reader (Diátaxis)
 

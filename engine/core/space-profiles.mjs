@@ -25,16 +25,7 @@ export function loadSpaceProfiles(kitRoot = KIT_ROOT) {
   return load(kitRoot).profiles;
 }
 
-/**
- * Whether a space id is one of an earlier kit's (standard/spaces.json `retired`: business, takeover).
- * @param {string} id
- * @param {string} [kitRoot]
- */
-export function isRetiredSpace(id, kitRoot = KIT_ROOT) {
-  return load(kitRoot).retired.includes(id);
-}
-
-/** @param {string} kitRoot @returns {{ profiles: Map<string, SpaceProfile>, retired: string[] }} */
+/** @param {string} kitRoot @returns {{ profiles: Map<string, SpaceProfile> }} */
 function load(kitRoot) {
   if (cache.has(kitRoot)) return cache.get(kitRoot);
   const read = (rel) => JSON.parse(fs.readFileSync(path.join(kitRoot, rel), "utf8"));
@@ -46,7 +37,7 @@ function load(kitRoot) {
     if (profiles.has(p.id)) throw new Error(`standard/spaces.json: profile ${p.id} declared twice`);
     profiles.set(p.id, Object.freeze({ ...p }));
   }
-  const loaded = { profiles, retired: data.retired || [] };
+  const loaded = { profiles };
   cache.set(kitRoot, loaded);
   return loaded;
 }

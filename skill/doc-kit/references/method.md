@@ -147,8 +147,7 @@ keeps the same items.
    only the spaces the project has readers for) and give each section a `space` (ARCHITECTURE.md §6.1a); a
    page's own `space` overrides its section's, and `counterpart` links a feature sheet to its technical page (and
    back). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
-   "Operations" }`. A kit-0.3 project (`business`, `takeover`) is moved to the four spaces by `doc-kit upgrade
-   --apply` (migration 0.4.0).
+   "Operations" }`.
 2. **Coverage**: `doc-kit check coverage` must find each route in the `routes` field of a page (the `features`
    adapter too, when `features.json` exists: a feature is covered once a written `feature` page cites its id).
 3. The project's **`WRITING-GUIDE.md`**: where the exact labels live, the reference page(s), capture prefixes,
@@ -306,7 +305,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   copies every per-space export (`dist/<Product>-Documentation-use.html`, `-product`, `-admin`, `-develop`);
   checklist `{{KIT_PATH}}/standard/delivery.md`.
 - Maintenance after an application release: see "The update cycle" below. After a kit release: `doc-kit
-  upgrade`, then `--apply` (from kit 0.3, it also moves the `business` and `takeover` spaces to the four spaces).
+  upgrade`, then `--apply`.
 
 ## The update cycle
 

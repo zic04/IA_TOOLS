@@ -2,7 +2,6 @@
   "$schema": "../schemas/spaces.schema.json",
   "description": "The kinds of spaces (ARCHITECTURE.md §6.1a): one per audience. A standard space is declared by its id; a space of the project's own declares its kind. Texts: ui.spaces.<id>.* (i18n/<language>/spaces.json).",
   "version": 1,
-  "retired": ["business", "takeover"],
   "profiles": [
     {
       "id": "use",

@@ -251,7 +251,7 @@ export async function migrate({ files }) {
         path.join(migrations, "0.4.0.mjs"),
         `import { KitError, EXIT } from ${JSON.stringify(errors)};
 export const version = "0.4.0";
-export async function migrate() { throw new KitError(EXIT.CHECK, "migration.legacyToc", { file: "content/sommaire.json" }); }
+export async function migrate() { throw new KitError(EXIT.CHECK, "new.noToc", { file: "content/toc.json" }); }
 `,
       );
       const plan = await planUpgrade({
@@ -266,12 +266,12 @@ export async function migrate() { throw new KitError(EXIT.CHECK, "migration.lega
       assert.equal(plan.applied, false);
       const failure = migrationFailure(plan.migrations[0]);
       assert.deepEqual(failure, {
-        key: "migration.legacyToc",
-        vars: { file: "content/sommaire.json", version: "0.4.0" },
+        key: "new.noToc",
+        vars: { file: "content/toc.json", version: "0.4.0" },
       });
       for (const [language, text, help] of [
-        ["en", /^migration 0\.4\.0: content\/sommaire\.json is still in the format of kit 0\.1/, /migrate first/],
-        ["fr", /^migration 0\.4\.0 : content\/sommaire\.json est encore au format du kit 0\.1/, /d'abord .* migrate/],
+        ["en", /^table of contents not found: content\/toc\.json/, /doc-kit init/],
+        ["fr", /^sommaire introuvable : content\/toc\.json/, /doc-kit init/],
       ]) {
         const { t } = createI18n({ language });
         assert.match(t(`cli.${failure.key}`, failure.vars), text, language);

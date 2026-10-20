@@ -370,8 +370,7 @@ does not apply stays, with one line: "Not applicable — the reason".
   usually several features, or belongs partly in `process`.
 - **Behaviour cards** (`standard/behaviours.json`): the rubrics of each kind, required or not, and what each must say;
   a required rubric left out is reported by the build (`behaviour.missing`). The syntax: ARCHITECTURE.md §6.8a.
-- **Headings of 0.3** still count: "Main scenario" for "Main path"; `doc-kit upgrade` adds the sections a sheet of
-  0.3 lacks, with their guidance.
+- **Headings of 0.3** still count: "Main scenario" for "Main path".
 - **Example**: `features/two-step-approval` in Acme Orders: who can raise the threshold, the two approval steps,
   what happens to an order already pending when the chain changes.
 - **Common mistakes**:

@@ -86,10 +86,10 @@ describe("declaration and validation", () => {
         "space.kind",
         { space: "develop", kinds: "use, product, admin, develop" },
       ],
-      // A space of kit 0.3 still declared: told to run doc-kit upgrade (migration 0.4.0).
+      // An id that is no kind, without a kind of its own (business, a space of kit 0.3): the same error.
       [
         (t) => ((t.spaces = ["business", "develop"]), (t.sections[0].space = "business"), t),
-        "space.retired",
+        "space.kind",
         { space: "business", kinds: "use, product, admin, develop" },
       ],
     ];

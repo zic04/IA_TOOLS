@@ -124,26 +124,6 @@ spaces, or when both pages share one). It is checked like an internal link — a
 build — but it need not be reciprocal: a technical page can point to its feature sheet without the sheet pointing
 back.
 
-## Upgrading a project with two spaces
-
-Kit 0.3 had two spaces, `business` and `takeover`. `doc-kit upgrade --apply` (migration 0.4.0) rewrites such a
-table of contents with the four:
-
-| Was | Becomes |
-|---|---|
-| Use (`business`) | `use` |
-| Features, Rules, Roles, Process (`business`) | `product` |
-| Configure, Administer (`business`) | `admin` |
-| The takeover section (`takeover`) | `develop` |
-| Its operating pages: technical architecture document, runbook, operations and deployment, variables, resources, access and ownership | `admin`, with their sub-pages, in a new section `operate` (`exploiter` in a French project) |
-
-A journey or a page that names its own space follows the same rules. A space of your own, which had no kind in
-0.3, gets the kind of most of its typed pages (`use` when none is typed), its texts kept; one whose id is now a
-standard space (`admin`, for example) becomes that space and keeps its texts. The translated tables of contents
-get the same structure (the kind is written on the source only), and a translation that was up to date stays up
-to date. The migration runs once: a table of contents already in the 0.4 format is left untouched. A table of
-contents still in the format of kit 0.1 (French keys) is refused until `doc-kit migrate` has rewritten it.
-
 ## Pitfalls and observed gaps
 
 > [!WARNING] An export is not re-checked on its own
@@ -162,4 +142,3 @@ contents still in the format of kit 0.1 (French keys) is refused until `doc-kit 
 - [Documenting in multiple languages](#/spaces/languages): the other cross-cutting mechanism that reshapes the same build.
 - [Table of contents, sub-pages and journeys](#/write/table-of-contents): sections, pages and journeys in full.
 - [Configuration](#/reference/configuration): `spaces.export` and `spaces.output`.
-- [Upgrade to a newer kit](#/migrate/upgrade): `doc-kit upgrade` and its migrations.

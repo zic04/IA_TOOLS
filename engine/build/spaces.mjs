@@ -11,7 +11,7 @@ import { closest } from "../project/validate.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { loadSpaceProfiles, spaceKind, isRetiredSpace } from "../core/space-profiles.mjs";
+import { loadSpaceProfiles, spaceKind } from "../core/space-profiles.mjs";
 import { BOARD_PLACEHOLDER } from "./business.mjs";
 import { withoutBoardTexts } from "./board.mjs";
 
@@ -73,8 +73,7 @@ export function resolveSpaces({ toc, t, iconKey }) {
     if (spaces.some((x) => x.id === s.id)) continue;
     const kind = spaceKind(s);
     if (!kind) {
-      // A space of kit 0.3 (business, takeover): doc-kit upgrade rewrites it.
-      problem(isRetiredSpace(s.id) && s.kind === undefined ? "space.retired" : "space.kind", { space: s.id, kinds });
+      problem("space.kind", { space: s.id, kinds });
       continue;
     }
     const profile = profiles.get(kind);

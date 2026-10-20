@@ -129,27 +129,6 @@ Affiché comme une ligne sous les badges de la page, « Même sujet, pour {espac
 page ou une ancre inconnue fait échouer le build — mais ça n'a pas besoin d'être réciproque : une page technique
 peut renvoyer à sa fiche de fonctionnalité sans que la fiche renvoie en retour.
 
-## Mettre à jour un projet à deux espaces
-
-Le kit 0.3 avait deux espaces, `business` et `takeover`. `doc-kit upgrade --apply` (migration 0.4.0) réécrit un tel
-sommaire avec les quatre :
-
-| Avant | Après |
-|---|---|
-| Utiliser (`business`) | `use` |
-| Fonctionnalités, Règles, Rôles, Processus (`business`) | `product` |
-| Configurer, Administrer (`business`) | `admin` |
-| La section de reprise (`takeover`) | `develop` |
-| Ses pages d'exploitation : DAT, manuel d'exploitation, exploitation et déploiement, variables, ressources, accès et propriété | `admin`, avec leurs sous-pages, dans une nouvelle section `exploiter` (`operate` dans un projet anglais) |
-
-Un parcours ou une page qui nomme son propre espace suit les mêmes règles. Un espace propre au projet, qui
-n'avait pas de type en 0.3, reçoit le type de la majorité de ses pages typées (`use` si aucune ne l'est), ses
-textes conservés ; un espace dont l'id est désormais standard (`admin`, par exemple) devient cet espace et garde
-ses textes. Les sommaires traduits reçoivent la même structure (le type n'est écrit que dans la source), et une
-traduction qui était à jour le reste. La migration ne s'applique qu'une fois : un sommaire déjà au format 0.4
-n'est pas touché. Un sommaire encore au format du kit 0.1 (clés françaises) est refusé tant que `doc-kit
-migrate` ne l'a pas réécrit.
-
 ## Pièges et écarts constatés
 
 > [!ATTENTION] Un export n'est pas revérifié à part
@@ -169,4 +148,3 @@ migrate` ne l'a pas réécrit.
 - [Documenter en plusieurs langues](#/spaces/languages) : l'autre mécanisme transversal qui refaçonne le même build.
 - [Sommaire, sous-pages et parcours](#/write/table-of-contents) : sections, pages et parcours en détail.
 - [La configuration](#/reference/configuration) : `spaces.export` et `spaces.output`.
-- [Passer à un kit plus récent](#/migrate/upgrade) : `doc-kit upgrade` et ses migrations.

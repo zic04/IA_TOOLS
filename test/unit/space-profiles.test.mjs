@@ -5,7 +5,7 @@ import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { loadSpaceProfiles, spaceKind, declaredSpaces, isRetiredSpace } from "../../engine/core/space-profiles.mjs";
+import { loadSpaceProfiles, spaceKind, declaredSpaces } from "../../engine/core/space-profiles.mjs";
 import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { runAudit, TAKEOVER_ITEMS } from "../../engine/audit/audit.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
@@ -34,12 +34,6 @@ describe("registry (standard/spaces.json)", () => {
     const types = loadPageTemplates().types;
     for (const p of loadSpaceProfiles().values())
       for (const t of p.preferTypes) assert.ok(Object.hasOwn(types, t), `${p.id}: ${t} is a page type`);
-  });
-
-  test("the spaces of kit 0.3 are known as retired (the build points to doc-kit upgrade)", () => {
-    assert.equal(isRetiredSpace("business"), true);
-    assert.equal(isRetiredSpace("takeover"), true);
-    assert.equal(isRetiredSpace("use"), false);
   });
 
   describe("a defect of the registry is refused when it is loaded", () => {

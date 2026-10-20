@@ -102,8 +102,7 @@ entries between a project's `kit` range and the installed version.
   - `:::scenario{title story behaviour}`: an **acceptance criterion** in Given / When / Then (Soit / Quand / Alors),
     linked to its story and its card.
   The demo's two sheets are rewritten from the demo application's code, and the kit's example sheet shows every
-  part. `doc-kit upgrade` (migration 0.4.0) adds the required sections a sheet of 0.3 lacks, with their guidance;
-  "Main scenario" still counts as "Main path". `doc-kit context` gives each page the context budget of its template
+  part. "Main scenario" still counts as "Main path". `doc-kit context` gives each page the context budget of its template
   when `--budget` is not given.
 - **The sources of a project** (ARCHITECTURE.md §6.19, `inputs.json`): what the kit reads besides the code of
   `app.dir` — other code (folders or **shared repositories**: GitHub, GitLab, Azure Repos), the infrastructure
@@ -238,16 +237,9 @@ entries between a project's `kit` range and the installed version.
   the takeover pages of the audit in `develop`; the required takeover pages are spread — the technical
   architecture document and operations in `admin`, the five others in `develop` — each looked for and suggested
   in its own space, and `takeover4` of a space counts only its own. A space of the project's own declares its
-  `kind` (`space.kind`, error, without one); a project that still declares `business` or `takeover` is told to
-  run `doc-kit upgrade --apply` (`space.retired`). Site data `spaces[]` gains `kind` and `tech`; exports are named
+  `kind` (`space.kind`, error, without one); the spaces `business` and `takeover` of 0.3 are no kind
+  (`space.kind`): no migration, a project of 0.3 is started again. Site data `spaces[]` gains `kind` and `tech`; exports are named
   after the new ids (`…-use.html`). New projects (`doc-kit init`) and the demo declare the four spaces.
-  **Migration**: `doc-kit upgrade --apply` (migration 0.4.0) rewrites `content/toc.json` and its translations —
-  Use stays `use`; Features, Rules, Roles and Process go to `product`; Configure and Administer to `admin`; the
-  takeover section to `develop`, but for its operating pages (technical architecture document, runbook,
-  operations, deployment, variables, resources, access and ownership), which move with their sub-pages to a new
-  `operate` (`exploiter`) section of `admin`; a space of the project's own gets the kind of most of its typed
-  pages; a translation that was up to date stays up to date; a table of contents of kit 0.1 (French keys) is
-  refused until `doc-kit migrate` has rewritten it.
   The takeover dossier of the audit moves to `engine/audit/takeover.mjs`; the lint warning ceiling goes down to 55.
 - **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
   command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,

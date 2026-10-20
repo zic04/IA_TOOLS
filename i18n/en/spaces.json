@@ -22,8 +22,6 @@
   "cli.build.space.kind.help": "declare one of the standard spaces ({kinds}) by its id, or give a space of your own a \"kind\" among them; a standard space keeps its own kind",
   "cli.build.space.missing": "section “{section}” has no space",
   "cli.build.space.missing.help": "as soon as \"spaces\" is declared, every section names one: {known}",
-  "cli.build.space.retired": "space “{space}” is a space of kit 0.3",
-  "cli.build.space.retired.help": "run {command} upgrade --apply: migration 0.4.0 rewrites the spaces of content/toc.json into {kinds}",
   "cli.build.space.title": "space “{space}” has no title",
   "cli.build.space.title.help": "only the standard spaces ({kinds}) have default texts: give it a \"title\"",
   "cli.build.space.undeclared": "{where}: \"space\" is used but the table of contents declares no \"spaces\"",

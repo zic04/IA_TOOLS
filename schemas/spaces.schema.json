@@ -9,11 +9,6 @@
     "$schema": { "type": "string" },
     "description": { "type": "string" },
     "version": { "const": 1 },
-    "retired": {
-      "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-      "description": "Ids of the spaces of an earlier kit (0.3: business, takeover): a project that still declares one is told to run doc-kit upgrade."
-    },
     "profiles": {
       "type": "array",
       "minItems": 1,
