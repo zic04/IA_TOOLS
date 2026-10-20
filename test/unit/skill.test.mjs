@@ -2,7 +2,7 @@
 // fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the agent
 // types (ARCHITECTURE.md §6.11) are copied next to the skills folder and reported the same way.
 // brief.mjs: every brief template declares its agent type and its common part is byte-identical whatever the
-// per-agent variables (code, pages…), so a wave's agents share their prompt cache; --estimate.
+// per-agent variables (code, pages…), so a brief reads the same whatever its variables; --estimate.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -237,7 +237,7 @@ describe("brief.mjs", () => {
       assert.equal(r.code, 0, r.err);
       assert.match(
         r.out,
-        /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt\)\n$/,
+        /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(le premier agent d'une vague seul, les autres dans votre message suivant : ils lisent dans le cache de prompt ce qu'ils partagent avec lui\)\n$/,
       );
       const text = fs.readFileSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md"), "utf8");
       assert.match(text, /^agent: doc-kit-writer\n/m);
@@ -304,7 +304,7 @@ describe("brief.mjs", () => {
 
 // ARCHITECTURE.md §6.11: every brief declares its agent type, and two briefs of the same template differ only
 // after their common part — tested here with different `code`/`pages` (and, where relevant, other per-agent
-// variables), so that the agents of one wave can share their prompt cache.
+// variables): a brief reads the same whatever its variables.
 const TEMPLATE_VARIANTS = {
   "writing-batch": [
     ["--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=use/orders"],

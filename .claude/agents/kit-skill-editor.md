@@ -14,7 +14,7 @@ You make one change to the doc-kit skill (`skill/doc-kit/`) and keep every copy 
 - `assets/briefs/en/*.md` and `assets/briefs/fr/*.md`: one brief per task, in both languages, with the same front
   matter (`agent:`, and the other fields), the same `{{placeholders}}`, and the same instructions. The common part
   of a brief comes first and is identical for every agent of a wave; the variables come last (`## Variables`), so
-  the prompt cache is shared.
+  a brief reads the same whatever its variables (`test/unit/skill.test.mjs` compares them byte for byte).
 - `agents/*.md`: the agent types; each description names every brief that runs it.
 - `scripts/common.mjs`: `AGENT_TYPES` and `DEFAULT_ROUTING` (the model of each brief), mirrored by the model table
   of `SKILL.md`.

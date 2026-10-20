@@ -62,7 +62,7 @@
   "cli.new.noPrefill.help": "types préremplissables : {known}",
   "cli.context.section.behaviours": "Comportements à décrire",
   "cli.context.behaviours.intro": "Déduits du code, chacun d'une ligne : vérifiez-le dans les extraits ci-dessus avant de l'écrire. Un indice n'est jamais une mesure : ce qu'il ne dit pas, lisez-le dans le code.",
-  "cli.context.behaviours.cards": "Cartes à écrire, une par comportement (* rubrique obligatoire) : répondez à chaque rubrique, ou écrivez « Sans objet — raison » ou « Inconnu — question »",
+  "cli.context.behaviours.cards": "Cartes à écrire, une par comportement (* rubrique obligatoire ; `id` : son nom dans une analyse) : répondez à chaque rubrique, ou écrivez « Sans objet — raison » ou « Inconnu — question »",
   "cli.context.behaviours.noCard": "Aucun type de comportement n'est encore connu pour cette fonctionnalité : lisez les extraits, et ajoutez une carte par comportement trouvé.",
   "cli.context.behaviours.family.search": "Recherche",
   "cli.context.behaviours.family.filter": "Filtres",

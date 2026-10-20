@@ -4,9 +4,9 @@
 // `usage.mjs log` by hand. Installed by `doc-kit skill install --hooks`.
 //
 // Input (stdin, from Claude Code): { session_id, agent_id, agent_type, agent_transcript_path, cwd, … }.
-// The agent's transcript is read tolerantly (its format is internal to Claude Code): every line whose
-// `message.usage` exists counts once per `message.id`; the model is the one most of those messages name; the
-// duration runs from the first to the last `timestamp`. Anything unreadable is skipped.
+// The agent's transcript is read tolerantly (its format is internal to Claude Code): each API response counts
+// once, its output at least what it wrote (transcript-usage.mjs); the model is the one most of those responses
+// name; the duration runs from the first to the last `timestamp`. Anything unreadable is skipped.
 //
 // The documentation project: $DOC_KIT_PROJECT, else the first folder holding doc.config.mjs from the session's
 // folder upwards, else <cwd>/docs/manual (where `doc-kit init` puts it). Nothing is written when there is no
@@ -15,15 +15,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, readVersion } from "./common.mjs";
+import { responseTally } from "./transcript-usage.mjs";
 
-/** Sums of a transcript (JSONL text): tokens, model, duration, number of assistant messages. */
+/**
+ * Sums of a transcript (JSONL text): tokens (`outEstimated`, the part of `out` estimated from what the responses
+ * wrote, only when there is one), model, duration, number of API responses.
+ */
 export function transcriptUsage(text) {
-  const seen = new Set();
-  const tokens = { in: 0, out: 0, cacheRead: 0, cacheWrite: 0 };
+  const tally = responseTally();
   const models = new Map();
   let first = null;
   let last = null;
-  let messages = 0;
   for (const line of String(text).split(/\r?\n/)) {
     if (!line.trim()) continue;
     let e;
@@ -37,21 +39,20 @@ export function transcriptUsage(text) {
       if (first === null || at < first) first = at;
       if (last === null || at > last) last = at;
     }
-    const m = e?.message;
-    const u = m?.usage;
-    if (!u || typeof u !== "object") continue;
-    const id = m.id || e.uuid || line;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    messages++;
-    tokens.in += u.input_tokens || 0;
-    tokens.out += u.output_tokens || 0;
-    tokens.cacheRead += u.cache_read_input_tokens || 0;
-    tokens.cacheWrite += u.cache_creation_input_tokens || 0;
-    if (m.model) models.set(m.model, (models.get(m.model) || 0) + 1);
+    const added = tally.add(e, typeof e?.uuid === "string" && e.uuid ? e.uuid : line);
+    const model = e?.message?.model;
+    if (added?.first && model) models.set(model, (models.get(model) || 0) + 1);
   }
+  const sums = tally.totals();
+  const tokens = {
+    in: sums.input_tokens,
+    out: sums.output_tokens,
+    cacheRead: sums.cache_read_input_tokens,
+    cacheWrite: sums.cache_creation_input_tokens,
+    ...(sums.output_estimated ? { outEstimated: sums.output_estimated } : {}),
+  };
   const model = [...models.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-  return { tokens, model, ms: first !== null && last !== null ? last - first : 0, messages };
+  return { tokens, model, ms: first !== null && last !== null ? last - first : 0, messages: sums.responses };
 }
 
 /** The documentation project for a session folder, or null. */

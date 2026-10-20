@@ -81,7 +81,7 @@ For production, repeat before the first capture: a server-side write on `GET` is
 
 Briefs are the instructions given to agents, distilled from briefs that worked on real projects
 (`assets/briefs/<lang>/`). Each starts with `agent: <type>` and a common part first, variables last (byte-for-byte
-identical for a given template, so a wave shares its prompt cache).
+identical for a given template).
 
 | Brief | Phase | Space | Agent type | Writes |
 |---|---|---|---|---|
@@ -106,7 +106,7 @@ identical for a given template, so a wave shares its prompt cache).
 
 Agent types (`skill/doc-kit/agents/*.md`, Claude Code agent definitions, ARCHITECTURE.md §6.11): `doc-kit-triage`
 (`haiku`, Read/Grep/Glob only — cheap, read-only decisions), `doc-kit-writer` (`sonnet`, also Edit/Write/Bash — the
-default for writing and updating), `doc-kit-analyst` (`sonnet`, Read/Grep/Glob/Write/Bash — traces one feature in
+default for writing and updating), `doc-kit-analyst` (`sonnet`, Read/Grep/Glob/Edit/Write/Bash — traces one feature in
 the code and writes its analysis, nothing else), `doc-kit-reviewer` (`opus`, also Edit/Write/Bash — the most capable model, for
 the few judgments every later page depends on: the inventory, the code-health and production dossiers, the
 verification of findings). `doc-kit skill install` copies them next to the skills folder; `doctor` reports them
@@ -123,7 +123,10 @@ like the skill.
   <ms>] [--pages a,b] [--phase <name>]` after **each** agent ends, from what Claude Code reports; `node
   scripts/usage.mjs report` totals by phase, brief, agent type, model and page, the cost, and the gap with a fresh
   estimate — run at the end of **each phase**; `scan --transcripts <folder>` adds the precise input/output/cache
-  split read from Claude Code's own transcripts, when available.
+  split read from Claude Code's own transcripts, when available. The total Claude Code reports when an agent ends
+  is the size of its last context, not what it spent (every round-trip reads the context again, mostly from the
+  cache): a sixth to a third of the tokens it used, measured. The spend itself comes from the transcripts: the statistics hook,
+  or one `scan` of the session's `subagents` folder (`~/.claude/projects/<project>/<session>/subagents/`) at the end.
 - `node scripts/consolidation.mjs init --project <docDir> --codes a,b,c` creates the consolidation file;
   `node scripts/consolidation.mjs duplicates --project <docDir>` lists candidates citing the same `file:line`, and
   existing findings already citing them.
@@ -136,12 +139,13 @@ like the skill.
   - `findings` lists the candidates for the consolidation file;
   - `depth` plans one round of the depth loop from `doc-kit audit`.
 - **Launch** an agent of the type the brief names, **on the model `brief.mjs` prints**. Give it the brief's full
-  text as its prompt, not a request to read the file. Every brief puts its common part first, so the agents of a
-  wave start with the same bytes, and all but the first read that part from the prompt cache. "Read `<brief>`"
-  would make each agent pay for it again as a tool result.
-- **Launch every agent of a wave in the same message** (parallel), with one page per agent for writing and
-  updates, and up to 8 at a time. A short history per agent costs far less than one agent working through a
-  list.
+  text as its prompt, not a request to read the file: "Read `<brief>`" would make each agent pay for it again as a
+  tool result.
+- **Launch the first agent of a wave alone, then all the others in your next message** (parallel), with one page
+  per agent for writing and updates, and up to 8 at a time. An agent launched after another reads from the prompt
+  cache what their prompts share before the brief (the agent's definition and Claude Code's tools: 23,000 to
+  24,000 tokens of its first 37,000 to 38,000, measured); launched together, each one writes it again. A short history per
+  agent costs far less than one agent working through a list.
 - **Models** (`DEFAULT_ROUTING` in `scripts/common.mjs`, overridden per brief by `llm.routing` in `doc.config.mjs`):
 
   | Model | Briefs |
@@ -197,7 +201,7 @@ counterpart. Each feature is traced once in the code (ARCHITECTURE.md §6.11a), 
 a digest of that analysis. For each feature of `features.json`: `doc-kit context <its sheet>`, then one
 `doc-kit-analyst` with brief `behaviour-analysis` (`--var feature=F-01 --var featureTitle="…" --var size=M --var
 page=<sheet id>`; the `level` comes from `extra.briefs`), **estimated first** (`brief.mjs --estimate --var
-size=…`) and launched in waves of up to 8 in one message. Then:
+size=…`) and launched in waves of up to 8: the first alone, then the others in the next message. Then:
 - `node scripts/analysis.mjs check`: every analysis follows the schema, every proof lies in the application;
 - `node scripts/analysis.mjs findings`: its candidates go into the consolidation file (phase 6);
 - `node scripts/analysis.mjs digest <feature> --for product`, and `--for develop` for the technical counterpart,
@@ -294,10 +298,10 @@ doc-kit context <pages> --update   one context file per page still flagged, for 
 `doc-kit bricks` shows which brick is stale (the inputs, each facts source, the tools, the documentation audit) and why; `doc-kit bricks run <id>
 --deps --stale` runs the deterministic steps of those that are (`doc-kit bricks --help`, ARCHITECTURE.md §6.18).
 Then, **only for the pages still flagged** (none left: the cycle ends here, no agent at all):
-- **triage** (`doc-kit-triage`, haiku, read-only), **at most 5 pages per agent, all agents launched in the same
-  message** (parallel; a short history costs far less than one long one): `intact` → `sync --mark`;
-- `edit`/`rewrite` → **one page per update agent** (`doc-kit-writer`, sonnet), all launched in the same message,
-  up to 8 at a time, each from its own context file. A small change is an `Edit` of the lines concerned, never a
+- **triage** (`doc-kit-triage`, haiku, read-only), **at most 5 pages per agent, the first agent alone, then the
+  others in one message** (parallel; a short history costs far less than one long one): `intact` → `sync --mark`;
+- `edit`/`rewrite` → **one page per update agent** (`doc-kit-writer`, sonnet), the first alone, then the others in
+  one message, up to 8 at a time, each from its own context file. A small change is an `Edit` of the lines concerned, never a
   rewrite of the whole page; each agent ends with `sync --mark <page> --sources …`.
 - A **feature sheet whose code changed** (or its technical counterpart) has its analysis redone before its update:
   `behaviour-analysis` with `focus` on what changed, or whole, then `analysis.mjs check` and `digest` again; the
@@ -331,7 +335,8 @@ over the previous brief, same conformance (details: `references/agent-orchestrat
   ARCHITECTURE.md §6.14): its tokens (input, output, cache), model and time go to the project's
   `usage/<version>.jsonl`, read by `doc-kit stats` and the `documentation-cost` page. Without the hook, log each
   agent yourself: `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> …`, right after each
-  completion notification, not in a batch at the end.
+  completion notification, not in a batch at the end — a floor of its spend (its last context), so `scan` the
+  session's `subagents` folder once at the end for the spend itself.
 - **Report at the end of each phase**: `node scripts/usage.mjs report`, compared with the wave's estimate.
 - **Never hand a writer the full inventory or table of contents**: give it `doc-kit context <page>` and the
   reference page instead; the inventory stays an orchestrator-only reading (phase 2 and phase 3 only).

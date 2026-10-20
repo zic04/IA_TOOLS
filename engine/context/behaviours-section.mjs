@@ -24,13 +24,19 @@ function hintLines(items, shared, t) {
   });
 }
 
-/** One card to write: its title, its container in the site's language, its rubrics (* required). */
+/**
+ * One card to write: its title, its container in the site's language, its rubrics (* required). Each with the id an
+ * analysis gives it (ARCHITECTURE.md §6.11a), whatever the language: the analyst needs no other file to name them.
+ */
 function cardLine(kind, language) {
   const container = language === "fr" ? "comportement" : "behaviour";
   const attribute = language === "fr" ? "type" : "kind";
   const name = language === "fr" && kind.aliases?.[0] ? kind.aliases[0] : kind.id;
-  const rubrics = kind.rubrics.map((r) => `${inLanguage(r.label, language)}${r.required ? "*" : ""}`).join(", ");
-  return `- **${inLanguage(kind.title, language)}** (\`:::${container}{${attribute}="${name}"}\`): ${rubrics}`;
+  const id = name === kind.id ? "" : ` = \`${kind.id}\``;
+  const rubrics = kind.rubrics
+    .map((r) => `${inLanguage(r.label, language)}${r.required ? "*" : ""} \`${r.id}\``)
+    .join(", ");
+  return `- **${inLanguage(kind.title, language)}** (\`:::${container}{${attribute}="${name}"}\`${id}): ${rubrics}`;
 }
 
 /**

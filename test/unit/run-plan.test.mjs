@@ -2,7 +2,10 @@
 // time, one that fails run once more alone; any other failure counts at once; end-to-end files one at a time.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runPlan } from "../tools/run-plan.mjs";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { runPlan, testFiles } from "../tools/run-plan.mjs";
 
 const CLOCK = "performance" + ".now()";
 const TEXTS = {
@@ -71,4 +74,39 @@ test("end-to-end files: all in one run, one file at a time, never a second run",
 test("only files that measure time: no empty run of the others", () => {
   const r = plan({}, { files: ["timed.test.mjs"] });
   assert.deepEqual(r.calls, [["timed.test.mjs", ""]]);
+});
+
+test("the files of the arguments: a folder's *.test.mjs, sorted; one file as it is; none for what is missing", () => {
+  const root = path.join("R", "test");
+  const unit = path.join(root, "unit");
+  const tree = { [unit]: ["b.test.mjs", "a.test.mjs", "helper.mjs", path.join("sub", "c.test.mjs")] };
+  const one = path.join(unit, "security.test.mjs");
+  const io = {
+    root,
+    exists: (p) => p in tree || p === one,
+    list: (dir) => {
+      if (!(dir in tree)) throw new Error(`ENOTDIR: ${dir}`); // a file listed as a folder
+      return tree[dir];
+    },
+  };
+  assert.deepEqual(testFiles(["unit"], io), [
+    path.join(unit, "a.test.mjs"),
+    path.join(unit, "b.test.mjs"),
+    path.join(unit, "sub", "c.test.mjs"),
+  ]);
+  assert.deepEqual(testFiles(["unit/security.test.mjs"], io), [one]);
+  assert.deepEqual(testFiles(["snapshot", "unit/gone.test.mjs"], io), [], "nothing: test/run.mjs then exits with 2");
+});
+
+test("every npm script that runs tests goes through test/run.mjs: npm run test:security measures time too", () => {
+  // The security tests run the ReDoS harness: a bare `node --test` would give a noisy measure no second run.
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const scripts = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).scripts;
+  const tests = Object.entries(scripts).filter(([name]) => name === "test" || name.startsWith("test:"));
+  assert.ok(tests.some(([name]) => name === "test:security"));
+  for (const [name, command] of tests) assert.match(command, /^node test\/run\.mjs /, name);
+  // One file of test/ is a plan of its own: the runner takes it as it takes a folder.
+  const security = /^node test\/run\.mjs (\S+)$/.exec(scripts["test:security"])?.[1];
+  assert.ok(security && fs.existsSync(path.join(root, "test", security)), "the file test:security names exists");
+  assert.match(fs.readFileSync(path.join(root, "test", security), "utf8"), /redos-worker/);
 });

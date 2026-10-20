@@ -413,6 +413,31 @@ describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install -
     assert.deepEqual(transcriptUsage("").messages, 0);
   });
 
+  test("transcriptUsage: a response's output at least what it wrote ÷ 4 (outEstimated), its model once", () => {
+    // Claude Code records a partial output count for a response that calls a tool (the pilot of 0.4.0).
+    const line = (content, usage) =>
+      JSON.stringify({ message: { id: "m1", model: "claude-sonnet-x", content, usage } });
+    const usage = { input_tokens: 2, output_tokens: 4, cache_read_input_tokens: 900, cache_creation_input_tokens: 30 };
+    const marker = "TRANSCRIPT-TEXT-" + "7f3a"; // a text of the transcript: the hook's line holds counts only (S7)
+    const haiku = (id) =>
+      JSON.stringify({ message: { id, model: "claude-haiku-x", usage: { input_tokens: 1, output_tokens: 1 } } });
+    const text = [
+      line([{ type: "thinking", thinking: "" }], usage),
+      line([{ type: "text", text: marker + "a".repeat(80 - marker.length) }], usage),
+      line([{ type: "tool_use", id: "toolu_1", name: "Write", input: { content: "b".repeat(786) } }], usage),
+      haiku("m2"),
+      haiku("m3"),
+    ].join("\n");
+    // 80 + 800 (786 and the 14 of {"content":""}) = 880 characters → 220 output tokens, 4 of them recorded.
+    assert.deepEqual(transcriptUsage(text), {
+      tokens: { in: 4, out: 222, cacheRead: 900, cacheWrite: 30, outEstimated: 216 },
+      model: "claude-haiku-x", // two responses of three, though sonnet's one is written over three lines
+      ms: 0,
+      messages: 3,
+    });
+    assert.ok(!JSON.stringify(transcriptUsage(text)).includes(marker));
+  });
+
   test("recordAgent: finds the project (docs/manual below the session folder), appends one agent line; nothing without usage/", async () => {
     const app = tempDir("doc-kit-hook-");
     try {

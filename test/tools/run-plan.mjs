@@ -4,6 +4,26 @@
 // once more, alone. A scanner that really grows too fast fails both times; a noisy measure does not. Every other
 // failure counts at once. End-to-end files share one browser per file: they all run one at a time, without a
 // second run.
+import path from "node:path";
+
+/**
+ * The test files the arguments name: each one a folder of test/ (its *.test.mjs files, recursively, sorted) or one
+ * *.test.mjs file of it, taken as it is (npm run test:security); one that does not exist gives none.
+ * @param {string[]} args
+ * @param {{ root: string, exists: (p: string) => boolean, list: (dir: string) => string[] }} io
+ * @returns {string[]}
+ */
+export function testFiles(args, { root, exists, list }) {
+  return args.flatMap((arg) => {
+    const target = path.join(root, arg);
+    if (!exists(target)) return [];
+    if (arg.endsWith(".test.mjs")) return [target];
+    return list(target)
+      .filter((f) => f.endsWith(".test.mjs"))
+      .sort()
+      .map((f) => path.join(target, f));
+  });
+}
 
 /** A file that measures time: it reads the clock, or runs the ReDoS harness. */
 const TIMING = /performance\.now\(|redos-worker/;

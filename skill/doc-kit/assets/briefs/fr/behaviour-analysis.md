@@ -51,7 +51,8 @@ Son format est celui du kit, `schemas/behaviour-analysis.schema.json` (chemin da
 
 **Comportements** : un par carte que le fichier de contexte liste, et un par comportement que tu trouves et qu'il
 oublie — `{ "id": "B-01", "kind", "title", "rubrics": { "<id de rubrique>": item, … } }`, le type et les ids de
-rubrique étant ceux des types de comportement (chemins dans Variables). Chaque rubrique obligatoire reçoit un item :
+rubrique étant ceux que ton fichier de contexte donne après chaque carte et chaque rubrique (`search`, `match`) ; les
+types de comportement (chemins dans Variables) seulement pour un comportement qu'il ne liste pas. Chaque rubrique obligatoire reçoit un item :
 répondu, `n/a` ou `unknown`. Réponds aussi précisément qu'un test le vérifierait : les champs cherchés et ceux qui ne
 le sont pas, contient ou commence par, casse et accents (avec un exemple chacun), plusieurs mots, quand ça se
 déclenche, l'ordre, la pagination, le résultat vide, qui a le droit.
@@ -62,7 +63,8 @@ de … ». **Règles** (`BR-01`, ou les ids propres au projet) : un énoncé vé
 
 **Constats** : un manque, un risque ou une dette vus en chemin — un contrôle absent côté serveur, des résultats non
 limités à ce que le lecteur peut voir, une erreur avalée : `severity` (high, medium, low), `text`, `mechanism`,
-`proofs`. Un défaut est un constat, jamais un comportement décrit comme voulu.
+`proofs`. Un défaut est un constat, jamais un comportement décrit comme voulu. Chaque fait `security` que ton fichier
+de contexte donne pour le code de la fonctionnalité est à vérifier : un constat quand il s'y vérifie, rien sinon.
 
 **Une nouvelle passe, sur une partie seulement** : quand les Variables donnent « Analyse à nouveau », ton fichier
 d'analyse existe — la boucle de profondeur y a trouvé ces items manquants (`B-01.match` : la rubrique `match` du
@@ -76,6 +78,10 @@ reste tel quel.
   fonctionnalités, aucune autre analyse. Aucune commande git. Ne lance, ne construis ni n'installe jamais
   l'application. Bash seulement pour le contrôle ci-dessous et pour les commandes `doc-kit` qui lisent le code
   (`context`, qui n'écrit que son fichier de contexte ; `inventory --json`).
+- Écris un nouveau fichier d'un seul tenant avec l'outil Write, puis corrige-le avec Edit ; un fichier qui existe
+  (« Analyse à nouveau ») seulement avec Edit, item par item. Jamais par le shell (`cat >`, un heredoc, `echo`,
+  `node -e`), même si ta session le suggère : une apostrophe dans un texte casse la commande, et tout le fichier est
+  à réécrire.
 - Rien d'inventé : un libellé, une valeur par défaut, une règle et un droit viennent du code que tu as lu ; ce que
   tu as déduit est `deduced`, ce que tu n'as pas trouvé est `unknown`.
 - Jamais la valeur d'un secret, même visible : nomme-le (« la clé du prestataire de paiement, (masquée) »). Le

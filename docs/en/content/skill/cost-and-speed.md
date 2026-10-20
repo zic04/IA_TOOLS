@@ -43,13 +43,16 @@ guidance until someone — person or agent — writes them. Without the facts fi
 |---|---|---|---|
 | `doc-kit-triage` | Haiku | Read, Grep, Glob (read-only) | Deciding whether a page is intact, to edit, to rewrite, or (a feature sheet) to deepen |
 | `doc-kit-writer` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Writing and updating pages, and the feature briefs `feature-mechanism` and `deepen` (the latter routed to Haiku) |
-| `doc-kit-analyst` | Sonnet | Read, Grep, Glob, Write, Bash | Tracing one feature in the code and writing its analysis (`behaviour-analysis`), nothing else |
+| `doc-kit-analyst` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Tracing one feature in the code and writing its analysis (`behaviour-analysis`), nothing else |
 | `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (read-only use) | The inventory, the code health and security reviews, verifying findings (on Sonnet by default), the production dossier, the DAT against reality |
 
 `doc-kit skill install` copies the four Claude Code agent definitions next to the skills folder; `doctor` reports
 them like the skill itself (current, missing, outdated, modified). Every brief names its agent type in a front
 matter line, and is split so that its common part (rules, safety, syntax) comes first, byte for byte identical
-whatever the variables: agents of the same wave share their prompt cache instead of paying for it again each time.
+whatever the variables. Launch the first agent of a wave alone and the others in the next message: an agent launched
+after another reads from the prompt cache what their prompts share before the brief — the agent's definition and
+Claude Code's tools, 23,000 to 24,000 tokens of its first 37,000 to 38,000, measured — while agents launched together each
+write it again. The brief itself, sent in one message with its variables, is written again by each agent.
 
 ## Estimating before you spend: `brief.mjs --estimate`
 
@@ -65,7 +68,9 @@ the template's `maxWords` for a new page, 0.3 per word for an update. Priced onl
 llm: { currency: "EUR", prices: { haiku: { input: 0.9, output: 3.6 }, sonnet: { input: 3, output: 15 } } }
 ```
 
-Without `llm.prices`, the estimate still prints the token counts; it only omits a cost. `doc-kit sync --estimate`
+Without `llm.prices`, the estimate still prints the token counts; it only omits a cost. An estimate counts one
+reading of what the agent is given: not its own definition, nor the rereading of its context at every round-trip.
+Measured on the analyses below, the agents spent 2 to 5 times their estimate. `doc-kit sync --estimate`
 prices the pages a sync report lists for review the same way, one `doc-kit-writer` agent per page.
 
 ## Measuring what was actually spent
@@ -78,7 +83,17 @@ node <skill>/scripts/usage.mjs report
 `log` appends one line to `.doc-kit/usage.jsonl` (the orchestrator records what Claude Code reports when an agent
 ends); `report` totals by phase, brief, agent type, model and page, with the cost when `llm.prices` is set, next to
 the last estimate; `scan --transcripts <folder>` reads Claude Code's own transcripts to split input, output and
-cached tokens, when the orchestrator did not log them by hand.
+cached tokens: the spend itself, of which `log` gives a floor. With a scan, `report`'s total is the scans', the
+logged tokens shown apart and never added to it.
+
+What Claude Code reports when an agent ends is the size of its last context, not what it used: every round-trip
+reads that context again, mostly from the cache — measured, the reported figure was a sixth to a third of the
+tokens used. The spend itself comes from the transcripts: the statistics hook (`doc-kit skill install --hooks`)
+reads each agent's at its end, and `scan` reads a folder of them — a session's agents are in
+`~/.claude/projects/<project>/<session>/subagents/`; scan it once, at the end (each scan appends one entry).
+Claude Code writes a response over several lines, one per block, each repeating its usage: both count each
+response once. A transcript records a partial output count for a response that calls a tool: both count at least
+what the response wrote (characters ÷ 4), and say how much of the output comes from that estimate.
 
 ## Measured, not estimated
 
@@ -100,11 +115,48 @@ steps meant fewer *exploratory* ones, not fewer checks. `writing-batch` and `upd
 `references/agent-orchestration.md` §8 of the skill) state this step budget in their own text, so an agent that
 would exceed it stops and reports rather than exploring further.
 
+### The analysis of a feature (pilot of 0.4.0)
+
+Measured on the demo (Acme Orders): two features of size S at level `standard`, one analyst per feature on Sonnet
+(`behaviour-analysis`), run twice — the second time with the brief corrected by what the first taught, and the
+second agent launched after the first. Output estimated from what the agents wrote (characters ÷ 4).
+
+| Run | Feature | Round-trips | Duration | Cache written | Cache read | Output | Token-equivalent |
+|---|---|---|---|---|---|---|---|
+| 1, launched together | F-01 Track orders (2 behaviours) | 7 | 97 s | 69,845 | 338,043 | 8,751 | 164,900 |
+| 1 | F-02 Approve an order (1 behaviour) | 6 | 71 s | 59,459 | 247,428 | 6,703 | 132,600 |
+| 2, brief corrected, F-02 after F-01 | F-01 | 7 | 93 s | 63,028 | 297,624 | 8,132 | 149,200 |
+| 2 | F-02 | 4 | 41 s | 31,400 | 157,338 | 3,253 | **71,300 (−46 %)** |
+
+- **The file written once.** In run 1, both analysts first wrote their analysis through a shell heredoc, which
+  broke on an apostrophe, then again with `Write`: 2,900 to 4,100 output tokens lost each, the dearest kind. The
+  brief now forbids the shell for it, even where the session suggests it (Claude Code's auto mode does); in run 2,
+  one of the two still tried.
+- **What the analysis names, in the context.** An analysis names kinds and rubrics by their ids, which the
+  context's cards did not give: one analyst read the whole registry of kinds (27 KB) for them. The cards now give
+  them.
+- **The first agent alone.** In run 2, F-02 read 23,154 tokens of its first prompt from the cache; in run 1, both
+  launched at once, each wrote all 37,000.
+- **The estimate is a floor.** `brief.mjs --estimate` gave 10,241 input and 5,000 output tokens (35,200
+  token-equivalent): the agents spent 2 to 5 times that. The output budget of size S matched one writing of the
+  file (2,800 to 4,100 tokens).
+- **The quality held.** Every finding, re-read in the code, was right — an approval chain created by a `GET` that
+  the order page prefetches, the right to read orders never checked, a list error swallowed. The open questions
+  were those the demo's sheet leaves open, and the depth loop had nothing to deepen. Between two runs of one
+  feature, the findings differed by one (a status inserted as raw HTML, which the context's security facts gave):
+  the brief now asks to check each of those facts.
+
+Sizes M and L are still to measure, on a real project.
+
 ## Pitfalls and observed gaps
 
 > [!NOTE] No price does not mean no cost
 > Without `llm.prices`, every estimate and every report still shows tokens — only the currency column is empty.
 > Set it once the actual contract prices are known, so that a figure is never guessed.
+
+> [!WARNING] The total reported when an agent ends is not its spend
+> It is the agent's last context: a sixth to a third of the tokens it used, in the pilot. Log it if nothing else
+> is at hand, then take the spend from the transcripts (the statistics hook, or one `scan` at the end).
 
 ## Further reading
 

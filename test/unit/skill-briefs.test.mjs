@@ -2,7 +2,8 @@
 // same front matter and the same placeholders; every agent type a brief names exists, and every agent type is used;
 // each agent's description names, in its "Used for …" sentence, the briefs it runs (Claude Code picks an agent by
 // its description); the model routing (DEFAULT_ROUTING) names real briefs, and SKILL.md's model table puts every
-// brief it lists on the model it really runs on. A brief added in one language only, a routing entry left behind,
+// brief it lists on the model it really runs on; each agent's tools are listed alike in SKILL.md, ARCHITECTURE.md
+// and the docs. A brief added in one language only, a routing entry left behind,
 // or a table that drifted from the code fails here instead of misleading the orchestrator.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -64,6 +65,34 @@ test("every agent type a brief names exists, and every agent type is used by a b
     used.add(agent);
   }
   for (const type of AGENT_TYPES) assert.ok(used.has(type), `${type} is used by no brief`);
+});
+
+test("each agent's tools, as its definition gives them, are those SKILL.md, ARCHITECTURE.md and the docs list", () => {
+  // The analyst gained Edit in 0.4.0 and SKILL.md kept the old list: a list that drifts fails here.
+  const set = (list) =>
+    list
+      .split(/[,/]/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .sort();
+  const kit = path.join(SKILL_SOURCE, "..", "..");
+  const skill = fs.readFileSync(path.join(SKILL_SOURCE, "SKILL.md"), "utf8");
+  const architecture = fs.readFileSync(path.join(kit, "ARCHITECTURE.md"), "utf8");
+  for (const type of AGENT_TYPES) {
+    const tools = set(frontMatter(fs.readFileSync(path.join(AGENTS, `${type}.md`), "utf8")).tools || "");
+    assert.ok(tools.length, `${type}: its definition names no tool`);
+    // SKILL.md: "`type` (`model`, Read/Grep/Glob only — …" or "(`model`, also Edit/Write/Bash — …".
+    const inSkill = new RegExp("`" + type + "`\\s+\\(`\\w+`, ([^—]+?) —").exec(skill)?.[1] ?? "";
+    const listed = inSkill.replace(/ only$/, "").replace(/^also /, "Read/Grep/Glob/");
+    assert.deepEqual(set(listed), tools, `SKILL.md: the tools of ${type}`);
+    const inArchitecture = new RegExp("`" + type + "` \\(`\\w+`; ([^:)]+)[:)]").exec(architecture)?.[1] ?? "";
+    assert.deepEqual(set(inArchitecture), tools, `ARCHITECTURE.md: the tools of ${type}`);
+    for (const lang of LANGS) {
+      const page = fs.readFileSync(path.join(kit, "docs", lang, "content", "skill", "cost-and-speed.md"), "utf8");
+      const row = new RegExp("^\\| `" + type + "` \\| \\w+ \\| ([^|(]+)", "m").exec(page)?.[1] ?? "";
+      assert.deepEqual(set(row), tools, `docs/${lang} cost-and-speed: the tools of ${type}`);
+    }
+  }
 });
 
 test("each agent's description names, in its “Used for …” sentence, every brief that runs it", () => {

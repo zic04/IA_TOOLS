@@ -100,14 +100,22 @@ prompt is **the brief's full text**, with its common part first and its variable
 Your final report follows the format asked at the end of the brief.
 ```
 
-Every agent of a wave then starts with the same bytes, which the prompt cache serves to all but the first. Asking
-the agent to read the file instead makes each one pay for the brief again, as a tool result.
+Asking the agent to read the file instead makes each one pay for the brief again, as a tool result. **Launch the
+first agent of a wave alone, then the others in your next message**: an agent launched after another reads from the
+prompt cache what their prompts share before the brief — the agent's definition and Claude Code's tools, 23,000 to
+24,000 tokens of its first 37,000 to 38,000 (measured, §8) — while agents launched together each write it again.
+Launched in the background, the first agent returns at once: the others start one message later, not after it
+ends (in the pilot, the second finished first). The brief itself, sent in one message with its variables, is
+written again by each agent whatever the order.
 
 **Economy**: before launching a wave, `node scripts/brief.mjs <template> --project <docDir> --var …… --estimate`
 for each of its briefs gives input and output tokens and the cost (`llm.prices` in `doc.config.mjs`); after each
 agent ends, `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> --tools <n> --duration <ms>
 --pages a,b --phase <n>` from what Claude Code reports, so `usage.mjs report` can total the wave and compare it
-with the estimate. Agents of the same wave share a brief template's common part byte for byte (prompt cache).
+with the estimate. That total is the agent's last context, not its spend (a sixth to a third of the tokens it used, §8): for the spend,
+`node scripts/usage.mjs scan --transcripts ~/.claude/projects/<project>/<session>/subagents` once at the end (each
+scan appends one entry; `report`'s total is then the scans', the logged floor shown apart), or the statistics
+hook (`doc-kit skill install --hooks`).
 
 ## 4. Brief placeholders
 
@@ -201,8 +209,7 @@ On site A, 37 sub-pages were created this way in one pass, with a script that mo
 ## 8. The cost of an agent, and the step budget
 
 **Model**: an agent's cost ≈ its number of round-trips × its context size. Cache reads dominate — each round-trip
-re-reads the whole context accumulated so far, so a wave that shares a brief's common part byte for byte
-(§4) still pays for every round-trip's growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
+re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
 read costs; it does not by itself cut how many reads an agent takes. **The step budget is the main lever**: how
 many extra reads an agent allows itself beyond the context file and the page's own template, how many times it
 runs a build, whether it reviews a screenshot mid-way.
@@ -222,6 +229,36 @@ per token, but there are far more of them per round-trip than any other kind.) T
 checks, only fewer *exploratory* ones. The sober method also cut words by 24 % and proofs by 19 % at equal
 conformance: conformance measures structure, not depth. The analysis of each feature and the depth loop
 (ARCHITECTURE.md §6.11a) are what bring the depth back.
+
+**The analysis of a feature, measured** (pilot of 0.4.0, the demo, two features of size S at level `standard`, one
+analyst each on Sonnet; token-equivalent as above, the output estimated from what the agents wrote, ÷ 4, the
+transcripts recording a partial output count for a response that calls a tool):
+
+| Run | Feature | Round-trips | Duration | Token-equivalent |
+|---|---|---|---|---|
+| 1: both launched together | F-01, 2 behaviours | 7 | 97 s | 164,900 |
+| 1 | F-02, 1 behaviour | 6 | 71 s | 132,600 |
+| 2: the brief corrected, F-02 launched after F-01 | F-01 | 7 | 93 s | 149,200 |
+| 2 | F-02 | 4 | 41 s | 71,300 (−46 %) |
+
+- **Write the file once, with Write**: in run 1 both analysts wrote it through a shell heredoc, which broke on an
+  apostrophe, then again with Write — 2,900 to 4,100 output tokens lost each, the dearest kind. The brief now
+  forbids the shell for it, even where the session suggests it (Claude Code's auto mode does); in run 2, one of
+  the two still tried.
+- **The ids are in the context file**: the analysis names kinds and rubrics by their ids, which the context's cards
+  did not give: one analyst read the whole registry of kinds (27 KB) for them. The cards now give them.
+- **Launch the first agent alone**: in run 2, F-02 read 23,154 tokens of its first prompt from the cache; in run 1,
+  launched at the same moment, each wrote all 37,000.
+- **The estimate is one reading**: `brief.mjs --estimate` gave 10,241 input and 5,000 output tokens (35,200
+  token-equivalent); the agents spent 2 to 5 times that, their own definition and every round-trip's rereading
+  included. The output budget of size S matched one writing of the file (2,800 to 4,100 tokens).
+- **What Claude Code reports when an agent ends** (55,009 to 70,277 tokens here) is its last context: a sixth to a
+  third of the tokens it used.
+- **The quality held**: every finding re-read in the code was right (an approval chain created by a GET and the
+  page that prefetches it, the right to read orders never checked, a list error swallowed); the open questions were
+  those the demo's sheet leaves open; the depth loop had nothing to deepen. Between two runs of the same feature,
+  the findings differ by one (the status inserted as raw HTML, which the context's security facts gave): the brief
+  now asks to check each of those facts. M and L sizes are still to measure, on a real project.
 
 **The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
 rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply

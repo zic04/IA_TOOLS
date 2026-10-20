@@ -328,7 +328,12 @@ describe("the context of a feature sheet: Behaviours to describe", () => {
       assert.match(text, /## Behaviours to describe/);
       assert.match(text, /- `customer`: contains, caseInsensitive — public\/app\.js:26 \(array\)/);
       assert.match(text, /- `status`: options \[All, Open, Shipped, Cancelled\] — public\/orders\.html:21 \(html\)/);
-      assert.match(text, /- \*\*Search\*\* \(`:::behaviour\{kind="search"\}`\): Where\*, Fields searched\*/);
+      // Each rubric with the id an analysis gives it: the analyst needs no other file (the kind is already its id).
+      assert.match(
+        text,
+        /- \*\*Search\*\* \(`:::behaviour\{kind="search"\}`\): Where\* `where`, Fields searched\* `fields`, /,
+      );
+      assert.match(text, /Matching\* `match`, .*Combined filters `filters`/);
       assert.match(text, /- \*\*Filter\*\* \(`:::behaviour\{kind="filter"\}`\)/);
       assert.ok(!/\*\*Form\*\*/.test(text), "a date field's type is no form");
       // The sheet's own code, whole, from features.json: its sources.
@@ -344,7 +349,11 @@ describe("the context of a feature sheet: Behaviours to describe", () => {
     const { base, text } = await demo("fr");
     try {
       assert.match(text, /## Comportements à décrire/);
-      assert.match(text, /- \*\*Recherche\*\* \(`:::comportement\{type="recherche"\}`\): Où\*, Champs cherchés\*/);
+      // The French spelling for the page, the kind's id for the analysis.
+      assert.match(
+        text,
+        /- \*\*Recherche\*\* \(`:::comportement\{type="recherche"\}` = `search`\): Où\* `where`, Champs cherchés\* `fields`/,
+      );
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }

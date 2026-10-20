@@ -18,10 +18,10 @@
     "test:unit": "node test/run.mjs unit",
     "test:snapshot": "node test/run.mjs snapshot",
     "test:e2e": "node test/run.mjs e2e",
-    "test:security": "node --test test/unit/security.test.mjs",
+    "test:security": "node test/run.mjs unit/security.test.mjs",
     "format": "prettier --write \"**/*.{js,mjs}\"",
     "format:check": "prettier --check \"**/*.{js,mjs}\"",
-    "lint": "eslint . --max-warnings 52",
+    "lint": "eslint . --max-warnings 51",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

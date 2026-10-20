@@ -143,7 +143,13 @@ describe("usage.mjs report", () => {
       assert.match(r.out, /No usage logged yet/);
       const j = usage(["report", "--project", docs, "--json"], docs);
       assert.equal(j.code, 0, j.err);
-      assert.deepEqual(JSON.parse(j.out), { file: path.join(docs, ".doc-kit", "usage.jsonl"), entries: 0, total: 0 });
+      assert.deepEqual(JSON.parse(j.out), {
+        file: path.join(docs, ".doc-kit", "usage.jsonl"),
+        entries: 0,
+        total: 0,
+        logged: 0,
+        scanned: 0,
+      });
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });
     }
@@ -234,6 +240,8 @@ describe("usage.mjs report", () => {
         file: path.join(docs, ".doc-kit", "usage.jsonl"),
         entries: 2,
         total: 9400,
+        logged: 9400,
+        scanned: 0,
       });
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });
@@ -286,7 +294,7 @@ describe("usage.mjs scan", () => {
 
       const r = usage(["scan", "--project", docs, "--transcripts", transcripts], docs);
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /scanned 1 transcript file\(s\), 2 usage line\(s\): 2090 tokens/);
+      assert.match(r.out, /scanned 1 transcript file\(s\), 2 response\(s\) over 2 usage line\(s\): 2090 tokens/);
 
       const lines = fs
         .readFileSync(path.join(docs, ".doc-kit", "usage.jsonl"), "utf8")
@@ -297,6 +305,8 @@ describe("usage.mjs scan", () => {
       assert.equal(entry.source, "scan");
       assert.equal(entry.files, 1);
       assert.equal(entry.lines, 2);
+      assert.equal(entry.responses, 2, "lines without a message id: one response each");
+      assert.equal(entry.output_estimated, 0);
       assert.equal(entry.input_tokens, 1300);
       assert.equal(entry.output_tokens, 240);
       assert.equal(entry.cache_read_input_tokens, 500);
@@ -312,6 +322,133 @@ describe("usage.mjs scan", () => {
       const missing = usage(["scan", "--project", docs, "--transcripts", path.join(transcripts, "nope")], docs);
       assert.equal(missing.code, 2);
       assert.match(missing.err, /transcripts folder not found/);
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+      fs.rmSync(transcripts, { recursive: true, force: true });
+    }
+  });
+
+  test("a response over several lines, in two files, counted once; its output at least what it wrote ÷ 4", () => {
+    // Claude Code writes one line per block of a response, each repeating its usage, and a partial output count
+    // for a response that calls a tool (the pilot of 0.4.0: 620,529 tokens summed for 416,653 spent).
+    const docs = project();
+    const transcripts = tempDir("doc-kit-transcripts-");
+    const line = (id, content, usage) => JSON.stringify({ type: "assistant", message: { id, content, usage } });
+    const a = { input_tokens: 3, cache_creation_input_tokens: 1000, cache_read_input_tokens: 0, output_tokens: 5 };
+    const b = { input_tokens: 2, cache_creation_input_tokens: 50, cache_read_input_tokens: 1000, output_tokens: 120 };
+    // The tool call's input is {"content":"y…"}: 3,990 characters and 14 of JSON (4,004), 4,044 with the thinking's 40.
+    const call = [{ type: "tool_use", id: "toolu_1", name: "Write", input: { content: "y".repeat(3990) } }];
+    try {
+      fs.writeFileSync(
+        path.join(transcripts, "agent.jsonl"),
+        [line("msg_A", [{ type: "thinking", thinking: "x".repeat(40) }], a), line("msg_A", call, a)].join("\n"),
+      );
+      fs.mkdirSync(path.join(transcripts, "sub"));
+      fs.writeFileSync(
+        path.join(transcripts, "sub", "fork.jsonl"),
+        // Its own response, whose recorded output is larger than what it wrote, and a copy of the other one's call.
+        [line("msg_B", [{ type: "text", text: "z".repeat(400) }], b), line("msg_A", call, a)].join("\n"),
+      );
+      const r = usage(["scan", "--project", docs, "--transcripts", transcripts], docs);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /scanned 2 transcript file\(s\), 2 response\(s\) over 4 usage line\(s\): 3186 tokens/);
+      assert.match(r.out, /of which 1006 output token\(s\) estimated from what the responses wrote/);
+      const entry = JSON.parse(fs.readFileSync(path.join(docs, ".doc-kit", "usage.jsonl"), "utf8"));
+      assert.equal(entry.lines, 4);
+      assert.equal(entry.responses, 2);
+      assert.equal(entry.input_tokens, 5, "each response's input once");
+      assert.equal(entry.cache_creation_input_tokens, 1050);
+      assert.equal(entry.cache_read_input_tokens, 1000);
+      assert.equal(entry.output_tokens, 1011 + 120, "⌈4,044 ÷ 4⌉ for the call, the recorded 120 for the text");
+      assert.equal(entry.output_estimated, 1006);
+      assert.equal(entry.tokens, 3186);
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+      fs.rmSync(transcripts, { recursive: true, force: true });
+    }
+  });
+
+  test("each count the largest its lines give, whichever line holds it; nothing of a transcript's text kept", () => {
+    const docs = project();
+    const transcripts = tempDir("doc-kit-transcripts-");
+    const marker = "TRANSCRIPT-TEXT-" + "7f3a"; // a text of the transcript: never in what scan writes or prints (S7)
+    const line = (id, output, content = []) =>
+      JSON.stringify({
+        message: { id, content, usage: { input_tokens: 1, cache_read_input_tokens: 100, output_tokens: output } },
+      });
+    try {
+      fs.writeFileSync(
+        path.join(transcripts, "agent.jsonl"),
+        [
+          line("msg_up", 2, [{ type: "text", text: marker }]), // its count grows: a later line holds it
+          line("msg_up", 300),
+          line("msg_down", 300), // an earlier line holds it
+          line("msg_down", 2, [{ type: "thinking", thinking: marker }]),
+        ].join("\n"),
+      );
+      const r = usage(["scan", "--project", docs, "--transcripts", transcripts], docs);
+      assert.equal(r.code, 0, r.err);
+      const written = fs.readFileSync(path.join(docs, ".doc-kit", "usage.jsonl"), "utf8");
+      const entry = JSON.parse(written);
+      assert.equal(entry.responses, 2);
+      assert.equal(entry.output_tokens, 600, "300 each, whichever of its lines gave it");
+      assert.equal(entry.output_estimated, 0, "20 characters written: 5 tokens, under the 300 recorded");
+      assert.equal(entry.input_tokens, 2);
+      assert.equal(entry.cache_read_input_tokens, 200);
+      for (const text of [written, r.out, r.err]) assert.ok(!text.includes(marker), "only counts come out");
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+      fs.rmSync(transcripts, { recursive: true, force: true });
+    }
+  });
+
+  test("a block copied with a signature or its keys in another order: what it wrote counts once", () => {
+    const docs = project();
+    const transcripts = tempDir("doc-kit-transcripts-");
+    const usageOf = { input_tokens: 1, output_tokens: 1 };
+    const line = (content) => JSON.stringify({ message: { id: "m1", content, usage: usageOf } });
+    try {
+      fs.writeFileSync(
+        path.join(transcripts, "agent.jsonl"),
+        [
+          line([{ type: "thinking", thinking: "t".repeat(400) }]),
+          line([{ thinking: "t".repeat(400), type: "thinking", signature: "sig" }]), // the same block, copied
+          line([{ type: "text", text: "t".repeat(400) }]), // the same characters, another block
+        ].join("\n"),
+      );
+      assert.equal(usage(["scan", "--project", docs, "--transcripts", transcripts], docs).code, 0);
+      const entry = JSON.parse(fs.readFileSync(path.join(docs, ".doc-kit", "usage.jsonl"), "utf8"));
+      assert.equal(entry.output_tokens, 200, "the thinking once (100) and the text (100)");
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+      fs.rmSync(transcripts, { recursive: true, force: true });
+    }
+  });
+
+  test("the same work logged then scanned: the total is the scan's, the logged floor apart, never added", () => {
+    // The skill logs each agent (what Claude Code reports: its last context) and scans the transcripts at the end.
+    const docs = project();
+    const transcripts = tempDir("doc-kit-transcripts-");
+    try {
+      const log = ["log", "--project", docs, "--brief", "behaviour-analysis", "--agent", "doc-kit-analyst"];
+      assert.equal(usage([...log, "--model", "sonnet", "--tokens", "70000"], docs).code, 0);
+      const usageLine = { input_tokens: 10, cache_read_input_tokens: 300000, cache_creation_input_tokens: 38000 };
+      fs.writeFileSync(
+        path.join(transcripts, "agent.jsonl"),
+        JSON.stringify({ message: { id: "m1", usage: { ...usageLine, output_tokens: 8000 } } }),
+      );
+      assert.equal(usage(["scan", "--project", docs, "--transcripts", transcripts], docs).code, 0);
+      const r = usage(["report", "--project", docs], docs);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /total: 346010 tokens\n {2}logged by the agents: 70000 tokens — a floor of the same work/);
+      const j = usage(["report", "--project", docs, "--json"], docs);
+      assert.deepEqual(JSON.parse(j.out), {
+        file: path.join(docs, ".doc-kit", "usage.jsonl"),
+        entries: 2,
+        total: 346010,
+        logged: 70000,
+        scanned: 346010,
+      });
     } finally {
       fs.rmSync(docs, { recursive: true, force: true });
       fs.rmSync(transcripts, { recursive: true, force: true });

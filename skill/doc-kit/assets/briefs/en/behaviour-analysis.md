@@ -49,8 +49,9 @@ Its format is the kit's `schemas/behaviour-analysis.schema.json` (path in Variab
 - `detailed`: also every optional rubric of each card, the variants of the main path, and a criterion per behaviour.
 
 **Behaviours**: one per card that the context file lists, and one per behaviour you find that it misses —
-`{ "id": "B-01", "kind", "title", "rubrics": { "<rubric id>": item, … } }`, the kind and the rubric ids those of the
-kinds of behaviour (paths in Variables). Every required rubric gets an item: answered, `n/a` or `unknown`. Answer as
+`{ "id": "B-01", "kind", "title", "rubrics": { "<rubric id>": item, … } }`, the kind and the rubric ids those your
+context file gives after each card and each rubric (`search`, `match`); the kinds of behaviour (paths in Variables)
+only for a behaviour it does not list. Every required rubric gets an item: answered, `n/a` or `unknown`. Answer as
 precisely as a test would check: the fields searched and those that are not, contains or starts with, case and
 accents (with an example each), several words, when it triggers, the order, the paging, the empty result, who may.
 
@@ -60,7 +61,8 @@ it checks one), `given`, `when`, `then`, with real values.
 
 **Findings**: a gap, a risk or a debt seen while tracing — a check missing on the server, results not limited to
 what the reader may see, an error swallowed: `severity` (high, medium, low), `text`, `mechanism`, `proofs`. A defect is
-a finding, never a behaviour described as intended.
+a finding, never a behaviour described as intended. Each `security` fact your context file gives for the feature's
+code is one to check: a finding when it holds there, nothing when it does not.
 
 **Again, on part of it**: when Variables give "Analyse again", your analysis file exists — the depth loop found
 those items missing from it (`B-01.match`: the rubric `match` of the behaviour `B-01`; `US-02.criteria`: criteria of
@@ -72,6 +74,9 @@ only, add or complete them, and keep everything else as it is.
 - Write ONLY your analysis file (path in Variables): no page, no table of contents, no features file, no other
   analysis. No git command. Never run, build or install the application. Bash only for the check below and for
   the `doc-kit` commands that read the code (`context`, which writes only its context file; `inventory --json`).
+- Write a new file in one piece with the Write tool, then correct it with Edit; a file that exists ("Analyse
+  again") only with Edit, item by item. Never through the shell (`cat >`, a heredoc, `echo`, `node -e`), even where
+  your session suggests it: a quote in a text breaks the command, and the whole file is to write again.
 - Nothing invented: a label, a default, a rule and a permission come from the code you read; what you inferred is
   `deduced`, what you could not find is `unknown`.
 - Never the value of a secret, even one you can see: name it ("the payment provider's key, (masked)"). The check

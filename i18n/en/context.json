@@ -62,7 +62,7 @@
   "cli.new.noPrefill.help": "prefillable types: {known}",
   "cli.context.section.behaviours": "Behaviours to describe",
   "cli.context.behaviours.intro": "Deduced from the code, each one from one line: check it in the excerpts above before writing it. A hint is never a measure: what it does not say, read in the code.",
-  "cli.context.behaviours.cards": "Cards to write, one per behaviour (* required rubric): answer each rubric, or write “n/a — reason” or “unknown — question”",
+  "cli.context.behaviours.cards": "Cards to write, one per behaviour (* required rubric; `id`: its name in an analysis): answer each rubric, or write “n/a — reason” or “unknown — question”",
   "cli.context.behaviours.noCard": "No kind of behaviour is known for this feature yet: read the excerpts, and add a card for each behaviour you find.",
   "cli.context.behaviours.family.search": "Search",
   "cli.context.behaviours.family.filter": "Filters",

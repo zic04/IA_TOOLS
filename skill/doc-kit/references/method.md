@@ -188,7 +188,7 @@ the `main` target for the area without the menu; small runs of 3 to 8 captures p
 With a Product space (or any feature sheet or technical counterpart), once the plan and the captures are done and
 before the writing: each feature is traced once in the code, and every space's writer starts from a digest of that
 analysis. For each feature of `features.json`: `doc-kit context <its sheet>`, then one `doc-kit-analyst`
-(brief `behaviour-analysis`, estimated first, up to 8 in one message); then `analysis.mjs check`, `analysis.mjs
+(brief `behaviour-analysis`, estimated first, up to 8 at a time: the first alone, the others in the next message); then `analysis.mjs check`, `analysis.mjs
 findings` (candidates for the consolidation file) and `analysis.mjs digest <feature> --for product|develop|use|admin`.
 The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, ARCHITECTURE.md §6.11a.
 
@@ -204,9 +204,11 @@ The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md`
   code=u1 --var prefix=u1 --var pages=@.doc-kit/pages-u1.txt --var captureMode=production`, then the same without
   `--estimate` to write the file (`@` reads the value from a file). A Product batch uses `functional-spec`
   instead (no capture-related variables, no `prefix`: it never takes a screenshot).
-- Launch the agents (the type the brief's front matter names — `doc-kit-writer` for both of these two) in waves;
-  each one only receives "Read the brief and carry it out". Log each one as it ends: `node scripts/usage.mjs log
-  --brief writing-batch --agent doc-kit-writer --model sonnet --tokens <n> --pages u1-a,u1-b --phase 5`.
+- Launch the agents (the type the brief's front matter names — `doc-kit-writer` for both of these two) in waves,
+  the first alone and the others in the next message; each one receives the brief's full text as its prompt
+  (agent-orchestration.md §3). Log each one as it ends: `node scripts/usage.mjs log --brief writing-batch --agent
+  doc-kit-writer --model sonnet --tokens <n> --pages u1-a,u1-b --phase 5` (a floor: its last context), and `scan`
+  the session's `subagents` folder once at the end for the spend.
 - Depth asked: "VERY detailed and educational": every screen element, every action, every setting (label, role, values,
   default, effect, permissions) and the real mechanism — for `writing-batch`. For `functional-spec`: every rule,
   every role, every step, in business language, with **no** `file:line` (`business.technical` warns otherwise):

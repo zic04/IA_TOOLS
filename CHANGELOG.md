@@ -208,6 +208,24 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- `usage.mjs scan` counted an API response once per line of the transcript — Claude Code writes one per block of a
+  response, each repeating its usage — and kept the partial output count a transcript records for a response that
+  calls a tool: in the pilot of 0.4.0, 620,529 tokens for 416,653 used. Each response now counts once, even across
+  files, and its output at least what it wrote (characters ÷ 4: `output_estimated` in the entry, and a line of its
+  own). The statistics hook does the same through the same module (`scripts/transcript-usage.mjs`); its line holds
+  `tokens.outEstimated` when the estimate counts. `report` no longer adds the agents' logged totals (each one's last context) to
+  a scan of the same work: with a scan, its total is the scans', the logged floor shown apart (`--json`: `logged`,
+  `scanned`).
+- The skill and the docs said the agents of a wave share the brief's common part through the prompt cache. Measured,
+  they do not: the brief travels in one message with its variables. What an agent launched after another reads from
+  the cache is the part before it (its definition and Claude Code's tools, 23,000 to 24,000 of its first 37,000 to 38,000
+  tokens), which agents launched together each write again. The skill now launches the first agent of a wave alone
+  and the others in the next message, and `brief.mjs` says so.
+- `npm run test:security` ran the security tests with a bare `node --test`: their ReDoS checks, which measure
+  time, had no second run when a measure was noisy, unlike under `npm test`. It now goes through `test/run.mjs`,
+  which takes one file as it takes a folder.
+- `references/method.md` said a writer only receives "Read the brief and carry it out": it receives the brief's
+  full text, as SKILL.md says.
 - `check coverage` (adapter `features`): a feature id is cited only whole — a page citing `F-010` no longer
   covers `F-01`.
 - A `[[rule …]]` chip inherited the frame and the bottom margin of a rule's own block: in a numbered step, it drew a
@@ -225,6 +243,15 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **The analyst writes its file once, and finds what it names in its context** (measured in the pilot of 0.4.0,
+  docs: skill/cost-and-speed, `references/agent-orchestration.md` §8): `behaviour-analysis` writes the analysis
+  with Write, then corrects it with Edit (`doc-kit-analyst` gains the Edit tool), never through the shell, even
+  where the session suggests it; the context's cards give each rubric's id (Matching, `match`), and the kind's id
+  after its French spelling (`recherche` = `search`), so the analyst no longer opens the registry of kinds for
+  them; each security fact of the context is a finding to check. Two features of size S cost 71,000 to
+  165,000 token-equivalent each, 2 to 5 times their estimate; the total Claude Code reports when an agent ends is its
+  last context (a sixth to a third of the tokens used), so the spend is taken from the transcripts. Run
+  `doc-kit skill install --force`.
 - **The access of a route recognises more user guards by default** (`review.guards`, ARCHITECTURE.md §6.13): besides
   `current_user`, `authenticated`, `login_required`, `require_auth`, `session` and `token`, a guard named exactly
   `auth` or `auth:<guard>`, `Authorize`, `RequireAuthorization`, `AuthGuard(…)`, `authenticate` or `authenticate_user!`, or
