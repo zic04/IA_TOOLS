@@ -610,14 +610,25 @@
             })
             .join("");
     const journeyCount = (D.journeys || []).length;
-    const journeys = (D.journeys || [])
-      .map(
-        (
-          j,
-        ) => `<div class="carte-lien"><span class="titre">${esc(j.title)}</span><span class="resume">${esc(j.desc)}</span>
-        <ol>${j.steps.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].title)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`,
-      )
-      .join("");
+    const journeyCard = (j) =>
+      `<div class="carte-lien"><span class="titre">${esc(j.title)}</span><span class="resume">${esc(j.desc)}</span>
+        <ol>${j.steps.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].title)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`;
+    const grid = (list) =>
+      `<div class="parcours ${list.length === 4 ? "deux-colonnes" : ""}">${list.map(journeyCard).join("")}</div>`;
+    // "Everything" mode with spaces: the journeys by audience, in the order of the spaces, each under its space.
+    const byAudience = SPACES && !currentSpace && (D.journeys || []).some((j) => j.space);
+    const journeys = !journeyCount
+      ? ""
+      : !byAudience
+        ? grid(D.journeys)
+        : [null, ...SPACES.map((x) => x.id)]
+            .map((id) => {
+              const list = D.journeys.filter((j) => (j.space ?? null) === id);
+              const sp = id && spacesById[id];
+              const head = sp ? `<h3 class="parcours-public">${spaceIcon(sp)}${esc(sp.shortTitle)}</h3>` : "";
+              return list.length ? head + grid(list) : "";
+            })
+            .join("");
     // A space current: its first featured section, else its first own section.
     const first =
       D.sections.find((x) => x.featured) ||
@@ -648,7 +659,7 @@
         <div class="portes">${doors}</div>
         ${D.meta.homeFallback ? translationBanner(D.meta.homeFallback) : ""}
         <div class="contenu">${D.homeHtml || ""}</div>
-        ${journeys ? `<h2 class="accueil-section-titre">${esc(t("home.journeysTitle"))}</h2><p class="accueil-section-sous">${esc(t("home.journeysIntro", { n: journeyCount, count: TEXTS["home.number." + journeyCount] || journeyCount }))}</p><div class="parcours ${journeyCount === 4 ? "deux-colonnes" : ""}">${journeys}</div>` : ""}
+        ${journeys ? `<h2 class="accueil-section-titre">${esc(t("home.journeysTitle"))}</h2><p class="accueil-section-sous">${esc(t("home.journeysIntro", { n: journeyCount, count: TEXTS["home.number." + journeyCount] || journeyCount }))}</p>${journeys}` : ""}
         ${siteFooter()}
       </div>`;
     hydrate(main, null);
@@ -1068,59 +1079,15 @@
   let results = [];
   let selection = 0;
 
-  function mark(text, terms) {
-    const n = norm(text);
-    const ranges = [];
-    terms.forEach((term) => {
-      let i = n.indexOf(term);
-      while (i >= 0 && term) {
-        ranges.push([i, i + term.length]);
-        i = n.indexOf(term, i + term.length);
-      }
-    });
-    if (!ranges.length) return esc(text);
-    ranges.sort((a, b) => a[0] - b[0]);
-    const merged = [];
-    for (const r of ranges) {
-      if (merged.length && r[0] <= merged[merged.length - 1][1])
-        merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], r[1]);
-      else merged.push(r);
-    }
-    let out = "";
-    let pos = 0;
-    for (const [a, b] of merged) {
-      out += esc(text.slice(pos, a)) + "<mark>" + esc(text.slice(a, b)) + "</mark>";
-      pos = b;
-    }
-    return out + esc(text.slice(pos));
-  }
-
+  // The query, scored by the module (lib/search-core.js); the scope chosen in the dialog (null: every space).
+  let scope = null;
+  let closeUsed = [];
   function search(q) {
-    const terms = norm(q)
-      .split(/\s+/)
-      .filter((x) => x.length > 1);
-    if (!terms.length) return [];
-    const found = [];
-    for (const e of INDEX) {
-      const all = e.nt + " " + e.np + " " + e.nx;
-      if (!terms.every((x) => all.includes(x))) continue;
-      let score = 0;
-      for (const term of terms) {
-        if (e.nt.includes(term)) score += 8;
-        if (e.np.includes(term)) score += 3;
-        let k = 0;
-        let i = e.nx.indexOf(term);
-        while (i >= 0 && k < 4) {
-          k++;
-          i = e.nx.indexOf(term, i + 1);
-        }
-        score += k;
-      }
-      if (!e.a) score += 2;
-      found.push({ e, score, terms });
-    }
-    return bySpace(found.sort((a, b) => b.score - a.score)).slice(0, 24);
+    const { found, fuzzy } = EXT.searchCore.match(INDEX, q, norm);
+    closeUsed = fuzzy;
+    return bySpace(scope ? found.filter((x) => spaceOfResult(x) === scope) : found).slice(0, 24);
   }
+  const mark = (text, terms) => EXT.searchCore.mark(text, terms, norm, esc);
   // A space current: its results first, then those of each other space (declaration order), under a heading
   // "In {space} ({n})"; the limit applies to the whole list. "Everything": the order of the scores.
   const spaceOfResult = (x) => (D.pages[x.e.p] ? D.pages[x.e.p].space : null);
@@ -1137,7 +1104,7 @@
       .map((a) => a[0]);
   }
   function resultHeading(r, i) {
-    if (!SPACES || !currentSpace) return "";
+    if (!SPACES || !currentSpace || scope) return "";
     const s = spaceOfResult(r[i]);
     if (s === currentSpace || !spacesById[s] || (i > 0 && spaceOfResult(r[i - 1]) === s)) return "";
     const n = r.filter((x) => spaceOfResult(x) === s).length;
@@ -1146,6 +1113,24 @@
   /** "Everything" mode: the path of a result starts with its space. */
   const spacePath = (p) =>
     SPACES && !currentSpace && spacesById[p.space] ? `${esc(spacesById[p.space].shortTitle)} › ` : "";
+
+  const scopeBox = $("#recherche-portee");
+  function renderScope() {
+    if (!scopeBox || !SPACES || SPACES.length < 2) return;
+    const chip = (id, label) =>
+      `<button type="button" class="portee" data-scope="${esc(id)}" aria-pressed="${(scope || "") === id}">${esc(label)}</button>`;
+    scopeBox.setAttribute("aria-label", t("ui.search.scope"));
+    scopeBox.innerHTML = `<span>${esc(t("ui.search.scope"))}</span>${chip("", t("ui.search.scope.all"))}${SPACES.map((x) => chip(x.id, x.shortTitle)).join("")}`;
+    scopeBox.hidden = false;
+  }
+  scopeBox?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-scope]");
+    if (!b) return;
+    scope = b.dataset.scope || null;
+    selection = 0;
+    renderScope();
+    renderResults();
+  });
 
   // Screen readers hear the number of results (role="status", aria-live="polite").
   const searchStatus = $("#recherche-statut");
@@ -1169,36 +1154,44 @@
       return;
     }
     const r = search(q);
-    announce(r.length ? t("ui.search.count", { n: r.length }) : t("ui.search.noResult", { query: q }));
+    // A term the index does not hold was read as its close words: said first, and heard with the count.
+    const note = r.length && closeUsed.length ? t("ui.search.fuzzy", { words: closeUsed.join(", ") }) : "";
+    const count = r.length ? t("ui.search.count", { n: r.length }) : t("ui.search.noResult", { query: q });
+    announce(note ? `${note}. ${count}` : count);
+    const close = note ? `<div class="recherche-proche">${esc(note)}</div>` : "";
     results = r.map((x) => ({ link: "#/" + x.e.p + (x.e.a ? "~" + x.e.a : "") }));
     if (!r.length) {
       resultList.innerHTML = `<div class="recherche-vide">${esc(t("ui.search.noResult", { query: q }))}</div>`;
       return;
     }
-    resultList.innerHTML = r
-      .map(({ e, terms }, i) => {
-        const p = D.pages[e.p];
-        const pos = Math.max(
-          0,
-          terms.reduce((m, term) => {
-            const k = e.nx.indexOf(term);
-            return k >= 0 && (m < 0 || k < m) ? k : m;
-          }, -1),
-        );
-        const start = Math.max(0, pos - 50);
-        const excerpt = (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
-        return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
+    resultList.innerHTML =
+      close +
+      r
+        .map(({ e, terms }, i) => {
+          const p = D.pages[e.p];
+          const pos = Math.max(
+            0,
+            terms.reduce((m, term) => {
+              const k = e.nx.indexOf(term);
+              return k >= 0 && (m < 0 || k < m) ? k : m;
+            }, -1),
+          );
+          const start = Math.max(0, pos - 50);
+          const excerpt =
+            (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
+          return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
           <div class="chemin">${spacePath(p)}${esc(sectionsById[p.section].title)} › ${esc(p.title)}</div>
           <div class="titre">${mark(e.t, terms)}</div>
           <div class="extrait">${mark(excerpt, terms)}</div></a>`;
-      })
-      .join("");
+        })
+        .join("");
   }
   let searchBack = null;
   function openSearch() {
     if (!searchBackdrop.classList.contains("ouverte")) searchBack = document.activeElement;
     searchBackdrop.classList.add("ouverte");
     selection = 0;
+    renderScope();
     renderResults();
     field.focus();
     field.select();

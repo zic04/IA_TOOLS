@@ -331,5 +331,6 @@
   "ui.footer.screenshots.versionOnly": {
     "one": "Captures d'écran de la version {version}",
     "other": "Captures d'écran des versions {version}"
-  }
+  },
+  "ui.search.fuzzy": "Aucune correspondance exacte : mots proches — {words}"
 }

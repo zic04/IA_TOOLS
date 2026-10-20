@@ -6,6 +6,8 @@
 // ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and names the
 // last check started.
 import { parentPort } from "node:worker_threads";
+import fs from "node:fs";
+import vm from "node:vm";
 import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
 import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
@@ -373,6 +375,20 @@ async function stackChecks() {
   return checks;
 }
 
+/** The search of the site: its module run in a context of its own, as the site runs it (a script, EXT). */
+const SITE_SEARCH = (() => {
+  const context = { EXT: { hydrators: [], api: {} } };
+  vm.runInNewContext(
+    fs.readFileSync(new URL("../../engine/site/lib/search-core.js", import.meta.url), "utf8"),
+    context,
+  );
+  return context.EXT.searchCore;
+})();
+/** app.js's normalisation; an index entry of a text. */
+const searchNorm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// "ab" and "orders" in the text: the query's two terms resolve, so the scoring runs over the whole input too.
+const searchEntry = (s) => ({ a: null, nt: searchNorm(s.slice(0, 200)), np: "", nx: searchNorm(`ab orders ${s}`) });
+
 export const CHECKS = [
   ...GENERIC.map((d) => [
     `secret detector ${d.kind}`,
@@ -454,6 +470,10 @@ export const CHECKS = [
   ["inputs isSafeRepoUrl", (s) => isSafeRepoUrl(`https://github.com/${s}`) || isSafeRepoUrl(`git@h:${s}`)],
   ["inputs nameOf", (s) => nameOf(s)],
   ["inputs hasCredentials", (s) => hasCredentials(`https://h/x?${s}`) || hasCredentials(s)],
+  // The search of the site (engine/site/lib/search-core.js, run as the site runs it): an index of the text, a query
+  // with a typo (its close words), the marks.
+  ["site search match", (s) => SITE_SEARCH.match([searchEntry(s)], "ab ordrs", searchNorm).found.length],
+  ["site search mark", (s) => SITE_SEARCH.mark(s, ["ab", "cd"], searchNorm, (x) => x).length],
   // An id cited whole in the documentation (check coverage): every occurrence, its two neighbours.
   ["coverage isCovered whole", (s) => isCovered({ match: ["f-01"], whole: true }, `${s} f-01${s}f-01`)],
   // The backlog export: a story's HTML as lines of text, then each tool's inert markup and its CSV cells.

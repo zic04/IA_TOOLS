@@ -201,7 +201,6 @@ function renderPage(r, sec, g, p) {
   r.used.pages[p.id] = out.used;
   r.links[p.id] = out.links;
   r.order.push(p.id);
-  indexPage(r.index, p.id, p.title, out.html);
   if (!missing) checkTemplate(r, p, out, source);
   if (
     !missing &&
@@ -313,6 +312,8 @@ function checkLanguage(r, { langToc, features }) {
     t: r.langT,
   });
   for (const { strict, ...problem } of businessRefProblems) r.reportLang(strict, { kind: "business", ...problem });
+  // The search index, once the second pass has resolved the generated tables and the citations.
+  for (const id of order) indexPage(r.index, id, pages[id].title, pages[id].html, pages[id].summary);
   if (isSource && site.spaces) {
     for (const s of site.spaces) s.pages = order.filter((id) => pages[id].space === s.id).length;
     for (const s of site.spaces.filter((x) => !x.pages))

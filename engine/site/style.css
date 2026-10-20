@@ -1954,6 +1954,18 @@ figcaption,
   color: var(--text-soft);
   margin: 0 0 18px;
 }
+/* The journeys of the home by audience ("everything" mode with spaces): each group under its space. */
+.parcours-public {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+  font-size: 15px;
+}
+.parcours-public .ico {
+  width: 18px;
+  height: 18px;
+}
 .parcours {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2099,6 +2111,41 @@ figcaption,
   color: inherit;
   border-radius: 3px;
   padding: 0 1px;
+}
+/* The scope of the search (app.js, with two spaces or more): "Search in: All · Use · …". */
+.recherche-portee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.recherche-portee[hidden] {
+  display: none;
+}
+.recherche-portee .portee {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.recherche-portee .portee[aria-pressed="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+/* A term the index does not hold, read as its close words (lib/search-core.js). */
+.recherche-proche {
+  padding: 10px 14px 4px;
+  font-size: 13px;
+  color: var(--text-soft);
 }
 .recherche-vide {
   padding: 26px;

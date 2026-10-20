@@ -331,5 +331,6 @@
   "ui.footer.screenshots.versionOnly": {
     "one": "Screenshots of version {version}",
     "other": "Screenshots of versions {version}"
-  }
+  },
+  "ui.search.fuzzy": "No exact match: close words — {words}"
 }

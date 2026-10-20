@@ -64,5 +64,7 @@
   "ui.spaces.use.for": "Users, key users, support",
   "ui.spaces.use.shortTitle": "Use",
   "ui.spaces.use.subtitle": "How to do each task, screen by screen.",
-  "ui.spaces.use.title": "Using the application"
+  "ui.spaces.use.title": "Using the application",
+  "ui.search.scope": "Search in:",
+  "ui.search.scope.all": "All"
 }

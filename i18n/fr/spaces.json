@@ -64,5 +64,7 @@
   "ui.spaces.use.for": "Utilisateurs, référents, support",
   "ui.spaces.use.shortTitle": "Utiliser",
   "ui.spaces.use.subtitle": "Comment faire chaque tâche, écran par écran.",
-  "ui.spaces.use.title": "Utiliser l'application"
+  "ui.spaces.use.title": "Utiliser l'application",
+  "ui.search.scope": "Chercher dans :",
+  "ui.search.scope.all": "Tout"
 }

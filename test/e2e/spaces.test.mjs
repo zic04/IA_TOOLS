@@ -234,6 +234,51 @@ describe("filter", () => {
     await page.context().close();
   });
 
+  test("search: the scope chips — All, then each space; one of them keeps its results alone; none in an export", async () => {
+    const page = await open("use/settings");
+    await page.keyboard.press("Control+k");
+    assert.equal(await page.getAttribute("#recherche-portee", "aria-label"), "Search in:");
+    assert.deepEqual(
+      (await texts(page, "#recherche-portee .portee")).map((x) => x.trim()),
+      ["All", "Use", "Develop"],
+    );
+    assert.equal(await page.getAttribute('#recherche-portee [data-scope=""]', "aria-pressed"), "true");
+    await page.keyboard.type("orders");
+    await page.waitForSelector(".resultat");
+    await page.click('#recherche-portee [data-scope="develop"]');
+    assert.equal(await page.getAttribute('#recherche-portee [data-scope="develop"]', "aria-pressed"), "true");
+    assert.equal(await page.getAttribute('#recherche-portee [data-scope=""]', "aria-pressed"), "false");
+    const hrefs = await page.$$eval(".resultat", (els) => els.map((a) => a.getAttribute("href")));
+    assert.ok(hrefs.length && hrefs.every((h) => /^#\/(take-over\/|use\/api-limits)/.test(h)), JSON.stringify(hrefs));
+    assert.equal(await page.locator(".recherche-groupe").count(), 0, "one space: no heading");
+    await page.click('#recherche-portee [data-scope=""]');
+    assert.equal(
+      await page.locator(".recherche-groupe").count(),
+      1,
+      "All again: the current space first, then Develop",
+    );
+    await page.context().close();
+    const exported = await open("use/orders", { file: "use" });
+    await exported.keyboard.press("Control+k");
+    assert.equal(await exported.locator("#recherche-portee").isVisible(), false, "an export: one space, no chip");
+    await exported.context().close();
+  });
+
+  test("search: a typo — its close words said first, their results shown and marked", async () => {
+    const page = await open("use/orders");
+    await page.keyboard.press("Control+k");
+    await page.keyboard.type("ordrs");
+    await page.waitForSelector(".recherche-proche");
+    assert.match(await text(page, ".recherche-proche"), /^No exact match: close words — .*\borders\b/);
+    // Heard with the count, by a screen reader (role="status").
+    assert.match(await text(page, "#recherche-statut"), /^No exact match: close words — .*\. \d+ results?/);
+    assert.ok((await page.locator(".resultat").count()) > 0);
+    assert.ok((await page.locator(".resultat mark").count()) > 0);
+    await page.keyboard.press("ArrowDown");
+    assert.equal(await page.locator(".resultat.actif").count(), 1, "the note is no result");
+    await page.context().close();
+  });
+
   test("print everything: the current space only", async () => {
     const page = await open("use/orders");
     // Print media: the lazy screenshots of the printed pages are decoded before printing.
@@ -335,7 +380,28 @@ describe("home page", () => {
     assert.equal(await page.locator(".portes .porte").first().getAttribute("href"), "#/@use");
     assert.equal(await page.locator(".parcours .carte-lien").count(), 2);
     assert.match(await text(page, ".accueil-corps .contenu"), /Welcome/);
+    // The journeys by audience, each under its space (the first one's space comes from its steps).
+    assert.deepEqual(
+      (await texts(page, ".parcours-public")).map((x) => x.trim()),
+      ["Use", "Develop"],
+    );
+    assert.deepEqual(
+      await page.$$eval(".parcours", (grids) =>
+        grids.map((g) => [g.previousElementSibling?.className ?? "", g.querySelector(".titre").textContent]),
+      ),
+      [
+        ["parcours-public", "Discover Acme Orders"],
+        ["parcours-public", "Take over Acme Orders"],
+      ],
+    );
     await page.context().close();
+    const develop = await open("@develop");
+    assert.equal(
+      await develop.locator(".parcours-public").count(),
+      0,
+      "a space current: its journeys alone, no heading",
+    );
+    await develop.context().close();
   });
 
   test("a space: strip “You are reading”, its sections, its journeys; the primary action stays inside the space", async () => {

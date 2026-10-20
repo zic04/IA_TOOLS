@@ -8,6 +8,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **A better search** (ARCHITECTURE.md §6.1a): the tables the kit generates and each page's summary are indexed; a
+  word in a title before one in the text, its start before its inside; a word the documentation does not hold is
+  read as its close words (a typo), said above the results; with spaces, **Search in: All · Use · …** keeps the
+  results of one space. The scoring is a module of the site (`engine/site/lib/search-core.js`). On the home in
+  "everything" mode, the journeys are grouped by audience.
 - **Topic groups** (ARCHITECTURE.md §6.1a): a page's `counterpart` may name a list of pages; the pages it joins,
   either way, form one group, declared once and shown on each: "This topic for: Use · **Product** · Administer ·
   Develop" under the page's badges, the page read marked (without spaces, "Related:" and the titles). `context`
