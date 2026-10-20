@@ -41,7 +41,7 @@ Decisions to make with the owner, **before any code**:
 
 | Decision | Options | What depends on it |
 |---|---|---|
-| Space(s) | `use` · `product` · `admin` · `develop`: all four (what `init` declares) or a subset | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
+| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
 | Audience | users, product owners, administrators and operators, technical successors | one space per audience, and its parts (`{{KIT_PATH}}/standard/structure.md`) |
 | Language | `en` or `fr` | `language` in `doc.config.mjs`, briefs `assets/briefs/<lang>/` |
 | Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (ARCHITECTURE.md §6.11): the per-million-token price of each model in play |
@@ -75,8 +75,9 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   **root**, even when the front end sits in `frontend/` or `web/`. It detects the framework, the product name (Next.js
   `metadata.title`, else `package.json` without its `-frontend`/`-web` suffix), the version file (`version.txt` or
   `VERSION` at the root first) and the `.env` files to mask, then asks for the product name, language, application
-  URL, where the screenshots are taken (`capture.target`) and sign-in method (`--name`, `--lang`, `--url`, `--capture`,
-  `--target`, `--auth`, `--framework` answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
+  URL, where the screenshots are taken (`capture.target`), the sign-in method and the spaces (who the documentation
+  is for) (`--name`, `--lang`, `--url`, `--capture`, `--target`, `--auth`, `--spaces <ids>|none`, `--framework`
+  answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
   then offers to open the browser (`connect`) and a first test screenshot (`capture --preview`). Its **recap** is printed before anything is written, even with `--yes`: read it
   (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `doc-kit` with no command
   starts the **guided mode**, which detects the current state and proposes the next step.

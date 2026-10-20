@@ -227,8 +227,27 @@
   ],
   "journeys": [
     {
+      "title": "I use {{name}} every day",
+      "description": "Sign in, find your way, then every screen of the daily work.",
+      "space": "use",
+      "steps": ["use/getting-started"]
+    },
+    {
+      "title": "I specify a feature",
+      "description": "What a feature does, for whom, its rules, its behaviours and its acceptance criteria.",
+      "space": "product",
+      "steps": ["features/example-feature"]
+    },
+    {
+      "title": "I administer {{name}}",
+      "description": "The settings and their mechanism, the accounts, then the production setup and the runbook.",
+      "space": "admin",
+      "steps": ["configure/sample-editor", "administer/users", "take-over/technical-architecture", "take-over/runbook"]
+    },
+    {
       "title": "I take the project over",
       "description": "What you need to know to run and evolve the application, in five pages.",
+      "space": "develop",
       "steps": [
         "take-over/architecture",
         "take-over/technical-architecture",

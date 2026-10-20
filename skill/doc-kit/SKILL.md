@@ -34,8 +34,10 @@ Ask the user (AskUserQuestion when available, otherwise a plain question), and w
    support) · Product (what each feature does, for whom, by which rule — product owners, business analysts) ·
    Administer (settings, access, operations, the technical architecture document — administrators, operators) ·
    Develop (how it is built and secured, and what to fix first — developers, the takeover team, security). All
-   four (what `doc-kit init` declares) or only those the project has readers for. Drives `content/toc.json`'s
-   `spaces` (ARCHITECTURE.md §6.1a) and which of phases 5 and 8 below apply.
+   four or only those the project has readers for, or none (one documentation for everyone). Drives
+   `content/toc.json`'s `spaces` (ARCHITECTURE.md §6.1a) and which of phases 5 and 8 below apply. Answer:
+   `doc-kit init --spaces <ids>` (e.g. `--spaces use,product`), or `--spaces none`; without it, `init` asks, and
+   the four is its default.
 2. **Where will the screenshots be taken?** Local or demo application · **production, read-only** · no
    screenshots. Answer: `doc-kit init --target local|demo|production` (production: `--url <production address>`
    too) or `--capture none`. Read `references/capture-safety.md` first.
@@ -151,7 +153,7 @@ space: also `doc-kit inventory --features --write` to get a starting `features.j
 
 ### 3 · Plan, by space
 Declare `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a): `["use", "product", "admin", "develop"]`, as
-`init` writes it, or the subset in scope; one section's `space` per reader; a space of the project's own names its
+`init` writes the spaces chosen at scoping (`--spaces`), the four by default; one section's `space` per reader; a space of the project's own names its
 kind (`{ "id": "ops", "kind": "admin", "title": "Operations" }`). Use: `screen`. Product: `feature`,
 `business-rules`, `roles-matrix`, `process`, `release-notes`. Administer: `screen`, `editor`, `recipe`, and in its
 Operate part `architecture` (the technical architecture document), `runbook`, `variables`, `resources`,

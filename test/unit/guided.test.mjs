@@ -186,7 +186,7 @@ describe("guided mode", () => {
         JSON.stringify({ name: "acme-orders", dependencies: { next: "15.0.0" } }),
       );
       fs.mkdirSync(path.join(app, "app"));
-      const r = await cli(["--project", app], { input: ["y", "", "1", "", "1", "2", "y"] });
+      const r = await cli(["--project", app], { input: ["y", "", "1", "", "1", "2", "", "y"] });
       assert.equal(r.code, 0, r.err);
       assert.match(
         r.out,

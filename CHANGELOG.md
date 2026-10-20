@@ -8,6 +8,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The spaces at `init`** (ARCHITECTURE.md §2.1): `doc-kit init --spaces <id,…>|none`, or the question "Who is the
+  documentation for?" — the four spaces (default), users and product, a takeover (administer and develop), users
+  alone, or none. The skeleton keeps the sections, pages and journeys of the spaces chosen; with Develop but not
+  Administer, the Operate section goes to Develop; with none, one documentation without spaces. The skeleton has one
+  journey per audience. The recap and the JSON output show the spaces. The skeleton's writing moves to
+  `engine/dev/skeleton.mjs`.
 - **A better search** (ARCHITECTURE.md §6.1a): the tables the kit generates and each page's summary are indexed; a
   word in a title before one in the text, its start before its inside; a word the documentation does not hold is
   read as its close words (a typo), said above the results; with spaces, **Search in: All · Use · …** keeps the

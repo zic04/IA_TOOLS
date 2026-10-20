@@ -22,6 +22,7 @@ import { prepareConfig } from "../../engine/project/load.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { satisfies } from "../../engine/project/semver.mjs";
 import { BRAND } from "../../engine/brand.mjs";
+import { SPACE_PRESETS } from "../../engine/dev/skeleton.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 /** Runs the CLI; `input`: lines typed at the questions (then the input ends); `steps`: follow-up steps of init. */
@@ -193,7 +194,7 @@ describe("init", () => {
     const app = nextApp();
     try {
       const r = await cli(["init", app, "--dir", "documentation"], {
-        input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "1", "3", "o"],
+        input: ['Acme "Q" Orders', "2", "http://localhost:3200/", "1", "3", "2", "o"],
       });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /\? Product name \(Acme Orders\) › Acme "Q" Orders/);
@@ -202,8 +203,21 @@ describe("init", () => {
       // Once French is chosen, the questions go on in French.
       assert.match(r.out, /\? Adresse de l'application \(http:\/\/localhost:3100\) › http:\/\/localhost:3200\/\n/);
       assert.match(r.out, /\? Créer le projet \? \(O\/n\) › o/);
+      // The audiences (ARCHITECTURE.md §6.1a): the second preset, users and product.
+      assert.match(
+        r.out,
+        /\? Pour qui est la documentation \? \(ses espaces\)\n {2}1\) use, product, admin, develop — /,
+      );
+      assert.match(r.out, /\n {2}2\) use, product — les utilisateurs et les responsables produit \(sans code\)\n/);
+      assert.match(r.out, /\n {2}5\) none — une seule documentation pour tous, sans espace\n {2}\(1\) › 2\n/);
+      assert.match(r.out, /Espaces +use, product\n/);
       const docs = path.join(app, "documentation");
       assert.ok(fs.existsSync(path.join(docs, "content", "utiliser", "prise-en-main.md")));
+      assert.ok(!fs.existsSync(path.join(docs, "content", "reprendre")), "the Develop pages left out");
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(docs, "content", "toc.json"), "utf8")).spaces, [
+        "use",
+        "product",
+      ]);
       assert.match(r.out, /doc-kit connect/, "a sign-in is needed: connect is listed");
       linkKit(docs);
       const c = await loadConfig(docs);
@@ -506,7 +520,7 @@ describe("init on an application with a separate front end (pilot layout)", () =
     try {
       const r = await cli(["init", app], {
         input: [
-          ...["", "1", "", "3", "y"], // name, language, URL, no screenshots, confirm
+          ...["", "1", "", "3", "", "y"], // name, language, URL, no screenshots, the four spaces, confirm
           "y", // declare the sources now
           `${infra}, https://u:p@github.com/a/b.git`, // a credential in an address: refused, asked again
           `${infra}, https://github.com/acme/orders-infra.git`,
@@ -550,7 +564,7 @@ describe("init on an application with a separate front end (pilot layout)", () =
   test("interactive: the capture-target question; with “no screenshots”, the sign-in question is skipped", async () => {
     const app = separateFrontApp();
     try {
-      const r = await cli(["init", app], { input: ["", "1", "", "3", "y"] });
+      const r = await cli(["init", app], { input: ["", "1", "", "3", "", "y"] });
       assert.equal(r.code, 0, r.err);
       assert.match(
         r.out,
@@ -584,7 +598,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     try {
       const { calls, steps } = stubSteps();
       const r = await cli(["init", app], {
-        input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "o", "n", "o", "o"],
+        input: ["", "2", "", "2", "https://commandes.acme.example/", "1", "", "o", "n", "o", "o"],
         steps,
       });
       assert.equal(r.code, 0, r.err);
@@ -628,7 +642,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     const app = nextApp();
     try {
       let { calls, steps } = stubSteps();
-      let r = await cli(["init", app, "--lang", "en"], { input: ["", "", "1", "1", "y", "n", "n"], steps });
+      let r = await cli(["init", app, "--lang", "en"], { input: ["", "", "1", "1", "", "y", "n", "n"], steps });
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /Capture target +local — the application on this machine/);
       assert.doesNotMatch(r.out, /Production, read-only — before/);
@@ -651,7 +665,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
 
       ({ calls, steps } = stubSteps({ connect: 3 }));
       r = await cli(["init", app, "--lang", "en", "--dir", "second"], {
-        input: ["", "", "1", "1", "y", "", ""],
+        input: ["", "", "1", "1", "", "y", "", ""],
         steps,
       });
       assert.equal(r.code, 3, "the follow-up's exit code");
@@ -676,7 +690,7 @@ describe("capture target (local, demo, production) and the follow-up of init", (
     try {
       const { calls, steps } = stubSteps();
       const r = await cli(["init", app, "--lang", "en", "--auth", "none"], {
-        input: ["", "https://demo.acme.example", "1", "y"],
+        input: ["", "https://demo.acme.example", "1", "", "y"],
         steps,
       });
       assert.equal(r.code, 0, r.err);
@@ -740,5 +754,151 @@ describe("capture target (local, demo, production) and the follow-up of init", (
       assert.equal(isLoopback(u), false, u);
     assert.equal(localOrDemo("http://localhost:3000"), "local");
     assert.equal(localOrDemo("https://demo.acme.example"), "demo");
+  });
+});
+
+describe("the spaces of the skeleton (--spaces, ARCHITECTURE.md §6.1a)", () => {
+  const PRESET_JOURNEYS = { all: 4, product: 2, takeover: 2, use: 1, none: 4 };
+  for (const language of ["en", "fr"])
+    for (const [preset, spaces] of Object.entries(SPACE_PRESETS))
+      test(`${language}, ${preset}: the skeleton cut to its spaces builds without an error (draft)`, async () => {
+        const app = nextApp();
+        try {
+          const option = spaces.length ? spaces.join(",") : "none";
+          const r = await cli(["init", app, "--yes", "--lang", language, "--spaces", option]);
+          assert.equal(r.code, 0, r.err);
+          const docs = path.join(app, "docs", "manual");
+          const content = path.join(docs, "content");
+          const toc = JSON.parse(fs.readFileSync(path.join(content, "toc.json"), "utf8"));
+          assert.deepEqual(toc.spaces, spaces.length ? spaces : undefined);
+          const pages = toc.sections.flatMap((s) => s.groups.flatMap((g) => g.pages.map((p) => p.id)));
+          // Every page has its file, and every page file its page.
+          const md = allFiles(content)
+            .filter((f) => f.endsWith(".md") && f !== "home.md")
+            .map((f) => f.split(path.sep).join("/").replace(/\.md$/, ""));
+          assert.deepEqual(md.sort(), [...pages].sort());
+          assert.equal(toc.journeys.length, PRESET_JOURNEYS[preset]);
+          for (const j of toc.journeys)
+            if (spaces.length) assert.ok(spaces.includes(j.space), j.title);
+            else assert.equal(j.space, undefined, j.title);
+          linkKit(docs);
+          const b = build({ project: { root: docs }, config: await loadConfig(docs), options: { draft: true } });
+          assert.deepEqual(b.errors, []);
+          // Only the skeleton's own warnings: guidance to replace, diagrams and captures to make, and in an export
+          // the links to another space (said, expected there).
+          const own = (w) => ["template", "diagram", "capture"].includes(w.kind) || w.key === "space.excludedLinks";
+          assert.deepEqual(
+            b.warnings.filter((w) => !own(w)),
+            [],
+          );
+        } finally {
+          remove(app);
+        }
+      });
+
+  test("only Develop: the operating part of Administer goes with it; the recap and the JSON say the spaces", async () => {
+    const app = nextApp();
+    try {
+      const r = await cli(["init", app, "--yes", "--spaces", "develop"]);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /Spaces +develop\n/);
+      const toc = JSON.parse(fs.readFileSync(path.join(app, "docs", "manual", "content", "toc.json"), "utf8"));
+      assert.deepEqual(
+        toc.sections.map((s) => [s.id, s.space]),
+        [
+          ["operate", "develop"],
+          ["take-over", "develop"],
+        ],
+      );
+      assert.ok(fs.existsSync(path.join(app, "docs", "manual", "content", "take-over", "runbook.md")));
+      const none = await cli(["init", app, "--yes", "--dir", "none", "--spaces", "none"]);
+      assert.match(none.out, /Spaces +none \(one documentation for everyone\)\n/);
+      const j = JSON.parse(
+        (await cli(["init", app, "--yes", "--json", "--dir", "j", "--spaces", "develop,admin"])).out,
+      );
+      assert.deepEqual(j.spaces, ["admin", "develop"], "in the skeleton's order");
+      const all = JSON.parse((await cli(["init", app, "--yes", "--json", "--dir", "all"])).out);
+      assert.deepEqual(all.spaces, ["use", "product", "admin", "develop"], "by default, the four");
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("interactive, --spaces given: the question is not asked", async () => {
+    const app = nextApp();
+    try {
+      const { steps } = stubSteps();
+      const r = await cli(["init", app, "--lang", "en", "--auth", "none", "--spaces", "use"], {
+        input: ["", "", "1", "y"], // name, URL, local, confirm
+        steps,
+      });
+      assert.equal(r.code, 0, r.err);
+      assert.doesNotMatch(r.out, /Who is the documentation for/);
+      assert.match(r.out, /Spaces +use\n/);
+      const toc = JSON.parse(fs.readFileSync(path.join(app, "docs", "manual", "content", "toc.json"), "utf8"));
+      assert.deepEqual(toc.spaces, ["use"]);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("interactive: the five choices in their order; changing the answers keeps the spaces chosen as the default", async () => {
+    const app = nextApp();
+    try {
+      const { steps } = stubSteps();
+      const r = await cli(["init", app, "--lang", "en", "--auth", "none"], {
+        input: [
+          ...["", "", "1", "4", "n", "y"], // name, URL, local, users alone, do not create, change the answers
+          ...["", "", "", "", "y"], // Enter at every question, then create
+        ],
+        steps,
+      });
+      assert.equal(r.code, 0, r.err);
+      assert.match(
+        r.out,
+        new RegExp(
+          [
+            String.raw`\? Who is the documentation for\? \(its spaces\)`,
+            String.raw` {2}1\) use, product, admin, develop — the four audiences: users, product, administrators, developers`,
+            String.raw` {2}2\) use, product — users and product owners \(no code\)`,
+            String.raw` {2}3\) admin, develop — a takeover: administrators, operators and developers`,
+            String.raw` {2}4\) use — the users alone`,
+            String.raw` {2}5\) none — one documentation for everyone, without spaces`,
+            String.raw` {2}\(1\) › 4`,
+          ].join("\n"),
+        ),
+      );
+      const asked = r.out.split("? Who is the documentation for? (its spaces)");
+      assert.equal(asked.length, 3, "asked once more after “Change the answers?”");
+      assert.match(
+        asked[2],
+        /^\n(?: {2}\d\) .*\n){5} {2}\(4\) › \n/,
+        "the second time, the choice made is the default",
+      );
+      assert.equal(r.out.match(/Spaces +use\n/g)?.length, 2);
+      const toc = JSON.parse(fs.readFileSync(path.join(app, "docs", "manual", "content", "toc.json"), "utf8"));
+      assert.deepEqual(toc.spaces, ["use"]);
+    } finally {
+      remove(app);
+    }
+  });
+
+  test("refused: an unknown space, one twice, none with others, nothing (exit code 2), nothing written", async () => {
+    const app = nextApp();
+    try {
+      for (const value of ["use,foo", "use,use", "none,use", ""]) {
+        const r = await cli(["init", app, "--yes", "--spaces", value]);
+        assert.equal(r.code, 2, value);
+        assert.match(
+          r.err,
+          /^✖ --spaces “[^”]*”: expected none, or ids among use, product, admin, develop, each once\n {2}→ e\.g\. --spaces use,product; --spaces none: one documentation without spaces\n/,
+        );
+      }
+      const fr = await cli(["init", app, "--yes", "--lang", "fr", "--spaces", "x"]);
+      assert.match(fr.err, /^✖ --spaces « x » : attendu none, ou des identifiants parmi use, product, admin, develop/);
+      assert.ok(!fs.existsSync(path.join(app, "docs")), "nothing written");
+    } finally {
+      remove(app);
+    }
   });
 });

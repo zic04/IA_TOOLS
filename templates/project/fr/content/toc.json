@@ -231,8 +231,32 @@
   ],
   "journeys": [
     {
+      "title": "J'utilise {{name}} au quotidien",
+      "description": "Se connecter, s'y retrouver, puis chaque écran du travail quotidien.",
+      "space": "use",
+      "steps": ["utiliser/prise-en-main"]
+    },
+    {
+      "title": "Je spécifie une fonctionnalité",
+      "description": "Ce que fait une fonctionnalité, pour qui, ses règles, ses comportements et ses critères d'acceptation.",
+      "space": "product",
+      "steps": ["fonctionnalites/exemple-fonctionnalite"]
+    },
+    {
+      "title": "J'administre {{name}}",
+      "description": "Les réglages et leur mécanisme, les comptes, puis l'installation en production et le manuel d'exploitation.",
+      "space": "admin",
+      "steps": [
+        "configurer/editeur-exemple",
+        "administrer/utilisateurs",
+        "reprendre/dat",
+        "reprendre/manuel-exploitation"
+      ]
+    },
+    {
       "title": "Je reprends le projet",
       "description": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application, en cinq pages.",
+      "space": "develop",
       "steps": [
         "reprendre/architecture",
         "reprendre/dat",

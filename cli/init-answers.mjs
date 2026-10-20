@@ -8,6 +8,7 @@ import { slash } from "../engine/dev/environment.mjs";
 import { addInput, writeInputs, isSafeRepoUrl, hasCredentials, nameOf, INPUTS_FILE } from "../engine/inputs/model.mjs";
 import { KitError } from "../engine/project/errors.mjs";
 import { absolutePath } from "./common.mjs";
+import { SPACE_PRESETS } from "../engine/dev/skeleton.mjs";
 
 export function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot, languages }) {
   const p = ctx.paint;
@@ -43,10 +44,26 @@ export function recapLines(ctx, { target, appDir, detected, answers, nameFromDet
       "auth",
       answers.capture === "none" ? `${answers.auth} ${p.dim(`(${ctx.t("cli.init.authUnused")})`)}` : answers.auth,
     ],
+    ["spaces", answers.spaces.length ? answers.spaces.join(", ") : ctx.t("cli.init.spaces.noneShort")],
     ["coverage", coverage],
     ["masking", detected.envFiles.length ? detected.envFiles.join(", ") : ctx.t("cli.init.masking.none")],
     ["appDir", `${absolutePath(appDir)} ${p.dim(`(app.dir: ${docsToRoot})`)}`],
   ].map(([k, value]) => [ctx.t(`cli.init.recap.${k}`), value]);
+}
+
+/**
+ * The audiences of the documentation (ARCHITECTURE.md §6.1a): one of SPACE_PRESETS (engine/dev/skeleton.mjs) —
+ * the four spaces, users and product, the takeover (administer and develop), users alone, or none.
+ * @returns {Promise<string>} the preset chosen
+ */
+export async function askSpaces(ctx, prompt, current) {
+  const presets = Object.keys(SPACE_PRESETS); // in their order: the four, users and product, a takeover, users, none
+  const now = presets.find((k) => SPACE_PRESETS[k].join() === current.join()) ?? "all";
+  return prompt.choose(
+    ctx.t("cli.init.ask.spaces"),
+    presets.map((value) => ({ value, label: ctx.t(`cli.init.spaces.${value}`) })),
+    now,
+  );
 }
 
 /** The items of one answer: separated by commas or semicolons, trimmed. */

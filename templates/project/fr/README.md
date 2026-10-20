@@ -8,13 +8,14 @@ Le site de documentation du produit **{{name}}**, livré en **un seul fichier HT
 
 Le moteur est **doc-kit**, relié par `package.json`. Ce dossier ne contient que le contenu.
 
-Ce squelette déclare quatre **espaces**, un par public : Utiliser (`utiliser` — sans code, pour les utilisateurs,
-les référents et le support), Produit (`fonctionnalites` — sans code, pour les responsables produit, les analystes
-métier et les référents), Administrer (`configurer`, `administrer`, `exploiter` — pour les administrateurs de
-l'application et les exploitants) et Développer (`reprendre` — pour les développeurs, l'équipe de reprise et la
-sécurité). `doc-kit build` écrit le site complet plus un export par espace (`dist/…-use.html`, `-product`,
-`-admin`, `-develop`), chacun privé des autres espaces. Voir `standard/structure.fr.md` pour la vue d'ensemble,
-et le haut de `content/toc.json`.
+La documentation est organisée par public, en **espaces** choisis à `doc-kit init` (`--spaces`), jusqu'à quatre :
+Utiliser (`utiliser` — sans code, pour les utilisateurs, les référents et le support), Produit (`fonctionnalites` —
+sans code, pour les responsables produit, les analystes métier et les référents), Administrer (`configurer`,
+`administrer`, `exploiter` — pour les administrateurs de l'application et les exploitants) et Développer
+(`reprendre` — pour les développeurs, l'équipe de reprise et la sécurité). Les espaces gardés sont listés en haut de
+`content/toc.json` (`spaces`), chacun avec son parcours ; sans espace, une seule documentation pour tous.
+`doc-kit build` écrit le site complet plus un export par espace (`dist/…-use.html`, `-product`, `-admin`,
+`-develop`), chacun privé des autres espaces. Voir `standard/structure.fr.md` pour la vue d'ensemble.
 
 ## Prérequis
 

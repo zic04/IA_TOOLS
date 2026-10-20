@@ -1,7 +1,7 @@
 ## doc-kit init
 
 ```text
-doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--capture app|none] [--target local|demo|production] [--yes]
+doc-kit init [app-dir] [--dir <folder>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adapter>] [--capture app|none] [--target local|demo|production] [--spaces <id,…>|none] [--yes]
 ```
 
 Creates the documentation project of the application in `app-dir` (default: the current folder), in
@@ -18,6 +18,7 @@ Creates the documentation project of the application in `app-dir` (default: the 
 | `--auth <adapter>` | `manual` | `manual`, `none`, `nextauth`, `api-me` or `local:<file>` |
 | `--capture app\|none` | `app` | `app`: screenshots of the running application; `none`: no screenshot at all (`capture.mode: "none"`), each screen described by a table |
 | `--target <where>` | `local`, or `demo` for a URL that is not local | `local`, `demo` or `production` (`capture.target`); `production` writes `capture.readOnly: true` and, with `--yes`, needs `--url`; refused with `--capture none` |
+| `--spaces <id,…>\|none` | asked, or the four | The audiences: `use`, `product`, `admin`, `develop`, comma-separated, each once; `none`: one documentation for everyone, without spaces |
 | `--yes`, `-y` | | No question: the detected values and the options as they are |
 
 - **Detection**: `package.json` in the folder or in `frontend`, `front`, `web`, `client`, `ui`, `app`, `apps/web`;
@@ -28,7 +29,7 @@ Creates the documentation project of the application in `app-dir` (default: the 
 - **Masking** (`masking.env`): `.env` and `.env.local` at the root and in the front-end folder, only the files that
   exist; never `*.example`.
 - **Questions** (without `--yes`): name, language, URL, where the screenshots are taken, sign-in method (only with
-  screenshots). Without a terminal and without `--yes`, it stops with exit code 2.
+  screenshots), who the documentation is for. Without a terminal and without `--yes`, it stops with exit code 2.
 - **Where the screenshots are taken**: "1) local or demo application, 2) production, read-only, 3) no screenshots".
   Choice 1 writes `capture.target: "local"` for a `localhost` or `127.x` URL, `"demo"` otherwise. Choice 2 asks the
   **production URL** (never the local one detected from the dev script), then prints three safety reminders:
@@ -40,14 +41,20 @@ Creates the documentation project of the application in `app-dir` (default: the 
   screenshot with --preview? (Y/n)" runs `doc-kit capture --preview --yes` on the example plan. With `--yes`, nothing
   opens: the next steps are printed. A step that fails stops there with its exit code; the project stays written.
 - **Recap**: before writing anything, even with `--yes`, the folder, the name and where it was found, the slug, the
-  language, the URL, the version and its file, the capture mode and target, the sign-in, the coverage source, the masked `.env`
+  language, the URL, the version and its file, the capture mode and target, the sign-in, the spaces, the coverage source, the masked `.env`
   files and the application folder. To rename the product afterwards: `product.name` in `doc.config.mjs`, then the
-  title, tagline and section titles of `content/toc.json`.
+  title, tagline, section titles and journey titles of `content/toc.json`.
 - **Writes** the skeleton of `templates/project/common` and `templates/project/<language>`: configuration,
-  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, a table of contents with the four spaces and
-  sample pages in six sections (Use; Features; Configure, Administer, Operate; Take over), a glossary, an example capture plan, a logo. 22 files. The
+  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, a table of contents with the spaces chosen and
+  sample pages in up to six sections (Use; Features; Configure, Administer, Operate; Take over), a glossary, an example capture plan, a logo. The
   comments of `doc.config.mjs` are in the language of the project; the example routes are fictional (`/example/…`).
-- **Without screenshots** (`--capture none`): no example plan (21 files), sample pages that describe each screen with a
+- **Spaces**: "Who is the documentation for?" offers 1) the four (default), 2) `use, product` (users and product
+  owners, no code), 3) `admin, develop` (a takeover), 4) `use` alone, 5) none. The spaces left out lose their sections,
+  their pages and their journey; what named their pages (counterparts, journey steps, suggestions) goes too. With
+  Develop but not Administer, the Operate section (production setup, access and ownership, runbook) goes to Develop.
+  With none, the same pages without any space. Each space kept has its journey on the home page. Without Use, no page
+  cites the example plan's capture (`home`) until one does.
+- **Without screenshots** (`--capture none`): no example plan, sample pages that describe each screen with a
   table `| Element | What it shows |`, a home page without the "interactive screens" box, and next steps without
   `connect` and `capture`.
 - **Refuses** a folder that exists and is not empty (exit code 1).

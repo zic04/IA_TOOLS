@@ -16,7 +16,7 @@ commandes, une fiche commande et une page de réglages.
 | Étape | Commande | Ce que vous obtenez |
 |---|---|---|
 | 1 | `node serve.mjs` | L'application de démo sur `http://127.0.0.1:4173` |
-| 2 | `doc-kit init` | `docs/manual/`, un squelette de projet complet avec ses quatre espaces |
+| 2 | `doc-kit init` | `docs/manual/`, un squelette de projet complet avec les espaces choisis (par défaut les quatre) |
 | 3 | `npm install` | Le projet relié au kit |
 | 4 | `doc-kit connect` | Votre session, enregistrée dans `.doc-kit/session.json` |
 | 5 | `doc-kit capture --preview` | `images/home.webp` et ses zones |
@@ -54,13 +54,14 @@ l'application. Vérifiez-le, puis confirmez. Il écrit 27 fichiers dans `acme-or
 commandes suivantes. Pour renommer le produit ensuite, changez `product.name` dans `doc.config.mjs` et les titres de
 `content/toc.json`.
 
-> [!NOTE] Un squelette dont les quatre espaces sont déjà déclarés
-> `content/toc.json` déclare déjà `spaces: ["use", "product", "admin", "develop"]` : **Utiliser** dans `use` ;
+> [!NOTE] Un squelette dont les espaces sont déjà déclarés
+> Par défaut, `content/toc.json` déclare les quatre espaces, `spaces: ["use", "product", "admin", "develop"]` : **Utiliser** dans `use` ;
 > **Fonctionnalités** dans `product` (une fiche de fonctionnalité d'exemple, `fonctionnalites/exemple-fonctionnalite`,
 > identifiant `F-01`) ; **Configurer**, **Administrer** et **Exploiter** dans `admin` (Exploiter porte le DAT, les
 > accès et la propriété, et le manuel d'exploitation) ; **Reprendre** dans `develop` (architecture, diagnostic,
 > points d'attention, maintenance de la doc, instructions des agents, et `reprendre/architecture/exemple-fonctionnalite`,
-> le pendant technique de la fonctionnalité d'exemple).
+> le pendant technique de la fonctionnalité d'exemple), chacun avec son parcours. La question « Pour qui est la
+> documentation ? » (ou `--spaces`) n'en garde que certains, ou aucun.
 > `doc-kit build` et `doc-kit dev` produisent déjà un export par espace en plus du site complet —
 > [Quatre espaces, une seule source](#/spaces/overview) explique le mécanisme.
 

@@ -83,7 +83,7 @@ find their way from one documentation to another.
 
 ### Can I hand out only the business pages, or only the takeover dossier?
 
-Yes: declare `spaces` in `content/toc.json` (the skeleton of `doc-kit init` already declares the four), then
+Yes: declare `spaces` in `content/toc.json` (the skeleton of `doc-kit init` declares the four by default; `--spaces` keeps some, or none), then
 `doc-kit build` — it writes the full site plus one export per space, each with every other space's content
 physically removed, not merely hidden: the business pages in `…-product.html`, the takeover dossier in
 `…-develop.html`, its operating pages (technical architecture document, runbook) in `…-admin.html`

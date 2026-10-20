@@ -8,12 +8,13 @@ The documentation site of **{{name}}**, delivered as **a single self-contained H
 
 The engine is **doc-kit**, linked by `package.json`. This folder only holds the content.
 
-This skeleton declares four **spaces**, one per audience: Use (`use` — no code, for users, key users and
-support), Product (`features` — no code, for product owners, business analysts and key users), Administer
-(`configure`, `administer`, `operate` — for application administrators and operators) and Develop (`take-over` —
-for developers, the takeover team and security). `doc-kit build` writes the full site plus one export per space
-(`dist/…-use.html`, `-product`, `-admin`, `-develop`), each with the other spaces physically removed. See
-`standard/structure.md` for the full picture, and the top of `content/toc.json`.
+The documentation is organised by audience, in **spaces** chosen at `doc-kit init` (`--spaces`), up to four: Use
+(`use` — no code, for users, key users and support), Product (`features` — no code, for product owners, business
+analysts and key users), Administer (`configure`, `administer`, `operate` — for application administrators and
+operators) and Develop (`take-over` — for developers, the takeover team and security). The spaces kept are listed at
+the top of `content/toc.json` (`spaces`), each with its journey; with none, one documentation for everyone.
+`doc-kit build` writes the full site plus one export per space (`dist/…-use.html`, `-product`, `-admin`,
+`-develop`), each with the other spaces physically removed. See `standard/structure.md` for the full picture.
 
 ## Requirements
 

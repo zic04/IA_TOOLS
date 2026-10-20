@@ -19,8 +19,8 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
   screen — users, key users, support), **Product** (`product`: what each feature does, for whom, by which rule —
   product owners, business analysts, key users), **Administer** (`admin`: settings, access, operations, the
   technical architecture document — administrators, operators) and **Develop** (`develop`: how it is built and
-  secured, what to fix first — developers, the takeover team, security). `doc-kit init` declares all four; a
-  project keeps only those it has readers for.
+  secured, what to fix first — developers, the takeover team, security). `doc-kit init` declares all four by default;
+  `--spaces` keeps a subset, or none. A project keeps only those it has readers for.
 - Each space is split into **parts** (`sections` of `content/toc.json`): Use; Features, Process; Administer,
   Operate; Understand, Secure, Risks, Maintain. A French site's part ids: `utiliser`; `fonctionnalites`,
   `processus`; `administrer`, `exploiter`; `comprendre`, `securiser`, `risques`, `maintenir`. A product with many

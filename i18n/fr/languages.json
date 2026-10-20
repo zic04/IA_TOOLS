@@ -99,6 +99,8 @@
   "cli.init.languagesInvalid.help": "exemple : --languages fr,en",
   "cli.init.languagesLang": "--lang doit être absent ou égal au premier de --languages",
   "cli.init.languagesLang.help": "la langue source est le premier de --languages",
+  "cli.init.spacesInvalid": "--spaces « {value} » : attendu none, ou des identifiants parmi {known}, chacun une fois",
+  "cli.init.spacesInvalid.help": "par exemple --spaces use,product ; --spaces none : une seule documentation, sans espace",
   "cli.init.ask.languages": "Autres langues ? (séparées par des virgules, aucune)",
   "cli.init.recap.languages": "langues",
 

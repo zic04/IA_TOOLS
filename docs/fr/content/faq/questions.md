@@ -86,7 +86,7 @@ lecteurs s'y retrouvent d'une documentation à l'autre.
 
 ### Puis-je diffuser seulement les pages métier, ou seulement le dossier de reprise ?
 
-Oui : déclarez `spaces` dans `content/toc.json` (le squelette de `doc-kit init` déclare déjà les quatre), puis
+Oui : déclarez `spaces` dans `content/toc.json` (le squelette de `doc-kit init` déclare les quatre par défaut ; `--spaces` en garde certains, ou aucun), puis
 lancez `doc-kit build` — il écrit le site complet plus un export par espace, chacun avec le contenu des autres
 espaces physiquement retiré, pas seulement caché : les pages métier dans `…-product.html`, le dossier de reprise
 dans `…-develop.html`, ses pages d'exploitation (DAT, manuel d'exploitation) dans `…-admin.html`
