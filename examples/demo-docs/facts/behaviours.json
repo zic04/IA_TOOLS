@@ -1,0 +1,136 @@
+{
+  "source": "behaviours",
+  "generator": "doc-kit 0.3.0",
+  "generated": "2026-10-20T17:48:20.199Z",
+  "commit": "83d902d678230131ecd0bd370ae6f68087f45eb1",
+  "app": "../demo-app",
+  "items": [
+    {
+      "family": "trigger",
+      "signal": "trim",
+      "file": "public/app.js",
+      "line": 24,
+      "via": "dom"
+    },
+    {
+      "family": "search",
+      "signal": "contains",
+      "file": "public/app.js",
+      "line": 26,
+      "field": "customer",
+      "via": "array"
+    },
+    {
+      "family": "search",
+      "signal": "caseInsensitive",
+      "file": "public/app.js",
+      "line": 26,
+      "field": "customer",
+      "via": "array"
+    },
+    {
+      "family": "filter",
+      "signal": "equals",
+      "file": "public/app.js",
+      "line": 26,
+      "field": "status",
+      "via": "array"
+    },
+    {
+      "family": "filter",
+      "signal": "equals",
+      "file": "public/app.js",
+      "line": 26,
+      "field": "date",
+      "via": "array"
+    },
+    {
+      "family": "filter",
+      "signal": "equals",
+      "file": "public/app.js",
+      "line": 31,
+      "field": "status",
+      "via": "array"
+    },
+    {
+      "family": "trigger",
+      "signal": "input",
+      "file": "public/app.js",
+      "line": 34,
+      "via": "dom"
+    },
+    {
+      "family": "validation",
+      "signal": "required",
+      "file": "public/login.html",
+      "line": 13,
+      "field": "email",
+      "via": "html"
+    },
+    {
+      "family": "validation",
+      "signal": "type",
+      "file": "public/login.html",
+      "line": 13,
+      "field": "email",
+      "value": "email",
+      "via": "html"
+    },
+    {
+      "family": "validation",
+      "signal": "required",
+      "file": "public/login.html",
+      "line": 14,
+      "field": "password",
+      "via": "html"
+    },
+    {
+      "family": "values",
+      "signal": "options",
+      "file": "public/orders.html",
+      "line": 21,
+      "field": "status",
+      "values": [
+        "All",
+        "Open",
+        "Shipped",
+        "Cancelled"
+      ],
+      "via": "html"
+    },
+    {
+      "family": "validation",
+      "signal": "type",
+      "file": "public/orders.html",
+      "line": 24,
+      "field": "date",
+      "value": "date",
+      "via": "html"
+    },
+    {
+      "family": "values",
+      "signal": "options",
+      "file": "public/settings.html",
+      "line": 21,
+      "field": "language",
+      "values": [
+        "English",
+        "Français"
+      ],
+      "via": "html"
+    },
+    {
+      "family": "values",
+      "signal": "options",
+      "file": "public/settings.html",
+      "line": 24,
+      "field": "theme",
+      "values": [
+        "Light",
+        "Dark",
+        "System"
+      ],
+      "via": "html"
+    }
+  ]
+}

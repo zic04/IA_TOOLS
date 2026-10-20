@@ -83,11 +83,9 @@ describe("doctor", () => {
         assert.ok(l.includes(source), l);
       assert.match(stale.out, /^ {2}→ run doc-kit facts --source /m);
 
-      const fresh = await cli(
-        ["doctor", "--project", dir],
-        {},
-        { commit: () => "939ed0c54555d0063931ddfbbcfb7c1f108833b0" },
-      );
+      // The commit the demo's facts recorded: the application at that commit is up to date.
+      const recorded = JSON.parse(fs.readFileSync(path.join(dir, "facts", "env.json"), "utf8")).commit;
+      const fresh = await cli(["doctor", "--project", dir], {}, { commit: () => recorded });
       assert.match(fresh.out, /^✔ facts: at the application's current HEAD$/m);
       assert.doesNotMatch(fresh.out, /facts behind the application's HEAD/);
     } finally {

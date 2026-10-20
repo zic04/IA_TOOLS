@@ -8,6 +8,9 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The demo declares its features** (`examples/demo-docs/features.json`, coverage adapter `features`: 2/2), and its facts
+  are read again with every source of this version (`stack`, `behaviours`, `infra`, `quality`, `security`, `modules`…),
+  so that `context`, the analyses and the depth loop run on it end to end.
 - **The DAT and the code** (ARCHITECTURE.md §6.19): `doc-kit inputs reconcile` compares the technologies and the
   addresses each ingested technical architecture document names with the facts of the code — found in the code,
   said by the DAT without a trace, in the code but not in the DAT — into `.doc-kit/inputs/reconcile.json`, from a

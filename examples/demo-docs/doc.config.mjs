@@ -11,6 +11,9 @@ export default {
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },
   app: { url: "http://127.0.0.1:4173", dir: "../demo-app" },
   auth: { adapter: "manual", loginPattern: "^/login" },
+  // The features of the Product space (ARCHITECTURE.md §6.8): each one covered by its sheet; read by `context` and
+  // the analyses (§6.11a) for their sources and the behaviours to describe.
+  coverage: [{ adapter: "features", file: "features.json" }],
   capture: {
     setup: "captures/setup.mjs",
     // The approval page creates an approval chain on the server while it renders: the browser-side read-only

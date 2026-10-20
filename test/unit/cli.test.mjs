@@ -272,7 +272,7 @@ describe("check links, migrate (removed), open", () => {
       assert.match(r.err, /✖ \[use\/settings\] broken link: #\/use\/nowhere/);
       assert.match(r.err, /✖ \[use\/settings\] anchor not found: #\/use\/orders~nope/);
       assert.match(r.err, /2 links in error\./);
-      assert.equal((await cli(["check", "coverage", "--project", dir])).code, 2);
+      assert.equal((await cli(["check", "coverage", "--project", dir])).code, 0, "coverage is a check of its own");
       assert.equal((await cli(["check", "nope", "--project", dir])).code, 2);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

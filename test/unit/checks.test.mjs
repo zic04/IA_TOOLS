@@ -112,10 +112,22 @@ describe("check coverage and inventory", () => {
   });
 
   test("no adapter: check coverage and inventory → exit code 2; check all skips it", async () => {
+    // The demo declares its features (coverage adapter "features"): a copy without it.
+    const dir = await project(({ coverage, ...c }) => (void coverage, c));
+    try {
+      const r = await cli(["check", "coverage", "--project", dir]);
+      assert.equal(r.code, 2);
+      assert.match(r.err, /✖ no coverage adapter configured\n {2}→ add for example coverage:/);
+      assert.equal((await cli(["inventory", "--project", dir])).code, 2);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("the demo: each of its features covered by its sheet", async () => {
     const r = await cli(["check", "coverage", "--project", DEMO]);
-    assert.equal(r.code, 2);
-    assert.match(r.err, /✖ no coverage adapter configured\n {2}→ add for example coverage:/);
-    assert.equal((await cli(["inventory", "--project", DEMO])).code, 2);
+    assert.equal(r.code, 0, r.err);
+    assert.match(r.out, /✔ Features: 2\/2/);
   });
 
   test("a page that still holds template guidance covers nothing: neither its text nor the routes of its entry", async () => {

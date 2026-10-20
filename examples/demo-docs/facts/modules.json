@@ -1,0 +1,27 @@
+{
+  "source": "modules",
+  "generator": "doc-kit 0.3.0",
+  "generated": "2026-10-20T17:48:20.199Z",
+  "commit": "83d902d678230131ecd0bd370ae6f68087f45eb1",
+  "app": "../demo-app",
+  "summary": {
+    "files": 2,
+    "edges": 0,
+    "cycles": [],
+    "orphans": 2
+  },
+  "items": [
+    {
+      "file": "public/app.js",
+      "imports": 0,
+      "importedBy": 0,
+      "cycle": null
+    },
+    {
+      "file": "serve.mjs",
+      "imports": 0,
+      "importedBy": 0,
+      "cycle": null
+    }
+  ]
+}

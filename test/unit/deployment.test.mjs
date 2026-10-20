@@ -251,6 +251,7 @@ describe('::c4{view="deployment"} in a page', () => {
       return cli(["build", "--project", dir, "--output", out]);
     };
     try {
+      fs.rmSync(path.join(dir, "facts", "infra.json"), { force: true });
       assert.equal(await build('::c4{view="deployment"}'), 1, "facts.missing");
       fs.writeFileSync(path.join(dir, "facts", "infra.json"), JSON.stringify({ items: ITEMS }));
       assert.equal(await build('::c4{view="deployment" title="Acme"}'), 0);
