@@ -95,8 +95,9 @@ Ce que tu dois tout de même au lecteur :
 - Une page qui dépasse le `maxWords` de son gabarit : propose son découpage en sous-pages dans ton rapport, ne la
   découpe pas toi-même.
 - Une fois les contrôles d'une page passés, lance `npx doc-kit sync --mark <id de page> --sources …` (depuis le
-  dossier de la documentation), en citant le fichier des fonctionnalités et, quand tu en lis un pour comprendre,
-  le fichier de l'application qu'il vise : cela enregistre la page comme vérifiée face à l'application actuelle.
+  dossier de la documentation), en citant, quand tu en lis un pour comprendre, le fichier de l'application qu'il
+  vise (une fiche suit sa fonctionnalité par son id `feature` : le fichier des fonctionnalités n'est pas cité) :
+  cela enregistre la page comme vérifiée face à l'application actuelle.
 
 ## Contrôles (depuis le dossier de la documentation)
 

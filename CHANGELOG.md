@@ -8,6 +8,12 @@ entries between a project's `kit` range and the installed version.
 
 ### Added
 
+- **The analyst agent and its briefs** (ARCHITECTURE.md §6.11a): a fourth agent type, `doc-kit-analyst`
+  (sonnet), runs the new brief `behaviour-analysis`: one feature traced in the code, its analysis written and checked,
+  the reading budget by its size (S, M, L) and the content by the level of detail (essential, standard, detailed).
+  `feature-mechanism` writes a feature's technical counterpart from the Develop digest; `deepen` (haiku) adds to a
+  sheet what the depth loop found the analysis answers. The briefs exist in English and French; `doc-kit skill
+  install` copies the new agent.
 - **The analyses of the features** (ARCHITECTURE.md §6.11a): the format `doc-kit/behaviour-analysis@1`
   (`.doc-kit/analysis/<feature>.json`: each item its text for a reader without the code, its mechanism, a status —
   verified, deduced, unknown, n/a — and its proofs), and the skill's `scripts/analysis.mjs`: `check` (a proof

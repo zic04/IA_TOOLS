@@ -87,8 +87,9 @@ reader:
 - A page longer than its template's `maxWords`: propose a split into sub-pages in your report, do not split it
   yourself.
 - Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …` (from the documentation folder),
-  naming the features file and, when you read one for understanding, the application file it points to: this
-  records the page as checked against the current application.
+  naming, when you read one for understanding, the application file it points to (a sheet follows its feature
+  through its `feature` id: the features file is not named): this records the page as checked against the current
+  application.
 
 ## Checks (from the documentation folder)
 

@@ -278,10 +278,12 @@ async function depth(values) {
   if (!plan.actions.length && !plan.left.length) console.log(t("depthDone"));
   const print = (s) => console.log(ctx.oneLine(s));
   for (const a of plan.actions) {
+    const named = (gaps) =>
+      gaps.map((g) => (a.labels[g] && a.labels[g] !== g ? `${g} (${a.labels[g]})` : g)).join(", ");
     print(`${a.feature} · ${a.title}`);
-    if (a.deepen.length) print(`  ${t("depth.deepen")} ${a.deepen.join(", ")}`);
-    if (a.reanalyse.length) print(`  ${t("depth.reanalyse")} ${a.reanalyse.join(", ")}`);
-    if (a.questions.length) print(`  ${t("depth.questions")} ${a.questions.join(", ")}`);
+    if (a.deepen.length) print(`  ${t("depth.deepen")} ${named(a.deepen)}`);
+    if (a.reanalyse.length) print(`  ${t("depth.reanalyse")} ${named(a.reanalyse)}`);
+    if (a.questions.length) print(`  ${t("depth.questions")} ${named(a.questions)}`);
   }
   if (plan.left.length) console.log(t("depthLeft", { n: plan.left.length }));
   return 0;

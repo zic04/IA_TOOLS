@@ -370,6 +370,15 @@ describe("the depth loop", () => {
         deepen: ["B-01.fields", "B-01.paging", "US-01.criteria"],
         reanalyse: ["B-01.empty", "US-02.criteria"],
         questions: ["B-01.match"],
+        // How each gap reads, for the writer and the analyst.
+        labels: {
+          "B-01.fields": "Search an order · search/fields",
+          "B-01.paging": "Search an order · search/paging",
+          "US-01.criteria": "US-01",
+          "B-01.empty": "Search an order · search/empty",
+          "US-02.criteria": "US-02",
+          "B-01.match": "Search an order · search/match",
+        },
       },
     ]);
     assert.deepEqual(r.state, { "F-01": { rounds: 1 } });
@@ -531,6 +540,13 @@ describe("analysis.mjs on a project", () => {
       let r = script(["depth", "--project", docs, "--json"]);
       assert.equal(r.status, 0, r.stderr);
       assert.deepEqual(JSON.parse(r.stdout).actions[0].deepen, ["B-01.fields", "B-01.order"]);
+      // In words: each gap with how it reads (the card's title, the rubric's label in the project's language).
+      fs.rmSync(path.join(docs, ".doc-kit", "analysis", "depth.json"));
+      r = script(["depth", "--project", docs]);
+      assert.match(
+        r.stdout,
+        /deepen from the analysis: B-01\.fields \(Search an order · Fields searched\), B-01\.order \(Search an order · Order of results\)\n/,
+      );
       assert.deepEqual(
         JSON.parse(fs.readFileSync(path.join(docs, ".doc-kit", "analysis", "depth.json"), "utf8")).features,
         { "F-01": { rounds: 1 } },

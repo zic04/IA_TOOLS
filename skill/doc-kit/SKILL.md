@@ -83,6 +83,9 @@ identical for a given template, so a wave shares its prompt cache).
 | `consolidation` | 6 | all | — (model of the consolidation file) | — |
 | `findings-verification` | 6 | all (writes in Develop) | `doc-kit-reviewer` | the findings pages only |
 | `page-corrections` | 6 | all | `doc-kit-writer` | reported pages and the glossary |
+| `behaviour-analysis` | 4b | Product (and the Develop counterpart) | `doc-kit-analyst`, one per feature | `.doc-kit/analysis/<feature>.json` only |
+| `feature-mechanism` | 5 | Develop | `doc-kit-writer`, one per feature | the technical counterpart page of a feature sheet |
+| `deepen` | 5b | Product | `doc-kit-writer` (on `haiku`), one per feature sheet | the gaps of one feature sheet, from the depth loop |
 | `journey`, `troubleshooting` | 7 | Develop | `doc-kit-writer`, one per journey | its pages, diagram, fact sheet |
 | `code-health` | 8 | Develop | `doc-kit-reviewer` | api-surface/dependencies/agent-instructions/tests-quality/threat-model |
 | `access-ownership` | 8 | Administer (Operate) | `doc-kit-writer` | the access-ownership page |
@@ -93,7 +96,8 @@ identical for a given template, so a wave shares its prompt cache).
 
 Agent types (`skill/doc-kit/agents/*.md`, Claude Code agent definitions, ARCHITECTURE.md §6.11): `doc-kit-triage`
 (`haiku`, Read/Grep/Glob only — cheap, read-only decisions), `doc-kit-writer` (`sonnet`, also Edit/Write/Bash — the
-default for writing and updating), `doc-kit-reviewer` (`opus`, also Edit/Write/Bash — the most capable model, for
+default for writing and updating), `doc-kit-analyst` (`sonnet`, Read/Grep/Glob/Write/Bash — traces one feature in
+the code and writes its analysis, nothing else), `doc-kit-reviewer` (`opus`, also Edit/Write/Bash — the most capable model, for
 the few judgments every later page depends on: the inventory, the code-health and production dossiers, the
 verification of findings). `doc-kit skill install` copies them next to the skills folder; `doctor` reports them
 like the skill.
@@ -132,8 +136,8 @@ like the skill.
 
   | Model | Briefs |
   |---|---|
-  | `haiku` | `triage`, `translate` |
-  | `sonnet` | the writing briefs, `capture-plans`, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
+  | `haiku` | `triage`, `translate`, `deepen` |
+  | `sonnet` | the writing briefs, `behaviour-analysis`, `feature-mechanism`, `capture-plans`, `update`, `page-corrections`, `findings-verification`, `maintainability-review` |
   | `opus` | `inventory`, `code-health`, `security-review`, `production-technical` |
 
   Pass the model to the agent launch: it overrides the agent type's own model. A high-severity finding may still

@@ -37,15 +37,16 @@ main table is filled row by row from `facts/<source>.json` before the agent even
 guidance until someone — person or agent — writes them. Without the facts file, `--prefill` refuses to run
 (`doc-kit facts` first); on a type with nothing to prefill, it is a usage error.
 
-## Three agent types, three prices
+## Four agent types, three prices
 
 | Agent | Model | Tools | Used for |
 |---|---|---|---|
 | `doc-kit-triage` | Haiku | Read, Grep, Glob (read-only) | Deciding whether a page is intact, to edit, or to rewrite |
-| `doc-kit-writer` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Writing and updating pages |
+| `doc-kit-writer` | Sonnet | Read, Grep, Glob, Edit, Write, Bash | Writing and updating pages, and the feature briefs `feature-mechanism` and `deepen` (the latter routed to Haiku) |
+| `doc-kit-analyst` | Sonnet | Read, Grep, Glob, Write, Bash | Tracing one feature in the code and writing its analysis (`behaviour-analysis`), nothing else |
 | `doc-kit-reviewer` | Opus | Read, Grep, Glob, Edit, Write, Bash (read-only use) | The inventory, the code health and security reviews, verifying findings (on Sonnet by default), the production dossier |
 
-`doc-kit skill install` copies the three Claude Code agent definitions next to the skills folder; `doctor` reports
+`doc-kit skill install` copies the four Claude Code agent definitions next to the skills folder; `doctor` reports
 them like the skill itself (current, missing, outdated, modified). Every brief names its agent type in a front
 matter line, and is split so that its common part (rules, safety, syntax) comes first, byte for byte identical
 whatever the variables: agents of the same wave share their prompt cache instead of paying for it again each time.

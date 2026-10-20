@@ -11,8 +11,8 @@ export const SKILL_ROOT = path.resolve(HERE, "..");
 export const WORK_DIR = ".doc-kit";
 export const LANGUAGES = ["en", "fr"];
 export const AGENTS_DIR = path.join(SKILL_ROOT, "agents");
-/** The three agent types of the economy of the agents (ARCHITECTURE.md §6.11), in a stable order. */
-export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"];
+/** The agent types of the economy of the agents (ARCHITECTURE.md §6.11), in a stable order. */
+export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer", "doc-kit-analyst"];
 
 // ─── Messages (en, fr) ───────────────────────────────────────────────────────
 // skill/doc-kit/i18n/<lang>.json, installed with the skill: a `common` section, then one section per script
@@ -326,6 +326,9 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     diagramsDir: slash(config.paths?.diagrams ?? "diagrams"),
     factsDir: slash(config.paths?.facts ?? "facts"),
     featuresFile: featuresFileOf(config),
+    // The analyses of the features (ARCHITECTURE.md §6.11a): the skill's scripts, the project's kinds of behaviour.
+    scriptsDir: slash(path.join(SKILL_ROOT, "scripts")),
+    behavioursFile: typeof config.behaviours?.file === "string" ? slash(config.behaviours.file) : "",
     targetsFile: "captures/targets.mjs",
     guideFile: "WRITING-GUIDE.md",
     findingsPage: FINDINGS_PAGE[language] ?? FINDINGS_PAGE.en,
@@ -452,13 +455,14 @@ export function outputBySize(template) {
  * Model of each brief by default (ETUDE-CAPTURES.md §7, G4): the cheapest model whose quality suffices for the
  * task, instead of the agent type's own model. A brief absent here runs on its agent type's model
  * (agents/<type>.md). `llm.routing` in doc.config.mjs overrides any entry ({ "<brief>": "<model>" }).
- *   haiku   triage and translation: decisions and faithful rewriting from a single dossier
+ *   haiku   triage, translation and deepening: decisions and faithful rewriting from a single dossier
  *   sonnet  writing, updates, corrections, verification of findings, maintainability review
  *   opus    the few judgments every later page depends on (inventory, code health, security, production dossier)
  */
 export const DEFAULT_ROUTING = Object.freeze({
   triage: "haiku",
   translate: "haiku",
+  deepen: "haiku",
   "findings-verification": "sonnet",
   "maintainability-review": "sonnet",
   "page-corrections": "sonnet",

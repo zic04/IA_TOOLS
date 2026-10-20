@@ -51,7 +51,7 @@ same `file:line`. The filled briefs go to `.doc-kit/brief-<template>.md`; an unf
 with exit code 1.
 
 **Economy of the agents.** Each brief's own front matter names the Claude Code agent type to launch it with:
-`doc-kit-triage` (`haiku`, read-only), `doc-kit-writer` (`sonnet`), `doc-kit-reviewer` (`opus`, read-only) — copied
+`doc-kit-triage` (`haiku`, read-only), `doc-kit-writer` (`sonnet`), `doc-kit-analyst` (`sonnet`, traces one feature and writes its analysis), `doc-kit-reviewer` (`opus`, read-only) — copied
 next to the skills folder by `doc-kit skill install`. Two maintenance briefs, `triage` and `update`, read
 `doc-kit context <page> --update` to decide or redo a page from what changed. `brief.mjs --estimate` gives the
 input and output tokens of a brief and its cost, when `llm` is set in `doc.config.mjs` (`llm.currency`,

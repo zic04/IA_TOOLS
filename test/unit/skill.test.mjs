@@ -1,5 +1,5 @@
 // skill install: copy into a TEMPORARY skills folder only (never the real ~/.claude), {{KIT_PATH}} replaced,
-// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the three agent
+// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the agent
 // types (ARCHITECTURE.md §6.11) are copied next to the skills folder and reported the same way.
 // brief.mjs: every brief template declares its agent type and its common part is byte-identical whatever the
 // per-agent variables (code, pages…), so a wave's agents share their prompt cache; --estimate.
@@ -410,6 +410,41 @@ const TEMPLATE_VARIANTS = {
     ["--var", "code=cp1", "--var", "pages=/orders"],
     ["--var", "code=cp2", "--var", "pages=/settings"],
   ],
+  // The analyses of the features (ARCHITECTURE.md §6.11a): one feature per agent.
+  "behaviour-analysis": [
+    [
+      "--var",
+      "feature=F-01",
+      "--var",
+      "featureTitle=Track",
+      "--var",
+      "size=S",
+      "--var",
+      "level=standard",
+      "--var",
+      "page=features/track",
+    ],
+    [
+      "--var",
+      "feature=F-02",
+      "--var",
+      "featureTitle=Approve",
+      "--var",
+      "size=L",
+      "--var",
+      "level=detailed",
+      "--var",
+      "page=features/approve",
+    ],
+  ],
+  deepen: [
+    ["--var", "feature=F-01", "--var", "page=features/track", "--var", "gaps=B-01.match"],
+    ["--var", "feature=F-02", "--var", "page=features/approve", "--var", "gaps=US-02.criteria, rules"],
+  ],
+  "feature-mechanism": [
+    ["--var", "feature=F-01", "--var", "sheet=features/track", "--var", "page=take-over/architecture/track"],
+    ["--var", "feature=F-02", "--var", "sheet=features/approve", "--var", "page=take-over/architecture/approve"],
+  ],
 };
 const AGENT_TYPES_KNOWN = new Set(AGENT_TYPES);
 
@@ -525,6 +560,28 @@ describe("brief.mjs --estimate", () => {
     }
   });
 
+  test("behaviour-analysis: its check command quotes the script's path and runs from the documentation folder", () => {
+    for (const lang of ["en", "fr"]) {
+      const { app, docs } = briefProject({ language: lang });
+      try {
+        const output = path.join(docs, ".doc-kit", "analysis-brief.md");
+        const vars = ["feature=F-01", "featureTitle=Track", "size=M", "level=standard", "page=features/track"];
+        const r = brief(
+          ["behaviour-analysis", "--project", docs, "--output", output, ...vars.flatMap((v) => ["--var", v])],
+          app,
+        );
+        assert.ok(r.code === 0 || r.code === 1, r.err);
+        const scripts = path.join(SKILL_SOURCE, "scripts").split(path.sep).join("/");
+        assert.ok(
+          fs.readFileSync(output, "utf8").includes(`\`node "${scripts}/analysis.mjs" check F-01 --project .\``),
+          `${lang}: the check line`,
+        );
+      } finally {
+        fs.rmSync(app, { recursive: true, force: true });
+      }
+    }
+  });
+
   test("a brief by the size of its subject (output-tokens): the output of the size given; without it, said", () => {
     const { app, docs } = briefProject({ language: "en" });
     try {
@@ -533,6 +590,10 @@ describe("brief.mjs --estimate", () => {
       let r = brief([template, "--project", docs, "--estimate", "--var", "size=m"], app);
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /^ {2}output: 250 tokens \(a subject of size M, the brief's output-tokens\)\n/m);
+      // The analysis of a feature: its output by size.
+      const analysis = brief(["behaviour-analysis", "--project", docs, "--estimate", "--var", "size=L"], app);
+      assert.match(analysis.out, /^Estimate for behaviour-analysis — agent doc-kit-analyst, model sonnet\n/);
+      assert.match(analysis.out, /^ {2}output: 18000 tokens \(a subject of size L/m);
       r = brief([template, "--project", docs, "--estimate"], app);
       assert.match(
         r.out,
@@ -571,6 +632,8 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
     const { briefModel, DEFAULT_ROUTING } = await import("../../skill/doc-kit/scripts/common.mjs");
     assert.equal(briefModel("translate", "doc-kit-writer"), "haiku");
     assert.equal(briefModel("triage", "doc-kit-triage"), "haiku");
+    assert.equal(briefModel("deepen", "doc-kit-writer"), "haiku", "deepening a sheet from its digest");
+    assert.equal(briefModel("behaviour-analysis", "doc-kit-analyst"), "sonnet", "the analyst's own model");
     assert.equal(briefModel("findings-verification", "doc-kit-reviewer"), "sonnet");
     assert.equal(briefModel("security-review", "doc-kit-reviewer"), "opus");
     assert.equal(briefModel("writing-batch", "doc-kit-writer"), "sonnet", "not routed: the agent type's model");
@@ -664,6 +727,11 @@ describe("the project's files, read by the skill's scripts: the current names on
       assert.equal(vars.glossaryFile, "contenu/glossary.json");
       assert.equal(vars.targetsFile, "captures/targets.mjs");
       assert.equal(vars.guideFile, "WRITING-GUIDE.md");
+      // The analyses (ARCHITECTURE.md §6.11a): the skill's scripts; the project's kinds of behaviour, when declared.
+      assert.equal(vars.scriptsDir, path.join(SKILL_SOURCE, "scripts").split(path.sep).join("/"));
+      assert.equal(vars.behavioursFile, "");
+      const own = baseVariables(dir, { product: { name: "A" }, behaviours: { file: "kinds\\shop.json" } }, "en", {});
+      assert.equal(own.behavioursFile, "kinds/shop.json");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

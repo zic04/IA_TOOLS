@@ -167,7 +167,7 @@ async function diagnose(ctx, { network = false } = {}) {
     command: BRAND.command,
   });
 
-  // Agent types (ARCHITECTURE.md §6.11: doc-kit-triage, doc-kit-writer, doc-kit-reviewer), installed alongside the skill.
+  // Agent types (ARCHITECTURE.md §6.11: doc-kit-triage, -writer, -reviewer, -analyst), installed alongside the skill.
   const agents = agentsStatus({ env: ctx.env });
   const agentsKeys = { current: "ok", missing: "warn", outdated: "warn", modified: "warn", otherKit: "warn" };
   add("agents", agentsKeys[agents.state], "env", `cli.doctor.agents.${agents.state}`, {

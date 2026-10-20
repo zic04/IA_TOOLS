@@ -86,8 +86,9 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 
 **Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
 `brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
-inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief (ARCHITECTURE.md §6.11, "Economy of the
-agents"). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
+inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief,
+`doc-kit-analyst` for `behaviour-analysis` (ARCHITECTURE.md §6.11, "Economy of the agents"; the new briefs
+`behaviour-analysis`, `feature-mechanism` and `deepen`: §6.11a). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
 prompt is **the brief's full text**, with its common part first and its variables last, followed by one line:
 
 ```
@@ -136,6 +137,10 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `pages`, `reads`, `topic`, `diagram` | `--var` | page ids, pages to read, "the journey of an order", t-order-journey |
 | `portalCaptures`, `infraDir` | `--var` (`production-technical` brief) | folder of screenshots, infrastructure code |
 | `description`, `stack`, `labels`, `referencePage` | `extra.briefs` | "order management", "Next.js App Router, Prisma", `messages/en.json`, `configure/approvals/chains` |
+| `feature`, `featureTitle`, `size`, `level` | `--var` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
+| `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
+| `focus` | `--var` (optional, `behaviour-analysis`): the items `analysis.mjs depth` lists to analyse again; the brief then asks for a second pass on those items only | B-01.match (Search an order · Matching), US-02.criteria |
+| `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder; `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
 | `otherWriters`, `productionNotes`, `dataPolicy`, `factSheet`, `referenceJourney` | `--var` or `extra.briefs` (optional) | "inv, ast, tbl"; "open no order other than…"; "fictitious customers only"; yes; take-over/order-journey |
 
 Conditional blocks in templates: `{{#if key}}…{{/if}}` (non-empty value), `{{#if key=value}}…{{/if}}`,

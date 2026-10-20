@@ -53,7 +53,7 @@ le même `fichier:ligne`. Les briefs remplis vont dans `.doc-kit/brief-<template
 le script avec le code de sortie 1.
 
 **Économie des agents.** L'en-tête de chaque brief nomme le type d'agent Claude Code pour le lancer :
-`doc-kit-triage` (`haiku`, lecture seule), `doc-kit-writer` (`sonnet`), `doc-kit-reviewer` (`opus`, lecture
+`doc-kit-triage` (`haiku`, lecture seule), `doc-kit-writer` (`sonnet`), `doc-kit-analyst` (`sonnet`, suit une fonctionnalité et écrit son analyse), `doc-kit-reviewer` (`opus`, lecture
 seule) — copiés près du dossier des skills par `doc-kit skill install`. Deux briefs de maintenance, `triage` et
 `update`, lisent `doc-kit context <page> --update` pour décider ou refaire une page d'après ce qui a changé.
 `brief.mjs --estimate` donne les jetons d'entrée et de sortie d'un brief et son coût, quand `llm` est renseigné

@@ -185,14 +185,14 @@
       "shortTitle": "Skill",
       "icon": "gear",
       "subtitle": "Un skill qui mène Claude Code à travers toute la méthode, avec des agents en parallèle et la ligne de commande.",
-      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Trois types d'agents, chiffrés et mesurés"],
+      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Quatre types d'agents, chiffrés et mesurés"],
       "groups": [
         {
           "title": "Le skill",
           "pages": [
             { "id": "skill/install", "title": "Installer le skill", "menuTitle": "Installer", "summary": "doc-kit skill install, son dossier cible, et comment doctor signale une copie périmée.", "template": "recipe" },
             { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" },
-            { "id": "skill/cost-and-speed", "title": "Coût et vitesse", "menuTitle": "Coût et vitesse", "summary": "Ce qui ne coûte aucun jeton, doc-kit context, new --prefill, les trois types d'agents, et estimer face à mesurer ce que dépensent les agents.", "template": "technical" }
+            { "id": "skill/cost-and-speed", "title": "Coût et vitesse", "menuTitle": "Coût et vitesse", "summary": "Ce qui ne coûte aucun jeton, doc-kit context, new --prefill, les quatre types d'agents, et estimer face à mesurer ce que dépensent les agents.", "template": "technical" }
           ]
         }
       ]

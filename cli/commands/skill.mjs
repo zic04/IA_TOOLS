@@ -1,14 +1,14 @@
 // skill install [--target <skills folder>] [--force] [--hooks [--settings <file>]]
-// Installs the Claude Code skill of the kit (skill/doc-kit) into <skills folder>/doc-kit, and its three agent
-// types (ARCHITECTURE.md §6.11) into <skills folder>/../agents/ (Claude Code's own agents folder, next to the
-// skills folder: only doc-kit-triage.md, doc-kit-writer.md and doc-kit-reviewer.md are ever written there, no
+// Installs the Claude Code skill of the kit (skill/doc-kit) into <skills folder>/doc-kit, and its agent types
+// (ARCHITECTURE.md §6.11) into <skills folder>/../agents/ (Claude Code's own agents folder, next to the skills
+// folder: only the kit's doc-kit-*.md agent files — triage, writer, reviewer, analyst — are ever written there, no
 // other file in that shared folder is touched):
 //   <skills folder> = --target, otherwise $CLAUDE_CONFIG_DIR/skills, otherwise ~/.claude/skills.
 // {{KIT_PATH}} is replaced with the kit's absolute path (forward slashes) in SKILL.md, references/*.md and
 // scripts/*.mjs. A fingerprint file (.doc-kit-skill.json, inside <skills folder>/doc-kit/) covers both the
 // skill and the agent files, and lets `doctor` report either copy as outdated or modified.
 // Only the doc-kit folder is ever written or replaced; a doc-kit folder without fingerprint (not installed by
-// this command) is left alone unless --force. The three agent files are always written or replaced (they have
+// this command) is left alone unless --force. The agent files are always written or replaced (they have
 // no "foreign" concept: the shared agents folder is never owned exclusively by doc-kit).
 import fs from "node:fs";
 import os from "node:os";

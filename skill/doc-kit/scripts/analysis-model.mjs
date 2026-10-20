@@ -380,6 +380,10 @@ export function depthPlan({ features, analyses, state, rubricLabel }) {
       continue;
     }
     plan.reanalyse = doc ? open.map((o) => o.gap) : ["*"];
+    // How each gap reads (a card's title and a rubric's label, a story, a section): the writer and the analyst
+    // get it with the ids.
+    const named = [...plan.deepen, ...plan.reanalyse, ...plan.questions].filter((g) => labels.has(g));
+    plan.labels = Object.fromEntries(named.map((g) => [g, labels.get(g).gap]));
     if (plan.deepen.length || plan.reanalyse.length) {
       next[f.id] = { rounds: rounds + 1 };
       actions.push(plan);
