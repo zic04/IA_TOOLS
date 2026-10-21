@@ -320,8 +320,9 @@ export async function compareWithReference({
       if (!citedLines.has(f)) citedLines.set(f, []);
       citedLines.get(f).push([proof.from, proof.to ?? proof.from]);
     }
-    // A file also reached through the screen's imports or layouts (a sidebar whose menu label the page cites) is
-    // direct only because of the proof: with the cited lines intact, it is judged as the shared file it otherwise is.
+    // A file also reached another way — the screen's imports or layouts (a sidebar whose menu label the page cites),
+    // its topic group — is direct only because of the proof: with the cited lines intact, it is judged as the shared
+    // file it otherwise is.
     for (const reason of reasons) {
       const dep = deps.files.find((f) => f.path === reason.path);
       const cited = citedLines.get(reason.path);

@@ -383,16 +383,17 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
         [{ page: "risks/findings", ref: "order.html:22", reason: "textNotFound" }],
       );
       // The pages to review, by priority: use/settings (its own screen changed: also a capture to retake) and
-      // risks/findings (the line of its claim changed) are direct; features/approve-order reaches serve.mjs through
-      // its counterpart (shared); the two takeover pages cite serve.mjs lines that v2 left intact (the new route
-      // was added elsewhere): probably intact, for the triage.
+      // risks/findings (the line of its claim changed) are direct; features/approve-order too, its feature's own
+      // sources (features.json: approval.html, serve.mjs) having changed; secure/api-surface, in its topic group,
+      // reaches them through it (shared), its own serve.mjs proofs intact; secure/access-ownership cites only
+      // serve.mjs lines that v2 left intact (the new route was added elsewhere): probably intact, for the triage.
       assert.deepEqual(
         report.review.map((x) => [x.page, x.priority]),
         [
-          ["features/approve-order", "shared"],
+          ["features/approve-order", "direct"],
           ["risks/findings", "direct"],
           ["secure/access-ownership", "probablyIntact"],
-          ["secure/api-surface", "probablyIntact"],
+          ["secure/api-surface", "shared"],
           ["use/settings", "direct"],
         ],
       );
@@ -425,7 +426,8 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
 
       // ─── --mark the treated pages (not --all): sync.json follows, nothing stays outstanding ───────────────
       // risks/findings: its claim still holds on the renamed line (the link keeps its data-prefetch), re-checked;
-      // the two probably-intact takeover pages: confirmed by the triage, marked without being rewritten.
+      // the two takeover pages: confirmed by the triage (their routes and access unchanged), marked without being
+      // rewritten.
       r = await cli([
         "sync",
         "--mark",

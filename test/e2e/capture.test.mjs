@@ -179,7 +179,8 @@ describe("capture", () => {
     assert.equal(r.code, 0, r.out + r.err);
     assert.match(r.out, /2 images checked \(2 cited\) — 0 errors, 0 warnings\./);
     assert.match(r.out, /✔ No secret found/);
-    assert.match(r.out, /Coverage: skipped/);
+    // The demo declares its features (features.json, coverage adapter "features"): each one covered by its sheet.
+    assert.match(r.out, /✔ Features: 2\/2/);
   });
 
   test("forbidden routes: refused before opening; a prefetch is aborted and counted, the capture goes on; a click towards one stops it; the server never renders it", async () => {

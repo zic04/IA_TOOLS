@@ -1328,6 +1328,55 @@ describe("engine/sync/report.mjs: a file reached only through the page's proofs"
     assert.deepEqual(touchedLines(""), []);
     assert.equal(touchedLines(null), null);
   });
+
+  test("its cited lines intact: through its proofs only → probablyIntact; through its topic group too → shared", async () => {
+    // ARCHITECTURE.md §6.10 (review): reached ONLY through proofs, the reason is kept (proofsIntact) and ignored by
+    // the priority; reached another way too (imports, layouts, its topic group), the file is judged as the shared
+    // file it otherwise is (the demo's secure/api-surface in the cycle of test/e2e/sync.test.mjs).
+    const review = async (grouped) => {
+      const fx = syncFixtureCopy();
+      try {
+        const tocFile = path.join(fx.root, "content", "toc.json");
+        const raw = JSON.parse(fs.readFileSync(tocFile, "utf8"));
+        if (grouped) raw.sections[1].groups[0].pages[0].counterpart = "use/orders";
+        fs.writeFileSync(tocFile, JSON.stringify(raw, null, 2));
+        const page = path.join(fx.root, "content", "take-over", "orders-api.md");
+        fs.appendFileSync(page, "\nThe orders screen calls it [[verified app/orders/page.tsx:1]].\n");
+        const config = await syncConfig(fx.root);
+        const toc = readToc(fx.root, config);
+        const inventory = await runCoverage({ root: fx.root, config });
+        const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+        const { reference } = await markPages({ root: fx.root, config, toc, all: true, ...at });
+        // A line added at the end of the file: its cited line 1 is intact.
+        fs.appendFileSync(path.join(fx.appDir, "app", "orders", "page.tsx"), "// one more line\n");
+        const r = await compareWithReference({
+          root: fx.root,
+          config,
+          toc,
+          reference,
+          since: null,
+          git: createGit(() => null, fx.appDir),
+          inventory,
+          plans: [],
+          appDir: fx.appDir,
+          version: "1.0.0",
+          commit: "c0ffee",
+          factsDir: config.paths.facts,
+        });
+        const entry = r.review.find((x) => x.page === "take-over/orders-api");
+        return { priority: entry?.priority, reason: entry?.reasons.find((x) => x.path === "app/orders/page.tsx") };
+      } finally {
+        fx.release();
+      }
+    };
+    const alone = await review(false);
+    assert.equal(alone.priority, "probablyIntact");
+    assert.equal(alone.reason?.proofsIntact, true);
+    const grouped = await review(true);
+    assert.equal(grouped.priority, "shared", "reached through its topic group too");
+    assert.equal(grouped.reason?.kind, "shared");
+    assert.ok(!grouped.reason.proofsIntact);
+  });
 });
 
 describe("a verified claim badge is a proof (sync and audit)", () => {
