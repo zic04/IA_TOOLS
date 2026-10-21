@@ -266,9 +266,11 @@ entries between a project's `kit` range and the installed version.
 
 - The security test could not see a quadratic scanner on a fast machine: on GitHub's Linux runners its canary (a
   scanner written to be quadratic) took 10 ms at 16 times its input, under the 20 ms from which a growth is trusted,
-  and the test failed there. A step that looks quadratic but is that short is now measured on an input 4 times longer,
-  up to 256 times, until it can be trusted; a linear scanner still stops at 16 times (`test/tools/growth.mjs`, tested
-  on a clock the test plays).
+  and the test failed there — a real quadratic scanner would have passed unseen the same way. A step that short
+  which may hide a quadratic growth (it looks quadratic, or the size below was too fast to measure) is now measured
+  on an input 4 times longer, up to 256 times, until it can be trusted; a scanner whose steps stay under 6 times
+  still stops at 16 times (`test/tools/growth.mjs`, tested on a clock the test plays). SECURITY.md writes the limit
+  that stays: a scanner whose linear part outweighs its quadratic part at every size measured.
 - `usage.mjs scan` counted an API response once per line of the transcript — Claude Code writes one per block of a
   response, each repeating its usage — and kept the partial output count a transcript records for a response that
   calls a tool: in the pilot of 0.4.0, 620,529 tokens for 416,653 used. Each response now counts once, even across

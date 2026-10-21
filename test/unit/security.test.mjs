@@ -144,8 +144,9 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
     assert.deepEqual(slow, []);
     // Four times the input, more than eight times the time (and long enough to measure): quadratic, whatever its
     // time at the size above — a quadratic scanner with a small constant would block on a large file. Measured from
-    // N to 4N and from 4N to 16N, so that a constant of a few milliseconds at 4N is seen too: the canary, a scanner
-    // written to be quadratic, proves it.
+    // N to 4N and from 4N to 16N, and further (up to 256N) while a step under the floor may hide a quadratic growth,
+    // so that a constant of a few milliseconds, or a fast machine, does not hide one: the canary, a scanner written to
+    // be quadratic, proves it (test/tools/growth.mjs, test/unit/redos-growth.test.mjs).
     const quadratic = (steps) => steps.find((g) => g.ms >= GROWTH_MIN_MS && g.ratio > GROWTH_RATIO);
     assert.ok(quadratic(canary || []), `the canary was not seen as quadratic: ${JSON.stringify(canary)}`);
     const grown = results

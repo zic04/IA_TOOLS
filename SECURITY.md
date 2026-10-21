@@ -145,10 +145,13 @@ as untrusted input:
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
   written with escaped slashes) is read in a bounded time;
-- the ReDoS test also measures growth: the slowest inputs of each scanner are built again 4 and 16 times longer, and
-  a scanner more than eight times slower from one size to the next (a linear one takes four times as long, a
-  quadratic one sixteen) is quadratic, and fails; a scanner written to be quadratic (the canary) must be caught, so
-  that the check cannot pass by measuring nothing;
+- the ReDoS test also measures growth: the slowest inputs of each scanner are built again 4 and 16 times longer —
+  longer still, up to 256 times, while a step under 20 ms may hide a quadratic growth (it looks quadratic, or the
+  size below was too fast to measure), so that a fast machine cannot hide one — and a scanner more than eight times
+  slower from one size to the next in a step of 20 ms or more (a linear one takes four times as long, a quadratic
+  one sixteen) is quadratic, and fails; a scanner written to be quadratic (the canary) must be caught, so that the
+  check cannot pass by measuring nothing. Limit: a ratio shows only the part of the time that grows — a scanner
+  whose linear part outweighs its quadratic part at every size measured (up to 768,000 characters) is not seen;
 - the skill's `scripts/analysis.mjs check` reads the files that the proofs of an analysis name (an agent's output,
   written from the application's code, ARCHITECTURE.md §6.11a), only to count their lines. A path that is not
   relative, has an empty, `.` or `..` segment, a backslash, a colon or a NUL is refused without being read.
