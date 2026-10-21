@@ -17,6 +17,7 @@ import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath }
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
 import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { MEASURABLE_MS } from "../tools/growth.mjs";
 
 /** Source files of the kit (what ships): engine, cli, adapters, skill scripts, templates. */
 function sources() {
@@ -105,7 +106,8 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
   // terminates the worker after a timeout and names the check that was running.
   const BUDGET_MS = 300;
   const GROWTH_RATIO = 8;
-  const GROWTH_MIN_MS = 20;
+  // The time from which a ratio is trusted: the harness measures a suspect step longer until it reaches it.
+  const GROWTH_MIN_MS = MEASURABLE_MS;
   // A hang detector, not a budget: with every stack adapter registered the run takes 25 to 45 s on a loaded machine.
   const TIMEOUT_MS = 180_000;
   test(`every scanner of untrusted text stays under ${BUDGET_MS} ms on adversarial input`, async () => {

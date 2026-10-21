@@ -1,7 +1,8 @@
 // Worker of the ReDoS test (test/unit/security.test.mjs): runs every expression that scans untrusted text on
 // adversarial inputs and posts { start: name } before each check, then { name, ms, input, growth } after it —
-// `growth`: the three slowest inputs built again 4 and 16 times longer, each size's time against the size below
-// (a linear scanner takes about four times as long, a quadratic one sixteen), with its time and its input. Last,
+// `growth`: the three slowest inputs built again 4 and 16 times longer — longer still while a step looks quadratic
+// and is too short to be trusted (test/tools/growth.mjs) — each size's time against the size below (a linear
+// scanner takes about four times as long, a quadratic one sixteen), with its time and its input. Last,
 // { canary }: the growth of a scanner written to be quadratic, which the test must see as such. A check that never
 // ends (catastrophic backtracking) is caught by the test, which terminates this worker after a timeout and names the
 // last check started.
@@ -53,6 +54,7 @@ import {
 import { KitError } from "../../engine/project/errors.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
+import { growthOf as measureGrowth } from "./growth.mjs";
 import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
@@ -531,41 +533,14 @@ const timed = (fn, input) => {
   fn(input);
   return performance.now() - t;
 };
-/** The best of `runs` runs (two by default): a pause of the collector during one of them is not taken for growth. */
-const best = (fn, input, runs = 2) => Math.min(...Array.from({ length: runs }, () => timed(fn, input)));
-
-/** A step that looks quadratic (4 times the input, more than SUSPECT times the time) is measured again, AGAIN runs. */
-const SUSPECT = 6;
-const AGAIN = 5;
 
 /**
  * The growth of a check: its three slowest built inputs (the extra inputs have no shape to build longer) built again
- * at 4N and at 16N, each size's time against the size below. A step that looks quadratic is measured again, both
- * sizes, the better of each kept: a pause of the collector or a busy machine does not come back the same way twice,
- * a real growth does.
+ * at 4N and at 16N — longer while a step looks quadratic and is too short to be trusted (test/tools/growth.mjs).
  * @returns {Array<{ ratio: number, ms: number, input: string }>}
  */
-function growthOf(fn, times) {
-  const order = times.map((ms, i) => i).sort((a, b) => times[b] - times[a]);
-  const steps = [];
-  for (const i of order.slice(0, 3).filter((k) => k < SHAPES.length)) {
-    const [p, u] = SHAPES[i];
-    let shorter = INPUTS[i];
-    let before = times[i];
-    for (const n of [4 * N, 16 * N]) {
-      const long = built(p, u, n);
-      let ms = best(fn, long);
-      if (ms / Math.max(before, 0.05) > SUSPECT) {
-        before = Math.min(before, best(fn, shorter, AGAIN));
-        ms = Math.min(ms, best(fn, long, AGAIN));
-      }
-      steps.push({ ratio: ms / Math.max(before, 0.05), ms, input: long.slice(0, 60) });
-      before = ms;
-      shorter = long;
-    }
-  }
-  return steps;
-}
+const growthOf = (fn, times) =>
+  measureGrowth(fn, times, { shapes: SHAPES, inputs: INPUTS, size: N, build: built, time: timed });
 
 for (const [name, fn] of CHECKS) {
   parentPort.postMessage({ start: name });
