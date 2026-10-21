@@ -23,7 +23,7 @@
   { "term": "Legend", "pattern": "legends?", "def": "The numbered list of a :::screen block: item n explains marker n, so it has exactly one item per zone." },
   { "term": "Masking", "pattern": "masking", "def": "The replacement of sensitive values by dots in the page before a screenshot: GUIDs, local .env values, patterns and masks." },
   { "term": "Maturity level", "pattern": "maturity levels?", "def": "The level a site reaches, from 1 Skeleton to 4 Takeover, measured by doc-kit audit from indicators and thresholds." },
-  { "term": "Page template", "pattern": "page templates?", "def": "One of the 13 page types of the standard, with its sections, its required sections and its word limit." },
+  { "term": "Page template", "pattern": "page templates?", "def": "One of the 31 page types of the standard, with its sections, its required sections and its word limit." },
   { "term": "Read-only", "pattern": "read-only", "def": "The capture mode in which every request other than GET, HEAD and OPTIONS is aborted in the browser; on whenever a session is used." },
   { "term": "Required section", "pattern": "required sections?", "def": "A section a typed page must have: a ## heading that starts with its label, checked by the strict build." },
   { "term": "Session", "pattern": "sessions?", "def": "The cookies and local storage saved by doc-kit connect after you sign in; a secret that gives access to the application while it is valid." },

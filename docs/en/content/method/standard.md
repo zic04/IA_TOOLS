@@ -19,9 +19,9 @@ The five rules that matter most:
 | Document | What it holds | In this site |
 |---|---|---|
 | `standard/structure.md` | The four spaces and their parts, the groups, the required takeover pages, the home-page journeys, sub-pages | [Table of contents](#/write/table-of-contents) |
-| `standard/templates.md` and `templates.json` | The 13 general page types: purpose, sections, length, example, common mistakes | [Page templates](#/write/page-templates) |
+| `standard/templates.md` and `templates.json` | The 31 page types: purpose, sections, length, example, common mistakes (`templates.json` holds the 13 general ones) | [Page templates](#/write/page-templates) |
 | `standard/templates/business.json` | 5 more types for the Product space: feature, business rules, roles matrix, process, release notes | [Documenting each feature](#/spaces/business) |
-| `standard/templates/takeover.json` | 10 more for the takeover dossier, in the Develop space (access and ownership and the runbook in the Administer space): access and ownership, API surface, runbook, data model, dependencies, code map, tests, agent instructions, ADR, threat model | [Taking over a vibe-coded application](#/spaces/takeover) |
+| `standard/templates/takeover.json` | 13 more for the takeover dossier, in the Develop space (access and ownership and the runbook in the Administer space): access and ownership, API surface, runbook, data model, dependencies, code map, tests, agent instructions, ADR, threat model, security review, maintainability review, documentation cost | [Taking over a vibe-coded application](#/spaces/takeover) |
 | `standard/writing.md` | Nothing made up, proofs, exact labels, gaps, links, glossary, numbering of findings, diagrams | below |
 | `standard/captures.md` | Capture safety on production, the session, masking, zone quality, production or demo | [Demo or production](#/capture/safety) |
 | `standard/quality.md` | Blocking gates and warnings, with the command that checks each one | [The checks](#/publish/checks) |

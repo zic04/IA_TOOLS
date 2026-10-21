@@ -52,6 +52,7 @@ import {
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
+import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
 import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
@@ -507,6 +508,8 @@ export const CHECKS = [
   // The texts of an analysis an agent wrote from the application code (skill/doc-kit/scripts/analysis-model.mjs).
   ["analysis codeInText", (s) => codeInText(s)],
   ["analysis safeProofPath", (s) => safeProofPath(s)],
+  // The model a Claude Code transcript names (skill/doc-kit/scripts/transcript-usage.mjs).
+  ["transcript modelName", (s) => modelName(s)],
   // The texts of an ingested DAT (engine/inputs/reconcile.mjs).
   ["reconcile wordsOf", (s) => wordsOf(s).length],
   ["reconcile mentionsOf", (s) => mentionsOf(s, loadTechnologies()).size],

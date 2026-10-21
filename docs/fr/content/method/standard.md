@@ -21,9 +21,9 @@ Les cinq règles qui comptent le plus :
 | Document | Ce qu'il contient | Dans ce site |
 |---|---|---|
 | `standard/structure.fr.md` | Les quatre espaces et leurs parties, les groupes, les pages obligatoires de la reprise, les parcours de la page d'accueil, les sous-pages | [Sommaire, sous-pages et parcours](#/write/table-of-contents) |
-| `standard/templates.fr.md` et `templates.json` | Les 13 types de page généraux : rôle, sections, longueur, exemple, erreurs fréquentes | [Les gabarits de page](#/write/page-templates) |
+| `standard/templates.fr.md` et `templates.json` | Les 31 types de page : rôle, sections, longueur, exemple, erreurs fréquentes (`templates.json` contient les 13 généraux) | [Les gabarits de page](#/write/page-templates) |
 | `standard/templates/business.json` | 5 types de plus pour l'espace Produit : fiche de fonctionnalité, règles métier, matrice des rôles, processus, notes de version | [Documenter chaque fonctionnalité](#/spaces/business) |
-| `standard/templates/takeover.json` | 10 types de plus pour le dossier de reprise, dans l'espace Développer (accès et propriété et manuel d'exploitation dans l'espace Administrer) : accès et propriété, surface d'API, runbook, modèle de données, dépendances, carte du code, tests, instructions des agents, ADR, modèle de menaces | [Reprendre une application vibe-codée](#/spaces/takeover) |
+| `standard/templates/takeover.json` | 13 types de plus pour le dossier de reprise, dans l'espace Développer (accès et propriété et manuel d'exploitation dans l'espace Administrer) : accès et propriété, surface d'API, runbook, modèle de données, dépendances, carte du code, tests, instructions des agents, ADR, modèle de menaces, revue de sécurité, revue de maintenabilité, coût de la documentation | [Reprendre une application vibe-codée](#/spaces/takeover) |
 | `standard/writing.fr.md` | Rien d'inventé, preuves, libellés exacts, écarts, liens, glossaire, numérotation des constats, schémas | ci-dessous |
 | `standard/captures.fr.md` | Sécurité des captures en production, la session, le masquage, la qualité des zones, production ou démo | [Démo ou production : capturer sans risque](#/capture/safety) |
 | `standard/quality.fr.md` | Les barrières bloquantes et les avertissements, avec la commande qui contrôle chacun | [Les contrôles](#/publish/checks) |

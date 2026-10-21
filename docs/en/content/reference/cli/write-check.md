@@ -26,7 +26,7 @@ the table of contents. Never overwrites a file (exit code 1).
 
 | Option | Effect |
 |---|---|
-| `--template <type>` | One of the 13 types; required unless the page is already declared with one |
+| `--template <type>` | One of the 31 types; required unless the page is already declared with one |
 | `--title "…"` | Title and menu title; default: the last segment of the id, humanised |
 | `--parent <page-id>` | Makes it a sub-page (`"level": 2`), right after the parent and its sub-pages |
 | `--prefill` | Fills the page's main table from the facts (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` and `runbook` — its scheduled jobs — only); the other cells stay guidance placeholders |

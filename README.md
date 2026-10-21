@@ -14,16 +14,48 @@ site and checks it.
 
 - **One HTML file**, `dist/<Product>-Documentation.html`: no server, no network, no installation for the reader.
   Send it, store it, attach it.
+- **Four spaces, one per audience**: **Use** (the users, screen by screen), **Product** (the product owners:
+  feature sheets, rules, process), **Administer** (settings, access, operations, the technical architecture
+  document) and **Develop** (the developers and the takeover team: API, data, code, security). One source, one
+  export per space; the pages of one subject link to each other ("This topic for: Use · Product · Administer ·
+  Develop").
+- **Feature sheets as precise as a specification**: user stories, **behaviour cards** (search, filter, sort,
+  pagination, list, form, import, export, calculation, notification, workflow, scheduled job, permission check),
+  each answering its rubrics — the fields searched, contains or starts with, case and accents, when it triggers,
+  the order, the paging, the empty result, who may — business rules, and acceptance criteria in Given / When /
+  Then. The build checks them, the audit measures their depth.
+- **A Product board**: the backlog as a story map (epics in columns, their features with a depth gauge, a row of
+  user stories per version) or as a list (Epic › Feature › Story); one click opens the sheet. `doc-kit backlog
+  export` writes it for Azure DevOps, Jira, GitHub, GitLab or as JSON, with no network and no token.
 - **Annotated screenshots**: numbered markers placed on the real elements of the page, a legend, a **guided tour** that
   walks through them, a full-screen viewer, and a before / after slider.
 - **Navigation**: sections, groups, sub-pages, breadcrumbs, previous / next links, reading paths on the home page,
   search with `Ctrl+K`, tooltips on the glossary terms, shareable addresses down to a section.
 - **Light and dark themes**, diagrams included; **print** one page or the whole documentation, ready to save as PDF.
-- **A quality standard** with 13 page templates, checks that block a broken site (strict build, links, legends,
+- **Facts read from the code, offline**: routes and API, screens, data model, dependencies, behaviours (search,
+  filters, sort, paging, validation…), infrastructure, quality, security, history. Stacks: Next.js, Express,
+  NestJS, Angular, Vue and React routers, FastAPI, Django, Flask, Spring, ASP.NET, Laravel, Symfony, Go, Rails and
+  Rust; infrastructure: Terraform, Bicep, ARM, CloudFormation, Kubernetes, Helm, Docker Compose, Dockerfile,
+  Ansible and the pipelines of GitHub Actions, GitLab CI and Azure Pipelines. A matrix says what each adapter reads,
+  and `inputs status` how much of the code none of them read. Nothing from the application is run — except with
+  `--tools`, where knip loads its configuration files ([SECURITY.md](SECURITY.md)).
+- **Your existing documents**: `doc-kit inputs` takes the code of a shared repository, the URLs of each
+  environment, and the documents you already have — a technical architecture document in Word, a PDF, Markdown,
+  draw.io, PlantUML or Mermaid diagrams — handed to the agents as information to check, never as instructions to
+  follow (a notice heads each converted text; [SECURITY.md](SECURITY.md) gives the limit); `inputs reconcile`
+  compares the technologies each technical architecture document (DAT) names with what the code holds, and lists
+  the addresses it names, marking those of the application.
+- **Bricks**: each facts source, the external tools and the documentation audit is a brick, run again on its own
+  with what it needs (`doc-kit bricks run <id> --deps`, or every brick out of date with `--stale`).
+- **A quality standard** with 31 page templates, checks that block a broken site (strict build, links, legends,
   coverage of the application's routes, secrets), and an **audit** that measures the maturity of the site (levels 1
-  to 4) and lists what to do next.
+  to 4), the depth of the feature sheets included, and lists what to do next.
 - **Safe captures**: read-only with a session, forbidden routes never opened, automatic masking of GUIDs and of the
   application's `.env` values.
+- **A Claude Code skill** that writes the documentation with agents (`doc-kit skill install`): one analyst per
+  feature traces it in the code, each space's writers start from a digest of that analysis, a depth loop fills
+  what is missing and leaves the open questions to the product owner; the cost is estimated before each wave and
+  measured after.
 - **English and French** everywhere: the site, the templates, the messages, the standard and this documentation.
 
 ![The guided tour of an annotated screen, at step 2](docs/assets/tour.webp)
@@ -32,7 +64,7 @@ site and checks it.
 
 ```bash
 npm install -g <kit folder>       # or: npm link in the kit's folder (see Install)
-doc-kit init ../my-app            # detects the framework, asks the product name, language, URL, where to capture (local or demo, production read-only, none) and sign-in; shows a recap, then offers to open the browser
+doc-kit init ../my-app            # detects the framework, asks the product name, language, URL, where to capture (local or demo, production read-only, none), sign-in and who the documentation is for (the spaces); shows a recap, then asks for your sources and offers to open the browser
 doc-kit connect                   # opens Chromium on the app: you sign in (SSO and MFA work), then press Enter
 doc-kit capture                   # takes the example capture, read-only
 doc-kit dev                       # opens the site with live reload
@@ -74,12 +106,15 @@ with. `doc-kit doctor` checks the whole installation and prints the fix of every
 ```text
 doc-kit/
 ├─ cli/                 the doc-kit command: dispatcher and one module per command
-├─ engine/              build, capture, checks, audit, dev server, site template, theme, i18n, migrations
-├─ adapters/            coverage adapters (Next.js, React Router, i18n registry, glob) and sign-in adapters
+├─ engine/              build, capture, checks, facts, context, sync, audit, bricks, inputs, backlog, statistics,
+│                       dev server, site template, theme, migrations
+├─ adapters/            stack (16), infrastructure (12), coverage and sign-in adapters
 ├─ i18n/                every text of the kit, in English and in French
-├─ schemas/             JSON schemas of the configuration, table of contents, glossary, zones and capture plans
-├─ standard/            the documentation standard (English and French) and templates.json
-├─ templates/           the project skeleton written by `init`, and the 13 page templates (en, fr)
+├─ schemas/             JSON schemas of the configuration, table of contents, glossary, features, analyses,
+│                       backlog, bricks, inputs, zones and capture plans
+├─ standard/            the documentation standard (English and French), the page templates, the spaces, the
+│                       kinds of behaviour, the bricks, the adapters and the technologies
+├─ templates/           the project skeleton written by `init`, and the 31 page templates (en, fr)
 ├─ skill/doc-kit/       the Claude Code skill, installed with `doc-kit skill install`
 ├─ examples/            Acme Orders: a fictional demo app (+ a "version 2" for the update cycle) and its docs
 ├─ docs/                the kit's own documentation, built with the kit (docs/en, docs/fr)
@@ -96,6 +131,9 @@ docs/manual/
 ├─ captures/plans/      the capture plans (JavaScript modules exporting CAPTURES)
 ├─ images/              the captures (WebP) and their zones (zones/<id>.json)
 ├─ diagrams/            SVG diagrams that follow the theme
+├─ facts/               what `doc-kit facts` read in the code (routes, API, data, dependencies, behaviours…)
+├─ features.json        the features, when you declare them (their routes, files and behaviours)
+├─ usage/               the production statistics (`doc-kit stats`)
 ├─ theme/               the logo
 ├─ dist/                the built site (git-ignored)
 └─ .doc-kit/            the session and the work files (git-ignored)
@@ -112,9 +150,9 @@ node cli/doc-kit.mjs open --project docs/en
 
 It covers installing, writing (extended Markdown, page templates, table of contents, glossary, diagrams),
 capturing (plans, targets, zones, sessions, safety, masking), checking and publishing (build, checks, audit, export,
-CI), the reference of every configuration key, command, option, variable and adapter, the method, the Claude Code
-skill, upgrading the kit, and troubleshooting. Its **Page examples** section holds one complete page of each
-of the 13 types.
+CI), the four spaces, the Product board and the backlog export, the sources and the bricks, the reference of every
+configuration key, command, option, variable and adapter, the method, the Claude Code skill and its cost, upgrading
+the kit, and troubleshooting. Its **Page examples** section holds one complete page of each of the 31 types.
 
 The quality standard behind the kit is in [standard/README.md](standard/README.md) (French:
 [standard/README.fr.md](standard/README.fr.md)). The interface contract of the kit is

@@ -15,7 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, readVersion } from "./common.mjs";
-import { responseTally } from "./transcript-usage.mjs";
+import { modelName, responseTally } from "./transcript-usage.mjs";
 
 /**
  * Sums of a transcript (JSONL text): tokens (`outEstimated`, the part of `out` estimated from what the responses
@@ -40,7 +40,7 @@ export function transcriptUsage(text) {
       if (last === null || at > last) last = at;
     }
     const added = tally.add(e, typeof e?.uuid === "string" && e.uuid ? e.uuid : line);
-    const model = e?.message?.model;
+    const model = modelName(e?.message?.model);
     if (added?.first && model) models.set(model, (models.get(model) || 0) + 1);
   }
   const sums = tally.totals();

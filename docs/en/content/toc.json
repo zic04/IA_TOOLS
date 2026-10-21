@@ -35,7 +35,7 @@
           "title": "Pages",
           "pages": [
             { "id": "write/markdown", "title": "Extended Markdown", "menuTitle": "Extended Markdown", "summary": "Annotated screens, steps, captures, diagrams, before and after, callouts and badges, in English or French spelling.", "template": "technical" },
-            { "id": "write/page-templates", "title": "Page templates", "menuTitle": "Page templates", "summary": "The 13 page types, their required sections, doc-kit new and the guidance comments.", "template": "technical" },
+            { "id": "write/page-templates", "title": "Page templates", "menuTitle": "Page templates", "summary": "The 31 page types, their required sections, doc-kit new and the guidance comments.", "template": "technical" },
             { "id": "write/table-of-contents", "title": "Table of contents, sub-pages and journeys", "menuTitle": "Table of contents", "summary": "content/toc.json: sections, groups, pages, sub-pages, home-page journeys and suggestions.", "template": "technical" }
           ]
         },

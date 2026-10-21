@@ -35,7 +35,7 @@
           "title": "Les pages",
           "pages": [
             { "id": "write/markdown", "title": "Le Markdown étendu", "menuTitle": "Markdown étendu", "summary": "Écrans annotés, étapes, captures, schémas, avant et après, encadrés et pastilles, en orthographe anglaise ou française.", "template": "technical" },
-            { "id": "write/page-templates", "title": "Les gabarits de page", "menuTitle": "Gabarits de page", "summary": "Les 13 types de page, leurs sections obligatoires, doc-kit new et les commentaires de consigne.", "template": "technical" },
+            { "id": "write/page-templates", "title": "Les gabarits de page", "menuTitle": "Gabarits de page", "summary": "Les 31 types de page, leurs sections obligatoires, doc-kit new et les commentaires de consigne.", "template": "technical" },
             { "id": "write/table-of-contents", "title": "Sommaire, sous-pages et parcours", "menuTitle": "Sommaire", "summary": "content/toc.json : sections, groupes, pages, sous-pages, parcours de la page d'accueil et suggestions.", "template": "technical" }
           ]
         },

@@ -7,6 +7,16 @@
 // text of a transcript (prompts, tool inputs, what an agent read) is never kept, printed or written (RULES.md S7).
 import crypto from "node:crypto";
 
+/**
+ * A model's name as a transcript gives it, kept only when it reads as one (letters, digits, `.` `_` `:` `@` `-`, at
+ * most 100): any other text of a transcript stays out of what is written.
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+export function modelName(value) {
+  return typeof value === "string" && /^[\w.:@-]{1,100}$/.test(value) ? value : null;
+}
+
 /** A block's digest: what tells two copies of it apart, without keeping its text. */
 const digest = (text) => crypto.createHash("sha256").update(text).digest("hex");
 

@@ -224,6 +224,9 @@ entries between a project's `kit` range and the installed version.
 - `npm run test:security` ran the security tests with a bare `node --test`: their ReDoS checks, which measure
   time, had no second run when a measure was noisy, unlike under `npm test`. It now goes through `test/run.mjs`,
   which takes one file as it takes a folder.
+- `doc-kit new --help` listed the 13 general page types for `--template`, while `new` accepts the 31 of the
+  standard; the glossary, the reference and the summary of "Page templates" said 13 as well. They now say 31 (a test
+  ties the help to the number of types).
 - `references/method.md` said a writer only receives "Read the brief and carry it out": it receives the brief's
   full text, as SKILL.md says.
 - `check coverage` (adapter `features`): a feature id is cited only whole — a page citing `F-010` no longer
@@ -243,6 +246,10 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **The README says what 0.4.0 brings** (English and French): the four spaces, the feature sheets and their
+  behaviour cards, the Product board and the backlog export, the facts of 16 stacks and 12 infrastructure formats,
+  the sources, the bricks and the skill, and 31 page templates; a test ties these numbers, and those of the docs,
+  to the kit's.
 - **The analyst writes its file once, and finds what it names in its context** (measured in the pilot of 0.4.0,
   docs: skill/cost-and-speed, `references/agent-orchestration.md` §8): `behaviour-analysis` writes the analysis
   with Write, then corrects it with Edit (`doc-kit-analyst` gains the Edit tool), never through the shell, even
@@ -265,6 +272,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **The usage scripts keep nothing of a transcript's text** (SECURITY.md): `usage.mjs scan` and the statistics hook
+  keep counts, the time span and the model's name only when it reads as one (letters, digits, `. _ : @ -`, at most
+  100 characters; any other value is dropped); a block of a response is told apart from its copies by a digest. The
+  hook's limit is written: it loads the documentation project's `doc.config.mjs` to read its version, so installed
+  in your user settings it runs in every session — keep it to the projects you trust.
 - **A token in a dependency's address was kept**: `facts --source dependencies` stored a git dependency of a
   package.json as written (`"x": "git+https://user:TOKEN@github.com/…"`) in `facts/dependencies.json`, and likewise
   a requirements line (`y @ git+https://user:TOKEN@…`). The user and password of an address are now removed from

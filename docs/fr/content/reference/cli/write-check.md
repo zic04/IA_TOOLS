@@ -26,7 +26,7 @@ sommaire. N'écrase jamais un fichier (code de sortie 1).
 
 | Option | Effet |
 |---|---|
-| `--template <type>` | L'un des 13 types ; obligatoire, sauf si la page est déjà déclarée avec un type |
+| `--template <type>` | L'un des 31 types ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | Titre et titre de menu ; défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id-page>` | En fait une sous-page (`"level": 2`), placée juste après le parent et ses sous-pages |
 | `--prefill` | Remplit le tableau principal de la page depuis les faits (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` et `runbook` — ses tâches planifiées — seulement) ; les autres cellules restent des consignes à remplir |

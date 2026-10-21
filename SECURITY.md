@@ -156,7 +156,19 @@ as untrusted input:
   No text of an analysis may hold a value that a secret detector of the kit finds: the place and the kind are
   reported, never the value. The texts it prints are put on one line, without control characters. Limit: without
   `app.dir`, the application folder is guessed from the documentation's (its git parent, else its grandparent),
-  which can be wider than the application; the script warns.
+  which can be wider than the application; the script warns;
+- the skill's `scripts/usage.mjs scan` and its statistics hook (`scripts/usage-hook.mjs`) read Claude Code's
+  transcripts, which hold the prompts, what the agents read of the code and what they wrote — a secret among them.
+  Of a transcript they keep only counts (tokens, responses, lines, files), its time span (the hook), and the
+  model's name when it reads as one (letters, digits, `.` `_` `:` `@` `-`, at most 100 characters; otherwise
+  none — judged by its shape only: Claude Code fills it from the API's answer, not from what a person wrote): a block of a response is told apart from its copies by its id or a SHA-256 digest of what it wrote, never
+  by its text, and nothing else of a transcript reaches `.doc-kit/usage.jsonl`, `usage/` or the terminal
+  (`scripts/transcript-usage.mjs`, tested with a marker text). `scan` also records the folder it read, and the hook
+  the agent's id (else the session's) and type that Claude Code gives it. Limit: to read its version, the hook loads the documentation
+  project's `doc.config.mjs`, which is code, like every doc-kit command — the first one from the session's folder
+  upwards (else `docs/manual`), when a `usage/` folder is beside it. `skill install --hooks` writes the hook in the
+  project's own `.claude/settings.json`; written in your user settings (`--settings`), it runs in every session,
+  so in any folder you open that holds such a project: keep it to the projects you trust.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a

@@ -438,6 +438,20 @@ describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install -
     assert.ok(!JSON.stringify(transcriptUsage(text)).includes(marker));
   });
 
+  test("transcriptUsage: a model kept only when it reads as a name; nothing else of a transcript comes out", () => {
+    const marker = "TRANSCRIPT-TEXT-" + "7f3a"; // a text of the transcript, in a model field and in a tool's input
+    const at = (id, model, content = []) =>
+      JSON.stringify({ message: { id, model, content, usage: { input_tokens: 1, output_tokens: 1 } } });
+    const text = [
+      at("m1", `${marker} with spaces`),
+      at("m2", "x".repeat(101)),
+      at("m3", "claude-sonnet-x", [{ type: "tool_use", name: "Write", input: { content: marker } }]),
+    ].join("\n");
+    const u = transcriptUsage(text);
+    assert.equal(u.model, "claude-sonnet-x", "the one that reads as a model's name");
+    assert.ok(!JSON.stringify(u).includes(marker));
+  });
+
   test("recordAgent: finds the project (docs/manual below the session folder), appends one agent line; nothing without usage/", async () => {
     const app = tempDir("doc-kit-hook-");
     try {
