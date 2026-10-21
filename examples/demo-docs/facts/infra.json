@@ -1,8 +1,8 @@
 {
   "source": "infra",
-  "generator": "doc-kit 0.3.0",
-  "generated": "2026-10-20T17:48:20.199Z",
-  "commit": "83d902d678230131ecd0bd370ae6f68087f45eb1",
+  "generator": "doc-kit 0.4.0",
+  "generated": "2026-10-21T01:47:29.927Z",
+  "commit": "ddfb01ee2a8fdce6fe8a0d511f52b9bf2ef16bd6",
   "app": "../demo-app",
   "items": []
 }

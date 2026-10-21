@@ -6,6 +6,8 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-21
+
 ### Added
 
 - **The demo declares its features** (`examples/demo-docs/features.json`, coverage adapter `features`: 2/2), and its facts
@@ -196,6 +198,60 @@ entries between a project's `kit` range and the installed version.
   security first), `kit-test-author` (tests that follow the repository's patterns), `kit-skill-editor` (one change
   to the skill's texts, everywhere they live). See CLAUDE.md.
 
+### Changed
+
+- **The README says what 0.4.0 brings** (English and French): the four spaces, the feature sheets and their
+  behaviour cards, the Product board and the backlog export, the facts of 16 stacks and 12 infrastructure formats,
+  the sources, the bricks and the skill, and 31 page templates; a test ties these numbers, and those of the docs,
+  to the kit's.
+- **The analyst writes its file once, and finds what it names in its context** (measured in the pilot of 0.4.0,
+  docs: skill/cost-and-speed, `references/agent-orchestration.md` §8): `behaviour-analysis` writes the analysis
+  with Write, then corrects it with Edit (`doc-kit-analyst` gains the Edit tool), never through the shell, even
+  where the session suggests it; the context's cards give each rubric's id (Matching, `match`), and the kind's id
+  after its French spelling (`recherche` = `search`), so the analyst no longer opens the registry of kinds for
+  them; each security fact of the context is a finding to check. Two features of size S cost 71,000 to
+  165,000 token-equivalent each, 2 to 5 times their estimate; the total Claude Code reports when an agent ends is its
+  last context (a sixth to a third of the tokens used), so the spend is taken from the transcripts. Run
+  `doc-kit skill install --force`.
+- **The access of a route recognises more user guards by default** (`review.guards`, ARCHITECTURE.md §6.13): besides
+  `current_user`, `authenticated`, `login_required`, `require_auth`, `session` and `token`, a guard named exactly
+  `auth` or `auth:<guard>`, `Authorize`, `RequireAuthorization`, `AuthGuard(…)`, `authenticate` or `authenticate_user!`, or
+  holding `LoginRequired` or `jwt_required`, is a user guard. An Express middleware named `auth`, and a Next.js
+  handler that calls `auth()`, were `unknown` in 0.3 and are now `user`: `facts --source api` shows the change. A project
+  keeps its own patterns with `review.guards`.
+- **A route's secret segment is masked**: a segment of a route that looks like a key or a token (a webhook's path) is
+  written `…` in `facts/api.json` and `facts/screens.json`.
+- **`check secrets` finds Stripe keys**: a secret or restricted key (`sk_live_`, `sk_test_`, `rk_…`) and a webhook
+  secret (`whsec_`) are cloud keys, found in the code and never kept.
+
+- **Four spaces, one per audience** (ARCHITECTURE.md §6.1a, `standard/structure.md`), instead of `business` and
+  `takeover`: `use` (the users, screen by screen), `product` (the product owners: features, rules, process),
+  `admin` (the administrators and operators: settings, access, operations, the technical architecture document)
+  and `develop` (the developers, the takeover team, security). What the kit does for a space is its **kind**,
+  data in `standard/spaces.json`, never its id: no code in `use` and `product` (`business.technical`), the
+  glossary's technical correspondence in `admin` and `develop` (also in their exports), `file:line` proofs and
+  the takeover pages of the audit in `develop`; the required takeover pages are spread — the technical
+  architecture document and operations in `admin`, the five others in `develop` — each looked for and suggested
+  in its own space, and `takeover4` of a space counts only its own. A space of the project's own declares its
+  `kind` (`space.kind`, error, without one); the spaces `business` and `takeover` of 0.3 are no kind
+  (`space.kind`): no migration, a project of 0.3 is started again. Site data `spaces[]` gains `kind` and `tech`; exports are named
+  after the new ids (`…-use.html`). New projects (`doc-kit init`) and the demo declare the four spaces.
+  The takeover dossier of the audit moves to `engine/audit/takeover.mjs`; the lint warning ceiling goes down to 55.
+- **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
+  command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,
+  `doctor` and `audit`); every request to a public registry goes through one gateway, `createRegistryClient`
+  (`engine/facts/network.mjs`), which refuses a private package itself and whose 5 s timeout now also covers reading the answer, as it did before
+  for the latest version (new rule S12); the dependency readers are
+  split by ecosystem (`engine/facts/deps/`); the directives drawn from the facts leave the Markdown engine
+  (`engine/build/fact-directives.mjs`, one function per directive); `withoutSecrets` moves to
+  `engine/check/secrets.mjs`. The lint warning ceiling goes down to 56. Visible only in `--profile` and the usage
+  records: the time of the `dependencies` source now includes its `--network` existence check.
+- **`facts/tool-<name>.json`** is now `{ tool, generator, generated, commit, app, status, reason?, code?,
+  truncated?, items }` (normalised items) instead of `{ tool, generator, generated, installed, ok, data }` (the raw
+  report). `status` (`ok`, `findings`, `failed`, `missing`) comes from each tool's exit codes and items: a tool that
+  found something was reported as failed, semgrep's findings and syft's inventory as "nothing found". Run
+  `doc-kit facts --tools` again to rewrite these files.
+
 ### Removed
 
 - **The legacy French-keyed formats and `doc-kit migrate`** (ARCHITECTURE.md §6.7): projects start again from
@@ -243,32 +299,6 @@ entries between a project's `kit` range and the installed version.
   expression) as a high-severity code execution: 131 findings on the kit's own code, 24 after the fix. A method
   `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression
   literal); `eval(`, Python's `exec(` and `new Function(` are still reported.
-
-### Changed
-
-- **The README says what 0.4.0 brings** (English and French): the four spaces, the feature sheets and their
-  behaviour cards, the Product board and the backlog export, the facts of 16 stacks and 12 infrastructure formats,
-  the sources, the bricks and the skill, and 31 page templates; a test ties these numbers, and those of the docs,
-  to the kit's.
-- **The analyst writes its file once, and finds what it names in its context** (measured in the pilot of 0.4.0,
-  docs: skill/cost-and-speed, `references/agent-orchestration.md` §8): `behaviour-analysis` writes the analysis
-  with Write, then corrects it with Edit (`doc-kit-analyst` gains the Edit tool), never through the shell, even
-  where the session suggests it; the context's cards give each rubric's id (Matching, `match`), and the kind's id
-  after its French spelling (`recherche` = `search`), so the analyst no longer opens the registry of kinds for
-  them; each security fact of the context is a finding to check. Two features of size S cost 71,000 to
-  165,000 token-equivalent each, 2 to 5 times their estimate; the total Claude Code reports when an agent ends is its
-  last context (a sixth to a third of the tokens used), so the spend is taken from the transcripts. Run
-  `doc-kit skill install --force`.
-- **The access of a route recognises more user guards by default** (`review.guards`, ARCHITECTURE.md §6.13): besides
-  `current_user`, `authenticated`, `login_required`, `require_auth`, `session` and `token`, a guard named exactly
-  `auth` or `auth:<guard>`, `Authorize`, `RequireAuthorization`, `AuthGuard(…)`, `authenticate` or `authenticate_user!`, or
-  holding `LoginRequired` or `jwt_required`, is a user guard. An Express middleware named `auth`, and a Next.js
-  handler that calls `auth()`, were `unknown` in 0.3 and are now `user`: `facts --source api` shows the change. A project
-  keeps its own patterns with `review.guards`.
-- **A route's secret segment is masked**: a segment of a route that looks like a key or a token (a webhook's path) is
-  written `…` in `facts/api.json` and `facts/screens.json`.
-- **`check secrets` finds Stripe keys**: a secret or restricted key (`sk_live_`, `sk_test_`, `rk_…`) and a webhook
-  secret (`whsec_`) are cloud keys, found in the code and never kept.
 
 ### Security
 
@@ -320,36 +350,6 @@ entries between a project's `kit` range and the installed version.
   cannot read is never run.
 - **The reports of the external tools are normalised through an allowlist** of fields: semgrep's matched lines,
   gitleaks' matches, authors and e-mail addresses no longer reach the facts, whatever a tool adds to its output.
-
-### Changed
-
-- **Four spaces, one per audience** (ARCHITECTURE.md §6.1a, `standard/structure.md`), instead of `business` and
-  `takeover`: `use` (the users, screen by screen), `product` (the product owners: features, rules, process),
-  `admin` (the administrators and operators: settings, access, operations, the technical architecture document)
-  and `develop` (the developers, the takeover team, security). What the kit does for a space is its **kind**,
-  data in `standard/spaces.json`, never its id: no code in `use` and `product` (`business.technical`), the
-  glossary's technical correspondence in `admin` and `develop` (also in their exports), `file:line` proofs and
-  the takeover pages of the audit in `develop`; the required takeover pages are spread — the technical
-  architecture document and operations in `admin`, the five others in `develop` — each looked for and suggested
-  in its own space, and `takeover4` of a space counts only its own. A space of the project's own declares its
-  `kind` (`space.kind`, error, without one); the spaces `business` and `takeover` of 0.3 are no kind
-  (`space.kind`): no migration, a project of 0.3 is started again. Site data `spaces[]` gains `kind` and `tech`; exports are named
-  after the new ids (`…-use.html`). New projects (`doc-kit init`) and the demo declare the four spaces.
-  The takeover dossier of the audit moves to `engine/audit/takeover.mjs`; the lint warning ceiling goes down to 55.
-- **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
-  command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,
-  `doctor` and `audit`); every request to a public registry goes through one gateway, `createRegistryClient`
-  (`engine/facts/network.mjs`), which refuses a private package itself and whose 5 s timeout now also covers reading the answer, as it did before
-  for the latest version (new rule S12); the dependency readers are
-  split by ecosystem (`engine/facts/deps/`); the directives drawn from the facts leave the Markdown engine
-  (`engine/build/fact-directives.mjs`, one function per directive); `withoutSecrets` moves to
-  `engine/check/secrets.mjs`. The lint warning ceiling goes down to 56. Visible only in `--profile` and the usage
-  records: the time of the `dependencies` source now includes its `--network` existence check.
-- **`facts/tool-<name>.json`** is now `{ tool, generator, generated, commit, app, status, reason?, code?,
-  truncated?, items }` (normalised items) instead of `{ tool, generator, generated, installed, ok, data }` (the raw
-  report). `status` (`ok`, `findings`, `failed`, `missing`) comes from each tool's exit codes and items: a tool that
-  found something was reported as failed, semgrep's findings and syft's inventory as "nothing found". Run
-  `doc-kit facts --tools` again to rewrite these files.
 
 ## [0.3.0] - 2026-10-03
 
