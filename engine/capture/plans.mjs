@@ -1,4 +1,4 @@
-// Capture plans: loading, normalisation, validation and selection.
+// Capture plans: loading, validation and selection.
 //
 // ═══ Plan syntax ═══════════════════════════════════════════════════════════════════════════════════════════════
 // A plan is a JavaScript module in the plans folder (capture.plans, default "captures/plans"; --plans or
@@ -68,10 +68,6 @@
 //
 // Helpers for frequent targets: `doc-kit/targets` (field, toggle, card, button, link, tab, main, union).
 //
-// Legacy French plans (ARCHITECTURE.md §6.7) are normalised when read (titre, contexte, vue, stockage, delai,
-// cadre, masques, clic, saisir, champ, texte…); `libelle` (caption, on any target) becomes `caption` and
-// `stabiliser` becomes `settle`.
-//
 // Validation (schemas/capture-plan.schema.json) accepts what the engine executes: a negative margin tightens a
 // zone or a frame, a negative nth counts from the last match, a viewport only needs whole pixels (a 150 px strip),
 // wheel.steps may be 0. Every entry of every file is checked; the errors are listed together, each one with its
@@ -80,7 +76,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { normalizePlanEntry } from "../project/legacy.mjs";
 import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
@@ -90,14 +85,6 @@ const ACTION_KINDS = ["click", "hover", "type", "select", "press", "scroll", "wa
 const TARGET_ACTIONS = ["click", "hover", "type", "select", "scroll"];
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v) && !(v instanceof RegExp);
-
-/**
- * Normalises one plan entry: legacy keys (§6.7) → current keys.
- * @returns {{ value: object, legacy: boolean }}
- */
-export function normalizeEntry(raw) {
-  return normalizePlanEntry(raw);
-}
 
 /** Checks the schema cannot express: exactly one kind per target and per action. */
 function kindErrors(entry) {
@@ -131,7 +118,7 @@ function kindErrors(entry) {
 }
 
 /**
- * Validates a normalised entry against schemas/capture-plan.schema.json (+ one kind per target/action).
+ * Validates an entry against schemas/capture-plan.schema.json (+ one kind per target/action).
  * @returns {Array<{path: string, key: string, vars: object}>}
  */
 export function validateEntry(entry) {
@@ -148,8 +135,8 @@ function entryLabel(entry, index) {
 /**
  * Loads every plan of a folder.
  * @param {{ folder: string, display?: string }} p   folder: absolute path; display: shown in messages
- * @returns {Promise<{ captures: object[], files: string[], legacy: string[] }>}
- *   each capture: the normalised entry + `file` (its plan file name)
+ * @returns {Promise<{ captures: object[], files: string[] }>}
+ *   each capture: the entry + `file` (its plan file name)
  * @throws {KitError} exit code 2: missing folder, import error, no CAPTURES export, duplicate id, invalid entries
  *   (`capture.planInvalid`: every invalid entry of every file, each detail { file, entry, path, key, vars })
  */
@@ -161,7 +148,6 @@ export async function loadPlans({ folder, display = folder }) {
     .filter((f) => f.endsWith(".mjs") || f.endsWith(".js"))
     .sort();
   const captures = [];
-  const legacy = [];
   const seen = new Map();
   const details = [];
   let duplicate = null;
@@ -184,10 +170,7 @@ export async function loadPlans({ folder, display = folder }) {
     }
     if (!Array.isArray(mod.CAPTURES))
       throw new KitError(EXIT.USAGE, "capture.planNoExport", { file: `${display}/${f}` });
-    let isLegacy = false;
-    mod.CAPTURES.forEach((raw, i) => {
-      const { value, legacy: l } = normalizeEntry(raw);
-      isLegacy ||= l;
+    mod.CAPTURES.forEach((value, i) => {
       const errors = validateEntry(value);
       for (const e of errors)
         details.push({
@@ -204,7 +187,6 @@ export async function loadPlans({ folder, display = folder }) {
       seen.set(value.id, f);
       captures.push({ ...value, file: f });
     });
-    if (isLegacy) legacy.push(f);
   }
   if (details.length)
     throw new KitError(
@@ -214,7 +196,7 @@ export async function loadPlans({ folder, display = folder }) {
       { details, prefix: display },
     );
   if (duplicate) throw new KitError(EXIT.USAGE, "capture.duplicate", duplicate);
-  return { captures, files, legacy };
+  return { captures, files };
 }
 
 /** Regular expression of a selection pattern: "*" = any characters, "?" = one character, anchored. */

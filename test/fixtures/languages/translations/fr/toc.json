@@ -1,7 +1,13 @@
 {
   "title": "Documentation d'Acme Orders",
   "tagline": "Une source, deux publics : les personnes qui utilisent Acme Orders, et l'équipe qui en reprend la charge.",
-  "spaces": ["business", { "id": "takeover", "subtitle": "Architecture, API et exploitation d'Acme Orders." }],
+  "spaces": [
+    "use",
+    {
+      "id": "develop",
+      "subtitle": "Architecture, API et exploitation d'Acme Orders."
+    }
+  ],
   "sections": [
     {
       "id": "use",

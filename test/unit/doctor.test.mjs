@@ -54,7 +54,7 @@ describe("doctor", () => {
       assert.match(r.out, /^✔ kit dependencies: marked [\d.]+, playwright [\d.]+$/m);
       assert.match(r.out, /^✔ Chromium for Playwright: \/opt\/chromium\/chrome$/m);
       assert.match(r.out, /^⚠ Claude Code skill not installed \(optional\)\n {2}→ doc-kit skill install$/m);
-      assert.match(r.out, /^✔ kit \d+\.\d+\.\d+ accepted by the project \(\^0\.3\.0\)$/m);
+      assert.match(r.out, /^✔ kit \d+\.\d+\.\d+ accepted by the project \(\^0\.4\.0\)$/m);
       assert.match(r.out, /^✔ doc\.config\.mjs valid$/m);
       assert.match(r.out, /^✔ table of contents: content\/toc\.json$/m);
       assert.match(r.out, /^✔ documented version 1\.4\.0 \(read in version\.txt\)$/m);
@@ -83,11 +83,9 @@ describe("doctor", () => {
         assert.ok(l.includes(source), l);
       assert.match(stale.out, /^ {2}→ run doc-kit facts --source /m);
 
-      const fresh = await cli(
-        ["doctor", "--project", dir],
-        {},
-        { commit: () => "939ed0c54555d0063931ddfbbcfb7c1f108833b0" },
-      );
+      // The commit the demo's facts recorded: the application at that commit is up to date.
+      const recorded = JSON.parse(fs.readFileSync(path.join(dir, "facts", "env.json"), "utf8")).commit;
+      const fresh = await cli(["doctor", "--project", dir], {}, { commit: () => recorded });
       assert.match(fresh.out, /^✔ facts: at the application's current HEAD$/m);
       assert.doesNotMatch(fresh.out, /facts behind the application's HEAD/);
     } finally {
@@ -239,6 +237,18 @@ describe("doctor", () => {
         r.out,
         /^✖ \.doc-kit\/ is not excluded from git: the session could be committed\n {2}→ add the line \.doc-kit\/ to \.gitignore$/m,
       );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("the former content/sommaire.json is not a table of contents (ARCHITECTURE.md §6.7) → ✖ and exit code 1", async () => {
+    const dir = project();
+    try {
+      fs.renameSync(path.join(dir, "content/toc.json"), path.join(dir, "content/sommaire.json"));
+      const r = await cli(["doctor", "--project", dir]);
+      assert.equal(r.code, 1);
+      assert.match(r.out, /^✖ table of contents not found: content\/toc\.json\n {2}→ create it/m);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

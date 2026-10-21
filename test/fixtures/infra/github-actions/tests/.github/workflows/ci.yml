@@ -1,0 +1,8 @@
+name: Never read
+on: push
+jobs:
+  never:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo never

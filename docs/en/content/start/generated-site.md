@@ -29,8 +29,11 @@ Every address is a link you can share: it opens the same page, at the same secti
 :::screen{capture="site-page" title="A page of the generated site"}
 1. **Sections**: the short titles of the sections (`shortTitle` in the table of contents); the current one is
    highlighted.
-2. **Search**: full-text search over every section of every page, opened with [[key Ctrl+K]] or [[key /]]; arrows
-   choose a result, Enter opens it, Escape closes.
+2. **Search**: full-text search over every section of every page — its summary and the tables the kit generates
+   included —, opened with [[key Ctrl+K]] or [[key /]]; arrows choose a result, Enter opens it, Escape closes. A word
+   in a title comes first, its start before its inside; a word the documentation does not hold is read as its close
+   words (a typo, "ordrs": "orders"), said above the results. With spaces, **Search in: All · Use · …** keeps the
+   results of one space.
 3. **Theme**: switches between light and dark; the choice is remembered for this file in this browser.
 4. **Print**: prints the current page, or the **whole documentation** with its outline, ready to save as PDF.
 5. **Menu**: every section, its groups and its pages. A sub-page appears under its parent while you read it or one of

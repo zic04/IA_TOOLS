@@ -1,8 +1,8 @@
 ## In short
 
 A **page template** fixes the `##` sections of a type of page, their order and the page's maximum length. There
-are **31 types**, in three families: 13 general types (no spaces needed), 5 for the business space, 13 for the
-takeover space. A page declares its type in the table of contents (`"template": "screen"`); the build then checks
+are **31 types**, in three families: 13 general types (no spaces needed), 5 business types (written for the Product
+space), 13 takeover types (written for the Develop space, a few for the Administer space). A page declares its type in the table of contents (`"template": "screen"`); the build then checks
 that its **required sections** are there, and `doc-kit audit` measures how complete it is.
 
 1. **The source of truth** is `standard/templates.json` in the kit, plus its two fragments,
@@ -35,17 +35,17 @@ Each type has a complete example, written for Acme Orders, in the **Examples** s
 | `variables` | The environment variables | 2 of 4 | 2,200 | [variables](#/examples/variables) |
 | `resources` | The deployment resources | 7 of 9 | 2,200 | [resources](#/examples/resources) |
 
-### Business space types
+### Business types (Product space)
 
 | Type | For | Required sections | `maxWords` | Example |
 |---|---|---|---|---|
-| `feature` | One feature, end to end | 5 of 11 | 2,500 | [feature](#/examples/feature) |
+| `feature` | One feature, end to end: stories, behaviour cards, acceptance criteria | 9 of 14 | 4,000 | [feature](#/examples/feature) |
 | `business-rules` | Rules shared across features | 2 of 4 | 3,000 | [business-rules](#/examples/business-rules) |
 | `roles-matrix` | Every role and what it can do | 3 of 5 | 2,000 | [roles-matrix](#/examples/roles-matrix) |
 | `process` | The same feature, end to end | 4 of 8 | 2,200 | [process](#/examples/process) |
 | `release-notes` | Version history for a business reader | 2 of 3 | 3,000 | [release-notes](#/examples/release-notes) |
 
-### Takeover space types
+### Takeover types (Develop and Administer spaces)
 
 | Type | For | Required sections | `maxWords` | Example |
 |---|---|---|---|---|
@@ -62,6 +62,9 @@ Each type has a complete example, written for Acme Orders, in the **Examples** s
 | `security-review` | The access matrix, probe results, OWASP findings | 7 of 10 | 3,000 | [security-review](#/examples/security-review) |
 | `maintainability-review` | Ratings, hotspots, recommendations by effort | 5 of 8 | 2,200 | [maintainability-review](#/examples/maintainability-review) |
 | `documentation-cost` | Time, agents, models and tokens spent on the documentation | 3 of 5 | 1,200 | [documentation-cost](#/examples/documentation-cost) |
+
+`access-ownership` and `runbook` are read by operators: they sit in the Operate part of the Administer space, with
+`architecture`, `variables` and `resources`; the other takeover types sit in the Develop space.
 
 The sections themselves, type by type, are listed in `standard/templates.md`. The pages of this site are typed
 too: the reference pages are `technical`, the how-to pages `recipe`. The business and takeover types are explained
@@ -113,15 +116,14 @@ doc-kit new take-over/deployment/variables --template variables --prefill
 | `--template <type>` | The type; required unless the page is already declared with one |
 | `--title "…"` | `title` and `menuTitle` of the entry; default: the last segment of the id, humanised |
 | `--parent <id>` | Declares a sub-page (`"level": 2`) right after its parent and the parent's sub-pages |
-| `--prefill` | Fills the page's main table from `doc-kit facts`, for the five takeover types built from one source: `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`) |
+| `--prefill` | Fills the page's main table from `doc-kit facts`, for the six takeover types built from one source: `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`), `runbook` (`infra`: the scheduled jobs, each with its `[[verified file:line]]` proof) |
 
 Without `--parent`, the page is added at the end of the group whose pages share the longest id prefix, or of the
 last group of the section named by the first segment of the id. The table of contents is edited **as text**: its
-indentation and line endings are kept, and a legacy French-keyed file receives keys in its own style. The entry's
-summary is a placeholder, which `doc-kit audit` reports until you write it. An existing file is never overwritten
-(exit code 1). `--prefill` needs `facts/<source>.json` to exist (`doc-kit facts` first, exit code 1 otherwise) and
-a type that has one (exit code 2 otherwise); it fills the key cells and their proof, row by row, and leaves the
-rest as guidance — see [Cost and speed](#/skill/cost-and-speed~starting-from-the-facts-new-prefill).
+indentation and line endings are kept. The entry's summary is a placeholder, which `doc-kit audit` reports until
+you write it. An existing file is never overwritten (exit code 1). `--prefill` needs `facts/<source>.json` to exist
+(`doc-kit facts` first, exit code 1 otherwise) and a type that has one (exit code 2 otherwise); it fills the key
+cells and their proof, row by row, and leaves the rest as guidance — see [Cost and speed](#/skill/cost-and-speed~starting-from-the-facts-new-prefill).
 
 ## Untyped pages
 

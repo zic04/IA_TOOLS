@@ -99,8 +99,9 @@ les captures d'une version plus ancienne.
 
 > [!ATTENTION] Un plan est du code
 > Les plans sont des modules JavaScript, importés par le kit : ils peuvent importer des aides (`../targets.mjs`) et
-> calculer leurs entrées. Le kit ne les réécrit jamais, pas même `doc-kit migrate`. Les anciennes clés françaises
-> (`titre`, `contexte`, `cadre`, `clic`, `champ`…) sont normalisées à la lecture.
+> calculer leurs entrées. Le kit ne les réécrit jamais. Leurs clés sont les clés anglaises ci-dessus : une clé
+> française d'un plan écrit avant la 0.4.0 (`titre`, `contexte`, `cadre`, `clic`, `champ`…) est une clé inconnue, et
+> la commande s'arrête dessus.
 
 > [!NOTE] « un module est introuvable »
 > `import … from "doc-kit/targets"` demande les dépendances du projet : lancez `npm install` dans le projet de

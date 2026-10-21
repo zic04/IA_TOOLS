@@ -6,11 +6,11 @@
 // Measures that may be unavailable (coverage adapters, browser for the table widths) are injected through
 // `measure`; an unavailable measure is "not measured" and never lowers the level.
 //
-// Spaces (ARCHITECTURE.md §6.1a): with a `takeover` space, the takeover pages are the pages of that space; with
-// spaces, the result also holds the level of each space (`spaces`), its page indicators measured on its pages.
+// Spaces (ARCHITECTURE.md §6.1a): their kinds say which pages are the takeover pages and where the takeover
+// dossier lives (takeover.mjs); the result also holds the level of each space (`spaces`).
 import fs from "node:fs";
 import path from "node:path";
-import { build, HOME_FILES } from "../build/build.mjs";
+import { build } from "../build/build.mjs";
 import { readProjectVersion } from "../project/version.mjs";
 import {
   loadPageTemplates,
@@ -20,48 +20,24 @@ import {
   headingsOf,
   countGuidance,
 } from "../core/page-templates.mjs";
-import { normalizeZones } from "../project/legacy.mjs";
 import { languageCounts } from "../build/languages.mjs";
 import { createI18n, LANGUAGES } from "../i18n.mjs";
 import { generatorTag } from "../brand.mjs";
 import { measureCoverage, measureSecrets } from "./optional.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
-import { readToc } from "../project/toc.mjs";
+import { readToc, HOME_FILE } from "../project/toc.mjs";
+import { factsSummary } from "../facts/freshness.mjs";
 import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
+import { ratio, count, notMeasured, criteriaOf, levelOf } from "./criteria.mjs";
+import { depthOf, depthReport, measuresDepth } from "./depth.mjs";
 import { actionsOf, draftBuildAction } from "./actions.mjs";
+import { dossierLayout, evaluateTakeover, takeoverIndicator } from "./takeover.mjs";
 
 // Kept as exports of the audit module for the commands and tests that import them from here.
 export { readToc, THRESHOLDS, TAKEOVER_ITEMS };
 
-/** Ids of the Take over section; otherwise the last section (when there are at least two). */
-const TAKEOVER_SECTION_IDS = ["take-over", "reprendre"];
-/** The space of the takeover pages, when the table of contents declares it (§6.1a). */
-const TAKEOVER_SPACE = "takeover";
-/** Criteria that do not concern a space: met and shown n/a in its level (standard/maturity.md). */
-const NOT_CONCERNED = Object.freeze({ takeover: ["written2"], other: ["takeover4", "proofs4"] });
-/** Usual page types of the standard sections (standard/structure.md), used to guess the type of an untyped page. */
-const SECTION_TYPES = Object.freeze({
-  use: ["screen"],
-  utiliser: ["screen"],
-  administer: ["screen"],
-  administrer: ["screen"],
-  configure: ["editor", "recipe"],
-  configurer: ["editor", "recipe"],
-});
 /** Parent types whose sub-pages stay untyped (standard/templates.md, "Untyped pages"). */
 const UNTYPED_UNDER = ["screen", "editor", "findings"];
-const TAKEOVER_TYPES = [
-  "technical",
-  "journey",
-  "journey-step",
-  "troubleshooting",
-  "troubleshooting-area",
-  "findings",
-  "architecture",
-  "variables",
-  "resources",
-];
-
 /** An annotated screen: a `:::screen` (or `:::ecran`) block. */
 const SCREEN = /^\s{0,3}:::(?:screen|ecran)\b/m;
 /**
@@ -84,42 +60,9 @@ const CLAIM_STATUS = Object.freeze({
   inconnu: "unknown",
 });
 
-const ratio = (n, total) => ({ kind: "ratio", measured: true, n, total, value: total ? n / total : null });
-const count = (n) => ({ kind: "count", measured: true, n, value: n });
-const notMeasured = (kind, reason, error) => ({
-  kind,
-  measured: false,
-  reason,
-  ...(error ? { error } : {}),
-  value: null,
-});
-
 /** Placeholders of the page summary written by `new` (both languages): a page that still has one is unfinished. */
 const summaryPlaceholders = () =>
   LANGUAGES.map((l) => createI18n({ language: /** @type {"en"|"fr"} */ (l) }).t("cli.new.summaryPlaceholder"));
-
-/**
- * `facts` (ARCHITECTURE.md §6.9, informative): the facts/<source>.json files (not the facts/tool-*.json reports
- * of `--tools`) and how many are stale — their `commit` differs from `currentCommit`, the application's current
- * HEAD. `currentCommit` is null when it cannot be known (no app.dir, no git): no file is then counted as stale.
- */
-function collectFacts(root, factsPath, currentCommit) {
-  const dir = path.join(root, factsPath);
-  const files = fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("tool-"))
-    : [];
-  let stale = 0;
-  if (currentCommit)
-    for (const f of files) {
-      try {
-        const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-        if (j.commit && j.commit !== currentCommit) stale++;
-      } catch {
-        // an unreadable facts file is not this audit's job
-      }
-    }
-  return { files: files.length, stale };
-}
 
 /**
  * Audits a project.
@@ -151,10 +94,9 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     language,
     version,
     tocFile: tocInfo.file,
-    legacyToc: !!tocInfo.legacy,
   };
   // Facts and claims (§6.9) are informative: computed whichever the level, never part of a criterion.
-  const facts = collectFacts(root, config.paths.facts, measure.commit ?? null);
+  const facts = factsSummary(root, config.paths.facts, measure.commit ?? null);
   const noClaims = { verified: 0, deduced: 0, unknown: 0, ratio: null };
 
   // Without a readable table of contents nothing can be measured: level 0, fix the build first.
@@ -178,7 +120,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const toc = tocInfo.toc;
   const data = built.data;
 
-  const { pages, claimCounts, takeoverId, spaceIds } = collectPages({ root, content, toc, data, table, language });
+  const { pages, claimCounts, ...layout } = collectPages({ root, content, toc, data, table, language });
   const byId = new Map(pages.map((p) => [p.id, p]));
   const subPages = (p) => {
     const i = pages.indexOf(p);
@@ -196,7 +138,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     toc,
     pages,
     subPages,
-    takeoverId,
+    layout,
     table,
     version,
   });
@@ -207,11 +149,11 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const emptySections = toc.sections
     .filter((s) => !pages.some((p) => p.section === s.id && p.hasFile))
     .map((s) => s.id);
-  const homeFile = HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f)));
+  const homeFile = fs.existsSync(path.join(root, content, HOME_FILE)) ? `${content}/${HOME_FILE}` : undefined;
   const project1 = { emptySections, homeFile, linkLegend: m.linkLegend };
   const criteria = criteriaOf(indicators, project1);
   const level = levelOf(criteria);
-  const spaces = spaceIds ? spaceLevels({ spaceIds, pages, indicators, config, data, project1 }) : null;
+  const spaces = spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language, built });
 
   const ctx = {
     ...m,
@@ -220,7 +162,6 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     subPages,
     indicators,
     built,
-    takeoverId,
     total: pages.length,
     version,
     emptySections,
@@ -230,14 +171,34 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
     language,
   };
   const actions = actionsOf(criteria, level, ctx);
+  return {
+    ...base,
+    level,
+    pages: pages.length,
+    takeoverSection: layout.takeoverId,
+    indicators,
+    criteria,
+    takeover: m.takeover,
+    facts,
+    ...informative({ root, config, toc, pages, built, claimCounts }),
+    actions,
+    errors: built.errors,
+    warnings: built.warnings,
+    ...(spaces ? { spaces } : {}),
+  };
+}
 
+/**
+ * What the audit reports beside the level, never a criterion (the level never changes because of it): the pages
+ * whose type it guesses, the claims of the takeover pages (§6.9), the translated files of each other language
+ * (§6.12), the depth of each feature and the backlog in one line (engine/audit/depth.mjs).
+ */
+function informative({ root, config, toc, pages, built, claimCounts }) {
   const typing = pages
     .filter((p) => p.guess)
     .map((p) => ({ page: p.id, template: p.guess.type, completeness: p.guess.completeness }));
   const { verified, deduced, unknown } = claimCounts;
   const claims = { verified, deduced, unknown, ratio: verified + deduced ? verified / (verified + deduced) : null };
-  // Languages (ARCHITECTURE.md §6.12): informative only, like facts and claims — never a criterion, so the level
-  // never changes because a translation is behind.
   const languages = config.languages
     ? config.languages.slice(1).map((id) => {
         const c = languageCounts({ root, config, toc, lang: id });
@@ -245,43 +206,16 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
         return { ...c, ratio: totalFiles ? c.current / totalFiles : null };
       })
     : null;
-  return {
-    ...base,
-    level,
-    pages: pages.length,
-    takeoverSection: takeoverId,
-    indicators,
-    criteria,
-    takeover: m.takeover,
-    typing,
-    facts,
-    claims,
-    actions,
-    errors: built.errors,
-    warnings: built.warnings,
-    ...(spaces ? { spaces } : {}),
-    ...(languages ? { languages } : {}),
-  };
+  const depth = depthReport(built.backlog, pages);
+  return { typing, claims, ...(languages ? { languages } : {}), ...(depth ? { depth } : {}) };
 }
 
 /**
  * The pages of the table of contents, each read and analysed (state, type guess, screens, proofs, findings), and
- * the claim badges of the written takeover pages. With a takeover space, its pages are the takeover pages and its
- * first section names the suggested pages; otherwise the Take over section, or the last one.
+ * the claim badges of the written takeover pages; what each page is for the dossier comes from dossierLayout.
  */
 function collectPages({ root, content, toc, data, table, language }) {
-  const sections = toc.sections.map((s) => s.id);
-  const spaceIds = Array.isArray(toc.spaces) ? toc.spaces.map((x) => (typeof x === "string" ? x : x.id)) : null;
-  const takeoverSpace = !!spaceIds?.includes(TAKEOVER_SPACE);
-  const spaceOf = (sec, p) => p.space ?? sec.space ?? null;
-  const takeoverId = takeoverSpace
-    ? ((
-        toc.sections.find((s) => s.space === TAKEOVER_SPACE) ??
-        toc.sections.find((s) =>
-          (s.groups || []).some((g) => (g.pages || []).some((p) => spaceOf(s, p) === TAKEOVER_SPACE)),
-        )
-      )?.id ?? null)
-    : (sections.find((s) => TAKEOVER_SECTION_IDS.includes(s)) ?? (sections.length > 1 ? sections.at(-1) : null));
+  const layout = dossierLayout(toc);
   const placeholders = summaryPlaceholders();
   const pages = [];
   const claimCounts = { verified: 0, deduced: 0, unknown: 0 };
@@ -289,23 +223,21 @@ function collectPages({ root, content, toc, data, table, language }) {
     for (const g of sec.groups || []) {
       let parent = null;
       for (const p of g.pages || []) {
-        const space = spaceOf(sec, p);
-        const takeover = takeoverSpace ? space === TAKEOVER_SPACE : sec.id === takeoverId;
         const page = readPage(
           { root, content, data, table, language, placeholders, claimCounts },
-          { sec, p, parent, space, takeover },
+          { sec, p, parent, ...layout.roleOf(sec, p) },
         );
         if (page.level === 1) parent = page;
         pages.push(page);
       }
     }
-  return { pages, claimCounts, takeoverId, spaceIds };
+  return { pages, claimCounts, ...layout };
 }
 
 /** One page of the audit: its file read and analysed against its type (or a type guessed for it). */
 function readPage(
   { root, content, data, table, language, placeholders, claimCounts },
-  { sec, p, parent, space, takeover },
+  { sec, p, parent, space, takeover, inDossier, prefer },
 ) {
   const level = p.level === 2 ? 2 : 1;
   const file = `${content}/${p.file || p.id + ".md"}`;
@@ -336,6 +268,7 @@ function readPage(
     written,
     headings,
     takeover,
+    inDossier,
     space,
     words: a.words,
     maxWords: a.maxWords,
@@ -353,7 +286,6 @@ function readPage(
     // standard/templates.md, "Untyped pages": the sub-pages of a screen, an editor or the findings stay untyped.
     if (UNTYPED_UNDER.includes(parentType)) page.untyped = true;
     else {
-      const prefer = takeover ? TAKEOVER_TYPES : SECTION_TYPES[sec.id] || [];
       page.guess = guessTemplate({ table, headings, language, level, parent: parentType, prefer });
       if (!page.guess) page.closest = closestTemplate({ table, headings, language });
     }
@@ -364,7 +296,8 @@ function readPage(
 /**
  * The indicators of standard/maturity.md, and what the actions need to name the pages behind them. `written` owns
  * the pages not written yet (missing or draft); the other page indicators are measured on the written pages only,
- * so that an unwritten page is counted once (standard/maturity.md, "Who counts what").
+ * so that an unwritten page is counted once (standard/maturity.md, "Who counts what") — the depth of the feature
+ * sheets too (engine/audit/depth.mjs).
  */
 async function measureIndicators({
   project,
@@ -375,7 +308,7 @@ async function measureIndicators({
   toc,
   pages,
   subPages,
-  takeoverId,
+  layout,
   table,
   version,
 }) {
@@ -384,8 +317,7 @@ async function measureIndicators({
   const language = config.language;
   const data = built.data;
   const measured = measurePages(pages, config);
-  const { written, unwritten, outside, typed, typedWritten, takeoverPages, takeoverWritten, screenPages, tooLong } =
-    measured.sets;
+  const { written, unwritten, outside, typed, typedWritten, takeoverWritten, screenPages, tooLong } = measured.sets;
   const unwrittenIds = new Set(unwritten.map((p) => p.id));
   const unfinished = [
     ...written.filter((p) => p.placeholder).map((p) => ({ id: p.id, key: "placeholder", vars: { n: 0 } })),
@@ -418,12 +350,19 @@ async function measureIndicators({
     ? await measure.tables(built.html)
     : { measured: false, reason: measure.tablesReason || "skipped" };
 
-  const takeover = evaluateTakeover({ pages: takeoverPages, subPages, takeoverId, table, language });
+  const takeover = evaluateTakeover({
+    pages: pages.filter((p) => p.inDossier),
+    subPages,
+    sections: layout.itemSections,
+    table,
+    language,
+  });
   // `blocking` counts the elements that no page cites, not even a page not written yet: those that only the entry
   // of an unwritten page cites are already counted by `written` (that page) and `coverage` (level 2).
   const uncovered = coverage.measured ? coverage.total - Math.max(coverage.n, coverage.planned ?? 0) : 0;
 
   const P = measured.indicators;
+  const depth = depthOf(built.backlog, pages, measuresDepth(layout.declared));
   const indicators = {
     written: P.written,
     typed: P.typed,
@@ -437,13 +376,7 @@ async function measureIndicators({
         }
       : notMeasured("ratio", coverage.reason, coverage.error),
     proofs: P.proofs,
-    takeover: {
-      kind: "ratio",
-      measured: true,
-      n: takeover.filter((t) => t.ok).length,
-      total: TAKEOVER_ITEMS.length,
-      value: takeover.filter((t) => t.ok).length / TAKEOVER_ITEMS.length,
-    },
+    takeover: takeoverIndicator(takeover),
     tooLong: P.tooLong,
     guidance: count(unfinished.length),
     upToDateCaptures: {
@@ -462,6 +395,7 @@ async function measureIndicators({
       ...(secrets.measured ? {} : { secretsReason: secrets.reason, secretsError: secrets.error }),
     },
     wideTables: tables.measured ? count(tables.problems.length) : notMeasured("count", tables.reason, tables.error),
+    ...depth.indicators,
   };
   return {
     indicators,
@@ -479,143 +413,37 @@ async function measureIndicators({
     unfinished,
     captures,
     versioned,
-    takeoverPages,
     takeoverWritten,
     written,
     unwritten,
     syncRef,
+    depth,
   };
 }
 
-const atLeast = (ind, x) =>
-  !ind.measured
-    ? { ok: true, measured: false }
-    : ind.value === null
-      ? { ok: true, na: true }
-      : { ok: ind.value >= x - 1e-9 };
-const atMost = (ind, x) =>
-  !ind.measured
-    ? { ok: true, measured: false }
-    : ind.value === null
-      ? { ok: true, na: true }
-      : { ok: ind.value <= x + 1e-9 };
-
 /**
- * The criteria of standard/maturity.md, on a set of indicators (the project's, or those of a space); the level 1
- * and 2 criteria that are not indicators are the project's (`emptySections`, `homeFile`, `linkLegend`).
+ * Level by space (§6.1a), null without spaces: the page indicators of each space are measured on its pages; the
+ * project-wide ones are shared, but for the required takeover pages: those that belong to it (`itemSpaces` of the
+ * dossier layout), looked for in its pages; the depth of the feature sheets in a space of a kind that measures it
+ * (standard/spaces.json `depth`), n/a in the others. A criterion that does not concern a space is met and shown n/a, as its
+ * kind says (standard/spaces.json): `written2` in a kind with `proofs` (develop), `proofs4` in the others,
+ * `takeover4` in a space no required takeover page belongs to.
  */
-function criteriaOf(indicators, { emptySections, homeFile, linkLegend }) {
-  const T = THRESHOLDS;
-  return [
-    { level: 1, id: "config", ok: true },
-    { level: 1, id: "draftBuild", ok: true },
-    { level: 1, id: "sectionsWritten", ok: emptySections.length === 0 },
-    { level: 1, id: "home", ok: !!homeFile },
-    {
-      level: 1,
-      id: "glossary1",
-      indicator: "glossary",
-      threshold: T.glossary1,
-      ...atLeast(indicators.glossary, T.glossary1),
-    },
-    { level: 1, id: "tours1", indicator: "tours", threshold: T.tours1, ...atLeast(indicators.tours, T.tours1) },
-    {
-      level: 2,
-      id: "written2",
-      indicator: "written",
-      threshold: T.written2,
-      ...atLeast(indicators.written.outsideTakeover, T.written2),
-    },
-    {
-      level: 2,
-      id: "annotated2",
-      indicator: "annotated",
-      threshold: T.annotated2,
-      ...atLeast(indicators.annotated, T.annotated2),
-    },
-    {
-      level: 2,
-      id: "coverage2",
-      indicator: "coverage",
-      threshold: T.coverage2,
-      ...atLeast(indicators.coverage, T.coverage2),
-    },
-    { level: 2, id: "linksLegend", ok: linkLegend.length === 0, n: linkLegend.length },
-    { level: 3, id: "written3", indicator: "written", threshold: 1, ...atLeast(indicators.written, 1) },
-    { level: 3, id: "blocking3", indicator: "blocking", threshold: 0, ...atMost(indicators.blocking, 0) },
-    { level: 3, id: "typed3", indicator: "typed", threshold: T.typed3, ...atLeast(indicators.typed, T.typed3) },
-    {
-      level: 3,
-      id: "conformant3",
-      indicator: "conformant",
-      threshold: T.conformant3,
-      ...atLeast(indicators.conformant, T.conformant3),
-    },
-    {
-      level: 3,
-      id: "annotated3",
-      indicator: "annotated",
-      threshold: T.annotated3,
-      ...atLeast(indicators.annotated, T.annotated3),
-    },
-    { level: 3, id: "guidance3", indicator: "guidance", threshold: 0, ...atMost(indicators.guidance, 0) },
-    { level: 3, id: "wideTables3", indicator: "wideTables", threshold: 0, ...atMost(indicators.wideTables, 0) },
-    {
-      level: 3,
-      id: "glossary3",
-      indicator: "glossary",
-      threshold: T.glossary3,
-      ...atLeast(indicators.glossary, T.glossary3),
-    },
-    { level: 3, id: "tours3", indicator: "tours", threshold: T.tours3, ...atLeast(indicators.tours, T.tours3) },
-    {
-      level: 4,
-      id: "takeover4",
-      indicator: "takeover",
-      threshold: T.takeover4,
-      ok: indicators.takeover.n >= T.takeover4,
-    },
-    { level: 4, id: "proofs4", indicator: "proofs", threshold: T.proofs4, ...atLeast(indicators.proofs, T.proofs4) },
-    {
-      level: 4,
-      id: "completeness4",
-      indicator: "completeness",
-      threshold: T.completeness4,
-      ...atLeast(indicators.completeness, T.completeness4),
-    },
-    {
-      level: 4,
-      id: "tooLong4",
-      indicator: "tooLong",
-      threshold: T.tooLong4,
-      ...atMost(indicators.tooLong, T.tooLong4),
-    },
-    {
-      level: 4,
-      id: "upToDate4",
-      indicator: "upToDateCaptures",
-      threshold: T.upToDate4,
-      ...atLeast(indicators.upToDateCaptures, T.upToDate4),
-    },
-    {
-      level: 4,
-      id: "upToDatePages4",
-      indicator: "upToDatePages",
-      threshold: T.upToDatePages4,
-      ...atLeast(indicators.upToDatePages, T.upToDatePages4),
-    },
-  ];
-}
-
-/**
- * Level by space (§6.1a): the page indicators of each space are measured on its pages; the project-wide ones are
- * shared. A criterion that does not concern a space (NOT_CONCERNED) is met and shown n/a.
- */
-function spaceLevels({ spaceIds, pages, indicators, config, data, project1 }) {
-  return [...new Set(spaceIds)].map((id) => {
+function spaceLevels({ layout, pages, subPages, indicators, config, data, project1, table, language, built }) {
+  if (!layout.declared) return null;
+  return layout.declared.map(({ id, profile }) => {
     const list = pages.filter((p) => p.space === id);
-    const own = { ...indicators, ...measurePages(list, config).indicators };
-    const skip = NOT_CONCERNED[id === TAKEOVER_SPACE ? "takeover" : "other"];
+    const own = {
+      ...indicators,
+      ...measurePages(list, config).indicators,
+      // The depth, in a space of a kind that measures it (Product); n/a in the others.
+      ...depthOf(built.backlog, list, !!profile?.depth).indicators,
+    };
+    const items = TAKEOVER_ITEMS.filter((item) => layout.itemSpaces[item.id] === id);
+    const dossier = { subPages, sections: layout.itemSections, items, table, language };
+    if (items.length)
+      own.takeover = takeoverIndicator(evaluateTakeover({ ...dossier, pages: list.filter((p) => p.inDossier) }));
+    const skip = [profile?.proofs ? "written2" : "proofs4", ...(items.length ? [] : ["takeover4"])];
     const crit = criteriaOf(own, project1).map((c) => (skip.includes(c.id) ? { ...c, ok: true, na: true } : c));
     return {
       id,
@@ -626,16 +454,6 @@ function spaceLevels({ spaceIds, pages, indicators, config, data, project1 }) {
       criteria: crit,
     };
   });
-}
-
-/** Level reached by a list of criteria: every criterion of each level up to it is met. */
-function levelOf(criteria) {
-  let level = 0;
-  for (const L of [1, 2, 3, 4]) {
-    if (criteria.filter((c) => c.level === L).every((c) => c.ok)) level = L;
-    else break;
-  }
-  return level;
 }
 
 /**
@@ -681,7 +499,7 @@ function measurePages(pages, config) {
     tooLong: ratio(tooLong.length, written.length),
   };
   return {
-    sets: { written, unwritten, outside, typed, typedWritten, takeoverPages, takeoverWritten, screenPages, tooLong },
+    sets: { written, unwritten, outside, typed, typedWritten, takeoverWritten, screenPages, tooLong },
     indicators,
   };
 }
@@ -696,7 +514,7 @@ function readCaptures(root, images) {
     .filter((x) => x.endsWith(".json"))
     .sort()) {
     try {
-      const z = normalizeZones(JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"))).value;
+      const z = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
       out.push({ id: f.slice(0, -5), version: typeof z?.version === "string" ? z.version : null });
     } catch {
       // An invalid zone file is reported by the build (blocking).
@@ -705,64 +523,15 @@ function readCaptures(root, images) {
   return out;
 }
 
-/** The 7 required Take over pages: present or not, the page that satisfies each, and candidates. */
-function evaluateTakeover({ pages, subPages, takeoverId, table, language }) {
-  // Only the written pages count (standard/maturity.md): a draft, or a page without its file, is named as the page
-  // to write (`unwritten`), never as present.
-  const live = pages.filter((p) => p.written);
-  const typeOf = (p) => p.template || p.guess?.type || null;
-  const pending = (test) => {
-    const u = pages.find((p) => !p.written && test(p));
-    return u ? { id: u.id, state: u.state } : null;
-  };
-  return TAKEOVER_ITEMS.map((item) => {
-    const r = {
-      id: item.id,
-      ok: false,
-      page: null,
-      candidate: null,
-      unwritten: null,
-      template: item.template,
-      suggest: item.suggest,
-      sub: item.sub || null,
-      min: item.min || 0,
-    };
-    if (!takeoverId) return r;
-    if (item.match) {
-      const p = live.find(item.match);
-      return { ...r, ok: !!p, page: p?.id ?? null, unwritten: p ? null : pending(item.match) };
-    }
-    for (const p of live.filter((x) => x.template === item.type)) {
-      const subs = item.sub ? subPages(p).filter((s) => s.written && s.template === item.sub).length : 0;
-      const numbered = item.numbered ? p.finding || subPages(p).some((s) => s.finding) : true;
-      if (subs >= r.min && numbered) return { ...r, ok: true, page: p.id };
-      if (!r.page) Object.assign(r, { page: p.id, subs, numbered });
-    }
-    if (!r.page) {
-      // Not typed yet: a page that follows the template, or whose id is the conventional one.
-      const c = live.find((p) => typeOf(p) === item.type) || live.find((p) => item.hint.test(p.id) && p.level === 1);
-      if (c) {
-        const subs = item.sub ? subPages(c).filter((s) => s.written && typeOf(s) === item.sub).length : 0;
-        const missing = analysePage({ table, type: item.type, headings: c.headings, language }).missing;
-        r.candidate = { id: c.id, follows: typeOf(c) === item.type, subs, missing };
-      } else r.unwritten = pending((p) => p.level === 1 && (p.template === item.type || item.hint.test(p.id)));
-    }
-    return r;
-  });
-}
-
 /**
  * Template guidance left outside the declared pages: the home page and the section introductions
  * (`<section>/index.md`). The declared pages that hold guidance are drafts, counted by `written`.
  */
 function leftoverGuidance(root, content, toc) {
-  const files = [
-    HOME_FILES.map((f) => `${content}/${f}`).find((f) => fs.existsSync(path.join(root, f))),
-    ...toc.sections.map((s) => `${content}/${s.id}/index.md`),
-  ];
+  const files = [`${content}/${HOME_FILE}`, ...toc.sections.map((s) => `${content}/${s.id}/index.md`)];
   const out = [];
   for (const file of files) {
-    if (!file || !fs.existsSync(path.join(root, file))) continue;
+    if (!fs.existsSync(path.join(root, file))) continue;
     const n = countGuidance(fs.readFileSync(path.join(root, file), "utf8"));
     if (n) out.push({ id: file, key: "guidanceLeft", vars: { n } });
   }

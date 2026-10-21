@@ -55,8 +55,14 @@ describe("style.css", () => {
 });
 
 describe("app.js and template.html", () => {
-  test("no hard-coded user-facing text in app.js", () => {
-    const code = read("engine/site/app.js")
+  test("no hard-coded user-facing text in app.js and its modules (engine/site/lib)", () => {
+    const sources = [
+      "engine/site/app.js",
+      ...fs.readdirSync(path.join(KIT_ROOT, "engine/site/lib")).map((f) => `engine/site/lib/${f}`),
+    ];
+    const code = sources
+      .map(read)
+      .join("\n")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     assert.doesNotMatch(code, /[À-ÿŒœ]/, "accented letters");
@@ -187,13 +193,17 @@ describe("product neutrality", () => {
     () => {
       const forbidden = new RegExp(terms.join("|"), "i");
       const skip = new Set(["node_modules", ".git"]);
+      // The kit's own texts, and those of its fixtures whatever their language (infrastructure files included).
+      const TEXT =
+        /\.(mjs|js|cjs|ts|tsx|jsx|vue|json|css|html|md|svg|ya?ml|tf|tfvars|bicep|bicepparam|template|toml|py|php|java|kt|cs|go|rb|rs|xml|gradle|txt|nomad)$|^(Dockerfile|Containerfile)(\.[\w.-]{1,40})?$/;
       const walk = (dir) =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
           if (skip.has(d.name)) return [];
           const p = path.join(dir, d.name);
-          return d.isDirectory() ? walk(p) : /\.(mjs|js|json|css|html|md|svg)$/.test(d.name) ? [p] : [];
+          return d.isDirectory() ? walk(p) : TEXT.test(d.name) ? [p] : [];
         });
       const own = [
+        "adapters",
         "cli",
         "engine",
         "i18n",
@@ -205,6 +215,7 @@ describe("product neutrality", () => {
         "skill",
         "docs",
         "ci",
+        ".claude/agents",
       ]
         .filter((d) => fs.existsSync(path.join(KIT_ROOT, d)))
         .flatMap((d) => walk(path.join(KIT_ROOT, d)));
@@ -215,6 +226,10 @@ describe("product neutrality", () => {
         "CHANGELOG.md",
         "CONTRIBUTING.md",
         "SECURITY.md",
+        "CLAUDE.md",
+        "RULES.md",
+        "RULES.fr.md",
+        "AUDIT.md",
         "package.json",
       ]) {
         if (fs.existsSync(path.join(KIT_ROOT, f))) own.push(path.join(KIT_ROOT, f));

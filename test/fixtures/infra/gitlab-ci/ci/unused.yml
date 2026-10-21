@@ -1,0 +1,5 @@
+# Included by no pipeline: never read.
+lint:
+  stage: test
+  environment: production
+  script: npm run lint

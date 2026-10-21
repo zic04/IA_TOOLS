@@ -2,11 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "doc-kit/schemas/toc.schema.json",
   "title": "content/toc.json",
-  "description": "Site outline (ARCHITECTURE.md §6.1; spaces, space and counterpart: §6.1a; feature: §6.8). Legacy French-keyed files (contenu/sommaire.json) are normalised by engine/project/legacy.mjs before validation. `product` is deprecated: the name comes from doc.config.mjs.",
+  "description": "Site outline (ARCHITECTURE.md §6.1; spaces, space and counterpart: §6.1a; feature: §6.8). `product` is deprecated: the name comes from doc.config.mjs.",
   "type": "object",
   "additionalProperties": false,
   "required": ["title", "sections"],
   "$defs": {
+    "counterpartTarget": { "type": "string", "pattern": "^[^\\s~#]+(~[^\\s~#]+)?$" },
     "pageId": { "type": "string", "pattern": "^[^\\s~#]+$" },
     "strings": { "type": "array", "items": { "type": "string" } },
     "spaceId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
@@ -19,6 +20,10 @@
           "required": ["id"],
           "properties": {
             "id": { "$ref": "#/$defs/spaceId" },
+            "kind": {
+              "enum": ["use", "product", "admin", "develop"],
+              "description": "The kind of a space of the project's own: use, product, admin or develop (standard/spaces.json)."
+            },
             "title": { "type": "string", "minLength": 1 },
             "shortTitle": { "type": "string", "minLength": 1 },
             "subtitle": { "type": "string" },
@@ -63,6 +68,9 @@
               "required": ["pages"],
               "properties": {
                 "title": { "type": "string" },
+                "epic": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "The group is an epic of the backlog (ARCHITECTURE.md §6.8b): its id, E-01; its feature sheets are its features." },
+                "summary": { "type": "string", "description": "What the epic is for, in a sentence (kept in the backlog; translated like the titles)." },
+                "ref": { "type": "string", "maxLength": 300, "description": "The epic's item in a backlog tool: ADO#1234, AB#1234, PROJ-123, owner/repo#42, group/sub/project#7." },
                 "pages": {
                   "type": "array",
                   "items": {
@@ -80,8 +88,17 @@
                       "permissions": { "$ref": "#/$defs/strings" },
                       "file": { "type": "string", "minLength": 1 },
                       "space": { "$ref": "#/$defs/spaceId" },
-                      "counterpart": { "type": "string", "pattern": "^[^\\s~#]+(~[^\\s~#]+)?$" },
+                      "counterpart": {
+                        "description": "The same subject for other readers (§6.1a): a page, or a list of them, each \"<page id>\" or \"<page id>~<anchor>\". The pages a counterpart joins, either way, form one topic group.",
+                        "anyOf": [
+                          { "$ref": "#/$defs/counterpartTarget" },
+                          { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/counterpartTarget" } }
+                        ]
+                      },
                       "feature": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$" },
+                      "since": { "type": "string", "pattern": "^[\\w.+-]{1,40}$", "description": "A feature sheet: the version the feature shipped in (its stories take it unless they say theirs)." },
+                      "ref": { "type": "string", "maxLength": 300, "description": "A feature sheet: its item in a backlog tool (ADO#1234, AB#1234, PROJ-123, owner/repo#42, group/sub/project#7)." },
+                      "epic": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "A feature sheet in an epic other than its group's: the id of a group's epic." },
                       "sources": { "$ref": "#/$defs/strings", "description": "Globs, relative to app.dir: declared dependencies of a page without routes, proofs or captures (ARCHITECTURE.md §6.10)." }
                     }
                   }

@@ -1,7 +1,7 @@
 {
   "title": "Documentation {{name}}",
   "tagline": "Le guide de référence de l'application {{name}} : chaque écran, chaque réglage et leur fonctionnement réel, expliqués élément par élément.",
-  "spaces": ["business", "takeover"],
+  "spaces": ["use", "product", "admin", "develop"],
   "sections": [
     {
       "id": "utiliser",
@@ -9,7 +9,7 @@
       "shortTitle": "Utiliser",
       "icon": "screen",
       "subtitle": "Le quotidien de l'utilisateur : chaque écran, élément par élément, et ce qu'il fait réellement.",
-      "space": "business",
+      "space": "use",
       "highlights": [
         "Se connecter et se repérer",
         "Chaque écran expliqué élément par élément",
@@ -37,7 +37,7 @@
       "shortTitle": "Fonctionnalités",
       "icon": "book",
       "subtitle": "Ce que fait chaque fonctionnalité, pour qui, et les règles qu'elle impose — sans code.",
-      "space": "business",
+      "space": "product",
       "highlights": [
         "Une fiche par fonctionnalité, avec sa règle d'accès",
         "Les règles métier, au même endroit",
@@ -67,7 +67,7 @@
       "icon": "sliders",
       "featured": true,
       "subtitle": "Chaque éditeur et chaque réglage, avec le mécanisme réel qu'il pilote.",
-      "space": "business",
+      "space": "admin",
       "highlights": [
         "Le mécanisme de chaque réglage",
         "La référence complète des réglages",
@@ -94,12 +94,8 @@
       "shortTitle": "Administrer",
       "icon": "shield",
       "subtitle": "Accès, données de référence et réglages système.",
-      "space": "business",
-      "highlights": [
-        "Les comptes et les droits",
-        "Les données de référence",
-        "Les réglages système"
-      ],
+      "space": "admin",
+      "highlights": ["Les comptes et les droits", "Les données de référence", "Les réglages système"],
       "groups": [
         {
           "title": "Accès",
@@ -116,17 +112,52 @@
       ]
     },
     {
+      "id": "exploiter",
+      "space": "admin",
+      "title": "Exploiter l'application",
+      "shortTitle": "Exploiter",
+      "groups": [
+        {
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "reprendre/dat",
+              "title": "Dossier d'architecture technique (DAT)",
+              "menuTitle": "DAT",
+              "summary": "L'implantation en production : ce qui tourne et où, les flux numérotés, ce qui reste à confirmer et qui gère quoi.",
+              "template": "architecture"
+            }
+          ]
+        },
+        {
+          "title": "Dossier de reprise",
+          "pages": [
+            {
+              "id": "reprendre/acces-et-propriete",
+              "title": "Accès et propriété",
+              "menuTitle": "Accès et propriété",
+              "summary": "Qui possède quoi, où vivent les secrets, et la checklist pour vraiment en recevoir la charge.",
+              "template": "access-ownership"
+            },
+            {
+              "id": "reprendre/manuel-exploitation",
+              "title": "Manuel d'exploitation",
+              "menuTitle": "Manuel d'exploitation",
+              "summary": "Installer, construire, déployer, revenir en arrière, sauvegarder : les commandes exactes, lues dans le pipeline réel.",
+              "template": "runbook"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "reprendre",
       "title": "Reprendre le projet",
       "shortTitle": "Reprendre",
       "icon": "code",
       "subtitle": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application : architecture, DAT, diagnostic, points d'attention.",
-      "space": "takeover",
-      "highlights": [
-        "L'architecture et le DAT",
-        "Le diagnostic par symptôme",
-        "Les points d'attention numérotés"
-      ],
+      "space": "develop",
+      "highlights": ["L'architecture et le DAT", "Le diagnostic par symptôme", "Les points d'attention numérotés"],
       "groups": [
         {
           "title": "Architecture",
@@ -146,13 +177,6 @@
               "level": 2,
               "template": "technical-sub",
               "counterpart": "fonctionnalites/exemple-fonctionnalite"
-            },
-            {
-              "id": "reprendre/dat",
-              "title": "Dossier d'architecture technique (DAT)",
-              "menuTitle": "DAT",
-              "summary": "L'implantation en production : ce qui tourne et où, les flux numérotés, ce qui reste à confirmer et qui gère quoi.",
-              "template": "architecture"
             }
           ]
         },
@@ -194,20 +218,6 @@
           "title": "Dossier de reprise",
           "pages": [
             {
-              "id": "reprendre/acces-et-propriete",
-              "title": "Accès et propriété",
-              "menuTitle": "Accès et propriété",
-              "summary": "Qui possède quoi, où vivent les secrets, et la checklist pour vraiment en recevoir la charge.",
-              "template": "access-ownership"
-            },
-            {
-              "id": "reprendre/manuel-exploitation",
-              "title": "Manuel d'exploitation",
-              "menuTitle": "Manuel d'exploitation",
-              "summary": "Installer, construire, déployer, revenir en arrière, sauvegarder : les commandes exactes, lues dans le pipeline réel.",
-              "template": "runbook"
-            },
-            {
               "id": "reprendre/instructions-agents",
               "title": "Fichiers d'instructions des agents",
               "menuTitle": "Instructions des agents",
@@ -221,8 +231,32 @@
   ],
   "journeys": [
     {
+      "title": "J'utilise {{name}} au quotidien",
+      "description": "Se connecter, s'y retrouver, puis chaque écran du travail quotidien.",
+      "space": "use",
+      "steps": ["utiliser/prise-en-main"]
+    },
+    {
+      "title": "Je spécifie une fonctionnalité",
+      "description": "Ce que fait une fonctionnalité, pour qui, ses règles, ses comportements et ses critères d'acceptation.",
+      "space": "product",
+      "steps": ["fonctionnalites/exemple-fonctionnalite"]
+    },
+    {
+      "title": "J'administre {{name}}",
+      "description": "Les réglages et leur mécanisme, les comptes, puis l'installation en production et le manuel d'exploitation.",
+      "space": "admin",
+      "steps": [
+        "configurer/editeur-exemple",
+        "administrer/utilisateurs",
+        "reprendre/dat",
+        "reprendre/manuel-exploitation"
+      ]
+    },
+    {
       "title": "Je reprends le projet",
       "description": "Ce qu'il faut savoir pour exploiter et faire évoluer l'application, en cinq pages.",
+      "space": "develop",
       "steps": [
         "reprendre/architecture",
         "reprendre/dat",

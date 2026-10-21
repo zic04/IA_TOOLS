@@ -10,6 +10,7 @@ import crypto from "node:crypto";
 import { lineAt } from "./api.mjs";
 import { listFiles } from "./common.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
+import { createRegistryClient, isPrivatePackage, privateRegistries } from "./network.mjs";
 import { closingBrace } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
@@ -218,13 +219,9 @@ function detectTooling(appDir, allFiles) {
   return { linter, types, formatter, ci };
 }
 
-// --network (ARCHITECTURE.md §6.13): direct dependencies behind their latest version (majors behind). Only the
-// package name is sent (never a file content); the same registries as `dependencies --network` (ARCHITECTURE.md
-// §6.9), but reading the latest version instead of checking mere existence.
-const REGISTRY_LATEST = {
-  npm: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}/latest`,
-  pip: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
-};
+// --network (ARCHITECTURE.md §6.13): direct dependencies behind their latest version (majors behind), asked to the
+// public registries through the network gateway (engine/facts/network.mjs): only the name of a public package is
+// sent, never a private one (AUDIT.md S13).
 
 /** First number of a version-like string ("^2.1.0" → 2), or null. */
 function majorOf(version) {
@@ -232,34 +229,17 @@ function majorOf(version) {
   return m ? Number(m[1]) : null;
 }
 
-/** Latest published version of a direct dependency, or null (unknown ecosystem, 404, timeout, malformed answer). */
-async function latestVersion(item, fetchImpl, timeoutMs) {
-  const url = REGISTRY_LATEST[item.ecosystem]?.(item.name);
-  if (!url) return null;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetchImpl(url, { signal: controller.signal });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return item.ecosystem === "npm" ? data.version : data.info?.version;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** Direct dependencies at least one major behind their latest published version. */
-async function countOutdated(dependencies, fetchImpl, { concurrency = 8, timeoutMs = 5000 } = {}) {
-  const direct = [...new Map(dependencies.filter((d) => d.direct).map((d) => [d.name, d])).values()]; // de-duplicated by name
+/** Direct, public dependencies at least one major behind their latest published version. */
+async function countOutdated(dependencies, fetchImpl, { registries, concurrency = 8 }) {
+  const sendable = dependencies.filter((d) => d.direct && !isPrivatePackage(d, registries));
+  const direct = [...new Map(sendable.map((d) => [d.name, d])).values()]; // de-duplicated by name
+  const client = createRegistryClient({ fetch: fetchImpl, registries });
   const queue = [...direct];
   let outdated = 0;
   async function worker() {
     for (let item = queue.shift(); item; item = queue.shift()) {
-      const latest = await latestVersion(item, fetchImpl, timeoutMs);
       const current = majorOf(item.version);
-      const latestMajor = majorOf(latest);
+      const latestMajor = majorOf(await client.latest(item));
       if (current != null && latestMajor != null && latestMajor > current) outdated++;
     }
   }
@@ -281,9 +261,11 @@ export function rating(ratio, thresholds) {
  * @param {object} [options]
  * @param {(url: string) => Promise<{ok,status}>} [options.fetch]   --network: outdated direct dependencies
  * @param {Array<{name,version,ecosystem,direct}>} [options.dependencies]   --network: already-collected `dependencies` items
+ * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
+ *   the application alone when absent (a private name is never sent)
  * @returns {Promise<{ items: Array<object>, summary: object }>}
  */
-export async function collectQuality(appDir, { fetch: fetchImpl, dependencies } = {}) {
+export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries } = {}) {
   const allFiles = listFiles(appDir);
   const files = allFiles.filter((f) => CODE_EXT.test(f) && !TEST_FILE.test(f) && !GENERATED.test(f));
   const read = files.map((file) => ({ file, text: fs.readFileSync(path.join(appDir, file), "utf8") }));
@@ -334,6 +316,9 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies } 
     tooling: detectTooling(appDir, allFiles),
     ratings,
   };
-  if (fetchImpl && dependencies) summary.outdated = await countOutdated(dependencies, fetchImpl);
+  if (fetchImpl && dependencies)
+    summary.outdated = await countOutdated(dependencies, fetchImpl, {
+      registries: registries ?? privateRegistries(appDir),
+    });
   return { items, summary };
 }

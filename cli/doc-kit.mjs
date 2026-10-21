@@ -124,7 +124,7 @@ export async function runCli(argv, io = {}) {
 
 /**
  * The block each command measures (ETUDE-CAPTURES.md §6): the step a run counts under in usage/<version>.jsonl.
- * Commands absent here (dev, open, view, doctor, init, skill, stats, export, upgrade, migrate) are not recorded.
+ * Commands absent here (dev, open, view, doctor, init, skill, stats, export, upgrade) are not recorded.
  */
 const STEP_OF = Object.freeze({
   connect: "setup",
@@ -132,6 +132,7 @@ const STEP_OF = Object.freeze({
   capture: "capture",
   record: "capture",
   facts: "facts",
+  bricks: "update",
   inventory: "analysis",
   probe: "analysis",
   new: "generate",
@@ -142,6 +143,7 @@ const STEP_OF = Object.freeze({
   build: "build",
   optimize: "build",
   pack: "build",
+  backlog: "build",
   check: "check",
   audit: "audit",
 });
@@ -253,7 +255,7 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
  * not the guided mode's: a project that cannot be built never reaches this check anyway, since `doctor`/`build`
  * steps come first). */
 function safeToc(root, config) {
-  // The shared reader (engine/project/toc.mjs): the legacy sommaire.json and French keys are read too.
+  // The shared reader (engine/project/toc.mjs).
   return readToc(root, config.paths.content).toc || { sections: [] };
 }
 

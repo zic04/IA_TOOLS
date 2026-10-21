@@ -3,9 +3,9 @@ agent: doc-kit-writer
 ---
 # Brief — spécification fonctionnelle : fonctionnalités, règles, rôles, processus
 
-Tu rédiges une partie de l'espace MÉTIER, dans la langue du projet : ce que fait un lot de fonctionnalités, pour
-qui, et selon quelle règle — pour des lecteurs qui ne lisent pas le code (utilisateurs, key users, product
-owners, support). D'autres agents rédigent les autres lots de la même vague EN MÊME TEMPS (voir Variables pour
+Tu rédiges une partie de l'espace PRODUIT, dans la langue du projet : ce que fait un lot de fonctionnalités, pour
+qui, et selon quelle règle — pour des lecteurs qui ne lisent pas le code (responsables produit, analystes métier,
+référents). D'autres agents rédigent les autres lots de la même vague EN MÊME TEMPS (voir Variables pour
 savoir qui). Lance toutes les commandes depuis le dossier de la documentation.
 
 Tes pages sont DÉJÀ déclarées dans le sommaire (ids, titres, l'identifiant « feature » d'une fiche, `level: 2`
@@ -17,29 +17,47 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
    titre, routes, routes API, clés i18n — et, pour chaque page, son fichier de contexte (format du chemin dans
    Variables, produit par `doc-kit context <page>` quand l'orchestrateur l'a lancé avant ce brief) : libellés
    exacts, termes de glossaire pertinents, et extraits des fichiers derrière la fonctionnalité, lus pour
-   comprendre seulement (voir « Rien à citer » ci-dessous).
-2. Le guide de rédaction, et les gabarits de tes types de page (`feature`, `business-rules`, `roles-matrix`,
+   comprendre seulement (voir « Rien à citer » ci-dessous). Pour une fiche de fonctionnalité, sa partie
+   **Comportements à décrire** liste ce que le code dit de chaque comportement (des indices, un par ligne : vérifie
+   chacun dans les extraits) et les cartes à écrire avec leurs rubriques : écris chaque carte listée, réponds à
+   chaque rubrique, et ne fais jamais d'un indice une affirmation que tu n'as pas vérifiée. Les `sources` d'une
+   fonctionnalité dans le fichier des fonctionnalités nomment davantage de son code (motifs relatifs à l'application).
+2. Pour chaque fiche de fonctionnalité, son **digest Produit** (format du chemin dans Variables, produit par
+   `analysis.mjs digest` quand l'orchestrateur l'a préparé) : la source de ce que dit la fiche. Réponds à chaque
+   rubrique d'une carte à partir de lui, ou « Sans objet — raison », ou « Inconnu — la question » (un point
+   Inconnu reste une question, et va aussi sous « Questions ouvertes ») ; prends-y les récits et les critères
+   d'acceptation ; un point marqué *(déduit)* est dit **déduit**. Le fichier de contexte reste la source des
+   libellés exacts. Sans digest pour une fiche, travaille comme le décrit le seul point 1.
+3. Le guide de rédaction, et les gabarits de tes types de page (`feature`, `business-rules`, `roles-matrix`,
    `process` ; chemin dans Variables) : les sections obligatoires, et les directives `::fonctionnalites{}`,
    `::regles{}`, `::roles{}` qui construisent un tableau à partir de toutes les fiches au lieu d'un tableau écrit
    à la main.
-3. La fiche de RÉFÉRENCE, si on t'en donne une (voir Variables) : imite son niveau et son ton.
-4. Les pages métier existantes sur des fonctionnalités voisines ou le même processus (listées dans Variables,
+4. La fiche de RÉFÉRENCE, si on t'en donne une (voir Variables) : imite son niveau et son ton.
+5. Les pages métier existantes sur des fonctionnalités voisines ou le même processus (listées dans Variables,
    s'il y en a) : cite-les (`[[fonctionnalite F-0x]]`), ne les recopie pas.
-5. La page des points d'attention (chemin dans Variables), pour ses numéros seulement : la section « Limites »
+6. La page des points d'attention (chemin dans Variables), pour ses numéros seulement : la section « Limites »
    d'une fiche ne décrit jamais un défaut comme s'il s'agissait d'une fonctionnalité (c'est le rôle de l'espace
-   de reprise). Si une limite ressemble à un défaut, signale-la comme candidat constat au lieu de l'écrire dans
+   Développer). Si une limite ressemble à un défaut, signale-la comme candidat constat au lieu de l'écrire dans
    la fiche.
 
 ## Ce que porte chaque page
 
-- **Fiche de fonctionnalité** (`feature`) : `## Accès` (Module · Qui peut l'utiliser `[[droit …]]` · Prérequis ·
-  Vérifié le) ; `## À quoi ça sert` (2 à 4 phrases, langage métier) ; `## Qui l'utilise` ; `## Déclencheur et
-  prérequis` (facultatif) ; `## Scénario principal` (`:::etapes` ; un `:::ecran` ou un `::capture` seulement
-  quand une capture rend une étape plus claire — aucun des deux n'est obligatoire ici, contrairement à une page
-  `screen`/`editor`) ; `## Variantes et exceptions` (numérotées après l'étape dont elles partent, « 3a. ») ;
-  `## Règles métier` (`:::regle` pour une règle propre à cette seule fonctionnalité, `[[regle RG-xx]]` pour une
-  règle partagée — ne redéfinis jamais une règle qui a déjà un id ailleurs) ; `## Données traitées`,
-  `## Notifications et effets`, `## Limites`, `## Questions fréquentes` (tous facultatifs).
+- **Fiche de fonctionnalité** (`feature`) : une spécification que le product owner peut vérifier sur
+  l'application. `## À quoi ça sert` (2 à 4 phrases, langage métier) ; `## Qui l'utilise` (Rôle · Ce qu'il en
+  fait) ; `## User stories` (un `:::recit{id="US-xx" titre role depuis ref}` par besoin : « En tant que …, je veux …
+  afin de … ») ; `## Parcours principal` (`:::etapes` ; un `:::ecran` ou un `::capture` seulement quand une capture
+  rend une étape plus claire — aucun des deux n'est obligatoire ici, contrairement à une page `screen`/`editor`) ;
+  `## Variantes` (facultatif, numérotées après l'étape dont elles partent, « 3a. ») ; `## Comportements` (une carte
+  `:::comportement{type titre id="B-xx"}` par comportement — recherche, filtre, tri, pagination, liste, formulaire,
+  import, export, calcul, notification, circuit, traitement-planifie, controle-droits — avec une ligne
+  `Rubrique : valeur` pour chaque rubrique de son type dans `standard/behaviours.json` du kit, répondue aussi
+  précisément qu'un test le vérifierait, ou « Sans objet — raison », ou « Inconnu — la question ») ;
+  `## Règles de gestion` (`:::regle` pour une règle propre à cette seule fonctionnalité, `[[regle RG-xx]]` pour une
+  règle partagée — ne redéfinis jamais une règle qui a déjà un id ailleurs) ; `## Champs et saisies`, `## États`
+  (facultatifs) ; `## Messages` (mot pour mot) ; `## Droits par action` (Action · Droit `[[droit …]]` · Condition) ;
+  `## Critères d'acceptation` (un `:::scenario{titre recit="US-xx" comportement="B-xx"}` par critère, Soit / Quand /
+  Alors, une étape par ligne, des valeurs réelles) ; `## Limites`, `## Questions ouvertes` (facultatifs ; chaque
+  « Inconnu — … » d'une carte y va aussi). Une section qui ne s'applique pas reste, avec « Sans objet — la raison ».
 - **Registre des règles métier** (`business-rules`, en général une seule page pour tout le projet) : `## Comment
   lire cette page` ; `## Les règles` (`:::regle`, pour chaque règle sans fonctionnalité propriétaire unique) ;
   `## Les règles par fonctionnalité` (`::regles{}`) ; `## Règles retirées` (facultatif — garde l'id d'une règle
@@ -53,10 +71,10 @@ pour les sous-pages) : ne change ni ids ni titres. Fichier d'une page = `<id>.md
   et relances`, `## Quand ça se passe mal`, `## Fonctionnalités concernées` (facultatif, `::fonctionnalites{}` ou
   `[[fonctionnalite …]]`).
 
-## Rien à citer : l'espace métier ne nomme aucun code
+## Rien à citer : l'espace Produit ne nomme aucun code
 
 Une page métier ne cite **aucun `fichier:ligne`** : le build avertit (`business.technical`) dès qu'un en glisse
-un, car la raison technique appartient à la page `counterpart` de cette fiche dans l'espace de reprise, pas ici.
+un, car la raison technique appartient à la page `counterpart` de cette fiche dans l'espace Développer, pas ici.
 Ce que tu dois tout de même au lecteur :
 
 - le libellé **exact**, écran ou métier, en gras, tel que le disent vraiment les personnes qui utilisent la
@@ -68,7 +86,7 @@ Ce que tu dois tout de même au lecteur :
   celui du projet) définis exactement une fois ; toute autre mention est une citation, jamais une redéfinition ;
 - quand le comportement d'une fonctionnalité pose une question technique (comment une règle est réellement
   appliquée, ce qui se passe en cas d'échec), dis-le dans ton rapport plutôt que d'y répondre ici :
-  l'orchestrateur relie ta fiche et sa page `counterpart` dans l'espace de reprise.
+  l'orchestrateur relie ta fiche et sa page `counterpart` dans l'espace Développer.
 
 ## Règles
 
@@ -83,8 +101,9 @@ Ce que tu dois tout de même au lecteur :
 - Une page qui dépasse le `maxWords` de son gabarit : propose son découpage en sous-pages dans ton rapport, ne la
   découpe pas toi-même.
 - Une fois les contrôles d'une page passés, lance `npx doc-kit sync --mark <id de page> --sources …` (depuis le
-  dossier de la documentation), en citant le fichier des fonctionnalités et, quand tu en lis un pour comprendre,
-  le fichier de l'application qu'il vise : cela enregistre la page comme vérifiée face à l'application actuelle.
+  dossier de la documentation), en citant, quand tu en lis un pour comprendre, le fichier de l'application qu'il
+  vise (une fiche suit sa fonctionnalité par son id `feature` : le fichier des fonctionnalités n'est pas cité) :
+  cela enregistre la page comme vérifiée face à l'application actuelle.
 
 ## Contrôles (depuis le dossier de la documentation)
 
@@ -95,8 +114,8 @@ Ce que tu dois tout de même au lecteur :
 
 1. Pages écrites (nombre de mots) ; ids de fonctionnalités et de règles définis ; rôles et étapes de processus
    décrits.
-2. Fonctionnalités dont le comportement pose une question technique qui vaut une contrepartie de reprise (id de
-   fonctionnalité, la question).
+2. Fonctionnalités dont le comportement pose une question technique qui vaut une contrepartie dans Développer (id
+   de fonctionnalité, la question).
 3. **Candidats constats** : une « limite » qui est en réalité un défaut (gravité, constat, où tu l'as lu).
 4. Erreurs trouvées dans les pages métier existantes (fichier, phrase, preuve) ; termes de glossaire proposés.
 5. Ce qui n'a pas pu être résolu à partir du fichier des fonctionnalités ou des fichiers de contexte, et pourquoi.
@@ -112,6 +131,8 @@ Ce que tu dois tout de même au lecteur :
 - Tes pages : {{pages}}
 - Fichiers de contexte : `{{docDir}}/.doc-kit/context/<id de page, "/" -> "__">.md` (un par page ci-dessus, quand
   l'orchestrateur les a préparés)
+- Digests Produit : `{{docDir}}/.doc-kit/analysis/<id de fonctionnalité>.product.md` (un par fiche de
+  fonctionnalité, quand l'orchestrateur les a préparés)
 {{#if referencePage}}- Fiche de fonctionnalité de référence : `{{contentDir}}/{{referencePage}}.md`
 {{/if}}{{#if otherWriters}}- Autres rédacteurs, en même temps : {{otherWriters}}
 {{/if}}{{#if reads}}- À lire aussi : {{reads}}

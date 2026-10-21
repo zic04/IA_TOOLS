@@ -14,6 +14,9 @@ import path from "node:path";
 import { runCoverage } from "../../engine/check/coverage.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { reasonText } from "./check.mjs";
+import { featuresFileOf } from "../../engine/core/features.mjs";
+import { factsItems } from "../../engine/facts/common.mjs";
+import { candidateKinds } from "../../engine/sync/feature-files.mjs";
 
 export const options = {
   features: { type: "boolean" },
@@ -52,9 +55,12 @@ const humanise = (id) =>
  * @param {Array<{ id: string, routes?: string[], api?: string[], keys?: string[] }>} existingFeatures
  *   features.json already in the project (or []): a candidate already covered by one of its entries is matched
  *   back to it (`sheet`), by a shared route or API route.
- * @returns {Array<{ id: string, name: string, routes: string[], api: string[], keys: string[], sheet?: string }>}
+ * @param {{ items?: object[], api?: object[] }} [hints]   facts/behaviours.json and facts/api.json items: each
+ *   candidate gets the kinds of behaviour card its code points to (engine/sync/feature-files.mjs, candidateKinds)
+ * @returns {Array<{ id: string, name: string, routes: string[], api: string[], keys: string[], behaviours?: string[],
+ *   sheet?: string }>}
  */
-export function candidateFeatures(adapters, existingFeatures = []) {
+export function candidateFeatures(adapters, existingFeatures = [], hints = {}) {
   const groups = new Map();
   for (const a of adapters) {
     if (!a.available) continue;
@@ -75,6 +81,7 @@ export function candidateFeatures(adapters, existingFeatures = []) {
     const sheet = existingFeatures.find((f) =>
       [...routes, ...api].some((x) => (f.routes || []).includes(x) || (f.api || []).includes(x)),
     );
+    const kinds = candidateKinds({ segment: key, api }, hints.items || [], hints.api || []);
     n++;
     return {
       id: `F-${String(n).padStart(2, "0")}`,
@@ -82,6 +89,7 @@ export function candidateFeatures(adapters, existingFeatures = []) {
       routes,
       api,
       keys,
+      ...(kinds.length ? { behaviours: kinds } : {}),
       ...(sheet ? { sheet: sheet.id } : {}),
     };
   });
@@ -108,6 +116,7 @@ export function mergeFeatures(existing, candidates) {
       ...(c.routes.length ? { routes: c.routes } : {}),
       ...(c.api.length ? { api: c.api } : {}),
       ...(c.keys.length ? { keys: c.keys } : {}),
+      ...(c.behaviours?.length ? { behaviours: c.behaviours } : {}),
     });
   }
   return [...existing, ...added];
@@ -118,25 +127,30 @@ async function runFeatures({ ctx, values }) {
   const { project, config } = await ctx.loadProject();
   if (!config.coverage.length) throw new KitError(EXIT.USAGE, "check.coverage.none");
   const res = await runCoverage({ root: project.root, config });
-  const file = path.resolve(project.root, "features.json");
+  const name = featuresFileOf(config);
+  const file = path.resolve(project.root, name);
   const existing = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
-  const candidates = candidateFeatures(res.adapters, existing);
+  const candidates = candidateFeatures(res.adapters, existing, {
+    items: factsItems(project.root, config.paths.facts, "behaviours"),
+    api: factsItems(project.root, config.paths.facts, "api"),
+  });
 
   if (values.write) {
     if (fs.existsSync(file) && !values.force)
-      throw new KitError(EXIT.CHECK, "inventory.features.written", { file: "features.json" });
+      throw new KitError(EXIT.CHECK, "inventory.features.written", { file: name });
     const result = values.force
       ? mergeFeatures(existing, candidates)
-      : candidates.map(({ id, name, routes, api, keys }) => ({
+      : candidates.map(({ id, name, routes, api, keys, behaviours }) => ({
           id,
           title: name,
           ...(routes.length ? { routes } : {}),
           ...(api.length ? { api } : {}),
           ...(keys.length ? { keys } : {}),
+          ...(behaviours?.length ? { behaviours } : {}),
         }));
     fs.writeFileSync(file, JSON.stringify(result, null, 2) + "\n");
-    if (ctx.json) ctx.print(JSON.stringify({ file: "features.json", n: result.length }, null, 2));
-    else ctx.print(ctx.t("cli.inventory.features.wrote", { file: "features.json", n: result.length }));
+    if (ctx.json) ctx.print(JSON.stringify({ file: name, n: result.length }, null, 2));
+    else ctx.print(ctx.t("cli.inventory.features.wrote", { file: name, n: result.length }));
     return EXIT.OK;
   }
   if (ctx.json) {
@@ -148,6 +162,8 @@ async function runFeatures({ ctx, values }) {
     if (c.routes.length) ctx.print(`  ${ctx.t("cli.inventory.features.routes", { routes: c.routes.join(", ") })}`);
     if (c.api.length) ctx.print(`  ${ctx.t("cli.inventory.features.api", { routes: c.api.join(", ") })}`);
     if (c.keys.length) ctx.print(`  ${ctx.t("cli.inventory.features.keys", { keys: c.keys.join(", ") })}`);
+    if (c.behaviours?.length)
+      ctx.print(`  ${ctx.t("cli.inventory.features.behaviours", { kinds: c.behaviours.join(", ") })}`);
     ctx.print(
       `  ${c.sheet ? ctx.t("cli.inventory.features.sheet", { sheet: c.sheet }) : ctx.t("cli.inventory.features.noSheet")}`,
     );

@@ -1,0 +1,4 @@
+#!/usr/bin/env php
+<?php
+
+// Laravel's command line (the fixture never runs it).

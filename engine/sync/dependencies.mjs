@@ -1,16 +1,19 @@
 // Dependencies of a page (ARCHITECTURE.md §6.10, "Dependencies of a page"): the files the application code holds
 // that a page's text depends on, deduced from its routes, its proofs, its captures, its `::facts` tables, its
-// counterpart and its declared sources — never typed by hand (except `sources` and `--mark --sources`).
+// counterpart and its declared sources — never typed by hand (except `sources` and `--mark --sources`). A feature
+// sheet also depends on the code of its feature in features.json (engine/sync/feature-files.mjs).
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { adapterTools } from "../check/coverage.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
-import { relPath } from "../facts/common.mjs";
+import { relPath, factsItems } from "../facts/common.mjs";
 import { routeFiles, matchRoute } from "./routes.mjs";
 import { resolveImports } from "../facts/imports.mjs";
 import { extractProofs } from "./proofs.mjs";
 import { apiRoutesCalledBy } from "./api-links.mjs";
+import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
+import { topicOf } from "../core/counterparts.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -159,7 +162,9 @@ export async function pageDependencies({
   const markdown = readCached(path.join(root, file)) ?? "";
   const coverageAdapters = await loadCoverageAdapters(root, config);
 
-  const routes = entry.routes || [];
+  // A feature sheet: the routes of its feature (features.json) with its own.
+  const feature = featureOf(root, config, entry);
+  const routes = [...new Set([...(entry.routes || []), ...(feature?.routes || [])])];
   const proofs = extractProofs(markdown, appDir ? { appDir } : {});
   const captures = captureIds(markdown);
   const factsSources = factsSourcesOf(markdown);
@@ -206,16 +211,10 @@ export async function pageDependencies({
 
   // ─── Server code behind the screen: the API paths written in the page's own files, matched against the routes
   // of facts/api.json (api-links.mjs); each handler's file is direct, with the handler's line ──────────────────
-  const apiFacts = appDir && factsDir ? readCached(path.join(root, factsDir, "api.json")) : null;
-  if (apiFacts && pageFiles.size) {
-    let items = [];
-    try {
-      items = JSON.parse(apiFacts).items || [];
-    } catch {
-      // An unreadable facts file is reported by the build (::facts) and by doc-kit facts, not here.
-    }
+  const apiItems = appDir ? factsItems(root, factsDir, "api") : [];
+  if (apiItems.length && pageFiles.size) {
     const texts = [...pageFiles].map((f) => readCached(path.join(appDir, f)) ?? "");
-    for (const item of apiRoutesCalledBy(texts, items))
+    for (const item of apiRoutesCalledBy(texts, apiItems))
       add(item.file, { via: "api", direct: true, lines: item.line ? [item.line, item.line] : undefined });
   }
 
@@ -246,9 +245,8 @@ export async function pageDependencies({
   // ─── ::facts tables ────────────────────────────────────────────────────────────────────────────────────────
   for (const source of factsSources) add(`doc:${factsDir}/${source}.json`, { via: "facts" });
 
-  // ─── Counterpart: one level of recursion, never beyond ────────────────────────────────────────────────────
-  if (entry.counterpart && _counterpartDepth < 1) {
-    const targetId = entry.counterpart.split("~")[0];
+  // ─── Its topic group (engine/core/counterparts.mjs): the other pages, one level of recursion, never beyond
+  for (const { id: targetId } of _counterpartDepth < 1 ? topicOf(toc, pageId) : []) {
     const target = await pageDependencies({
       root,
       config,
@@ -264,18 +262,25 @@ export async function pageDependencies({
     for (const f of target.files) add(f.path, { via: "counterpart", direct: false });
   }
 
-  // ─── Declared page sources (toc field `sources`: globs relative to app.dir) ────────────────────────────────
-  if (appDir && entry.sources?.length) {
-    const appTools = adapterTools(appDir);
-    for (const pattern of entry.sources)
-      for (const f of globFiles(appTools, ".", pattern)) add(f, { via: "sources", direct: true });
-  }
+  // ─── Declared page sources (toc field `sources`: globs relative to app.dir), confined to it ─────────────────────
+  const appTools = appDir ? adapterTools(appDir) : null;
+  const appGlob = (pattern) => globFiles(appTools, ".", pattern);
+  if (appDir && entry.sources?.length)
+    for (const f of safeSources(appDir, entry.sources, appGlob)) add(f, { via: "sources", direct: true });
+
+  // ─── A feature sheet: the handlers of its feature's API routes, its `sources`, and what they import two levels
+  // deep (handler → service → query), where its behaviours are written ─────────────────────────────────────────
+  if (appDir && feature) featureDependencies({ appDir, feature, apiItems, glob: appGlob, add });
 
   // ─── Declared sources of --mark --sources (sync.json pages[id].declared) ──────────────────────────────────
   for (const d of declared) {
     const m = /^(.+?)(?::(\d+)(?:-(\d+))?)?$/.exec(d);
     add(m[1], { via: "declared", direct: true, lines: m[2] ? [Number(m[2]), Number(m[3] || m[2])] : undefined });
   }
+
+  // ─── The behaviour hints (facts/behaviours.json) of the page's files: their lines, so that excerpts show them ──
+  for (const [file, lines] of behaviourLines(appDir ? factsItems(root, factsDir, "behaviours") : [], [...acc.keys()]))
+    for (const line of lines) add(file, { lines: [line, line] });
 
   // ─── Final classification (ARCHITECTURE.md §2.3): direct when a page file (not a layout), under a D folder,
   // or cited directly (proof/sources/declared) ─────────────────────────────────────────────────────────────

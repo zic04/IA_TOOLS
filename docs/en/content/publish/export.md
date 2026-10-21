@@ -38,7 +38,7 @@ doc-kit export ../acme-orders-docs --with-dist --zip
 ```text
 ⚠ version.file points outside the project (../../package.json): the copy shows the frozen version (version.fallback)
 · not exported: package-lock.json
-✔ ../acme-orders-docs: 26 project files + engine 0.3.0 vendored (172 files) · documented version 2.4.0
+✔ ../acme-orders-docs: 26 project files + engine 0.4.0 vendored (172 files) · documented version 2.4.0
 ✔ archive ../acme-orders-docs.zip (0.5 MB)
 ```
 
@@ -99,7 +99,7 @@ owner allows.
 
 > [!NOTE] A project with spaces
 > `--with-dist` copies the per-space exports wherever `build` wrote them, alongside the full site: a takeover
-> dossier handed to one team never needs the business pages removed by hand ([Two spaces, one source](#/spaces/overview~exporting-where-confidentiality-actually-starts)).
+> dossier handed to one team never needs the business pages removed by hand ([Four spaces, one source](#/spaces/overview~exporting-where-confidentiality-actually-starts)).
 
 > [!NOTE] The handover checklist
 > `standard/delivery.md` lists everything to check before a handover: checks, safety, takeover content, export and

@@ -99,8 +99,8 @@ version.
 
 > [!WARNING] A plan is code
 > Plans are JavaScript modules, imported by the kit: they can import helpers (`../targets.mjs`) and compute their
-> entries. They are never rewritten by the kit, even by `doc-kit migrate`. Legacy French keys (`titre`, `contexte`,
-> `cadre`, `clic`, `champ`…) are normalised when they are read.
+> entries. They are never rewritten by the kit. Their keys are the English ones above: a French key of a plan written
+> before 0.4.0 (`titre`, `contexte`, `cadre`, `clic`, `champ`…) is an unknown key, and the command stops on it.
 
 > [!NOTE] "a module cannot be found"
 > `import … from "doc-kit/targets"` needs the project's dependencies: run `npm install` in the documentation project.

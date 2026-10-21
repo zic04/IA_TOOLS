@@ -1,0 +1,11 @@
+[
+  {
+    "term": "Commande",
+    "pattern": "commandes?",
+    "def": "Une demande d'un client."
+  },
+  {
+    "term": "Validation",
+    "def": "L'accord donné à une commande."
+  }
+]

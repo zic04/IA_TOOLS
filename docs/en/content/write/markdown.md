@@ -6,12 +6,12 @@ Pages are **GitHub-flavoured Markdown** (tables, fenced code, task-free lists) w
 1. **Blocks with a body**: `:::screen` (an annotated capture and its legend) and `:::steps` (numbered steps).
 2. **One-line directives**: `::capture`, `::diagram` and `::before-after`.
 3. **Callouts**: `> [!TIP]`, `> [!WARNING]`, `> [!CAUTION]`, `> [!PERMISSIONS]`, `> [!NOTE]`, `> [!RECIPE]`, `> [!HOW]`.
-4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the business space's
-   `[[feature …]]`, `[[rule …]]`.
+4. **Inline badges**: `[[perm …]]`, `[[menu …]]`, `[[key …]]`, `[[status …]]`, `[[route …]]`, and the Product space's
+   `[[feature …]]`, `[[rule …]]`, `[[story …]]`.
 5. **Internal links**: `#/page-id` and `#/page-id~anchor`, checked by the build.
-6. **Business space** (§6.8): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
-   `::roles`.
-7. **Takeover space** (§6.9): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
+6. **Features, rules and roles** (§6.8, the Product space): a block with a body, `:::rule`, and generated tables, `::features`, `::rules`,
+   `::roles`; and, to describe a feature in depth (§6.8a), `:::story`, `:::behaviour` and `:::scenario`.
+7. **Facts and claims** (§6.9, the takeover dossier): `::facts` (a table from `facts/<source>.json`) and the claim badges `[[verified …]]`,
    `[[deduced …]]`, `[[unknown …]]`.
 
 Every extension has an English and a French spelling; both are accepted in any project, whatever its language.
@@ -120,10 +120,10 @@ An unknown type (`[!DANGER]`) is a build warning, and the quote is shown with th
 - `[[route …]]` accepts brackets inside (`/orders/[id]`). The coverage check finds a route anywhere in the text of
   the pages, in a badge or not.
 
-## Business space
+## Features, rules and roles
 
-The business space (ARCHITECTURE.md §6.8) describes each feature for the people who use it, decide about it or
-support it: no code, no `file:line`.
+These directives serve the Product space (ARCHITECTURE.md §6.8), which describes each feature for the people who
+use it, decide about it or support it: no code, no `file:line`.
 
 | English | French | What it does |
 |---|---|---|
@@ -133,6 +133,8 @@ support it: no code, no `file:line`.
 | `::features{}` | `::fonctionnalites{}` | A table of every feature sheet: id, feature (linked), summary, who (its permissions). |
 | `::rules{}` | `::regles{}` | A table of every rule: id (linked), rule, defined in (linked), cited by. |
 | `::roles{}` | `::roles{}` (same spelling) | A table of every feature sheet's permissions, one row per sheet, `✔` where a permission unlocks it. |
+| `::board{}` | `::tableau{}` | The Product board (map or list of the epics, features and stories, with filters) — already on the home of the Product space. |
+| `::stories{}` | `::recits{}` | A table of every user story of the feature sheets: id (linked), story, feature (linked), role, version (its own, else its feature's), acceptance criteria, ticket (linked with `backlog.refs`). |
 
 ```markdown
 :::rule{id="BR-12" title="An order above the threshold waits for a manager"}
@@ -153,16 +155,69 @@ A page declares its own feature id with the `feature` field of `content/toc.json
 what the coverage adapters see, grouped by the first static segment of their routes, API routes or i18n keys.
 
 A glossary term's `technical` field (where it lives in the code) is shown in its tooltip only when the project has
-no spaces, or the current space is `takeover` or "everything" ([Glossary](#/write/glossary)); exports other than
-`takeover` drop it.
+no spaces, or the current space is "everything" or one whose kind shows it, `admin` or `develop`
+([Glossary](#/write/glossary)); the exports of the other spaces (`use`, `product`) drop it.
 
 [Example · Feature sheet](#/examples/feature), [Example · Business rules](#/examples/business-rules) and
 [Example · Roles matrix](#/examples/roles-matrix) show every element of this section in a real page.
 
-## Takeover space
+## A feature in depth: stories, behaviour cards, scenarios
 
-The takeover space (ARCHITECTURE.md §6.9) is the dossier a team needs to take over an application: every claim is
-backed by a proof (`file:line`), or marked as deduced or unknown.
+A feature sheet answers the questions a product owner and a tester ask about each behaviour of the feature, in
+business language (ARCHITECTURE.md §6.8a): its user stories, a card per behaviour, and its acceptance criteria.
+
+| English | French | What it does |
+|---|---|---|
+| `:::story{id="US-01" title="…" role="…" since="1.2" ref="ADO#1234"}` … `:::` | `:::recit{id="US-01" titre="…" role="…" depuis="1.2" ref="…"}` … `:::` | A user story: "As a …, I want … so that …". Rendered as an `h3` "US-01 · title", with its role, its version, its ticket and the number of its acceptance criteria. |
+| `:::behaviour{kind="search" title="…" id="B-01"}` … `:::` | `:::comportement{type="recherche" titre="…" id="B-01"}` … `:::` | A behaviour card: one `Rubric: value` line per rubric of its kind, each shown with its state. The title is an `h3`. |
+| `:::scenario{title="…" story="US-01" behaviour="B-01"}` … `:::` | `:::scenario{titre="…" recit="US-01" comportement="B-01"}` … `:::` | An acceptance criterion: one step per line, `Given`, `When`, `Then`, `And`, `But` (`Soit`, `Quand`, `Alors`, `Et`, `Mais`), linked to its story and its card. |
+| `[[story US-01]]` | `[[recit US-01]]` | A link chip to the story. |
+
+```markdown
+:::behaviour{kind="search" title="Find an order by customer" id="B-01"}
+Where: the **Customer** field, above the list.
+Fields searched: the customer's name only.
+Matching: contains, whatever the case; accents count: "cafe" does not find "Blue Harbor Café".
+Several words: one phrase, as typed.
+Trigger: at each keystroke.
+Order of results: n/a — the order the application sends is kept.
+No result: the table stays empty, with no message.
+Permissions: unknown — are the results limited to the reader's region?
+:::
+
+:::scenario{title="Accents count" story="US-02" behaviour="B-01"}
+Given the order of "Blue Harbor Café"
+When I type "cafe" in **Customer**
+Then no order is shown
+:::
+```
+
+- **Kinds** (`standard/behaviours.json`): `search`, `filter`, `sort`, `pagination`, `list`, `form`, `import`,
+  `export`, `calculation`, `notification`, `workflow`, `scheduled-job`, `permission-check` — or their French names
+  (`recherche`, `filtre`, `tri`, `liste`, `formulaire`, `calcul`, `circuit`, `traitement-planifie`,
+  `controle-droits`…). Each lists its rubrics, required or not, with what each one must say. A project adds its own
+  kinds with `behaviours.file` ([Project settings](#/reference/configuration/project)).
+- **Rubrics**: the label in English or in French, at the start of its line, in bold or as a list item if you like
+  (`- **Fields searched**: …`); a value may go on over the next lines, up to the next rubric — an indented line always
+  continues the value (a sub-list under "Columns:" stays there). The text before the first rubric introduces the card.
+- **Answers**: `n/a — reason` (or `not applicable`, `sans objet`) when a rubric does not apply; `unknown — the
+  question` (or `to confirm`, `inconnu`, `à confirmer`) when nobody knows yet — the question goes to "Open
+  questions" too. The word stands alone or is followed by a separator (`—`, `-`, `:`, `.`, `;`, `,`): "Unknown
+  customers are not listed" is an answer. A required rubric left out is shown as missing and reported (`behaviour.missing`, a warning; an error
+  of the strict build with `behaviours.strict`).
+- **Checks**: a card without `kind` or `title` (`behaviour.attributes`), of an unknown kind (`behaviour.kind`), an
+  id defined twice (`behaviour.duplicate`, `story.duplicate`), a story without `id` or `title`
+  (`story.attributes`), a scenario without a title (`scenario.attributes`) or naming a story or a card that does not
+  exist (`story.unknown`, `behaviour.unknown`) fail a strict build; a scenario without a `Then` after a `Given` or
+  a `When` is a warning (`scenario.steps`).
+
+A scenario is attached by its attributes, never nested inside a story or a card: the three containers sit side by
+side in their sections ("User stories", "Behaviours", "Acceptance criteria").
+
+## Facts and claims
+
+The takeover dossier (ARCHITECTURE.md §6.9), written for the Develop space, is what a team needs to take over an
+application: every claim is backed by a proof (`file:line`), or marked as deduced or unknown.
 
 | English | French | What it does |
 |---|---|---|
@@ -172,6 +227,7 @@ backed by a proof (`file:line`), or marked as deduced or unknown.
 | `::hotspots{limit="10"}` | `::points-chauds{…}` | The files that change most often **and** are the most complex (commits × complexity, `facts/history.json` × `facts/quality.json`), with their main author, and the bus factor. |
 | `::health{}` | `::sante{}` | The state of the application in one view: ratings, security, tests, architecture, knowledge, dependencies, tooling (a card says "not measured" when its facts are missing), then the ten main risks found in the facts. |
 | `::c4{title="…"}` | `::c4{…}` (same spelling) | The container view of the application: the users, one container per folder whose manifest names a framework (Next.js, React, FastAPI, Express…), the database, and the external systems found in the environment variables and the packages (Stripe, OpenAI, AWS…), each with its evidence. From `facts/dependencies.json` (required), `env.json` and `db.json`. |
+| `::c4{view="deployment" title="…" limit="10"}` | `::c4{vue="deploiement" …}` | The deployment view: one column per environment (production, staging…) with its entry points, its workloads and jobs and its cloud resources, the pipelines that deploy to each, then a row per element with its settings (replicas, image and tag, ports, root, TLS, open to all, schedule) and its `file:line`. From `facts/infra.json` (required, `doc-kit facts --source infra`). |
 | `[[verified …]]` | `[[verifie …]]` | A small badge: the claim was checked directly in the code. The text after the kind is optional: a bare `[[verified]]`, or `[[verified lib/orders.ts:42]]` with its proof. |
 | `[[deduced …]]` | `[[deduit …]]` | The claim follows from what was read, without a direct line-by-line check. |
 | `[[unknown …]]` | `[[inconnu …]]` | Nobody could tell, inside the time available for the takeover. |
@@ -187,7 +243,7 @@ An unknown source (`facts.missing`) or a column that none of the items has (`fac
 run `doc-kit facts` first. [Commands: write and check](#/reference/cli/write-check~doc-kit-facts) lists the seven
 sources. The ten takeover page types ([Page templates](#/write/page-templates)) are built around these two pieces
 of syntax: [Example · API surface](#/examples/api-surface), [Example · Dependencies](#/examples/dependencies) and
-the other examples of the takeover space show them in a real page.
+the other takeover examples show them in a real page.
 
 ## Links
 

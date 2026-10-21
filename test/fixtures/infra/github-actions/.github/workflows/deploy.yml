@@ -1,0 +1,68 @@
+# Build, test and deploy the shop.
+name: Deploy shop
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1-5"
+    - cron: "30 22 * * 0"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release to deploy
+        default: do-not-keep-input
+env:
+  NODE_VERSION: "20"
+  SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: node:20.11-bookworm
+      credentials:
+        username: do-not-keep-user
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: do-not-keep-pg
+        ports:
+          - 5432:5432
+      redis:
+        image: redis
+    env:
+      DATABASE_URL: postgres://shop:do-not-keep-db@localhost/shop
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm test
+  # release:
+  #   runs-on: ubuntu-latest
+  #   environment: prod-eu
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - run: ./deploy.sh staging
+        env:
+          DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://shop.example.test
+    steps:
+      - run: ./deploy.sh production
+        env:
+          DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY }}
+  smoke-production:
+    needs: deploy-production
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -f https://shop.example.test/health

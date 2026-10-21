@@ -8,7 +8,7 @@
 //   `api: true` (ARCHITECTURE.md §6.9) adds a second family, one item per route handler (GET /api/orders/[id]),
 //   from the `route.ts|js` files of the same `app` folder: no change to the page family when it is left out.
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
-import { nextRouteMethods } from "../../engine/facts/api.mjs";
+import { nextRouteMethods } from "../stack/next.mjs";
 
 const PAGE = /(^|\/)page\.(tsx|ts|jsx|js|mdx)$/;
 const ROUTE_HANDLER = /(^|\/)route\.(ts|js|tsx|jsx)$/;

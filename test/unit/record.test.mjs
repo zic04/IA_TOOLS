@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { codegenToEntry, targetOf, routeOf, planModule } from "../../engine/capture/record.mjs";
-import { normalizeEntry } from "../../engine/capture/plans.mjs";
+import { validateEntry } from "../../engine/capture/plans.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { demoCopy } from "../tools/helpers.mjs";
 
@@ -60,7 +60,8 @@ describe("engine/capture/record.mjs", () => {
     const file = path.join(demoCopy(), "p.mjs");
     fs.writeFileSync(file, text);
     const { CAPTURES } = await import(pathToFileURL(file).href);
-    assert.deepEqual(normalizeEntry(CAPTURES[0]).value.actions, entry.actions);
+    assert.deepEqual(validateEntry(CAPTURES[0]), []);
+    assert.deepEqual(CAPTURES[0].actions, entry.actions);
   });
 });
 

@@ -26,10 +26,10 @@ sommaire. N'écrase jamais un fichier (code de sortie 1).
 
 | Option | Effet |
 |---|---|
-| `--template <type>` | L'un des 13 types ; obligatoire, sauf si la page est déjà déclarée avec un type |
+| `--template <type>` | L'un des 31 types ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | Titre et titre de menu ; défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id-page>` | En fait une sous-page (`"level": 2`), placée juste après le parent et ses sous-pages |
-| `--prefill` | Remplit le tableau principal de la page depuis les faits (`variables`, `api-surface`, `data-model`, `dependencies` et `agent-instructions` seulement) ; les autres cellules restent des consignes à remplir |
+| `--prefill` | Remplit le tableau principal de la page depuis les faits (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` et `runbook` — ses tâches planifiées — seulement) ; les autres cellules restent des consignes à remplir |
 
 Les ids de page sont des segments en minuscules séparés par `/`, le premier étant l'id de la section :
 `utiliser/commandes/export`. [Les gabarits de page](#/write/page-templates~creer-une-page-doc-kit-new) donnent les
@@ -113,20 +113,19 @@ doc-kit facts [--source <nom>]... [--network] [--tools] [--json]
 ```
 
 Lit le code de l'application (`app.dir`) et écrit un fichier par source dans `paths.facts` (`facts/<source>.json`
-par défaut), dans le projet de documentation — jamais dans l'application : `dependencies`, `env`, `api`, `db`,
-`agents`, `secrets` et `tests`. `::faits{source="…"}` lit ces fichiers au moment de la construction, et les types de
+par défaut), dans le projet de documentation — jamais dans l'application : `dependencies`, `stack`, `env`, `api`, `screens`, `db`, `infra`, `behaviours`, `agents`, `secrets`, `security`, `quality`, `tests`, `modules` et `history`. `::faits{source="…"}` lit ces fichiers au moment de la construction, et les types de
 pages de reprise (`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`,
 `tests-quality`, `agent-instructions`, `adr`, `threat-model`) en sont écrits. Sans `app.dir`, code de sortie 2.
 
 | Option | Effet |
 |---|---|
 | `--source <nom>` | Répétable : seulement ces sources (par défaut : les sept) |
-| `--network` | `dependencies` : vérifie aussi si chaque paquet direct existe dans son registre (le nom seul, rien d'autre) |
-| `--tools` | Lance aussi `gitleaks`, `osv-scanner`, `syft` et `knip` quand ils sont sur le PATH, chacun dans `facts/tool-<nom>.json` ; un outil absent est signalé, jamais une erreur |
+| `--network` | `dependencies` : vérifie aussi si chaque paquet direct existe dans son registre ; `quality` : combien de versions majeures de retard (le nom seul, rien d'autre, et jamais le nom d'un paquet privé) ; `--tools` : permet à `osv-scanner` de télécharger sa base |
+| `--tools` | Lance aussi `gitleaks`, `osv-scanner` (hors ligne), `syft` et `knip` quand ils sont sur le PATH, chacun dans `facts/tool-<nom>.json` (état `ok`, `findings`, `failed` ou `missing` ; seule une liste blanche de champs est gardée) ; un outil absent est signalé, jamais une erreur |
 
 Le même code, lancé sur le même commit de l'application, écrit le même fichier (son horodatage `generated` mis à
 part) : `doc-kit facts` peut être committé sans risque avec les pages qu'il alimente. Voir [Exemple · Surface d'API](#/examples/api-surface)
-et les autres exemples de l'espace reprise pour `::faits` en situation.
+et les autres exemples de la reprise pour `::faits` en situation.
 
 ## doc-kit sync
 
@@ -139,7 +138,7 @@ Ce que la documentation doit suivre après un changement de l'application (`app.
 l'application maintenant avec la référence, `sync.json` (`paths.sync`), ou, avec `--since <réf>`, un commit git —
 git n'est jamais qu'en lecture. `--mark <page…>` ou `--all` enregistrent, pour chaque page, les fichiers de
 l'application dont elle dépend : ses `routes`, ses preuves `fichier:ligne`, les captures qu'elle cite, ses tableaux
-`::faits`, son `counterpart` et ses `sources` (un champ de page pour une page sans rien de tout cela). Le rapport
+`::faits`, son groupe de sujet (`counterpart`) et ses `sources` (un champ de page pour une page sans rien de tout cela). Le rapport
 liste ensuite les pages à relire, groupées par priorité (`direct` : un fichier de la page elle-même a changé ;
 `shared` : seul un fichier qu'elle importe a changé ; `probablyIntact` : ce fichier partagé a changé, mais rien que
 la page cite), les preuves `fichier:ligne` déplacées ou rompues, les libellés dont la valeur a changé
@@ -174,19 +173,21 @@ doc-kit context <page…> [--budget <jetons>] [--update]
 Écrit `.doc-kit/context/<page>.md`, un fichier par page (`/` remplacé par `__` dans le nom de fichier) : la seule
 lecture dont un agent a besoin pour écrire ou mettre à jour cette page, au lieu de tout l'inventaire du code et de
 la table des matières. Il est construit à partir des **dépendances** de la page (les mêmes que calcule
-`doc-kit sync` : ses routes, ses preuves `fichier:ligne`, ses captures, ses tableaux `::faits`, son `counterpart` et
-ses `sources` déclarées) — les fichiers directs (la route propre de la page) avant les partagés (seulement
+`doc-kit sync` : ses routes, ses preuves `fichier:ligne`, ses captures, ses tableaux `::faits`, son groupe de sujet
+(`counterpart`) et ses `sources` déclarées) — les fichiers directs (la route propre de la page) avant les partagés (seulement
 importés) : la page elle-même, les sections requises de son gabarit, les fichiers à lire (un fichier de 150 lignes
 ou moins en entier ; sinon ±40 lignes autour de chaque ligne citée ; un fichier direct sans ligne citée donne ses
 80 premières lignes ; un fichier partagé sans ligne citée est listé par son seul chemin), les libellés exacts et
-les lignes de faits que ces fichiers citent, et les termes du glossaire qu'ils correspondent. Une page déclarée
+les lignes de faits que ces fichiers citent, et les termes du glossaire qu'ils correspondent ; un manuel
+d'exploitation reçoit aussi ce que déclare l'infrastructure (`facts/infra.json`), par environnement, avec le
+`fichier:ligne` à citer. Une page déclarée
 dans la table des matières mais pas encore écrite est acceptée (le contexte sert à l'écrire) ; une page inconnue
 est refusée (code de sortie 2).
 
 | Option | Effet |
 |---|---|
 | `page…` | Un ou plusieurs identifiants de page de `content/toc.json` |
-| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (16 000 par défaut) ; la page et ses sections requises ne sont jamais coupées — les extraits partagés partent d'abord, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
+| `--budget <jetons>` | Taille maximale de chaque contexte, estimée en caractères ÷ 4 (par défaut : le budget du gabarit de la page, 24 000 pour une fiche de fonctionnalité, 16 000 sinon) ; la page et ses sections requises ne sont jamais coupées — la vue d'ensemble de l'infrastructure d'un manuel d'exploitation part d'abord, puis les extraits partagés, puis les extraits les plus éloignés d'une ligne citée, puis les faits, puis les libellés ; chaque coupe laisse une ligne, reprise dans une liste finale |
 | `--update` | Inclut aussi l'entrée de la page du dernier rapport `doc-kit sync` (toutes les catégories, avec leurs raisons), le diff de ses fichiers changés, et les chemins des planches avant/après de ses captures (`.doc-kit/compare/<id>.png`, jamais incluses) ; sans rapport encore (`doc-kit sync --mark`), code de sortie 2 |
 
 `--json` donne `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. Un dossier de contexte tient en quelques

@@ -7,7 +7,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { readChangelog, changesBetween, planUpgrade } from "../../cli/commands/upgrade.mjs";
+import { readChangelog, changesBetween, planUpgrade, migrationFailure } from "../../cli/commands/upgrade.mjs";
+import { createI18n } from "../../engine/i18n.mjs";
 import {
   rangeBase,
   compareVersions,
@@ -235,6 +236,52 @@ export async function migrate({ files }) {
       assert.equal(failing.error.version, "0.9.0");
       assert.equal(failing.applied, false);
       assert.match(fs.readFileSync(configFile, "utf8"), /kit: "\^0\.3\.0"/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(migrations, { recursive: true, force: true });
+    }
+  });
+
+  test("a migration that refuses a project (a KitError): its own message and help, in en and fr; nothing written", async () => {
+    const dir = demoCopy();
+    const migrations = tempDir("doc-kit-migrations-");
+    try {
+      const errors = pathToFileURL(path.join(KIT_ROOT, "engine", "project", "errors.mjs")).href;
+      fs.writeFileSync(
+        path.join(migrations, "0.4.0.mjs"),
+        `import { KitError, EXIT } from ${JSON.stringify(errors)};
+export const version = "0.4.0";
+export async function migrate() { throw new KitError(EXIT.CHECK, "new.noToc", { file: "content/toc.json" }); }
+`,
+      );
+      const plan = await planUpgrade({
+        root: dir,
+        configFile: path.join(dir, "doc.config.mjs"),
+        raw: { kit: "^0.3.0" },
+        apply: true,
+        kitVersion: "0.4.0",
+        migrationsFolder: migrations,
+        kitRoot: dir,
+      });
+      assert.equal(plan.applied, false);
+      const failure = migrationFailure(plan.migrations[0]);
+      assert.deepEqual(failure, {
+        key: "new.noToc",
+        vars: { file: "content/toc.json", version: "0.4.0" },
+      });
+      for (const [language, text, help] of [
+        ["en", /^table of contents not found: content\/toc\.json/, /doc-kit init/],
+        ["fr", /^sommaire introuvable : content\/toc\.json/, /doc-kit init/],
+      ]) {
+        const { t } = createI18n({ language });
+        assert.match(t(`cli.${failure.key}`, failure.vars), text, language);
+        assert.match(t(`cli.${failure.key}.help`, { command: "doc-kit" }), help, language);
+      }
+      assert.equal(migrationFailure({ version: "0.4.0" }), null, "a migration that ran");
+      assert.deepEqual(migrationFailure({ version: "0.9.0", error: "too new" }), {
+        key: "upgrade.migrationFailed",
+        vars: { version: "0.9.0", error: "too new" },
+      });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
       fs.rmSync(migrations, { recursive: true, force: true });

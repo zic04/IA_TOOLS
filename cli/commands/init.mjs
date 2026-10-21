@@ -1,5 +1,5 @@
 // init [app-dir] [--dir docs/manual] [--name] [--lang en|fr] [--url] [--framework next|react-router|none] [--auth]
-//      [--capture app|none] [--target local|demo|production] [--yes]
+//      [--capture app|none] [--target local|demo|production] [--spaces <id,…>|none] [--yes]
 // Creates the documentation project of an application (ARCHITECTURE.md §2.1): <app-dir>/docs/manual/ by default.
 // <app-dir> is the application root; its front end may sit in a sub-folder (frontend/, web/…).
 //   - detects the framework (package.json: next → next-app-router, with app/ or src/app/; react-router →
@@ -7,11 +7,13 @@
 //     name (Next.js metadata.title, then package.json without its -frontend/-web… suffix), the version file
 //     (version.txt or VERSION at the root, then the root package.json, then the front end's), the .env files;
 //   - asks the name, the language, the application URL, where the screenshots are taken (local or demo,
-//     production read-only, none: capture.mode and capture.target) and the sign-in method (--yes: the detected
-//     values and the options, no question); production: the production URL, the safety reminders, readOnly true;
+//     production read-only, none: capture.mode and capture.target), the sign-in method and the spaces (§6.1a: the
+//     four, some of them, or none) (--yes: the detected values and the options, no question); production: the
+//     production URL, the safety reminders, readOnly true;
 //   - prints the recap of what it is about to write, with or without --yes, then confirms (without --yes);
 //   - writes templates/project/common + templates/project/<language>, variables filled, the capture variant of
-//     every .md file, and the example capture plan only in capture mode "app";
+//     every .md file, and the example capture plan only in capture mode "app", cut to the spaces chosen
+//     (engine/dev/skeleton.mjs);
 //   - in a terminal, with screenshots (never with --yes): offers to open the browser (npm install if needed, then
 //     connect) and a first test screenshot (capture --preview --yes);
 //   - refuses a non-empty folder (exit code 1); prints the next commands (those not done yet).
@@ -21,13 +23,14 @@ import { spawnSync } from "node:child_process";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { productSlug } from "../../engine/project/defaults.mjs";
-import { satisfies } from "../../engine/project/semver.mjs";
-import { captureVariant, CAPTURE_MODES } from "../../engine/core/page-templates.mjs";
+import { CAPTURE_MODES } from "../../engine/core/page-templates.mjs";
+import { writeSkeleton, parseSpaces, SPACE_PRESETS } from "../../engine/dev/skeleton.mjs";
 import { writeSources } from "../../engine/core/translations.mjs";
 import { LANGUAGES as KIT_LANGUAGES } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { slash, projectDependency, DEFAULT_SESSION } from "../../engine/dev/environment.mjs";
-import { prompterOf, shownPath, absolutePath, printKitError } from "../common.mjs";
+import { prompterOf, shownPath, printKitError } from "../common.mjs";
+import { recapLines, askSources, saveSources, askSpaces } from "../init-answers.mjs";
 import { run as runConnect } from "./connect.mjs";
 import { run as runCapture } from "./capture.mjs";
 import { braceDepths } from "../../engine/util/js-scan.mjs";
@@ -41,6 +44,7 @@ export const options = {
   capture: { type: "string" },
   target: { type: "string" },
   languages: { type: "string" },
+  spaces: { type: "string" },
   yes: { type: "boolean", short: "y" },
 };
 
@@ -346,71 +350,6 @@ export function coverageLiteral(framework, appPathFromDocs) {
 /** JavaScript literal of an array of strings, on one line: ["a", "b"]. */
 const arrayLiteral = (list) => `[${list.map((x) => JSON.stringify(x)).join(", ")}]`;
 
-/** Escapes a value for the file it goes into (JSON and JS strings: double-quoted escaping). */
-function escapeFor(file, value) {
-  return /\.(json|mjs|js)$/.test(file) ? JSON.stringify(String(value)).slice(1, -1) : String(value);
-}
-
-/** Files of the skeleton written only in capture mode "app". */
-const CAPTURE_ONLY = new Set(["captures/plans/example.mjs", "captures/targets.mjs"]);
-
-/** The skeleton's package.json without the scripts that capture (capture mode "none": `capture` refuses to run). */
-function withoutCaptureScripts(text) {
-  const pkg = JSON.parse(text);
-  const scripts = pkg.scripts || {};
-  for (const [name, script] of Object.entries(scripts)) {
-    const kept = String(script)
-      .split("&&")
-      .map((s) => s.trim())
-      .filter((s) => !/\bcapture\b/.test(s));
-    if (kept.length) scripts[name] = kept.join(" && ");
-    else delete scripts[name];
-  }
-  return JSON.stringify(pkg, null, 2) + "\n";
-}
-
-/**
- * Writes the project skeleton into `target` (must be missing or empty).
- * @param {{ target: string, language: "en"|"fr", vars: Record<string,string>, raw?: string[], kitVersion?: string, mode?: "app"|"none" }} p
- *   raw: variables inserted as they are (JavaScript literals such as {{coverage}}); mode: capture mode (§6.4 variants)
- * @returns {string[]} written files, relative to target, with forward slashes, sorted
- */
-function scaffold({
-  target,
-  language,
-  vars,
-  raw = ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly"],
-  kitVersion = BRAND.version,
-  mode = "app",
-}) {
-  if (fs.existsSync(target) && fs.readdirSync(target).length)
-    throw new KitError(EXIT.CHECK, "init.notEmpty", { folder: target });
-  const written = [];
-  for (const layer of ["common", language]) {
-    const base = path.join(KIT_ROOT, "templates", "project", layer);
-    for (const rel of fs.readdirSync(base, { recursive: true }).map(String).sort()) {
-      const src = path.join(base, rel);
-      if (fs.statSync(src).isDirectory()) continue;
-      if (mode !== "app" && CAPTURE_ONLY.has(slash(rel))) continue;
-      const dest = path.join(target, rel);
-      let text = fs.readFileSync(src, "utf8");
-      if (/\.md$/i.test(rel)) text = captureVariant(text, mode);
-      if (mode === "none" && slash(rel) === "package.json") text = withoutCaptureScripts(text);
-      text = text.replace(/\{\{(\w+)\}\}/g, (m, k) =>
-        k in vars ? (raw.includes(k) ? vars[k] : escapeFor(rel, vars[k])) : m,
-      );
-      // The skeleton's kit range must accept this kit (otherwise every command would stop with exit code 3).
-      text = text.replace(/^(\s*kit:\s*")([^"]*)(")/m, (m, a, range, b) =>
-        satisfies(kitVersion, range) ? m : `${a}^${kitVersion}${b}`,
-      );
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, text);
-      written.push(slash(rel));
-    }
-  }
-  return [...new Set(written)].sort();
-}
-
 const URL_RE = /^https?:\/\/[^\s/]+/;
 
 /** Is this URL a loopback address (localhost, *.localhost, 127.x, [::1])? A URL that cannot be read is not. */
@@ -516,46 +455,6 @@ async function followUp(ctx, folder, answers) {
 }
 
 /** Lines of the recap (label, value), in the message language. */
-function recapLines(ctx, { target, appDir, detected, answers, nameFromDetection, docsToRoot, languages }) {
-  const p = ctx.paint;
-  const s = detected.nameSource;
-  const nameSource = !nameFromDetection
-    ? ctx.t(answers.nameFromOption ? "cli.init.source.option" : "cli.init.source.answer")
-    : s.kind === "layout"
-      ? ctx.t("cli.init.source.layout", { file: s.file })
-      : s.kind === "package"
-        ? ctx.t("cli.init.source.package", { field: s.field, file: s.file })
-        : ctx.t("cli.init.source.folder");
-  const v = detected.version;
-  const coverage =
-    detected.framework && detected.appPath
-      ? `${detected.framework}: ${slash(path.relative(appDir, path.join(detected.packageDir || appDir, detected.appPath)))}`
-      : ctx.t("cli.init.coverage.none");
-  return [
-    ["folder", absolutePath(target)],
-    ["name", `${answers.name} ${p.dim(`(${nameSource})`)}`],
-    ["slug", productSlug(answers.name)],
-    ["language", `${answers.language} — ${ctx.t(`cli.init.language.${answers.language}`)}`],
-    ...(languages ? [["languages", languages.join(", ")]] : []),
-    ["url", answers.url],
-    [
-      "version",
-      v.value
-        ? ctx.t("cli.init.version.read", { version: v.value, file: v.file })
-        : ctx.t("cli.init.version.unread", { file: v.file }),
-    ],
-    ["capture", ctx.t(`cli.init.capture.${answers.capture}`)],
-    ...(answers.capture === "app" ? [["target", ctx.t(`cli.init.target.${answers.target}`)]] : []),
-    [
-      "auth",
-      answers.capture === "none" ? `${answers.auth} ${p.dim(`(${ctx.t("cli.init.authUnused")})`)}` : answers.auth,
-    ],
-    ["coverage", coverage],
-    ["masking", detected.envFiles.length ? detected.envFiles.join(", ") : ctx.t("cli.init.masking.none")],
-    ["appDir", `${absolutePath(appDir)} ${p.dim(`(app.dir: ${docsToRoot})`)}`],
-  ].map(([k, value]) => [ctx.t(`cli.init.recap.${k}`), value]);
-}
-
 export async function run({ ctx, values, positionals }) {
   const appDir = path.resolve(process.cwd(), positionals[0] || ".");
   if (!fs.existsSync(appDir) || !fs.statSync(appDir).isDirectory())
@@ -602,6 +501,7 @@ export async function run({ ctx, values, positionals }) {
   let languages = values.languages !== undefined ? parseLanguages(values.languages, ctx.t) : null;
   if (languages && ctx.globals.lang && ctx.globals.lang !== languages[0])
     throw new KitError(EXIT.USAGE, "init.languagesLang");
+  const chosenSpaces = values.spaces !== undefined ? parseSpaces(values.spaces) : null;
 
   const detected = detectApp(appDir);
   if (values.framework === "none") Object.assign(detected, { framework: null, appPath: null });
@@ -628,6 +528,7 @@ export async function run({ ctx, values, positionals }) {
     capture: values.capture || "app",
     target: "local",
     auth: values.auth || "manual",
+    spaces: chosenSpaces ?? SPACE_PRESETS.all,
   };
   answers.target = values.target || localOrDemo(answers.url);
 
@@ -674,6 +575,7 @@ export async function run({ ctx, values, positionals }) {
     ctx.print("");
   }
 
+  let sources = null;
   if (!values.yes) {
     const prompt = prompterOf(ctx);
     for (;;) {
@@ -737,6 +639,8 @@ export async function run({ ctx, values, positionals }) {
         if (detected.nextAuth) choices.push({ value: "nextauth", label: ctx.t("cli.init.auth.nextauth") });
         answers.auth = await prompt.choose(ctx.t("cli.init.ask.auth"), choices, answers.auth);
       }
+      // The audiences (ARCHITECTURE.md §6.1a): a set of spaces, or none.
+      if (!chosenSpaces) answers.spaces = SPACE_PRESETS[await askSpaces(ctx, prompt, answers.spaces)];
       printRecap();
       if (await prompt.confirm(ctx.t("cli.init.ask.confirm"), true)) break;
       if (!(await prompt.confirm(ctx.t("cli.init.ask.again"), true))) {
@@ -745,6 +649,7 @@ export async function run({ ctx, values, positionals }) {
       }
       values = { ...values, name: undefined, capture: undefined, target: undefined };
     }
+    sources = await askSources(ctx, prompt, { from: process.cwd(), target });
   } else if (!ctx.json) {
     printRecap();
     if (answers.capture === "app" && answers.target === "production") printProductionReminders(ctx);
@@ -774,13 +679,15 @@ export async function run({ ctx, values, positionals }) {
     // Languages (ARCHITECTURE.md §6.12): a config line, or none at all (mono-language project, unchanged).
     languagesLine: languages ? `  languages: ${JSON.stringify(languages)},\n` : "",
   };
-  const files = scaffold({
+  const files = writeSkeleton({
     target,
     language: answers.language,
     vars,
     mode: answers.capture,
+    spaces: answers.spaces,
     raw: ["coverage", "maskingEnv", "versionFile", "versionPattern", "readOnly", "languagesLine"],
   });
+  if (sources) files.push(saveSources(target, sources));
   // Every other language starts with nothing translated yet (`translate status` then lists it all as missing):
   // simpler and safer than guessing a correspondence with the OTHER mono-language skeleton's own file names
   // (templates/project/<lang>/content/ uses that language's own folder names, e.g. "utiliser/" for "use/" —

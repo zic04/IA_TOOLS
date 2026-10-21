@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { KitError } from "../project/errors.mjs";
 
 const FOLDER = path.dirname(fileURLToPath(import.meta.url));
 const VERSION_FILE = /^(\d+)\.(\d+)\.(\d+)\.mjs$/;
@@ -108,8 +109,13 @@ export function createVirtualFiles(root) {
   };
 }
 
-/** Runs migrations on a virtual view (nothing written). Returns [{ version, error? }]. */
+/**
+ * Runs migrations on a virtual view (nothing written). Returns [{ version, error?, key?, vars? }]: a migration that
+ * refuses a project throws a KitError, whose message key and variables `upgrade` shows in the project's language.
+ * @returns {Promise<Array<{ version: string, error?: string, key?: string, vars?: object }>>}
+ */
 export async function runMigrations(migrations, { files, config, root }) {
+  /** @type {Array<{ version: string, error?: string, key?: string, vars?: object }>} */
   const done = [];
   for (const m of migrations) {
     const mod = await import(pathToFileURL(m.file).href);
@@ -121,7 +127,11 @@ export async function runMigrations(migrations, { files, config, root }) {
       await mod.migrate({ files, config, root });
       done.push({ version: m.version });
     } catch (e) {
-      done.push({ version: m.version, error: e.message });
+      done.push({
+        version: m.version,
+        error: e.message,
+        ...(e instanceof KitError ? { key: e.key, vars: e.vars } : {}),
+      });
       break;
     }
   }

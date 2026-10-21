@@ -16,7 +16,7 @@
   "cli.build.translation.toc.ignored": "toc.json: {path} ignored (non-text field, taken from the source)",
   "cli.build.translation.glossary.structure": "glossary.json: {found} entries, {expected} expected",
   "cli.build.translation.glossary.structure.help": "same entries in the same order",
-  "cli.build.translation.anchor": "{page}: counterpart anchor cannot be mapped, dropped",
+  "cli.build.translation.anchor": "{page}: the anchor {anchor} of a topic group has no heading at its place in the translation (its outline differs); the link goes to the top of the page",
   "cli.build.languages.idClash": "id \"{id}\" is also a declared language ({lang})",
   "cli.build.languages.idClash.help": "rename the section or page: the URL #/{lang}/… is reserved",
   "cli.build.languages.summary": "{lang}: {current} current · {stale} stale · {missing} missing",
@@ -99,6 +99,8 @@
   "cli.init.languagesInvalid.help": "example: --languages fr,en",
   "cli.init.languagesLang": "--lang must be absent or equal to the first of --languages",
   "cli.init.languagesLang.help": "the source language is the first of --languages",
+  "cli.init.spacesInvalid": "--spaces “{value}”: expected none, or ids among {known}, each once",
+  "cli.init.spacesInvalid.help": "e.g. --spaces use,product; --spaces none: one documentation without spaces",
   "cli.init.ask.languages": "Other languages? (comma-separated, none)",
   "cli.init.recap.languages": "languages",
 

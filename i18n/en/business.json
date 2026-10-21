@@ -35,5 +35,7 @@
   "render.business.col.rule": "Rule",
   "render.business.col.summary": "Summary",
   "render.business.col.who": "Who",
-  "ui.glossary.technical": "Technical:"
+  "ui.glossary.technical": "Technical:",
+  "cli.features.invalid": "{file} does not follow schemas/features.schema.json (at {at}): its features are not used",
+  "cli.inventory.features.behaviours": "behaviours (deduced from the code): {kinds}"
 }

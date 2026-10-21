@@ -38,7 +38,7 @@ doc-kit export ../acme-orders-docs --with-dist --zip
 ```text
 ⚠ version.file pointe hors du projet (../../package.json) : la copie affiche la version figée (version.fallback)
 · non exportés : package-lock.json
-✔ ../acme-orders-docs : 26 fichiers du projet + moteur 0.3.0 embarqué (172 fichiers) · version documentée 2.4.0
+✔ ../acme-orders-docs : 26 fichiers du projet + moteur 0.4.0 embarqué (172 fichiers) · version documentée 2.4.0
 ✔ archive ../acme-orders-docs.zip (0.5 Mo)
 ```
 
@@ -102,7 +102,7 @@ réservez son accès aux personnes qu'autorise le propriétaire.
 > [!NOTE] Un projet avec des espaces
 > `--with-dist` copie les exports par espace là où `build` les a écrits, en plus du site complet : un dossier de
 > reprise transmis à une équipe n'a jamais besoin que les pages métier en soient retirées à la main
-> ([Deux espaces, une seule source](#/spaces/overview~exporter-la-ou-la-confidentialite-commence-vraiment)).
+> ([Quatre espaces, une seule source](#/spaces/overview~exporter-la-ou-la-confidentialite-commence-vraiment)).
 
 > [!NOTE] La liste de contrôle de la passation
 > `standard/delivery.fr.md` liste tout ce qu'il faut vérifier avant une passation : contrôles, sécurité, contenu de

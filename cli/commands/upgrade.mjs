@@ -99,6 +99,18 @@ export async function planUpgrade({
   };
 }
 
+/**
+ * The message of a migration that failed (null when it ran): the migration's own (a KitError: its key and
+ * variables, in the project's language), else `upgrade.migrationFailed` with the error text.
+ * @param {{ version: string, error?: string, key?: string, vars?: object }} m   an entry of runMigrations()
+ * @returns {{ key: string, vars: object }|null}
+ */
+export function migrationFailure(m) {
+  if (!m.error) return null;
+  if (m.key) return { key: m.key, vars: { ...m.vars, version: m.version } };
+  return { key: "upgrade.migrationFailed", vars: { version: m.version, error: m.error } };
+}
+
 export async function run({ ctx, values }) {
   const { root, configFile } = findProject({ project: ctx.globals.project });
   const raw = await importConfig(configFile);
@@ -132,7 +144,8 @@ export async function run({ ctx, values }) {
   if (!r.migrations.length) ctx.print(`  ${ctx.t("cli.upgrade.noMigration")}`);
   for (const m of r.migrations) {
     const title = ctx.i18n.has(`cli.migration.${m.version}`) ? ctx.t(`cli.migration.${m.version}`) : "";
-    if (m.error) ctx.error("upgrade.migrationFailed", { version: m.version, error: m.error });
+    const failure = migrationFailure(m);
+    if (failure) ctx.error(failure.key, failure.vars);
     else ctx.print(`  ${p.ok("✔")} ${m.version}${title ? ` — ${title}` : ""}`);
   }
 

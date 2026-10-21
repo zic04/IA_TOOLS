@@ -1,0 +1,54 @@
+[package]
+name = "orders-api"
+version = "0.3.0"
+edition = "2021"
+
+[workspace]
+members = ["crates/orders-core"]
+
+[workspace.dependencies]
+serde = { version = "1.0.195", features = ["derive"] }
+
+[dependencies]
+axum = "0.7.4"
+tokio = { version = "1.35", features = ["macros", "rt-multi-thread"] } # runtime
+serde = { workspace = true }
+serde_json.workspace = true
+uuid = { version = "=1.6.1", features = ["v4", "serde"] }
+"quoted-name" = "0.2"
+orders-core = { path = "crates/orders-core" }
+acme-auth = { git = "https://github.com/acme/acme-auth", branch = "main" }
+internal-metrics = { version = "0.9", registry = "acme" }
+pg = { package = "tokio-postgres", version = ">=0.7, <0.8" }
+patched-lib = "1.2"
+
+[dependencies.reqwest]
+version = "0.11.23"
+default-features = false
+features = [
+    "json",
+    "rustls-tls",
+]
+
+[dev-dependencies]
+insta = "1.34"
+mockall = { version = "0.12" }
+
+[build-dependencies]
+prost-build = "0.12"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser"] }
+
+[target."cfg(target_os = \"linux\")".dev-dependencies]
+procfs = "0.16"
+
+[target.x86_64-unknown-linux-gnu.dependencies]
+jemallocator = "0.5"
+
+[[bin]]
+name = "orders"
+path = "src/main.rs"
+
+[patch.crates-io]
+patched-lib = { path = "../patched-lib" }

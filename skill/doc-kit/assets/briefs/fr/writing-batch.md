@@ -16,7 +16,10 @@ voir Variables).
 1. Lis le fichier de contexte de la page (déjà préparé par l'orchestrateur avec `doc-kit context`, chemin dans
    Variables), puis le fichier de la page dans le dossier de contenu : c'est son gabarit, avec ses sections et
    ses consignes.{{#if reads}} En plus du dossier de contexte, l'orchestrateur te donne : {{reads}} (hors budget
-   des 3 lectures ci-dessous).{{/if}}
+   des 3 lectures ci-dessous).{{/if}} Quand une page documente une fonctionnalité qui a une analyse, son digest
+   pour l'espace de la page (`{{docDir}}/.doc-kit/analysis/<id de fonctionnalité>.use.md` ou `.admin.md`, produit
+   par `analysis.mjs digest`) est une source de plus pour ce que fait chaque élément : il compte pour une des 3
+   lectures, sauf si l'orchestrateur le liste dans Variables (il est alors hors budget).
 2. S'il manque une information indispensable (un extrait coupé, un composant dont dépend un libellé) : AU PLUS 3
    lectures supplémentaires, sur des plages de lignes utiles — le guide de rédaction (`{{guideFile}}`) ou la page
    de référence (`{{contentDir}}/{{referencePage}}.md`) comptent dans ce budget si tu dois y recourir pour un

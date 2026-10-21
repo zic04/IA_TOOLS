@@ -1,0 +1,47 @@
+# The shop's pipeline.
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  NODE_ENV: production
+  DATABASE_URL: postgres://shop:do-not-keep-db@db.example.test/shop
+
+default:
+  image: node:20.11-alpine
+  services:
+    - postgres:16
+
+include:
+  - local: ci/deploy.yml
+  - "/ci/test.yml"
+  - remote: "https://gitlab.example.test/acme/ci/raw/main/common.yml"
+  - template: Security/SAST.gitlab-ci.yml
+  - project: acme/ci-templates
+    file: /lint.yml
+
+.node:
+  image: node:20.11-alpine
+  stage: build
+
+build:
+  extends: .node
+  variables:
+    NPM_CONFIG_CACHE: .npm
+  secrets:
+    NPM_TOKEN:
+      vault: ci/npm/do-not-keep-vault@secrets
+  script:
+    - npm ci
+    - npm run build
+
+# release:
+#   stage: deploy
+#   environment: production
+#   script: ./release.sh
+
+docs:
+  stage: deploy
+  trigger:
+    project: acme/docs

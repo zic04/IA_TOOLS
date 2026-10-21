@@ -25,10 +25,12 @@ of the reference journey `ord` (an order from creation to archiving).
 Another organisation that worked (site B): prefixes by application area (`map-…`, `bar-…`, `dash-…`, `admin-…`), 11
 plans, plus a separate production plan with its own prefix.
 
-**With a business space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
+**With a Product space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
 entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
-`process` pages, usually their own small batch since they are not tied to one feature). **With a takeover
-space**: `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
+`process` pages, usually their own small batch since they are not tied to one feature). The **analysis wave**
+comes before them: one `behaviour-analysis` analyst per feature of `features.json` (ARCHITECTURE.md §6.11a), so
+that each `functional-spec` batch starts from the Product digests of its features. **For the takeover
+dossier** (the Develop space, and the Operate part of Administer): `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
 `tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
 `access-ownership` and `system-dossier` (`runbook`, `data-model`, `code-map`, `adr` together). None of the three
 splits further: keeping each whole is cheaper than reconciling two agents' views of the same facts afterwards.
@@ -68,12 +70,14 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 | 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
 | 1 | inventory (1 Explore) | facts generated |
 | 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
-| 3 | all writing batches: `writing-batch` and `functional-spec`, business and takeover together (example: 8) | reference page(s) approved, captures tried |
+| 2b | the analysis wave: `behaviour-analysis`, one `doc-kit-analyst` per feature (up to 8 at a time), then `analysis.mjs check` and the digests | toc written, captures tried; only with a Product space or any feature sheet |
+| 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8); the technical counterparts of the feature sheets (`feature-mechanism`, one per feature) | reference page(s) approved, captures tried, digests made |
+| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `doc-kit audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
 | 7 | 2nd consolidation (2) | reports of wave 6 |
-| apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical` (each its own agent) | facts generated (the first three) or portal screenshots received (production-technical); disjoint files, so each can join any wave |
+| apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical`, `architecture-reconcile` (each its own agent) | facts generated (the first three), portal screenshots received (production-technical), or a DAT ingested and `inputs reconcile` run (architecture-reconcile); disjoint files, so each can join any wave |
 
 - Translations (ARCHITECTURE.md §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
   same target language (never mixed); each batch can join any wave once its pages are written.
@@ -86,8 +90,9 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 
 **Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
 `brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
-inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief (ARCHITECTURE.md §6.11, "Economy of the
-agents"). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
+inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief,
+`doc-kit-analyst` for `behaviour-analysis` (ARCHITECTURE.md §6.11, "Economy of the agents"; the new briefs
+`behaviour-analysis`, `feature-mechanism` and `deepen`: §6.11a). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
 prompt is **the brief's full text**, with its common part first and its variables last, followed by one line:
 
 ```
@@ -95,14 +100,22 @@ prompt is **the brief's full text**, with its common part first and its variable
 Your final report follows the format asked at the end of the brief.
 ```
 
-Every agent of a wave then starts with the same bytes, which the prompt cache serves to all but the first. Asking
-the agent to read the file instead makes each one pay for the brief again, as a tool result.
+Asking the agent to read the file instead makes each one pay for the brief again, as a tool result. **Launch the
+first agent of a wave alone, then the others in your next message**: an agent launched after another reads from the
+prompt cache what their prompts share before the brief — the agent's definition and Claude Code's tools, 23,000 to
+24,000 tokens of its first 37,000 to 38,000 (measured, §8) — while agents launched together each write it again.
+Launched in the background, the first agent returns at once: the others start one message later, not after it
+ends (in the pilot, the second finished first). The brief itself, sent in one message with its variables, is
+written again by each agent whatever the order.
 
 **Economy**: before launching a wave, `node scripts/brief.mjs <template> --project <docDir> --var …… --estimate`
 for each of its briefs gives input and output tokens and the cost (`llm.prices` in `doc.config.mjs`); after each
 agent ends, `node scripts/usage.mjs log --brief … --agent … --model … --tokens <n> --tools <n> --duration <ms>
 --pages a,b --phase <n>` from what Claude Code reports, so `usage.mjs report` can total the wave and compare it
-with the estimate. Agents of the same wave share a brief template's common part byte for byte (prompt cache).
+with the estimate. That total is the agent's last context, not its spend (a sixth to a third of the tokens it used, §8): for the spend,
+`node scripts/usage.mjs scan --transcripts ~/.claude/projects/<project>/<session>/subagents` once at the end (each
+scan appends one entry; `report`'s total is then the scans', the logged floor shown apart), or the statistics
+hook (`doc-kit skill install --hooks`).
 
 ## 4. Brief placeholders
 
@@ -126,7 +139,8 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
 | `contentDir`, `imagesDir`, `diagramsDir`, `factsDir` | `paths.*` (`factsDir` default `facts`) | content, images, diagrams, facts |
 | `featuresFile` | the `features` coverage adapter's `file` option, else `features.json` | features.json |
-| `tocFile`, `glossaryFile`, `targetsFile`, `guideFile` | the existing file (legacy names detected) | content/toc.json |
+| `tocFile`, `glossaryFile` | `<contentDir>/toc.json`, `<contentDir>/glossary.json` | content/toc.json |
+| `targetsFile`, `guideFile` | `captures/targets.mjs`, `WRITING-GUIDE.md` | captures/targets.mjs |
 | `findingsPage` | `extra.briefs.findingsPage`, default by language | take-over/findings |
 | `consolidationFile` | `.doc-kit/consolidation.md` | |
 | `captureMode` | `none` when `capture.mode` is `"none"`, `production` when `capture.target` is `"production"`, `demo` when it is `"demo"` or `capture.setup` is set, else to give | production · demo · none |
@@ -135,6 +149,10 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `pages`, `reads`, `topic`, `diagram` | `--var` | page ids, pages to read, "the journey of an order", t-order-journey |
 | `portalCaptures`, `infraDir` | `--var` (`production-technical` brief) | folder of screenshots, infrastructure code |
 | `description`, `stack`, `labels`, `referencePage` | `extra.briefs` | "order management", "Next.js App Router, Prisma", `messages/en.json`, `configure/approvals/chains` |
+| `feature`, `featureTitle`, `size`, `level` | `--var` or, for `level`, `extra.briefs.level` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
+| `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the page of the gaps between the DAT and reality for `architecture-reconcile`; the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
+| `focus` | `--var` (optional, `behaviour-analysis`): the items `analysis.mjs depth` lists to analyse again; the brief then asks for a second pass on those items only | B-01.match (Search an order · Matching), US-02.criteria |
+| `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder; `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
 | `otherWriters`, `productionNotes`, `dataPolicy`, `factSheet`, `referenceJourney` | `--var` or `extra.briefs` (optional) | "inv, ast, tbl"; "open no order other than…"; "fictitious customers only"; yes; take-over/order-journey |
 
 Conditional blocks in templates: `{{#if key}}…{{/if}}` (non-empty value), `{{#if key=value}}…{{/if}}`,
@@ -191,8 +209,7 @@ On site A, 37 sub-pages were created this way in one pass, with a script that mo
 ## 8. The cost of an agent, and the step budget
 
 **Model**: an agent's cost ≈ its number of round-trips × its context size. Cache reads dominate — each round-trip
-re-reads the whole context accumulated so far, so a wave that shares a brief's common part byte for byte
-(§4) still pays for every round-trip's growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
+re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
 read costs; it does not by itself cut how many reads an agent takes. **The step budget is the main lever**: how
 many extra reads an agent allows itself beyond the context file and the page's own template, how many times it
 runs a build, whether it reviews a screenshot mid-way.
@@ -200,16 +217,48 @@ runs a build, whether it reviews a screenshot mid-way.
 Measured on a real application (FastAPI + Next.js, 81 pages): nine admin screen pages, one `writing-batch` agent
 per page, three methods compared.
 
-| Method | Avg. cost (token-equivalent) | Round-trips | Duration | Conformant |
-|---|---|---|---|---|
-| Old brief: writing guide + reference page + full inventory + free exploration + repeated checks | 1,039,000 | 47 | 13.6 min | 3/3 |
-| + a context folder, same free exploration | 890,000 (−14 %) | 42 | 11.4 min | 3/3 |
-| **Sober**: context folder + template only, at most 3 targeted reads, the page written once, one build, `view` only with screenshots | **323,000 (−69 %)** | **21** | **7 min (−49 %)** | 3/3 |
+| Method | Avg. cost (token-equivalent) | Round-trips | Duration | Words | Proofs | Conformant |
+|---|---|---|---|---|---|---|
+| Old brief: writing guide + reference page + full inventory + free exploration + repeated checks | 1,039,000 | 47 | 13.6 min | 1,719 | 52 | 3/3 |
+| + a context folder, same free exploration | 890,000 (−14 %) | 42 | 11.4 min | 1,652 | 54 | 3/3 |
+| **Sober**: context folder + template only, at most 3 targeted reads, the page written once, one build, `view` only with screenshots | **323,000 (−69 %)** | **21** | **7 min (−49 %)** | 1,303 | 42 | 3/3 |
 
 ("Token-equivalent" cost: input × 1 + cache write × 1.25 + cache read × 0.1 + output × 5 — cache reads are cheap
 per token, but there are far more of them per round-trip than any other kind.) The context folder alone bought
 14 %; the step budget bought the rest. Conformance to the standard did not move: fewer steps did not mean fewer
-checks, only fewer *exploratory* ones.
+checks, only fewer *exploratory* ones. The sober method also cut words by 24 % and proofs by 19 % at equal
+conformance: conformance measures structure, not depth. The analysis of each feature and the depth loop
+(ARCHITECTURE.md §6.11a) are what bring the depth back.
+
+**The analysis of a feature, measured** (pilot of 0.4.0, the demo, two features of size S at level `standard`, one
+analyst each on Sonnet; token-equivalent as above, the output estimated from what the agents wrote, ÷ 4, the
+transcripts recording a partial output count for a response that calls a tool):
+
+| Run | Feature | Round-trips | Duration | Token-equivalent |
+|---|---|---|---|---|
+| 1: both launched together | F-01, 2 behaviours | 7 | 97 s | 164,900 |
+| 1 | F-02, 1 behaviour | 6 | 71 s | 132,600 |
+| 2: the brief corrected, F-02 launched after F-01 | F-01 | 7 | 93 s | 149,200 |
+| 2 | F-02 | 4 | 41 s | 71,300 (−46 %) |
+
+- **Write the file once, with Write**: in run 1 both analysts wrote it through a shell heredoc, which broke on an
+  apostrophe, then again with Write — 2,900 to 4,100 output tokens lost each, the dearest kind. The brief now
+  forbids the shell for it, even where the session suggests it (Claude Code's auto mode does); in run 2, one of
+  the two still tried.
+- **The ids are in the context file**: the analysis names kinds and rubrics by their ids, which the context's cards
+  did not give: one analyst read the whole registry of kinds (27 KB) for them. The cards now give them.
+- **Launch the first agent alone**: in run 2, F-02 read 23,154 tokens of its first prompt from the cache; in run 1,
+  launched at the same moment, each wrote all 37,000.
+- **The estimate is one reading**: `brief.mjs --estimate` gave 10,241 input and 5,000 output tokens (35,200
+  token-equivalent); the agents spent 2 to 5 times that, their own definition and every round-trip's rereading
+  included. The output budget of size S matched one writing of the file (2,800 to 4,100 tokens).
+- **What Claude Code reports when an agent ends** (55,009 to 70,277 tokens here) is its last context: a sixth to a
+  third of the tokens it used.
+- **The quality held**: every finding re-read in the code was right (an approval chain created by a GET and the
+  page that prefetches it, the right to read orders never checked, a list error swallowed); the open questions were
+  those the demo's sheet leaves open; the depth loop had nothing to deepen. Between two runs of the same feature,
+  the findings differ by one (the status inserted as raw HTML, which the context's security facts gave): the brief
+  now asks to check each of those facts. M and L sizes are still to measure, on a real project.
 
 **The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
 rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply

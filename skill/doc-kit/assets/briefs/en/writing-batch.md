@@ -15,7 +15,10 @@ screenshot ids follow `<prefix>-<name>`, kebab-case (your prefix: see Variables)
 1. Read the page's context file (already prepared by the orchestrator with `doc-kit context`, path in
    Variables), then the page's own file in the content folder: it is its template, with its sections and
    instructions.{{#if reads}} Besides the context file, the orchestrator also gives you: {{reads}} (outside the
-   3-read budget below).{{/if}}
+   3-read budget below).{{/if}} When a page documents a feature that has an analysis, its digest for the page's
+   space (`{{docDir}}/.doc-kit/analysis/<feature id>.use.md` or `.admin.md`, made by `analysis.mjs digest`) is an
+   extra source for what each element does: it counts as one of the 3 reads, unless the orchestrator lists it in
+   Variables (then it is outside the budget).
 2. If something essential is missing (a cut excerpt, a component a label depends on): AT MOST 3 further reads,
    on the useful line ranges — the writing guide (`{{guideFile}}`) or the reference page
    (`{{contentDir}}/{{referencePage}}.md`) count against this budget if you need them for a depth or syntax

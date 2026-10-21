@@ -9,7 +9,6 @@
 // is replaced by a notice, and reported.
 import { systemModel } from "../build/c4.mjs";
 import { healthRisks, hotspots } from "../build/developer.mjs";
-import { scanText } from "../check/secrets.mjs";
 
 /** The writers' guidance (`<!-- guidance: … -->`, `<!-- consigne : … -->`) and any other HTML comment. */
 const COMMENT = /<!--[\s\S]*?-->\n?/g;
@@ -17,7 +16,7 @@ const COMMENT = /<!--[\s\S]*?-->\n?/g;
 /**
  * The pages of a table of contents in reading order: the home page, then each section's introduction (when its file
  * exists) and its pages.
- * @param {object} toc   content/toc.json, normalised
+ * @param {object} toc   content/toc.json
  * @param {(rel: string) => boolean} exists   relative to the content folder
  * @returns {Array<{ id: string, title: string, summary: string, file: string, section: string }>}
  */
@@ -211,25 +210,4 @@ export function agentsFile({ product, facts, scripts, commit, generated, docs, t
     if (body) parts.push(`## ${t(`render.agents.${key}`)}\n\n${body}`);
   }
   return parts.join("\n\n") + "\n";
-}
-
-// ─── Secrets ────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The text with every line where a secret detector fires replaced by a notice (the value is never kept).
- * @param {string} text
- * @param {object[]} detectorList   engine/check/secrets.mjs detectors()
- * @param {(kind: string) => string} notice   the replacement line, from the kind of secret
- * @param {(value: string, token: string) => string|null} [ignore]   ignoreRules(config.masking)
- * @returns {{ text: string, removed: Array<{ line: number, kind: string }> }}
- */
-export function withoutSecrets(text, detectorList, notice, ignore = undefined) {
-  const found = scanText(text, detectorList, ignore);
-  if (!found.length) return { text, removed: [] };
-  const byLine = new Map(found.map((f) => [f.line, f.kind]));
-  const lines = text.split("\n").map((l, i) => (byLine.has(i + 1) ? notice(byLine.get(i + 1)) : l));
-  return {
-    text: lines.join("\n"),
-    removed: [...byLine].map(([line, kind]) => ({ line, kind })).sort((a, b) => a.line - b.line),
-  };
 }

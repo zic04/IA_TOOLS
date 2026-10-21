@@ -97,7 +97,7 @@ Windows path.
 
 > [!NOTE] Reproducible builds
 > With `--date`, the build is deterministic: the same sources and the same kit give the same file. This is what the
-> equivalence check of a migration relies on ([Migrate a legacy project](#/migrate/legacy-project)).
+> comparison of two builds relies on, before and after [an upgrade of the kit](#/migrate/upgrade).
 
 ## Further reading
 

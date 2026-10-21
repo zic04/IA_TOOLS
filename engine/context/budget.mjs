@@ -9,7 +9,7 @@ export function estimateTokens(text) {
 /**
  * One part of a context file.
  * @typedef {object} BudgetPart
- * @property {"page"|"sections"|"shared"|"excerpt"|"facts"|"labels"} kind
+ * @property {"page"|"sections"|"digest"|"shared"|"excerpt"|"facts"|"labels"} kind
  * @property {number} [priority]
  * @property {string} text
  * @property {string} cutLine
@@ -19,11 +19,12 @@ export function estimateTokens(text) {
  */
 
 /**
- * Drops parts until the total fits the budget (ARCHITECTURE.md §6.11): `shared` excerpts
- * first (the longest first), then `excerpt` (direct excerpts, farthest from a cited line first — `priority` is
- * that distance), then `facts`, then `labels`; `page` and `sections` parts are never touched. A cut part keeps
- * its place (so the rest of the file stays in the same order): its `text` is replaced by its one-line `cutLine`,
- * which costs only a few tokens instead of the whole excerpt.
+ * Drops parts until the total fits the budget (ARCHITECTURE.md §6.11): a `digest` of facts first (5d: an overview
+ * of the whole application, which never crowds out the page's own excerpts; the facts of the page's files stay in
+ * the facts rows), then `shared` excerpts (the longest first), then `excerpt` (direct excerpts, farthest from a
+ * cited line first — `priority` is that distance), then `facts`, then `labels`; `page` and `sections` parts are
+ * never touched. A cut part keeps its place (so the rest of the file stays in the same order): its `text` is
+ * replaced by its one-line `cutLine`, which costs only a few tokens instead of the whole excerpt.
  * @param {BudgetPart[]} parts
  * @param {number} budget
  * @returns {{ kept: object[], cut: Array<{ kind: string, cutLine: string, path?: string, lines?: [number, number] }> }}
@@ -35,7 +36,7 @@ export function fitBudget(parts, budget) {
   const kept = parts.map((p) => ({ ...p }));
   const cut = [];
   const total = () => kept.reduce((n, p) => n + estimateTokens(p.text), 0);
-  const CUTTABLE = ["shared", "excerpt", "facts", "labels"];
+  const CUTTABLE = ["digest", "shared", "excerpt", "facts", "labels"];
   for (const kind of CUTTABLE) {
     if (total() <= budget) break;
     const candidates = kept.filter((p) => p.kind === kind && !p.cutDone);

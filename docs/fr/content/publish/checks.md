@@ -131,17 +131,18 @@ Les GUID restent signalés tant que `masking.allow` ne les nomme pas
 signalé, même quand l'hôte est privé. Avec `--json`,
 `secrets.ignored` compte ce qui a été écarté, par règle : `local`, `template`, `exclude`, `allow`.
 
-## Métier, reprise et espaces : contrôlés par le build, pas par `check`
+## Espaces, fonctionnalités et faits : contrôlés par le build, pas par `check`
 
 Ces barrières s'exécutent dans `doc-kit build` lui-même (strict ou `--draft`), pas comme une catégorie séparée de
 `doc-kit check` — `standard/quality.md` dans le kit les liste toutes en détail :
 
 | Barrière | Échoue sur |
 |---|---|
-| `space.*` | Une section sans `space` ; `space` nommant un identifiant inconnu ou non déclaré ; un espace déclaré deux fois, ou un espace personnalisé sans `title` — seulement une fois `spaces` déclaré ([Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces)) |
+| `space.*` | Une section sans `space` ; `space` nommant un identifiant inconnu ou non déclaré ; un espace déclaré deux fois ; un espace sans `kind` valide (`space.kind` : un espace propre au projet qui n'en a pas, ou un espace standard qui en reçoit un autre) ; un espace propre au projet sans `title` (`space.title`) — seulement une fois `spaces` déclaré ([Quatre espaces, une seule source](#/spaces/overview~declarer-les-espaces)) |
 | `feature.*`, `rule.*` | Un identifiant `feature` déclaré sur le mauvais gabarit, ou deux fois ; `[[feature …]]` ou `[[rule …]]` citant un identifiant inconnu ; un `:::rule` sans `id` ni `title`, ou défini deux fois ([Documenter chaque fonctionnalité](#/spaces/business)) |
+| `behaviour.*`, `story.*`, `scenario.*` | Une carte de comportement sans type ou sans titre, d'un type inconnu, ou dont l'id est défini deux fois ; une story sans identifiant ou sans titre, ou définie deux fois ; un scénario sans titre, ou qui nomme une story ou une carte inexistante ; un fichier de types du projet absent ou non valide. Avertissements : une rubrique obligatoire omise dans une carte (`behaviour.missing`, une erreur avec `behaviours.strict`), un scénario sans étape Alors (`scenario.steps`) ([Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-profondeur-stories-cartes-scenarios)) |
 | `facts.*` | `::facts{source="…"}` nommant une source sans fichier `facts/<source>.json`, ou une entrée `columns` que le fichier n'a pas ([Reprendre une application vibe-codée](#/spaces/takeover~lire-le-code-automatiquement-doc-kit-facts)) |
-| `business.technical` (avertissement) | Une page dont l'espace effectif est `business` contient une preuve `file:line` : déplacez-la derrière le `counterpart` de la page |
+| `business.technical` (avertissement) | Une page métier (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`) dont l'espace effectif se lit sans le code (`use`, `product`, ou un espace propre au projet de l'un de ces types) contient une preuve `file:line` : déplacez-la derrière le `counterpart` de la page |
 
 Correction : écrivez ou déclarez l'identifiant manquant une seule fois, lancez `doc-kit facts` d'abord, ou
 corrigez l'identifiant, la colonne ou le nom de l'espace.
@@ -162,4 +163,4 @@ corrigez l'identifiant, la colonne ou le nom de l'espace.
 - [L'audit et les niveaux de maturité](#/publish/audit) : les contrôles traduits en niveau.
 - [Commandes : rédiger et vérifier](#/reference/cli/write-check) : les options de `check`.
 - [Les adaptateurs](#/reference/adapters) : chaque adaptateur de couverture, intégré ou le vôtre.
-- [Deux espaces, une seule source](#/spaces/overview) : les barrières `space.*`, en contexte.
+- [Quatre espaces, une seule source](#/spaces/overview) : les barrières `space.*`, en contexte.

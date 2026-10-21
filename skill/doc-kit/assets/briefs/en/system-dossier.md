@@ -3,9 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — system dossier: runbook, data model, code map, ADR
 
-You write part of the TAKEOVER space, in the project's language: how the system is installed, built, deployed
-and restored; what data it holds; how its pieces fit together; and the decisions that shaped it, reconstructed
-after the fact. These pages complete `code-health` and `access-ownership` (ARCHITECTURE.md §6.9).
+You write part of the takeover dossier, in the project's language: how the system is installed, built, deployed
+and restored (the runbook, in the ADMINISTER space's Operate part); what data it holds; how its pieces fit
+together; and the decisions that shaped it, reconstructed after the fact (in the DEVELOP space). These pages
+complete `code-health` and `access-ownership` (ARCHITECTURE.md §6.9).
 
 Your pages are ALREADY declared in the table of contents (see Variables for which ones): change neither ids nor
 titles.
@@ -16,15 +17,19 @@ titles.
    orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
    rows — the reading you need for the application, besides what is listed below.
 2. For `data-model`, the orchestrator may already have run `doc-kit new <id> --prefill`: a "Tables" table
-   pre-filled from `facts/db.json`, with a `<!-- doc-kit:prefill -->` marker above it. Complete it (what each
+   pre-filled from `facts/db.json` (`new --prefill` leaves no marker: the rows are plain). Complete it (what each
    table holds, personal data, legal basis); never remove a prefilled row without checking it in the code first.
 3. **The facts** (folder in Variables): `db.json` (tables, columns, row-level security) for `data-model`;
    `tool-knip.json`, when `doc-kit facts --tools` produced it (unused files and exports) for `code-map`'s
-   "Duplicated or dead code" — when it is absent, find duplication by reading, never guess at a percentage.
+   "Duplicated or dead code" — when it is absent, find duplication by reading, never guess at a percentage;
+   `infra.json` (what the infrastructure files declare: environments, deploying pipelines, workloads, images,
+   entry points, cloud resources, scheduled jobs; names and settings with `file:line`, never a value) for
+   `runbook` and `code-map`'s "Containers".
 4. The existing takeover pages — `api-surface`, `dependencies`, `access-ownership` (paths in Variables) — for
    cross-references instead of repeating their proof, and the findings page for numbers already taken.
 5. The application's own scripts, Dockerfile, CI configuration and migration folder (`package.json` scripts,
-   `Dockerfile`, `.github/workflows/` or similar), for `runbook`.
+   `Dockerfile`, `.github/workflows/` or similar), for `runbook`. The infrastructure facts already list them and
+   the context gives them by environment; still read the files for the exact commands.
 6. Any further reading listed in Variables (an existing `CHANGELOG.md`, a design note, an answer the orchestrator
    already got from a person), for `adr`'s reconstruction.
 
@@ -32,10 +37,15 @@ titles.
 
 - **`runbook`**: `## In short`; `## Install` (`:::steps`, the exact commands and the versions they need);
   `## Build` (optional); `## Deploy` (the real path: a pipeline name or a manual command, with the `file:line`
-  of the pipeline definition); `## Roll back` (redeploy the previous version, a migration's own rollback, a
+  of the pipeline definition; when `facts/infra.json` exists, it may hold one `::c4{view="deployment"}`, never a
+  hand-drawn copy of it, and each environment is named with its pipeline's `file:line`); `## Roll back` (redeploy the previous version, a migration's own rollback, a
   feature flag — whichever the repository actually offers); `## Scheduled jobs` (optional, a table Job ·
-  Schedule · What it does · Proof); `## Backup and restore` (where backups are taken, how often, and the actual
-  restore procedure — say plainly when it has never been tested); `## When it breaks` (optional). Every command
+  Schedule · What it does · Proof; it may arrive prefilled from `facts/infra.json` by `new --prefill`, each row
+  with its `[[verified file:line]]`: complete "What it does", never remove a row without checking
+  it); `## Backup and restore` (where backups are taken, how often, and the actual
+  restore procedure — say plainly when it has never been tested); `## When it breaks` (optional; report there, or in
+  your findings, what the infrastructure facts show as "open to all", "runs as root", "no TLS" or "no tag
+  (latest)": facts to report, never to fix). Every command
   is one you found in the repository (a script, a workflow file, a Dockerfile instruction): never one you only
   assume exists because it is common elsewhere.
 - **`data-model`**: `## In short`; `## The diagram` (optional, your own entity-relationship SVG,

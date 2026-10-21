@@ -3,7 +3,7 @@ agent: doc-kit-writer
 ---
 # Brief — maintainability review
 
-You write the `maintainability-review` page of the TAKEOVER space, in the project's language: the A-to-E ratings
+You write the `maintainability-review` page of the DEVELOP space, in the project's language: the A-to-E ratings
 (duplication, complexity, size, tests), the hotspots that combine them, and recommendations ordered by effort —
 built from the `quality` facts, confirmed in the code before you state anything as fact.
 

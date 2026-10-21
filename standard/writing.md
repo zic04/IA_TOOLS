@@ -29,7 +29,7 @@ Every non-obvious statement about the code carries its proof, in backticks.
 | Function name, when the line moves often | `getScopedCustomers`, `lib/services/customerService.ts:9` |
 
 - The page or the chapter states **which version** the line numbers refer to: "according to the code of version 2.4.0". Line numbers drift; the function name stays a landmark.
-- Take over pages cite their proofs systematically. Screen pages keep them for the observed gaps.
+- The pages of the Develop space, and the technical pages of the Operate part of Administer, cite their proofs systematically. Screen pages keep them for the observed gaps. The business pages of the Use and Product spaces cite none (§13).
 
 ## 3. What is inferred, what is to be confirmed
 
@@ -126,7 +126,7 @@ Each finding has a letter for its family and a number. The letters depend on the
 - A number **never changes**: it is cited in the journeys, in the troubleshooting pages and in the gap boxes. A new finding takes the next free number of its family (for example I34, I35, then I40 to I43, added to the security findings after I16).
 - Each finding has its `file:line` proof, its impact and its recommendation.
 - Writers propose **candidates** (finding, proof, proposed severity). One person consolidates, deduplicates and numbers them.
-- Cite a finding by its number with a link to its sub-page: `[C1](#/take-over/findings/critical)`.
+- Cite a finding by its number with a link to its sub-page: `[C1](#/risks/findings/critical)`.
 
 ## 10. The glossary
 
@@ -162,10 +162,13 @@ Each finding has a letter for its family and a number. The letters depend on the
 - They report what they find wrong elsewhere (file, sentence, proof) instead of fixing it.
 - Their report gives: the pages written, the captures and zones, the gaps and the candidate findings with their proof, the proposed glossary terms, and what could not be done.
 
-## 13. Writing in the Business space
+## 13. Writing in the Use and Product spaces
 
-The Business space (`feature`, `business-rules`, `roles-matrix`, `process`, `release-notes`; ARCHITECTURE.md
-§6.8) is read by people who never open the code. Four rules keep it that way.
+The Use space (the screens) and the Product space (`feature`, `business-rules`, `roles-matrix`, `process`,
+`release-notes`; ARCHITECTURE.md §6.8) are read by people who never open the code: their kinds are read
+without the code (`standard/spaces.json`), and so is a space of the project's own declared with `"kind": "use"`
+or `"product"`. Four rules keep them that way; the first three concern the feature sheets and the business
+rules of the Product space.
 
 **Identifiers.** `F-01`, `F-02`… number feature sheets; `BR-01`, `BR-02`… (English) or `RG-01`, `RG-02`…
 (French) number business rules. Both follow the same shape, `^[A-Z][A-Z0-9]{0,5}-\d{1,4}$`, and the same
@@ -174,12 +177,16 @@ next free number of its kind; never renumber to close a gap. A feature sheet dec
 (`"feature": "F-01"`), never in the Markdown; a rule declares its id on its `:::rule` container
 (`:::rule{id="BR-12" …}`, `:::regle{id="RG-12" …}`).
 
-**The access box.** A feature sheet opens with an "Access" table before any explanation: module, who can use
-it (`[[perm …]]`), prerequisites, the version and date this page was last checked. A `screen` or `editor` page
-puts its permissions **last** (`[!PERMISSIONS]`), because its reader wants to understand the screen first and
-checks who may use it afterwards; a feature sheet's reader often wants exactly the opposite — "can I even do
-this?" — before reading how it works. Put the access information where the page's own reader looks for it
-first.
+**Rights by action.** A feature sheet gives its rights action by action, in a table (Action · Right
+`[[perm …]]` · Condition), then says what a reader without the right sees: the action hidden, greyed out, or refused
+with a message. A `screen` or `editor` page puts its permissions **last** (`[!PERMISSIONS]`), because its reader
+wants to understand the screen first and checks who may use it afterwards.
+
+**Each behaviour, as a test would check it.** A feature sheet describes each behaviour with a card
+(`:::behaviour`, `standard/behaviours.json`): one line per rubric of its kind, answered precisely enough to be
+tested ("contains, whatever the case; accents count: cafe does not find Café"). A rubric that does not apply says
+"n/a — the reason"; one nobody can answer yet says "unknown — the question", and the question goes to "Open
+questions" too. Never leave a rubric out: the build reports it.
 
 **One rule, one statement, one example.** A business rule (`:::rule` / `:::regle`) is one or two sentences,
 followed by exactly one worked example in the form **Given** a starting condition, **when** the triggering
@@ -198,17 +205,18 @@ Keep the example to one scenario with real, specific numbers — never "a large 
 12,000 €" is one line longer and removes all doubt. A rule that needs two examples to be understood is
 usually two rules.
 
-**No code in the Business space.** A page whose effective space is `business` cites no `file:line` proof: the
-build warns (`business.technical`) when one slips in. State the rule in business terms and link to its
-`counterpart` for the implementation detail ("how the threshold is actually enforced: see
-`take-over/api-surface`"). This is the same split as "one page, one reader" in
-[structure.md](structure.md#one-page-one-reader-diátaxis): a business reader should never have to skip past a
-`file:line` proof to find the sentence that answers their question.
+**No code in the Use and Product spaces.** A business page (`feature`, `business-rules`, `roles-matrix`,
+`process`, `release-notes`) whose effective space is read without the code cites no `file:line` proof: the
+build warns (`business.technical`) when one slips in. A `screen` page keeps the proofs of its "How it works",
+whatever its space. State the rule in business terms and link to its `counterpart` in the Develop space for the
+implementation detail ("how the threshold is actually enforced: see `secure/api-surface`"). This is the same
+split as "one page, one reader" in [structure.md](structure.md#one-page-one-reader-diátaxis): a business reader
+should never have to skip past a `file:line` proof to find the sentence that answers their question.
 
 ## 14. Claim status: verified, deduced, unknown
 
-Section 3 above states the rule for free-running prose ("(inferred)", "to be confirmed"). The Takeover space
-also has a compact badge for the same three states, used inline on a value rather than on a whole paragraph —
+Section 3 above states the rule for free-running prose ("(inferred)", "to be confirmed"). The Develop space,
+and the Operate part of the Administer space, also have a compact badge for the same three states, used inline on a value rather than on a whole paragraph —
 typically in a table built from `::facts{…}` and completed by hand (ARCHITECTURE.md §6.9):
 
 | Badge (en · fr) | Means | Example |

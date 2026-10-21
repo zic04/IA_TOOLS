@@ -1,0 +1,23 @@
+{
+  "source": "security",
+  "generator": "doc-kit 0.4.0",
+  "generated": "2026-10-21T01:47:29.927Z",
+  "commit": "ddfb01ee2a8fdce6fe8a0d511f52b9bf2ef16bd6",
+  "app": "../demo-app",
+  "items": [
+    {
+      "rule": "xss.innerHTML",
+      "file": "public/app.js",
+      "line": 27,
+      "severity": "medium",
+      "owasp": "A03:2021"
+    },
+    {
+      "rule": "xss.innerHTML",
+      "file": "public/app.js",
+      "line": 41,
+      "severity": "medium",
+      "owasp": "A03:2021"
+    }
+  ]
+}

@@ -19,8 +19,8 @@ doc-kit sync --mark --all
 Enregistre, pour chaque page écrite, les hachages de la page elle-même, des fichiers derrière ses `routes`
 (directs : la route propre de la page ; partagés : seulement importés, jusqu'à 3 niveaux et 200 fichiers), de
 chaque preuve `file:line` qu'elle cite, des entrées de plan de capture derrière ses blocs `:::ecran`, des libellés
-de message qu'elle cite mot pour mot, et de ses tableaux `::faits`, de son `counterpart` et de ses `sources`
-déclarées. `sync.json` vit à la racine du projet par défaut (`paths.sync`) et est **committé avec la
+de message qu'elle cite mot pour mot, et de ses tableaux `::faits`, de son groupe de sujet (les autres pages qu'un `counterpart` relie) et de ses
+`sources` déclarées. `sync.json` vit à la racine du projet par défaut (`paths.sync`) et est **committé avec la
 documentation**, comme `facts/*.json`.
 
 ## Lire le rapport

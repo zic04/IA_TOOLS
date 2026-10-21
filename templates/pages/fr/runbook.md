@@ -38,6 +38,7 @@ La commande de construction produit le paquet de production.
 
 <!-- consigne : facultatif. Chaque tâche planifiée (cron), ce qu'elle fait, et ce qui se passe quand elle échoue silencieusement. -->
 
+<!-- doc-kit:prefill source="infra" -->
 | Tâche | Fréquence | Ce qu'elle fait | Preuve |
 |---|---|---|---|
 | Tâche d'exemple | Quotidienne | Ce qu'elle fait | [[deduit chemin/fichier.ts]] |

@@ -1,0 +1,4 @@
+never:
+  stage: deploy
+  environment: production
+  script: echo never

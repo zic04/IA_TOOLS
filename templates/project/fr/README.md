@@ -8,11 +8,14 @@ Le site de documentation du produit **{{name}}**, livré en **un seul fichier HT
 
 Le moteur est **doc-kit**, relié par `package.json`. Ce dossier ne contient que le contenu.
 
-Ce squelette déclare deux **espaces** : Métier (`utiliser`, `fonctionnalites`, `configurer`, `administrer` — sans
-code, pour les utilisateurs, key users et product owners) et Reprise (`reprendre` — pour celui qui exploite,
-sécurise et fait évoluer l'application). `doc-kit build` écrit le site complet plus un export par espace,
-chacun privé de l'autre espace. Voir `standard/structure.fr.md` pour la vue d'ensemble, et le haut de
-`content/toc.json`.
+La documentation est organisée par public, en **espaces** choisis à `doc-kit init` (`--spaces`), jusqu'à quatre :
+Utiliser (`utiliser` — sans code, pour les utilisateurs, les référents et le support), Produit (`fonctionnalites` —
+sans code, pour les responsables produit, les analystes métier et les référents), Administrer (`configurer`,
+`administrer`, `exploiter` — pour les administrateurs de l'application et les exploitants) et Développer
+(`reprendre` — pour les développeurs, l'équipe de reprise et la sécurité). Les espaces gardés sont listés en haut de
+`content/toc.json` (`spaces`), chacun avec son parcours ; sans espace, une seule documentation pour tous.
+`doc-kit build` écrit le site complet plus un export par espace (`dist/…-use.html`, `-product`, `-admin`,
+`-develop`), chacun privé des autres espaces. Voir `standard/structure.fr.md` pour la vue d'ensemble.
 
 ## Prérequis
 
@@ -76,7 +79,7 @@ Lancer `npx doc-kit` sans commande ouvre le mode guidé : il propose l'étape su
 
 ## Maintenir le dossier de reprise à jour
 
-Pour les pages de Reprise (`acces-et-propriete`, `manuel-exploitation`, `instructions-agents`, et tout
+Pour les pages du dossier de reprise (`acces-et-propriete`, `manuel-exploitation`, `instructions-agents`, et tout
 `api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `threat-model` ajouté) : lancez
 d'abord `npx doc-kit facts --source <nom>` (env, api, db, dependencies, agents, secrets, tests), remplissez le
 tableau de la page depuis le résultat (`::faits{…}` ou à la main), marquez ce qui n'a pas pu être lu

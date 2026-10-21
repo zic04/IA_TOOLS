@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit inputs (inputs.json)",
+  "description": "The sources of a documentation project (ARCHITECTURE.md §6.19): the code (local folders or shared repositories), the application online by environment, the documents a team already has, its collaborative spaces and its backlog. Written by `doc-kit init` and `doc-kit inputs add`; never a secret (no token, no password: a URL with credentials is refused).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "code": { "type": "array", "items": { "$ref": "#/$defs/code" } },
+    "app": { "type": "array", "items": { "$ref": "#/$defs/app" } },
+    "documents": { "type": "array", "items": { "$ref": "#/$defs/document" } },
+    "workspaces": { "type": "array", "items": { "$ref": "#/$defs/workspace" } },
+    "backlog": { "$ref": "#/$defs/backlog" }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "description": "A short id: lower-case letters, digits and dashes (the folder of a fetched repository)."
+    },
+    "web": {
+      "type": "string",
+      "pattern": "^https?://[^\\s@/]+(/\\S*)?$",
+      "description": "An http(s) address, without credentials."
+    },
+    "role": { "enum": ["app", "infra", "lib"] },
+    "code": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "path"],
+          "properties": {
+            "name": { "$ref": "#/$defs/name" },
+            "path": { "type": "string", "minLength": 1, "description": "A folder, relative to the project." },
+            "role": { "$ref": "#/$defs/role" },
+            "title": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "repo"],
+          "properties": {
+            "name": { "$ref": "#/$defs/name" },
+            "repo": {
+              "type": "string",
+              "minLength": 1,
+              "description": "A shared repository: https://host/path or ssh://host/path or git@host:path (GitHub, GitLab, Azure Repos…), fetched into .doc-kit/inputs/repos/<name> with the user's own git credentials."
+            },
+            "branch": { "type": "string", "minLength": 1 },
+            "depth": { "type": "integer", "minimum": 1 },
+            "role": { "$ref": "#/$defs/role" },
+            "title": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["env", "url"],
+      "properties": {
+        "env": { "$ref": "#/$defs/name" },
+        "url": { "$ref": "#/$defs/web" },
+        "readOnly": { "type": "boolean", "description": "Only ever read (production): never a capture that writes." }
+      }
+    },
+    "document": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file"],
+          "properties": {
+            "file": { "type": "string", "minLength": 1, "description": "A file, relative to the project or absolute." },
+            "kind": { "$ref": "#/$defs/documentKind" },
+            "title": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url"],
+          "properties": {
+            "url": { "$ref": "#/$defs/web" },
+            "kind": { "$ref": "#/$defs/documentKind" },
+            "title": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "documentKind": { "enum": ["dat", "spec", "guide", "other"] },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "url"],
+      "properties": {
+        "tool": { "enum": ["confluence", "sharepoint", "teams", "notion", "drive", "other"] },
+        "url": { "$ref": "#/$defs/web" },
+        "title": { "type": "string" }
+      }
+    },
+    "backlog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "url"],
+      "properties": {
+        "tool": { "enum": ["azure", "jira", "github", "gitlab", "other"] },
+        "url": { "$ref": "#/$defs/web" }
+      }
+    }
+  }
+}

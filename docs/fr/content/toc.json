@@ -16,6 +16,7 @@
           "pages": [
             { "id": "start/install", "title": "Installer doc-kit", "menuTitle": "Installer", "summary": "Node 20, les deux dépendances du kit, Chromium, et la commande doc-kit dans votre chemin.", "template": "recipe" },
             { "id": "start/first-five-minutes", "title": "Les cinq premières minutes", "menuTitle": "Cinq premières minutes", "summary": "D'un dossier d'application à un site de documentation avec un écran annoté, sur l'application de démo.", "template": "recipe" },
+            { "id": "start/sources", "title": "Déclarer les sources : dépôts, documents, espaces", "menuTitle": "Les sources", "summary": "Dépôts partagés, code d'infrastructure, application en ligne, dossier d'architecture technique, pages Confluence ou SharePoint : déclarés une fois, récupérés et convertis pour les agents.", "template": "recipe" },
             { "id": "start/guided-mode", "title": "Le mode guidé", "menuTitle": "Mode guidé", "summary": "Lancez doc-kit sans commande : il regarde où vous en êtes et propose l'étape suivante.", "template": "technical" },
             { "id": "start/generated-site", "title": "Le site généré", "menuTitle": "Le site généré", "summary": "Ce que reçoit un lecteur : un fichier HTML avec menus, recherche, écrans annotés, visites guidées, thèmes et impression.", "template": "screen" }
           ]
@@ -34,7 +35,7 @@
           "title": "Les pages",
           "pages": [
             { "id": "write/markdown", "title": "Le Markdown étendu", "menuTitle": "Markdown étendu", "summary": "Écrans annotés, étapes, captures, schémas, avant et après, encadrés et pastilles, en orthographe anglaise ou française.", "template": "technical" },
-            { "id": "write/page-templates", "title": "Les gabarits de page", "menuTitle": "Gabarits de page", "summary": "Les 13 types de page, leurs sections obligatoires, doc-kit new et les commentaires de consigne.", "template": "technical" },
+            { "id": "write/page-templates", "title": "Les gabarits de page", "menuTitle": "Gabarits de page", "summary": "Les 31 types de page, leurs sections obligatoires, doc-kit new et les commentaires de consigne.", "template": "technical" },
             { "id": "write/table-of-contents", "title": "Sommaire, sous-pages et parcours", "menuTitle": "Sommaire", "summary": "content/toc.json : sections, groupes, pages, sous-pages, parcours de la page d'accueil et suggestions.", "template": "technical" }
           ]
         },
@@ -49,16 +50,16 @@
     },
     {
       "id": "spaces",
-      "title": "Espaces métier et reprise",
+      "title": "Les espaces, un par public",
       "shortTitle": "Espaces",
       "icon": "map",
-      "subtitle": "Une seule source, documentée deux fois : une fiche métier pour chaque fonctionnalité, un dossier technique pour qui reprend l'application.",
-      "highlights": ["Une source, deux publics, deux exports", "Fiches de fonctionnalité, règles métier et rôles", "Faits, affirmations vérifiées et registre des risques"],
+      "subtitle": "Une seule source, quatre publics : utiliser l'application, ce que fait le produit, l'administrer, comment elle est construite.",
+      "highlights": ["Une source, quatre espaces, un export chacun", "Fiches de fonctionnalité, règles métier et rôles", "Faits, affirmations vérifiées et registre des risques"],
       "groups": [
         {
           "title": "Guides",
           "pages": [
-            { "id": "spaces/overview", "title": "Deux espaces, une seule source", "menuTitle": "Deux espaces, une source", "summary": "Déclarer les espaces métier et reprise, le sélecteur, l'export par espace, et pourquoi seul l'export convient à la diffusion.", "template": "technical" },
+            { "id": "spaces/overview", "title": "Quatre espaces, une seule source", "menuTitle": "Quatre espaces, une source", "summary": "Déclarer les espaces Utiliser, Produit, Administrer et Développer, leurs types, le sélecteur, l'export par espace, et pourquoi seul l'export convient à la diffusion.", "template": "technical" },
             { "id": "spaces/business", "title": "Documenter chaque fonctionnalité", "menuTitle": "Documenter une fonctionnalité", "summary": "Fiches de fonctionnalité, règles métier avec leur exemple Étant donné/Quand/Alors, la matrice des rôles, et les tableaux générés.", "template": "technical" },
             { "id": "spaces/takeover", "title": "Reprendre une application vibe-codée", "menuTitle": "Reprendre une application", "summary": "Les risques habituels, doc-kit facts, les puces d'affirmation, le registre des risques, et par où commencer.", "template": "technical" },
             { "id": "spaces/reviews", "title": "Revues de sécurité et de maintenabilité", "menuTitle": "Sécurité et maintenabilité", "summary": "La matrice d'accès auth/guards, les faits security et quality, doc-kit probe, et pourquoi il ne touche jamais la production.", "template": "technical" },
@@ -148,13 +149,14 @@
             { "id": "reference/cli", "title": "La ligne de commande", "menuTitle": "Ligne de commande", "summary": "Options globales, codes de sortie, forme des messages, et la liste des commandes.", "template": "technical" },
             { "id": "reference/cli/start-capture", "title": "Commandes : démarrer et capturer", "menuTitle": "Démarrer et capturer", "level": 2, "summary": "init, doctor, connect, probe, demo, capture et inventory.", "template": "technical-sub" },
             { "id": "reference/cli/write-check", "title": "Commandes : rédiger et vérifier", "menuTitle": "Rédiger et vérifier", "level": 2, "summary": "dev, new, build, view, open, check, audit et optimize.", "template": "technical-sub" },
-            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, pack, upgrade, migrate, skill install et translate.", "template": "technical-sub" }
+            { "id": "reference/cli/deliver", "title": "Commandes : livrer et maintenir", "menuTitle": "Livrer et maintenir", "level": 2, "summary": "export, pack, upgrade, skill install et translate.", "template": "technical-sub" }
           ]
         },
         {
           "title": "Étendre",
           "pages": [
             { "id": "reference/adapters", "title": "Les adaptateurs", "menuTitle": "Adaptateurs", "summary": "Adaptateurs de couverture et de connexion : ceux du kit, leurs options, et comment écrire le vôtre.", "template": "technical" },
+            { "id": "reference/compatibility", "title": "Ce que le kit sait lire", "menuTitle": "Compatibilité", "summary": "Les piles, écosystèmes de dépendances, plateformes low-code et langages que le kit lit, et ce qu'il laisse à ses agents.", "template": "technical" },
             { "id": "reference/i18n", "title": "Langues et textes", "menuTitle": "Langues et textes", "summary": "Les deux langues, les espaces de noms i18n, et les textes qu'un projet peut remplacer.", "template": "technical" },
             { "id": "reference/theme", "title": "Thème, couleurs et logo", "menuTitle": "Thème et logo", "summary": "Les couleurs des deux thèmes, le contrôle des contrastes, les icônes, le logo et les pastilles de statut.", "template": "technical" }
           ]
@@ -167,7 +169,7 @@
       "shortTitle": "Méthode",
       "icon": "recipe",
       "subtitle": "Le standard de qualité derrière le kit : ce qu'un site doit contenir, comment l'écrire, quand il est prêt.",
-      "highlights": ["Quatre lecteurs, quatre sections", "Rien d'inventé : des preuves fichier:ligne", "Une liste de contrôle de passation"],
+      "highlights": ["Quatre lecteurs, quatre espaces", "Rien d'inventé : des preuves fichier:ligne", "Une liste de contrôle de passation"],
       "groups": [
         {
           "title": "Le standard",
@@ -183,30 +185,29 @@
       "shortTitle": "Skill",
       "icon": "gear",
       "subtitle": "Un skill qui mène Claude Code à travers toute la méthode, avec des agents en parallèle et la ligne de commande.",
-      "highlights": ["Installé en une commande", "Onze phases, chacune avec ses critères de sortie", "Trois types d'agents, chiffrés et mesurés"],
+      "highlights": ["Installé en une commande", "Onze phases plus l'analyse et la boucle de profondeur, chacune avec ses critères de sortie", "Quatre types d'agents, chiffrés et mesurés"],
       "groups": [
         {
           "title": "Le skill",
           "pages": [
             { "id": "skill/install", "title": "Installer le skill", "menuTitle": "Installer", "summary": "doc-kit skill install, son dossier cible, et comment doctor signale une copie périmée.", "template": "recipe" },
-            { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" },
-            { "id": "skill/cost-and-speed", "title": "Coût et vitesse", "menuTitle": "Coût et vitesse", "summary": "Ce qui ne coûte aucun jeton, doc-kit context, new --prefill, les trois types d'agents, et estimer face à mesurer ce que dépensent les agents.", "template": "technical" }
+            { "id": "skill/phases", "title": "Les phases du skill", "menuTitle": "Phases", "summary": "Du cadrage à la livraison, avec l'analyse et la boucle de profondeur : ce que fait chaque phase, avec quelles commandes et quels agents, et quand elle est terminée.", "template": "technical" },
+            { "id": "skill/cost-and-speed", "title": "Coût et vitesse", "menuTitle": "Coût et vitesse", "summary": "Ce qui ne coûte aucun jeton, doc-kit context, new --prefill, les quatre types d'agents, et estimer face à mesurer ce que dépensent les agents.", "template": "technical" }
           ]
         }
       ]
     },
     {
       "id": "migrate",
-      "title": "Migrer et mettre à jour",
-      "shortTitle": "Migrer",
+      "title": "Mettre à jour",
+      "shortTitle": "Mettre à jour",
       "icon": "arrow",
-      "subtitle": "Amener un ancien projet à clés françaises au format courant, et un projet vers un kit plus récent.",
-      "highlights": ["Les anciennes clés lues telles quelles", "doc-kit migrate réécrit les fichiers JSON", "Contrôle d'équivalence avant et après"],
+      "subtitle": "Amener un projet vers un kit plus récent : ce qui a changé depuis sa version, et les migrations qu'il demande.",
+      "highlights": ["Le journal des modifications depuis votre version", "Une simulation avant toute écriture", "doc-kit upgrade --apply"],
       "groups": [
         {
-          "title": "Migrer",
+          "title": "Mettre à jour",
           "pages": [
-            { "id": "migrate/legacy-project", "title": "Migrer un projet ancien", "menuTitle": "Projet ancien", "summary": "paths, anciennes clés, doc-kit migrate et le contrôle d'équivalence des deux builds.", "template": "recipe" },
             { "id": "migrate/upgrade", "title": "Passer à un kit plus récent", "menuTitle": "Mettre à jour le kit", "summary": "doc-kit upgrade : le journal des modifications depuis votre version, les migrations, une simulation puis --apply.", "template": "recipe" }
           ]
         }
@@ -248,9 +249,9 @@
           ]
         },
         {
-          "title": "Espace métier",
+          "title": "Types métier",
           "pages": [
-            { "id": "examples/feature", "title": "Exemple · Fiche de fonctionnalité : la validation des commandes", "menuTitle": "feature", "summary": "Une fiche de fonctionnalité avec son encadré d'accès, ses règles métier et son scénario : la validation des commandes d'Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
+            { "id": "examples/feature", "title": "Exemple · Fiche de fonctionnalité : la validation des commandes", "menuTitle": "feature", "summary": "Une fiche de fonctionnalité avec ses user stories, ses cartes de comportement, ses règles de gestion et ses critères d'acceptation : la validation des commandes d'Acme Orders.", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] },
             { "id": "examples/business-rules", "title": "Exemple · Règles métier", "menuTitle": "business-rules", "summary": "Des règles partagées entre fonctionnalités, chacune un :::regle avec son exemple Given/When/Then, et le tableau généré ::regles{}.", "template": "business-rules" },
             { "id": "examples/roles-matrix", "title": "Exemple · Matrice des rôles", "menuTitle": "roles-matrix", "summary": "Les rôles d'Acme Orders et qui peut faire quoi, avec le tableau généré ::roles{}.", "template": "roles-matrix" },
             { "id": "examples/process", "title": "Exemple · Processus : la validation des commandes", "menuTitle": "process", "summary": "La même validation des commandes, vue de bout en bout : états, ce qui avance seul, et ce qui attend quelqu'un.", "template": "process" },
@@ -260,7 +261,7 @@
         {
           "title": "Reprendre",
           "pages": [
-            { "id": "examples/technical", "title": "Exemple · Page technique : la sécurité", "menuTitle": "technical", "summary": "Un sujet technique de la section Reprendre, découpé en sous-pages.", "template": "technical" },
+            { "id": "examples/technical", "title": "Exemple · Page technique : la sécurité", "menuTitle": "technical", "summary": "Un sujet technique de l'espace Développer, découpé en sous-pages.", "template": "technical" },
             { "id": "examples/technical-sub", "title": "Exemple · Sous-page technique : la connexion", "menuTitle": "technical-sub", "level": 2, "summary": "Le détail d'un mécanisme technique, dans l'ordre d'exécution.", "template": "technical-sub" },
             { "id": "examples/journey", "title": "Exemple · Parcours de bout en bout : une commande", "menuTitle": "journey", "summary": "Ce qui arrive vraiment à une commande, de sa création à son archivage.", "template": "journey" },
             { "id": "examples/journey-step", "title": "Exemple · Étape d'un parcours : la validation", "menuTitle": "journey-step", "level": 2, "summary": "Une étape du parcours, au niveau du code : ce qui s'exécute, ce qui est écrit, ce qui casse.", "template": "journey-step", "routes": ["/orders/[id]"] },
@@ -274,7 +275,7 @@
           ]
         },
         {
-          "title": "Espace reprise technique",
+          "title": "Types de la reprise",
           "pages": [
             { "id": "examples/access-ownership", "title": "Exemple · Accès et propriété", "menuTitle": "access-ownership", "summary": "Qui possède quoi, où vivent les secrets, les comptes des outils IA, et la checklist de passation.", "template": "access-ownership" },
             { "id": "examples/api-surface", "title": "Exemple · Surface d'API", "menuTitle": "api-surface", "summary": "Chaque route, construite à partir de ::facts{source=\"api\"}, complétée par l'authentification, le rôle et l'isolation par locataire.", "template": "api-surface" },
@@ -311,12 +312,12 @@
     },
     {
       "title": "Reprendre un site existant",
-      "description": "Migrer un projet ancien, mettre à jour le kit, mesurer, et transmettre.",
-      "steps": ["migrate/legacy-project", "migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
+      "description": "Mettre à jour le kit, mesurer, et transmettre.",
+      "steps": ["migrate/upgrade", "publish/audit", "publish/export", "publish/ci"]
     },
     {
-      "title": "Métier et reprise, une seule source",
-      "description": "Déclarer les deux espaces, écrire une fiche de fonctionnalité et un dossier de reprise, puis maintenir les deux à jour.",
+      "title": "Quatre publics, une seule source",
+      "description": "Déclarer les quatre espaces, écrire une fiche de fonctionnalité et un dossier de reprise, puis maintenir les deux à jour.",
       "steps": ["spaces/overview", "spaces/business", "examples/feature", "spaces/takeover", "examples/access-ownership", "publish/sync"]
     }
   ],

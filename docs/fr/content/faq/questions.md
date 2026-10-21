@@ -8,7 +8,7 @@ page qui en dit plus.
 | [Le site](#/faq/questions~le-site) | Ce qu'il faut aux lecteurs, poids, hébergement, impression |
 | [L'application](#/faq/questions~l-application) | Quelles applications, connexion, sites publics, versions |
 | [Rédiger](#/faq/questions~rediger) | Langues, HTML, schémas, apparence |
-| [Espaces, reprise et agents](#/faq/questions~espaces-reprise-et-agents) | Métier contre reprise, usage d'un LLM, coût en jetons, rester à jour |
+| [Espaces, reprise et agents](#/faq/questions~espaces-reprise-et-agents) | Quatre publics, un export chacun, usage d'un LLM, coût en jetons, rester à jour |
 | [Le kit](#/faq/questions~le-kit) | Réseau, données, licence, nom |
 
 ## Le site
@@ -86,9 +86,11 @@ lecteurs s'y retrouvent d'une documentation à l'autre.
 
 ### Puis-je diffuser seulement les pages métier, ou seulement le dossier de reprise ?
 
-Oui : déclarez `spaces` dans `content/toc.json`, puis lancez `doc-kit build` — il écrit le site complet plus un
-export par espace, chacun avec le contenu des autres espaces physiquement retiré, pas seulement caché
-([Deux espaces, une seule source](#/spaces/overview)).
+Oui : déclarez `spaces` dans `content/toc.json` (le squelette de `doc-kit init` déclare les quatre par défaut ; `--spaces` en garde certains, ou aucun), puis
+lancez `doc-kit build` — il écrit le site complet plus un export par espace, chacun avec le contenu des autres
+espaces physiquement retiré, pas seulement caché : les pages métier dans `…-product.html`, le dossier de reprise
+dans `…-develop.html`, ses pages d'exploitation (DAT, manuel d'exploitation) dans `…-admin.html`
+([Quatre espaces, une seule source](#/spaces/overview)).
 
 ### Le kit utilise-t-il un LLM pour trouver les risques ou écrire les constats ?
 

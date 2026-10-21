@@ -36,6 +36,17 @@
 - **Fix**: `doc-kit upgrade`, then `doc-kit upgrade --apply`; or use the kit the project expects.
 - **Understand**: [Upgrade to a newer kit](#/migrate/upgrade).
 
+### "table of contents not found: content/toc.json"
+
+- **Likely causes**
+  1. The project was not created by `doc-kit init`, or `paths.content` names another folder.
+  2. The project was written before 0.4.0 in the French-keyed format (`sommaire.json`, `glossaire.json`,
+     `accueil.md`): those files are no longer read, and `doc-kit migrate` was removed.
+- **Check**: `doc-kit doctor`, line "table of contents"; the files of the content folder.
+- **Fix**: point `paths.content` at the right folder; for a project of the former format, start again from
+  `doc-kit init` and write `toc.json`, `glossary.json` and `home.md` with their English keys.
+- **Understand**: [Table of contents, sub-pages and journeys](#/write/table-of-contents).
+
 ## Writing
 
 ### "[use/orders] broken link: #/use/order" or "anchor not found"
@@ -76,14 +87,14 @@
 
 ## Spaces, facts and sync
 
-### "section “use” has no space" or "unknown space “takeove”"
+### "section “use” has no space" or "unknown space “develp”"
 
 - **Likely causes**
   1. `spaces` was just declared, and a section (or a page, or a journey) was not given a `space` yet.
   2. A typo in a `space` value.
 - **Check**: `spaces` in `content/toc.json` lists the declared ids; the error names the section or the exact id tried.
-- **Fix**: add `"space": "business"` (or the right id) to the section; fix the typo.
-- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+- **Fix**: add `"space": "use"` (or the right id) to the section; fix the typo.
+- **Understand**: [Four spaces, one source](#/spaces/overview~declaring-the-spaces).
 
 ### "\"space\" is used but the table of contents declares no \"spaces\""
 
@@ -91,7 +102,19 @@
   1. A `space` field was copied from another project before `spaces` itself was declared.
 - **Check**: the top of `content/toc.json`.
 - **Fix**: declare `spaces` first, or remove the `space` field.
-- **Understand**: [Two spaces, one source](#/spaces/overview~declaring-the-spaces).
+- **Understand**: [Four spaces, one source](#/spaces/overview~declaring-the-spaces).
+
+### "space “ops” has no known kind" or "space “ops” has no title"
+
+- **Likely causes**
+  1. A space of the project's own (any id but `use`, `product`, `admin` and `develop`) has no `kind`, or a kind
+     that does not exist.
+  2. A standard space was given another kind (`{ "id": "use", "kind": "admin" }`).
+  3. A space of the project's own has no `title`: only the four standard spaces have default texts.
+- **Check**: the `spaces` list at the top of `content/toc.json`; the error names the space.
+- **Fix**: give a space of your own its `kind` and its `title` (`{ "id": "ops", "kind": "admin", "title":
+  "Operations" }`); remove the `kind` of a standard space.
+- **Understand**: [Four spaces, one source](#/spaces/overview~a-space-of-your-own-kind).
 
 ### "no application to read" from `doc-kit facts` or `doc-kit sync`
 

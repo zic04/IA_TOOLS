@@ -17,7 +17,7 @@ Reminders:
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.3.0", // accepted kit versions; outside this range, every command stops with exit code 3
+  kit: "^0.4.0", // accepted kit versions; outside this range, every command stops with exit code 3
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "en", // language of the site and of the CLI messages
   output: "dist/Acme-Orders-Documentation.html",
@@ -113,7 +113,7 @@ doc-kit connect --forget                             # deletes the session
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.3.0",
+  kit: "^0.4.0",
   product: { name: "Acme Deliveries", slug: "acme-deliveries" },
   language: "en",
   output: "dist/Acme-Deliveries-Documentation.html",
@@ -257,7 +257,7 @@ On Windows PowerShell, set the variables first: `$env:DELIVERIES_URL = "https://
 
 ## Spaces, facts, sync and the agent economy
 
-Fictional examples of the keys added by the two-space standard (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+Fictional examples of the keys added by the standard of the spaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 None of them has a default that changes existing behaviour: a project that does not set them keeps building
 exactly as before.
 
@@ -307,6 +307,8 @@ export default defineConfig({
 |---|---|---|
 | `spaces.export` | Write one export per declared space, besides the full site | `true` |
 | `spaces.output` | Path of each export, must contain `{space}` | the full site's output, `-{space}` inserted before its extension |
+| `bricks.enabled` | The bricks of the project (`doc-kit bricks`): ids or presets (`facts`, `full`) | `null`: every brick |
+| `bricks.disabled` | Bricks or presets left out: they never run | `[]` |
 | `paths.facts` | Folder of `facts/<source>.json`, committed with the project | `"facts"` |
 | `paths.sync` | Folder of `sync.json`, committed with the project | the project root (`"."`) |
 | `sync.labels` | Message files `sync --apply --labels` is allowed to touch | the coverage adapters' own `messages` |
@@ -323,6 +325,6 @@ When the documentation must be written without any access to the application, de
 
 `capture` and `connect` then explain the mode and stop (exit code 2), `doctor` and the guided mode stop asking for a session, `doc-kit new` writes "The screen" as a table `| Element | What it shows |`, and `doc-kit audit` counts `annotated` as `n/a` ([maturity.md](maturity.md)).
 
-## Older projects
+## Folder names and older projects
 
-A project written before doc-kit, with French folder names, keeps working: declare its folders in `paths`, for example `paths: { content: "contenu", diagrams: "schemas" }`. Its French-keyed JSON files are read as they are; `doc-kit migrate` rewrites them in the current format.
+A project may name its folders in its own language: declare them in `paths`, for example `paths: { content: "contenu", diagrams: "schemas" }`. The files inside keep their names and their English keys (`toc.json`, `glossary.json`, `home.md`, zone files, capture plans). The French-keyed files of the projects written before 0.4.0 (`sommaire.json`, `glossaire.json`, `accueil.md`, `titre`, `groupes`…) are no longer read, and `doc-kit migrate` was removed: such a project starts again from `doc-kit init`.

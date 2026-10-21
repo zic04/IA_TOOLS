@@ -1,0 +1,51 @@
+PATH
+  remote: engines/billing
+  specs:
+    billing (0.1.0)
+      rails (>= 7.1)
+
+GIT
+  remote: https://github.com/acme/acme-sso.git
+  revision: 4b1e2c3d5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c
+  branch: main
+  specs:
+    acme-sso (0.4.2)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    actioncable (7.1.2)
+      actionpack (= 7.1.2)
+      nio4r (~> 2.0)
+    nokogiri (1.15.5-x86_64-linux)
+      racc (~> 1.4)
+    nokogiri (1.15.5-arm64-darwin)
+      racc (~> 1.4)
+    pg (1.5.4)
+    rails (7.1.2)
+      actioncable (= 7.1.2)
+
+GEM
+  remote: https://gems.acme.example/
+  specs:
+    acme-theme (2.0.1)
+
+PLATFORMS
+  arm64-darwin
+  x86_64-linux
+
+DEPENDENCIES
+  acme-sso!
+  acme-theme!
+  billing!
+  pg (~> 1.1, >= 1.1.4)
+  rails (~> 7.1.2)
+
+CHECKSUMS
+  pg (1.5.4) sha256=04f2f3c2b7a7e4f3e1d5c6b7a8f9e0d1c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7
+
+RUBY VERSION
+   ruby 3.2.2p53
+
+BUNDLED WITH
+   2.5.3

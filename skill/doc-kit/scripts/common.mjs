@@ -11,12 +11,12 @@ export const SKILL_ROOT = path.resolve(HERE, "..");
 export const WORK_DIR = ".doc-kit";
 export const LANGUAGES = ["en", "fr"];
 export const AGENTS_DIR = path.join(SKILL_ROOT, "agents");
-/** The three agent types of the economy of the agents (ARCHITECTURE.md §6.11), in a stable order. */
-export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer"];
+/** The agent types of the economy of the agents (ARCHITECTURE.md §6.11), in a stable order. */
+export const AGENT_TYPES = ["doc-kit-triage", "doc-kit-writer", "doc-kit-reviewer", "doc-kit-analyst"];
 
 // ─── Messages (en, fr) ───────────────────────────────────────────────────────
 // skill/doc-kit/i18n/<lang>.json, installed with the skill: a `common` section, then one section per script
-// (brief, usage, consolidation), chosen by useMessages(). Same keys and {variables} in en and fr
+// (brief, usage, consolidation, analysis), chosen by useMessages(). Same keys and {variables} in en and fr
 // (test/unit/skill.test.mjs).
 const MESSAGES = Object.fromEntries(
   LANGUAGES.map((l) => [l, JSON.parse(fs.readFileSync(path.join(SKILL_ROOT, "i18n", `${l}.json`), "utf8"))]),
@@ -30,7 +30,7 @@ export function setMessageLanguage(language) {
   return messageLanguage;
 }
 
-/** The section of the messages of the running script (brief, usage, consolidation), on top of `common`. */
+/** The section of the messages of the running script (brief, usage, consolidation, analysis), on top of `common`. */
 export function useMessages(section) {
   messageSection = section;
 }
@@ -215,11 +215,6 @@ export function today() {
 
 const slash = (p) => p.replace(/\\/g, "/");
 
-/** First existing file among the candidates (relative to docDir), else the first candidate. */
-function firstExisting(docDir, candidates) {
-  return slash(candidates.find((c) => fs.existsSync(path.join(docDir, c))) ?? candidates[0]);
-}
-
 // Option of each built-in coverage adapter that points into the application (adapters/coverage/<name>.mjs of the kit).
 const SOURCE_OPTIONS = ["app", "file", "source", "base"];
 
@@ -325,14 +320,17 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     contentDir,
     // Languages (ARCHITECTURE.md §6.12): translationsDir, for the `translate` brief ({{translationsDir}}/{{lang}}/…).
     translationsDir: slash(config.paths?.translations ?? "translations"),
-    tocFile: firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]),
-    glossaryFile: firstExisting(docDir, [`${contentDir}/glossary.json`, `${contentDir}/glossaire.json`]),
+    tocFile: `${contentDir}/toc.json`,
+    glossaryFile: `${contentDir}/glossary.json`,
     imagesDir: slash(config.paths?.images ?? "images"),
     diagramsDir: slash(config.paths?.diagrams ?? "diagrams"),
     factsDir: slash(config.paths?.facts ?? "facts"),
     featuresFile: featuresFileOf(config),
-    targetsFile: firstExisting(docDir, ["captures/targets.mjs", "captures/cibles.mjs"]),
-    guideFile: firstExisting(docDir, ["WRITING-GUIDE.md", "GUIDE-REDACTION.md"]),
+    // The analyses of the features (ARCHITECTURE.md §6.11a): the skill's scripts, the project's kinds of behaviour.
+    scriptsDir: slash(path.join(SKILL_ROOT, "scripts")),
+    behavioursFile: typeof config.behaviours?.file === "string" ? slash(config.behaviours.file) : "",
+    targetsFile: "captures/targets.mjs",
+    guideFile: "WRITING-GUIDE.md",
     findingsPage: FINDINGS_PAGE[language] ?? FINDINGS_PAGE.en,
     consolidationFile: `${WORK_DIR}/consolidation.md`,
   };
@@ -440,16 +438,31 @@ function frontMatterField(text, field) {
 export const templateAgent = (template) => frontMatterField(template, "agent");
 
 /**
+ * The output of a brief by the size of its subject — `output-tokens: S=6000,M=12000,L=20000` in its front matter,
+ * for a brief whose subject is a feature rather than pages — or null without a complete one.
+ * @returns {{ S: number, M: number, L: number }|null}
+ */
+export function outputBySize(template) {
+  const sizes = {};
+  for (const part of frontMatterField(template, "output-tokens").split(",")) {
+    const [size, tokens] = part.split("=");
+    if (/^[SML]$/.test(size) && /^\d{1,7}$/.test(tokens ?? "")) sizes[size] = Number(tokens);
+  }
+  return ["S", "M", "L"].every((s) => s in sizes) ? /** @type {any} */ (sizes) : null;
+}
+
+/**
  * Model of each brief by default (ETUDE-CAPTURES.md §7, G4): the cheapest model whose quality suffices for the
  * task, instead of the agent type's own model. A brief absent here runs on its agent type's model
  * (agents/<type>.md). `llm.routing` in doc.config.mjs overrides any entry ({ "<brief>": "<model>" }).
- *   haiku   triage and translation: decisions and faithful rewriting from a single dossier
+ *   haiku   triage, translation and deepening: decisions and faithful rewriting from a single dossier
  *   sonnet  writing, updates, corrections, verification of findings, maintainability review
  *   opus    the few judgments every later page depends on (inventory, code health, security, production dossier)
  */
 export const DEFAULT_ROUTING = Object.freeze({
   triage: "haiku",
   translate: "haiku",
+  deepen: "haiku",
   "findings-verification": "sonnet",
   "maintainability-review": "sonnet",
   "page-corrections": "sonnet",
@@ -483,7 +496,7 @@ export function agentModel(type, agentsDir = AGENTS_DIR) {
  * Dynamically imports a module of the kit's engine, by path relative to the kit root. The installed skill does
  * not carry `engine/`: callers degrade gracefully (null) when the kit root is unknown or the file is missing.
  */
-async function importKitModule(kitRoot, relPath) {
+export async function importKitModule(kitRoot, relPath) {
   if (!kitRoot) return null;
   const file = path.join(kitRoot, ...relPath.split("/"));
   if (!fs.existsSync(file)) return null;
@@ -495,23 +508,19 @@ async function importKitModule(kitRoot, relPath) {
 }
 
 /**
- * Flattened pages of the project's table of contents (id, template, file…), legacy keys normalised when the
- * kit's own normaliser can be reached (`importKitModule`); read as plain JSON otherwise (current keys only).
- * `[]` when there is no table of contents or it cannot be parsed.
+ * Flattened pages of the project's table of contents (`<content>/toc.json`: id, template, file…), a byte-order
+ * mark tolerated. `[]` when there is no table of contents or it cannot be parsed.
  */
-export async function flattenedPages(docDir, config, kitRoot) {
-  const contentDir = config?.paths?.content ?? "content";
-  const file = firstExisting(docDir, [`${contentDir}/toc.json`, `${contentDir}/sommaire.json`]);
-  const abs = path.join(docDir, file);
+export function flattenedPages(docDir, config) {
+  const abs = path.join(docDir, config?.paths?.content ?? "content", "toc.json");
   if (!fs.existsSync(abs)) return [];
-  let raw;
+  let toc;
   try {
-    raw = JSON.parse(fs.readFileSync(abs, "utf8"));
+    const text = fs.readFileSync(abs, "utf8");
+    toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
   } catch {
     return [];
   }
-  const legacy = await importKitModule(kitRoot, "engine/project/legacy.mjs");
-  const toc = legacy?.normalizeToc ? legacy.normalizeToc(raw).value : raw;
   const pages = [];
   for (const sec of toc?.sections || [])
     for (const g of sec.groups || []) for (const p of g.pages || []) if (p && p.id) pages.push(p);

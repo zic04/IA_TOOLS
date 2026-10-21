@@ -4,9 +4,9 @@ Ce guide fixe les règles **propres à ce projet**. Les règles communes à tous
 
 | Sujet | Fichier du standard |
 |---|---|
-| Les deux espaces (Métier, Reprise), pages obligatoires de Reprise | `structure.fr.md` |
+| Les quatre espaces (Utiliser, Produit, Administrer, Développer) et leurs parties, les pages obligatoires de la reprise | `structure.fr.md` |
 | Les 28 gabarits de page et leurs sections | `templates.fr.md` |
-| Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts, liens, glossaire, constats, schémas ; écrire dans l'espace Métier ; statut des affirmations ; le registre des risques | `writing.fr.md` |
+| Rien d'inventé, preuves `fichier:ligne`, libellés exacts, écarts, liens, glossaire, constats, schémas ; écrire pour des lecteurs sans le code (Utiliser, Produit) ; statut des affirmations ; le registre des risques | `writing.fr.md` |
 <!-- doc-kit:capture=app -->
 | Sécurité et qualité des captures | `captures.fr.md` |
 <!-- doc-kit:end -->
@@ -29,7 +29,7 @@ En cas de désaccord, ce guide l'emporte pour ce projet. Complétez chaque ligne
 <!-- doc-kit:capture=none -->
 7. **Aucune capture** : chaque écran est décrit par un tableau de ses éléments (§3).
 <!-- doc-kit:end -->
-8. **Pas de code dans l'espace Métier** (`utiliser`, `fonctionnalites`, `configurer`, `administrer`) : une page métier ne cite aucune preuve `fichier:ligne` ; renvoyez vers son `counterpart` pour le détail d'implémentation.
+8. **Pas de code dans les espaces Utiliser et Produit** (`utiliser`, `fonctionnalites`) : une page lue sans le code ne cite aucune preuve `fichier:ligne` ; renvoyez vers son `counterpart` dans l'espace Développer pour le détail d'implémentation. L'espace Administrer (`configurer`, `administrer`, `exploiter`) est lu par des administrateurs et des exploitants, pas par des développeurs : ses pages d'écran et d'éditeur nomment le fichier derrière un écart constaté, jamais son numéro de ligne.
 
 ## 2. Sources de vérité
 
@@ -89,9 +89,9 @@ doc-kit view <id-de-page> --theme dark
 
 ## 8. Le dossier de reprise : faits, puis suivi
 
-Les pages de Reprise (`acces-et-propriete`, `manuel-exploitation`, `instructions-agents`, et tout
-`api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `threat-model` que vous ajoutez)
-suivent un cycle en deux temps :
+Les pages du dossier de reprise (`acces-et-propriete` et `manuel-exploitation` dans l'espace Administrer ;
+`instructions-agents`, et tout `api-surface`, `data-model`, `dependencies`, `code-map`, `tests-quality`,
+`threat-model` que vous ajoutez, dans l'espace Développer) suivent un cycle en deux temps :
 
 1. **`doc-kit facts --source <nom>`** lit le code de l'application (noms de variables d'environnement, routes
    d'API, tables de la base, dépendances, fichiers d'instructions d'agents, secrets, tests) dans

@@ -27,10 +27,11 @@ const NODE_DESTRUCTURE = /(?:const|let|var)\s*\{\s*([^}]+)\}\s*=\s*process\.env\
 const EXAMPLE_FILE = /(^|\/)\.env\.(example|sample|template)$/i;
 
 /** A class statement with its base list and body, up to the next top-level `class` or the end of the file. */
-const PY_CLASS = /class\s+(\w+)\s*\(([^)]*)\)\s*:\r?\n([\s\S]*?)(?=\r?\nclass\s+\w|\r?\n*$)/g;
+// Its end: the next class or the end of the text — never "newlines, then the end", tested at every character.
+const PY_CLASS = /class\s+(\w+)\s*\(([^)]{0,500})\)\s*:\r?\n([\s\S]*?)(?=\r?\nclass\s+\w|$)/g;
 /** One field of a settings class: `name: Type` or `name: Type = <rest of the line>`; never `class Config:` or
  * `model_config = …` (no `:` type annotation immediately after the name on those lines). */
-const PY_FIELD = /^[ \t]*(\w+)\s*:\s*[^\n=]+(?:=\s*(.*))?$/gm;
+const PY_FIELD = /^[ \t]*(\w+)[ \t]*:[ \t]*[^\n=]+(?:=[ \t]*(.*))?$/gm;
 
 /** `env_prefix` of a pydantic settings class body: `class Config: env_prefix = "…"` (v1) or
  * `model_config = SettingsConfigDict(env_prefix="…")` (v2); "" when neither is declared. */

@@ -3,7 +3,7 @@ agent: doc-kit-reviewer
 ---
 # Brief — code health: the takeover dossier
 
-You judge, in the project's language, the code-health pages of the TAKEOVER space for a vibe-coded application:
+You judge, in the project's language, the code-health pages of the DEVELOP space for a vibe-coded application:
 most of these applications share the same risks — access control missing or checked only in the browser, no
 row-level security, a secret in the code or sent to the client, a package that does not exist ("slopsquatting"),
 duplicated code, a test that cannot fail, an agent instruction file acting as a hidden specification, sometimes

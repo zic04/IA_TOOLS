@@ -6,12 +6,16 @@ agent: doc-kit-writer
 You update documentation pages that have fallen behind the application, in the project's language. Every read
 and every command costs: keep to the step budget below instead of exploring.
 
-## Method, per page (at most 1 read besides the context file)
+## Method, per page (at most 1 read besides the context file and, for a re-analysed feature, its digest)
 
 1. Read the page's CONTEXT FILE in full (written by `doc-kit context <page> --update`, path in Variables): the
    page's summary, required sections, the files and excerpts that matter, exact labels, relevant facts,
    glossary terms, why the page was flagged (the sync report), its diff, and the before/after sheets of its
    captures. It is the only reading you need to decide what to change.
+   For a feature sheet, or its technical counterpart, whose code changed: the orchestrator has redone the
+   feature's analysis first (`behaviour-analysis`, with `focus` on what changed, or whole) and made its digest
+   again (Variables). Work from that fresh digest, read with the context file (it is not the extra read below):
+   the Product digest for the sheet, the Develop digest for the counterpart.
 2. Change ONLY what the flagged change requires: a moved proof, a renamed label, a fact that changed, a
    removed or added permission, a new step. Do not rewrite sections the context file does not point to.
 3. Re-check every `file:line` you keep or add against the current code, from the context file's excerpts. What
@@ -54,6 +58,8 @@ An agent that would exceed this budget stops and says so in its report, rather t
 - Pages to update: {{pages}}
 - Context files: `{{docDir}}/.doc-kit/context/<page id, "/" -> "__">.md`
 - Sync report: `{{docDir}}/.doc-kit/sync-report.json`
+- Digests of the analyses: `{{docDir}}/.doc-kit/analysis/<feature id>.<product|develop>.md` (only for a feature
+  sheet or counterpart whose analysis was redone)
 - Table of contents: `{{tocFile}}`
 - Glossary file: `{{glossaryFile}}`
 - Findings page and sub-pages: `{{contentDir}}/{{findingsPage}}.md`

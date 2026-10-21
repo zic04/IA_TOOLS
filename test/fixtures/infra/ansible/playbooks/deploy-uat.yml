@@ -1,0 +1,8 @@
+- name: Deploy the shop
+  hosts: all
+  serial: 1
+  tasks:
+    - name: Pull the image
+      community.docker.docker_image:
+        name: ghcr.io/acme/shop
+        source: pull

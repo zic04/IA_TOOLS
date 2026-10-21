@@ -1,5 +1,5 @@
 // audit (engine/audit/*, cli/commands/audit.mjs): indicators, maturity levels, prioritised actions with page ids,
-// legacy untyped projects, unavailable measures ("not measured", never an error), reports in en and fr, CLI.
+// untyped projects, unavailable measures ("not measured", never an error), reports in en and fr, CLI.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +14,7 @@ import { KIT_ROOT, DEMO, tempDir } from "../tools/helpers.mjs";
 
 const FIXTURES = path.join(KIT_ROOT, "test", "fixtures");
 const TYPED = path.join(FIXTURES, "audit-typed");
-const LEGACY = path.join(FIXTURES, "audit-legacy");
+const UNTYPED = path.join(FIXTURES, "audit-untyped");
 const NOW = new Date(Date.UTC(2026, 9, 1, 12));
 /** Tables are never measured here (no browser in unit tests). */
 const MEASURE = { tables: null };
@@ -526,11 +526,10 @@ describe("measures that may be unavailable", () => {
   });
 });
 
-describe("a legacy project, written before page types", () => {
+describe("a project written before page types", () => {
   test("typed = 0 %, the other indicators measured; types guessed from the headings; level 2", async () => {
-    const r = await audit(LEGACY);
-    assert.equal(r.legacyToc, true);
-    assert.equal(r.tocFile, "contenu/sommaire.json");
+    const r = await audit(UNTYPED);
+    assert.equal(r.tocFile, "contenu/toc.json");
     assert.equal(r.level, 2);
     assert.deepEqual([r.indicators.typed.n, r.indicators.typed.total], [0, 14]);
     assert.deepEqual(
@@ -550,11 +549,11 @@ describe("a legacy project, written before page types", () => {
     assert.ok(!("utiliser/reglages" in typing), "a required section is missing");
     const declare = action(r, "typedDeclare");
     assert.equal(declare.level, 3);
-    assert.deepEqual(declare.vars, { n: 12, need: 12, file: "contenu/sommaire.json", field: "gabarit" });
+    assert.deepEqual(declare.vars, { n: 12, need: 12, file: "contenu/toc.json" });
   });
 
   test("Take over: the pages to type are named, the missing one is suggested in French", async () => {
-    const r = await audit(LEGACY);
+    const r = await audit(UNTYPED);
     assert.deepEqual(
       action(r, "takeover").items.map((i) => [i.id, i.key]),
       [
@@ -568,11 +567,11 @@ describe("a legacy project, written before page types", () => {
   });
 
   test("the French report explains how to type the pages", async () => {
-    const r = await audit(LEGACY);
+    const r = await audit(UNTYPED);
     const md = renderMarkdown(r, i18n("fr"));
     assert.match(md, /\*\*Niveau atteint : 2 · Utilisateur\*\*/);
     assert.match(md, /> \[!NOTE\] Ce site ne déclare aucun type de page/);
-    assert.match(md, /ajoutez `"gabarit": "<type>"` à son entrée dans `contenu\/sommaire\.json`/);
+    assert.match(md, /ajoutez `"template": "<type>"` à son entrée dans `contenu\/toc\.json`/);
     assert.match(md, /- `utiliser\/commandes` → `screen`/);
     assert.match(
       md,
@@ -609,6 +608,19 @@ describe("a project that cannot be built", () => {
         assert.match(renderSummary(r, i18n("en")), /level 0 · none/);
       },
     ));
+
+  test("the former content/sommaire.json is not read (ARCHITECTURE.md §6.7): level 0, toc.missing", () =>
+    withCopy(
+      TYPED,
+      (d) => fs.renameSync(path.join(d, "content/toc.json"), path.join(d, "content/sommaire.json")),
+      async (d) => {
+        const r = await audit(d);
+        assert.equal(r.level, 0);
+        assert.equal(r.tocFile, "content/toc.json");
+        assert.equal(r.actions[0].items[0].problem.key, "toc.missing");
+        assert.equal(r.actions[0].items[0].problem.vars.file, "content/toc.json");
+      },
+    ));
 });
 
 describe("CLI", () => {
@@ -625,14 +637,14 @@ describe("CLI", () => {
 
   test("writes .doc-kit/audit.md and audit.json, prints a summary; exit code 0 even when levels are missing", () =>
     withCopy(
-      LEGACY,
+      UNTYPED,
       () => {},
       async (d) => {
         const r = await cli(["audit", "--project", d]);
         assert.equal(r.code, 0, r.err);
         assert.match(r.out, /^◆ Acme Orders — niveau 2 · Utilisateur \(14 pages\)\n/);
         assert.match(r.out, /Prochain : niveau 3 · Complet — 3 critères à remplir/);
-        assert.match(r.out, /1\. Déclarez le type des 12 pages .* ajoutez "gabarit": "<type>"/);
+        assert.match(r.out, /1\. Déclarez le type des 12 pages .* ajoutez "template": "<type>"/);
         assert.doesNotMatch(r.out, /`/, "no Markdown code marks in the terminal");
         assert.match(r.out, /→ rapport : .*\.doc-kit\/audit\.md · données : .*\.doc-kit\/audit\.json\n$/);
         assert.equal(
@@ -678,7 +690,7 @@ describe("CLI", () => {
   });
 
   test("withTexts keeps the result and adds the text of every action", async () => {
-    const r = await audit(LEGACY);
+    const r = await audit(UNTYPED);
     const j = withTexts(r, i18n("en"));
     assert.equal(j.levelName, "User");
     assert.match(j.actions[0].text, /^Declare the type of the 12 pages that already follow a template/);

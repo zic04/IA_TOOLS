@@ -1,0 +1,3 @@
+replicaCount: 4
+image:
+  repository: stray-image-never-read

@@ -2,7 +2,7 @@
 
 | Key | Type · default | Role | Example |
 |---|---|---|---|
-| `kit` | text · `"*"` | Kit versions the project accepts (semver range); outside the range, exit code 3 | `"^0.3.0"` |
+| `kit` | text · `"*"` | Kit versions the project accepts (semver range); outside the range, exit code 3 | `"^0.4.0"` |
 | `product` | object, required | The documented product | `{ name: "Acme Orders" }` |
 | `product.name` | text, required | Name shown in the site, the messages and the default output file | `"Acme Orders"` |
 | `product.slug` | `[a-z0-9-]` · from the name | Short name: default of `theme.key` and `env.prefix` | `"acme-orders"` |
@@ -25,8 +25,9 @@ See [Documenting in multiple languages](#/spaces/languages) for `languages` and 
 | `paths.translations` | folder · `"translations"` | Holds `translations/<lang>/`, the per-language mirror of `paths.content` (ARCHITECTURE.md §6.12); must not be inside `paths.content` | `"i18n-content"` |
 | `paths.sync` | folder · `"."` (the project root) | Where `sync.json`, the reference of `doc-kit sync`, lives (ARCHITECTURE.md §6.10) | `"."` |
 
-Folder names may not contain `< > : " | ? *`. Older projects keep their own names through `paths`
-([Migrate a legacy project](#/migrate/legacy-project)).
+Folder names may not contain `< > : " | ? *`. A project may name its folders in its own language through `paths`
+(`{ content: "contenu", diagrams: "schemas" }`); the files inside keep their names (`toc.json`, `glossary.json`,
+`home.md`) and their English keys.
 
 ## The documented version
 
@@ -77,6 +78,8 @@ The other keys of `auth` are the options of the adapter, validated by the adapte
 | `sync` | object · `{}` | `doc-kit sync` (ARCHITECTURE.md §6.10): what the documentation must follow after a change of the application | |
 | `sync.labels` | list of globs · `[]` | Message files whose labels are followed, relative to the project; default: the `messages` of every `i18n-registry` coverage adapter | `["../../src/messages/*.json"]` |
 | `capture.compareThreshold` | number 0 to 1 · `0.005` | `capture --compare`: share of differing pixels above which a screenshot is replaced rather than kept as is | `0.01` |
+| `bricks.enabled` | list of brick ids or presets, or `null` · `null` | The bricks of the project, the parts `doc-kit bricks run` can run again on their own (ARCHITECTURE.md §6.18); `null`: every brick | `["facts", "doc-audit"]` |
+| `bricks.disabled` | list of brick ids or presets · `[]` | Bricks left out: they never run, even named or through a preset | `["facts.history"]` |
 
 A marked page's footer shows "Checked against version {version} on {date}" once it is built again. See
 [Following the application](#/reference/cli/write-check~doc-kit-sync).
@@ -101,6 +104,47 @@ A marked page's footer shows "Checked against version {version} on {date}" once 
 | `review.semgrep` | path or `null` · `null` | A local semgrep rules folder, relative to the project; without it, `doc-kit facts --tools` never runs semgrep (never `--config auto`, which downloads rules) | `"security/semgrep-rules"` |
 
 See [Security and maintainability reviews](#/spaces/reviews).
+
+## Behaviour cards
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `behaviours` | object · `{}` | The behaviour cards of the feature sheets (`:::behaviour`, ARCHITECTURE.md §6.8a) | |
+| `behaviours.file` | path or `null` · `null` | A JSON file of the project's own kinds of behaviour, relative to the project, in the format of `standard/behaviours.json` (`schemas/behaviours.schema.json`, without `answers`); a kind may not take a name of the kit's | `"behaviours.json"` |
+| `behaviours.strict` | yes/no · `false` | A required rubric left out of a card (`behaviour.missing`) fails the strict build instead of warning | `true` |
+
+See [A feature in depth](#/write/markdown~a-feature-in-depth-stories-behaviour-cards-scenarios).
+
+## Stacks
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `stacks` | object · `{}` | The stack adapters of `doc-kit facts` (sources `api`, `screens`, `behaviours`, `stack`) | |
+| `stacks.disabled` | list · `[]` | Ids of the kit's stack adapters not run: their routes, screens and hints are not read | `["express"]` |
+| `stacks.adapters` | list · `[]` | The project's own stack adapters, each `"local:<path>"` relative to the project (never a file of the application), run after the kit's | `["local:adapters/cobol.mjs"]` |
+
+See [What the kit reads](#/reference/compatibility) and [Adapters](#/reference/adapters).
+
+## Infrastructure
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `infra` | object · `{}` | The infra adapters of `doc-kit facts` (source `infra`) | |
+| `infra.disabled` | list · `[]` | Ids of the kit's infra adapters not run | `["ansible"]` |
+| `infra.adapters` | list · `[]` | The project's own infra adapters, each `"local:<path>"` relative to the project (never a file of the application), run after the kit's | `["local:adapters/nomad.mjs"]` |
+
+## The backlog
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `backlog` | object · `{}` | The backlog of the documentation: epics, feature sheets and their user stories ([Epics](#/write/table-of-contents~epics-the-top-of-the-backlog)) | |
+| `backlog.refs` | object · `{}` | The address of an item in each tool, so that a reference (`ref`) is a link: `azure`, `jira`, `github`, `gitlab`, each an `https://` address with `{id}` (and `{repo}` for GitHub and GitLab). With both GitHub and GitLab, `owner/repo#42` is GitHub's and `group/sub/project#7` GitLab's. No token: the kit never calls a tool | `{ "azure": "https://dev.azure.com/acme/shop/_workitems/edit/{id}" }` |
+| `backlog.docUrl` | string · none | The address of the published site (its HTML file), without `#`: each exported item links to its page | `"https://docs.acme.example/Acme-Documentation.html"` |
+| `backlog.idInTitle` | boolean · `true` | An exported item's title starts with its id (`F-01 · Track orders`) | `false` |
+| `backlog.azure.process` | `agile`, `scrum`, `cmmi`, `basic` · `agile` | The process of the Azure DevOps project, which gives the work item types: Agile (Epic, Feature, User Story), Scrum (… Product Backlog Item), CMMI (… Requirement), Basic (Epic, Issue, Task). Only Agile and Scrum have an Acceptance Criteria field; otherwise the criteria end the description | `"scrum"` |
+| `backlog.azure.areaPath`, `backlog.azure.iterationPath` | string · none | The Area Path and the Iteration Path of every item imported (otherwise the project's root) | `"Acme\\Team"` |
+| `backlog.jira.types` | object · `{}` | The work type of an `epic`, a `feature` and a `story`, `null` for none: by default an epic is no item (a label of what it holds), a feature an Epic, a story a Story. A project with a level above Epic names it | `{ "epic": "Initiative" }` |
+| `backlog.github.types` | object · `{}` | The issue type (an organisation's) of an `epic`, a `feature` and a `story` (none by default) | `{ "feature": "Feature", "story": "Task" }` |
 
 ## Further reading
 

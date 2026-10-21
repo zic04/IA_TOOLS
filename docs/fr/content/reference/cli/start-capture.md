@@ -1,7 +1,7 @@
 ## doc-kit init
 
 ```text
-doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--capture app|none] [--target local|demo|production] [--yes]
+doc-kit init [dossier-app] [--dir <dossier>] [--name "…"] [--lang en|fr] [--url <url>] [--framework next|react-router|none] [--auth <adaptateur>] [--capture app|none] [--target local|demo|production] [--spaces <id,…>|none] [--yes]
 ```
 
 Crée le projet de documentation de l'application située dans `dossier-app` (défaut : le dossier courant), dans
@@ -18,6 +18,7 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
 | `--auth <adaptateur>` | `manual` | `manual`, `none`, `nextauth`, `api-me` ou `local:<fichier>` |
 | `--capture app\|none` | `app` | `app` : captures de l'application en marche ; `none` : aucune capture (`capture.mode: "none"`), chaque écran décrit par un tableau |
 | `--target <où>` | `local`, ou `demo` pour une URL qui n'est pas locale | `local`, `demo` ou `production` (`capture.target`) ; `production` écrit `capture.readOnly: true` et, avec `--yes`, demande `--url` ; refusé avec `--capture none` |
+| `--spaces <id,…>\|none` | demandés, ou les quatre | Les publics : `use`, `product`, `admin`, `develop`, séparés par des virgules, chacun une fois ; `none` : une seule documentation pour tous, sans espace |
 | `--yes`, `-y` | | Aucune question : les valeurs détectées et les options telles quelles |
 
 - **Détection** : `package.json` dans le dossier ou dans `frontend`, `front`, `web`, `client`, `ui`, `app`,
@@ -28,7 +29,7 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
 - **Masquage** (`masking.env`) : `.env` et `.env.local` à la racine et dans le dossier du front-end, seulement les
   fichiers qui existent ; jamais `*.example`.
 - **Questions** (sans `--yes`) : nom, langue, URL, où prendre les captures, mode de connexion (seulement avec des
-  captures). Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
+  captures), pour qui est la documentation. Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
 - **Où prendre les captures** : « 1) application locale ou de démo, 2) production, en lecture seule, 3) aucune
   capture ». Le choix 1 écrit `capture.target: "local"` pour une URL `localhost` ou `127.x`, `"demo"` sinon. Le
   choix 2 demande l'**adresse de la production** (jamais l'adresse locale déduite du script de développement), puis
@@ -43,15 +44,22 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
   les étapes suivantes sont affichées. Une étape qui échoue s'arrête là avec son code de sortie ; le projet reste
   écrit.
 - **Récapitulatif** : avant d'écrire quoi que ce soit, même avec `--yes`, le dossier, le nom et sa provenance,
-  l'identifiant, la langue, l'URL, la version et son fichier, le mode et la cible des captures, la connexion, la source de la
+  l'identifiant, la langue, l'URL, la version et son fichier, le mode et la cible des captures, la connexion, les espaces, la source de la
   couverture, les fichiers `.env` masqués et le dossier de l'application. Pour renommer le produit ensuite :
-  `product.name` dans `doc.config.mjs`, puis le titre, l'accroche et les titres de section de `content/toc.json`.
+  `product.name` dans `doc.config.mjs`, puis le titre, l'accroche, les titres de section et les titres des parcours de `content/toc.json`.
 - **Écrit** le squelette de `templates/project/common` et de `templates/project/<langue>` : configuration,
-  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, un sommaire avec des pages d'exemple réparties en
-  quatre sections (Utiliser, Configurer, Administrer, Reprendre), un glossaire, un exemple de plan de capture, un
-  logo. 22 fichiers. Les commentaires de `doc.config.mjs` sont dans la langue du projet ; les routes d'exemple sont
+  `package.json`, `.gitignore`, `README.md`, `WRITING-GUIDE.md`, un sommaire avec les espaces choisis et des pages
+  d'exemple réparties en six sections au plus (Utiliser ; Fonctionnalités ; Configurer, Administrer, Exploiter ; Reprendre), un glossaire, un exemple de plan de capture, un
+  logo. Les commentaires de `doc.config.mjs` sont dans la langue du projet ; les routes d'exemple sont
   fictives (`/exemple/…`).
-- **Sans captures** (`--capture none`) : pas de plan d'exemple (21 fichiers), des pages d'exemple qui décrivent chaque
+- **Espaces** : « Pour qui est la documentation ? » propose 1) les quatre (par défaut), 2) `use, product` (les
+  utilisateurs et les responsables produit, sans code), 3) `admin, develop` (une reprise), 4) `use` seul, 5) aucun. Les
+  espaces écartés perdent leurs sections, leurs pages et leur parcours ; ce qui nommait leurs pages (contreparties,
+  étapes de parcours, suggestions) part aussi. Avec Développer sans Administrer, la section Exploiter (DAT, accès et
+  propriété, manuel d'exploitation) passe dans Développer. Sans espace, les mêmes pages, sans aucun espace. Chaque
+  espace gardé a son parcours sur l'accueil. Sans Utiliser, aucune page ne cite la capture du plan d'exemple (`home`)
+  tant qu'une page ne le fait pas.
+- **Sans captures** (`--capture none`) : pas de plan d'exemple, des pages d'exemple qui décrivent chaque
   écran par un tableau `| Élément | Ce qu'il montre |`, un accueil sans l'encadré « écrans interactifs », et des
   étapes suivantes sans `connect` ni `capture`.
 - **Refuse** un dossier qui existe et n'est pas vide (code de sortie 1).
@@ -178,7 +186,7 @@ son texte ni son entrée dans le sommaire ne comptent. Code de sortie 2 quand `c
 
 | Option | Effet |
 |---|---|
-| `--features` | Regroupe les éléments de chaque adaptateur en candidates fonctionnalités métier ([Espace métier : fonctionnalités, règles et rôles](#/write/markdown~espace-metier)), par le premier segment statique de leur identifiant : un identifiant suggéré (`F-01`…), les routes, les routes API et les clés i18n du groupe, et l'entrée de `features.json` qui la couvre déjà, s'il y en a une |
+| `--features` | Regroupe les éléments de chaque adaptateur en candidates fonctionnalités métier ([Fonctionnalités, règles et rôles](#/write/markdown~fonctionnalites-regles-et-roles)), par le premier segment statique de leur identifiant : un identifiant suggéré (`F-01`…), les routes, les routes API et les clés i18n du groupe, et l'entrée de `features.json` qui la couvre déjà, s'il y en a une |
 | `--write` | Écrit `features.json` à partir des candidates ; refusé s'il existe déjà (code de sortie 1) |
 | `--force` | Avec `--write` : garde les identifiants déjà dans `features.json`, n'ajoute que les candidates qu'il ne couvre pas déjà |
 

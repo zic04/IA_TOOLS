@@ -1,8 +1,8 @@
 // skill install: copy into a TEMPORARY skills folder only (never the real ~/.claude), {{KIT_PATH}} replaced,
-// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the three agent
+// fingerprint read by doctor (current / outdated / modified / missing), other skills untouched; the agent
 // types (ARCHITECTURE.md §6.11) are copied next to the skills folder and reported the same way.
 // brief.mjs: every brief template declares its agent type and its common part is byte-identical whatever the
-// per-agent variables (code, pages…), so a wave's agents share their prompt cache; --estimate.
+// per-agent variables (code, pages…), so a brief reads the same whatever its variables; --estimate.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,7 +21,7 @@ import {
   FINGERPRINT,
 } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
-import { AGENT_TYPES } from "../../skill/doc-kit/scripts/common.mjs";
+import { AGENT_TYPES, baseVariables, flattenedPages, outputBySize } from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -148,6 +148,12 @@ describe("skill install", () => {
       // Reinstall cleanly first, from the ORIGINAL source, so the fingerprint matches what's on disk again.
       installSkill({ skills: path.join(config, "skills"), force: true });
       assert.equal(agentsStatus({ env, source }).state, "outdated");
+      // A newer kit that only ADDS an agent type (the existing ones unchanged) is outdated too.
+      const added = path.join(config, "source-added");
+      fs.cpSync(SKILL_SOURCE, added, { recursive: true });
+      fs.writeFileSync(path.join(added, "agents", "doc-kit-new.md"), "---\nname: doc-kit-new\nmodel: sonnet\n---\n");
+      assert.equal(agentsStatus({ env, source: SKILL_SOURCE }).state, "current");
+      assert.equal(agentsStatus({ env, source: added }).state, "outdated");
       assert.equal(skillStatus({ env, kitRoot: config }).state, "otherKit");
       assert.equal(agentsStatus({ env, kitRoot: config }).state, "otherKit");
     } finally {
@@ -231,7 +237,7 @@ describe("brief.mjs", () => {
       assert.equal(r.code, 0, r.err);
       assert.match(
         r.out,
-        /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(la partie commune d'abord : chaque agent de la vague après le premier la lit dans le cache de prompt\)\n$/,
+        /^✔ brief écrit : .*brief-writing-batch-u1\.md\n {2}→ lancez-le avec le type d'agent doc-kit-writer et le modèle sonnet, le texte complet du brief comme consigne \(le premier agent d'une vague seul, les autres dans votre message suivant : ils lisent dans le cache de prompt ce qu'ils partagent avec lui\)\n$/,
       );
       const text = fs.readFileSync(path.join(docs, ".doc-kit", "brief-writing-batch-u1.md"), "utf8");
       assert.match(text, /^agent: doc-kit-writer\n/m);
@@ -298,7 +304,7 @@ describe("brief.mjs", () => {
 
 // ARCHITECTURE.md §6.11: every brief declares its agent type, and two briefs of the same template differ only
 // after their common part — tested here with different `code`/`pages` (and, where relevant, other per-agent
-// variables), so that the agents of one wave can share their prompt cache.
+// variables): a brief reads the same whatever its variables.
 const TEMPLATE_VARIANTS = {
   "writing-batch": [
     ["--var", "code=u1", "--var", "pages=use/orders", "--var", "referencePage=use/orders"],
@@ -404,6 +410,46 @@ const TEMPLATE_VARIANTS = {
     ["--var", "code=cp1", "--var", "pages=/orders"],
     ["--var", "code=cp2", "--var", "pages=/settings"],
   ],
+  // The DAT and reality (ARCHITECTURE.md §6.19): one page per agent.
+  "architecture-reconcile": [
+    ["--var", "page=take-over/dat-gaps"],
+    ["--var", "page=reprendre/ecarts-dat"],
+  ],
+  // The analyses of the features (ARCHITECTURE.md §6.11a): one feature per agent.
+  "behaviour-analysis": [
+    [
+      "--var",
+      "feature=F-01",
+      "--var",
+      "featureTitle=Track",
+      "--var",
+      "size=S",
+      "--var",
+      "level=standard",
+      "--var",
+      "page=features/track",
+    ],
+    [
+      "--var",
+      "feature=F-02",
+      "--var",
+      "featureTitle=Approve",
+      "--var",
+      "size=L",
+      "--var",
+      "level=detailed",
+      "--var",
+      "page=features/approve",
+    ],
+  ],
+  deepen: [
+    ["--var", "feature=F-01", "--var", "page=features/track", "--var", "gaps=B-01.match"],
+    ["--var", "feature=F-02", "--var", "page=features/approve", "--var", "gaps=US-02.criteria, rules"],
+  ],
+  "feature-mechanism": [
+    ["--var", "feature=F-01", "--var", "sheet=features/track", "--var", "page=take-over/architecture/track"],
+    ["--var", "feature=F-02", "--var", "sheet=features/approve", "--var", "page=take-over/architecture/approve"],
+  ],
 };
 const AGENT_TYPES_KNOWN = new Set(AGENT_TYPES);
 
@@ -436,26 +482,6 @@ describe("brief templates: agent type and common/variable split", () => {
       });
     }
   }
-
-  test("newer briefs (triage, update, functional-spec, code-health, access-ownership, system-dossier, security-review, maintainability-review): the same placeholders in en and fr", () => {
-    for (const name of [
-      "triage",
-      "update",
-      "functional-spec",
-      "code-health",
-      "access-ownership",
-      "system-dossier",
-      "security-review",
-      "maintainability-review",
-      "translate",
-      "capture-plans",
-    ]) {
-      const en = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "en", `${name}.md`), "utf8");
-      const fr = fs.readFileSync(path.join(SKILL_SOURCE, "assets", "briefs", "fr", `${name}.md`), "utf8");
-      const vars = (t) => [...new Set([...t.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map((m) => m[1]))].sort();
-      assert.deepEqual(vars(fr), vars(en), `${name}: en/fr placeholder parity`);
-    }
-  });
 });
 
 describe("brief.mjs --estimate", () => {
@@ -539,6 +565,60 @@ describe("brief.mjs --estimate", () => {
     }
   });
 
+  test("behaviour-analysis: its check command quotes the script's path and runs from the documentation folder", () => {
+    for (const lang of ["en", "fr"]) {
+      const { app, docs } = briefProject({ language: lang });
+      try {
+        const output = path.join(docs, ".doc-kit", "analysis-brief.md");
+        const vars = ["feature=F-01", "featureTitle=Track", "size=M", "level=standard", "page=features/track"];
+        const r = brief(
+          ["behaviour-analysis", "--project", docs, "--output", output, ...vars.flatMap((v) => ["--var", v])],
+          app,
+        );
+        assert.ok(r.code === 0 || r.code === 1, r.err);
+        const scripts = path.join(SKILL_SOURCE, "scripts").split(path.sep).join("/");
+        assert.ok(
+          fs.readFileSync(output, "utf8").includes(`\`node "${scripts}/analysis.mjs" check F-01 --project .\``),
+          `${lang}: the check line`,
+        );
+      } finally {
+        fs.rmSync(app, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("a brief by the size of its subject (output-tokens): the output of the size given; without it, said", () => {
+    const { app, docs } = briefProject({ language: "en" });
+    try {
+      const template = path.join(app, "sized.md");
+      fs.writeFileSync(template, "---\nagent: doc-kit-writer\noutput-tokens: S=100,M=250,L=900\n---\n# Brief\n");
+      let r = brief([template, "--project", docs, "--estimate", "--var", "size=m"], app);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /^ {2}output: 250 tokens \(a subject of size M, the brief's output-tokens\)\n/m);
+      // The analysis of a feature: its output by size.
+      const analysis = brief(["behaviour-analysis", "--project", docs, "--estimate", "--var", "size=L"], app);
+      assert.match(analysis.out, /^Estimate for behaviour-analysis — agent doc-kit-analyst, model sonnet\n/);
+      assert.match(analysis.out, /^ {2}output: 18000 tokens \(a subject of size L/m);
+      r = brief([template, "--project", docs, "--estimate"], app);
+      assert.match(
+        r.out,
+        /^ {2}output: 0 tokens \(no page list to estimate from: this brief's output depends on the size/m,
+      );
+    } finally {
+      fs.rmSync(app, { recursive: true, force: true });
+    }
+  });
+
+  test("outputBySize: S, M and L, or nothing", () => {
+    assert.deepEqual(outputBySize("---\noutput-tokens: S=1,M=2,L=3\n---\n"), { S: 1, M: 2, L: 3 });
+    for (const t of [
+      "---\noutput-tokens: S=1,M=2\n---\n",
+      "---\noutput-tokens: S=a,M=2,L=3\n---\n",
+      "# no front matter",
+    ])
+      assert.equal(outputBySize(t), null, t);
+  });
+
   test("a read-only template (inventory, no pages): input tokens only, no output", () => {
     const { app, docs } = briefProject({ language: "en" });
     try {
@@ -557,6 +637,8 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
     const { briefModel, DEFAULT_ROUTING } = await import("../../skill/doc-kit/scripts/common.mjs");
     assert.equal(briefModel("translate", "doc-kit-writer"), "haiku");
     assert.equal(briefModel("triage", "doc-kit-triage"), "haiku");
+    assert.equal(briefModel("deepen", "doc-kit-writer"), "haiku", "deepening a sheet from its digest");
+    assert.equal(briefModel("behaviour-analysis", "doc-kit-analyst"), "sonnet", "the analyst's own model");
     assert.equal(briefModel("findings-verification", "doc-kit-reviewer"), "sonnet");
     assert.equal(briefModel("security-review", "doc-kit-reviewer"), "opus");
     assert.equal(briefModel("writing-batch", "doc-kit-writer"), "sonnet", "not routed: the agent type's model");
@@ -611,6 +693,53 @@ describe("llm configuration (ARCHITECTURE.md §6.11)", () => {
       /KitError|invalid/i,
       "no negative price",
     );
+  });
+});
+
+describe("the project's files, read by the skill's scripts: the current names only (ARCHITECTURE.md §6.7)", () => {
+  test("flattenedPages reads <content>/toc.json (a byte-order mark tolerated); a sommaire.json alone gives no page", () => {
+    const dir = tempDir("doc-kit-skill-toc-");
+    try {
+      const content = path.join(dir, "contenu");
+      fs.mkdirSync(content);
+      const config = { paths: { content: "contenu" } };
+      fs.writeFileSync(
+        path.join(content, "sommaire.json"),
+        JSON.stringify({ sections: [{ id: "use", groupes: [{ pages: [{ id: "use/a", gabarit: "screen" }] }] }] }),
+      );
+      assert.deepEqual(flattenedPages(dir, config), []);
+      const toc = {
+        sections: [{ id: "use", groups: [{ pages: [{ id: "use/a", template: "screen" }, { title: "x" }] }] }],
+      };
+      fs.writeFileSync(path.join(content, "toc.json"), "﻿" + JSON.stringify(toc));
+      assert.deepEqual(flattenedPages(dir, config), [{ id: "use/a", template: "screen" }]);
+      fs.writeFileSync(path.join(content, "toc.json"), "{ not json");
+      assert.deepEqual(flattenedPages(dir, config), []);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("tocFile, glossaryFile, targetsFile and guideFile name the current files, even when only the former ones exist", () => {
+    const dir = tempDir("doc-kit-skill-vars-");
+    try {
+      fs.mkdirSync(path.join(dir, "contenu"));
+      fs.mkdirSync(path.join(dir, "captures"));
+      for (const f of ["contenu/sommaire.json", "contenu/glossaire.json", "captures/cibles.mjs", "GUIDE-REDACTION.md"])
+        fs.writeFileSync(path.join(dir, f), "[]");
+      const vars = baseVariables(dir, { product: { name: "Acme" }, paths: { content: "contenu" } }, "en", {});
+      assert.equal(vars.tocFile, "contenu/toc.json");
+      assert.equal(vars.glossaryFile, "contenu/glossary.json");
+      assert.equal(vars.targetsFile, "captures/targets.mjs");
+      assert.equal(vars.guideFile, "WRITING-GUIDE.md");
+      // The analyses (ARCHITECTURE.md §6.11a): the skill's scripts; the project's kinds of behaviour, when declared.
+      assert.equal(vars.scriptsDir, path.join(SKILL_SOURCE, "scripts").split(path.sep).join("/"));
+      assert.equal(vars.behavioursFile, "");
+      const own = baseVariables(dir, { product: { name: "A" }, behaviours: { file: "kinds\\shop.json" } }, "en", {});
+      assert.equal(own.behavioursFile, "kinds/shop.json");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

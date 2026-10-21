@@ -102,7 +102,12 @@ export function ignoreRules(masking = {}) {
 const BUILT_IN_RULES = ignoreRules();
 const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
 const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
-const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
+/** Files never exported nor read for a page, at any depth: environment files, keys and certificates, tool credentials. */
+export const SECRET_FILE =
+  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
+
+/** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
+export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
 
 /** Value detectors: `re` (group `v` = the value, else the whole match) and an optional `accept(match)`. */
 export const GENERIC = Object.freeze([
@@ -119,12 +124,13 @@ export const GENERIC = Object.freeze([
   },
   {
     kind: "credentialsUrl",
-    re: /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
+    // A scheme of 32 characters at most: from each word of "a-a-a…", never a run to the end of the text.
+    re: /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
     accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
   },
   {
     kind: "cloudKey",
-    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b/g,
+    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b|\b[sr]k_(?:live|test)_[0-9A-Za-z]{16,}\b|\bwhsec_[0-9A-Za-z]{24,}\b/g,
   },
   {
     kind: "assignment",
@@ -192,6 +198,26 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
     }
   }
   return out;
+}
+
+/**
+ * The text with every line where a secret detector fires replaced by a notice (the value is never kept). Shared by
+ * every writer of a file read by people or agents (`pack`, reports): one filter, the same detectors.
+ * @param {string} text
+ * @param {object[]} detectorList   detectors()
+ * @param {(kind: string) => string} notice   the replacement line, from the kind of secret
+ * @param {(value: string, token: string) => string|null} [ignore]   ignoreRules(config.masking)
+ * @returns {{ text: string, removed: Array<{ line: number, kind: string }> }}
+ */
+export function withoutSecrets(text, detectorList, notice, ignore = undefined) {
+  const found = scanText(text, detectorList, ignore);
+  if (!found.length) return { text, removed: [] };
+  const byLine = new Map(found.map((f) => [f.line, f.kind]));
+  const lines = text.split("\n").map((l, i) => (byLine.has(i + 1) ? notice(byLine.get(i + 1)) : l));
+  return {
+    text: lines.join("\n"),
+    removed: [...byLine].map(([line, kind]) => ({ line, kind })).sort((a, b) => a.line - b.line),
+  };
 }
 
 // The build breaks long code spans with <wbr> (after "/", ".", "?", "="…): removed without a space, so that a URL

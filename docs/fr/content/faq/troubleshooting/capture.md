@@ -88,8 +88,8 @@
 ### « plans de capture captures/plans : 2 erreurs »
 
 - **Causes probables**
-  1. Une entrée a une clé inconnue (une faute de frappe, une ancienne clé), une valeur du mauvais type, ou pas d'`id`
-     ou de `route`.
+  1. Une entrée a une clé inconnue (une faute de frappe, une clé française d'un plan écrit avant la 0.4.0), une valeur
+     du mauvais type, ou pas d'`id` ou de `route`.
 - **Vérifier** : les lignes qui suivent, une par erreur : `fichier › id (CAPTURES[index]) › chemin: ce qui ne va pas`.
 - **Corriger** : chaque entrée listée ; une seule entrée invalide arrête la commande. Une marge négative, une fenêtre
   de 150 px ou `steps: 0` sont valides.

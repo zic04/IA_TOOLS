@@ -32,6 +32,8 @@ d'explorer.
   `[[status …]]`, `[[feature …]]`, `[[rule …]]`, les marqueurs de rappel (`[!NOTE]`…) — traduisez le texte du
   rappel, jamais son marqueur.
 - Les blocs et extraits de code, et toute preuve `fichier:ligne` qu'ils contiennent.
+- Les analyses : ne traduisez ni n'écrivez jamais un fichier de `.doc-kit/analysis/` ni un digest ; ce sont les
+  pages qui se traduisent.
 - Les liens : gardez `#/<page>~<ancre>` exactement comme écrit ; une ancre fausse se corrige ensuite avec
   `translate --fix-anchors`, pas en devinant vous-même un slug traduit.
 

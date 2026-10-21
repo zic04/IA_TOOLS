@@ -39,6 +39,17 @@
 - **Corriger** : `doc-kit upgrade`, puis `doc-kit upgrade --apply` ; ou utilisez le kit qu'attend le projet.
 - **Comprendre** : [Passer à un kit plus récent](#/migrate/upgrade).
 
+### « sommaire introuvable : content/toc.json »
+
+- **Causes probables**
+  1. Le projet n'a pas été créé par `doc-kit init`, ou `paths.content` nomme un autre dossier.
+  2. Le projet a été écrit avant la 0.4.0 dans l'ancien format à clés françaises (`sommaire.json`, `glossaire.json`,
+     `accueil.md`) : ces fichiers ne sont plus lus, et `doc-kit migrate` a été retiré.
+- **Vérifier** : `doc-kit doctor`, ligne « sommaire » ; les fichiers du dossier de contenu.
+- **Corriger** : faites pointer `paths.content` vers le bon dossier ; pour un projet de l'ancien format, repartez de
+  `doc-kit init` et écrivez `toc.json`, `glossary.json` et `home.md` avec leurs clés anglaises.
+- **Comprendre** : [Sommaire, sous-pages et parcours](#/write/table-of-contents).
+
 ## Rédiger
 
 ### « [utiliser/commandes] lien cassé : #/utiliser/commande » ou « ancre introuvable »
@@ -80,15 +91,15 @@
 
 ## Espaces, faits et synchronisation
 
-### « la section « use » n'a pas d'espace » ou « espace inconnu « takeove » »
+### « la section « use » n'a pas d'espace » ou « espace inconnu « develp » »
 
 - **Causes probables**
   1. `spaces` vient d'être déclaré, et une section (ou une page, ou un parcours) n'a pas encore reçu de `space`.
   2. Une faute de frappe dans une valeur de `space`.
 - **Vérifier** : `spaces` dans `content/toc.json` liste les identifiants déclarés ; l'erreur nomme la section ou
   l'identifiant exact essayé.
-- **Corriger** : ajoutez `"space": "business"` (ou le bon identifiant) à la section ; corrigez la faute de frappe.
-- **Comprendre** : [Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces).
+- **Corriger** : ajoutez `"space": "use"` (ou le bon identifiant) à la section ; corrigez la faute de frappe.
+- **Comprendre** : [Quatre espaces, une seule source](#/spaces/overview~declarer-les-espaces).
 
 ### « "space" est utilisé mais le sommaire ne déclare aucun "spaces" »
 
@@ -96,7 +107,19 @@
   1. Un champ `space` a été copié depuis un autre projet avant que `spaces` lui-même soit déclaré.
 - **Vérifier** : le début de `content/toc.json`.
 - **Corriger** : déclarez `spaces` d'abord, ou retirez le champ `space`.
-- **Comprendre** : [Deux espaces, une seule source](#/spaces/overview~declarer-les-espaces).
+- **Comprendre** : [Quatre espaces, une seule source](#/spaces/overview~declarer-les-espaces).
+
+### « l'espace « ops » n'a pas de type connu » ou « l'espace « ops » n'a pas de titre »
+
+- **Causes probables**
+  1. Un espace propre au projet (tout identifiant autre que `use`, `product`, `admin` et `develop`) n'a pas de
+     `kind`, ou un type qui n'existe pas.
+  2. Un espace standard a reçu un autre type (`{ "id": "use", "kind": "admin" }`).
+  3. Un espace propre au projet n'a pas de `title` : seuls les quatre espaces standard ont des textes par défaut.
+- **Vérifier** : la liste `spaces` en tête de `content/toc.json` ; l'erreur nomme l'espace.
+- **Corriger** : donnez à un espace propre au projet son `kind` et son `title` (`{ "id": "ops", "kind": "admin",
+  "title": "Exploitation" }`) ; retirez le `kind` d'un espace standard.
+- **Comprendre** : [Quatre espaces, une seule source](#/spaces/overview~un-espace-propre-au-projet-kind).
 
 ### « aucune application à lire » avec `doc-kit facts` ou `doc-kit sync`
 

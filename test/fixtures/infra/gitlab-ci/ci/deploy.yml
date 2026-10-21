@@ -1,0 +1,21 @@
+include:
+  - local: ci/templates/*.yml
+
+deploy_staging:
+  extends: .deploy
+  environment:
+    name: staging
+    url: https://staging.shop.example.test
+  variables:
+    KUBE_CONTEXT: acme/shop:do-not-keep-context
+
+deploy_production:
+  extends: .deploy
+  environment: production
+  when: manual
+
+review:
+  extends: .deploy
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG.shop.example.test

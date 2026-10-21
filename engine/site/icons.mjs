@@ -34,6 +34,25 @@ export const ICONS = {
   lien: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
   ecran: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
   horloge: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  // Behaviour cards (ARCHITECTURE.md §6.8a): the kinds, the state of a rubric, the role of a story.
+  filtre: '<path d="M4 5h16l-6 7.5V19l-4 2v-8.5L4 5Z"/>',
+  tri: '<path d="m3 8 4-4 4 4M7 4v16M21 16l-4 4-4-4M17 20V4"/>',
+  pages: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M10 12h.01M14 12h.01"/>',
+  liste: '<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  formulaire: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  importer: '<path d="M12 15V4M7 9l5-5 5 5M5 20h14"/>',
+  exporter: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  calcul:
+    '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 6h6M9 11h.01M12 11h.01M15 11h.01M9 15h.01M12 15h.01M15 15h.01M9 18h.01M12 18h.01M15 18h.01"/>',
+  cloche: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9Z"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  circuit:
+    '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/>',
+  valide: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  "sans-objet": '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+  question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 2.3M12 16.5h.01"/>',
+  manque:
+    '<path d="M12 3a9 9 0 0 1 4.5 1.2M19.8 7.5A9 9 0 0 1 21 12M19.8 16.5a9 9 0 0 1-3.3 3.3M12 21a9 9 0 0 1-4.5-1.2M4.2 16.5A9 9 0 0 1 3 12M4.2 7.5a9 9 0 0 1 3.3-3.3"/>',
+  personne: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
 };
 
 /** English name → stored key. */
@@ -64,6 +83,21 @@ export const ALIASES = {
   link: "lien",
   screen: "ecran",
   clock: "horloge",
+  filter: "filtre",
+  sort: "tri",
+  pagination: "pages",
+  list: "liste",
+  form: "formulaire",
+  import: "importer",
+  export: "exporter",
+  calculation: "calcul",
+  bell: "cloche",
+  flow: "circuit",
+  check: "valide",
+  minus: "sans-objet",
+  help: "question",
+  missing: "manque",
+  user: "personne",
 };
 
 /** Stored key of an icon name (English alias or stored key). */

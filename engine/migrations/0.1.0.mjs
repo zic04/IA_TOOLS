@@ -8,9 +8,9 @@ export const version = "0.1.0";
 
 export async function migrate({ files }) {
   // Example of what a real migration does:
-  //   if (files.exists("content/sommaire.json") && !files.exists("content/toc.json")) {
-  //     files.write("content/toc.json", files.read("content/sommaire.json"));
-  //     files.remove("content/sommaire.json");
+  //   if (files.exists("content/old-name.json") && !files.exists("content/new-name.json")) {
+  //     files.write("content/new-name.json", files.read("content/old-name.json"));
+  //     files.remove("content/old-name.json");
   //   }
   void files;
 }

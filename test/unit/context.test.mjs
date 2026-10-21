@@ -387,13 +387,27 @@ describe("buildContext with hand-built dependencies (labels, glossary, counterpa
     }
   });
 
-  test("counterpart: the target's id, title and summary are shown (looked up in toc, not re-fetched as dependencies)", () => {
+  test("its topic group: each other page's id, title and summary (looked up in toc), whoever declared the counterpart", () => {
     const deps = baseDeps({ title: "Orders", counterpart: "tech/orders" });
     const tocWithTarget = {
       sections: [
         {
           id: "s",
-          groups: [{ pages: [{ id: "tech/orders", title: "Orders (technical)", summary: "How it is built." }] }],
+          groups: [
+            {
+              pages: [
+                { id: "p", title: "Orders", counterpart: "tech/orders" },
+                { id: "tech/orders", title: "Orders (technical)", summary: "How it is built." },
+                // Declared on the runbook alone: the runbook joins the group of p.
+                {
+                  id: "ops/orders",
+                  title: "Orders (operations)",
+                  summary: "How it runs.",
+                  counterpart: ["tech/orders"],
+                },
+              ],
+            },
+          ],
         },
       ],
     };
@@ -408,6 +422,7 @@ describe("buildContext with hand-built dependencies (labels, glossary, counterpa
       t: en,
     });
     assert.match(text, /Counterpart: tech\/orders — Orders \(technical\) — How it is built\./);
+    assert.match(text, /Counterpart: ops\/orders — Orders \(operations\) — How it runs\./);
   });
 
   test("header: product and documented version shown first when given, omitted when not (ARCHITECTURE.md §6.11)", () => {
@@ -651,6 +666,32 @@ describe("CLI: context <page…> [--budget] [--update]", () => {
     assert.equal(r.code, 2);
     const r2 = await cli(["context", "use/orders", "--budget", "abc", "--project", SYNC_DOCS]);
     assert.equal(r2.code, 2);
+  });
+
+  test("without --budget, a page gets its template's budget (24,000 tokens for a feature sheet, 16,000 for a screen)", async () => {
+    const { base, docs, app } = syncFixtureCopy();
+    try {
+      // The screen's own file grows to some 19,000 tokens: over a screen's budget, within a feature sheet's.
+      const file = path.join(app, "app", "orders", "page.tsx");
+      const line = `// ${"x".repeat(96)}\n`;
+      fs.appendFileSync(file, line.repeat(700));
+      const screen = JSON.parse((await cli(["context", "use/orders", "--project", docs, "--json"])).out);
+      assert.ok(screen[0].cuts > 0, "a screen: 16,000 tokens");
+      const tocFile = path.join(docs, "content", "toc.json");
+      fs.writeFileSync(
+        tocFile,
+        fs.readFileSync(tocFile, "utf8").replace('"template": "screen"', '"template": "feature"'),
+      );
+      const sheet = JSON.parse((await cli(["context", "use/orders", "--project", docs, "--json"])).out);
+      assert.equal(sheet[0].cuts, 0, "a feature sheet: 24,000 tokens");
+      assert.ok(sheet[0].tokens > 16_000 && sheet[0].tokens < 24_000, String(sheet[0].tokens));
+      const forced = JSON.parse(
+        (await cli(["context", "use/orders", "--budget", "16000", "--project", docs, "--json"])).out,
+      );
+      assert.ok(forced[0].cuts > 0, "--budget wins over the template's");
+    } finally {
+      fs.rmSync(base, { recursive: true, force: true });
+    }
   });
 
   test("--update without a sync report → context.noSyncReport, exit code 2", async () => {

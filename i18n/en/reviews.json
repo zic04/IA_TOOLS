@@ -30,5 +30,19 @@
   "render.facts.column.longest": "Longest function",
   "render.facts.column.owasp": "OWASP",
   "render.facts.column.severity": "Severity",
-  "render.facts.column.todo": "TODO"
+  "render.facts.column.todo": "TODO",
+  "render.facts.column.kind": "Kind",
+  "render.facts.column.provider": "Provider",
+  "render.facts.column.type": "Type",
+  "render.facts.column.env": "Environment",
+  "render.facts.column.image": "Image",
+  "render.facts.column.tag": "Tag",
+  "render.facts.column.replicas": "Replicas",
+  "render.facts.column.ports": "Ports",
+  "render.facts.column.root": "As root",
+  "render.facts.column.tls": "TLS",
+  "render.facts.column.openToAll": "Open to all",
+  "render.facts.column.schedule": "Schedule",
+  "render.facts.column.variables": "Variables",
+  "render.facts.column.source": "Source"
 }

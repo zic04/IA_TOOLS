@@ -35,6 +35,9 @@ export function isSafeRef(ref) {
  */
 const RISKY_KEY =
   /^(core\.fsmonitor|diff\.external|diff\..+\.(textconv|command)|filter\..+\.(clean|smudge|process)|include\.path|includeif\..+\.path)$/;
+/** Keys a fetch may also run (a transport, a proxy, a prompt, a credential helper): refused for the clones of the sources. */
+const FETCH_KEY =
+  /^(core\.sshcommand|core\.gitproxy|core\.askpass|core\.alternaterefscommand|core\.worktree|credential\.helper|credential\..+\.helper)$/;
 const LFS_FILTER = /^filter\.lfs\.(clean|smudge|process)$/;
 const LFS_VALUE = /^git-lfs (clean|smudge|filter-process)\b/;
 
@@ -42,17 +45,23 @@ const LFS_VALUE = /^git-lfs (clean|smudge|filter-process)\b/;
 export function parseGitConfig(text) {
   const out = [];
   let section = "";
-  for (const raw of String(text).split(/\r?\n/)) {
-    const line = raw.replace(/^\s+/, "");
-    if (!line || line[0] === "#" || line[0] === ";") continue;
-    const head = /^\[\s*([A-Za-z0-9.-]+)(?:\s+"((?:[^"\\]|\\.)*)")?\s*\]/.exec(line);
-    if (head) {
-      section = head[1].toLowerCase() + (head[2] !== undefined ? `.${head[2]}` : "");
-      continue;
+  // A carriage return is a space, as git reads it; a key may follow its section header on the same line
+  // (`[core] sshCommand = …`), as git also reads it.
+  for (const raw of String(text).split("\n")) {
+    let line = raw.split("\r").join(" ").replace(/^\s+/, "");
+    for (;;) {
+      if (!line || line[0] === "#" || line[0] === ";") break;
+      const head = /^\[\s*([A-Za-z0-9.-]+)(?:\s+"((?:[^"\\]|\\.)*)")?\s*\]/.exec(line);
+      if (head) {
+        section = head[1].toLowerCase() + (head[2] !== undefined ? `.${head[2]}` : "");
+        line = line.slice(head[0].length).replace(/^\s+/, "");
+        continue;
+      }
+      const kv = /^([A-Za-z][A-Za-z0-9-]*)\s*(?:=\s*(.*))?$/.exec(line);
+      if (kv && section)
+        out.push([`${section}.${kv[1].toLowerCase()}`, (kv[2] ?? "true").trim().replace(/^"(.*)"$/, "$1")]);
+      break;
     }
-    const kv = /^([A-Za-z][A-Za-z0-9-]*)\s*(?:=\s*(.*))?$/.exec(line);
-    if (kv && section)
-      out.push([`${section}.${kv[1].toLowerCase()}`, (kv[2] ?? "true").trim().replace(/^"(.*)"$/, "$1")]);
   }
   return out;
 }
@@ -83,11 +92,15 @@ const cache = new Map();
 /**
  * Risky keys of the repository configuration of `dir` (its config, config.worktree and, for a worktree, the
  * common config), as "key = value" lines; [] when there is none or no repository. Memorised per git folder.
+ * `fetch`: also the keys a fetch may run (FETCH_KEY), for a clone of the sources about to be updated (never
+ * memorised: the kit checks it before each update).
+ * @param {string} dir
+ * @param {{ fetch?: boolean }} [o]
  */
-export function riskyGitConfig(dir) {
+export function riskyGitConfig(dir, { fetch = false } = {}) {
   const gitDir = gitDirOf(dir);
   if (!gitDir) return [];
-  if (cache.has(gitDir)) return cache.get(gitDir);
+  if (!fetch && cache.has(gitDir)) return cache.get(gitDir);
   const files = [path.join(gitDir, "config"), path.join(gitDir, "config.worktree")];
   try {
     const common = fs.readFileSync(path.join(gitDir, "commondir"), "utf8").trim();
@@ -104,13 +117,13 @@ export function riskyGitConfig(dir) {
       continue;
     }
     for (const [key, value] of parseGitConfig(text)) {
-      if (!RISKY_KEY.test(key)) continue;
+      if (!RISKY_KEY.test(key) && !(fetch && FETCH_KEY.test(key))) continue;
       if (LFS_FILTER.test(key) && LFS_VALUE.test(value)) continue;
       if (key === "core.fsmonitor" && /^(false|0|no|off|)$/i.test(value)) continue;
       risky.push(`${key} = ${value}`);
     }
   }
-  cache.set(gitDir, risky);
+  if (!fetch) cache.set(gitDir, risky);
   return risky;
 }
 

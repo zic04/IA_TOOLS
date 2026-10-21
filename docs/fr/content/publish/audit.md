@@ -17,7 +17,7 @@ deux mesures qui n'influencent jamais le niveau : `facts` et `claims`.
 
 ## Le résumé
 
-Le résumé du squelette d'un nouveau projet (ses deux espaces déjà déclarés, métier et reprise) : ses 14 pages sont
+Le résumé du squelette d'un nouveau projet (ses quatre espaces déjà déclarés, use, product, admin et develop) : ses 14 pages sont
 des brouillons, écrits par `init` avec leurs consignes de gabarit, donc aucune n'est encore écrite.
 
 ```text
@@ -27,7 +27,7 @@ des brouillons, écrits par `init` avec leurs consignes de gabarit, donc aucune 
   – tooLong n/a · ✖ guidance 1 · – upToDateCaptures n/a · – upToDatePages n/a · ✖ glossary 2 · ✖ tours 1 · ✔ blocking 0 · – wideTables non mesuré
 
 Prochain : niveau 2 · Utilisateur — 1 critère à remplir
-  1. Écrivez les 4 pages pas encore écrites hors Reprendre (0 sans fichier, 4 encore en consignes) (utiliser/prise-en-main, fonctionnalites/exemple-fonctionnalite, configurer/editeur-exemple +1)
+  1. Écrivez les 7 pages pas encore écrites hors Reprendre (0 sans fichier, 7 encore en consignes) (utiliser/prise-en-main, fonctionnalites/exemple-fonctionnalite, configurer/editeur-exemple +4)
   + 5 actions pour les niveaux suivants : voir le rapport
 
 → rapport : .doc-kit/audit.md · données : .doc-kit/audit.json
@@ -69,6 +69,9 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 | `glossary` · `tours` | Termes du glossaire · parcours de la page d'accueil |
 | `blocking` | Erreurs du build strict hors pages pas encore écrites + éléments qu'aucune page ne cite + secrets trouvés |
 | `wideTables` | Les tableaux qui défilent à 1 440 px (chaque page est ouverte dans Chromium) |
+| `featureSheets` | Les fiches de fonctionnalité écrites qui ont au moins un récit utilisateur (`:::recit`) |
+| `scenarios` | Leurs récits utilisateur qui ont des critères d'acceptation (un `:::scenario` qui les nomme) |
+| `behaviourDepth` | Les rubriques de leurs cartes de comportement qui ont une réponse (une valeur, ou `sans objet — pourquoi`) ; `n/a` sans carte |
 
 ## Les niveaux et leurs critères
 
@@ -76,8 +79,8 @@ La ligne « Pages : … à écrire » du résumé dit la distance entre le plan 
 |---|---|
 | **1 Squelette** | La configuration est valide · `doc-kit build --draft` réussit · chaque section a une page avec son fichier (un brouillon compte) · `home.md` existe · `glossary` ≥ 1 · `tours` ≥ 1 |
 | **2 Utilisateur** | `written` ≥ 90 % hors Reprendre · `annotated` ≥ 80 % (ou n/a) · `coverage` ≥ 80 % (ou non mesuré) · aucun lien cassé et aucune légende différente de ses zones, même en mode brouillon |
-| **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 |
-| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) · `upToDatePages` ≥ 90 % (ou n/a) |
+| **3 Complet** | `written` = 100 % · `blocking` = 0 · `typed` ≥ 80 % · `conformant` = 100 % · `annotated` ≥ 90 % · `guidance` = 0 · `wideTables` = 0 · `glossary` ≥ 20 · `tours` ≥ 3 · `featureSheets` = 100 % (ou n/a) |
+| **4 Reprise** | `takeover` = 7 · `proofs` ≥ 60 % · `completeness` ≥ 70 % · `tooLong` ≤ 5 % · `upToDateCaptures` ≥ 90 % (ou n/a) · `upToDatePages` ≥ 90 % (ou n/a) · `scenarios` ≥ 80 % (ou n/a) · `behaviourDepth` ≥ 90 % (ou n/a) |
 
 La section **Reprendre** est celle dont l'id est `reprendre` (ou `take-over`) ; sinon, la dernière section du plan
 quand il y en a au moins deux. Ses 7 pages obligatoires sont : une vue d'ensemble de l'architecture (id qui se termine
@@ -89,33 +92,65 @@ constat numéroté (`C1`, `I1`…), et une page sur la maintenance de la doc (id
 
 ## Le niveau par espace
 
-Avec `spaces` déclaré ([Deux espaces, une seule source](#/spaces/overview)), le rapport montre aussi une ligne par
-espace :
+Avec `spaces` déclaré ([Quatre espaces, une seule source](#/spaces/overview)), le rapport montre aussi une ligne par
+espace — ici, pour le même squelette :
 
 ```text
 ## Niveau par espace
 
 | Espace | Pages | Niveau | Manque pour le niveau suivant |
 |---|---|---|---|
-| Pour le métier (`business`) | 4 | 1 Squelette | `written2` |
-| Pour l'équipe de reprise (`takeover`) | 10 | 2 Utilisateur | `written3`, `guidance3`, `glossary3`, `tours3` |
+| Utiliser l'application (`use`) | 1 | 1 Squelette | `written2` |
+| Le produit (`product`) | 1 | 1 Squelette | `written2` |
+| Administrer l'application (`admin`) | 5 | 1 Squelette | `written2` |
+| Développer l'application (`develop`) | 7 | 2 Utilisateur | `written3`, `guidance3`, `glossary3`, `tours3` |
 ```
 
 - `written`, `typed`, `conformant`, `completeness`, `annotated`, `proofs` et `tooLong` sont mesurés seulement sur
   les pages de cet espace ; les indicateurs communs au projet (configuration, build, accueil, glossaire, parcours,
   couverture, blocages, tableaux trop larges, versions des captures et des pages) sont ceux déjà affichés au
   niveau global.
-- Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a` : `written2` (pages hors Reprendre)
-  dans l'espace Reprise ; `takeover4` et `proofs4` (les 7 pages obligatoires de Reprendre, les preuves sur ces
-  pages) en dehors.
+- Le **type** de l'espace décide des pages qui sont les pages de reprise et de l'endroit où l'on cherche les pages
+  obligatoires. Les pages de reprise sont celles de l'espace Développer (preuves `file:line` attendues) : `proofs`
+  et `claims` les comptent, `written2` les laisse de côté. Pour le projet, chacune des 7 pages obligatoires de
+  la reprise est cherchée dans les pages d'Administrer et de Développer ; elle appartient à l'espace dont le type
+  la porte — le DAT et l'exploitation à Administrer, les cinq autres à Développer —, dont le niveau propre la
+  compte parmi ses pages, et une page manquante est proposée dans la partie habituelle de cet espace (Exploiter,
+  Comprendre, Risques, Maintenir), à défaut dans sa section qui contient déjà une page de ce type, à défaut dans
+  sa première section. Sans aucun espace qui
+  porte des pages de reprise (seulement `use` et `product` déclarés), l'action `takeover.noSection` demande une
+  section dans un espace de type `develop` ou `admin`.
+- `takeover4` d'un espace ne compte que les pages obligatoires que porte son type, trouvées parmi ses propres
+  pages : 2 pour Administrer, 5 pour Développer ; le `takeover4` du projet compte toujours les 7.
+- Un critère qui ne concerne pas un espace compte comme rempli, affiché `n/a`, selon son type :
+
+| Type | `written2` | `proofs4` | `takeover4` | La profondeur (`featureSheets3`, `scenarios4`, `behaviourDepth4`) |
+|---|---|---|---|---|
+| `use` | mesuré | `n/a` | `n/a` | `n/a` |
+| `product` | mesuré | `n/a` | `n/a` | mesurée |
+| `admin` | mesuré | `n/a` | mesuré (ses 2 pages) | `n/a` |
+| `develop` | `n/a` | mesuré | mesuré (ses 5 pages) | `n/a` |
+
+  C'est pourquoi l'espace Développer du squelette est déjà au niveau 2 alors que les autres sont au niveau 1 : ses
+  pages n'ont pas à être écrites pour le niveau 2.
 - **Le niveau global reste global** : toutes les pages, quel que soit leur espace. Un projet peut être au niveau 2
-  dans l'ensemble alors que son espace métier atteint déjà le niveau 3 — utile pour savoir quel public est
+  dans l'ensemble alors que son espace Utiliser atteint déjà le niveau 3 — utile pour savoir quel public est
   vraiment servi en premier. `audit.json` porte `spaces : [{ id, title, pages, level, indicators, criteria }]` ;
   sans espaces déclarés, rien ne change dans le rapport.
 
+## La profondeur des fiches de fonctionnalité
+
+Les trois indicateurs de profondeur lisent le backlog des fiches de fonctionnalité (la mesure de la jauge du
+[tableau Produit](#/spaces/business~le-tableau-produit)), sur les fiches écrites. Ils valent `n/a` sans fiche de
+fonctionnalité écrite, et quand les espaces déclarés ne comptent aucun espace Produit ; sans espaces, une
+documentation qui a des fiches de fonctionnalité est mesurée. Les actions nomment les fiches sans récit, les récits
+sans critères d'acceptation, et les fiches dont les cartes ont encore des rubriques sans réponse. Le rapport ajoute
+**Profondeur des fiches de fonctionnalité** : le backlog en une ligne, puis chaque fonctionnalité avec sa fiche, sa
+profondeur et ses cinq critères — informatif, jamais un critère.
+
 ## Faits et affirmations (informatif)
 
-Avec un espace reprise, deux mesures de plus sont affichées, **jamais** un critère de niveau — aucun site
+Deux mesures de plus, pour le dossier de reprise, sont affichées, **jamais** un critère de niveau — aucun site
 antérieur à elles ne permet d'en observer un seuil :
 
 ```text
@@ -129,7 +164,7 @@ antérieur à elles ne permet d'en observer un seuil :
   ([Reprendre une application vibe-codée](#/spaces/takeover)), et combien sont **périmés** — leur commit
   enregistré diffère du `HEAD` courant de l'application. Corrigé par `doc-kit facts --source <nom>`.
 - `claims` : combien de puces `[[verifie]]`, `[[deduit]]` et `[[inconnu]]` apparaissent dans les pages de reprise
-  écrites, et le taux vérifiées ÷ (vérifiées + déduites). Un taux bas se corrige en lisant le code, jamais en
+  écrites (avec des espaces, les pages de l'espace Développer), et le taux vérifiées ÷ (vérifiées + déduites). Un taux bas se corrige en lisant le code, jamais en
   changeant une puce.
 
 `audit.md` n'affiche cette section que s'il y a quelque chose à signaler ; `audit.json` porte toujours `facts` et
@@ -175,6 +210,6 @@ node -e "process.exit(require('./audit.json').level >= 3 ? 0 : 1)"
 - `standard/maturity.fr.md` dans le kit : les formules, les seuils et un exemple détaillé.
 - [Les contrôles](#/publish/checks) : les contrôles bloquants derrière `blocking`.
 - [Les gabarits de page](#/write/page-templates) : `typed`, `conformant` et `completeness`.
-- [Deux espaces, une seule source](#/spaces/overview) : le tableau niveau par espace, en contexte.
+- [Quatre espaces, une seule source](#/spaces/overview) : le tableau niveau par espace, en contexte.
 - [Suivre l'évolution de l'application](#/publish/sync) : `upToDatePages`, marqué par `doc-kit sync --mark`.
 - [Reprendre une application vibe-codée](#/spaces/takeover) : `facts` et `claims`, mesurés.

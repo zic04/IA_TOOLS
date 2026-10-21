@@ -1,4 +1,4 @@
-// CLI: dispatching, exit codes (0 / 1 / 2 / 3), messages "✖ … / → …", build, check links, migrate, open.
+// CLI: dispatching, exit codes (0 / 1 / 2 / 3), messages "✖ … / → …", build, check links, open; `migrate` removed.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -85,7 +85,6 @@ describe("dispatching", () => {
       "view",
       "open",
       "optimize",
-      "migrate",
       "export",
       "upgrade",
       "skill",
@@ -137,15 +136,15 @@ describe("build", () => {
       const out = path.join(dir, "site.html");
       const r = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out]);
       assert.equal(r.code, 0, r.err);
-      // Two spaces (ARCHITECTURE.md §6.1a): the full site, then one export per space (warnings on stderr; the
+      // Four spaces (ARCHITECTURE.md §6.1a): the full site, then one export per space (warnings on stderr; the
       // last export's own summary line also carries their count).
       assert.match(
         r.out,
-        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-business\.html — 0\.\d MB · 7 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-takeover\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 1 diagram · 2 warnings\n$/,
+        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-use\.html — 0\.\d MB · 3 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-product\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-admin\.html — 0\.\d MB · 1 page · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-develop\.html — 0\.\d MB · 3 pages · 0 screenshots · 0 annotated elements · 1 diagram · 4 warnings\n$/,
       );
       assert.match(
         r.err,
-        /⚠ export “business”: 2 links to another space replaced by their text\n⚠ export “takeover”: 4 links to another space replaced by their text\n/,
+        /⚠ export “use”: 1 link to another space replaced by its text\n⚠ export “product”: 6 links to another space replaced by their text\n⚠ export “admin”: 2 links to another space replaced by their text\n⚠ export “develop”: 4 links to another space replaced by their text\n/,
       );
       // Sizes with the decimal comma of the language, each noun in the plural form of its number.
       const fr = await cli([
@@ -161,7 +160,7 @@ describe("build", () => {
       ]);
       assert.match(
         fr.out,
-        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-business\.html-fr — 0,\d Mo · 7 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-takeover\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 1 schéma · 2 avertissements\n$/,
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma · 4 avertissements\n$/,
       );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);
@@ -223,9 +222,9 @@ describe("build", () => {
       const draft = await cli(["build", "--project", dir, "--output", out, "--draft"]);
       assert.equal(draft.code, 0);
       assert.match(draft.err, /⚠ page not written yet: use\/settings/);
-      // 3, not 1: the two spaces (ARCHITECTURE.md §6.1a) already exclude 2 cross-space links on every build of
+      // 5, not 1: the four spaces (ARCHITECTURE.md §6.1a) already exclude cross-space links on every build of
       // this demo (see the "writes the site" test above); this page going missing adds its own warning on top.
-      assert.match(draft.out, / · 3 warnings\n$/);
+      assert.match(draft.out, / · 5 warnings\n$/);
       assert.match(fs.readFileSync(out, "utf8"), /Page being written/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -239,10 +238,10 @@ describe("build", () => {
       const j = JSON.parse(r.out);
       assert.equal(j.ok, true);
       assert.equal(j.stats.pages, 11);
-      // Two spaces (ARCHITECTURE.md §6.1a): one export per declared space, besides the full site above.
+      // Four spaces (ARCHITECTURE.md §6.1a): one export per declared space, besides the full site above.
       assert.deepEqual(
         j.sites.map((s) => s.space),
-        ["business", "takeover"],
+        ["use", "product", "admin", "develop"],
       );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -250,7 +249,16 @@ describe("build", () => {
   });
 });
 
-describe("check links, migrate, open", () => {
+describe("check links, migrate (removed), open", () => {
+  test("migrate no longer exists (removed in 0.4.0, ARCHITECTURE.md §6.7): an unknown command, exit code 2", async () => {
+    const r = await cli(["migrate", "--project", DEMO]);
+    assert.equal(r.code, 2);
+    assert.match(r.err, /^✖ unknown command: migrate\n {2}→ available commands: /);
+    assert.doesNotMatch(r.err.split("\n")[1], /\bmigrate\b/, "not listed among the available commands");
+    assert.equal((await cli(["help", "migrate"])).code, 2);
+    assert.doesNotMatch((await cli(["--help"])).out, /\bmigrate\b/);
+  });
+
   test("check links: OK on the demo, exit code 1 on a broken link", async () => {
     assert.equal((await cli(["check", "links", "--project", DEMO])).code, 0);
     const dir = demoCopy();
@@ -264,17 +272,11 @@ describe("check links, migrate, open", () => {
       assert.match(r.err, /✖ \[use\/settings\] broken link: #\/use\/nowhere/);
       assert.match(r.err, /✖ \[use\/settings\] anchor not found: #\/use\/orders~nope/);
       assert.match(r.err, /2 links in error\./);
-      assert.equal((await cli(["check", "coverage", "--project", dir])).code, 2);
+      assert.equal((await cli(["check", "coverage", "--project", dir])).code, 0, "coverage is a check of its own");
       assert.equal((await cli(["check", "nope", "--project", dir])).code, 2);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
-  });
-
-  test("migrate on a current project: nothing to do", async () => {
-    const r = await cli(["migrate", "--project", DEMO]);
-    assert.equal(r.code, 0);
-    assert.match(r.out, /nothing to migrate/);
   });
 
   test("open: prints the address (DOC_KIT_NO_OPEN), exit code 1 when the site is not built", async () => {

@@ -18,10 +18,10 @@ The five rules that matter most:
 
 | Document | What it holds | In this site |
 |---|---|---|
-| `standard/structure.md` | The four sections, the groups, the required Take over pages, the home-page journeys, sub-pages | [Table of contents](#/write/table-of-contents) |
-| `standard/templates.md` and `templates.json` | The 13 general page types: purpose, sections, length, example, common mistakes | [Page templates](#/write/page-templates) |
-| `standard/templates/business.json` | 5 more types for the business space: feature, business rules, roles matrix, process, release notes | [Documenting each feature](#/spaces/business) |
-| `standard/templates/takeover.json` | 10 more for the takeover space: access and ownership, API surface, runbook, data model, dependencies, code map, tests, agent instructions, ADR, threat model | [Taking over a vibe-coded application](#/spaces/takeover) |
+| `standard/structure.md` | The four spaces and their parts, the groups, the required takeover pages, the home-page journeys, sub-pages | [Table of contents](#/write/table-of-contents) |
+| `standard/templates.md` and `templates.json` | The 31 page types: purpose, sections, length, example, common mistakes (`templates.json` holds the 13 general ones) | [Page templates](#/write/page-templates) |
+| `standard/templates/business.json` | 5 more types for the Product space: feature, business rules, roles matrix, process, release notes | [Documenting each feature](#/spaces/business) |
+| `standard/templates/takeover.json` | 13 more for the takeover dossier, in the Develop space (access and ownership and the runbook in the Administer space): access and ownership, API surface, runbook, data model, dependencies, code map, tests, agent instructions, ADR, threat model, security review, maintainability review, documentation cost | [Taking over a vibe-coded application](#/spaces/takeover) |
 | `standard/writing.md` | Nothing made up, proofs, exact labels, gaps, links, glossary, numbering of findings, diagrams | below |
 | `standard/captures.md` | Capture safety on production, the session, masking, zone quality, production or demo | [Demo or production](#/capture/safety) |
 | `standard/quality.md` | Blocking gates and warnings, with the command that checks each one | [The checks](#/publish/checks) |
@@ -29,26 +29,26 @@ The five rules that matter most:
 | `standard/delivery.md` | The handover checklist | [Export and hand over](#/publish/export) |
 | `standard/config.md` | Two complete, commented configurations for fictional applications | [Configuration](#/reference/configuration) |
 
-## Four readers, four sections
+## Four readers, four spaces
 
-| Section | For whom | What it holds | Main types |
+| Space | For whom | Parts | Main types |
 |---|---|---|---|
-| Use (`use`) | The end user | Every everyday screen, annotated | `screen` |
-| Configure (`configure`) | The business administrator | Every editor and setting, with its mechanism; the recipes | `editor`, `recipe` |
-| Administer (`administer`) | The platform administrator | Access, reference data, system, operations | `screen` |
-| Take over (`take-over`) | Whoever takes the project over | Architecture, journeys, operations, troubleshooting, findings | `technical`, `journey`, `troubleshooting`… |
+| Use (`use`) | Users, key users, support | Use | `screen` |
+| Product (`product`) | Product owners, business analysts, key users | Features, Process | `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` |
+| Administer (`admin`) | Application administrators, operators | Administer, Operate | `screen`, `editor`, `recipe`; `architecture`, `runbook`, `variables`, `resources`, `access-ownership` |
+| Develop (`develop`) | Developers, takeover team, security | Understand, Secure, Risks, Maintain | `technical`, `journey`, `troubleshooting`, `findings`… |
 
-The Take over section makes a project transferable. Its seven required pages are an architecture overview, a
-technical architecture document, at least one end-to-end journey, operations, troubleshooting by symptom, the
-findings, and how the documentation itself is maintained.
+Seven required pages make a project transferable: an architecture overview, at least one end-to-end journey,
+troubleshooting by symptom, the findings and how the documentation itself is maintained, in the Develop space; the
+technical architecture document and operations, in the Administer space.
 
-## Two audiences, layered on top
+## One source, one file per audience
 
-A project may also declare **spaces** (ARCHITECTURE.md §6.1a): `business` and `takeover`, one source exported
-twice, one HTML file per audience, that must not see the rest. Spaces are optional and sit on top of the four
-sections above — a section still belongs to one audience, a page may belong to another — and bring their own page
-types (feature sheets and business rules for `business`; facts-built dossiers and a risk register for `takeover`).
-[Two spaces, one source](#/spaces/overview) explains the mechanism; [Documenting each
+The spaces are declared in `content/toc.json` (ARCHITECTURE.md §6.1a): one source, exported once per space, one
+HTML file per audience that must not see the rest. They are optional — a small tool with a single audience declares
+none, and a project declares only the spaces it has readers for. Each standard space is its own kind: no code in
+Use and Product, `file:line` proofs in Develop, the glossary's technical correspondence in Administer and Develop.
+[Four spaces, one source](#/spaces/overview) explains the mechanism; [Documenting each
 feature](#/spaces/business) and [Taking over a vibe-coded application](#/spaces/takeover) apply it.
 
 ## Writing rules
@@ -89,4 +89,4 @@ everything.
 - [Page examples](#/examples/screen): a page of each type, written to the standard.
 - [Audit and maturity levels](#/publish/audit): the standard, measured.
 - [The phases of the skill](#/skill/phases): the method, run by Claude Code.
-- [Two spaces, one source](#/spaces/overview): the business and takeover spaces, in full.
+- [Four spaces, one source](#/spaces/overview): the four spaces, in full.

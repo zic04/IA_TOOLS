@@ -22,6 +22,7 @@ import { sessionFile } from "../../engine/capture/session.mjs";
 import { isStorageState } from "../../engine/check/secrets.mjs";
 import { shownPath } from "../common.mjs";
 import { closingBrace } from "../../engine/util/js-scan.mjs";
+import { SECRET_FILE } from "../../engine/check/secrets.mjs";
 
 export { closingBrace };
 
@@ -35,9 +36,6 @@ export const VENDOR = "vendor/doc-kit";
 const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templates", "standard"];
 const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
 const SKIPPED_FOLDERS = new Set(["node_modules", ".doc-kit", ".git"]);
-/** Files never exported, at any depth: environment files, keys and certificates, credentials of tools. */
-const SECRET_FILE =
-  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
 
 /** Text of a small file (a browser session is a few hundred kilobytes at most); "" when it is larger or unreadable. */
 function readSmall(file) {

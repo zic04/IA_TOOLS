@@ -8,8 +8,16 @@ import { pageDependencies, writtenPages, classifyMissingFile } from "./dependenc
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
 import { flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
+import { staleFacts } from "../facts/freshness.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
 import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
+
+/**
+ * The vias that make a dependency direct whatever its folder (ARCHITECTURE.md §6.10): the server code a page calls, its
+ * declared sources, and the code of a feature sheet's feature (engine/sync/feature-files.mjs) — a route's own file too,
+ * but for a layout.
+ */
+export const DIRECT_VIAS = Object.freeze(["api", "declared", "sources", "feature"]);
 
 const safeRead = (p) => (p && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 /** A fresh (non-global) test of the PROOF_REF family, for one code span. */
@@ -74,22 +82,6 @@ function priorityOf({ reasons: all, page, git, refCommit, labelValues }) {
   const changedLines = patch.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
   const tokens = citedTokens(page, labelValues);
   return changedLines.some((line) => tokens.some((t) => line.includes(t))) ? "shared" : "probablyIntact";
-}
-
-/** Facts files (facts/<source>.json, not tool-*) whose recorded commit differs from the application's current HEAD. */
-export function staleFacts(root, factsDir, commit) {
-  const dir = path.join(root, factsDir);
-  if (!commit || !fs.existsSync(dir)) return [];
-  const out = [];
-  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".json") && !x.startsWith("tool-"))) {
-    try {
-      const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-      if (j.commit && j.commit !== commit) out.push(j.source || f.slice(0, -5));
-    } catch {
-      // not this report's job
-    }
-  }
-  return out;
 }
 
 /** The content of a dependency file as it was at `since`/`refCommit` ("doc:" facts files are not versioned
@@ -328,8 +320,9 @@ export async function compareWithReference({
       if (!citedLines.has(f)) citedLines.set(f, []);
       citedLines.get(f).push([proof.from, proof.to ?? proof.from]);
     }
-    // A file also reached through the screen's imports or layouts (a sidebar whose menu label the page cites) is
-    // direct only because of the proof: with the cited lines intact, it is judged as the shared file it otherwise is.
+    // A file also reached another way — the screen's imports or layouts (a sidebar whose menu label the page cites),
+    // its topic group — is direct only because of the proof: with the cited lines intact, it is judged as the shared
+    // file it otherwise is.
     for (const reason of reasons) {
       const dep = deps.files.find((f) => f.path === reason.path);
       const cited = citedLines.get(reason.path);
@@ -345,9 +338,7 @@ export async function compareWithReference({
       }
       if (!intact) continue;
       const isLayout = dep.via.includes("layout");
-      const reallyDirect = dep.via.some(
-        (v) => ["api", "declared", "sources"].includes(v) || (v === "route" && !isLayout),
-      );
+      const reallyDirect = dep.via.some((v) => DIRECT_VIAS.includes(v) || (v === "route" && !isLayout));
       if (dep.via.every((v) => v === "proof")) reason.proofsIntact = true;
       else if (!reallyDirect) reason.kind = "shared";
     }

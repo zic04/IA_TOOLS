@@ -1,0 +1,24 @@
+{
+  "file": "liste-commandes.webp",
+  "title": "Acme Orders › Commandes",
+  "width": 480,
+  "height": 300,
+  "zones": [
+    {
+      "n": 1,
+      "x": 3.33,
+      "y": 18.67,
+      "w": 29.17,
+      "h": 76,
+      "label": "Filtres"
+    },
+    {
+      "n": 2,
+      "x": 35.83,
+      "y": 18.67,
+      "w": 60.83,
+      "h": 36.67,
+      "label": "Synthèse"
+    }
+  ]
+}

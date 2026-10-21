@@ -2,8 +2,8 @@
 
 The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations), `{{KIT_PATH}}/
 standard/templates.json` (the first 13 types) and its fragments `{{KIT_PATH}}/standard/templates/business.json`
-(business space, ARCHITECTURE.md §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json` (takeover space,
-ARCHITECTURE.md §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
+(the business page types, Product space, ARCHITECTURE.md §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json`
+(the takeover dossier's types, ARCHITECTURE.md §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
 models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one
 down, and `--prefill` fills its main table from `doc-kit facts` for the types that support it (below).
 
@@ -19,9 +19,9 @@ checks…"); French models have the same sections in the same order. The list of
 | Type | For | Sections, in order | Example |
 |---|---|---|---|
 | `screen` | a usage or administration screen | What it is for · How it works · The screen · Each action · Settings reference · Step by step · Common use cases · Pitfalls and limits · In production · Required permissions | `administer/access/users` |
-| `editor` | an editor (Configure section) | What it is for (+ NOTE "Where this setting lives") · How it works (HOW callout, diagram) · The screen · What it changes · Settings reference · Step by step · Pitfalls and limits · Required permissions | `configure/approvals/chains` |
+| `editor` | an editor (Administer space) | What it is for (+ NOTE "Where this setting lives") · How it works (HOW callout, diagram) · The screen · What it changes · Settings reference · Step by step · Pitfalls and limits · Required permissions | `configure/approvals/chains` |
 | `recipe` | short step-by-steps for a precise result | The goal · Who does what · Step 1… (`:::steps`, result, WARNING) · How to check it works · Common errors and fixes · Pitfalls and limits · Required permissions | `configure/recipes/two-level-approval` |
-| `technical` | a parent page of the Take over section | In short · In this part · The diagram · thematic sections (text, tables, code, diagrams; almost no captures) · Pitfalls and observed gaps · Further reading | `take-over/security` |
+| `technical` | a parent technical page (Develop space, or any part) | In short · In this part · The diagram · thematic sections (text, tables, code, diagrams; almost no captures) · Pitfalls and observed gaps · Further reading | `take-over/security` |
 | `technical-sub` | the detail of a technical topic | thematic sections, `file:line` proofs · Further reading | `take-over/security/sign-in` |
 | `journey` | what really happens to an object end to end (parent, 1,200 to 1,600 words) | In short · The diagram · In this part · The states · What happens on its own, and what waits for someone · Surprises to know about · Further reading | `take-over/order-journey` |
 | `journey-step` | one step of the journey (1,200 to 1,800 words) | In short · What happens, step by step (`:::steps` with `file:line`) · What is read and written · The states · What the user sees · When things go wrong · Further reading | `take-over/order-journey/approval` |
@@ -50,26 +50,27 @@ checks…"); French models have the same sections in the same order. The list of
 | `variables` | In short · To check | 2,200 |
 | `resources` | In short · Compute · Data · Secrets · Monitoring · Backup · What the application uses outside this group | 2,200 |
 
-## Business space types (ARCHITECTURE.md §6.8)
+## Business page types: the Product space (ARCHITECTURE.md §6.8)
 
-No `file:line` here: a business page that cites one gets the warning `business.technical` (move the detail to
-its takeover `counterpart`). Identifiers: `F-01`… for a feature (`feature` field of the page), `BR-01`… (`RG-01`
+No `file:line` here: a business page in a space read without the code (Use, Product) that cites one gets the
+warning `business.technical` (move the detail to its `counterpart` in the Develop space). Identifiers: `F-01`… for a feature (`feature` field of the page), `BR-01`… (`RG-01`
 in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewhere with `[[rule BR-01]]`/
 `[[regle RG-01]]`. Generated tables: `::features{}`/`::fonctionnalites{}`, `::rules{}`/`::regles{}`,
-`::roles{}`.
+`::roles{}`, `::stories{}`/`::recits{}`; the Product board: `::board{}`/`::tableau{}` (already on the Product home).
 
 | Type | For | Required sections | maxWords | Example |
 |---|---|---|---|---|
-| `feature` | one feature's sheet | Access · What it is for · Who uses it · Main scenario · Business rules (required); Trigger/preconditions, Variants, Data handled, Notifications, Limits, Questions (optional) | 2,500 | `use/orders/approve` (`feature: "F-03"`) |
-| `business-rules` | the rules shared by several features | How to read this page · The rules (required); Rules by feature, Retired rules (optional) | 3,000 | `use/business-rules` |
-| `roles-matrix` | who can do what | In short · The roles · Who can do what (required); Responsibilities, How to get a role (optional) | 2,000 | `use/roles` |
-| `process` | a business process end to end | In short · Who takes part · The steps · What happens on its own, and what waits for someone (required); The states, Deadlines, When it goes wrong, Features involved (optional) | 2,200 | `use/order-lifecycle` |
-| `release-notes` | what changed, for the business reader | In short · Latest version (required); Earlier versions (optional) | 3,000 | `use/release-notes` |
+| `feature` | one feature's sheet, as a specification | What it is for · Who uses it · User stories · Main path · Behaviours · Business rules · Messages · Rights by action · Acceptance criteria (required); Variants, Fields and inputs, States, Limits, Open questions (optional) | 4,000 | `features/two-step-approval` (`feature: "F-03"`) |
+| `business-rules` | the rules shared by several features | How to read this page · The rules (required); Rules by feature, Retired rules (optional) | 3,000 | `features/business-rules` |
+| `roles-matrix` | who can do what | In short · The roles · Who can do what (required); Responsibilities, How to get a role (optional) | 2,000 | `features/roles` |
+| `process` | a business process end to end | In short · Who takes part · The steps · What happens on its own, and what waits for someone (required); The states, Deadlines, When it goes wrong, Features involved (optional) | 2,200 | `process/order-to-cash` |
+| `release-notes` | what changed, for the business reader | In short · Latest version (required); Earlier versions (optional) | 3,000 | `process/release-notes` |
 
 ## Takeover dossier types (ARCHITECTURE.md §6.9)
 
 The dossier a team needs to take over an application, especially one written largely by AI assistants
-("vibe-coded"): `references/pitfalls.md` lists exactly what each type is defending against. Every claim is
+("vibe-coded"): `references/pitfalls.md` lists exactly what each type is defending against. With spaces,
+`access-ownership` and `runbook` go to the Operate part of the Administer space, the others to the Develop space. Every claim is
 `file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `doc-kit facts` feeds these pages
 (one JSON file per source, `facts/<source>.json`); `doc-kit new <id> --prefill` fills the main table of
 `api-surface`, `data-model`, `dependencies` and `agent-instructions` (also `variables` of the 13 original types)
@@ -91,7 +92,7 @@ from the matching facts source.
 | `maintainability-review` | ratings, hotspots, recommendations | In short · Ratings · Hotspots · Tests · Recommendations | 2,200 | `quality` |
 | `documentation-cost` | time, agents, models, tokens per version and block | In short · Per version · Where the time goes | 1,200 | `usage/` (`::usage`) |
 
-`findings` becomes the project's **risk register** once a takeover space exists: each finding also carries Owner,
+`findings` becomes the project's **risk register** once a Develop space exists: each finding also carries Owner,
 Decision (fix, accept, transfer, avoid), Status and Due date, combined into one "Follow-up" column on a table row
 (`references/method.md`, phase 6 and 8).
 

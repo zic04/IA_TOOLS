@@ -5,7 +5,9 @@
 //   > [!TIP|WARNING|CAUTION|PERMISSIONS|NOTE|RECIPE|HOW] (ASTUCE, ATTENTION, ERREUR, DROITS, RECETTE, MECANISME)
 //   [[perm …]] ([[droit …]])  [[menu …]]  [[key …]] ([[touche …]])  [[status …]] ([[statut …]])  [[route …]]
 // Business space (ARCHITECTURE.md §6.8): [[feature F-03]] ([[fonctionnalite F-03]])  [[rule BR-12]] ([[regle RG-12]])
-//   :::rule{id title} … ::: (:::regle)   ::features{} (::fonctionnalites{})   ::rules{} (::regles{})   ::roles{}
+//   [[story US-01]] ([[recit US-01]])   ::features{} (::fonctionnalites{})   ::rules{} (::regles{})   ::roles{}
+//   and the product blocks of engine/build/markdown-product.mjs (§6.8a): :::rule (:::regle), :::story (:::recit),
+//   :::behaviour (:::comportement), :::scenario
 //   A citation and a generated table cannot be resolved while their page renders (a rule or a feature sheet may sit
 //   further down the table of contents), so they are left as placeholders (`.ref-*`, `.biz-directive`) and resolved
 //   once every page has been rendered, after the build's page loop (engine/build/business.mjs, resolveBusinessRefs).
@@ -17,10 +19,9 @@
 import { Marked } from "marked";
 import { esc, attrs, plainText, slug } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
-import { renderErd } from "./erd.mjs";
-import { renderModules, renderHotspots, renderHealth, limitOf } from "./developer.mjs";
-import { systemModel, renderC4 } from "./c4.mjs";
-import { renderChanges } from "../facts/changes.mjs";
+import { createFactDirectives } from "./fact-directives.mjs";
+import { createProductBlocks, PRODUCT_CONTAINERS, PRODUCT_ATTRIBUTES } from "./markdown-product.mjs";
+import { behaviourRegistry } from "../core/behaviours.mjs";
 
 /** Spelling → canonical kind. */
 const DIRECTIVES = {
@@ -34,6 +35,10 @@ const DIRECTIVES = {
   rules: "rules",
   regles: "rules",
   roles: "roles",
+  stories: "stories",
+  recits: "stories",
+  board: "board",
+  tableau: "board",
   facts: "facts",
   faits: "facts",
   usage: "usage",
@@ -49,8 +54,6 @@ const DIRECTIVES = {
   sante: "health",
   c4: "c4",
 };
-/** Facts files read by the health summary (::health), in the order of its cards. */
-const HEALTH_SOURCES = ["quality", "security", "secrets", "tests", "modules", "history", "dependencies"];
 /** Claim badges (ARCHITECTURE.md §6.9): spelling → canonical status. Unlike BADGES, the text after the kind is optional. */
 const CLAIMS = {
   verified: "verified",
@@ -62,7 +65,7 @@ const CLAIMS = {
 };
 /** Canonical claim status → CSS class of the badge. */
 const CLAIM_CLASSES = { verified: "verifie", deduced: "deduit", unknown: "inconnu" };
-const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", rule: "rule", regle: "rule" };
+const CONTAINERS = { screen: "screen", ecran: "screen", steps: "steps", etapes: "steps", ...PRODUCT_CONTAINERS };
 const BADGES = {
   perm: "perm",
   droit: "perm",
@@ -76,6 +79,8 @@ const BADGES = {
   fonctionnalite: "feature",
   rule: "rule",
   regle: "rule",
+  story: "story",
+  recit: "story",
 };
 const CALLOUTS = {
   tip: "tip",
@@ -102,6 +107,8 @@ const CALLOUT_CLASSES = {
   recipe: "recette",
   how: "mecanisme",
 };
+/** The generated tables of the business space, filled once every page has rendered (engine/build/business.mjs). */
+const BIZ_TABLES = new Set(["features", "rules", "roles", "stories", "board"]);
 /** French attribute spellings → English. */
 const ATTRIBUTES = {
   titre: "title",
@@ -110,6 +117,7 @@ const ATTRIBUTES = {
   "libelle-avant": "before-label",
   "libelle-apres": "after-label",
   colonnes: "columns",
+  ...PRODUCT_ATTRIBUTES,
 };
 /** Zone side → CSS class suffix of the pin. */
 const SIDE_CLASSES = { corner: "coin", right: "droit", bottom: "bas", "bottom-right": "droit-bas" };
@@ -142,7 +150,7 @@ export function statusColour(c) {
 /**
  * Factory of the Markdown engine of one build.
  * @param {object} p
- * @param {Record<string, object>} p.captures       screenshot metadata (normalised zone files), by id
+ * @param {Record<string, object>} p.captures       screenshot metadata (zone files), by id
  * @param {(file: string) => boolean} p.exists      does a project file exist
  * @param {(file: string) => string} p.read         reads a project text file
  * @param {(strict: boolean, s: {kind: string, key: string, vars: object}) => void} p.report
@@ -154,6 +162,8 @@ export function statusColour(c) {
  * @param {any} [p.llm]          `config.llm`
  * @param {string} [p.locale]    language of the page
  * @param {any[]} [p.changes]    recorded changes of the application, by version
+ * @param {{ registry: import("../core/behaviours.mjs").BehaviourRegistry, strict: boolean }} [p.behaviours]
+ *   the kinds of behaviour cards (default: the kit's), and whether a rubric left out fails the strict build
  */
 export function createMarkdownEngine({
   captures,
@@ -168,16 +178,18 @@ export function createMarkdownEngine({
   llm = {},
   locale = "en",
   changes = [],
+  behaviours = { registry: behaviourRegistry().registry, strict: false },
 }) {
   const usedCaptures = new Set();
   const usedDiagrams = new Set();
-  // Business rules (ARCHITECTURE.md §6.8), registered as `:::rule` containers render: id → { title, page, anchor }.
-  // Citations ([[rule …]]) and the generated tables are resolved once every page has rendered (engine/build/business.mjs).
-  const rules = new Map();
   let zoneCount = 0;
   let ctx = null;
   const signal = (strict, key, vars = {}) =>
     report(strict, { kind: key.split(".")[0], key, vars: { page: ctx?.pageId, ...vars } });
+  // Rules, stories, behaviour cards and scenarios (§6.8, §6.8a), registered as they render; their citations are
+  // resolved once every page has rendered (engine/build/business.mjs).
+  const product = createProductBlocks({ signal, t, icon, locale, behaviours, context: () => ctx });
+  const factDirectives = createFactDirectives({ exists, read, paths, t, signal, changes });
   const STATUSES = Object.fromEntries(Object.entries(statuses).map(([k, [c, label]]) => [k, [statusColour(c), label]]));
 
   function captureImage(id, alt) {
@@ -210,74 +222,6 @@ export function createMarkdownEngine({
       .join("");
   }
 
-  /** Header label of a facts column: render.facts.column.<key> when translated, else the raw key. */
-  function factsLabel(column) {
-    const key = `render.facts.column.${column}`;
-    const label = t(key);
-    return label === key ? column : label;
-  }
-
-  /** One cell of a facts table (ARCHITECTURE.md §6.9): lists joined with commas, booleans ✔ / —, "—" when absent.
-   * A path-like scalar value (a file path, a route — contains "/") is wrapped in `<code>`, so that it gets the
-   * same break opportunities as hand-written inline code (below, `render()`): a long nested path (a Next.js
-   * route such as `frontend/src/app/admin/orders/[id]/…`) must be able to wrap, never widen the table. */
-  function factsCell(value) {
-    if (value === null || value === undefined) return "—";
-    if (typeof value === "boolean") return value ? "✔" : "—";
-    if (Array.isArray(value)) {
-      if (!value.length) return "—";
-      return esc(value.map((x) => (x && typeof x === "object" ? Object.values(x).join(":") : String(x))).join(", "));
-    }
-    const text = String(value);
-    return text.includes("/") ? `<code>${esc(text)}</code>` : esc(text);
-  }
-
-  /** A facts file of the project, parsed; null when it is missing or not valid JSON. */
-  function readFactsFile(source) {
-    const f = `${paths.facts}/${source}.json`;
-    try {
-      return exists(f) ? JSON.parse(read(f)) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  /** ::modules, ::hotspots, ::health (engine/build/developer.mjs) and ::c4 (engine/build/c4.mjs), from the facts. */
-  function developerView(tk) {
-    const limit = limitOf(tk.a.limit);
-    const need = (source) => {
-      const data = readFactsFile(source);
-      if (!data) signal(true, "facts.missing", { source, file: `${paths.facts}/${source}.json` });
-      return data;
-    };
-    let html;
-    if (tk.kind === "modules") {
-      const modules = need("modules");
-      if (!modules) return "";
-      html = renderModules(modules, { t, esc, limit });
-    } else if (tk.kind === "hotspots") {
-      const history = need("history");
-      const quality = need("quality");
-      if (!history || !quality) return "";
-      html = renderHotspots(history, quality, { t, esc, limit });
-    } else if (tk.kind === "c4") {
-      const dependencies = need("dependencies");
-      if (!dependencies) return "";
-      const model = systemModel({ dependencies, env: readFactsFile("env"), db: readFactsFile("db") });
-      html = renderC4(model, { t, esc, title: tk.a.title || t("render.c4.title") });
-    } else {
-      const facts = Object.fromEntries(HEALTH_SOURCES.map((source) => [source, readFactsFile(source)]));
-      // Every card says "not measured" for a missing source; with none at all, the page has nothing to show.
-      if (Object.values(facts).every((d) => !d)) return need("quality") ?? "";
-      html = renderHealth(facts, { t, esc, limit });
-    }
-    if (!html) {
-      signal(false, "developer.empty", { kind: tk.kind });
-      return `<p class="usage-none">${esc(t(`render.${tk.kind}.empty`))}</p>`;
-    }
-    return html;
-  }
-
   const md = new Marked({ gfm: true });
 
   const directiveExtension = {
@@ -289,60 +233,12 @@ export function createMarkdownEngine({
       if (m) return { type: "directive", raw: m[0], kind: DIRECTIVES[m[1]], a: attributes(m[2]) };
     },
     renderer(tk) {
+      // The tables and views drawn from the facts (engine/build/fact-directives.mjs).
+      const fromFacts = factDirectives.render(tk);
+      if (fromFacts !== null) return fromFacts;
       // Business space generated tables (§6.8): resolved after every page has rendered (a feature or a rule may be
       // defined further down the table of contents), so only a placeholder is left here.
-      if (["modules", "hotspots", "health", "c4"].includes(tk.kind)) return developerView(tk);
-      if (tk.kind === "features" || tk.kind === "rules" || tk.kind === "roles")
-        return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
-      // What changed in the application, version by version (doc-kit changes --record → changes/<version>.json).
-      if (tk.kind === "changes") {
-        const version = tk.a.version || null;
-        const sources = tk.a.sources
-          ? tk.a.sources
-              .split(",")
-              .map((x) => x.trim())
-              .filter(Boolean)
-          : null;
-        const html = changes.length ? renderChanges(changes, { t, esc, version, sources }) : "";
-        if (!html) {
-          signal(false, "changes.empty", { version: version || "—" });
-          return `<p class="usage-none">${esc(t("render.changes.empty"))}</p>`;
-        }
-        return `<div class="changes" data-generated="changes">${html}</div>`;
-      }
-      // Entity-relationship diagram from facts/db.json (doc-kit facts --source db).
-      if (tk.kind === "erd") {
-        const f = `${paths.facts}/db.json`;
-        let data;
-        try {
-          data = exists(f) ? JSON.parse(read(f)) : null;
-        } catch {
-          data = null;
-        }
-        if (!data) {
-          signal(true, "facts.missing", { source: "db", file: f });
-          return "";
-        }
-        const only = tk.a.tables
-          ? tk.a.tables
-              .split(",")
-              .map((x) => x.trim())
-              .filter(Boolean)
-          : null;
-        const title = tk.a.title || t("render.erd.title");
-        const svg = renderErd(data.items, { esc, title, only, more: (n) => t("render.erd.more", { n }) });
-        if (!svg) {
-          signal(false, "erd.empty", { file: f });
-          return `<p class="usage-none">${esc(t("render.erd.empty"))}</p>`;
-        }
-        const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
-        const caption = t("render.facts.caption", {
-          source: "db",
-          date: String(data.generated || "").slice(0, 10) || "—",
-          commit,
-        });
-        return `<figure class="schema erd-figure">${svg}<figcaption>${esc(tk.a.title ? `${tk.a.title} · ${caption}` : caption)}</figcaption></figure>`;
-      }
+      if (BIZ_TABLES.has(tk.kind)) return `<div class="biz-directive" data-biz="${tk.kind}"></div>`;
       // Production statistics (ARCHITECTURE.md §6.14): usage/<version>.jsonl, read by the build.
       if (tk.kind === "usage") {
         const view = tk.a.view || tk.a.vue;
@@ -355,42 +251,6 @@ export function createMarkdownEngine({
           return `<p class="usage-none">${esc(t("render.usage.empty"))}</p>`;
         }
         return renderUsage(usage, view, { t, esc, prices: llm.prices || {}, currency: llm.currency || null, locale });
-      }
-      if (tk.kind === "facts") {
-        const source = tk.a.source || "";
-        const f = `${paths.facts}/${source}.json`;
-        let data;
-        try {
-          data = source && exists(f) ? JSON.parse(read(f)) : null;
-        } catch {
-          data = null;
-        }
-        if (!data) {
-          signal(true, "facts.missing", { source, file: f });
-          return "";
-        }
-        const items = Array.isArray(data.items) ? data.items : [];
-        const requested = tk.a.columns
-          ? tk.a.columns
-              .split(",")
-              .map((c) => c.trim())
-              .filter(Boolean)
-          : Object.keys(items[0] || {});
-        // No items: nothing to validate a column name against (an empty facts file is not a column error).
-        const known = new Set(items.flatMap((it) => Object.keys(it)));
-        if (items.length)
-          for (const c of requested) if (!known.has(c)) signal(true, "facts.column", { source, column: c });
-        const header = requested.map((c) => `<th>${esc(factsLabel(c))}</th>`).join("");
-        const rows = items
-          .map((it) => `<tr>${requested.map((c) => `<td>${factsCell(it[c])}</td>`).join("")}</tr>`)
-          .join("");
-        const commit = data.commit ? data.commit.slice(0, 7) : t("render.facts.commitUnknown");
-        const date = String(data.generated || "").slice(0, 10) || "—";
-        const caption = `<caption>${esc(t("render.facts.caption", { source, date, commit }))}</caption>`;
-        // data-generated: so that the wrapping div below can be told apart from a table the writer wrote by
-        // hand in Markdown (check tables, ARCHITECTURE.md §6.9: a directive's own table is never too narrow a
-        // column to fix — only a hand-written one is reported).
-        return `<table data-generated="facts">${caption}<thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`;
       }
       if (tk.kind === "diagram") {
         const f = `${paths.diagrams}/${tk.a.id}.svg`;
@@ -435,29 +295,13 @@ export function createMarkdownEngine({
       const m = RE_CONTAINER.exec(src);
       if (!m) return;
       const tk = { type: "container", raw: m[0], kind: CONTAINERS[m[1]], a: attributes(m[2]), tokens: [] };
-      this.lexer.blockTokens(m[3], tk.tokens);
+      if (!product.tokenize(tk, m[3], this.lexer)) this.lexer.blockTokens(m[3], tk.tokens);
       return tk;
     },
     renderer(tk) {
       if (tk.kind === "steps")
         return this.parser.parse(tk.tokens).replace(/^<ol(?: start="\d+")?>/, '<ol class="etapes">');
-      if (tk.kind === "rule") {
-        const { id, title } = tk.a;
-        const body = this.parser.parse(tk.tokens);
-        if (!id || !title) {
-          signal(true, "rule.attributes", {});
-          return `<div class="regle">${body}</div>`;
-        }
-        if (rules.has(id)) signal(true, "rule.duplicate", { id });
-        else rules.set(id, { title, page: ctx.pageId, anchor: id.toLowerCase() });
-        // Rendered like a heading, so that the rule appears in the page outline, in the search index (search.mjs
-        // splits on `<h[23] id="…">`) and as a link target for its citations: id in lower case, "BR-12 · title".
-        const anchor = id.toLowerCase();
-        ctx.slugs.add(anchor);
-        ctx.toc.push({ id: anchor, title: plainText(`${id} · ${title}`), level: 3 });
-        const heading = `<h3 id="${esc(anchor)}">${esc(id)} · ${esc(title)}<a class="ancre" href="#/${ctx.pageId}~${anchor}" aria-label="${esc(t("render.sectionLink"))}">#</a></h3>`;
-        return `<div class="regle">${heading}${body}</div>`;
-      }
+      if (product.has(tk.kind)) return product.render(tk, this.parser);
       const id = tk.a.capture;
       const img = captureImage(id, tk.a.title);
       const list = tk.tokens.find((x) => x.type === "list");
@@ -497,7 +341,7 @@ export function createMarkdownEngine({
       const v = tk.value;
       // Business space citations (§6.8): the sheet or the rule may not have rendered yet, so a placeholder is left
       // for engine/build/business.mjs (resolveBusinessRefs), once every page has rendered.
-      if (tk.kind === "feature" || tk.kind === "rule")
+      if (tk.kind === "feature" || tk.kind === "rule" || tk.kind === "story")
         return `<span class="ref-${tk.kind}" data-ref-id="${esc(v)}">${esc(v)}</span>`;
       if (tk.kind === "key")
         return v
@@ -579,6 +423,7 @@ export function createMarkdownEngine({
       captures: 0,
       used: { images: new Set(), diagrams: new Set(), zones: 0 },
     };
+    product.startPage();
     let html = /** @type {string} */ (md.parse(source)); // synchronous: no async extension is registered
     // A table's own data-generated (set above, ::facts/::faits) is carried onto its wrapping div, so that
     // `check tables` can tell a directive's table apart from one the writer wrote by hand in Markdown.
@@ -603,7 +448,10 @@ export function createMarkdownEngine({
     render,
     usedCaptures,
     usedDiagrams,
-    rules,
+    rules: product.rules,
+    stories: product.stories,
+    behaviours: product.behaviours,
+    scenarios: product.scenarios,
     get zoneCount() {
       return zoneCount;
     },

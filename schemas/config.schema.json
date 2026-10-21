@@ -7,6 +7,15 @@
   "additionalProperties": false,
   "required": ["product"],
   "$defs": {
+    "backlogTypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "epic": { "type": ["string", "null"], "minLength": 1 },
+        "feature": { "type": ["string", "null"], "minLength": 1 },
+        "story": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
     "colour": {
       "type": "string",
       "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
@@ -297,6 +306,16 @@
         "output": { "type": ["string", "null"], "minLength": 1, "default": null, "description": "Path of each export, relative to the project, containing {space}. Default: the output with -{space} before its extension." }
       }
     },
+    "bricks": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The bricks of the project (standard/bricks.json, ARCHITECTURE.md §6.18): the parts that `doc-kit bricks` reports on and runs again on their own.",
+      "properties": {
+        "enabled": { "type": ["array", "null"], "items": { "type": "string", "minLength": 1 }, "default": null, "description": "Brick ids or preset names (facts, full…). null: every brick." },
+        "disabled": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [], "description": "Brick ids or preset names left out." }
+      }
+    },
     "sync": {
       "type": "object",
       "additionalProperties": false,
@@ -348,6 +367,87 @@
         },
         "params": { "type": "object", "default": {}, "additionalProperties": { "type": "string" }, "description": "Path parameter name → example value, to fill the routes `probe` checks for access control; a route with a parameter not given here is skipped." },
         "semgrep": { "type": ["string", "null"], "default": null, "description": "Local semgrep rules folder, relative to the project. Without it, `facts --tools` never runs semgrep (never --config auto, which downloads rules)." }
+      }
+    },
+    "infra": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The infra adapters of the facts (ARCHITECTURE.md §5, standard/adapters.json): the kit's that are not run, and the project's own.",
+      "properties": {
+        "disabled": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [], "description": "Ids of the kit's infra adapters not run (terraform, kubernetes…)." },
+        "adapters": { "type": "array", "items": { "type": "string", "pattern": "^local:.+" }, "default": [], "description": "The project's own infra adapters, \"local:adapters/x.mjs\" (relative to the project; never a file of the application): run after the kit's." }
+      }
+    },
+    "stacks": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The stack adapters of the facts (ARCHITECTURE.md §5, standard/adapters.json): the kit's that are not run, and the project's own.",
+      "properties": {
+        "disabled": { "type": "array", "items": { "type": "string", "minLength": 1 }, "default": [], "description": "Ids of the kit's stack adapters not run (express, next…): their routes, screens and hints are not read." },
+        "adapters": { "type": "array", "items": { "type": "string", "pattern": "^local:.+" }, "default": [], "description": "The project's own stack adapters, \"local:adapters/x.mjs\" (relative to the project; never a file of the application): run after the kit's." }
+      }
+    },
+    "behaviours": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "Behaviour cards of the feature sheets (standard/behaviours.json, ARCHITECTURE.md §6.8a): the project's own kinds, and whether a required rubric left out fails the strict build.",
+      "properties": {
+        "file": { "type": ["string", "null"], "default": null, "description": "A JSON file of the project's own kinds of behaviour (schemas/behaviours.schema.json, without answers), relative to the project. A kind may not take a spelling of the kit's." },
+        "strict": { "type": "boolean", "default": false, "description": "A required rubric left out of a card (behaviour.missing) is an error of the strict build instead of a warning." }
+      }
+    },
+    "backlog": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "The backlog of the documentation (ARCHITECTURE.md §6.8b): the links of the stories' ticket references (the epics' and features' are kept in the model). No token: the kit never calls a tool.",
+      "properties": {
+        "refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The address of an item in each tool, to link the references (ADO#1234, PROJ-123, owner/repo#42, group/sub/project#7).",
+          "properties": {
+            "azure": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key: https://dev.azure.com/acme/shop/_workitems/edit/{id}" },
+            "jira": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key: https://acme.atlassian.net/browse/{id}" },
+            "github": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key, {repo} its repository's path: https://github.com/{repo}/issues/{id}" },
+            "gitlab": { "type": "string", "pattern": "^https://[^\\s]*\\{id\\}[^\\s]*$", "description": "The address of an item, {id} its number or key, {repo} its repository's path: https://gitlab.com/{repo}/-/issues/{id}" }
+          }
+        },
+        "docUrl": { "type": ["string", "null"], "default": null, "pattern": "^https://[^\\s#|()\\[\\]<>\"'`]+$", "description": "The address of the published documentation (the site's HTML file), without \"#\": each exported item links to its page. Without it, no link." },
+        "idInTitle": { "type": "boolean", "default": true, "description": "An exported item's title starts with its id in the documentation (F-01 · Track orders)." },
+        "azure": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to Azure DevOps (doc-kit backlog export azure).",
+          "properties": {
+            "process": { "enum": ["agile", "scrum", "cmmi", "basic"], "default": "agile", "description": "The process of the project, which gives the work item types: Agile (Epic, Feature, User Story), Scrum (Epic, Feature, Product Backlog Item), CMMI (Epic, Feature, Requirement), Basic (Epic, Issue, Task)." },
+            "areaPath": { "type": ["string", "null"], "default": null, "minLength": 1, "description": "The Area Path of every item imported (Project\\Team); without it, the project's root." },
+            "iterationPath": { "type": ["string", "null"], "default": null, "minLength": 1, "description": "The Iteration Path of every item imported (Project\\Sprint 1); without it, the project's root." }
+          }
+        },
+        "jira": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to Jira (doc-kit backlog export jira).",
+          "properties": {
+            "types": { "$ref": "#/$defs/backlogTypes", "default": {}, "description": "The work type of an epic, a feature and a story, null for none: by default an epic is no item (a label), a feature an Epic, a story a Story." }
+          }
+        },
+        "github": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "The export to GitHub (doc-kit backlog export github).",
+          "properties": {
+            "types": { "$ref": "#/$defs/backlogTypes", "default": {}, "description": "The issue type (an organisation's) of an epic, a feature and a story, null for none (the default)." }
+          }
+        }
       }
     },
     "statuses": {

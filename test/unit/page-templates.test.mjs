@@ -1,4 +1,4 @@
-// Page templates (engine/core/page-templates.mjs): standard/templates.json and the 13 templates agree; section
+// Page templates (engine/core/page-templates.mjs): standard/templates.json and the 31 templates agree; section
 // matching (prefix, case, accents, apostrophes, aliases); guidance; words; guessing the type of an untyped page;
 // the build check (required sections: strict; guidance: warning).
 import { test, describe } from "node:test";
@@ -18,6 +18,7 @@ import {
   guessTemplate,
   closestTemplate,
   maxWordsOf,
+  contextBudgetOf,
   DEFAULT_MAX_WORDS,
   captureVariant,
   CAPTURE_MODES,
@@ -103,6 +104,89 @@ describe("standard/templates.json and the page templates", () => {
     assert.doesNotMatch(architecture, /\b28 page types\b/);
     for (const type of expected)
       assert.ok(architecture.includes(`\`${type}\``), `${type} missing from ARCHITECTURE.md §7's list`);
+  });
+
+  test("doc-kit new --help names how many page types it accepts, in English and in French", () => {
+    // The help listed the 13 general types long after `new` accepted all of them (0.4.0).
+    const count = Object.keys(loadPageTemplates().types).length;
+    for (const language of ["en", "fr"]) {
+      const help = loadDictionary(language)["cli.help.new"];
+      const said = /--template <type> +\D*(\d+)/.exec(help)?.[1];
+      assert.equal(Number(said), count, `${language}: the help of new names ${count} page types`);
+    }
+  });
+
+  test("the numbers the docs and the READMEs give are the kit's: page types, adapters of stacks and infrastructure", () => {
+    // Each of these said 13 page types while the kit had 31 (0.4.0): a number written once drifts.
+    const table = loadPageTemplates();
+    const types = Object.keys(table.types).length;
+    const read = (...p) => fs.readFileSync(path.join(KIT_ROOT, ...p), "utf8");
+    const adapters = (family) =>
+      fs.readdirSync(path.join(KIT_ROOT, "adapters", family)).filter((f) => f.endsWith(".mjs"));
+    const fragment = (group) => Object.keys(JSON.parse(read("standard", "templates", `${group}.json`)).types).length;
+    const words = {
+      en: {
+        glossary: "Page template",
+        readme: "README.md",
+        counted: /(\d+) page templates|each of the\s+(\d+) types|(\d+) page types/g,
+        stack: "stack",
+        infra: "infrastructure",
+      },
+      fr: {
+        glossary: "Gabarit de page",
+        readme: "README.fr.md",
+        counted: /(\d+) gabarits de page|chacun\s+des\s+(\d+)\s+types|(\d+) types de page/g,
+        stack: "de pile",
+        infra: "d'infrastructure",
+      },
+    };
+    for (const [language, w] of Object.entries(words)) {
+      const term = JSON.parse(read("docs", language, "content", "glossary.json")).find((g) => g.term === w.glossary);
+      assert.match(term?.def ?? "", new RegExp(`\\b${types}\\b`), `${language}: the glossary's ${w.glossary}`);
+      const page = JSON.parse(read("docs", language, "content", "toc.json"))
+        .sections.flatMap((s) => s.groups ?? [])
+        .flatMap((g) => g.pages ?? [])
+        .find((p) => p.id === "write/page-templates");
+      assert.match(
+        page?.summary ?? "",
+        new RegExp(`\\b${types}\\b`),
+        `${language}: the summary of write/page-templates`,
+      );
+      const option = read("docs", language, "content", "reference", "cli", "write-check.md")
+        .split("\n")
+        .find((l) => l.startsWith("| `--template <type>`"));
+      assert.match(option ?? "", new RegExp(`\\b${types}\\b`), `${language}: write-check.md, --template`);
+      const readme = read(w.readme);
+      const standard = read("docs", language, "content", "method", "standard.md");
+      // Every place that counts the page types, not one of them: a number left behind in another fails.
+      for (const [name, text] of [
+        [w.readme, readme],
+        [`docs/${language} method/standard.md`, standard],
+      ]) {
+        const said = [...text.matchAll(w.counted)].map((m) => Number(m.slice(1).find(Boolean)));
+        assert.ok(said.length, `${name}: it counts the page types`);
+        assert.deepEqual(
+          said,
+          said.map(() => types),
+          `${name}: every count of the page types is ${types}`,
+        );
+      }
+      assert.ok(readme.includes(`${w.stack} (${adapters("stack").length})`), `${w.readme}: the stack adapters`);
+      assert.ok(
+        readme.includes(`${w.infra} (${adapters("infra").length})`),
+        `${w.readme}: the infrastructure adapters`,
+      );
+      assert.match(
+        standard,
+        new RegExp(`takeover\\.json\` \\| ${fragment("takeover")} `),
+        `${language}: takeover types`,
+      );
+      assert.match(
+        standard,
+        new RegExp(`business\\.json\` \\| ${fragment("business")} `),
+        `${language}: business types`,
+      );
+    }
   });
 
   test("fragments standard/templates/<group>.json: types and aliases added in file name order; a type defined twice is refused", () => {
@@ -275,6 +359,33 @@ describe("matching a section", () => {
     const headings = ["À QUOI SERT l'écran", "Comment ca marche", "L’écran", "Pieges et limites", "Droits requis"];
     assert.deepEqual(presentSections({ table, type: "screen", headings, language: "fr" }), [0, 1, 2, 7, 9]);
     assert.deepEqual(presentSections({ table, type: "screen", headings, language: "en" }), []);
+  });
+
+  test("the feature sheet (§6.8a): 14 sections, 9 required, 4,000 words, a context budget of 24,000; the 0.3 headings still count", () => {
+    const def = table.types.feature;
+    assert.equal(def.sections.en.length, 14);
+    assert.equal(def.sections.fr.length, 14);
+    assert.deepEqual(
+      def.required.map((i) => def.sections.en[i]),
+      [
+        "What it is for",
+        "Who uses it",
+        "User stories",
+        "Main path",
+        "Behaviours",
+        "Business rules",
+        "Messages",
+        "Rights by action",
+        "Acceptance criteria",
+      ],
+    );
+    assert.equal(maxWordsOf(table, "feature"), 4000);
+    assert.equal(contextBudgetOf(table, "feature"), 24000);
+    assert.equal(contextBudgetOf(table, "screen"), 16000);
+    assert.equal(contextBudgetOf(table, undefined), 16000);
+    // A sheet of 0.3: "Main scenario" is "Main path", "Règles métier" is "Règles de gestion".
+    assert.deepEqual(presentSections({ table, type: "feature", headings: ["Main scenario"], language: "en" }), [3]);
+    assert.deepEqual(presentSections({ table, type: "feature", headings: ["Règles métier"], language: "fr" }), [6]);
   });
 
   test("headingsOf: # and ## headings, not ### nor the headings inside fenced code", () => {

@@ -1,11 +1,17 @@
 {
   "title": "Acme Orders documentation",
   "tagline": "One source, two audiences: the people who use Acme Orders, and the team that takes it over.",
-  "spaces": ["business", { "id": "takeover", "subtitle": "Architecture, API and operations of Acme Orders." }],
+  "spaces": [
+    "use",
+    {
+      "id": "develop",
+      "subtitle": "Architecture, API and operations of Acme Orders."
+    }
+  ],
   "sections": [
     {
       "id": "use",
-      "space": "business",
+      "space": "use",
       "title": "Using Acme Orders",
       "shortTitle": "Use",
       "icon": "screen",
@@ -49,7 +55,7 @@
               "title": "Limits of the orders API",
               "menuTitle": "API limits",
               "summary": "Quotas and timeouts, for the team that runs the API.",
-              "space": "takeover"
+              "space": "develop"
             }
           ]
         }
@@ -57,7 +63,7 @@
     },
     {
       "id": "take-over",
-      "space": "takeover",
+      "space": "develop",
       "title": "Taking over Acme Orders",
       "shortTitle": "Take over",
       "icon": "code",
@@ -94,7 +100,7 @@
     {
       "title": "Take over Acme Orders",
       "description": "From the architecture to the API.",
-      "space": "takeover",
+      "space": "develop",
       "steps": ["take-over/architecture", "take-over/orders-api"]
     }
   ],

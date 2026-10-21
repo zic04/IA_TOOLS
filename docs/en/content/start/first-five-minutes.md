@@ -14,7 +14,7 @@ with the kit in `examples/demo-app`: a sign-in page, an orders list, an order re
 | Step | Command | What you get |
 |---|---|---|
 | 1 | `node serve.mjs` | The demo application on `http://127.0.0.1:4173` |
-| 2 | `doc-kit init` | `docs/manual/`, a complete project skeleton with its two spaces |
+| 2 | `doc-kit init` | `docs/manual/`, a complete project skeleton with the spaces chosen (by default the four) |
 | 3 | `npm install` | The project linked to the kit |
 | 4 | `doc-kit connect` | Your session, saved in `.doc-kit/session.json` |
 | 5 | `doc-kit capture --preview` | `images/home.webp` and its zones |
@@ -50,12 +50,14 @@ and the application folder. Check it, then confirm. It writes 27 files in `acme-
 next commands. To rename the product afterwards, change `product.name` in `doc.config.mjs` and the titles of
 `content/toc.json`.
 
-> [!NOTE] A skeleton with its two spaces already declared
-> `content/toc.json` already declares `spaces: ["business", "takeover"]`: **Use**, **Features** and **Configure**
-> and **Administer** in `business` (one sample feature sheet, `features/example-feature`, id `F-01`); **Take
-> over** in `takeover` (the sample takeover dossier: access and ownership, runbook, agent instructions, and
-> `take-over/architecture/example-feature`, the sample feature's technical `counterpart`). `doc-kit build` and
-> `doc-kit dev` already produce one export per space alongside the full site — [Two spaces, one source](#/spaces/overview)
+> [!NOTE] A skeleton with its spaces already declared
+> By default, `content/toc.json` declares the four spaces, `spaces: ["use", "product", "admin", "develop"]`: **Use** in `use`;
+> **Features** in `product` (one sample feature sheet, `features/example-feature`, id `F-01`); **Configure**,
+> **Administer** and **Operate** in `admin` (Operate holds the technical architecture document, access and ownership,
+> and the runbook); **Take over** in `develop` (architecture, troubleshooting, findings, maintaining the docs, agent
+> instructions, and `take-over/architecture/example-feature`, the sample feature's technical `counterpart`), each with its journey. The question "Who is
+> the documentation for?" (or `--spaces`) keeps only some of them, or none. `doc-kit build` and
+> `doc-kit dev` already produce one export per space alongside the full site — [Four spaces, one source](#/spaces/overview)
 > explains the mechanism.
 
 Once the files are written, `init` offers to go on: "Open the browser now to sign in?" runs steps 3 and 4 for you,

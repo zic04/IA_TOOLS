@@ -1,7 +1,8 @@
 // The actions of `audit` (standard/maturity.md): for each criterion not met above the level reached, what to do,
 // on which pages, ordered by level, then by effort. Pure: the audit (audit.mjs) passes what it measured.
 import { sectionLabel, sectionCount } from "../core/page-templates.mjs";
-import { THRESHOLDS, TAKEOVER_ITEMS } from "./thresholds.mjs";
+import { THRESHOLDS, need } from "./thresholds.mjs";
+import { DEPTH_ACTIONS } from "./depth.mjs";
 
 /** Effort of each kind of action (1 = minutes, 5 = real writing): orders the actions inside a level. */
 const EFFORT = {
@@ -29,9 +30,10 @@ const EFFORT = {
   coverage: 5,
   proofs: 5,
   takeover: 5,
+  behaviourDepth: 3,
+  featureStories: 4,
+  scenarios: 4,
 };
-
-const need = (threshold, total, n) => Math.max(0, Math.ceil(threshold * total - 1e-9) - n);
 
 /** The one action of a project whose build fails: fix the build first (level 0). */
 export function draftBuildAction(errors) {
@@ -171,12 +173,11 @@ const ACTIONS = {
     const candidates = untyped.filter((p) => p.guess);
     const still = need(THRESHOLDS.typed3, x.total, x.typed.length);
     const out = [];
-    const key = x.tocInfo.legacy ? "gabarit" : "template";
     if (candidates.length)
       out.push({
         key: "typedDeclare",
-        vars: { n: candidates.length, need: still, file: x.tocInfo.file, field: key },
-        items: candidates.map((p) => ({ id: p.id, key: "typeAs", vars: { template: p.guess.type, field: key } })),
+        vars: { n: candidates.length, need: still, file: x.tocInfo.file },
+        items: candidates.map((p) => ({ id: p.id, key: "typeAs", vars: { template: p.guess.type } })),
       });
     const others = untyped.filter((p) => !p.guess && !p.untyped && p.hasFile);
     if (candidates.length < still && others.length) {
@@ -185,7 +186,6 @@ const ACTIONS = {
         vars: {
           n: others.length,
           need: Math.min(others.length, still - candidates.length),
-          field: key,
           file: x.tocInfo.file,
         },
         items: others.map((p) =>
@@ -222,7 +222,7 @@ const ACTIONS = {
   takeover4: (c, x) => [
     {
       key: "takeover",
-      vars: { n: TAKEOVER_ITEMS.length - x.indicators.takeover.n },
+      vars: { n: x.indicators.takeover.total - x.indicators.takeover.n },
       items: x.takeover.filter((t) => !t.ok).map((t) => takeoverItem(t, x)),
     },
   ],
@@ -296,7 +296,8 @@ const ACTIONS = {
 };
 
 /** Actions that satisfy a failed criterion (none for a criterion without actions). */
-const actionsFor = (c, x) => ACTIONS[c.id]?.(c, x) ?? [];
+const ALL_ACTIONS = { ...ACTIONS, ...DEPTH_ACTIONS };
+const actionsFor = (c, x) => ALL_ACTIONS[c.id]?.(c, x) ?? [];
 
 /** Counts of a list of pages not written yet: { n, missing (no file), drafts (template guidance left) }. */
 function unwrittenVars(list) {
@@ -328,8 +329,8 @@ function optionalMissing(p, x) {
 /** What to do for one missing Take over page. */
 function takeoverItem(t, x) {
   const vars = { item: t.id, template: t.template, sub: t.sub, min: t.min };
-  if (!x.takeoverId) return { id: "", key: "takeover.noSection", vars };
-  const suggested = `${x.takeoverId}/${t.suggest[x.language] || t.suggest.en}`;
+  if (!t.section) return { id: "", key: "takeover.noSection", vars };
+  const suggested = `${t.section}/${t.suggest[x.language] || t.suggest.en}`;
   if (t.page && t.sub && (t.subs ?? 0) < t.min)
     return { id: t.page, key: "takeover.subPages", vars: { ...vars, n: t.subs ?? 0, need: t.min - (t.subs ?? 0) } };
   if (t.page && t.numbered === false) return { id: t.page, key: "takeover.number", vars };

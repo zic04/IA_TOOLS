@@ -1,6 +1,6 @@
 ## En bref
 
-L'espace reprise technique est le dossier dont une équipe a besoin pour reprendre une application — surtout une
+Le dossier de reprise réunit ce dont une équipe a besoin pour reprendre une application — surtout une
 application écrite en grande partie par des assistants IA (« vibe-codée »), dont les risques habituels sont :
 
 | Risque | Où il se cache habituellement |
@@ -12,8 +12,11 @@ application écrite en grande partie par des assistants IA (« vibe-codée »), 
 | Tests manquants ou trompeurs | Un test qui n'affirme rien, ou un parcours critique sans aucun test |
 | Fichiers d'instructions des agents comme spécification cachée | `AGENTS.md`, `CLAUDE.md` et semblables, jamais lus par l'équipe qui reprend |
 
-Chaque affirmation de cet espace s'appuie sur une preuve (`file:line`), ou est marquée déduite ou inconnue — jamais
-affirmée sur la foi.
+Ses pages vivent dans l'espace Développer — architecture, parcours, sécurité, risques, maintenance — sauf celles de
+l'exploitation, lues par les exploitants : le DAT, le manuel d'exploitation, les variables, les ressources, les
+accès et la propriété se rangent dans la partie Exploiter de l'espace Administrer. Chaque affirmation du dossier
+s'appuie sur une preuve (`file:line`), ou est marquée déduite ou inconnue — jamais affirmée sur la foi ; l'audit
+attend ces preuves sur les pages de l'espace Développer.
 
 ## Par où commencer
 
@@ -44,6 +47,7 @@ doc-kit facts --tools              # aussi gitleaks, osv-scanner, syft, knip, qu
 | `env` | Les noms lus par le code, et par un fichier `.env` d'exemple | Une valeur |
 | `api` | Les gestionnaires de route : Next.js, FastAPI, Express — avec `auth` et `guards` (voir plus bas) | — |
 | `db` | Tables, colonnes, sécurité au niveau ligne et politiques : Prisma, SQLAlchemy, migrations SQL | — |
+| `behaviours` | Le comportement d'une recherche, d'un filtre, d'un tri, d'une pagination, d'un formulaire : des indices lus dans le code de chaque pile (filtres de tableaux, Prisma, SQL, Django, SQLAlchemy, zod, pydantic, formulaires HTML, OpenAPI), pour les fiches de fonctionnalité | Une chaîne telle qu'écrite, un test, un commentaire |
 | `agents` | `AGENTS.md`, `CLAUDE.md` et semblables : taille, et tout caractère Unicode invisible | — |
 | `secrets` | Fichier et règle d'un secret probable | La valeur |
 | `security` | Onze heuristiques de l'OWASP Top 10 : règle, fichier, ligne, sévérité | Une valeur |
@@ -57,10 +61,14 @@ maintenabilité](#/spaces/reviews).
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
-alimente. `--network` n'envoie que le nom d'une dépendance à son registre public, pour vérifier qu'elle existe ;
+alimente. `--network` n'envoie que le nom d'une dépendance publique à son registre, pour vérifier qu'elle existe et
+son retard — jamais le nom d'un paquet privé (un paquet de l'application elle-même, une portée à registre propre, un
+index privé, un paquet de workspace, local ou hébergé en privé), lu dans l'application, ses fichiers de
+verrouillage, chaque dossier jusqu'à chaque manifeste, et votre propre configuration npm, yarn, bun, pip et uv ;
 `--tools` lance ceux de `gitleaks`, `osv-scanner`, `syft` et `knip` qui sont sur le `PATH`, chacun dans son propre
-`facts/tool-<nom>.json` (un outil absent est seulement signalé). Sans `app.dir` configuré, `doc-kit facts` refuse
-de s'exécuter.
+`facts/tool-<nom>.json` avec un état (`ok`, `findings`, `failed`, `missing`) et seulement les champs utiles (règle,
+fichier, ligne, paquet, version…), jamais un secret ni une ligne de code. `osv-scanner` fonctionne hors ligne : sa
+base n'est téléchargée qu'avec `--network`. Sans `app.dir` configuré, `doc-kit facts` refuse de s'exécuter.
 
 ## Citer les faits sans les ressaisir : `::faits`
 
@@ -71,7 +79,7 @@ de s'exécuter.
 Construit un tableau à partir de `facts/<source>.json` au moment du build — une ligne par élément, les colonnes
 listées, une légende avec la date de génération et le commit de l'application. Une source ou une colonne inconnue
 fait échouer un build strict ; les dix types de pages de reprise sont construits autour de cette directive :
-[Exemple · Surface d'API](#/examples/api-surface) et les autres exemples de l'espace reprise la montrent complétée
+[Exemple · Surface d'API](#/examples/api-surface) et les autres exemples de la reprise la montrent complétée
 à la main avec l'authentification, le rôle et l'isolation par locataire.
 
 ## Dire ce que vous savez, ce que vous déduisez, ce qui reste ouvert
@@ -128,8 +136,8 @@ inconnus » est vide : [Exemple · Accès et propriété](#/examples/access-owne
 
 ## Pour aller plus loin
 
-- [Deux espaces, une seule source](#/spaces/overview) : déclarer `takeover`, l'export, `counterpart`.
-- [Documenter chaque fonctionnalité](#/spaces/business) : l'espace pendant.
+- [Quatre espaces, une seule source](#/spaces/overview) : déclarer `develop` et `admin`, l'export, `counterpart`.
+- [Documenter chaque fonctionnalité](#/spaces/business) : l'espace Produit, le pendant de celui-ci.
 - [Suivre l'évolution de l'application](#/publish/sync) : la suite, une fois les faits et les constats en place.
 - [Exemple · Surface d'API](#/examples/api-surface), [Exemple · Dépendances](#/examples/dependencies), [Exemple ·
   Fichiers d'instructions des agents](#/examples/agent-instructions).

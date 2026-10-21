@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "doc-kit/schemas/zones.schema.json",
   "title": "images/zones/<id>.json",
-  "description": "Metadata of a screenshot (ARCHITECTURE.md §6.2): size and annotated zones, as percentages of the image. `version` and `captured` are written by `capture` and optional when reading. Tolerant reader: unknown fields are accepted. Legacy files (fichier, titre, largeur, hauteur, l, libelle, cote) are normalised before validation.",
+  "description": "Metadata of a screenshot (ARCHITECTURE.md §6.2): size and annotated zones, as percentages of the image. `version` and `captured` are written by `capture` and optional when reading. Tolerant reader: unknown fields are accepted.",
   "type": "object",
   "additionalProperties": true,
   "required": ["file", "width", "height"],

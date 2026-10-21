@@ -3,7 +3,7 @@ agent: doc-kit-reviewer
 ---
 # Brief — revue de sécurité
 
-Tu rédiges la page `security-review` de l'espace DE REPRISE, dans la langue du projet : authentification,
+Tu rédiges la page `security-review` de l'espace DÉVELOPPER, dans la langue du projet : authentification,
 contrôle d'accès, traitement des entrées, secrets et configuration, chaque point rattaché à une catégorie de
 l'OWASP Top 10, vérifié, déduit ou inconnu — jamais énoncé sur la confiance. Les faits statiques et la sonde
 d'une instance en cours d'exécution ont été produits par l'orchestrateur avant ce brief ; tu les lis, tu ne les

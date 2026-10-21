@@ -29,7 +29,7 @@ Parcourez-la avant de remettre un site à son propriétaire, ou à l'équipe qui
 | ☐ | Version documentée de l'application, et date de la campagne de captures | « Maintenir la doc » (par exemple : version 2.4.0, captures du 1er octobre 2026) |
 | ☐ | Fiches déjà ouvertes en production listées (écritures serveur au rendu) | « Maintenir la doc » |
 | ☐ | Limites connues de l'outillage | « Maintenir la doc », section « Limites connues » |
-| ☐ | Constats consolidés : candidats des rédacteurs revérifiés, dédupliqués, numérotés | `reprendre/points-attention` |
+| ☐ | Constats consolidés : candidats des rédacteurs revérifiés, dédupliqués, numérotés | `risques/points-attention` |
 | ☐ | Termes proposés ajoutés au glossaire | `content/glossary.json` |
 | ☐ | Mémoire du projet à jour : notes de reprise, mémoire de l'assistant s'il y en a une, `CHANGELOG` de la documentation | Selon le projet |
 | ☐ | Faits à jour : aucun `facts/<source>.json` périmé (ARCHITECTURE.md §6.9) | `doc-kit audit` (« Faits et affirmations ») ; rafraîchir avec `doc-kit facts --source <nom>` |
@@ -40,7 +40,7 @@ Parcourez-la avant de remettre un site à son propriétaire, ou à l'équipe qui
 | ✓ | Point | Commande ou règle |
 |---|---|---|
 | ☐ | Une copie **autonome** du projet, sans `node_modules/`, `.doc-kit/` ni session | `doc-kit export <cible>` ; `--with-dist` pour joindre le site produit, `--zip` pour une archive |
-| ☐ | **Un export par espace**, quand le projet déclare des espaces (ARCHITECTURE.md §6.1a) | `doc-kit build` écrit l'export de chaque espace par défaut (`spaces.export`) ; vérifier que chacun s'ouvre et ne montre que son propre espace |
+| ☐ | **Un export par espace**, quand le projet déclare des espaces (ARCHITECTURE.md §6.1a) | `doc-kit build` écrit l'export de chaque espace par défaut (`spaces.export`), nommé d'après l'id de l'espace (`dist/Acme-Orders-Documentation-use.html`, `-product`, `-admin`, `-develop`) ; vérifier que chacun s'ouvre et ne montre que son propre espace, puis remettre chacun à ses seuls lecteurs |
 | ☐ | Un README de remise à la racine | Ce qu'est le site, comment l'ouvrir, comment le régénérer (`npm ci`, `npm run site`), comment refaire les captures, où se trouve le guide de rédaction |
 | ☐ | L'export se régénère ailleurs | Dans la copie : `npm ci`, puis `npm run site` ; Node.js 20 ou plus récent ; `npx playwright install chromium` si le navigateur manque |
 | ☐ | Le contrôle de couverture est documenté comme ignoré hors du dépôt | Il a besoin du code de l'application |

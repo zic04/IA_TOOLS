@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit features of a project (features.json)",
+  "description": "The features of the application (ARCHITECTURE.md §6.8), written by `doc-kit inventory --features --write` and completed by hand or by the skill's agents: what each feature's sheet covers, and where its code is. Read by the `features` coverage adapter, by `context` and by `sync` (the files of a feature sheet, §6.10).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": ["id"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{0,5}-\\d{1,4}$", "description": "The id of the feature (F-01), the `feature` field of its sheet in toc.json." },
+      "title": { "type": "string" },
+      "routes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "The screen routes of the feature (/orders, /orders/[id])." },
+      "api": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Its API routes, \"METHOD /path\" or a path (GET /api/orders)." },
+      "keys": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Its i18n keys or their prefixes." },
+      "sources": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "description": "Globs of the code behind it, relative to app.dir (lib/orders/**, services/search.py): read by context and followed by sync."
+      },
+      "behaviours": {
+        "type": "array",
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "description": "The kinds of behaviour its sheet must describe with a card (standard/behaviours.json: search, filter…), deduced by inventory --features or written by hand."
+      }
+    }
+  }
+}

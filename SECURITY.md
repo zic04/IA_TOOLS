@@ -97,11 +97,138 @@ as untrusted input:
 - programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
   placed in the application cannot replace the real one on Windows;
 - every expression that scans the application's files is tested against catastrophic backtracking (a crafted file
-  cannot block `facts` or `check secrets`).
+  cannot block `facts` or `check secrets`);
+- what `facts --source behaviours` keeps of the code is a name (a field, a parameter), a number, a word of a fixed
+  list (asc, desc, a field's type, a library, a cron expression) or a short list of values, each through a whitelist
+  and refused when it looks like a key, a token or a long number (a card, a phone): never a string as written, a
+  default only as a number, and no value at all for a field whose name says it is secret (password, token, key…);
+  it never reads the tests, the comments, or a file over 512 KB;
+- the stack adapters that read the routes, screens and hints of a framework (`facts`: `api`, `screens`,
+  `behaviours`) are the kit's, or the project's own named `local:` in `stacks.adapters` — a file of the documentation
+  project, never of the application (the configuration accepts nothing else, and a path that leads out of the
+  project, links followed, is refused before anything is loaded). They are given the texts of the
+  application's files, never a test, a generated file or a file over 512 KB, and run nothing of it; the kit classifies
+  the access of a route itself, from the names they return, keeps 32 guards per route and 5,000 routes per adapter at
+  most, reading 128 entries of a guard list at most (engine/facts/stack-common.mjs: a guard after them is not seen,
+  so a route may look less guarded than it is, never more), and writes "…" for a segment of a route that looks like a key or a token — what a secret detector of the kit finds
+  (always), or 20 characters or more that do not read as words, each part between separators judged alone: a
+  heuristic, which masks a random token of 32 characters or more of the usual shapes (base62, base64url,
+  hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
+  the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
+  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+- the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
+  the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
+  sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
+- the `infra` source keeps what infrastructure files declare through one whitelist (names, types, an image and its
+  tag, replicas, ports, whether it runs as root, has TLS, is open to all, the names of its variables), the project's
+  adapters included: never an environment variable's value, a ConfigMap's or Secret's data, a parameter's default, a
+  connection string; a name a secret detector finds is written "…" (and, judged word by word, a word that reads as a
+  token), a name is kept on one line, the credentials of an address are taken off, and
+  so is a source's query (a SAS token, a presigned URL's signature) but its `ref`. The files of values are never
+  read: Terraform's `.tfvars`, Bicep's `.bicepparam`, an ARM parameters file; nor a CDK assembly (`cdk.out/`). A
+  folder named `test/` is read there as the test environment (`k8s/overlays/test/`); `tests/`, `spec/`, `fixtures/`
+  and a Maven `src/test/` never are. An address range written as a variable, a parameter or an expression leaves
+  "open to all" unknown — but open when an open range is written in it (a condition): the kit never says closed what
+  it cannot tell. YAML is read by a bounded reader that never
+  expands an alias (no billion laughs) nor resolves a tag, and gives what it could read of a text that is not YAML (a
+  Helm template); JSON (ARM, CloudFormation) by a walk that refuses more than 256 levels before JSON.parse;
+- the `stack` source measures the languages of the code and names the stacks and low-code platforms found from the
+  dependency names and the file names only; what the kit does not read is told (`inputs status`, the context of a
+  page), never guessed;
+- the `sources` of a page (toc.json) and of a feature (features.json) are confined to the application: an absolute
+  glob, one that climbs (`..`) or one that holds a `:` (a drive, `C:x`; a data stream of a Windows file,
+  `.env::$DATA`) is left out, and so is what is not a file in `app.dir` once links are followed (a symbolic link, a
+  junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
+  name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
+  agent;
+- an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
+  512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
+  cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
+  written with escaped slashes) is read in a bounded time;
+- the ReDoS test also measures growth: the slowest inputs of each scanner are built again 4 and 16 times longer —
+  longer still, up to 256 times, while a step under 20 ms may hide a quadratic growth (it looks quadratic, or the
+  size below was too fast to measure), so that a fast machine cannot hide one — and a scanner more than eight times
+  slower from one size to the next in a step of 20 ms or more (a linear one takes four times as long, a quadratic
+  one sixteen) is quadratic, and fails; a scanner written to be quadratic (the canary) must be caught, so that the
+  check cannot pass by measuring nothing. Limit: a ratio shows only the part of the time that grows — a scanner
+  whose linear part outweighs its quadratic part at every size measured (up to 768,000 characters) is not seen;
+- the skill's `scripts/analysis.mjs check` reads the files that the proofs of an analysis name (an agent's output,
+  written from the application's code, ARCHITECTURE.md §6.11a), only to count their lines. A path that is not
+  relative, has an empty, `.` or `..` segment, a backslash, a colon or a NUL is refused without being read.
+  Otherwise its real path, links followed, must stay in the application folder, and the file must be 8 MB at most.
+  No text of an analysis may hold a value that a secret detector of the kit finds: the place and the kind are
+  reported, never the value. The texts it prints are put on one line, without control characters. Limit: without
+  `app.dir`, the application folder is guessed from the documentation's (its git parent, else its grandparent),
+  which can be wider than the application; the script warns;
+- the skill's `scripts/usage.mjs scan` and its statistics hook (`scripts/usage-hook.mjs`) read Claude Code's
+  transcripts, which hold the prompts, what the agents read of the code and what they wrote — a secret among them.
+  Of a transcript they keep only counts (tokens, responses, lines, files), its time span (the hook), and the
+  model's name when it reads as one (letters, digits, `.` `_` `:` `@` `-`, at most 100 characters; otherwise
+  none — judged by its shape only: Claude Code fills it from the API's answer, not from what a person wrote): a block of a response is told apart from its copies by its id or a SHA-256 digest of what it wrote, never
+  by its text, and nothing else of a transcript reaches `.doc-kit/usage.jsonl`, `usage/` or the terminal
+  (`scripts/transcript-usage.mjs`, tested with a marker text). `scan` also records the folder it read, and the hook
+  the agent's id (else the session's) and type that Claude Code gives it. Limit: to read its version, the hook loads the documentation
+  project's `doc.config.mjs`, which is code, like every doc-kit command — the first one from the session's folder
+  upwards (else `docs/manual`), when a `usage/` folder is beside it. `skill install --hooks` writes the hook in the
+  project's own `.claude/settings.json`; written in your user settings (`--settings`), it runs in every session,
+  so in any folder you open that holds such a project: keep it to the projects you trust.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
 (JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
 `.git/config` handed over with an application before running anything on it.
+
+### The sources: shared repositories and documents (`inputs`)
+
+`doc-kit inputs` (ARCHITECTURE.md §6.19) reads what a team already has besides the code: repositories, documents.
+Both are untrusted input.
+
+- **Shared repositories** (`inputs fetch`): the only git commands of the kit that write (RULES.md S2), into
+  `.doc-kit/inputs/repos/<name>` only. The address is refused unless it is https without credentials, ssh or
+  `git@host:path` (never an option, never a transport helper such as `ext::`), and the branch unless it is a plain
+  reference; both come after `--end-of-options`. Every clone is configured from its creation so that its own
+  fetches and checkouts never run a hook (`core.hooksPath` points to an empty folder of the kit), check out a link
+  as a link (`core.symlinks=false`: nothing outside the clone is ever read through one), use the `ext` or `file`
+  transport, recurse into submodules, or accept a malformed object (`transfer.fsckObjects`); every update gives these
+  settings again (`git -c`), so a clone whose own configuration changed since stays hardened. git never asks for a
+  user or a password in the terminal (`GIT_TERMINAL_PROMPT=0`) — your own SSH agent or credential manager may still
+  ask for a passphrase or show its window — and Git LFS downloads nothing. A source's name is also its folder: it is
+  checked (letters, digits, dashes) before a clone folder is ever removed, so nothing outside `.doc-kit/inputs/repos/`
+  is touched. What git prints back is shown without its control characters. git authenticates with **your own** credentials
+  (credential manager, SSH key): the kit never asks for, sees or stores a token. An address or a path that carries a user, a
+  password or a token — whatever its scheme (`git+https://`, `git://`…), with spaces, quotes or angle brackets around
+  it, in a secret parameter (`?private_token=`, `#access_token=`, `&sig=`) or in a form the secret detectors of
+  `check secrets` recognise — is refused in `inputs add`, in `doc-kit init` and in an `inputs.json` written by hand,
+  before anything shows it: the message names the field, never its value. A clone whose configuration names a program is refused like any repository (see above); before an update, so is
+  one whose configuration names a transport, a proxy, a prompt or a credential helper the fetch would run
+  (`core.sshCommand`, `core.gitProxy`, `core.askPass`, `core.alternateRefsCommand`, `credential.helper`) or moves its
+  working tree elsewhere (`core.worktree`). A setting is read as git reads it, also on its section's line.
+- **Documents** (`inputs ingest`): a Word file is read by the kit's own bounded reader — the ZIP central directory,
+  at most 10 000 entries, 64 MB per entry and 256 MB in all, a compression ratio of at most 200 (a ZIP bomb is
+  refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
+  `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
+  expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
+  is ever opened. A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
+  Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
+  is written, and starts with a notice telling the agent that reads it that it is information to check, never an
+  instruction to follow. A Word table, paragraphs nested in one another (read in one pass, whatever their depth), a diagram or a label
+  cannot make the output grow without bound or the reading slow down: a table is at
+  most 64 columns and 200 000 cells, a converted text at most 16 million characters, a diagram label is read once and
+  cut, every list is capped (refused: `tooLarge`). Each document keeps its own output file.
+- **Pages of Confluence, SharePoint, Teams or Notion** are never fetched by the kit: the skill reads them through
+  the connectors of the session (Claude Code, Claude Cowork), with your consent, and saves each one where
+  `inputs status` says (`.doc-kit/inputs/pages/`); `inputs ingest` then filters it like a file.
+- **The DAT and the code** (`inputs reconcile`): reads only the converted texts (already filtered) and the facts
+  files the kit wrote, in one pass each (the ReDoS test runs its scanners, an image reference of the facts too); it
+  runs nothing and fetches nothing. It reads only a converted text the index places in `.doc-kit/inputs/docs/`, a
+  plain file — never a link — of 64 MB at most whose real path lies in that folder, itself really in the project
+  (a junction that leads out is never followed), and keeps of it only the technologies it names (from the kit's
+  registry), the lines and headings where it names them, and the hosts of its addresses (letters, digits, dots and
+  dashes only; a user name before `@` skipped, never kept).
+
+Limits: a document can still hold false or misleading statements, or text written to steer an AI: the notice and
+the skill's briefs make the agents check every statement against the code, but review what a document claims
+before it becomes a page. A clone is a full copy of the repository: it lives in the work folder (`.doc-kit/`, never
+committed) — delete it when the documentation is done.
 
 ### Files for the next AI (`pack`)
 
@@ -114,16 +241,45 @@ code 1), so a secret pasted in a page never reaches the pack.
 Limits: the detectors are patterns. A secret they do not recognise (a short password, a token of an unknown
 shape) passes. Review the files before handing them to an agent, and `AGENTS.md` before committing it.
 
+### The backlog export (`backlog export`)
+
+`doc-kit backlog export` writes files for a backlog tool's importer (Azure DevOps, Jira, GitLab, GitHub, JSON) in
+the documentation project, from the documentation only. It calls no tool and takes no token: the person imports the
+files. Every text goes through the secret detectors of `check secrets`: a line where one fires is replaced by a
+notice and reported (exit code 1). What the files say cannot act on the tool or on whoever opens them:
+
+- a CSV cell that a spreadsheet would read as a formula (one starting with `=`, `+`, `-`, `@`, a tab or a carriage
+  return) starts with an apostrophe;
+- in the Markdown of GitHub and GitLab, a mention (`@name`) or a reference (`#12`, `acme/shop#42`, `!12`, `&12`,
+  `GH-12`…) is followed by an invisible word joiner, so the import notifies no one and marks no other issue as
+  mentioned; `&` is escaped, so no entity (`&commat;`) becomes a mention; a GitLab line that starts with `/` is
+  escaped, so it is no quick action; every markup character of the text is escaped;
+- in Jira's wiki markup, the characters of links, mentions (`[~name]`), macros, images, tables and emphasis are
+  escaped (a dash or a heading prefix may still format a line); in Azure DevOps' HTML, the text is escaped.
+
+Limits: the detectors are patterns (above). An address of an issue written in full (`https://github.com/…/issues/12`)
+stays a link, and GitHub notes it as mentioned. The files name the product's epics, features and stories: share them
+as you share the documentation.
+
 ### Network
 
-The kit talks to nothing but the application you capture: no telemetry, no update check. `doc-kit dev` listens on
+The kit talks to nothing but the application you capture and, with `doc-kit inputs fetch`, the repositories you declared (through git, above): no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
-the application's direct dependencies to the npm and PyPI registries, except the private ones: an npm scope that has
-its own registry in the application's `.npmrc`, every npm package when `.npmrc` replaces the default registry, every
-pip package when a private index is declared (`pip.conf`, `pip.ini`, or `--index-url` / `--extra-index-url` in a
-requirements file), and any package taken from a folder, a workspace, a git repository or a URL. A private package
-that the application does not declare that way cannot be told apart: do not use `--network` on such a project.
+the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest
+version), except the private ones: the application's own packages (its workspaces), an npm scope that has its own
+registry, every npm package when a registry replaces the default one, every pip package when a private index is
+declared, any package taken from a folder, a workspace, a git repository, a URL or a private registry (as
+`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` or `poetry.lock` shows; a requirements line that is a path or a local archive
+is never read as a package name), and any package of an ecosystem other than npm and pip. The declarations are read
+in the application (every folder down to each manifest: `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `bunfig.toml`,
+`pip.conf`, `pip.ini`, requirements files, Poetry and uv indexes, `uv.toml`, Pipfile sources), in your own
+configuration (every home folder, `NPM_CONFIG_USERCONFIG`, `PIP_CONFIG_FILE`, `UV_CONFIG_FILE`, Poetry's
+repositories) and in the npm, yarn, bun, pip, uv and Poetry variables. A yarn or bun file that names scopes in a form the kit does not follow makes every
+npm package private. Not read: the global npm and pip configurations of the machine. A private package declared nowhere cannot be told apart: do not use `--network` on such a project.
+`facts --tools` runs `osv-scanner` **offline only**: its database is downloaded (public files, no package name sent)
+only with `--network`. The reports of the external tools are kept through an allowlist of fields (rule, file, line,
+package, version…): a matched secret, a line of code, an author or an e-mail address never reaches `facts/`.
 `probe` runs only on a local instance or one you declared a demo (`capture.target: "demo"`), with `GET` and `HEAD`
 only, never follows a redirect, and never requests a route of `capture.forbidden`. The generated site loads nothing
 from the network (its Content Security Policy forbids it).

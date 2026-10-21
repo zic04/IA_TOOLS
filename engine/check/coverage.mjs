@@ -10,43 +10,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../capture/session.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
+import { globRegex } from "../core/glob.mjs";
+import { TOC_FILE, stripBom } from "../project/toc.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
 export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
-
-/** Regular expression of a glob: ** (any folders), * (any characters but /), ?, {a,b}. */
-export function globRegex(glob) {
-  let re = "";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*" && glob[i + 1] === "*") {
-      i++;
-      if (glob[i + 1] === "/") {
-        i++;
-        re += "(?:.*/)?";
-      } else re += ".*";
-    } else if (c === "*") re += "[^/]*";
-    else if (c === "?") re += "[^/]";
-    else if (c === "{") {
-      const end = glob.indexOf("}", i);
-      if (end < 0) re += "\\{";
-      else {
-        re +=
-          "(?:" +
-          glob
-            .slice(i + 1, end)
-            .split(",")
-            .map((s) => s.replace(/[.+^${}()|[\]\\]/g, "\\$&"))
-            .join("|") +
-          ")";
-        i = end;
-      }
-    } else re += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  }
-  return new RegExp("^" + re + "$");
-}
 
 /**
  * Tools given to the adapters; every path is relative to the project root (the documentation folder).
@@ -107,9 +77,6 @@ export function routeMatches(route) {
   return [...forms];
 }
 
-/** Table of contents files (current and legacy names), at the root of the content folder. */
-const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
-
 /**
  * The table of contents without the pages not written yet (`isUnwritten(file)`, file relative to the content):
  * neither their entry (id, title, `routes`) nor their id in the journeys and suggestions. `planned` receives the
@@ -118,14 +85,14 @@ const TOC_FILES = new Set(["toc.json", "sommaire.json"]);
 function tocText(text, isUnwritten, planned) {
   let toc;
   try {
-    toc = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+    toc = JSON.parse(stripBom(text));
   } catch {
     return text; // reported by the build
   }
   const ids = new Set();
-  const unwrittenEntry = (p) => p && typeof p === "object" && isUnwritten(String(p.file || p.fichier || `${p.id}.md`));
+  const unwrittenEntry = (p) => p && typeof p === "object" && isUnwritten(String(p.file || `${p.id}.md`));
   for (const s of Array.isArray(toc?.sections) ? toc.sections : [])
-    for (const g of [...(s?.groups || []), ...(s?.groupes || [])])
+    for (const g of s?.groups || [])
       if (Array.isArray(g?.pages))
         g.pages = g.pages.filter((p) => {
           if (!unwrittenEntry(p)) return true;
@@ -134,11 +101,8 @@ function tocText(text, isUnwritten, planned) {
           return false;
         });
   const keep = (list) => (Array.isArray(list) ? list.filter((id) => !ids.has(id)) : list);
-  for (const j of [
-    ...(Array.isArray(toc?.journeys) ? toc.journeys : []),
-    ...(Array.isArray(toc?.parcours) ? toc.parcours : []),
-  ])
-    if (j && typeof j === "object") for (const k of ["steps", "etapes"]) if (k in j) j[k] = keep(j[k]);
+  for (const j of Array.isArray(toc?.journeys) ? toc.journeys : [])
+    if (j && typeof j === "object" && "steps" in j) j.steps = keep(j.steps);
   if (toc && typeof toc === "object") toc.suggestions = keep(toc.suggestions);
   return JSON.stringify(toc);
 }
@@ -162,16 +126,31 @@ function documentationTexts(root, content) {
   const text = normalize(
     files
       .filter((f) => !drafts.has(f))
-      .map((f) => (TOC_FILES.has(f) ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
+      .map((f) => (f === TOC_FILE ? tocText(texts.get(f), isUnwritten, planned) : texts.get(f)))
       .join("\n"),
   );
   return { text, planned };
 }
 
-/** Does an item appear in the documentation text? */
+/** A letter or a digit, of any script: what continues an id (punctuation — “ ” … ’ — does not). One character. */
+const ID_CHAR = /^[\p{L}\p{N}]$/u;
+const isIdChar = (ch) => ch !== undefined && ID_CHAR.test(ch);
+
+/** Whether `needle` appears in `text` whole: no letter or digit right before or after it (F-01 is not in F-010). */
+function containsWhole(text, needle) {
+  for (let i = text.indexOf(needle); i !== -1; i = text.indexOf(needle, i + 1))
+    if (!isIdChar(text[i - 1]) && !isIdChar(text[i + needle.length])) return true;
+  return false;
+}
+
+/** Does an item appear in the documentation text? An item marked `whole` (an id: F-01) only as a whole. */
 export const isCovered = (item, text) =>
   (item.match || []).some(
-    (m) => m !== undefined && m !== null && String(m).trim() !== "" && text.includes(normalize(m)),
+    (m) =>
+      m !== undefined &&
+      m !== null &&
+      String(m).trim() !== "" &&
+      (item.whole ? containsWhole(text, normalize(m)) : text.includes(normalize(m))),
   );
 
 /** Applies an `exclude` option (regular expressions, or exact ids) to a list of items. */
@@ -222,6 +201,7 @@ export async function runCoverage({ root, config }) {
         id: String(it.id),
         ...(it.label !== undefined ? { label: it.label } : {}),
         match: it.match || [String(it.id)],
+        ...(it.whole ? { whole: true } : {}),
         covered: false,
       }));
       for (const it of items) {

@@ -6,8 +6,171 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-21
+
 ### Added
 
+- **The demo declares its features** (`examples/demo-docs/features.json`, coverage adapter `features`: 2/2), and its facts
+  are read again with every source of this version (`stack`, `behaviours`, `infra`, `quality`, `security`, `modules`…),
+  so that `context`, the analyses and the depth loop run on it end to end.
+- **The DAT and the code** (ARCHITECTURE.md §6.19): `doc-kit inputs reconcile` compares the technologies and the
+  addresses each ingested technical architecture document names with the facts of the code — found in the code,
+  said by the DAT without a trace, in the code but not in the DAT — into `.doc-kit/inputs/reconcile.json`, from a
+  registry of 55 technologies (`standard/technologies.json`). The skill's brief `architecture-reconcile` checks this
+  first pass and writes the page of the gaps between the DAT and reality.
+- **The method uses the analyses** (the skill, ARCHITECTURE.md §6.11a): a scoping question "How detailed?"
+  (essential, standard, detailed: `extra.briefs.level`); phase 4b, one analyst per feature, then its digests; phase
+  5b, the depth loop (`analysis.mjs depth`, `deepen` on haiku, a second analysis on what is missing, at most two
+  rounds, then the open questions for the product owner). `functional-spec` writes each sheet from its Product
+  digest; `inventory` gives each feature its size, its epic and the behaviours to document in depth; `triage` may
+  decide `deepen`; the orchestration reference shows the words and proofs the sober method had lost.
+  `analysis.mjs depth` ends the loop (✔) when nothing is left to deepen or to analyse again, prints each feature
+  with its page, and `--reset [<feature>…]` starts a new loop.
+- **The analyst agent and its briefs** (ARCHITECTURE.md §6.11a): a fourth agent type, `doc-kit-analyst`
+  (sonnet), runs the new brief `behaviour-analysis`: one feature traced in the code, its analysis written and checked,
+  the reading budget by its size (S, M, L) and the content by the level of detail (essential, standard, detailed).
+  `feature-mechanism` writes a feature's technical counterpart from the Develop digest; `deepen` (haiku) adds to a
+  sheet what the depth loop found the analysis answers. The briefs exist in English and French; `doc-kit skill
+  install` copies the new agent.
+- **The analyses of the features** (ARCHITECTURE.md §6.11a): the format `doc-kit/behaviour-analysis@1`
+  (`.doc-kit/analysis/<feature>.json`: each item its text for a reader without the code, its mechanism, a status —
+  verified, deduced, unknown, n/a — and its proofs), and the skill's `scripts/analysis.mjs`: `check` (a proof
+  outside the application folder refused without being read), `digest` by reader (no mechanism, no proof, no
+  finding for Use and Product), `questions` for the product owner, `findings`, and `depth`, one round of the depth loop from
+  `audit.json`, whose depth report now says what is open in each sheet (`gaps`). `brief.mjs --estimate` reads a
+  brief's `output-tokens` by size (`--var size=S|M|L`).
+- **The spaces at `init`** (ARCHITECTURE.md §2.1): `doc-kit init --spaces <id,…>|none`, or the question "Who is the
+  documentation for?" — the four spaces (default), users and product, a takeover (administer and develop), users
+  alone, or none. The skeleton keeps the sections, pages and journeys of the spaces chosen; with Develop but not
+  Administer, the Operate section goes to Develop; with none, one documentation without spaces. The skeleton has one
+  journey per audience. The recap and the JSON output show the spaces. The skeleton's writing moves to
+  `engine/dev/skeleton.mjs`.
+- **A better search** (ARCHITECTURE.md §6.1a): the tables the kit generates and each page's summary are indexed; a
+  word in a title before one in the text, its start before its inside; a word the documentation does not hold is
+  read as its close words (a typo), said above the results; with spaces, **Search in: All · Use · …** keeps the
+  results of one space. The scoring is a module of the site (`engine/site/lib/search-core.js`). On the home in
+  "everything" mode, the journeys are grouped by audience.
+- **Topic groups** (ARCHITECTURE.md §6.1a): a page's `counterpart` may name a list of pages; the pages it joins,
+  either way, form one group, declared once and shown on each: "This topic for: Use · **Product** · Administer ·
+  Develop" under the page's badges, the page read marked (without spaces, "Related:" and the titles). `context`
+  lists the group's other pages and `sync` follows their files. The site data `pages[].counterpart` becomes
+  `pages[].topic`; the texts `ui.counterpart*` become `ui.topic*`; the line is a module of the site
+  (`engine/site/lib/topics.js`).
+- **The depth of the feature sheets in the audit** (standard/maturity.md): `featureSheets` (every written feature
+  sheet has a user story, level 3), `scenarios` (≥ 80 % of their stories have acceptance criteria, level 4) and
+  `behaviourDepth` (≥ 90 % of the rubrics of their behaviour cards are answered, level 4), measured on the backlog
+  of the strict build; `n/a` without a written sheet, or with spaces declared but no Product space; by space, in
+  the Product space only. The actions name the sheets and stories; `audit.md` shows the depth of each feature and
+  the backlog in one line (`audit.json` `depth`). New kind flag `depth` (`standard/spaces.json`). A project with
+  feature sheets may reach a lower level than before: its sheets' stories, criteria and rubrics now count.
+- **The backlog export** (ARCHITECTURE.md §6.8b): `doc-kit backlog export <azure|jira|github|gitlab|json>` writes
+  the epics, feature sheets and user stories, with their acceptance criteria, in the import format of Azure DevOps
+  (CSV, the types of `backlog.azure.process`), Jira (CSV, `backlog.jira.types`), GitLab (CSV), for GitHub (the
+  issues as JSON and how to create them with `gh`) or as JSON (`schemas/backlog.schema.json`). What the tool
+  already holds is left out (`--all`); an error of the backlog refuses it; a line where a secret detector fires is
+  replaced; formulas, mentions, references and quick actions are inert. New keys `backlog.docUrl`, `backlog.idInTitle`, `backlog.azure`,
+  `backlog.jira.types`, `backlog.github.types`. No network, no token.
+- **The Product board** (ARCHITECTURE.md §6.8b): the home of the Product space shows the backlog of the feature
+  sheets as a story map (epics in columns, their features as cards with a depth gauge, a row of user stories per
+  version) or a list (Epic › Feature › Story), with filters (who, epic, version, depth, text); `::board{}` (fr
+  `::tableau{}`) shows it in any page. A feature's rules now count those it cites. The site's script takes modules
+  (`engine/site/lib/`); the demo's Product space has two epics.
+- **The backlog** (ARCHITECTURE.md §6.8b): a group of feature sheets in `toc.json` can be an epic (`epic`,
+  `summary`, `ref`); a feature sheet gives `since`, `ref`, `epic`; a story's ticket reference (`ADO#1234`, `AB#1234`,
+  `PROJ-123`, `owner/repo#42`, `group/sub/project#7`) is a link with `backlog.refs`; `::stories{}` (fr `::recits{}`)
+  lists every user story; one measure of a feature's depth. New checks `epic.duplicate`, `epic.unknown`,
+  `story.outside`, `backlog.ref`, `backlog.field`.
+- **Where the application runs** (ARCHITECTURE.md §6.9, §6.11): `::c4{view="deployment"}` (fr `vue="deploiement"`)
+  draws the deployment view from `facts/infra.json` — one column per environment with its entry points, workloads,
+  jobs and cloud resources, the pipelines that deploy to each, and a row per element with its settings and its
+  `file:line`. `doc-kit new <page> --template runbook --prefill` fills its scheduled jobs, each with its
+  `[[verified file:line]]` proof; `doc-kit context` gives a runbook what the infrastructure declares, by environment
+  (a page type's new `digests`).
+- **What the infrastructure declares** (ARCHITECTURE.md §5, §6.9, source `infra`): `doc-kit facts` reads the
+  Dockerfiles, Terraform, Bicep, ARM and CloudFormation templates, Kubernetes and OpenShift manifests, Helm charts,
+  Compose files, GitHub Actions, GitLab CI and Azure Pipelines, and Ansible playbooks: their cloud resources and
+  modules, workloads, services and ingresses, images (and their tag), environments and jobs, with a few settings
+  (replicas, ports, whether it runs as root, TLS, open to all) and the names of their variables — never a value or a
+  secret. A project adds its own with `infra.adapters` and turns one of the kit's off with `infra.disabled`. Shown with
+  `::facts{source="infra"}`; new brick `facts.infra`.
+- **Thirteen more stacks read** (ARCHITECTURE.md §5): the API routes and their guards of NestJS, Spring (Java,
+  Kotlin), ASP.NET Core (controllers and minimal APIs), Laravel, Symfony, Django and Django REST framework, Flask, Go
+  (net/http, gin, echo, chi, gorilla/mux), Ruby on Rails and Rust (actix-web, axum); the screens of the Angular, Vue
+  Router and React Router routers; the behaviour hints of Spring Data, Bean Validation, EF Core and DataAnnotations,
+  Eloquent and Laravel validation, Doctrine and Symfony constraints, class-validator, gorm and ActiveRecord. Each runs
+  where its stack is detected (a dependency, a file), or, in an application without a manifest of its ecosystem,
+  everywhere — a declaration two adapters read is then the framework's the file names. Each route keeps 32 guards and
+  each adapter 5,000 routes at most. The access of a route also recognises the user guards of these stacks (`auth`,
+  `Authorize`, `AuthGuard(…)`, `authenticate_user!`, `LoginRequiredMixin`, `jwt_required`); Django's `tests.py` is a test.
+- **Stack adapters, and what the kit reads of an application** (ARCHITECTURE.md §5, §6.9): the routes of the API,
+  their guards and the screens of a framework are read by **stack adapters** (`adapters/stack/`: `next`, `express`,
+  `fastapi`, the readers of 0.3 moved there and hardened). A project adds its own with
+  `stacks.adapters: ["local:adapters/x.mjs"]` (a file of the documentation project, never of the application) and
+  turns one of the kit's off with `stacks.disabled`. Two new facts sources: `screens` (the pages of the Next.js App
+  Router and Pages Router, the routes of the front-end routers) and `stack` (the stacks and low-code platforms the
+  application uses — Power Apps, Power Platform, OutSystems, Mendix, Salesforce are detected, never read — and each
+  language of its code with its files and lines, and whether the kit reads it). What the kit does not read is told:
+  `doc-kit inputs status` shows the part of the code read, and the context of a page tells its agent which code to
+  read itself. `standard/adapters.json` lists the languages and adapters; the documentation's new page **What the kit
+  reads** is generated from it. The `facts` coverage adapter cites the screens, and the files of a route let sync
+  follow its code. New bricks `facts.screens` and `facts.stack`.
+- **The dependencies of seven more ecosystems** (source `dependencies`): Maven and Gradle (`pom.xml`,
+  `build.gradle`, `build.gradle.kts`, `libs.versions.toml`, `gradle.lockfile`), NuGet (`*.csproj`, `*.fsproj`,
+  `*.vbproj`, `Directory.Packages.props`, `packages.config`, `packages.lock.json`), Composer, Go modules, Bundler and
+  Cargo — each file read on its own, offline, with what it says itself of each package: its exact version (else the
+  constraint as written), whether it is direct, a development one, or not from the public registry. An XML manifest
+  that is not well-formed is listed (`unreadable`, reason `xml`). The `vendor/` and `target/` folders are never
+  read as manifests.
+
+- **What the code says of each behaviour** (ARCHITECTURE.md §6.9, source `behaviours`): `doc-kit facts` now reads how
+  the features behave — how a list is searched (contains, starts with, case ignored, accents, full text, a search
+  engine), filtered, sorted and paged, which fields a form checks (required, bounds, pattern, email), the lists of
+  values offered, what triggers a search (each keystroke, a delay, a button), the data scope of a query, the exports,
+  imports, notifications and scheduled jobs — in an array's `.filter`, Prisma, TypeORM, Sequelize, Mongoose, Drizzle,
+  Knex, SQL, Django and DRF, SQLAlchemy, FastAPI, Flask, zod, pydantic, HTML and JSX forms, TypeScript and Python
+  enums, and OpenAPI documents. Hints, each from one line of the code; tests, comments and files over 512 KB are
+  never read, and what is kept of the code goes through a whitelist (names, numbers, short tokens and lists). A
+  feature of `features.json` can name its code (`sources`) and the kinds of card its sheet describes (`behaviours`,
+  deduced by `inventory --features`); `doc-kit context` then gives a feature sheet that code — the handlers of its API
+  routes and what they import two levels deep — and a part **Behaviours to describe**: the hints, and the cards to
+  write with their rubrics. New brick `facts.behaviours`.
+- **Feature sheets in depth** (ARCHITECTURE.md §6.8a): a sheet is now a specification a product owner can check
+  against the application. Its new sections: User stories, Behaviours, Fields and inputs, States, Messages, Rights
+  by action, Acceptance criteria, Open questions (template `feature`, 9 required sections of 14, 4,000 words, a
+  context budget of 24,000 tokens). Three new blocks, in English and French:
+  - `:::behaviour{kind title id}` (`:::comportement{type titre}`): a **behaviour card**, one `Rubric: value` line per
+    rubric of its kind — 13 kinds in `standard/behaviours.json` (search, filter, sort, pagination, list, form,
+    import, export, calculation, notification, workflow, scheduled job, permission check), each with the questions a
+    reader asks (a search: the fields searched, the matching, case and accents, several words, the trigger, the
+    order, no result, the rights). "n/a — reason" and "unknown — question" are answers; a required rubric left out
+    is shown as missing and reported (`behaviour.missing`, an error with `behaviours.strict`). A project adds its own
+    kinds with `behaviours.file`;
+  - `:::story{id title role since ref}` (`:::recit`): a **user story**, with its role, its version, its ticket and the
+    number of its acceptance criteria; cited with `[[story US-01]]` (`[[recit …]]`);
+  - `:::scenario{title story behaviour}`: an **acceptance criterion** in Given / When / Then (Soit / Quand / Alors),
+    linked to its story and its card.
+  The demo's two sheets are rewritten from the demo application's code, and the kit's example sheet shows every
+  part. "Main scenario" still counts as "Main path". `doc-kit context` gives each page the context budget of its template
+  when `--budget` is not given.
+- **The sources of a project** (ARCHITECTURE.md §6.19, `inputs.json`): what the kit reads besides the code of
+  `app.dir` — other code (folders or **shared repositories**: GitHub, GitLab, Azure Repos), the infrastructure
+  code, the application online by environment, the documents a team already has (a **technical architecture
+  document** in Word, PDF, Markdown, diagrams; Confluence or SharePoint pages by their address), collaborative
+  spaces and the backlog. `doc-kit init` asks for them (optional), `doc-kit inputs add` declares them,
+  `doc-kit inputs` shows their state. `doc-kit inputs fetch` clones or updates the repositories into
+  `.doc-kit/inputs/repos/` with your own git credentials (never a token in the kit), every clone hardened from its
+  creation; `doc-kit inputs ingest` converts the documents into text for the documentation agents
+  (`.doc-kit/inputs/docs/`), secrets removed, with the kit's own bounded readers (ZIP bombs, XML entities and macros
+  refused or never expanded; SECURITY.md). A page given by its address is read by the skill through the session's
+  connectors (Claude Code, Claude Cowork), never by the kit. New bricks `inputs.repos` and `inputs.docs` (preset
+  `inputs`), needed by the facts; the skill asks for the sources at the cadrage and checks a DAT against the code.
+  RULES.md S2 now allows `clone`, `fetch` and `checkout`, in `engine/inputs/repos.mjs` only.
+- **Bricks** (ARCHITECTURE.md §6.18): `doc-kit bricks` gives the state of every part of the project that can be
+  run again on its own — each facts source, the external tools, the documentation audit — and why ("read at commit
+  939ed0c; the application is at 24b882c", "written by kit 0.1", "never produced"); `doc-kit bricks <id>` shows one
+  brick (or the bricks of a preset); `doc-kit bricks run [<id|preset>…]` runs again only what you name, or every brick out of date with
+  `--stale`, in the order of their needs (`--deps`, `--force`), the facts read in one run. The bricks are data
+  (`standard/bricks.json`); `bricks.enabled` / `bricks.disabled` in `doc.config.mjs` choose them.
 - **Developer views** in the site, drawn from the facts at build time (`engine/build/developer.mjs`):
   - `::modules{limit}`: the import graph, its cycles, the files most depended on and the orphan files;
   - `::hotspots{limit}` (`::points-chauds`): the files that change most often and are the most complex (git
@@ -24,12 +187,176 @@ entries between a project's `kit` range and the installed version.
   tests, tooling, risks, hotspots, existing agent instructions) and `CLAUDE.md` (`@AGENTS.md`). A line where a
   secret detector fires is removed and reported (exit code 1).
 
+- **Guardrail tests for the kit's own code**: `test/unit/layers.test.mjs` now checks RULES.md M1 (the engine never
+  imports `cli/`, never calls `process.exit`, never prints); `test/unit/sizes.test.mjs` holds every JavaScript file of
+  `engine/`, `cli/`, `adapters/` and `skill/` at 600 lines or fewer, and the four files already over it at their
+  current size (a ratchet: they may only shrink);
+  `test/unit/skill-briefs.test.mjs` checks the skill's coherence (briefs in English and French with the same front
+  matter and placeholders, agent types used and named in their descriptions, routing equal to SKILL.md's model
+  table) — new rule M15. The neutrality scan now also reads `.claude/agents/`, `CLAUDE.md`, `RULES*.md` and `AUDIT.md`.
+- **Agents for the kit's own development** (`.claude/agents/`): `kit-reviewer` (read-only review against RULES.md,
+  security first), `kit-test-author` (tests that follow the repository's patterns), `kit-skill-editor` (one change
+  to the skill's texts, everywhere they live). See CLAUDE.md.
+
+### Changed
+
+- **The README says what 0.4.0 brings** (English and French): the four spaces, the feature sheets and their
+  behaviour cards, the Product board and the backlog export, the facts of 16 stacks and 12 infrastructure formats,
+  the sources, the bricks and the skill, and 31 page templates; a test ties these numbers, and those of the docs,
+  to the kit's.
+- **The analyst writes its file once, and finds what it names in its context** (measured in the pilot of 0.4.0,
+  docs: skill/cost-and-speed, `references/agent-orchestration.md` §8): `behaviour-analysis` writes the analysis
+  with Write, then corrects it with Edit (`doc-kit-analyst` gains the Edit tool), never through the shell, even
+  where the session suggests it; the context's cards give each rubric's id (Matching, `match`), and the kind's id
+  after its French spelling (`recherche` = `search`), so the analyst no longer opens the registry of kinds for
+  them; each security fact of the context is a finding to check. Two features of size S cost 71,000 to
+  165,000 token-equivalent each, 2 to 5 times their estimate; the total Claude Code reports when an agent ends is its
+  last context (a sixth to a third of the tokens used), so the spend is taken from the transcripts. Run
+  `doc-kit skill install --force`.
+- **The access of a route recognises more user guards by default** (`review.guards`, ARCHITECTURE.md §6.13): besides
+  `current_user`, `authenticated`, `login_required`, `require_auth`, `session` and `token`, a guard named exactly
+  `auth` or `auth:<guard>`, `Authorize`, `RequireAuthorization`, `AuthGuard(…)`, `authenticate` or `authenticate_user!`, or
+  holding `LoginRequired` or `jwt_required`, is a user guard. An Express middleware named `auth`, and a Next.js
+  handler that calls `auth()`, were `unknown` in 0.3 and are now `user`: `facts --source api` shows the change. A project
+  keeps its own patterns with `review.guards`.
+- **A route's secret segment is masked**: a segment of a route that looks like a key or a token (a webhook's path) is
+  written `…` in `facts/api.json` and `facts/screens.json`.
+- **`check secrets` finds Stripe keys**: a secret or restricted key (`sk_live_`, `sk_test_`, `rk_…`) and a webhook
+  secret (`whsec_`) are cloud keys, found in the code and never kept.
+
+- **Four spaces, one per audience** (ARCHITECTURE.md §6.1a, `standard/structure.md`), instead of `business` and
+  `takeover`: `use` (the users, screen by screen), `product` (the product owners: features, rules, process),
+  `admin` (the administrators and operators: settings, access, operations, the technical architecture document)
+  and `develop` (the developers, the takeover team, security). What the kit does for a space is its **kind**,
+  data in `standard/spaces.json`, never its id: no code in `use` and `product` (`business.technical`), the
+  glossary's technical correspondence in `admin` and `develop` (also in their exports), `file:line` proofs and
+  the takeover pages of the audit in `develop`; the required takeover pages are spread — the technical
+  architecture document and operations in `admin`, the five others in `develop` — each looked for and suggested
+  in its own space, and `takeover4` of a space counts only its own. A space of the project's own declares its
+  `kind` (`space.kind`, error, without one); the spaces `business` and `takeover` of 0.3 are no kind
+  (`space.kind`): no migration, a project of 0.3 is started again. Site data `spaces[]` gains `kind` and `tech`; exports are named
+  after the new ids (`…-use.html`). New projects (`doc-kit init`) and the demo declare the four spaces.
+  The takeover dossier of the audit moves to `engine/audit/takeover.mjs`; the lint warning ceiling goes down to 55.
+- **Internal, no change of behaviour**: the facts sources are listed by `engine/facts/registry.mjs` (the
+  command reads it); the freshness of the facts files is computed once (`engine/facts/freshness.mjs`, used by `sync`,
+  `doctor` and `audit`); every request to a public registry goes through one gateway, `createRegistryClient`
+  (`engine/facts/network.mjs`), which refuses a private package itself and whose 5 s timeout now also covers reading the answer, as it did before
+  for the latest version (new rule S12); the dependency readers are
+  split by ecosystem (`engine/facts/deps/`); the directives drawn from the facts leave the Markdown engine
+  (`engine/build/fact-directives.mjs`, one function per directive); `withoutSecrets` moves to
+  `engine/check/secrets.mjs`. The lint warning ceiling goes down to 56. Visible only in `--profile` and the usage
+  records: the time of the `dependencies` source now includes its `--network` existence check.
+- **`facts/tool-<name>.json`** is now `{ tool, generator, generated, commit, app, status, reason?, code?,
+  truncated?, items }` (normalised items) instead of `{ tool, generator, generated, installed, ok, data }` (the raw
+  report). `status` (`ok`, `findings`, `failed`, `missing`) comes from each tool's exit codes and items: a tool that
+  found something was reported as failed, semgrep's findings and syft's inventory as "nothing found". Run
+  `doc-kit facts --tools` again to rewrite these files.
+
+### Removed
+
+- **The legacy French-keyed formats and `doc-kit migrate`** (ARCHITECTURE.md §6.7): projects start again from
+  `doc-kit init`. The kit no longer reads `sommaire.json`, `glossaire.json` or `accueil.md` (only `toc.json`,
+  `glossary.json` and `home.md`: a `sommaire.json` alone is `toc.missing`), nor renames the French keys of the
+  table of contents, the glossary, the zone files and the capture plans (`titre`, `groupes`, `fichier`, `libelle`,
+  `clic`…): each one is now an unknown key reported by the schema (ignored in a zone file, whose required keys are
+  then missing). The `legacy.read` warning, `engine/project/legacy.mjs` and `doc-kit migrate` (now an unknown
+  command, exit code 2) are gone; folder names stay free through `paths`, and the Markdown keeps its French spelling.
+
 ### Fixed
 
+- The security test could not see a quadratic scanner on a fast machine: on GitHub's Linux runners its canary (a
+  scanner written to be quadratic) took 10 ms at 16 times its input, under the 20 ms from which a growth is trusted,
+  and the test failed there — a real quadratic scanner would have passed unseen the same way. A step that short
+  which may hide a quadratic growth (it looks quadratic, or the size below was too fast to measure) is now measured
+  on an input 4 times longer, up to 256 times, until it can be trusted; a scanner whose steps stay under 6 times
+  still stops at 16 times (`test/tools/growth.mjs`, tested on a clock the test plays). SECURITY.md writes the limit
+  that stays: a scanner whose linear part outweighs its quadratic part at every size measured.
+- `usage.mjs scan` counted an API response once per line of the transcript — Claude Code writes one per block of a
+  response, each repeating its usage — and kept the partial output count a transcript records for a response that
+  calls a tool: in the pilot of 0.4.0, 620,529 tokens for 416,653 used. Each response now counts once, even across
+  files, and its output at least what it wrote (characters ÷ 4: `output_estimated` in the entry, and a line of its
+  own). The statistics hook does the same through the same module (`scripts/transcript-usage.mjs`); its line holds
+  `tokens.outEstimated` when the estimate counts. `report` no longer adds the agents' logged totals (each one's last context) to
+  a scan of the same work: with a scan, its total is the scans', the logged floor shown apart (`--json`: `logged`,
+  `scanned`).
+- The skill and the docs said the agents of a wave share the brief's common part through the prompt cache. Measured,
+  they do not: the brief travels in one message with its variables. What an agent launched after another reads from
+  the cache is the part before it (its definition and Claude Code's tools, 23,000 to 24,000 of its first 37,000 to 38,000
+  tokens), which agents launched together each write again. The skill now launches the first agent of a wave alone
+  and the others in the next message, and `brief.mjs` says so.
+- `npm run test:security` ran the security tests with a bare `node --test`: their ReDoS checks, which measure
+  time, had no second run when a measure was noisy, unlike under `npm test`. It now goes through `test/run.mjs`,
+  which takes one file as it takes a folder.
+- `doc-kit new --help` listed the 13 general page types for `--template`, while `new` accepts the 31 of the
+  standard; the glossary, the reference and the summary of "Page templates" said 13 as well. They now say 31 (a test
+  ties the help to the number of types).
+- `references/method.md` said a writer only receives "Read the brief and carry it out": it receives the brief's
+  full text, as SKILL.md says.
+- `check coverage` (adapter `features`): a feature id is cited only whole — a page citing `F-010` no longer
+  covers `F-01`.
+- A `[[rule …]]` chip inherited the frame and the bottom margin of a rule's own block: in a numbered step, it drew a
+  bar on its left and pushed the next step down.
+- `doctor` reported the skill's agents as current when the kit had added an agent type that was not installed: they
+  are now outdated (`doc-kit skill install --force`).
+- The descriptions of the `doc-kit-writer` and `doc-kit-reviewer` agents now name every brief they run
+  (`capture-plans`; `inventory`, `code-health`, `security-review`, `findings-verification`,
+  `production-technical`), and SKILL.md no longer says `findings-verification` runs on `opus` (it runs on
+  `sonnet`, as the routing says). Run `doc-kit skill install --force` to update the installed copies.
 - `facts --source security`: the `code.eval` rule reported every `pattern.exec(text)` of JavaScript (a regular
   expression) as a high-severity code execution: 131 findings on the kit's own code, 24 after the fix. A method
   `.exec(` now counts only in a file that loads `child_process` (and never right after a regular expression
   literal); `eval(`, Python's `exec(` and `new Function(` are still reported.
+
+### Security
+
+- **The usage scripts keep nothing of a transcript's text** (SECURITY.md): `usage.mjs scan` and the statistics hook
+  keep counts, the time span and the model's name only when it reads as one (letters, digits, `. _ : @ -`, at most
+  100 characters; any other value is dropped); a block of a response is told apart from its copies by a digest. The
+  hook's limit is written: it loads the documentation project's `doc.config.mjs` to read its version, so installed
+  in your user settings it runs in every session — keep it to the projects you trust.
+- **A token in a dependency's address was kept**: `facts --source dependencies` stored a git dependency of a
+  package.json as written (`"x": "git+https://user:TOKEN@github.com/…"`) in `facts/dependencies.json`, and likewise
+  a requirements line (`y @ git+https://user:TOKEN@…`). The user and password of an address are now removed from
+  every version and constraint kept, of every ecosystem, and a value a secret detector of the kit finds is not kept.
+- **A crafted file blocked `facts --source api`**: a file of route calls never closed (`app.get(` written 32,000
+  times, 256 KB) took more than three minutes to read, and 32,000 FastAPI decorators more than twelve seconds — each
+  call was read to the end of the file, each line counted from its start. The routes are now read by the stack
+  adapters, which read each call once (4,000 characters at most), find a line by a binary search, and never read a
+  file over 512 KB, a test or a generated file (the same file: a few milliseconds).
+- **The `sources` of a page could reach outside the application**: a glob of toc.json such as `../.env` put a file
+  of the documentation project — or any secret file — whole into the page's context file for an agent. The globs of
+  `sources` (a page's, and now a feature's in features.json) are now confined to `app.dir`, files only, never an
+  `.env` or a key — under any name Windows gives it too (a data stream `.env::$DATA`, a short name `ENV~1`).
+- **Crafted text slowed three scanners down quadratically**: `facts --source api` (a long run of letters before
+  `= APIRouter(`), the pydantic settings of `facts --source env` (a class followed by many blank lines, or a field
+  line with blanks after its colon), and the secret detector of an address with credentials (a long run such as
+  `a-a-a-…`, read by `check secrets` and by the credential check of the sources). Their expressions are now anchored
+  and bounded, and the ReDoS test measures growth: a scanner more than eight times slower on an input four times
+  longer fails, measured at 4 and 16 times the size, with a canary written to be quadratic that it must catch.
+- **A git setting written on its section's line was not seen** by the check that keeps git from running a
+  program named in an untrusted repository (`[core] fsmonitor = …`, `[include] path = …` on one line, or after a
+  lone carriage return): git reads it, and the kit now does too (`parseGitConfig`, `riskyGitConfig`).
+- **`facts --source quality --network` sent the names of private packages** (an npm scope with its own registry, a
+  private pip index, workspace and local packages) to npm and PyPI while looking up their latest version: it now
+  goes through the same `isPrivatePackage` check as `dependencies --network` (AUDIT.md S13).
+- **More private names were sent and no longer are** (`dependencies` and `quality --network`): PEP 508 direct
+  references (`name @ file:…`, `name @ git+https:…`), Poetry `path`, `git`, `url` and private-`source`
+  dependencies, the application's own workspace packages (npm workspaces point at their siblings with plain
+  ranges), packages a lock file (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`) took from a private registry,
+  git, a file or a link, the file name of a local archive in a requirements file, scopes declared for yarn
+  (`.yarnrc`, `.yarnrc.yml`) or bun (`bunfig.toml`) — a form the kit does not follow makes every npm package
+  private —, uv indexes (`uv.toml`, `UV_INDEX_URL`…), and any ecosystem other than npm and pip.
+- What is private is now also read in **every folder down to each manifest** (a separate front end or a workspace
+  root with its own `.npmrc` was missed), in **your own** configuration (`.npmrc`, `.yarnrc`, `.yarnrc.yml`,
+  `.bunfig.toml`, pip, in every home folder — `HOME` and `USERPROFILE` can differ on Windows —, plus
+  `NPM_CONFIG_USERCONFIG` and `PIP_CONFIG_FILE`), and in the npm, yarn, bun and pip variables — where a company
+  usually declares its private registries. Poetry sources, uv indexes and Pipfile sources other than PyPI make every
+  pip package private.
+- **`osv-scanner` runs offline only** (`--tools`): its API mode sent every package name and version, private ones
+  included, to osv.dev. Its database is downloaded (public files, no name sent) only with `--network`; a version it
+  cannot read is never run.
+- **The reports of the external tools are normalised through an allowlist** of fields: semgrep's matched lines,
+  gitleaks' matches, authors and e-mail addresses no longer reach the facts, whatever a tool adds to its output.
 
 ## [0.3.0] - 2026-10-03
 

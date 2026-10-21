@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter, isSignInUrl, LOGIN_PATTERN } from "../../engine/capture/session.mjs";
-import { adapterTools, routeMatches, globRegex, isCovered, normalize } from "../../engine/check/coverage.mjs";
+import { adapterTools, routeMatches, isCovered, normalize } from "../../engine/check/coverage.mjs";
+import { globRegex } from "../../engine/core/glob.mjs";
 import { routeOf } from "../../adapters/coverage/next-app-router.mjs";
 import { render } from "../../adapters/coverage/glob.mjs";
 import { tempDir } from "../tools/helpers.mjs";
@@ -183,6 +184,19 @@ describe("coverage adapters", () => {
     assert.ok(isCovered({ match: ["/orders/[id]", "/orders/:id"] }, text));
     assert.ok(!isCovered({ match: [] }, text));
     assert.ok(!isCovered({ match: [""] }, text));
+  });
+
+  test("covered whole: an id is not cited by a longer one (F-01 by F-010), but by itself at either end", () => {
+    const later = normalize("The sheet of F-010, and FF-01x.");
+    assert.ok(isCovered({ match: ["F-01"] }, later), "a text: found inside");
+    assert.ok(!isCovered({ match: ["F-01"], whole: true }, later), "an id: never inside a longer one");
+    for (const text of ["F-01", "see F-01.", "(f-01)", "F-01 and F-010", "F-010, then F-01"])
+      assert.ok(isCovered({ match: ["F-01"], whole: true }, normalize(text)), text);
+    // Punctuation of any script ends an id; a letter or a digit before it, of any script, continues another one.
+    for (const text of ["“F-01”", "«F-01»", "F-01…", "F-01’s", "F-01—the sheet", "→F-01", "F-01·"])
+      assert.ok(isCovered({ match: ["F-01"], whole: true }, normalize(text)), text);
+    for (const text of ["REF-01", "XF-01 ", "éF-01", "F-01é", "F-012"])
+      assert.ok(!isCovered({ match: ["F-01"], whole: true }, normalize(text)), text);
   });
 });
 

@@ -1,0 +1,6 @@
+{
+  "name": "shop-infra",
+  "version": "1.0.0",
+  "description": "Not a deployment template.",
+  "resources": [{ "type": "Microsoft.Fake/notRead" }]
+}

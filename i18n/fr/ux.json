@@ -29,6 +29,13 @@
   "cli.init.auth.manual": "manual — vous vous connectez vous-même dans le navigateur (SSO et MFA fonctionnent)",
   "cli.init.auth.none": "none — l'application ne demande pas de connexion",
   "cli.init.auth.nextauth": "nextauth — session NextAuth (détectée dans les dépendances)",
+  "cli.init.ask.spaces": "Pour qui est la documentation ? (ses espaces)",
+  "cli.init.spaces.all": "use, product, admin, develop — les quatre publics : utilisateurs, produit, administrateurs, développeurs",
+  "cli.init.spaces.product": "use, product — les utilisateurs et les responsables produit (sans code)",
+  "cli.init.spaces.takeover": "admin, develop — une reprise : administrateurs, exploitants et développeurs",
+  "cli.init.spaces.use": "use — les utilisateurs seuls",
+  "cli.init.spaces.none": "none — une seule documentation pour tous, sans espace",
+  "cli.init.spaces.noneShort": "aucun (une seule documentation pour tous)",
   "cli.init.summary": "Récapitulatif",
   "cli.init.recap.folder": "Dossier",
   "cli.init.recap.name": "Nom du produit",
@@ -38,6 +45,7 @@
   "cli.init.recap.version": "Version",
   "cli.init.recap.capture": "Captures",
   "cli.init.recap.auth": "Connexion",
+  "cli.init.recap.spaces": "Espaces",
   "cli.init.recap.coverage": "Couverture",
   "cli.init.recap.masking": ".env masqués",
   "cli.init.recap.appDir": "Application",
@@ -53,7 +61,7 @@
   "cli.init.authUnused": "inutile sans captures",
   "cli.init.coverage.none": "aucune (pas de framework connu : le contrôle de couverture reste vide)",
   "cli.init.masking.none": "aucun trouvé (.env, .env.local)",
-  "cli.init.rename": "Pour renommer le produit ensuite : product.name dans doc.config.mjs, puis le titre, l'accroche et les titres de section de content/toc.json.",
+  "cli.init.rename": "Pour renommer le produit ensuite : product.name dans doc.config.mjs, puis le titre, l'accroche, les titres de section et les titres des parcours de content/toc.json.",
   "cli.init.ask.where": "Où prendre les captures ?",
   "cli.init.target.ask.local": "application locale ou de démo",
   "cli.init.target.ask.production": "production, en lecture seule",
@@ -331,5 +339,6 @@
   "ui.footer.screenshots.versionOnly": {
     "one": "Captures d'écran de la version {version}",
     "other": "Captures d'écran des versions {version}"
-  }
+  },
+  "ui.search.fuzzy": "Aucune correspondance exacte : mots proches — {words}"
 }

@@ -14,7 +14,7 @@ export default defineConfig({
   language: "{{language}}", // "en" | "fr": language of the site and of the CLI messages
 {{languagesLine}}  // output: "dist/{{slug}}-documentation.html", // default: dist/<product name>-Documentation.html
 
-  // Folders of the project. Older projects declare their own here, e.g. { content: "contenu", diagrams: "schemas" }.
+  // Folders of the project, which may be named in its own language, e.g. { content: "contenu", diagrams: "schemas" }.
   paths: { content: "content", images: "images", diagrams: "diagrams" },
 
   // Version shown in the site's banner, read in the application's code. The fallback is used when the file

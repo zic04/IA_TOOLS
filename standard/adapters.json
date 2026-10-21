@@ -1,0 +1,478 @@
+{
+  "$schema": "../schemas/adapters.schema.json",
+  "description": "What the kit reads of an application (ARCHITECTURE.md §5): its languages, and its adapters by family — `stack` (the routes, guards, screens and behaviour hints of a framework, adapters/stack/), `deps` (the manifests and lock files of an ecosystem, engine/facts/deps/), `lowcode` (a platform the kit detects but does not read: its agents read it), `coverage` and `auth` (adapters/coverage/, adapters/auth/). `detect`: what tells that an application uses it — a dependency (`ecosystem:name`, `*` for any characters) or a file (a glob relative to the application). The compatibility matrix of the documentation is generated from this file (test/tools/adapters-matrix.mjs).",
+  "version": 1,
+  "languages": [
+    { "id": "javascript", "title": "JavaScript", "extensions": [".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte"], "core": true },
+    { "id": "typescript", "title": "TypeScript", "extensions": [".ts", ".tsx", ".mts", ".cts"], "core": true },
+    { "id": "python", "title": "Python", "extensions": [".py"], "core": true },
+    { "id": "html", "title": "HTML", "extensions": [".html", ".htm"], "core": true },
+    { "id": "sql", "title": "SQL", "extensions": [".sql"], "core": true },
+    { "id": "java", "title": "Java", "extensions": [".java"] },
+    { "id": "kotlin", "title": "Kotlin", "extensions": [".kt", ".kts"] },
+    { "id": "groovy", "title": "Groovy", "extensions": [".groovy"] },
+    { "id": "scala", "title": "Scala", "extensions": [".scala"] },
+    { "id": "csharp", "title": "C#", "extensions": [".cs", ".cshtml", ".razor"] },
+    { "id": "fsharp", "title": "F#", "extensions": [".fs"] },
+    { "id": "vbnet", "title": "Visual Basic", "extensions": [".vb"] },
+    { "id": "php", "title": "PHP", "extensions": [".php"] },
+    { "id": "go", "title": "Go", "extensions": [".go"] },
+    { "id": "ruby", "title": "Ruby", "extensions": [".rb", ".erb"] },
+    { "id": "rust", "title": "Rust", "extensions": [".rs"] },
+    { "id": "swift", "title": "Swift", "extensions": [".swift"] },
+    { "id": "dart", "title": "Dart", "extensions": [".dart"] },
+    { "id": "elixir", "title": "Elixir", "extensions": [".ex", ".exs"] },
+    { "id": "c", "title": "C", "extensions": [".c", ".h"] },
+    { "id": "cpp", "title": "C++", "extensions": [".cc", ".cpp", ".cxx", ".hpp", ".hh"] },
+    { "id": "objective-c", "title": "Objective-C", "extensions": [".m", ".mm"] },
+    { "id": "apex", "title": "Apex", "extensions": [".cls", ".trigger"] },
+    { "id": "lua", "title": "Lua", "extensions": [".lua"] },
+    { "id": "perl", "title": "Perl", "extensions": [".pl", ".pm"] },
+    { "id": "cobol", "title": "COBOL", "extensions": [".cbl", ".cob", ".cpy"] }
+  ],
+  "adapters": [
+    {
+      "id": "next",
+      "family": "stack",
+      "title": "Next.js",
+      "languages": ["javascript", "typescript"],
+      "reads": ["api", "guards", "screens"],
+      "detect": { "dependencies": ["npm:next"] }
+    },
+    {
+      "id": "express",
+      "family": "stack",
+      "title": "Express, Fastify, Hono, Koa",
+      "languages": ["javascript", "typescript"],
+      "reads": ["api", "guards"],
+      "detect": { "dependencies": ["npm:express", "npm:fastify", "npm:hono", "npm:koa-router", "npm:@koa/router"] }
+    },
+    {
+      "id": "fastapi",
+      "family": "stack",
+      "title": "FastAPI",
+      "languages": ["python"],
+      "reads": ["api", "guards"],
+      "detect": { "dependencies": ["pip:fastapi"] }
+    },
+    {
+      "id": "nestjs",
+      "family": "stack",
+      "title": "NestJS",
+      "languages": [
+        "typescript"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:@nestjs/core",
+          "npm:@nestjs/common"
+        ],
+        "files": [
+          "**/nest-cli.json"
+        ]
+      }
+    },
+    {
+      "id": "angular",
+      "family": "stack",
+      "title": "Angular router",
+      "languages": [
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:@angular/router"
+        ],
+        "files": [
+          "**/angular.json"
+        ]
+      }
+    },
+    {
+      "id": "vue-router",
+      "family": "stack",
+      "title": "Vue Router",
+      "languages": [
+        "javascript",
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:vue-router"
+        ]
+      }
+    },
+    {
+      "id": "react-router",
+      "family": "stack",
+      "title": "React Router",
+      "languages": [
+        "javascript",
+        "typescript"
+      ],
+      "reads": [
+        "screens",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "npm:react-router",
+          "npm:react-router-dom"
+        ]
+      }
+    },
+    {
+      "id": "spring",
+      "family": "stack",
+      "title": "Spring (Spring MVC, Spring Data)",
+      "languages": [
+        "java",
+        "kotlin"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "maven:org.springframework.boot:*",
+          "maven:org.springframework:*"
+        ]
+      }
+    },
+    {
+      "id": "aspnet",
+      "family": "stack",
+      "title": "ASP.NET Core",
+      "languages": [
+        "csharp"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "nuget:Microsoft.AspNetCore*",
+          "nuget:Swashbuckle.AspNetCore*"
+        ],
+        "files": [
+          "**/appsettings.json",
+          "**/launchSettings.json"
+        ]
+      }
+    },
+    {
+      "id": "laravel",
+      "family": "stack",
+      "title": "Laravel",
+      "languages": [
+        "php"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "composer:laravel/framework"
+        ],
+        "files": [
+          "**/artisan"
+        ]
+      }
+    },
+    {
+      "id": "symfony",
+      "family": "stack",
+      "title": "Symfony",
+      "languages": [
+        "php"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "composer:symfony/framework-bundle"
+        ],
+        "files": [
+          "**/symfony.lock",
+          "config/bundles.php"
+        ]
+      }
+    },
+    {
+      "id": "django",
+      "family": "stack",
+      "title": "Django, Django REST framework",
+      "languages": [
+        "python"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "pip:django",
+          "pip:djangorestframework"
+        ],
+        "files": [
+          "**/manage.py"
+        ]
+      }
+    },
+    {
+      "id": "flask",
+      "family": "stack",
+      "title": "Flask",
+      "languages": [
+        "python"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "pip:flask",
+          "pip:apiflask"
+        ]
+      }
+    },
+    {
+      "id": "go",
+      "family": "stack",
+      "title": "Go: net/http, gin, echo, chi, gorilla/mux",
+      "languages": [
+        "go"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "go:github.com/gin-gonic/gin",
+          "go:github.com/labstack/echo*",
+          "go:github.com/go-chi/chi*",
+          "go:github.com/gorilla/mux"
+        ],
+        "files": [
+          "**/go.mod"
+        ]
+      }
+    },
+    {
+      "id": "rails",
+      "family": "stack",
+      "title": "Ruby on Rails",
+      "languages": [
+        "ruby"
+      ],
+      "reads": [
+        "api",
+        "guards",
+        "behaviours"
+      ],
+      "detect": {
+        "dependencies": [
+          "rubygems:rails",
+          "rubygems:railties"
+        ]
+      }
+    },
+    {
+      "id": "rust",
+      "family": "stack",
+      "title": "Rust: actix-web, axum",
+      "languages": [
+        "rust"
+      ],
+      "reads": [
+        "api",
+        "guards"
+      ],
+      "detect": {
+        "dependencies": [
+          "cargo:actix-web",
+          "cargo:axum"
+        ]
+      }
+    },
+    {
+      "id": "terraform",
+      "family": "infra",
+      "title": "Terraform, OpenTofu",
+      "reads": ["resources"],
+      "detect": { "files": ["**/*.tf"] }
+    },
+    {
+      "id": "bicep",
+      "family": "infra",
+      "title": "Azure Bicep",
+      "reads": ["resources"],
+      "detect": { "files": ["**/*.bicep"] }
+    },
+    {
+      "id": "arm",
+      "family": "infra",
+      "title": "Azure Resource Manager (ARM templates)",
+      "reads": ["resources"],
+      "detect": { "files": ["**/azuredeploy.json", "**/mainTemplate.json", "**/template.json"] }
+    },
+    {
+      "id": "cloudformation",
+      "family": "infra",
+      "title": "AWS CloudFormation, SAM",
+      "reads": ["resources"],
+      "detect": { "files": ["**/template.yaml", "**/template.yml", "**/*.template", "**/samconfig.toml"] }
+    },
+    {
+      "id": "dockerfile",
+      "family": "infra",
+      "title": "Dockerfile, Containerfile",
+      "reads": ["images"],
+      "detect": { "files": ["**/Dockerfile", "**/Dockerfile.*", "**/Containerfile", "**/*.dockerfile"] }
+    },
+    {
+      "id": "kubernetes",
+      "family": "infra",
+      "title": "Kubernetes, OpenShift",
+      "reads": ["workloads", "images", "resources", "environments"],
+      "detect": { "files": ["**/*.yaml", "**/*.yml"] }
+    },
+    {
+      "id": "helm",
+      "family": "infra",
+      "title": "Helm",
+      "reads": ["workloads", "images", "resources"],
+      "detect": { "files": ["**/Chart.yaml"] }
+    },
+    {
+      "id": "compose",
+      "family": "infra",
+      "title": "Docker Compose",
+      "reads": ["workloads", "images", "resources"],
+      "detect": { "files": ["**/docker-compose*.yml", "**/docker-compose*.yaml", "**/compose.yaml", "**/compose.yml"] }
+    },
+    {
+      "id": "github-actions",
+      "family": "infra",
+      "title": "GitHub Actions",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": [".github/workflows/*.yml", ".github/workflows/*.yaml"] }
+    },
+    {
+      "id": "gitlab-ci",
+      "family": "infra",
+      "title": "GitLab CI",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": ["**/.gitlab-ci.yml"] }
+    },
+    {
+      "id": "azure-pipelines",
+      "family": "infra",
+      "title": "Azure Pipelines",
+      "reads": ["pipelines", "environments", "images"],
+      "detect": { "files": ["**/azure-pipelines.yml", "**/azure-pipelines.yaml", ".azure-pipelines/*.yml", ".pipelines/*.yml"] }
+    },
+    {
+      "id": "ansible",
+      "family": "infra",
+      "title": "Ansible (playbooks)",
+      "reads": ["pipelines", "environments"],
+      "detect": { "files": ["**/ansible.cfg", "**/site.yml", "**/playbook.yml"] }
+    },
+    {
+      "id": "npm",
+      "family": "deps",
+      "title": "npm, pnpm, Yarn",
+      "ecosystem": "npm",
+      "files": ["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"]
+    },
+    {
+      "id": "pip",
+      "family": "deps",
+      "title": "pip, Poetry",
+      "ecosystem": "pip",
+      "files": ["requirements*.txt", "poetry.lock", "pyproject.toml"]
+    },
+    {
+      "id": "maven",
+      "family": "deps",
+      "title": "Maven, Gradle",
+      "ecosystem": "maven",
+      "files": ["pom.xml", "build.gradle", "build.gradle.kts", "gradle.lockfile", "libs.versions.toml"]
+    },
+    {
+      "id": "nuget",
+      "family": "deps",
+      "title": "NuGet",
+      "ecosystem": "nuget",
+      "files": ["*.csproj", "*.fsproj", "*.vbproj", "packages.lock.json", "packages.config", "Directory.Packages.props"]
+    },
+    {
+      "id": "composer",
+      "family": "deps",
+      "title": "Composer",
+      "ecosystem": "composer",
+      "files": ["composer.json", "composer.lock"]
+    },
+    { "id": "go", "family": "deps", "title": "Go modules", "ecosystem": "go", "files": ["go.mod"] },
+    { "id": "rubygems", "family": "deps", "title": "Bundler", "ecosystem": "rubygems", "files": ["Gemfile", "Gemfile.lock"] },
+    { "id": "cargo", "family": "deps", "title": "Cargo", "ecosystem": "cargo", "files": ["Cargo.toml", "Cargo.lock"] },
+    {
+      "id": "power-apps",
+      "family": "lowcode",
+      "title": "Power Apps",
+      "detect": { "files": ["**/*.msapp", "**/CanvasManifest.json", "**/*.pa.yaml", "**/*.fx.yaml"] }
+    },
+    {
+      "id": "power-platform",
+      "family": "lowcode",
+      "title": "Power Platform (solution)",
+      "detect": { "files": ["**/Solution.xml", "**/solution.xml", "**/customizations.xml"] }
+    },
+    { "id": "outsystems", "family": "lowcode", "title": "OutSystems", "detect": { "files": ["**/*.oml", "**/*.oap", "**/*.osp"] } },
+    { "id": "mendix", "family": "lowcode", "title": "Mendix", "detect": { "files": ["**/*.mpr", "**/*.mpk"] } },
+    {
+      "id": "salesforce",
+      "family": "lowcode",
+      "title": "Salesforce (Apex, Lightning)",
+      "detect": { "files": ["sfdx-project.json", "**/sfdx-project.json", "**/*.trigger"] }
+    },
+    { "id": "next-app-router", "family": "coverage", "title": "Next.js App Router" },
+    { "id": "react-router", "family": "coverage", "title": "React Router" },
+    { "id": "i18n-registry", "family": "coverage", "title": "i18n registry" },
+    { "id": "glob", "family": "coverage", "title": "Files (glob)" },
+    { "id": "openapi", "family": "coverage", "title": "OpenAPI, Swagger" },
+    { "id": "features", "family": "coverage", "title": "features.json" },
+    { "id": "fastapi", "family": "coverage", "title": "FastAPI" },
+    { "id": "facts", "family": "coverage", "title": "doc-kit facts" },
+    { "id": "manual", "family": "auth", "title": "Manual sign-in" },
+    { "id": "none", "family": "auth", "title": "Public application" },
+    { "id": "nextauth", "family": "auth", "title": "NextAuth.js" },
+    { "id": "api-me", "family": "auth", "title": "A session route (/api/me)" }
+  ]
+}

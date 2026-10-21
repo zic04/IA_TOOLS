@@ -555,6 +555,280 @@ button {
   margin-bottom: 0;
 }
 
+/* Behaviour card (:::behaviour, ARCHITECTURE.md §6.8a): a specification, one row per rubric with its state. */
+.comportement {
+  margin: 0 0 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.comportement-tete {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.comportement-glyphe {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.comportement-glyphe .ico {
+  width: 17px;
+  height: 17px;
+}
+.comportement-nom {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.comportement-type {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+.comportement-nom h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.comportement-bilan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.pastille-etat {
+  padding: 1px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.pastille-etat.renseignee {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.pastille-etat.a-confirmer {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.pastille-etat.manquante {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.comportement-intro {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-soft);
+}
+.comportement-intro p:last-child {
+  margin-bottom: 0;
+}
+.rubriques {
+  margin: 0;
+}
+.rubrique {
+  display: grid;
+  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+.rubrique:first-child {
+  border-top: 0;
+}
+.rubrique dt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.rubrique .etat {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+.rubrique dd {
+  min-width: 0;
+  margin: 0;
+  padding: 10px 16px;
+}
+.rubrique dd p {
+  margin: 0 0 6px;
+}
+.rubrique dd > :last-child {
+  margin-bottom: 0;
+}
+.rubrique.renseignee .etat {
+  color: var(--ok);
+}
+.rubrique.sans-objet .etat,
+.rubrique.sans-objet dd {
+  color: var(--text-faint);
+}
+.rubrique.a-confirmer {
+  background: color-mix(in srgb, var(--warn-soft) 70%, transparent);
+}
+.rubrique.a-confirmer .etat {
+  color: var(--warn);
+}
+.rubrique.manquante {
+  background: color-mix(in srgb, var(--danger-soft) 70%, transparent);
+}
+.rubrique.manquante .etat,
+.rubrique.manquante dd {
+  color: var(--danger);
+}
+.rubrique.manquante dd {
+  font-style: italic;
+}
+
+/* User story (:::story): its heading, its labels (role, version, ticket, acceptance criteria), then its text. */
+.recit {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.recit-tete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.recit-tete h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.recit-etiquettes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.recit-corps {
+  margin-top: 8px;
+  color: var(--text-soft);
+}
+.recit-corps p:last-child {
+  margin-bottom: 0;
+}
+
+/* Scenario (:::scenario): an acceptance criterion in Given / When / Then. */
+.scenario {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.scenario-tete {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 8px;
+}
+.scenario-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+p.scenario-titre {
+  margin: 0;
+  font-weight: 600;
+}
+.scenario-liens {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.scenario-intro {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+ul.gherkin {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gherkin li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  margin: 0;
+  padding: 0;
+}
+@supports not (grid-template-columns: subgrid) {
+  .gherkin li {
+    grid-template-columns: 7.5em minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+.gherkin .mot {
+  padding-top: 3px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: right;
+  text-transform: uppercase;
+}
+.gherkin .soit .mot,
+.gherkin .et .mot,
+.gherkin .mais .mot {
+  color: var(--text-faint);
+}
+.gherkin .quand .mot {
+  color: var(--brand-strong);
+}
+.gherkin .alors .mot {
+  color: var(--ok);
+}
+@media (max-width: 640px) {
+  .rubrique {
+    grid-template-columns: 1fr;
+  }
+  .rubrique dt {
+    padding-bottom: 0;
+  }
+}
+@media print {
+  .comportement,
+  .recit,
+  .scenario {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}
+
 /* Settings tables */
 .tableau {
   margin: 0 0 22px;
@@ -656,8 +930,46 @@ button {
   color: var(--info);
 }
 .puce.regle {
+  margin: 0;
+  border: 0;
   background: var(--ok-soft);
   color: var(--ok);
+}
+/* Product blocks (§6.8a): a story's labels, and the links of a scenario to its story and its behaviour card. */
+.puce.role {
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+.puce.version {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.puce.reference {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.puce.criteres {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.puce.criteres.aucun {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.puce.lien-recit {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.puce.lien-comportement {
+  background: var(--violet-soft);
+  color: var(--violet);
+  font-family: var(--mono);
+  font-size: 11.5px;
 }
 .puce.statut::before {
   content: "";
@@ -1642,6 +1954,18 @@ figcaption,
   color: var(--text-soft);
   margin: 0 0 18px;
 }
+/* The journeys of the home by audience ("everything" mode with spaces): each group under its space. */
+.parcours-public {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 10px;
+  font-size: 15px;
+}
+.parcours-public .ico {
+  width: 18px;
+  height: 18px;
+}
 .parcours {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1788,6 +2112,41 @@ figcaption,
   border-radius: 3px;
   padding: 0 1px;
 }
+/* The scope of the search (app.js, with two spaces or more): "Search in: All · Use · …". */
+.recherche-portee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.recherche-portee[hidden] {
+  display: none;
+}
+.recherche-portee .portee {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.recherche-portee .portee[aria-pressed="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+/* A term the index does not hold, read as its close words (lib/search-core.js). */
+.recherche-proche {
+  padding: 10px 14px 4px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
 .recherche-vide {
   padding: 26px;
   text-align: center;
@@ -1906,8 +2265,32 @@ figcaption,
   border: 1px solid var(--brand-line);
   color: var(--brand-strong);
 }
+/* The topic line (engine/site/lib/topics.js): its title, then one chip per page of the group, the page read marked. */
 .pendant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: -10px 0 24px;
+}
+.pendant-titre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-soft);
+}
+.pendant strong {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 .pendant a {
   display: inline-flex;
@@ -2361,4 +2744,509 @@ tr.usage-part td:first-child {
 }
 .c4-arrow {
   fill: var(--text-faint);
+}
+/* Deployment view (::c4{view="deployment"}, engine/build/c4-deployment.mjs): a column per environment. */
+.c4-env rect {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+}
+.c4-pipeline rect {
+  fill: var(--brand-soft);
+  stroke: var(--brand);
+}
+.c4-node {
+  fill: var(--text);
+  font-size: 11.5px;
+}
+.c4-node-entry {
+  fill: var(--brand);
+  font-weight: 600;
+}
+.c4-node-resource,
+.c4-node-more {
+  fill: var(--text-soft);
+}
+
+/* Product board (::board{}, the home of a space whose kind shows it; engine/site/lib/board.js, ARCHITECTURE.md
+   §6.8b): the backlog as a story map or a list. Theme colours only, so it follows light and dark. */
+.tableau-produit {
+  margin: 0 0 2rem;
+}
+.tb-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.tb-tete h2 {
+  margin: 0;
+}
+.tb-resume {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+.tb-resume dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+}
+.tb-resume dl div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.tb-resume dt {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-resume dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.tb-anneau {
+  --p: 0;
+  width: 2.9rem;
+  height: 2.9rem;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--brand) calc(var(--p) * 1%), var(--surface-2) 0);
+}
+.tb-anneau::before {
+  content: "";
+  grid-area: 1 / 1;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.tb-anneau b {
+  grid-area: 1 / 1;
+  font-size: 0.72rem;
+}
+.tb-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.tb-vues {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.tb-vues button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.tb-vues button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.tb-vues .ico {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.tb-filtre {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-filtre select,
+.tb-filtre input {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  max-width: 14rem;
+}
+.tb-texte {
+  flex: 1 1 12rem;
+}
+.tb-texte input {
+  max-width: none;
+  width: 100%;
+}
+.tb-resultat {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-defile {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.tb-carte-histoires {
+  display: grid;
+  min-width: max-content;
+}
+.tb-etiquette {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+.tb-etiquette-couloir {
+  background: var(--surface);
+}
+.tb-epic {
+  position: relative;
+  padding: 0.85rem 1rem 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.tb-epic::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--brand);
+}
+.tb-epic h3 {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+.tb-epic p {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-progres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+.tb-barre {
+  display: inline-block;
+  flex: 1;
+  min-width: 3.5rem;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.tb-barre i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+.tb-full .tb-barre i,
+.tb-barre.tb-full i {
+  background: var(--ok);
+}
+.tb-none .tb-barre i,
+.tb-barre.tb-none i {
+  background: var(--warn);
+}
+.tb-cellule {
+  padding: 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.tb-carte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  height: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.tb-carte:hover,
+.tb-carte:focus-within {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-md);
+}
+/* The title is the card's link, stretched over the whole card; the focus ring is the card's. */
+.tb-carte:has(.tb-carte-titre:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+a.tb-carte-titre {
+  color: inherit;
+  text-decoration: none;
+}
+a.tb-carte-titre:focus-visible {
+  outline: none;
+}
+a.tb-carte-titre::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.tb-carte-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.tb-id {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--brand-strong);
+  margin-right: 0.4rem;
+}
+.tb-carte-titre {
+  font-weight: 600;
+  line-height: 1.35;
+}
+.tb-roles {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+}
+.tb-roles .ico,
+.tb-genre .ico {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.tb-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.tb-genre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.05rem 0.4rem;
+}
+.tb-compte {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.tb-carte-pied {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.tb-jauge {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  min-width: 7rem;
+}
+.tb-puce,
+.tb-ticket {
+  font-size: 0.72rem;
+  white-space: nowrap;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+.tb-puce-version {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+.tb-ticket {
+  font-family: var(--mono);
+}
+a.tb-ticket {
+  position: relative;
+  z-index: 1;
+  color: var(--brand-strong);
+}
+.tb-couloir {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.tb-recit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+.tb-recit:hover,
+.tb-recit:focus-visible {
+  border-color: var(--brand-line);
+}
+.tb-recit-titre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tb-criteres {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.tb-point {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.tb-point.tb-ok {
+  background: var(--ok);
+}
+.tb-vide {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+.tb-liste th,
+.tb-liste td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tb-liste tbody th a {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+.tb-liste tbody th a:hover span:last-child {
+  text-decoration: underline;
+}
+/* The rows of the list: their title cell (a th) reads as text, not as a column header; each level indented. */
+.tableau.tb-liste tbody th {
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  background: transparent;
+}
+.tableau.tb-liste .tb-niveau-epic th,
+.tableau.tb-liste .tb-niveau-epic td {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.tableau.tb-liste .tb-niveau-fonction th {
+  padding-left: 2rem;
+}
+.tableau.tb-liste .tb-niveau-recit th {
+  padding-left: 4.25rem;
+  font-weight: 400;
+  color: var(--text-soft);
+}
+.tb-plier {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.tb-plier .ico {
+  width: 0.9rem;
+  height: 0.9rem;
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+.tb-plier[hidden] {
+  display: none;
+}
+.tb-plier[aria-expanded="false"] .ico {
+  transform: none;
+}
+.tb-aucun {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-soft);
+}
+@media (max-width: 640px) {
+  .tb-resultat {
+    margin-left: 0;
+  }
+  .tb-filtre select {
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tb-plier .ico {
+    transition: none;
+  }
+}
+@media print {
+  .tb-outils {
+    display: none;
+  }
+  .tb-liste th,
+  .tb-liste td {
+    white-space: normal;
+  }
 }

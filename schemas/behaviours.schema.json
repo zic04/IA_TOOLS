@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit kinds of behaviour (standard/behaviours.json, config.behaviours.file)",
+  "description": "For each kind of behaviour a feature sheet describes with a card (:::behaviour, ARCHITECTURE.md §6.8a), the rubrics a reader expects answered. The kit's file also lists the words that open an explicit answer (n/a, unknown); a project's file adds kinds only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "kinds"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "const": 1 },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["na", "unknown"],
+      "description": "The words that open an explicit answer, in any language of the kit: \"n/a — reason\", \"unknown — question\".",
+      "properties": {
+        "na": { "$ref": "#/$defs/words" },
+        "unknown": { "$ref": "#/$defs/words" }
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/kind" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "words": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en"],
+      "properties": {
+        "en": { "type": "string", "minLength": 1 },
+        "fr": { "type": "string", "minLength": 1 }
+      }
+    },
+    "label": {
+      "type": "string",
+      "pattern": "^[^:]{1,60}$",
+      "description": "The start of a card's line \"Label: value\": 60 characters at most, without a colon."
+    },
+    "rubricLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en"],
+      "properties": {
+        "en": { "$ref": "#/$defs/label" },
+        "fr": { "$ref": "#/$defs/label" }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "en": { "type": "array", "items": { "$ref": "#/$defs/label" } },
+        "fr": { "type": "array", "items": { "$ref": "#/$defs/label" } }
+      }
+    },
+    "kind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "rubrics"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/id" },
+          "description": "Other spellings of the kind in a card's `kind` attribute (French: recherche, filtre…)."
+        },
+        "title": { "$ref": "#/$defs/text" },
+        "icon": { "type": "string", "minLength": 1, "description": "An icon of the site's set (theme.icons included)." },
+        "rubrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "required"],
+            "properties": {
+              "id": { "$ref": "#/$defs/id" },
+              "label": { "$ref": "#/$defs/rubricLabel" },
+              "aliases": { "$ref": "#/$defs/labels" },
+              "required": { "type": "boolean" },
+              "hint": { "$ref": "#/$defs/text" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

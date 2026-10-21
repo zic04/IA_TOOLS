@@ -1,96 +1,101 @@
 # Standard site structure
 
-A doc-kit site serves two **spaces** (`content/toc.json`, ARCHITECTURE.md §6.1a): the **Business** space, for
-people who never need to read code, and the **Takeover** space, for the developers, operators and security
-people who run and evolve the application. Each space is split into **parts** (what used to be called
-"sections" when only one space existed); each part has a reader in mind.
+A doc-kit site serves four **spaces**, one per audience (`content/toc.json`, ARCHITECTURE.md §6.1a): **Use**,
+for the people who use the application day to day; **Product**, for the product owners and business analysts
+who decide what it does; **Administer**, for the administrators of the application and its operators; and
+**Develop**, for the developers, the team that takes the application over and security. Each space is split
+into **parts** (`sections` in `content/toc.json`); each part has a reader in mind.
 
 The plan is declared in `content/toc.json`. The build derives the menu, the breadcrumbs, the part views, the
 space selector and the search from it.
 
-## The two spaces
+## The four spaces
 
-| Space (en · fr) | For whom | Answers |
-|---|---|---|
-| `business` | Users, key users, product owners, support | "What does it do, for whom, and under which rule?" — no code |
-| `takeover` | Developers, operators, security | "How is it built, run and secured, and what should be fixed first?" |
+| Space | For whom | Answers | Code |
+|---|---|---|---|
+| `use` | Users, key users, support | "How do I do this, on which screen?" | Never |
+| `product` | Product owners, business analysts, key users | "What does each feature do, for whom, under which rule, and how do we know it works?" | Never |
+| `admin` | Application administrators, operators | "How is it set up, who may do what, how does it run in production?" | Its configuration and infrastructure |
+| `develop` | Developers, the takeover team, security | "How is it built and secured, and what should be fixed first?" | With `file:line` proofs |
 
-A space only matters to a reader who must **not** see the other one: a support person reading a dossier full of
-`file:line` proofs and environment variables gets lost; a developer reading only business prose cannot take the
-project over. `doc-kit build` produces one HTML file with a space selector (everyone, filtered by habit) and,
-with `spaces.export` (the default), one additional file per space with the other one **physically removed**
+Each standard space is its own **kind** (`standard/spaces.json`), and the kind decides what the kit does for
+its pages: no code in Use and Product (a business page that cites a file is reported), `file:line` proofs
+expected in Develop, the glossary's technical correspondence shown in Administer and Develop, and where the
+audit looks for the required takeover pages (below). A space of the project's own declares the kind it behaves
+like: `{ "id": "ops", "kind": "admin", "title": "Operations" }`.
+
+A space only matters to a reader who must **not** see the others: a support person reading a dossier full of
+`file:line` proofs and environment variables gets lost; a product owner needs the rules and the acceptance
+criteria, not every field of every screen; a developer reading only business prose cannot take the project
+over. `doc-kit build` produces one HTML file with a space selector (everyone, filtered by habit) and, with
+`spaces.export` (the default), one additional file per space with the others **physically removed**
 (ARCHITECTURE.md §6.1a) — the file actually handed to an audience that must not see the rest.
 
-## Business space: Use, Features, Administer, Process
+## Use space
 
 | Part (en · fr) | Short title | For whom | What it holds | Main templates |
 |---|---|---|---|---|
-| `use` · `utiliser` | Use | The end user | Every everyday screen, annotated | `screen` |
-| `features` · `fonctionnalites` | Features | Product owners, support, key users | What each feature does, for whom, its rules, who can do what | `feature`, `business-rules`, `roles-matrix` |
-| `administer` · `administrer` | Administer | The business or platform administrator | Every editor and every setting, with its mechanism; access, reference data, system; the recipes | `screen`, `editor`, `recipe` |
+| `use` · `utiliser` | Use | The end user | Getting started, then every everyday screen, annotated | `screen` |
+
+Orders of magnitude observed on real sites: 10 to 45 pages.
+
+## Product space: Features, Process
+
+| Part (en · fr) | Short title | For whom | What it holds | Main templates |
+|---|---|---|---|---|
+| `features` · `fonctionnalites` | Features | Product owners, business analysts, key users | What each feature does, for whom, its rules, who can do what | `feature`, `business-rules`, `roles-matrix` |
 | `process` · `processus` | Process | Product owners, support | What happens from end to end in business terms (not code); what changed release by release | `process`, `release-notes` |
 
-`Administer` folds what used to be two sections before spaces existed, "Configure" (the editors) and
-"Administer" (access, reference data, system): both serve whoever sets the product up, whether business-wide
-or platform-wide, and the distinction rarely matters enough to justify two parts. Split them again when the
-product has enough rich editors to earn their own part (see "When to adapt").
+No size convention yet: size the Features part by the number of features rather than by analogy.
 
-Orders of magnitude observed on real, pre-spaces sites, which map onto `use` and `administer` unchanged: 10 to
-45 pages in Use, 14 to 27 in Administer (18 to 52 more when Configure is kept separate). `features` and
-`process` are new: no size convention yet, size them by feature count rather than by analogy.
+## Administer space: Administer, Operate
 
-## Takeover space: Understand, Operate, Secure, Risks, Maintain
+| Part (en · fr) | Short title | For whom | What it holds | Main templates |
+|---|---|---|---|---|
+| `administer` · `administrer` | Administer | The administrator of the application | Every editor and every setting, with its mechanism; access, reference data, system; the recipes | `screen`, `editor`, `recipe` |
+| `operate` · `exploiter` | Operate | Operators | The production setup, how to install, build, deploy, roll back, back up; who owns what | `architecture` (the technical architecture document), `runbook`, `variables`, `resources`, `access-ownership` |
+
+`Administer` folds "Configure" (the editors) and "Administer" (access, reference data, system): both serve
+whoever sets the product up, and the distinction rarely matters enough to justify two parts. Split them again
+when the product has enough rich editors to earn their own part (see "When to adapt"). Orders of magnitude
+observed on real sites: 14 to 27 pages in Administer (18 to 52 more when Configure is kept separate).
+
+## Develop space: Understand, Secure, Risks, Maintain
 
 | Part (en · fr) | Short title | For whom | What it holds | Main templates |
 |---|---|---|---|---|
 | `understand` · `comprendre` | Understand | Whoever takes the project over, first | The big picture, the stack, the data, what really happens end to end, why past decisions were made | `technical` (+ `technical-sub`), `journey` + `journey-step`, `code-map`, `data-model`, `adr` |
-| `operate` · `exploiter` | Operate | Operators | The production setup, how to install, build, deploy, roll back, back up | `architecture` (the technical architecture document), `runbook`, `variables`, `resources` |
-| `secure` · `securiser` | Secure | Security, operators | Who owns what, the secrets, the API surface and its gaps, the threats and the mitigations | `access-ownership`, `api-surface`, `threat-model` |
+| `secure` · `securiser` | Secure | Security | The secrets, the API surface and its gaps, the threats and the mitigations | `api-surface`, `threat-model` |
 | `risks` · `risques` | Risks | Whoever takes the project over | The risk register: what is wrong, ranked; the fastest path from a symptom to a fix | `findings`, `troubleshooting` + `troubleshooting-area` |
 | `maintain` · `maintenir` | Maintain | Whoever takes the project over, over time | What keeps the project healthy: tests, dependencies, agent instruction files, the documentation itself | `tests-quality`, `agent-instructions`, `dependencies`, and "Maintaining the docs" (`technical`) |
 
 `technical` and `technical-sub` are generic: use them in any part for a standalone topic that no more specific
-type fits (security, storage, AI, integrations). The table above shows where each type is **most often** used,
-not an exclusive rule.
+type fits (security, storage, AI, integrations). The tables show where each type is **most often** used, not an
+exclusive rule. Orders of magnitude observed on real sites: 38 to 81 pages across Operate and the Develop space.
 
-Orders of magnitude observed on real, pre-spaces sites: 38 to 81 pages across what is now the whole Takeover
-space. The 5-part split is new: there is no per-part convention yet; a site that used to have one flat Take
-over section can keep its existing groups and only add `space: "takeover"` to its one part (see "When a project
-has only one space").
+### Which page type, in which space
 
-### Which page type, in which part
+| Use | Product | Administer | Develop |
+|---|---|---|---|
+| `screen` | `feature`, `business-rules`, `roles-matrix` (Features) | `screen`, `editor`, `recipe` (Administer) | `technical`, `technical-sub`, `journey`, `journey-step`, `code-map`, `data-model`, `adr` (Understand) |
+| | `process`, `release-notes` (Process) | `architecture`, `runbook`, `variables`, `resources`, `access-ownership` (Operate) | `api-surface`, `threat-model` (Secure) |
+| | | | `findings`, `troubleshooting`, `troubleshooting-area` (Risks) |
+| | | | `tests-quality`, `agent-instructions`, `dependencies` (Maintain) |
 
-| Business | Takeover |
-|---|---|
-| `screen` (Use, Administer) | `technical`, `technical-sub` (Understand, or any standalone topic) |
-| `editor`, `recipe` (Administer) | `journey`, `journey-step` (Understand) |
-| `feature`, `business-rules`, `roles-matrix` (Features) | `code-map`, `data-model`, `adr` (Understand) |
-| `process`, `release-notes` (Process) | `architecture`, `runbook`, `variables`, `resources` (Operate) |
-| | `access-ownership`, `api-surface`, `threat-model` (Secure) |
-| | `findings`, `troubleshooting`, `troubleshooting-area` (Risks) |
-| | `tests-quality`, `agent-instructions`, `dependencies` (Maintain) |
-
-The full purpose, required sections and length of each of the 28 types are in
+The full purpose, required sections and length of each of the 31 types are in
 [templates.md](templates.md).
 
-## When a project has only one space
+## When a project needs fewer spaces
 
-Most projects still only need one audience:
+- **No `spaces` key at all**: one undifferentiated set of parts, no space selector, no per-space export, no
+  space badge on a page. The right choice for a small internal tool with a single audience.
+- **Some of the four**: declare only the spaces the project has readers for — `["use", "develop"]` for a tool
+  whose product and administration are trivial, `["product", "develop"]` for a dossier handed over with its
+  feature sheets. The audit then looks for the required takeover pages in the spaces declared (below).
+- **All four**: the common case for a product documentation project that is also handed over, or for a
+  "vibe-coded" application whose takeover dossier (ARCHITECTURE.md §6.9) is the main deliverable.
 
-- **No `spaces` key at all** (the default): the site is exactly what it was before spaces existed — one
-  undifferentiated set of parts, no space selector, no per-space export, no space badge on a page. This is the
-  right choice for a small internal tool with no real takeover audience, or for a documentation project that
-  only ever produces a takeover dossier and never shows it to a business reader.
-- **A single-element `spaces` array** (for example `"spaces": ["takeover"]`): every part still declares that one
-  space. This is worth the extra declaration only when the project wants the space texts, the badge, or an
-  export that strips nothing (there is nothing else to strip) — in practice, rare; prefer leaving `spaces`
-  undeclared unless a second space is coming later.
-- **Both spaces**: the common case for a product documentation project that is also handed over, or for a
-  "vibe-coded" application where the takeover dossier (ARCHITECTURE.md §6.9) is the main deliverable and a
-  short business space explains what the product is for.
-
-A project can also add the second space **later**: declare `spaces`, give every existing part a `space`, move
-nothing. The site keeps building; only the new space selector and exports appear.
+A project can add a space **later**: declare it and give its parts their `space`.
 
 ## One page, one reader (Diátaxis)
 
@@ -105,32 +110,35 @@ same subject with its proof (`technical-sub`, `api-surface`, a journey step) on 
 
 ## `counterpart` links
 
-`counterpart` (a page field, with or without declared spaces) points at "the same subject, for the other
-audience": `"<page id>"` or `"<page id>~<anchor>"`. A feature sheet and the technical page that implements it
-point at each other and share their `F-xx` identifier; a business process and the journey that automates part
-of it do the same. The site renders it as one line under the page's badges ("Same topic, for {space}: {title}
-→"), and the build checks it like an internal link (unknown page: `link.counterpart`, error).
+`counterpart` (a page field, with or without declared spaces) names "the same subject, for other readers": a
+page, `"<page id>"` or `"<page id>~<anchor>"`, or a list of them. A feature sheet, its screen, the technical page
+that implements it and its runbook share their `F-xx` identifier; a business process and the journey that
+automates part of it do the same. The pages a counterpart joins, either way, form a **topic group**: declared once,
+on any of its pages, it is shown on each of them, as one line under the page's badges ("This topic for: Use ·
+**Product** · Develop", the page read marked), and the build checks each target like an internal link (unknown
+page, or the page itself: `link.counterpart`, error).
 
-`counterpart` is **not required to be reciprocal**: a technical page often has no business equivalent (nobody
-needs a business explanation of the database schema), and that is fine. Add it only where a real reader would
-otherwise have to guess that the other page exists.
+A page **need not join a group**: a technical page often has no business equivalent (nobody needs a business
+explanation of the database schema), and that is fine. Add a counterpart only where a real reader would otherwise
+have to guess that the other page exists — and only once: every page of the group shows it.
 
-## The required pages of the Takeover space
+## The required takeover pages
 
 These pages make a project transferable, whatever parts they are filed under. The ids below are conventions:
 `doc-kit audit` finds the pages by their `template` and, for the architecture overview, operate and maintain
-pages, by their id (see [maturity.md](maturity.md)). This list is unchanged by the two-space model: it was the
-"Take over" section before spaces existed, and it is the Takeover space now.
+pages, by their id (see [maturity.md](maturity.md)). Two of them live in the Administer space (the technical
+architecture document and Operate), the five others in the Develop space: with spaces declared, the audit looks
+for each page in the spaces whose kind holds it, and suggests it in the first part of that space.
 
 | Page | Suggested id (en · fr) | Template | Usual part | Content |
 |---|---|---|---|---|
-| Architecture overview | `take-over/architecture` · `reprendre/architecture` | `technical` (+ sub-pages) | Understand | The big picture, the stack, the principles, the main flows |
-| Technical architecture document | `take-over/technical-architecture` · `reprendre/dat` | `architecture` | Operate | The production setup, numbered flows, what the document does not show, who manages what |
-| End-to-end journey | `take-over/journey-<object>` · `reprendre/parcours-<objet>` | `journey` + `journey-step` | Understand | What really happens, step by step, when someone performs the product's main action |
-| Operate | `take-over/operations`, `take-over/deployment…` · `reprendre/exploitation`, `reprendre/deploiement…` | `technical`, `variables`, `resources` | Operate | Delivery, variables, resources, scheduled tasks, backups, incidents |
-| Troubleshooting by symptom | `take-over/troubleshooting` · `reprendre/diagnostic` | `troubleshooting` + `troubleshooting-area` | Risks | From the symptom to the cause, the check and the fix |
-| Findings | `take-over/findings` · `reprendre/points-attention` | `findings` (+ sub-pages) | Risks | The numbered findings, re-checked in the code (see [writing.md](writing.md#9-numbering-findings)); also the risk register (owner, decision, status, due date) |
-| Maintaining the docs | `take-over/maintaining-docs` · `reprendre/maintenir-doc` | `technical` | Maintain | How the site is built, retaking captures, writing a page, the checks, the transfer |
+| Architecture overview | `understand/architecture` · `comprendre/architecture` | `technical` (+ sub-pages) | Understand | The big picture, the stack, the principles, the main flows |
+| Technical architecture document | `operate/technical-architecture` · `exploiter/dat` | `architecture` | Operate (Administer) | The production setup, numbered flows, what the document does not show, who manages what |
+| End-to-end journey | `understand/journey-<object>` · `comprendre/parcours-<objet>` | `journey` + `journey-step` | Understand | What really happens, step by step, when someone performs the product's main action |
+| Operate | `operate/operations`, `operate/deployment…` · `exploiter/exploitation`, `exploiter/deploiement…` | `technical`, `variables`, `resources` | Operate (Administer) | Delivery, variables, resources, scheduled tasks, backups, incidents |
+| Troubleshooting by symptom | `risks/troubleshooting` · `risques/diagnostic` | `troubleshooting` + `troubleshooting-area` | Risks | From the symptom to the cause, the check and the fix |
+| Findings | `risks/findings` · `risques/points-attention` | `findings` (+ sub-pages) | Risks | The numbered findings, re-checked in the code (see [writing.md](writing.md#9-numbering-findings)); also the risk register (owner, decision, status, due date) |
+| Maintaining the docs | `maintain/maintaining-docs` · `maintenir/maintenir-doc` | `technical` | Maintain | How the site is built, retaking captures, writing a page, the checks, the transfer |
 
 Recommended extra pages, placed by subject: access and ownership, the API surface, the data model, dependencies,
 agent instruction files, a code map, decision records, a threat model (all described in
@@ -154,7 +162,7 @@ tours under "You are reading: {space}" (ARCHITECTURE.md §6.1a).
 | First-person title, with an action verb | "I follow an order from end to end" |
 | `description`: one sentence that promises a result | "The interface and the essential actions in fifteen minutes." |
 | 5 to 7 `steps`, all existing page ids (the build checks them) | `use/start/interface` → … → `use/orders/record` |
-| One tour links the screen to the backstage, across spaces | "I follow an order…" ends with `take-over/journey-order` |
+| One tour links the screen to the backstage, across spaces | "I follow an order…" ends with `understand/journey-order` |
 
 `suggestions` highlights 6 or 7 pages: the richest and the most consulted. For Acme Orders: the order record,
 the approval inbox, the approval chains editor, the invoices list, roles and permissions, the architecture
@@ -182,7 +190,7 @@ group: for example "Approval chains — Rules", then "Approval chains — Notifi
 - **Beyond about 2,000 words, split the page.** Each template sets its own limit (`maxWords`); `doc-kit audit`
   reports the pages that exceed it.
 - Declare a sub-page **right after its parent**, in the same group, with `"level": 2` and an id that extends the
-  parent's id (`take-over/security/sign-in`).
+  parent's id (`secure/security/sign-in`).
 - The parent keeps the overview and lists its sub-pages under `## In this part`: a "Sub-page / What you will
   find there" table whose first column links to each sub-page.
 - The menu, the breadcrumbs and the part view follow on their own.
@@ -199,16 +207,16 @@ findings page of about 10,800 words.
 |---|---|
 | `home.md` | Home-page text, below the part cards: "How to read this site", or a diagram of how the product works |
 | `<part>/index.md` | Optional introduction of a part |
-| `glossary.json` | Terms underlined on hover: `{ term, pattern, def }`. Mature sites have about 60 terms; a term's `technical` field (ARCHITECTURE.md §6.8) only shows in the Takeover space |
+| `glossary.json` | Terms underlined on hover: `{ term, pattern, def }`. Mature sites have about 60 terms; a term's `technical` field (ARCHITECTURE.md §6.8) only shows in the Administer and Develop spaces |
 
 `toc.json` and `glossary.json` are **managed centrally**. When several people or agents write in parallel, each
 one proposes changes (a summary, a new term) instead of editing these files.
 
 ## When to adapt the structure
 
-Adapt the **vocabulary**, the **parts** and the **groups** to the product. Keep the **two spaces' intent** (a
-business reader never has to touch code; a takeover reader gets everything needed to run and secure the
-application) and the **required Takeover pages**.
+Adapt the **vocabulary**, the **parts** and the **groups** to the product. Keep the **intent of the spaces** (a
+reader of Use or Product never has to touch code; a reader of Develop gets everything needed to take the
+application over and secure it) and the **required takeover pages**.
 
 | Situation | Adaptation | Example |
 |---|---|---|
@@ -217,7 +225,7 @@ application) and the **required Takeover pages**.
 | Several editors are chained towards one goal | Add a recipes group at the end of Administer | "Configuration recipes": "Approve large orders in two steps" |
 | Production has its own configuration for each use case | Add a group in Operate, with one page per case | "The production configuration", one page per business unit |
 | The product has few enough features that a sheet per feature is overkill | Fold Features into Use, one `business-rules` page instead of a part | A product with 5 screens and no real "feature catalogue" |
-| A cross-cutting reference (routes, URL parameters, figures and limits) | An "Appendices" page at the end of Maintain | `take-over/appendices` |
+| A cross-cutting reference (routes, URL parameters, figures and limits) | An "Appendices" page at the end of Maintain | `maintain/appendices` |
 
-Do not drop the Takeover space "because the team knows the code", and do not file its pages under the Business
-space's Administer part. The reader who takes the project over is not the business administrator.
+Do not drop the Develop space "because the team knows the code", and do not file its pages under the Administer
+space. The reader who takes the project over is not the administrator of the application.

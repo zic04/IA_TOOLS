@@ -5,18 +5,28 @@
 // `report`, with `vars.lang` added for every language but the source).
 import { createMarkdownEngine } from "./markdown.mjs";
 import { indexPage } from "./search.mjs";
-import { checkPage } from "../core/page-templates.mjs";
+import { checkPage, analysePage } from "../core/page-templates.mjs";
 import { escapeRegex } from "../core/text.mjs";
 import { checkLinks } from "../check/links.mjs";
 import { EMBEDDED_NAMESPACES } from "../i18n.mjs";
-import { resolveSpaces, counterpartOf, withoutSpaceTexts } from "./spaces.mjs";
-import { buildFeatureRegistry, resolveBusinessRefs, hasTechnicalProof, BUSINESS_TYPES } from "./business.mjs";
+import { resolveSpaces, withoutSpaceTexts } from "./spaces.mjs";
+import { topicGroups } from "../core/counterparts.mjs";
+import {
+  buildFeatureRegistry,
+  resolveBusinessRefs,
+  hasTechnicalProof,
+  BUSINESS_TYPES,
+  BOARD_PLACEHOLDER,
+  ruleCitations,
+} from "./business.mjs";
+import { backlogModel } from "./backlog.mjs";
+import { boardData, withoutBoardTexts } from "./board.mjs";
 import { withoutLanguageTexts } from "./languages.mjs";
 import { translationState, readSources } from "../core/translations.mjs";
 import { generatorTag } from "../brand.mjs";
+import { loadSpaceProfiles } from "../core/space-profiles.mjs";
 import { engineReadersFor } from "./build-context.mjs";
-
-export const HOME_FILES = ["home.md", "accueil.md"];
+import { HOME_FILE } from "../project/toc.mjs";
 
 /** Displayed date: --date YYYY-MM-DD (reproducible, independent of the time zone) or now. */
 export function siteDate(date, i18n) {
@@ -33,7 +43,8 @@ export function siteDate(date, i18n) {
  * @param {object} site   what every language shares: usage, changes, icons (ICONS, icon, iconKey), spaces,
  *   syncRef, templates, version, sourceLangId, recordedByLang (lang → recorded fingerprints, filled on demand)
  * @param {object} lang   lang, isSource, langToc, langGlossary, langCaptures, langT, langI18n, reportLang
- * @returns {{ data: object, used: object, engine: object, counterparts: object, pages: object }}
+ * @returns {{ data: object, used: object, engine: object, pages: object, backlog: any }}
+ *   backlog: the backlog of that language (engine/build/backlog.mjs)
  */
 export function renderLanguage(
   b,
@@ -59,6 +70,7 @@ export function renderLanguage(
     changes: site.changes,
     llm: b.config.llm,
     locale: lang,
+    behaviours: site.behaviours,
   });
 
   /** The state of this language's pass, shared by the steps below. */
@@ -75,12 +87,17 @@ export function renderLanguage(
     index: [],
     links: {},
     unwritten: new Set(),
+    /** page id → analysePage of the feature sheets written (engine/build/backlog.mjs, their depth). */
+    sheets: {},
     used: { pages: {}, intros: {}, home: null },
     counterparts: {},
     recorded: isSource ? {} : (site.recordedByLang[lang] ??= readSources(b.root, translations, lang)),
   };
 
   const sections = langToc.sections.map((sec) => renderSection(r, sec));
+  // Topic groups (engine/core/counterparts.mjs): each page of one names the others, whoever declared the counterpart.
+  for (const [id, topic] of topicGroups(r.order.map((x) => ({ id: x, counterpart: r.counterparts[x] }))))
+    r.pages[id].topic = topic;
   const home = renderHome(r);
   checkLanguage(r, { langToc, features });
 
@@ -91,7 +108,7 @@ export function renderLanguage(
     diagrams: engine.usedDiagrams.size,
   };
   const data = languageData(r, { langToc, langGlossary, langI18n, sections, home, stats });
-  return { data, used: r.used, engine, counterparts: r.counterparts, pages: r.pages };
+  return { data, used: r.used, engine, pages: r.pages, backlog: r.backlog };
 }
 
 /**
@@ -176,7 +193,6 @@ function renderPage(r, sec, g, p) {
     toc: out.toc,
     captures: out.captures,
     ...(site.spaces ? { space: p.space ?? sec.space } : {}),
-    ...(p.counterpart ? { counterpart: counterpartOf(p.counterpart) } : {}),
     ...(verified ? { verified: { version: verified.version, date: verified.verified } } : {}),
     ...(fallback ? { fallback } : {}),
   };
@@ -184,22 +200,11 @@ function renderPage(r, sec, g, p) {
   r.used.pages[p.id] = out.used;
   r.links[p.id] = out.links;
   r.order.push(p.id);
-  indexPage(r.index, p.id, p.title, out.html);
-  const headings = out.toc.filter((x) => x.level === 2).map((x) => x.title);
-  if (!missing)
-    for (const { strict, ...problem } of checkPage({
-      pageId: p.id,
-      template: p.template,
-      headings,
-      source,
-      templates: site.templates,
-      language: r.lang,
-    }))
-      r.reportLang(strict, { kind: "template", ...problem });
+  if (!missing) checkTemplate(r, p, out, source);
   if (
     !missing &&
     site.spaces &&
-    (p.space ?? sec.space) === "business" &&
+    readWithoutCode(site.spaces, p.space ?? sec.space) &&
     BUSINESS_TYPES.includes(p.template) &&
     hasTechnicalProof(source)
   )
@@ -207,15 +212,54 @@ function renderPage(r, sec, g, p) {
   return p.id;
 }
 
-/** The home page (`home.md`, or the legacy `accueil.md`): { html, fallback }. */
+/**
+ * A written page against its template (its required sections, the guidance left); a feature sheet's analysis is kept
+ * for its depth (r.sheets, engine/build/backlog.mjs).
+ */
+function checkTemplate(r, p, out, source) {
+  const headings = out.toc.filter((x) => x.level === 2).map((x) => x.title);
+  const { templates } = r.site;
+  for (const { strict, ...problem } of checkPage({
+    pageId: p.id,
+    template: p.template,
+    headings,
+    source,
+    templates,
+    language: r.lang,
+  }))
+    r.reportLang(strict, { kind: "template", ...problem });
+  if (p.template === "feature")
+    r.sheets[p.id] = analysePage({ table: templates, type: "feature", headings, source, language: r.lang });
+}
+
+/**
+ * The Product board's data (engine/build/board.mjs), or null: no feature sheet, or neither a space whose kind shows it
+ * (standard/spaces.json `board`) nor a page holding ::board{}.
+ */
+function boardOf(r) {
+  const { site, b } = r;
+  if (!r.backlog?.features.length) return null;
+  const shown =
+    site.spaces?.some((s) => loadSpaceProfiles().get(s.kind)?.board) ||
+    r.order.some((id) => r.pages[id].html.includes(BOARD_PLACEHOLDER));
+  if (!shown) return null;
+  return boardData(r.backlog, {
+    refs: b.config.backlog?.refs,
+    kinds: site.behaviours.registry.kinds,
+    language: r.lang,
+    iconKey: site.iconKey,
+  });
+}
+
+/** Whether the readers of a space read without the code (its kind's `noCode`, standard/spaces.json). */
+const readWithoutCode = (spaces, id) => !!loadSpaceProfiles().get(spaces.find((s) => s.id === id)?.kind)?.noCode;
+
+/** The home page (`<content>/home.md`): { html, fallback }. */
 function renderHome(r) {
   const { b } = r;
-  const content = b.paths.content;
-  const homeFile = HOME_FILES.map((f) => `${content}/${f}`).find(b.existsFs);
-  if (r.isSource && homeFile && homeFile.endsWith(HOME_FILES[1])) b.legacyFiles.push(homeFile);
-  if (!homeFile) return { html: "", fallback: null };
-  const homeRel = HOME_FILES.find((f) => b.existsFs(`${content}/${f}`)) || HOME_FILES[0];
-  const { text, fallback } = resolveDoc(r, homeRel, b.readFs(homeFile), false);
+  const homeFile = `${b.paths.content}/${HOME_FILE}`;
+  if (!b.existsFs(homeFile)) return { html: "", fallback: null };
+  const { text, fallback } = resolveDoc(r, HOME_FILE, b.readFs(homeFile), false);
   const out = r.engine.render(text, "accueil");
   r.used.home = out.used;
   return { html: out.html, fallback };
@@ -225,7 +269,7 @@ function renderHome(r) {
  * Checks once every page has rendered. Internal links: target page and anchor exist; journey steps exist.
  * Counterparts: checked once, on the source (the declared anchor is always a source slug, §6.12); mapped by
  * position for the other languages by the caller (the counterpart's target may come later in the table of
- * contents). Then the business references, the empty spaces and the legacy files read.
+ * contents). Then the business references and the empty spaces.
  */
 function checkLanguage(r, { langToc, features }) {
   const { b, site, isSource } = r;
@@ -239,15 +283,38 @@ function checkLanguage(r, { langToc, features }) {
     unwritten,
   }))
     r.reportLang(true, problem);
-  const { problems: businessRefProblems } = resolveBusinessRefs({ pages, features, rules: r.engine.rules, t: r.langT });
+  const { engine } = r;
+  r.backlog = backlogModel({
+    toc: langToc,
+    features,
+    stories: engine.stories,
+    scenarios: engine.scenarios,
+    rules: engine.rules,
+    cards: engine.behaviours,
+    sheets: r.sheets,
+    cited: ruleCitations(pages),
+  });
+  if (isSource)
+    for (const { strict, ...problem } of r.backlog.problems) b.report(strict, { kind: "backlog", ...problem });
+  const { problems: businessRefProblems } = resolveBusinessRefs({
+    pages,
+    features,
+    rules: engine.rules,
+    stories: engine.stories,
+    behaviours: engine.behaviours,
+    scenarios: engine.scenarios,
+    backlog: r.backlog,
+    refs: b.config.backlog?.refs,
+    t: r.langT,
+  });
   for (const { strict, ...problem } of businessRefProblems) r.reportLang(strict, { kind: "business", ...problem });
+  // The search index, once the second pass has resolved the generated tables and the citations.
+  for (const id of order) indexPage(r.index, id, pages[id].title, pages[id].html, pages[id].summary);
   if (isSource && site.spaces) {
     for (const s of site.spaces) s.pages = order.filter((id) => pages[id].space === s.id).length;
     for (const s of site.spaces.filter((x) => !x.pages))
       b.warnings.push({ kind: "space", key: "space.empty", vars: { space: s.id } });
   }
-  if (isSource && b.legacyFiles.length)
-    b.warnings.push({ kind: "legacy", key: "legacy.read", vars: { files: b.legacyFiles.join(", ") } });
 }
 
 /** The data object embedded in the site (#site-data), with the key names of toc.json (see build.mjs). */
@@ -259,6 +326,8 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
   const prefixes = languages ? [...EMBEDDED_NAMESPACES, "template."] : EMBEDDED_NAMESPACES;
   let embedded = langI18n.subset(prefixes);
   if (!spaced) embedded = withoutSpaceTexts(embedded);
+  const board = boardOf(r);
+  if (!board) embedded = withoutBoardTexts(embedded);
   if (!languages) embedded = withoutLanguageTexts(embedded);
 
   const siteSpaces = spaces
@@ -284,6 +353,7 @@ function languageData(r, { langToc, langGlossary, langI18n, sections, home, stat
       ...(home.fallback ? { homeFallback: home.fallback } : {}),
     },
     ...(siteSpaces ? { spaces: siteSpaces } : {}),
+    ...(board ? { board } : {}),
     icons: site.ICONS,
     sections,
     pages: r.pages,

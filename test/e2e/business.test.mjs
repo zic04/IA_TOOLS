@@ -1,6 +1,7 @@
 // Business space in the generated site (ARCHITECTURE.md §6.8), Playwright on the business test project: the
 // glossary bubble shows the `technical` correspondence of a term only when the project has no spaces, or the
-// current space is takeover or "everything"; an export other than takeover never has the data to show it at all.
+// current space is of a kind that shows it (admin, develop) or "everything"; the export of another space never has
+// the data to show it at all.
 // The home page never marks glossary terms (pre-existing behaviour, engine/site/app.js hydrate()), and viewing a
 // page always makes its own space current, so "everything" is tested on a project without spaces at all (no space
 // concept: `technical` always shows, regardless of which page is viewed).
@@ -20,7 +21,7 @@ let noSpacesFile;
 const errors = [];
 
 before(async () => {
-  dir = tempDir("doc-kit-e2e-business-");
+  dir = tempDir("doc-kit-e2e-use-");
   const r = await buildBusiness();
   assert.deepEqual(r.errors, []);
   files.full = path.join(dir, "full.html");
@@ -75,7 +76,7 @@ describe("glossary bubble: `technical` follows the current space", () => {
     await page.context().close();
   });
 
-  test("the business space (a page whose own space is business): hidden", async () => {
+  test("the use space (a page whose own space is use): hidden", async () => {
     const page = await open("use/approval");
     const html = await bubbleHtml(page);
     assert.doesNotMatch(html, /bulle-tech/);
@@ -83,7 +84,7 @@ describe("glossary bubble: `technical` follows the current space", () => {
     await page.context().close();
   });
 
-  test("the takeover space (a page whose own space is takeover): shown", async () => {
+  test("the develop space (a page whose own space is develop): shown", async () => {
     const page = await open("take-over/notes");
     const html = await bubbleHtml(page);
     assert.match(html, /bulle-tech/);
@@ -91,15 +92,15 @@ describe("glossary bubble: `technical` follows the current space", () => {
     await page.context().close();
   });
 
-  test('export "business": the data itself drops `tech` (§6.1a, §6.8), so the bubble never shows it', async () => {
-    const page = await open("use/approval", "business");
+  test('export "use": the data itself drops `tech` (§6.1a, §6.8), so the bubble never shows it', async () => {
+    const page = await open("use/approval", "use");
     const html = await bubbleHtml(page);
     assert.doesNotMatch(html, /bulle-tech/);
     await page.context().close();
   });
 
-  test('export "takeover": `tech` is kept, and the export is always current, so the bubble shows it', async () => {
-    const page = await open("take-over/notes", "takeover");
+  test('export "develop": `tech` is kept, and the export is always current, so the bubble shows it', async () => {
+    const page = await open("take-over/notes", "develop");
     const html = await bubbleHtml(page);
     assert.match(html, /bulle-tech/);
     assert.match(html, /table `orders`, column `status`/);

@@ -3,7 +3,7 @@ agent: doc-kit-reviewer
 ---
 # Brief — santé du code : le dossier de reprise
 
-Tu juges, dans la langue du projet, les pages de santé du code de l'espace DE REPRISE pour une application
+Tu juges, dans la langue du projet, les pages de santé du code de l'espace DÉVELOPPER pour une application
 vibe-codée : la plupart de ces applications partagent les mêmes risques — contrôle d'accès absent ou vérifié
 seulement dans le navigateur, aucune sécurité au niveau ligne, un secret dans le code ou envoyé au client, un
 paquet qui n'existe pas (« slopsquatting »), du code dupliqué, un test qui ne peut pas échouer, un fichier

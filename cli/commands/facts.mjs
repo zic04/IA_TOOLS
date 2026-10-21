@@ -2,25 +2,21 @@
 // Reads the application code (config.app.dir) and writes one file per source, facts/<source>.json (paths.facts,
 // ARCHITECTURE.md §6.9), in the DOCUMENTATION project — never in the application. `--source` (repeatable) limits
 // the sources; `--network` adds, for `dependencies`, whether each direct package exists in its registry, and for
-// `quality`, direct dependencies behind their latest version (majors behind); `--tools` also runs gitleaks,
-// osv-scanner, syft and knip when they are on the PATH (facts/tool-<name>.json), and semgrep when a local rules
-// folder is configured (review.semgrep, ARCHITECTURE.md §6.13).
+// `quality`, direct dependencies behind their latest version (majors behind) — never for a private package (AUDIT.md
+// S13: what is private is read once by privateRegistries — the application's own packages, its lock files, every
+// folder down to each manifest, the user's own npm, yarn, bun, pip and uv configuration and variables);
+// `--tools` also runs gitleaks, osv-scanner (offline; its database is downloaded only with --network), syft and knip
+// when they are on the PATH (facts/tool-<name>.json, normalised), and semgrep when a local rules folder is configured
+// (review.semgrep, ARCHITECTURE.md §6.13).
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { factsFile, relPath } from "../../engine/facts/common.mjs";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
-import { collectEnv } from "../../engine/facts/env.mjs";
-import { collectApi } from "../../engine/facts/api.mjs";
-import { collectDb } from "../../engine/facts/db.mjs";
-import { collectAgents } from "../../engine/facts/agents.mjs";
-import { collectSecrets } from "../../engine/facts/secrets.mjs";
-import { collectSecurity } from "../../engine/facts/security.mjs";
-import { collectQuality } from "../../engine/facts/quality.mjs";
-import { collectTests } from "../../engine/facts/tests.mjs";
-import { collectModules } from "../../engine/facts/modules.mjs";
-import { collectHistory } from "../../engine/facts/history.mjs";
-import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
+import { privateRegistries } from "../../engine/facts/network.mjs";
+import { SOURCE_NAMES, collectSource } from "../../engine/facts/registry.mjs";
+import { loadStacks } from "../../engine/facts/stacks.mjs";
+import { loadInfra } from "../../engine/facts/infra.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { generatorTag } from "../../engine/brand.mjs";
 
@@ -30,82 +26,31 @@ export const options = {
   tools: { type: "boolean" },
 };
 
-/** Sources of `doc-kit facts`, in the order they are written (ARCHITECTURE.md §6.9, §6.13). */
-export const SOURCES = Object.freeze([
-  "dependencies",
-  "env",
-  "api",
-  "db",
-  "agents",
-  "secrets",
-  "security",
-  "quality",
-  "tests",
-  "modules",
-  "history",
-]);
-
-/** Collects one source; `tests` and `quality` return an extra `summary`. */
-async function collect(name, appDir, ctx, config, network) {
-  switch (name) {
-    case "dependencies": {
-      const unreadable = [];
-      return { items: collectDependencies(appDir, unreadable), unreadable };
-    }
-    case "env":
-      return { items: collectEnv(appDir) };
-    case "api":
-      return { items: collectApi(appDir, config.review?.guards) };
-    case "db":
-      return { items: collectDb(appDir) };
-    case "agents":
-      return { items: collectAgents(appDir) };
-    case "secrets":
-      return { items: collectSecrets(appDir, ctx.exec) };
-    case "security":
-      return { items: collectSecurity(appDir, ctx.exec) };
-    case "quality": {
-      const dependencies = collectDependencies(appDir);
-      const { items, summary } = await collectQuality(appDir, { fetch: network ? ctx.fetch : undefined, dependencies });
-      return { items, extra: { summary } };
-    }
-    case "tests": {
-      const { items, summary, unreadable } = collectTests(appDir);
-      return { items, extra: { summary }, unreadable };
-    }
-    case "modules": {
-      const { items, summary } = collectModules(appDir);
-      return { items, extra: { summary } };
-    }
-    case "history": {
-      const { items, summary } = collectHistory(appDir, ctx.exec);
-      return { items, extra: { summary } };
-    }
-    default:
-      return { items: [] };
-  }
-}
-
-/** --tools: runs the external tools and writes one `tool-<name>.json` each; returns them keyed by tool. */
-function writeTools({ ctx, project, config, appDir, factsDir, generated }) {
+/**
+ * --tools: runs the external tools and writes one `tool-<name>.json` each; returns them keyed by tool.
+ * File: { tool, generator, generated, commit, app, status: ok|findings|failed|missing, reason?, code?, truncated?,
+ * items }.
+ */
+function writeTools({ ctx, project, config, appDir, factsDir, generated, commit, app, download }) {
   // semgrep (ARCHITECTURE.md §6.13) only with a local rules folder (review.semgrep); never --config auto.
   const semgrepDir = config.review?.semgrep ? path.resolve(project.root, config.review.semgrep) : null;
   const endTools = ctx.timer?.start("facts", { sub: "tools" });
-  const results = runTools(appDir, ctx.exec, TOOL_NAMES);
+  const results = runTools(appDir, ctx.exec, TOOL_NAMES, { download });
   endTools?.();
   if (semgrepDir) results.push(runTool("semgrep", appDir, ctx.exec, { semgrepConfig: semgrepDir }));
   const tools = {};
   for (const r of results) {
-    const file = {
-      tool: r.tool,
-      generator: generatorTag(),
-      generated,
-      installed: r.installed,
-      ...(r.installed ? { ok: r.ok, data: r.data } : {}),
-    };
-    fs.writeFileSync(path.join(factsDir, `tool-${r.tool}.json`), JSON.stringify(file, null, 2) + "\n");
-    tools[r.tool] = file;
-    if (!ctx.json) ctx.print(ctx.t(r.installed ? "cli.facts.tool.ran" : "cli.facts.tool.missing", { tool: r.tool }));
+    const { tool, status, reason, code, truncated, items } = r;
+    const file = { tool, generator: generatorTag(), generated, commit, app, status, reason, code, truncated, items };
+    fs.writeFileSync(path.join(factsDir, `tool-${tool}.json`), JSON.stringify(file, null, 2) + "\n");
+    tools[tool] = file;
+    if (ctx.json) continue;
+    // "ok" with items is an inventory (syft lists packages); "ok" for a finding tool means nothing found.
+    const key = status === "ok" && items.length ? "listed" : status;
+    const why = reason ? ctx.t(`cli.facts.tool.reason.${reason}`, { code: code ?? "" }) : "";
+    ctx.print(ctx.t(`cli.facts.tool.${key}`, { tool, n: items.length, reason: why }));
+    if (tool === "osv-scanner" && status === "failed" && reason !== "version" && !download)
+      ctx.print(`  → ${ctx.t("cli.facts.tool.osvOffline")}`);
   }
   return tools;
 }
@@ -116,10 +61,12 @@ export async function run({ ctx, values }) {
   const appDir = path.resolve(project.root, config.app.dir);
   if (!fs.existsSync(appDir)) throw new KitError(EXIT.USAGE, "facts.noApp");
 
-  const requested = values.source?.length ? values.source : SOURCES;
+  // `sourcesExactly` (internal, from `doc-kit bricks run`, never a command-line option): exactly these sources,
+  // possibly none (the external tools alone); otherwise no --source means every source.
+  const requested = values.sourcesExactly ? values.source || [] : values.source?.length ? values.source : SOURCE_NAMES;
   for (const name of requested)
-    if (!SOURCES.includes(name))
-      throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCES.join(", ") });
+    if (!SOURCE_NAMES.includes(name))
+      throw new KitError(EXIT.USAGE, "facts.unknownSource", { name, known: SOURCE_NAMES.join(", ") });
 
   const factsDir = path.join(project.root, config.paths.facts);
   fs.mkdirSync(factsDir, { recursive: true });
@@ -127,19 +74,22 @@ export async function run({ ctx, values }) {
   const commit = ctx.commit(appDir);
   const app = relPath(project.root, appDir);
 
+  // What is private, read once before any request (AUDIT.md S13): never sent to a public registry.
+  const network = values.network
+    ? { registries: privateRegistries(appDir, { items: collectDependencies(appDir), env: ctx.env }) }
+    : null;
+
+  // The stack adapters of the run: the kit's but the disabled ones, then the project's own (config.stacks).
+  const stacks = await loadStacks(project.root, config);
+  const infra = await loadInfra(project.root, config);
   const written = {};
-  for (const name of SOURCES) {
+  for (const name of SOURCE_NAMES) {
     if (!requested.includes(name)) continue;
     const end = ctx.timer?.start("facts", { sub: name });
-    let {
-      items,
-      extra,
-      unreadable = [],
-    } = await collect(name, appDir, ctx, config, values.network).finally(() => end?.());
+    const seams = { appDir, exec: ctx.exec, fetch: ctx.fetch, config, network, stacks, infra };
+    let { items, extra, unreadable = [] } = await collectSource(name, seams).finally(() => end?.());
     // A file that is there but cannot be read: its facts are unknown, not empty (AUDIT.md M14).
     if (unreadable.length) extra = { ...extra, unreadable };
-    if (name === "dependencies" && values.network)
-      items = await checkExistence(items, ctx.fetch, { registries: privateRegistries(appDir) });
     const file = factsFile({ source: name, items, extra, generator: generatorTag(), generated, commit, app });
     fs.writeFileSync(path.join(factsDir, `${name}.json`), JSON.stringify(file, null, 2) + "\n");
     written[name] = file;
@@ -151,7 +101,9 @@ export async function run({ ctx, values }) {
       ctx.print(ctx.t("cli.facts.unreadable", { file: u.file, reason: ctx.t(`cli.facts.unreadable.${u.reason}`) }));
   }
 
-  const tools = values.tools ? writeTools({ ctx, project, config, appDir, factsDir, generated }) : undefined;
+  const tools = values.tools
+    ? writeTools({ ctx, project, config, appDir, factsDir, generated, commit, app, download: !!values.network })
+    : undefined;
 
   if (ctx.json) ctx.print(JSON.stringify({ app, commit, sources: written, ...(tools ? { tools } : {}) }, null, 2));
   return EXIT.OK;

@@ -1,4 +1,4 @@
-// Capture engine without a browser: plan normalisation (legacy keys included), validation, loading (duplicates,
+// Capture engine without a browser: plan validation (the former French keys refused), loading (duplicates,
 // missing export), selection, forbidden routes, map framing, zone measurement, storage, request summary, masking
 // (.env parsing, sensitive values, regular expression), WebP header, targets helpers; every i18n key used exists.
 import { test, describe } from "node:test";
@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  normalizeEntry,
   validateEntry,
   loadPlans,
   selectCaptures,
@@ -42,41 +41,59 @@ import { KIT_ROOT, tempDir, demoCopy } from "../tools/helpers.mjs";
 const en = loadDictionary("en");
 
 describe("plan entries", () => {
-  test("legacy French entry → current keys, caption (libelle, on any target) and settle (stabiliser) included", () => {
-    const { value, legacy } = normalizeEntry({
-      id: "a",
-      titre: "T",
-      route: "/x",
-      contexte: "bureau",
-      stabiliser: 900,
-      actions: [{ clic: { role: "button", nom: "Open" } }, { saisir: { champ: "Name" }, valeur: "Ada" }],
-      cadre: { css: "main", marge: 0, margeV: 0, libelle: "Main" },
-      zones: [
-        { texte: "Total", libelle: "Total", cote: "coin" },
-        { union: [{ champ: "A", libelle: "a" }, { champ: "B" }], libelle: "Row" },
-      ],
-      masques: [{ css: ".x", libelle: undefined }],
-    });
-    assert.equal(legacy, true);
-    assert.deepEqual(value, {
-      id: "a",
-      title: "T",
-      route: "/x",
-      context: "desktop",
-      settle: 900,
-      actions: [{ click: { role: "button", name: "Open" } }, { type: { field: "Name" }, value: "Ada" }],
-      frame: { css: "main", margin: 0, marginY: 0, caption: "Main" },
-      zones: [
-        { text: "Total", side: "corner", caption: "Total" },
-        { union: [{ field: "A", caption: "a" }, { field: "B" }], caption: "Row" },
-      ],
-      masks: [{ css: ".x", caption: undefined }],
-    });
+  test("the former French keys are not renamed (ARCHITECTURE.md §6.7): each one is an unknown key", () => {
+    const keys = (e) => validateEntry(e).map((x) => `${x.path}:${x.key}:${x.vars.closest}`);
     assert.deepEqual(
-      validateEntry(value),
-      [],
-      "an undefined property (a helper passing an optional argument) counts as absent",
+      keys({
+        id: "a",
+        titre: "T",
+        route: "/x",
+        contexte: "bureau",
+        stabiliser: 900,
+        actions: [{ clic: { role: "button", nom: "Open" } }],
+        cadre: { css: "main" },
+        zones: [{ texte: "Total", libelle: "Total" }],
+        masques: [{ css: ".x" }],
+      }),
+      [
+        "titre:unknownClose:title",
+        "contexte:unknownClose:context",
+        "stabiliser:unknown:",
+        "actions[0].clic:unknownClose:click",
+        "cadre:unknown:",
+        "zones[0].texte:unknownClose:text",
+        "zones[0].libelle:unknown:",
+        "masques:unknown:",
+      ],
     );
+    assert.deepEqual(
+      validateEntry({
+        id: "a",
+        route: "/x",
+        zones: [{ text: "Total", caption: "Total" }],
+        masks: [{ css: ".x", caption: undefined }],
+      }),
+      [],
+      "the current keys; an undefined property (a helper passing an optional argument) counts as absent",
+    );
+  });
+
+  test("a plan file with a French key is refused when loaded (capture.planInvalid, exit code 2)", async () => {
+    const dir = tempDir();
+    try {
+      fs.writeFileSync(path.join(dir, "a.mjs"), 'export const CAPTURES = [{ id: "one", titre: "Un", route: "/a" }];');
+      await assert.rejects(loadPlans({ folder: dir, display: "plans" }), (e) => {
+        assert.equal(e.code, 2);
+        assert.equal(e.key, "capture.planInvalid");
+        assert.deepEqual(
+          e.details.map((d) => [d.file, d.entry, d.path, d.key]),
+          [["plans/a.mjs", "one (CAPTURES[0])", "titre", "unknownClose"]],
+        );
+        return true;
+      });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("the schema accepts what the engine executes: negative margins, a 150 px strip, wheel steps 0, negative nth, fractional waits", () => {
@@ -117,7 +134,7 @@ describe("plan entries", () => {
     ]);
   });
 
-  test("a current entry is left alone and is valid (RegExp names, eval function, union zone)", () => {
+  test("a current entry is valid (RegExp names, eval function, union zone)", () => {
     const entry = {
       id: "use-orders.list_1",
       title: "Orders",
@@ -142,7 +159,6 @@ describe("plan entries", () => {
       ],
       masks: [{ css: ".secret", has: "token" }],
     };
-    assert.deepEqual(normalizeEntry(entry), { value: entry, legacy: false });
     assert.deepEqual(validateEntry(entry), []);
   });
 
@@ -167,11 +183,11 @@ describe("plan entries", () => {
     assert.deepEqual(keys({ id: "a", route: "/", actions: [{ wheel: { x: 1 } }] }), ["actions[0].wheel.y:required"]);
   });
 
-  test("loading: alphabetical order, file name kept, legacy files listed; duplicates, missing export and invalid entries refused", async () => {
+  test("loading: alphabetical order, file name kept; duplicates, missing export and invalid entries refused", async () => {
     const dir = tempDir();
     try {
       fs.writeFileSync(path.join(dir, "b.mjs"), 'export const CAPTURES = [{ id: "two", route: "/b" }];');
-      fs.writeFileSync(path.join(dir, "a.mjs"), 'export const CAPTURES = [{ id: "one", titre: "Un", route: "/a" }];');
+      fs.writeFileSync(path.join(dir, "a.mjs"), 'export const CAPTURES = [{ id: "one", title: "Un", route: "/a" }];');
       const r = await loadPlans({ folder: dir });
       assert.deepEqual(
         r.captures.map((c) => [c.id, c.file, c.title]),
@@ -180,7 +196,7 @@ describe("plan entries", () => {
           ["two", "b.mjs", undefined],
         ],
       );
-      assert.deepEqual(r.legacy, ["a.mjs"]);
+      assert.deepEqual(r.files, ["a.mjs", "b.mjs"]);
 
       fs.writeFileSync(path.join(dir, "c.mjs"), 'export const CAPTURES = [{ id: "one", route: "/c" }];');
       await assert.rejects(
@@ -239,7 +255,6 @@ describe("plan entries", () => {
         ["settings-profile", 2],
       ],
     );
-    assert.equal(r.legacy.length, 0);
     assert.ok(r.captures[0].zones.some((z) => Array.isArray(z.union)));
   });
 

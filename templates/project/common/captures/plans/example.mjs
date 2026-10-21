@@ -29,8 +29,8 @@ import { button, field } from "../targets.mjs";
 
 export const CAPTURES = [
   {
-    // Cited by content/use/getting-started.md (en) or content/utiliser/prise-en-main.md (fr):
-    // its legend has 3 items, one per zone, in the same order.
+    // Cited by content/use/getting-started.md (en) or content/utiliser/prise-en-main.md (fr), with the Use space:
+    // its legend has 3 items, one per zone, in the same order. Without it, cite it from a page, or replace it.
     id: "home",
     title: "{{name}}",
     route: "/",

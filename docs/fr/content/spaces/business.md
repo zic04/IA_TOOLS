@@ -1,6 +1,6 @@
 ## En bref
 
-L'espace métier décrit **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la soutiennent :
+L'espace Produit décrit **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la soutiennent :
 aucun code, aucun `file:line`. Trois ingrédients, chacun avec son type de page : une **fiche de fonctionnalité** par
 fonctionnalité, des **règles métier** énoncées une fois et citées partout où elles s'appliquent, et une **matrice
 des rôles** de qui peut faire quoi.
@@ -15,10 +15,14 @@ des rôles** de qui peut faire quoi.
 
 ## La fiche de fonctionnalité
 
-Une page `feature` ouvre par un **encadré d'accès** (lignes fixes : Module, Qui peut l'utiliser, Prérequis, Vérifié
-le), puis À quoi ça sert, Qui l'utilise, le scénario principal en étapes numérotées, Variantes et exceptions
-numérotées à partir de l'étape dont elles dérivent (« 4a. Si … »), les Règles métier propres à la fiche, et se
-termine par Limites et Questions fréquentes.
+Une page `feature` est une spécification qu'un product owner peut vérifier sur l'application. Elle ouvre par À quoi
+ça sert et Qui l'utilise, puis ses **user stories** (`:::recit`), le parcours principal en étapes numérotées, les
+Variantes numérotées à partir de l'étape dont elles dérivent (« 4a. Si … »), une **carte de comportement** par
+comportement (`:::comportement` : une recherche, un filtre, une liste, un formulaire, un circuit…, chaque rubrique de
+son type répondue), les Règles de gestion propres à la fiche, ses Champs et saisies, ses États, ses Messages mot pour
+mot, ses Droits par action, ses **critères d'acceptation** (`:::scenario`, Soit / Quand / Alors), et se termine par
+Limites et Questions ouvertes. Une section qui ne s'applique pas le dit, avec sa raison
+([Une fonctionnalité en profondeur](#/write/markdown~une-fonctionnalite-en-profondeur-stories-cartes-scenarios)).
 
 ```json
 { "id": "use/orders/approval", "template": "feature", "feature": "F-01", "permissions": ["orders:write", "orders:approve"] }
@@ -27,11 +31,11 @@ termine par Limites et Questions fréquentes.
 - `feature` est un champ de page de `content/toc.json`, seulement sur une page de gabarit `feature` : l'identifiant
   propre de la fiche, sous la forme `F-01`. Une fiche par identifiant ; une page typée `feature` sans identifiant ne
   fait qu'avertir, mais une deuxième fiche avec le même identifiant fait échouer le build.
-- `permissions` alimente « Qui peut l'utiliser » de l'encadré d'accès via `[[droit …]]`, et la matrice des rôles
-  ci-dessous.
+- `permissions` alimente la matrice des rôles ci-dessous ; les « Droits par action » de la fiche les citent avec
+  `[[droit …]]`.
 
 [Exemple · Fiche de fonctionnalité](#/examples/feature) en montre une complète : la validation des commandes
-d'Acme Orders, avec son encadré d'accès, son scénario et sa propre règle.
+d'Acme Orders, avec ses stories, ses trois cartes de comportement, sa propre règle et six critères d'acceptation.
 
 ## Règles métier : énoncées une fois, citées partout
 
@@ -56,7 +60,7 @@ strict.
 
 ## Les tableaux générés
 
-Trois directives construisent leur tableau une fois que chaque page a été rendue, donc une règle ou une
+Quatre directives construisent leur tableau une fois que chaque page a été rendue, donc une règle ou une
 fonctionnalité peut être définie plus loin dans le sommaire que la page qui la cite :
 
 | Directive | Construit |
@@ -64,9 +68,38 @@ fonctionnalité peut être définie plus loin dans le sommaire que la page qui l
 | `::fonctionnalites{}` | Id · Fonctionnalité (liée) · Résumé · Qui (ses droits) — une ligne par fiche |
 | `::regles{}` | Id (lié) · Règle · Définie dans (lié) · Citée par — une ligne par règle |
 | `::roles{}` | Une ligne par fiche, une colonne par droit distinct, `✔` là où il la débloque |
+| `::recits{}` | Id (lié) · Récit · Fonctionnalité (liée) · Rôle · Version · Critères · Ticket — une ligne par récit utilisateur d'une fiche |
 
 [Exemple · Règles métier](#/examples/business-rules) et [Exemple · Matrice des rôles](#/examples/roles-matrix)
 montrent les deux tableaux rendus.
+
+## Le tableau Produit
+
+L'accueil de l'espace Produit montre le **tableau** : le backlog des fiches de fonctionnalité, lu dans la table des
+matières et dans les fiches elles-mêmes ([Les epics](#/write/table-of-contents~les-epics-le-haut-du-backlog)). Une page
+de n'importe quel espace le montre aussi avec `::tableau{}` (en `::board{}`), pour un projet sans espaces.
+
+- **Carte** : les epics en colonnes, avec la part de leurs fonctionnalités spécifiée ; sous chacun, ses
+  fonctionnalités en cartes (id, version, qui, types de comportement, récits · critères · règles, une jauge de
+  profondeur, le ticket) ; puis une ligne de récits utilisateur par version — la sienne, sinon celle de sa
+  fonctionnalité —, une pastille verte quand le récit a des critères d'acceptation.
+- **Liste** : Epic › Fonctionnalité › Récit, chaque niveau repliant le suivant, avec les mêmes colonnes.
+- **Filtres** : qui (le rôle d'un récit), epic, version, profondeur, et texte (un id, un titre, le titre d'un récit) ;
+  le nombre de fonctionnalités affichées est annoncé.
+- **Profondeur** d'une fonctionnalité, de 0 à 100 : la moyenne de sa fiche rédigée et conforme, d'au moins un récit, de
+  la part de ses récits qui ont des critères d'acceptation, d'au moins une règle de gestion (définie dans sa fiche ou
+  citée par elle), et de la part des rubriques de ses cartes de comportement renseignées (quand elle en a).
+- Une carte ouvre sa fiche, un récit son titre ; les flèches passent d'une carte à l'autre. La vue choisie est
+  mémorisée ; imprimé, le tableau est sa liste. Un ticket est un lien quand `backlog.refs` donne l'adresse de son
+  outil.
+
+## Exporter le backlog
+
+`doc-kit backlog export <azure|jira|github|gitlab|json>` écrit le même backlog — epics, fonctionnalités, récits et
+leurs critères d'acceptation — au format d'import d'Azure DevOps, de Jira ou de GitLab (CSV), pour GitHub (les issues
+et comment les créer), ou en JSON ([doc-kit backlog export](#/reference/cli/deliver~doc-kit-backlog-export)). Ce que
+l'outil contient déjà (une `ref` de cet outil) est laissé de côté ; donnez à chacun sa `ref` une fois importé, et
+le tableau le relie.
 
 ## Trouver les fonctionnalités candidates
 
@@ -81,17 +114,40 @@ leur premier segment — en fonctionnalités candidates, chacune avec un identif
 déjà, le cas échéant. `--write` écrit `features.json` (refusé s'il existe, sauf `--force`, qui n'ajoute que les
 nouvelles candidates) ; l'adaptateur de couverture `features` mesure ensuite combien de ses entrées une fiche cite.
 
-## Garder l'espace métier libre de code
+## Ce que le code dit de chaque comportement
 
-Une page métier qui contient une preuve `file:line` reçoit l'avertissement « déplacez le détail technique vers son
-pendant » : comment le seuil de validation est appliqué appartient à l'espace reprise, derrière le `counterpart`
-de la fiche. Le champ `technical` d'un terme du glossaire (où il vit dans le code) suit la même règle : il
-n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace courant est `takeover` ou « tout ».
+`doc-kit facts --source behaviours` lit le code de l'application pour savoir comment se comportent ses
+fonctionnalités — comment une liste est cherchée (contient, commence par, sans les majuscules, accents, plein texte),
+filtrée, triée et paginée, quels champs un formulaire contrôle et comment, les listes de valeurs qu'un écran propose,
+ce qui déclenche une recherche, la portée des données d'une requête, les exports, imports, notifications et
+traitements planifiés — quelle que soit la pile : le `.filter` d'un tableau dans le navigateur, Prisma, SQL, Knex,
+Django, SQLAlchemy, zod, pydantic, un formulaire HTML, un document OpenAPI. Chaque indice vient d'une ligne du code,
+à vérifier sur place : un indice n'est jamais une mesure.
+
+Une fonctionnalité de `features.json` peut nommer son code : `sources` (des motifs relatifs à `app.dir`), en plus de
+ses routes et routes API, et `behaviours`, les types de carte que décrit sa fiche (`inventory --features` les déduit
+des indices). `doc-kit context <sa fiche>` donne alors au rédacteur ce code — les gestionnaires de ses routes API et
+ce qu'ils importent sur deux niveaux — et une partie **Comportements à décrire** : les indices, une ligne par champ et
+par endroit, et les cartes à écrire avec leurs rubriques, les obligatoires marquées.
+
+```json
+[{ "id": "F-01", "title": "Suivre les commandes", "routes": ["/orders"], "sources": ["public/app.js"], "behaviours": ["search", "filter"] }]
+```
+
+## Garder les espaces Produit et Utiliser libres de code
+
+Les espaces Produit et Utiliser se lisent sans le code. Une page métier (`feature`, `business-rules`, `roles-matrix`,
+`process`, `release-notes`) dont l'espace est l'un d'eux — ou un espace propre au projet de l'un de leurs types — et
+qui contient une preuve `file:line` reçoit l'avertissement `business.technical`, « déplacez le détail technique vers
+son pendant » : comment le seuil de validation est appliqué appartient à l'espace Développer, derrière le
+`counterpart` de la fiche. Le champ `technical` d'un terme du glossaire (où il vit dans le code) suit la même
+règle : il n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace courant est `admin`,
+`develop` ou « tout » ; seuls les exports d'Administrer et de Développer le gardent.
 
 ## Pièges et écarts constatés
 
 > [!ATTENTION] Une page de concepts n'est pas une fiche de fonctionnalité
-> Une page sans scénario et sans encadré d'accès — un catalogue, une liste de réglages — n'est pas `feature` :
+> Une page sans parcours ni comportement — un catalogue, une liste de réglages — n'est pas `feature` :
 > laissez-la sans type, ou typez-la `technical`.
 
 > [!NOTE] Une règle, un propriétaire
@@ -100,8 +156,8 @@ n'apparaît dans sa bulle que si le projet n'a pas d'espaces, ou que l'espace co
 
 ## Pour aller plus loin
 
-- [Deux espaces, une seule source](#/spaces/overview) : déclarer `business`, le sélecteur, l'export.
-- [Reprendre une application vibe-codée](#/spaces/takeover) : le pendant de cet espace.
-- [Le Markdown étendu](#/write/markdown~espace-metier) : la syntaxe complète de chaque directive.
+- [Quatre espaces, une seule source](#/spaces/overview) : déclarer `product`, le sélecteur, l'export.
+- [Reprendre une application vibe-codée](#/spaces/takeover) : l'espace Développer, le pendant de celui-ci.
+- [Le Markdown étendu](#/write/markdown~fonctionnalites-regles-et-roles) : la syntaxe complète de chaque directive.
 - [Exemple · Fiche de fonctionnalité](#/examples/feature), [Exemple · Processus](#/examples/process), [Exemple ·
   Notes de version](#/examples/release-notes).

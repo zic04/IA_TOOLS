@@ -17,6 +17,7 @@ import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath }
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
 import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { MEASURABLE_MS } from "../tools/growth.mjs";
 
 /** Source files of the kit (what ships): engine, cli, adapters, skill scripts, templates. */
 function sources() {
@@ -57,11 +58,46 @@ describe("source rules (RULES.md § Security)", () => {
     );
   });
 
+  test("one network gateway (RULES.md S12): no file but engine/facts/network.mjs names a public registry", () => {
+    // Every request to a package registry or vulnerability database goes through createRegistryClient, which
+    // refuses a private package (AUDIT.md S13). Naming a registry's address anywhere else would bypass it.
+    const HOSTS = /\bhttps?:\/\/(?:registry\.npmjs\.(?:org|com)|registry\.yarnpkg\.com|pypi\.org|api\.osv\.dev)\b/;
+    assert.deepEqual(
+      offending(HOSTS, (f) => f === "engine/facts/network.mjs"),
+      [],
+    );
+  });
+
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {
     assert.deepEqual(offending(/spawn(Sync)?\(\s*["']git["']/), []);
     // Each module that spawns a process itself, and calls git, hardens the arguments.
     for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text)))
       assert.match(text, /safeGitArgs\(/, f);
+  });
+
+  test("git writes only in engine/inputs/repos.mjs (RULES.md S2): clone, fetch and checkout of the sources, hardened", () => {
+    // Every other git command of the kit is read-only; the shared repositories of the sources are the one exception.
+    const WRITE = /(\[|^)\s*["'](clone|fetch|checkout|pull|push|reset|merge|rebase|commit|stash|init|am)["']\s*,/;
+    assert.deepEqual(
+      offending(WRITE, (f) => f === "engine/inputs/repos.mjs"),
+      [],
+    );
+    const repos = files.find(({ f }) => f === "engine/inputs/repos.mjs").text;
+    for (const setting of [
+      "core.hooksPath=",
+      "core.symlinks=false",
+      "core.fsmonitor=false",
+      "protocol.ext.allow=never",
+      "protocol.file.allow=never",
+      "submodule.recurse=false",
+      "transfer.fsckObjects=true",
+      "--no-recurse-submodules",
+      "--end-of-options",
+      'GIT_TERMINAL_PROMPT: "0"',
+      "isSafeRepoUrl(",
+      "isSafeRef(",
+    ])
+      assert.ok(repos.includes(setting), `engine/inputs/repos.mjs: ${setting}`);
   });
 });
 
@@ -69,15 +105,21 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
   // Run in a worker (test/tools/redos-worker.mjs): an expression that never ends blocks its thread, so the test
   // terminates the worker after a timeout and names the check that was running.
   const BUDGET_MS = 300;
-  const TIMEOUT_MS = 60_000;
+  const GROWTH_RATIO = 8;
+  // The time from which a ratio is trusted: the harness measures a suspect step longer until it reaches it.
+  const GROWTH_MIN_MS = MEASURABLE_MS;
+  // A hang detector, not a budget: with every stack adapter registered the run takes 25 to 45 s on a loaded machine.
+  const TIMEOUT_MS = 180_000;
   test(`every scanner of untrusted text stays under ${BUDGET_MS} ms on adversarial input`, async () => {
     const worker = new Worker(new URL("../tools/redos-worker.mjs", import.meta.url));
     const results = [];
+    let canary = null;
     let running = null;
     const outcome = await new Promise((resolve) => {
       const timer = setTimeout(() => resolve({ hang: running }), TIMEOUT_MS);
       worker.on("message", (m) => {
         if (m.start) running = m.start;
+        else if (m.canary) canary = m.canary;
         else if (m.done) {
           clearTimeout(timer);
           resolve({});
@@ -100,6 +142,18 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
       .filter((r) => r.ms >= BUDGET_MS)
       .map((r) => `${r.name}: ${r.ms.toFixed(0)} ms on ${JSON.stringify(r.input)}…`);
     assert.deepEqual(slow, []);
+    // Four times the input, more than eight times the time (and long enough to measure): quadratic, whatever its
+    // time at the size above — a quadratic scanner with a small constant would block on a large file. Measured from
+    // N to 4N and from 4N to 16N, and further (up to 256N) while a step under the floor may hide a quadratic growth,
+    // so that a constant of a few milliseconds, or a fast machine, does not hide one: the canary, a scanner written to
+    // be quadratic, proves it (test/tools/growth.mjs, test/unit/redos-growth.test.mjs).
+    const quadratic = (steps) => steps.find((g) => g.ms >= GROWTH_MIN_MS && g.ratio > GROWTH_RATIO);
+    assert.ok(quadratic(canary || []), `the canary was not seen as quadratic: ${JSON.stringify(canary)}`);
+    const grown = results
+      .map((r) => [r.name, quadratic(r.growth)])
+      .filter(([, g]) => g)
+      .map(([name, g]) => `${name}: ×${g.ratio.toFixed(1)} (${g.ms.toFixed(0)} ms) on ${JSON.stringify(g.input)}…`);
+    assert.deepEqual(grown, []);
   });
 
   test("the private key detector still finds a key (headers, indentation, blank lines)", () => {

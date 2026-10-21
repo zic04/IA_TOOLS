@@ -1,0 +1,8 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+com.google.guava:guava:33.0.0-jre=compileClasspath,runtimeClasspath
+com.google.guava:failureaccess:1.0.2=compileClasspath,runtimeClasspath,testCompileClasspath
+org.junit.jupiter:junit-jupiter-api:5.10.1=testCompileClasspath,testRuntimeClasspath
+org.postgresql:postgresql:42.7.1=runtimeClasspath
+empty=annotationProcessor

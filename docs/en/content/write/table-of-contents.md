@@ -47,7 +47,7 @@ The home page is `content/home.md`; each section may have an introduction, `cont
 | `subtitle` | no | One sentence under the title |
 | `highlights` | no | Three short highlights, on the home-page card |
 | `featured` | no | `true`: the card is highlighted, and the home page's main button leads to this section |
-| `groups` | yes | List of `{ title, pages }`; `title` is optional |
+| `groups` | yes | List of `{ title, pages }`; `title` is optional. A group of feature sheets may be an epic of the backlog: `epic`, `summary`, `ref` (below) |
 
 ## Page fields
 
@@ -62,6 +62,29 @@ The home page is `content/home.md`; each section may have an introduction, `cont
 | `routes` | no | Application routes documented here: badges at the top of the page, and text for the coverage check |
 | `permissions` | no | Permission codes: badges at the top of the page |
 | `file` | no | The source file, relative to `content/`, when it is not `<id>.md` |
+| `feature` | no | A feature sheet's id (`F-01`), with `"template": "feature"` ([The Product space](#/spaces/business)) |
+| `since` | no | A feature sheet: the version it shipped in; its user stories take it unless they give theirs |
+| `ref` | no | A feature sheet: its item in a backlog tool (below), kept in the backlog |
+| `epic` | no | A feature sheet in an epic other than its group's: that epic's id |
+
+## Epics: the top of the backlog
+
+A group of feature sheets becomes an **epic** when it gives an id; its sheets are its features, its stories theirs:
+
+```json
+{ "title": "Find an order", "epic": "E-01", "summary": "Find an order and know where it stands.", "ref": "ADO#120",
+  "pages": [ { "id": "product/track-orders", "title": "Track orders", "template": "feature", "feature": "F-01", "since": "1.0" } ] }
+```
+
+| Field | Role |
+|---|---|
+| `epic` | The epic's id, `E-01`: one group each (a second group with the same id is an error) |
+| `summary` | What the epic is for, in a sentence (translated like the titles) |
+| `ref` | Its item in a backlog tool: `ADO#1234` or `AB#1234` (Azure Boards), `PROJ-123` (Jira), `owner/repo#42` (GitHub), `group/sub/project#7` (GitLab). Kept in the backlog; a story's own `ref` (`:::story{… ref="…"}`) is a link with `backlog.refs` ([Configuration](#/reference/configuration/project~the-backlog)). A reference the kit cannot read: `backlog.ref`, a warning |
+
+A sheet naming an `epic` no group declares fails the build (`epic.unknown`); `epic`, `since` or `ref` on a page that is
+no feature sheet is ignored, with a warning (`backlog.field`). A group of feature sheets without an
+epic is still a group of the backlog, by its title.
 
 ## Sub-pages
 
@@ -95,10 +118,6 @@ plan: an unknown step is an error of the build ("journey “…”: unknown page
 > [!NOTE] `product` is deprecated
 > Older plans have a `product` field. The product name now comes from `doc.config.mjs`; the build warns when both
 > differ, and the configuration wins.
-
-> [!NOTE] Legacy French keys
-> A plan written before the kit (`contenu/sommaire.json` with `titre`, `groupes`, `niveau`…) is read as it is;
-> `doc-kit migrate` rewrites it ([Migrate a legacy project](#/migrate/legacy-project)).
 
 ## Further reading
 

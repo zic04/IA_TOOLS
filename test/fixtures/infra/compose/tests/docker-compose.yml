@@ -1,0 +1,3 @@
+services:
+  test-service-never-read:
+    image: busybox

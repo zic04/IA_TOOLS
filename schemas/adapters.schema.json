@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit adapters (standard/adapters.json)",
+  "description": "What the kit reads of an application: its languages and its adapters by family (ARCHITECTURE.md §5).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "languages", "adapters"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "const": 1 },
+    "languages": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/language" } },
+    "adapters": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/adapter" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "extensions"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "extensions": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^\\.[a-z0-9]+$" } },
+        "core": { "type": "boolean", "description": "Read by the kit's own sources (behaviours, env, db, imports…), whatever the stack." }
+      }
+    },
+    "detect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z]+:[^\\s]{1,200}$" },
+          "description": "ecosystem:name of a dependency; `*` stands for any characters."
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "description": "Globs relative to the application (** any folders, * any characters but /)."
+        }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "family", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "family": { "enum": ["stack", "infra", "deps", "lowcode", "coverage", "auth"] },
+        "title": { "type": "string", "minLength": 1 },
+        "languages": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "reads": { "type": "array", "items": { "enum": ["api", "guards", "screens", "behaviours", "resources", "workloads", "images", "environments", "pipelines"] } },
+        "detect": { "$ref": "#/$defs/detect" },
+        "ecosystem": { "$ref": "#/$defs/id" },
+        "files": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

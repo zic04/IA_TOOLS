@@ -22,7 +22,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 |---|---|
 | [Commandes : démarrer et capturer](#/reference/cli/start-capture) | `init`, `doctor`, `connect`, `probe`, `demo`, `record`, `capture`, `inventory` |
 | [Commandes : rédiger et vérifier](#/reference/cli/write-check) | `dev`, `new`, `build`, `view`, `open`, `check`, `audit`, `optimize`, `stats` |
-| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `migrate`, `skill install`, `translate`, `changes`, `pack` |
+| [Commandes : livrer et maintenir](#/reference/cli/deliver) | `export`, `upgrade`, `skill install`, `translate`, `changes`, `pack` |
 
 ## Les options globales
 
@@ -83,12 +83,25 @@ Une option d'une autre commande est refusée : `doc-kit build --tour 2` s'arrêt
 | `doc-kit stats` | Temps, jetons et modèles par bloc et par version (`usage/`) |
 | `doc-kit changes` | Ce qui a changé dans l'application depuis une référence git : routes, tables, variables, dépendances, constats (`--record` : gardé pour `::changes`) |
 | `doc-kit pack` | Fichiers pour la prochaine IA : `llms.txt`, `llms-full.txt`, `AGENTS.md`, `CLAUDE.md` (secrets retirés) |
+| `doc-kit inputs [status]` · `doc-kit inputs add <type> <valeur>` · `doc-kit inputs fetch` · `doc-kit inputs ingest` · `doc-kit inputs reconcile [--json]` | Les sources du projet (inputs.json) : leur état ; en déclarer une ; cloner ou mettre à jour les dépôts partagés avec vos propres identifiants git ; convertir les documents (Word, PDF, schémas) pour les agents ; `reconcile` : confronter les technologies et les adresses du DAT aux faits (voir plus bas) |
+| `doc-kit bricks [<id\|préréglage>]` · `doc-kit bricks run [<id\|préréglage>…]` | L'état de chaque brique (sources de faits, outils, audit) et pourquoi ; relance seulement les briques nommées, ou toutes celles qui sont périmées (`--stale`) |
 | `doc-kit hooks install` | Hooks git : faits et sync après chaque pull et changement de branche |
 | `doc-kit export <cible>` | Écrit une copie autonome du projet |
 | `doc-kit upgrade` | Montre les changements depuis la version du kit du projet, applique les migrations |
-| `doc-kit migrate` | Réécrit au format courant les fichiers anciens à clés françaises |
 | `doc-kit skill install` | Installe le skill Claude Code |
 | `doc-kit translate status \| --mark <page…> \| --mark --all \| --fix-anchors [page…]` | L'état des traductions, ou leur marquage, ou la réécriture de leurs ancres |
+
+### `inputs reconcile [--json]`
+
+La première passe du rapprochement des dossiers d'architecture technique (DAT) avec le code. Elle lit les textes
+convertis des documents de type `dat` (lancez d'abord `inputs ingest`) et les faits `dependencies`, `infra`, `stack`
+et `env` (lancez `doc-kit facts` ; une source sans son fichier est nommée dans `missing`). Chaque technologie que le
+DAT nomme ou que le code montre ressort dans l'un de trois cas : `confirmed` (les deux), `datOnly` (dite par le DAT,
+sans trace dans le code : un service géré hors du dépôt, ou un écart) ou `codeOnly` (dans le code, nommée par aucun
+DAT). Elle liste aussi les hôtes des adresses que donne le DAT, `declared` quand ce sont ceux de l'application. Elle
+écrit `.doc-kit/inputs/reconcile.json` et affiche un résumé. Une trace est un indice, jamais une preuve : le brief
+`architecture-reconcile` vérifie chacune. Sans document de type `dat`, la commande le dit et n'écrit rien. Rien de
+l'application n'est exécuté.
 
 ## Ajouter une commande
 

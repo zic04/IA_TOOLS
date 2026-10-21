@@ -1,8 +1,8 @@
 ## En bref
 
 Un **gabarit de page** fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y
-a **31 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 pour l'espace métier, 13 pour
-l'espace reprise. Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
+a **31 types**, en trois familles : 13 types généraux (sans besoin d'espaces), 5 types métier (écrits pour l'espace
+Produit), 13 types de reprise (écrits pour l'espace Développer, quelques-uns pour l'espace Administrer). Une page déclare son type dans le sommaire (`"template": "screen"`) ; le build vérifie alors que
 ses **sections obligatoires** sont présentes, et `doc-kit audit` mesure à quel point elle est complète.
 
 1. **La source de vérité** est `standard/templates.json` dans le kit, plus ses deux fragments,
@@ -36,17 +36,17 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `variables` | Les variables d'environnement | 2 sur 4 | 2 200 | [variables](#/examples/variables) |
 | `resources` | Les ressources du déploiement | 7 sur 9 | 2 200 | [resources](#/examples/resources) |
 
-### Types de l'espace métier
+### Types métier (espace Produit)
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
-| `feature` | Une fonctionnalité de bout en bout | 5 sur 11 | 2 500 | [feature](#/examples/feature) |
+| `feature` | Une fonctionnalité de bout en bout : stories, cartes de comportement, critères d'acceptation | 9 sur 14 | 4 000 | [feature](#/examples/feature) |
 | `business-rules` | Les règles partagées entre fonctionnalités | 2 sur 4 | 3 000 | [business-rules](#/examples/business-rules) |
 | `roles-matrix` | Chaque rôle et ce qu'il peut faire | 3 sur 5 | 2 000 | [roles-matrix](#/examples/roles-matrix) |
 | `process` | La même fonctionnalité, de bout en bout | 4 sur 8 | 2 200 | [process](#/examples/process) |
 | `release-notes` | Un historique de version pour un lecteur métier | 2 sur 3 | 3 000 | [release-notes](#/examples/release-notes) |
 
-### Types de l'espace reprise
+### Types de la reprise (espaces Développer et Administrer)
 
 | Type | Pour | Sections obligatoires | `maxWords` | Exemple |
 |---|---|---|---|---|
@@ -63,6 +63,10 @@ Chaque type a un exemple complet, écrit pour Acme Orders, dans la section **Exe
 | `security-review` | La matrice d'accès, les résultats de la sonde, les constats OWASP | 7 sur 10 | 3 000 | [security-review](#/examples/security-review) |
 | `maintainability-review` | Notes, points chauds, recommandations par effort | 5 sur 8 | 2 200 | [maintainability-review](#/examples/maintainability-review) |
 | `documentation-cost` | Temps, agents, modèles et jetons consacrés à la documentation | 3 sur 5 | 1 200 | [documentation-cost](#/examples/documentation-cost) |
+
+`access-ownership` et `runbook` sont lus par les exploitants : ils se rangent dans la partie Exploiter de l'espace
+Administrer, avec `architecture`, `variables` et `resources` ; les autres types de la reprise, dans l'espace
+Développer.
 
 Les sections elles-mêmes, type par type, sont listées dans `standard/templates.fr.md`. Les pages de ce site sont
 typées elles aussi : les pages de référence sont `technical`, les pages pratiques `recipe`. Les types métier et
@@ -117,15 +121,14 @@ doc-kit new reprendre/deploiement/variables --template variables --prefill
 | `--template <type>` | Le type ; obligatoire, sauf si la page est déjà déclarée avec un type |
 | `--title "…"` | `title` et `menuTitle` de l'entrée ; par défaut : le dernier segment de l'id, rendu lisible |
 | `--parent <id>` | Déclare une sous-page (`"level": 2`) juste après sa parente et les sous-pages de celle-ci |
-| `--prefill` | Remplit le tableau principal de la page à partir de `doc-kit facts`, pour les cinq types de reprise construits sur une seule source : `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`) |
+| `--prefill` | Remplit le tableau principal de la page à partir de `doc-kit facts`, pour les six types de reprise construits sur une seule source : `variables` (`env`), `api-surface` (`api`), `data-model` (`db`), `dependencies` (`dependencies`), `agent-instructions` (`agents`), `runbook` (`infra` : les tâches planifiées, chacune avec sa preuve `[[verifie fichier:ligne]]`) |
 
 Sans `--parent`, la page est ajoutée à la fin du groupe dont les pages partagent le plus long préfixe d'id, ou du
 dernier groupe de la section que nomme le premier segment de l'id. Le sommaire est modifié **comme du texte** : son
-indentation et ses fins de ligne sont conservées, et un ancien fichier à clés françaises reçoit des clés dans son
-propre style. Le résumé de l'entrée est un texte provisoire, que `doc-kit audit` signale tant que vous ne l'avez pas
-écrit. Un fichier existant n'est jamais écrasé (code de sortie 1). `--prefill` a besoin que `facts/<source>.json`
-existe déjà (`doc-kit facts` d'abord, sinon code de sortie 1) et d'un type qui en a un (sinon code de sortie 2) ;
-il remplit les cellules clés et leur preuve, ligne par ligne, et laisse le reste en consigne — voir
+indentation et ses fins de ligne sont conservées. Le résumé de l'entrée est un texte provisoire, que `doc-kit audit`
+signale tant que vous ne l'avez pas écrit. Un fichier existant n'est jamais écrasé (code de sortie 1). `--prefill` a
+besoin que `facts/<source>.json` existe déjà (`doc-kit facts` d'abord, sinon code de sortie 1) et d'un type qui en a
+un (sinon code de sortie 2) ; il remplit les cellules clés et leur preuve, ligne par ligne, et laisse le reste en consigne — voir
 [Coût et vitesse](#/skill/cost-and-speed~partir-des-faits-new-prefill).
 
 ## Les pages sans type

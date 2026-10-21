@@ -1,18 +1,23 @@
 # Page templates
 
-A template sets the `##` sections of a page type, their order and the page's maximum length. There are 30
-types: the 13 original ones, used in either space, and 17 added for the two spaces of
-[structure.md](structure.md) — 5 for the Business space (§6.8 of ARCHITECTURE.md), 12 for the Takeover space
-(§6.9, §6.13). The machine-readable version is [templates.json](templates.json) (the 13 original types) plus
+A template sets the `##` sections of a page type, their order and the page's maximum length. There are 31
+types, in three groups, spread over the four spaces of [structure.md](structure.md): the 13 original ones
+(the screens of Use and Administer, the technical pages of Develop and of the Operate part of Administer), 5
+business types for the Product space (§6.8 of ARCHITECTURE.md) and 13 takeover types, written for the Develop
+space, but for the operating ones (`runbook`, `access-ownership`), which belong to the Administer space (§6.9,
+§6.13, §6.14). The machine-readable version is [templates.json](templates.json) (the 13 original types) plus
 `templates/<group>.json` (`business.json`, `takeover.json`); the ready-to-fill pages are in
 `templates/pages/en/<type>.md` and `templates/pages/fr/<type>.md`.
 
 The type ids are English in every project: `screen`, `editor`, `recipe`, `technical`, `technical-sub`,
 `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`, `architecture`, `variables`,
-`resources` (used in either space, mostly Take over); `feature`, `business-rules`, `roles-matrix`, `process`,
-`release-notes` (Business space); `access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`,
-`code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`, `security-review`,
-`maintainability-review`, `documentation-cost` (Takeover space). The section labels follow the language of the project.
+`resources` (the original types: Use, Administer, Develop); `feature`, `business-rules`, `roles-matrix`,
+`process`, `release-notes` (business types: Product space); `access-ownership`, `api-surface`, `runbook`,
+`data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`, `adr`, `threat-model`,
+`security-review`, `maintainability-review`, `documentation-cost` (takeover types: Develop space, and
+Administer for `runbook` and `access-ownership`). The section labels follow the language of the project. A
+type is not tied to a space: the tables below give where each one is most often used
+([structure.md](structure.md#which-page-type-in-which-space)).
 
 ## How the build uses them
 
@@ -31,25 +36,30 @@ Legend of the tables below: **✱** = required.
 
 ## Overview
 
-### The 13 original types (either space, mostly Take over)
+### The 13 original types (Use, Administer and Develop spaces)
+
+Use and Administer are parts of the spaces of the same name; Operate is the second part of the Administer
+space; Understand and Risks are parts of the Develop space.
 
 | Type | Usual part | Purpose | Required | `maxWords` | Example page (Acme Orders) |
 |---|---|---|---|---|---|
 | `screen` | Use, Administer | A screen and its actions | 5 | 2,500 | `use/orders/list` |
 | `editor` | Administer | An editor and the mechanism it drives | 6 | 3,000 | `administer/approvals/approval-chains` |
 | `recipe` | Administer | A goal reached by chaining several editors | 5 | 3,500 | `administer/recipes/two-step-approval` |
-| `technical` | Understand, or any topic | A technical topic (parent or standalone page) | 1 | 2,000 | `take-over/security` |
-| `technical-sub` | Understand, or any topic | The detail of a technical topic | 0 | 2,000 | `take-over/security/sign-in` |
-| `journey` | Understand | What happens from end to end | 5 | 2,000 | `take-over/journey-order` |
-| `journey-step` | Understand | One step of a journey | 5 | 2,200 | `take-over/journey-order/approval` |
-| `troubleshooting` | Risks | From the symptom to the cause | 5 | 2,000 | `take-over/troubleshooting` |
-| `troubleshooting-area` | Risks | The symptoms of one area | 2 | 2,000 | `take-over/troubleshooting/access` |
-| `findings` | Risks | The numbered findings, the risk register | 2 | 2,000 | `take-over/findings` |
-| `architecture` | Operate | The production setup | 5 | 2,000 | `take-over/technical-architecture` |
-| `variables` | Operate | The environment variables | 2 | 2,200 | `take-over/deployment/variables` |
-| `resources` | Operate | The deployment resources | 7 | 2,200 | `take-over/deployment/resources` |
+| `technical` | Understand, or any topic | A technical topic (parent or standalone page) | 1 | 2,000 | `secure/security` |
+| `technical-sub` | Understand, or any topic | The detail of a technical topic | 0 | 2,000 | `secure/security/sign-in` |
+| `journey` | Understand | What happens from end to end | 5 | 2,000 | `understand/journey-order` |
+| `journey-step` | Understand | One step of a journey | 5 | 2,200 | `understand/journey-order/approval` |
+| `troubleshooting` | Risks | From the symptom to the cause | 5 | 2,000 | `risks/troubleshooting` |
+| `troubleshooting-area` | Risks | The symptoms of one area | 2 | 2,000 | `risks/troubleshooting/access` |
+| `findings` | Risks | The numbered findings, the risk register | 2 | 2,000 | `risks/findings` |
+| `architecture` | Operate | The production setup | 5 | 2,000 | `operate/technical-architecture` |
+| `variables` | Operate | The environment variables | 2 | 2,200 | `operate/deployment/variables` |
+| `resources` | Operate | The deployment resources | 7 | 2,200 | `operate/deployment/resources` |
 
-### The 5 Business space types (ARCHITECTURE.md §6.8)
+### The 5 business types (Product space, ARCHITECTURE.md §6.8)
+
+Features and Process are the two parts of the Product space.
 
 | Type | Usual part | Purpose | Required | `maxWords` | Example page (Acme Orders) |
 |---|---|---|---|---|---|
@@ -59,22 +69,24 @@ Legend of the tables below: **✱** = required.
 | `process` | Process | An end-to-end business process | 4 | 2,200 | `process/order-to-cash` |
 | `release-notes` | Process | What changed, version by version | 2 | 3,000 | `process/release-notes` |
 
-### The 13 Takeover space types (ARCHITECTURE.md §6.9, §6.13, §6.14)
+### The 13 takeover types (Develop and Administer spaces, ARCHITECTURE.md §6.9, §6.13, §6.14)
+
+Operate is a part of the Administer space; Understand, Secure and Maintain are parts of the Develop space.
 
 | Type | Usual part | Purpose | Required | `maxWords` | Example page (Acme Orders) |
 |---|---|---|---|---|---|
-| `access-ownership` | Secure | Who owns what, and how to hand it over | 3 | 2,200 | `take-over/access-ownership` |
-| `api-surface` | Secure | Every route, its authentication and its gaps | 3 | 3,000 | `take-over/api-surface` |
-| `runbook` | Operate | Install, build, deploy, roll back, back up | 5 | 3,000 | `take-over/runbook` |
-| `data-model` | Understand | The tables, their personal data, their retention | 3 | 2,500 | `take-over/data-model` |
-| `dependencies` | Maintain | The packages used, including the ones that do not exist | 3 | 2,200 | `take-over/dependencies` |
-| `code-map` | Understand | Containers, components, integrations | 4 | 2,500 | `take-over/code-map` |
-| `tests-quality` | Maintain | What is actually tested, and how to run it | 4 | 2,200 | `take-over/tests-quality` |
-| `agent-instructions` | Maintain | Every AI agent instruction file, rule by rule | 4 | 2,500 | `take-over/agent-instructions` |
-| `adr` | Understand | One reconstructed architecture decision | 5 | 1,500 | `take-over/architecture/adr-01-database` |
-| `threat-model` | Secure | The data flow diagram, the threats, the mitigations | 4 | 3,000 | `take-over/threat-model` |
-| `security-review` | Secure | Authentication, access control, OWASP findings | 7 | 3,000 | `take-over/security-review` |
-| `maintainability-review` | Maintain | Ratings, hotspots, recommendations by effort | 5 | 2,200 | `take-over/maintainability-review` |
+| `access-ownership` | Operate | Who owns what, and how to hand it over | 3 | 2,200 | `operate/access-ownership` |
+| `api-surface` | Secure | Every route, its authentication and its gaps | 3 | 3,000 | `secure/api-surface` |
+| `runbook` | Operate | Install, build, deploy, roll back, back up | 5 | 3,000 | `operate/runbook` |
+| `data-model` | Understand | The tables, their personal data, their retention | 3 | 2,500 | `understand/data-model` |
+| `dependencies` | Maintain | The packages used, including the ones that do not exist | 3 | 2,200 | `maintain/dependencies` |
+| `code-map` | Understand | Containers, components, integrations | 4 | 2,500 | `understand/code-map` |
+| `tests-quality` | Maintain | What is actually tested, and how to run it | 4 | 2,200 | `maintain/tests-quality` |
+| `agent-instructions` | Maintain | Every AI agent instruction file, rule by rule | 4 | 2,500 | `maintain/agent-instructions` |
+| `adr` | Understand | One reconstructed architecture decision | 5 | 1,500 | `understand/architecture/adr-01-database` |
+| `threat-model` | Secure | The data flow diagram, the threats, the mitigations | 4 | 3,000 | `secure/threat-model` |
+| `security-review` | Secure | Authentication, access control, OWASP findings | 7 | 3,000 | `secure/security-review` |
+| `maintainability-review` | Maintain | Ratings, hotspots, recommendations by effort | 5 | 2,200 | `maintain/maintainability-review` |
 | `documentation-cost` | Maintain | Time, agents, models and tokens spent on the documentation | 3 | 1,200 | `examples/documentation-cost` (kit docs) |
 
 ---
@@ -149,7 +161,7 @@ A concrete goal reached by chaining several editors, sometimes outside the appli
 
 ## `technical` — Technical page
 
-A topic of the Take over section: security, database, storage, AI, integrations, deployment, operations, maintaining the docs. It is a parent page when the topic is split, a standalone page otherwise.
+A technical topic, most often in the Develop space (deployment and operations in the Operate part of the Administer space): security, database, storage, AI, integrations, deployment, operations, maintaining the docs. It is a parent page when the topic is split, a standalone page otherwise.
 
 | Section | | Content |
 |---|---|---|
@@ -161,8 +173,8 @@ A topic of the Take over section: security, database, storage, AI, integrations,
 | Further reading | | 3 to 6 links |
 
 - **Length**: parent pages observed between 550 and 1,850 words; limit 2,000. Technical pages that were never split reached 5,400 words, which is too long to be read.
-- **Example**: `take-over/security` in Acme Orders: "In short" lists five mechanisms, all on the server side (sign-in through the identity provider, the middleware, permissions, scope filtering, the audit log), then three sub-pages.
-- **Common mistakes**: an "In short" that announces instead of answering; a technical topic without a single `file:line` proof. On the best site, two thirds of the Take over pages carry at least one proof.
+- **Example**: `secure/security` in Acme Orders: "In short" lists five mechanisms, all on the server side (sign-in through the identity provider, the middleware, permissions, scope filtering, the audit log), then three sub-pages.
+- **Common mistakes**: an "In short" that announces instead of answering; a technical topic without a single `file:line` proof. On the best site, two thirds of the takeover pages carry at least one proof.
 
 ## `technical-sub` — Technical sub-page
 
@@ -175,7 +187,7 @@ The detail of a technical topic. It has no "In short": the parent carries it. Th
 | Further reading | | The sibling pages and the parent |
 
 - **Length**: observed between 380 and 1,200 words; limit 2,000.
-- **Example**: `take-over/security/sign-in` in Acme Orders: "## The sign-in flow", "## The identity provider", "## Mapping groups to roles", "## The session".
+- **Example**: `secure/security/sign-in` in Acme Orders: "## The sign-in flow", "## The identity provider", "## Mapping groups to roles", "## The session".
 - **Common mistake**: keeping a "below" that pointed to the parent page before the split.
 
 ## `journey` — End-to-end journey
@@ -193,7 +205,7 @@ What really happens, from end to end, when someone performs the product's main a
 | Further reading | ✱ | Architecture, technical architecture document, screens, the matching home-page tour |
 
 - **Length**: observed between 1,450 and 1,900 words; limit 2,000.
-- **Example**: `take-over/journey-order` in Acme Orders: an order in 6 steps (creation, submission, approval, invoicing, payment, archiving). Other journeys worth writing for such a product: the assistant's answer, a new account, an overdue-invoice reminder, a figure on a dashboard.
+- **Example**: `understand/journey-order` in Acme Orders: an order in 6 steps (creation, submission, approval, invoicing, payment, archiving). Other journeys worth writing for such a product: the assistant's answer, a new account, an overdue-invoice reminder, a figure on a dashboard.
 - **Common mistakes**: describing the screen instead of the mechanism; describing a finding again instead of citing its number.
 
 ## `journey-step` — Journey step
@@ -211,7 +223,7 @@ One step, at code level: each line of execution, what is read and written, what 
 | Further reading | ✱ | The technical page, the screen, the next step |
 
 - **Length**: observed between 1,450 and 2,100 words; limit 2,200.
-- **Example**: `take-over/journey-order/approval` in Acme Orders: 11 execution steps, 4 cases of approval chain (none, single, sequential, by amount), 7 error messages.
+- **Example**: `understand/journey-order/approval` in Acme Orders: 11 execution steps, 4 cases of approval chain (none, single, sequential, by amount), 7 error messages.
 - **Common mistakes**: citing a function without its line; leaving out the state left by a failure.
 
 ## `troubleshooting` — Troubleshooting by symptom
@@ -228,7 +240,7 @@ The "it does not work" entry point: the checks that explain half of the symptoms
 | Further reading | ✱ | Findings, journeys, operations |
 
 - **Length**: about 1,450 words on the best site; limit 2,000.
-- **Example**: `take-over/troubleshooting` in Acme Orders: 7 checks, 4 log queries, 4 areas (access, approvals, invoices, the assistant).
+- **Example**: `risks/troubleshooting` in Acme Orders: 7 checks, 4 log queries, 4 areas (access, approvals, invoices, the assistant).
 - **Common mistake**: log queries that were never run. Check every table and column name against the documentation of the logging platform, and date the check.
 
 ## `troubleshooting-area` — Troubleshooting area
@@ -242,7 +254,7 @@ The symptoms of one area, grouped by the moment of the user's journey when they 
 | Further reading | ✱ | The parent page, the journeys, the findings |
 
 - **Length**: observed between 1,400 and 1,600 words; limit 2,000.
-- **Example**: `take-over/troubleshooting/access` in Acme Orders: "Signing in", "Seeing", "Acting and changing permissions".
+- **Example**: `risks/troubleshooting/access` in Acme Orders: "Signing in", "Seeing", "Acting and changing permissions".
 - **Common mistake**: a symptom written in the vocabulary of the code instead of the user's words.
 
 ## `findings` — Findings
@@ -263,7 +275,7 @@ The work list of whoever takes the project over: gaps, risks and debts, re-check
   - critical: `## C1 — title`, then **Finding**, **Impact**, **Recommendation**;
   - the others: a table `\| No. \| Point \| Where \| Finding and impact \| Recommendation \|`; the production and no-effect families add a **Severity** column.
 - **Numbering**: see [writing.md](writing.md#9-numbering-findings). Numbers never change.
-- **Example**: `take-over/findings` in Acme Orders and its six sub-pages. Splitting matters here: the same content kept on a single page reached about 10,800 words.
+- **Example**: `risks/findings` in Acme Orders and its six sub-pages. Splitting matters here: the same content kept on a single page reached about 10,800 words.
 - **Common mistakes**: renumbering the findings (the numbers are cited everywhere); a finding without its `file:line` proof; mixing a defect of the code with a production setting.
 
 ## `architecture` — Technical architecture document
@@ -281,7 +293,7 @@ The production setup, rebuilt from the cloud console, the infrastructure as code
 | Who manages what | ✱ | A PERMISSIONS box "Responsibilities" |
 
 - **Length**: observed between 1,750 words (with two sub-pages) and 2,850 words (without); limit 2,000.
-- **Example**: `take-over/technical-architecture` in Acme Orders: 15 flows, 3 of which are missing or do not work.
+- **Example**: `operate/technical-architecture` in Acme Orders: 15 flows, 3 of which are missing or do not work.
 - **Common mistake**: presenting a value from the infrastructure as code as observed in production.
 
 ## `variables` — Environment variables
@@ -296,7 +308,7 @@ The variables actually declared on the production service, compared with the cod
 | To check | ✱ | `:::steps`: what to look at the next time someone opens the console |
 
 - **Length**: about 1,850 words; limit 2,200.
-- **Example**: `take-over/deployment/variables` in Acme Orders: 28 variables, 7 of them references to the secret vault.
+- **Example**: `operate/deployment/variables` in Acme Orders: 28 variables, 7 of them references to the secret vault.
 - **Common mistake**: putting the count in the heading. "The 28 variables, one by one" does not start with "The variables": the section is no longer found. That is why this section is not required. The count goes in "In short".
 
 ## `resources` — Deployment resources
@@ -316,40 +328,49 @@ The resources of the production deployment, by family, and what really uses each
 | What the application uses outside this group | ✱ | Identity, gateways, registries, internal services |
 
 - **Length**: about 2,050 words; limit 2,200.
-- **Example**: `take-over/deployment/resources` in Acme Orders: 24 resources in 6 families.
+- **Example**: `operate/deployment/resources` in Acme Orders: 24 resources in 6 families.
 - **Common mistake**: listing the resources without saying what uses them. An unused resource that still holds permissions is a finding (production family).
 
 ---
 
-# Business space types (ARCHITECTURE.md §6.8)
+# Business types: the Product space (ARCHITECTURE.md §6.8)
 
-These 5 types describe **each feature** for the people who use it, decide about it or support it: no code, no
-`file:line` proof (see "Business pages cite no code" below). They follow the use case structure of Cockburn
+These 5 types describe **each feature** for the people who use it, decide about it or support it. They are
+written for the Product space, which, like the Use space, is read without the code: no code, no `file:line`
+proof (see "Business pages cite no code" below). They follow the use case structure of Cockburn
 (actors, trigger, main scenario, numbered variants) and the business rules of RuleSpeak (one statement, one
 "Given / When / Then" example).
 
 ## `feature` — Feature sheet
 
-One feature, end to end, for a business reader: who uses it, when it starts, what it does step by step, and
-the rules it enforces. Carries the page's `feature` id (`toc.json`, for example `"feature": "F-01"`) and, where
-a technical counterpart exists, its `counterpart`.
+One feature, end to end, as a specification a business reader and a product owner can check against the
+application: who uses it, its user stories, its usual path, each of its behaviours answered rubric by rubric, its
+rules, its messages, its rights by action and its acceptance criteria. Carries the page's `feature` id (`toc.json`,
+for example `"feature": "F-01"`) and, where a technical counterpart exists, its `counterpart`. A section that
+does not apply stays, with one line: "Not applicable — the reason".
 
 | Section | | Content |
 |---|---|---|
-| Access | ✱ | A two-column table, fixed rows: Module · Who can use it (`[[perm …]]`) · Prerequisites · Checked on (version, date) |
 | What it is for | ✱ | The business need in 2 to 4 sentences; the page's title in bold in the first sentence |
-| Who uses it | ✱ | One line per role: "**Role**: what they do" |
-| Trigger and preconditions | | Optional; delete when the trigger is simply "someone opens the screen" |
-| Main scenario | ✱ | `:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step clearer (neither is required here) |
-| Variants and exceptions | | Numbered after the step they branch from: "3a. If …" |
+| Who uses it | ✱ | A table, Role · What they do with it |
+| User stories | ✱ | One `:::story{id title role since ref}` per need: "As a …, I want … so that …" |
+| Main path | ✱ | `:::steps`; a `:::screen` or `::capture` only when a screenshot makes a step clearer (neither is required here) |
+| Variants | | Numbered after the step they branch from: "3a. If …" |
+| Behaviours | ✱ | One `:::behaviour{kind title id}` card per behaviour (search, filter, sort, pagination, list, form, import, export, calculation, notification, workflow, scheduled job, permission check): each rubric of its kind answered, or "n/a — reason", or "unknown — question" |
 | Business rules | ✱ | Rules that belong only to this feature, defined with `:::rule`; a shared rule is only cited with `[[rule …]]` |
-| Data handled | | Business data read or changed, named the way a business reader knows it — never a table or column name |
-| Notifications and effects | | What the feature sets off beyond the screen: an email, an entry elsewhere, a counter that changes |
+| Fields and inputs | | A table: Field · Required · Format and accepted values · Default · Check and its message |
+| States | | The states an item goes through (`[[status …]]`), what moves it, and who can |
+| Messages | ✱ | Every message the reader can see, word for word: Message · When it appears · What to do |
+| Rights by action | ✱ | A table: Action · Right (`[[perm …]]`) · Condition; then what a reader without the right sees |
+| Acceptance criteria | ✱ | One `:::scenario{title story behaviour}` per criterion, Given / When / Then with real values |
 | Limits | | What the feature deliberately does not do, in business terms, never a code pitfall |
-| Questions people ask | | 2 to 5 real questions, each with a short, direct answer |
+| Open questions | | Each question nobody could answer yet (the cards' "unknown — …" included), with who can answer it |
 
-- **Length**: limit 2,500 words; most sheets fit well under it — a feature that needs more is usually several
-  features, or belongs partly in `process`.
+- **Length**: limit 4,000 words; its context file gets 24,000 tokens (`contextBudget`). A feature that needs more is
+  usually several features, or belongs partly in `process`.
+- **Behaviour cards** (`standard/behaviours.json`): the rubrics of each kind, required or not, and what each must say;
+  a required rubric left out is reported by the build (`behaviour.missing`). The syntax: ARCHITECTURE.md §6.8a.
+- **Headings of 0.3** still count: "Main scenario" for "Main path".
 - **Example**: `features/two-step-approval` in Acme Orders: who can raise the threshold, the two approval steps,
   what happens to an order already pending when the chain changes.
 - **Common mistakes**:
@@ -400,7 +421,7 @@ first when a user says "I don't see the button".
 ## `process` — Process
 
 An end-to-end business process, in business language: who takes part, the steps, what is automatic and what
-waits for a person. The business-space equivalent of a `journey`, without the code.
+waits for a person. The Product space's equivalent of a `journey` (a Develop page), without the code.
 
 | Section | | Content |
 |---|---|---|
@@ -436,16 +457,19 @@ commit messages, no internal refactors, only what a user or an administrator not
 - **Common mistake**: copying the engineering changelog verbatim — rewrite each entry for the reader who never
   sees a commit.
 
-**Business pages cite no code.** A page whose effective space is `business` that still contains a `file:line`
-proof gets the warning `business.technical`: move the detail to the page's `counterpart`, the technical sheet
-of the same feature.
+**Business pages cite no code.** A page of one of these 5 types whose effective space is read without the code
+(the Use or Product space, or a space of the project's own declared with `"kind": "use"` or `"product"`) and
+that still contains a `file:line` proof gets the warning `business.technical`: move the detail to the page's
+`counterpart`, the technical sheet of the same feature in the Develop space.
 
 ---
 
-# Takeover space types (ARCHITECTURE.md §6.9, §6.13)
+# Takeover types: the Develop and Administer spaces (ARCHITECTURE.md §6.9, §6.13)
 
 These 13 types form the dossier a team needs to take an application over, especially one written largely by AI
-assistants ("vibe-coded"). Every claim is backed by a `file:line` proof, or marked `[[deduced]]` or `[[unknown]]`
+assistants ("vibe-coded"). They are written for the Develop space, but for `runbook` and `access-ownership`,
+which belong to the Operate part of the Administer space, with the technical architecture document
+(`architecture`), `variables` and `resources`. Every claim is backed by a `file:line` proof, or marked `[[deduced]]` or `[[unknown]]`
 (see [writing.md](writing.md)). The last two, `security-review` and `maintainability-review`, are optional
 reviews on demand (§6.13): see their own templates (`templates/pages/<language>/security-review.md`,
 `maintainability-review.md`) and worked examples for their sections in detail.
@@ -464,7 +488,7 @@ Who holds what, and the concrete steps to actually receive it: the page a handov
 | Handover checklist | | The concrete steps: reset shared secrets, create named accounts, revoke the previous team's access |
 
 - **Length**: limit 2,200 words.
-- **Example**: `take-over/access-ownership` in Acme Orders: the production database and the payment provider
+- **Example**: `operate/access-ownership` in Acme Orders: the production database and the payment provider
   have a named owner; half the CI/CD variables do not.
 - **Common mistake**: a confident "Owner: the previous team" with no name and no way to reach them — that is an
   unknown owner, say so.
@@ -483,7 +507,7 @@ isolation — built from `::facts{source="api"}`, then completed by hand.
 | Gaps | ✱ | A route with no visible check, cited as a numbered finding |
 
 - **Length**: limit 3,000 words.
-- **Example**: `take-over/api-surface` in Acme Orders: 61 routes, 3 public (health check, webhook, the public
+- **Example**: `secure/api-surface` in Acme Orders: 61 routes, 3 public (health check, webhook, the public
   order-tracking page), one gap (`C1`, a route trusting a client-supplied tenant id).
 - **Common mistake**: trusting a route's name over its code — a route named `/admin/...` with no role check in
   `api.py` is a gap, not a reassurance.
@@ -505,7 +529,7 @@ scripts, never from memory.
 | When it breaks | | First checks for the most frequent incidents |
 
 - **Length**: limit 3,000 words.
-- **Example**: `take-over/runbook` in Acme Orders: the pipeline deploys on every push to `main`
+- **Example**: `operate/runbook` in Acme Orders: the pipeline deploys on every push to `main`
   (`[[verified .github/workflows/deploy.yml:1]]`); roll-back redeploys the previous image from the registry.
 - **Common mistake**: a "Backup and restore" that only says backups exist — say whether a restore was ever
   actually tested, and when.
@@ -526,7 +550,7 @@ an eye on personal data and retention.
 | Migrations | | How schema changes are made, and the backlog of pending ones |
 
 - **Length**: limit 2,500 words.
-- **Example**: `take-over/data-model` in Acme Orders: 22 tables; customer e-mail and address are personal data
+- **Example**: `understand/data-model` in Acme Orders: 22 tables; customer e-mail and address are personal data
   with no documented retention policy (`M3`).
 - **Common mistake**: describing the ORM models instead of the actual database — a migration that was never
   applied in production leaves the two out of sync; say which one you checked.
@@ -547,7 +571,7 @@ risk).
 | To check | | Dependencies whose purpose in the code was not obvious |
 
 - **Length**: limit 2,200 words.
-- **Example**: `take-over/dependencies` in Acme Orders: 84 direct dependencies; one, imported once, does not
+- **Example**: `maintain/dependencies` in Acme Orders: 84 direct dependencies; one, imported once, does not
   exist in the npm registry (`C2`).
 - **Common mistake**: skipping "Packages that do not exist" because the application runs fine locally — a
   hallucinated package only breaks a *clean* install, which is exactly what a takeover does first.
@@ -567,7 +591,7 @@ the C4-style map a new developer draws in their first week, already drawn.
 | Duplicated or dead code | | Code that exists twice with drift, or that nothing calls any more |
 
 - **Length**: limit 2,500 words.
-- **Example**: `take-over/code-map` in Acme Orders: one Next.js container (screens, API routes, server
+- **Example**: `understand/code-map` in Acme Orders: one Next.js container (screens, API routes, server
   actions) and one scheduled-jobs container sharing the same database.
 - **Common mistake**: a components diagram copied from a framework's generic starter — check every arrow
   against an actual import or network call.
@@ -586,7 +610,7 @@ AI-generated code (a test that asserts nothing, or that mocks away the behaviour
 | How to run them | ✱ | The exact command, and what a clean run looks like |
 
 - **Length**: limit 2,200 words.
-- **Example**: `take-over/tests-quality` in Acme Orders: 340 tests, 61 % statement coverage; the approval-chain
+- **Example**: `maintain/tests-quality` in Acme Orders: 340 tests, 61 % statement coverage; the approval-chain
   test suite mocks the approval service itself, so it tests nothing about approval (`I9`).
 - **Common mistake**: quoting a coverage percentage without having run the suite — a stale badge in a README is
   not a measurement.
@@ -606,7 +630,7 @@ from the code they were meant to steer.
 | What to keep | | Once every rule has a status, what to fold into this documentation, what to drop |
 
 - **Length**: limit 2,500 words.
-- **Example**: `take-over/agent-instructions` in Acme Orders: one `CLAUDE.md`, 340 words; one rule ("always
+- **Example**: `maintain/agent-instructions` in Acme Orders: one `CLAUDE.md`, 340 words; one rule ("always
   filter by tenant") contradicted by one route (`C1`, also listed on `api-surface`).
 - **Common mistake**: treating the instruction file as documentation instead of auditing it — a rule the code
   no longer follows is a finding, not a fact.
@@ -625,7 +649,7 @@ sub-page of the `technical` or `architecture` page it concerns.
 | How it was reconstructed | ✱ | Which code, commits or people this page is built from |
 
 - **Length**: limit 1,500 words; an ADR that grows past it is usually two decisions.
-- **Example**: `take-over/architecture/adr-01-database` in Acme Orders: why a single shared database serves
+- **Example**: `understand/architecture/adr-01-database` in Acme Orders: why a single shared database serves
   every tenant (row-level security, not a database per tenant) — reconstructed from the migrations and one
   surviving pull request description.
 - **Common mistake**: presenting a guess as the decision — say plainly when "How it was reconstructed" is
@@ -646,7 +670,7 @@ takeover dossier's security centrepiece.
 | Accepted risks | | A threat the owner decided to accept, with who decided and when |
 
 - **Length**: limit 3,000 words.
-- **Example**: `take-over/threat-model` in Acme Orders: 4 trust boundaries; the browser-to-API boundary has an
+- **Example**: `secure/threat-model` in Acme Orders: 4 trust boundaries; the browser-to-API boundary has an
   unmitigated tampering threat on the order total (`C3`, also on `api-surface`).
 - **Common mistake**: a generic STRIDE table copied from a template, with no boundary and no proof — every row
   needs the actual diagram edge it threatens.

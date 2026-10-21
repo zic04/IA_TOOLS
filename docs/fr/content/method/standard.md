@@ -20,10 +20,10 @@ Les cinq règles qui comptent le plus :
 
 | Document | Ce qu'il contient | Dans ce site |
 |---|---|---|
-| `standard/structure.fr.md` | Les quatre sections, les groupes, les pages obligatoires de Reprendre, les parcours de la page d'accueil, les sous-pages | [Sommaire, sous-pages et parcours](#/write/table-of-contents) |
-| `standard/templates.fr.md` et `templates.json` | Les 13 types de page généraux : rôle, sections, longueur, exemple, erreurs fréquentes | [Les gabarits de page](#/write/page-templates) |
-| `standard/templates/business.json` | 5 types de plus pour l'espace métier : fiche de fonctionnalité, règles métier, matrice des rôles, processus, notes de version | [Documenter chaque fonctionnalité](#/spaces/business) |
-| `standard/templates/takeover.json` | 10 types de plus pour l'espace reprise : accès et propriété, surface d'API, runbook, modèle de données, dépendances, carte du code, tests, instructions des agents, ADR, modèle de menaces | [Reprendre une application vibe-codée](#/spaces/takeover) |
+| `standard/structure.fr.md` | Les quatre espaces et leurs parties, les groupes, les pages obligatoires de la reprise, les parcours de la page d'accueil, les sous-pages | [Sommaire, sous-pages et parcours](#/write/table-of-contents) |
+| `standard/templates.fr.md` et `templates.json` | Les 31 types de page : rôle, sections, longueur, exemple, erreurs fréquentes (`templates.json` contient les 13 généraux) | [Les gabarits de page](#/write/page-templates) |
+| `standard/templates/business.json` | 5 types de plus pour l'espace Produit : fiche de fonctionnalité, règles métier, matrice des rôles, processus, notes de version | [Documenter chaque fonctionnalité](#/spaces/business) |
+| `standard/templates/takeover.json` | 13 types de plus pour le dossier de reprise, dans l'espace Développer (accès et propriété et manuel d'exploitation dans l'espace Administrer) : accès et propriété, surface d'API, runbook, modèle de données, dépendances, carte du code, tests, instructions des agents, ADR, modèle de menaces, revue de sécurité, revue de maintenabilité, coût de la documentation | [Reprendre une application vibe-codée](#/spaces/takeover) |
 | `standard/writing.fr.md` | Rien d'inventé, preuves, libellés exacts, écarts, liens, glossaire, numérotation des constats, schémas | ci-dessous |
 | `standard/captures.fr.md` | Sécurité des captures en production, la session, le masquage, la qualité des zones, production ou démo | [Démo ou production : capturer sans risque](#/capture/safety) |
 | `standard/quality.fr.md` | Les barrières bloquantes et les avertissements, avec la commande qui contrôle chacun | [Les contrôles](#/publish/checks) |
@@ -31,26 +31,27 @@ Les cinq règles qui comptent le plus :
 | `standard/delivery.fr.md` | La liste de contrôle de la passation | [Exporter et transmettre](#/publish/export) |
 | `standard/config.fr.md` | Deux configurations complètes et commentées, pour des applications fictives | [La configuration](#/reference/configuration) |
 
-## Quatre lecteurs, quatre sections
+## Quatre lecteurs, quatre espaces
 
-| Section | Pour qui | Ce qu'on y trouve | Types principaux |
+| Espace | Pour qui | Parties | Types principaux |
 |---|---|---|---|
-| Utiliser (`utiliser`) | L'utilisateur final | Chaque écran du quotidien, annoté | `screen` |
-| Configurer (`configurer`) | L'administrateur métier | Chaque éditeur et chaque réglage, avec son mécanisme ; les recettes | `editor`, `recipe` |
-| Administrer (`administrer`) | L'administrateur de la plateforme | Accès, données de référence, système, exploitation | `screen` |
-| Reprendre (`reprendre`) | Celui qui reprend le projet | Architecture, parcours, exploitation, diagnostic, points d'attention | `technical`, `journey`, `troubleshooting`… |
+| Utiliser (`use`) | Utilisateurs, référents, support | Utiliser | `screen` |
+| Produit (`product`) | Responsables produit (PO), analystes métier, référents | Fonctionnalités, Processus | `feature`, `business-rules`, `roles-matrix`, `process`, `release-notes` |
+| Administrer (`admin`) | Administrateurs de l'application, exploitants | Administrer, Exploiter | `screen`, `editor`, `recipe` ; `architecture`, `runbook`, `variables`, `resources`, `access-ownership` |
+| Développer (`develop`) | Développeurs, équipe de reprise, sécurité | Comprendre, Sécuriser, Risques, Maintenir | `technical`, `journey`, `troubleshooting`, `findings`… |
 
-La section Reprendre rend un projet transmissible. Ses sept pages obligatoires sont une architecture d'ensemble, un
-dossier d'architecture technique (DAT), au moins un parcours de bout en bout, l'exploitation, le diagnostic par
-symptôme, les points d'attention, et la façon dont la documentation elle-même est maintenue.
+Sept pages obligatoires rendent un projet transmissible : une architecture d'ensemble, au moins un parcours de bout
+en bout, le diagnostic par symptôme, les points d'attention et la façon dont la documentation elle-même est
+maintenue, dans l'espace Développer ; le dossier d'architecture technique (DAT) et l'exploitation, dans l'espace
+Administrer.
 
-## Deux publics, superposés
+## Une seule source, un fichier par public
 
-Un projet peut aussi déclarer des **espaces** (ARCHITECTURE.md §6.1a) : `business` et `takeover`, une seule source
-exportée deux fois, un fichier HTML par public, qui ne doit pas voir le reste. Les espaces sont facultatifs et se
-superposent aux quatre sections ci-dessus — une section appartient toujours à un public, une page peut appartenir
-à un autre — et apportent leurs propres types de page (fiches de fonctionnalité et règles métier pour `business` ;
-dossiers construits à partir des faits et registre des risques pour `takeover`). [Deux espaces, une seule
+Les espaces se déclarent dans `content/toc.json` (ARCHITECTURE.md §6.1a) : une seule source, exportée une fois par
+espace, un fichier HTML par public qui ne doit pas voir le reste. Ils sont facultatifs — un petit outil à un seul
+public n'en déclare aucun, et un projet ne déclare que les espaces pour lesquels il a des lecteurs. Chaque espace
+standard est son propre type : pas de code dans Utiliser et Produit, des preuves `file:line` dans Développer, la
+correspondance technique du glossaire dans Administrer et Développer. [Quatre espaces, une seule
 source](#/spaces/overview) explique le mécanisme ; [Documenter chaque fonctionnalité](#/spaces/business) et
 [Reprendre une application vibe-codée](#/spaces/takeover) l'appliquent.
 
@@ -93,4 +94,4 @@ revoir, plutôt que de tout relire.
 - [Exemples de pages](#/examples/screen) : une page de chaque type, écrite selon le standard.
 - [L'audit et les niveaux de maturité](#/publish/audit) : le standard, mesuré.
 - [Les phases du skill](#/skill/phases) : la méthode, menée par Claude Code.
-- [Deux espaces, une seule source](#/spaces/overview) : les espaces métier et reprise, en détail.
+- [Quatre espaces, une seule source](#/spaces/overview) : les quatre espaces, en détail.

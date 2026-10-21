@@ -1,19 +1,23 @@
 # Les gabarits de page
 
-Un gabarit fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y a 30
-types : les 13 d'origine, utilisés dans l'un ou l'autre espace, et 17 ajoutés pour les deux espaces de
-[structure.fr.md](structure.fr.md) — 5 pour l'espace Métier (§6.8 d'ARCHITECTURE.md), 12 pour l'espace Reprise
-(§6.9, §6.13). La version lisible par la machine est [templates.json](templates.json) (les 13 types d'origine) plus
+Un gabarit fixe les sections `##` d'un type de page, leur ordre et la longueur maximale de la page. Il y a 31
+types, en trois groupes, répartis sur les quatre espaces de [structure.fr.md](structure.fr.md) : les 13
+d'origine (les écrans d'Utiliser et d'Administrer, les pages techniques de Développer et de la partie Exploiter
+d'Administrer), 5 types métier pour l'espace Produit (§6.8 d'ARCHITECTURE.md) et 13 types de reprise, écrits
+pour l'espace Développer, sauf ceux de l'exploitation (`runbook`, `access-ownership`), qui relèvent de l'espace
+Administrer (§6.9, §6.13, §6.14). La version lisible par la machine est [templates.json](templates.json) (les 13 types d'origine) plus
 `templates/<groupe>.json` (`business.json`, `takeover.json`) ; les pages prêtes à remplir sont dans
 `templates/pages/en/<type>.md` et `templates/pages/fr/<type>.md`.
 
 Les identifiants de type sont en anglais dans tous les projets : `screen`, `editor`, `recipe`, `technical`,
 `technical-sub`, `journey`, `journey-step`, `troubleshooting`, `troubleshooting-area`, `findings`,
-`architecture`, `variables`, `resources` (utilisés dans l'un ou l'autre espace, surtout en Reprise) ; `feature`,
-`business-rules`, `roles-matrix`, `process`, `release-notes` (espace Métier) ; `access-ownership`,
-`api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`, `agent-instructions`,
-`adr`, `threat-model`, `security-review`, `maintainability-review`, `documentation-cost` (espace Reprise). Les libellés de section
-suivent la langue du projet.
+`architecture`, `variables`, `resources` (les types d'origine : Utiliser, Administrer, Développer) ; `feature`,
+`business-rules`, `roles-matrix`, `process`, `release-notes` (types métier : espace Produit) ;
+`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`,
+`agent-instructions`, `adr`, `threat-model`, `security-review`, `maintainability-review`, `documentation-cost`
+(types de reprise : espace Développer, et Administrer pour `runbook` et `access-ownership`). Les libellés de
+section suivent la langue du projet. Un type n'est pas lié à un espace : les tableaux ci-dessous donnent où
+chacun sert le plus souvent ([structure.fr.md](structure.fr.md#quel-type-de-page-dans-quel-espace)).
 
 ## Comment le build s'en sert
 
@@ -32,25 +36,30 @@ Légende des tableaux ci-dessous : **✱** = obligatoire.
 
 ## Vue d'ensemble
 
-### Les 13 types d'origine (l'un ou l'autre espace, surtout Reprendre)
+### Les 13 types d'origine (espaces Utiliser, Administrer et Développer)
+
+Utiliser et Administrer sont des parties des espaces du même nom ; Exploiter est la seconde partie de l'espace
+Administrer ; Comprendre et Risques sont des parties de l'espace Développer.
 
 | Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
 |---|---|---|---|---|---|
 | `screen` | Utiliser, Administrer | Un écran et ses actions | 5 | 2 500 | `utiliser/commandes/liste` |
 | `editor` | Administrer | Un éditeur et le mécanisme qu'il pilote | 6 | 3 000 | `administrer/validation/circuits` |
 | `recipe` | Administrer | Un but atteint en enchaînant plusieurs éditeurs | 5 | 3 500 | `administrer/recettes/validation-en-deux-temps` |
-| `technical` | Comprendre, ou tout sujet | Un sujet technique (page parente ou page seule) | 1 | 2 000 | `reprendre/securite` |
-| `technical-sub` | Comprendre, ou tout sujet | Le détail d'un sujet technique | 0 | 2 000 | `reprendre/securite/connexion` |
-| `journey` | Comprendre | Ce qui se passe de bout en bout | 5 | 2 000 | `reprendre/parcours-commande` |
-| `journey-step` | Comprendre | Une étape d'un parcours | 5 | 2 200 | `reprendre/parcours-commande/validation` |
-| `troubleshooting` | Risques | Du symptôme à la cause | 5 | 2 000 | `reprendre/diagnostic` |
-| `troubleshooting-area` | Risques | Les symptômes d'un domaine | 2 | 2 000 | `reprendre/diagnostic/acces` |
-| `findings` | Risques | Les constats numérotés, le registre des risques | 2 | 2 000 | `reprendre/points-attention` |
-| `architecture` | Exploiter | L'implantation en production | 5 | 2 000 | `reprendre/dat` |
-| `variables` | Exploiter | Les variables d'environnement | 2 | 2 200 | `reprendre/deploiement/variables` |
-| `resources` | Exploiter | Les ressources du déploiement | 7 | 2 200 | `reprendre/deploiement/ressources` |
+| `technical` | Comprendre, ou tout sujet | Un sujet technique (page parente ou page seule) | 1 | 2 000 | `securiser/securite` |
+| `technical-sub` | Comprendre, ou tout sujet | Le détail d'un sujet technique | 0 | 2 000 | `securiser/securite/connexion` |
+| `journey` | Comprendre | Ce qui se passe de bout en bout | 5 | 2 000 | `comprendre/parcours-commande` |
+| `journey-step` | Comprendre | Une étape d'un parcours | 5 | 2 200 | `comprendre/parcours-commande/validation` |
+| `troubleshooting` | Risques | Du symptôme à la cause | 5 | 2 000 | `risques/diagnostic` |
+| `troubleshooting-area` | Risques | Les symptômes d'un domaine | 2 | 2 000 | `risques/diagnostic/acces` |
+| `findings` | Risques | Les constats numérotés, le registre des risques | 2 | 2 000 | `risques/points-attention` |
+| `architecture` | Exploiter | L'implantation en production | 5 | 2 000 | `exploiter/dat` |
+| `variables` | Exploiter | Les variables d'environnement | 2 | 2 200 | `exploiter/deploiement/variables` |
+| `resources` | Exploiter | Les ressources du déploiement | 7 | 2 200 | `exploiter/deploiement/ressources` |
 
-### Les 5 types de l'espace Métier (ARCHITECTURE.md §6.8)
+### Les 5 types métier (espace Produit, ARCHITECTURE.md §6.8)
+
+Fonctionnalités et Processus sont les deux parties de l'espace Produit.
 
 | Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
 |---|---|---|---|---|---|
@@ -60,22 +69,25 @@ Légende des tableaux ci-dessous : **✱** = obligatoire.
 | `process` | Processus | Un processus métier de bout en bout | 4 | 2 200 | `processus/commande-a-encaissement` |
 | `release-notes` | Processus | Ce qui a changé, version après version | 2 | 3 000 | `processus/notes-de-version` |
 
-### Les 13 types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13, §6.14)
+### Les 13 types de reprise (espaces Développer et Administrer, ARCHITECTURE.md §6.9, §6.13, §6.14)
+
+Exploiter est une partie de l'espace Administrer ; Comprendre, Sécuriser et Maintenir sont des parties de
+l'espace Développer.
 
 | Type | Partie habituelle | Sert à | Obligatoires | `maxWords` | Page d'exemple (Acme Orders) |
 |---|---|---|---|---|---|
-| `access-ownership` | Sécuriser | Qui possède quoi, et comment en faire la passation | 3 | 2 200 | `reprendre/acces-et-propriete` |
-| `api-surface` | Sécuriser | Chaque route, son authentification, ses manques | 3 | 3 000 | `reprendre/surface-api` |
-| `runbook` | Exploiter | Installer, construire, déployer, revenir en arrière, sauvegarder | 5 | 3 000 | `reprendre/manuel-exploitation` |
-| `data-model` | Comprendre | Les tables, leurs données personnelles, leur conservation | 3 | 2 500 | `reprendre/modele-donnees` |
-| `dependencies` | Maintenir | Les paquets utilisés, y compris ceux qui n'existent pas | 3 | 2 200 | `reprendre/dependances` |
-| `code-map` | Comprendre | Conteneurs, composants, intégrations | 4 | 2 500 | `reprendre/carte-du-code` |
-| `tests-quality` | Maintenir | Ce qui est réellement testé, et comment le lancer | 4 | 2 200 | `reprendre/tests-et-qualite` |
-| `agent-instructions` | Maintenir | Chaque fichier d'instructions d'agent IA, règle par règle | 4 | 2 500 | `reprendre/instructions-agents` |
-| `adr` | Comprendre | Une décision d'architecture reconstituée | 5 | 1 500 | `reprendre/architecture/adr-01-base-donnees` |
-| `threat-model` | Sécuriser | Le schéma de flux, les menaces, les mesures d'atténuation | 4 | 3 000 | `reprendre/modele-menaces` |
-| `security-review` | Sécuriser | Authentification, contrôle d'accès, constats OWASP | 7 | 3 000 | `reprendre/revue-de-securite` |
-| `maintainability-review` | Maintenir | Notes, points chauds, recommandations par effort | 5 | 2 200 | `reprendre/revue-de-maintenabilite` |
+| `access-ownership` | Exploiter | Qui possède quoi, et comment en faire la passation | 3 | 2 200 | `exploiter/acces-et-propriete` |
+| `api-surface` | Sécuriser | Chaque route, son authentification, ses manques | 3 | 3 000 | `securiser/surface-api` |
+| `runbook` | Exploiter | Installer, construire, déployer, revenir en arrière, sauvegarder | 5 | 3 000 | `exploiter/manuel-exploitation` |
+| `data-model` | Comprendre | Les tables, leurs données personnelles, leur conservation | 3 | 2 500 | `comprendre/modele-donnees` |
+| `dependencies` | Maintenir | Les paquets utilisés, y compris ceux qui n'existent pas | 3 | 2 200 | `maintenir/dependances` |
+| `code-map` | Comprendre | Conteneurs, composants, intégrations | 4 | 2 500 | `comprendre/carte-du-code` |
+| `tests-quality` | Maintenir | Ce qui est réellement testé, et comment le lancer | 4 | 2 200 | `maintenir/tests-et-qualite` |
+| `agent-instructions` | Maintenir | Chaque fichier d'instructions d'agent IA, règle par règle | 4 | 2 500 | `maintenir/instructions-agents` |
+| `adr` | Comprendre | Une décision d'architecture reconstituée | 5 | 1 500 | `comprendre/architecture/adr-01-base-donnees` |
+| `threat-model` | Sécuriser | Le schéma de flux, les menaces, les mesures d'atténuation | 4 | 3 000 | `securiser/modele-menaces` |
+| `security-review` | Sécuriser | Authentification, contrôle d'accès, constats OWASP | 7 | 3 000 | `securiser/revue-de-securite` |
+| `maintainability-review` | Maintenir | Notes, points chauds, recommandations par effort | 5 | 2 200 | `maintenir/revue-de-maintenabilite` |
 | `documentation-cost` | Maintenir | Temps, agents, modèles et jetons consacrés à la documentation | 3 | 1 200 | `examples/documentation-cost` (doc du kit) |
 
 ---
@@ -150,7 +162,7 @@ Un but concret atteint en enchaînant plusieurs éditeurs, parfois hors de l'app
 
 ## `technical` — Page technique
 
-Un sujet de la section Reprendre : sécurité, base de données, stockage, IA, intégrations, déploiement, exploitation, maintenance de la doc. C'est une page parente quand le sujet est découpé, une page seule sinon.
+Un sujet technique, le plus souvent dans l'espace Développer (le déploiement et l'exploitation dans la partie Exploiter de l'espace Administrer) : sécurité, base de données, stockage, IA, intégrations, déploiement, exploitation, maintenance de la doc. C'est une page parente quand le sujet est découpé, une page seule sinon.
 
 | Section | | Contenu |
 |---|---|---|
@@ -162,8 +174,8 @@ Un sujet de la section Reprendre : sécurité, base de données, stockage, IA, i
 | Pour aller plus loin | | 3 à 6 liens |
 
 - **Longueur** : pages parentes constatées entre 550 et 1 850 mots ; limite 2 000. Des pages techniques jamais découpées ont atteint 5 400 mots, ce qui est trop long pour être lu.
-- **Exemple** : `reprendre/securite` dans Acme Orders : « En bref » liste cinq mécanismes, tous côté serveur (la connexion par le fournisseur d'identité, le middleware, les permissions, le filtrage par périmètre, le journal d'audit), puis trois sous-pages.
-- **Erreurs fréquentes** : un « En bref » qui annonce au lieu de répondre ; un sujet technique sans une seule preuve `fichier:ligne`. Sur le meilleur site, deux tiers des pages de Reprendre portent au moins une preuve.
+- **Exemple** : `securiser/securite` dans Acme Orders : « En bref » liste cinq mécanismes, tous côté serveur (la connexion par le fournisseur d'identité, le middleware, les permissions, le filtrage par périmètre, le journal d'audit), puis trois sous-pages.
+- **Erreurs fréquentes** : un « En bref » qui annonce au lieu de répondre ; un sujet technique sans une seule preuve `fichier:ligne`. Sur le meilleur site, deux tiers des pages de la reprise portent au moins une preuve.
 
 ## `technical-sub` — Sous-page technique
 
@@ -176,7 +188,7 @@ Le détail d'un sujet technique. Elle n'a pas d'« En bref » : la page parente 
 | Pour aller plus loin | | Les pages sœurs et la page parente |
 
 - **Longueur** : constatée entre 380 et 1 200 mots ; limite 2 000.
-- **Exemple** : `reprendre/securite/connexion` dans Acme Orders : « ## Le déroulé de la connexion », « ## Le fournisseur d'identité », « ## La correspondance entre groupes et rôles », « ## La session ».
+- **Exemple** : `securiser/securite/connexion` dans Acme Orders : « ## Le déroulé de la connexion », « ## Le fournisseur d'identité », « ## La correspondance entre groupes et rôles », « ## La session ».
 - **Erreur fréquente** : garder un « ci-dessous » qui visait la page parente avant le découpage.
 
 ## `journey` — Parcours de bout en bout
@@ -194,7 +206,7 @@ Ce qui se passe réellement, de bout en bout, quand quelqu'un fait l'action prin
 | Pour aller plus loin | ✱ | Architecture, dossier d'architecture technique (DAT), écrans, le parcours guidé de l'accueil correspondant |
 
 - **Longueur** : constatée entre 1 450 et 1 900 mots ; limite 2 000.
-- **Exemple** : `reprendre/parcours-commande` dans Acme Orders : une commande en 6 étapes (création, soumission, validation, facturation, paiement, archivage). D'autres parcours valent la peine d'être écrits pour un tel produit : la réponse de l'assistant, un nouveau compte, la relance d'une facture en retard, un chiffre d'un tableau de bord.
+- **Exemple** : `comprendre/parcours-commande` dans Acme Orders : une commande en 6 étapes (création, soumission, validation, facturation, paiement, archivage). D'autres parcours valent la peine d'être écrits pour un tel produit : la réponse de l'assistant, un nouveau compte, la relance d'une facture en retard, un chiffre d'un tableau de bord.
 - **Erreurs fréquentes** : décrire l'écran au lieu du mécanisme ; redécrire un constat au lieu de citer son numéro.
 
 ## `journey-step` — Étape d'un parcours
@@ -212,7 +224,7 @@ Une étape, au niveau du code : chaque ligne d'exécution, ce qui est lu et écr
 | Pour aller plus loin | ✱ | La page technique, l'écran, l'étape suivante |
 
 - **Longueur** : constatée entre 1 450 et 2 100 mots ; limite 2 200.
-- **Exemple** : `reprendre/parcours-commande/validation` dans Acme Orders : 11 étapes d'exécution, 4 cas de circuit de validation (aucun, unique, séquentiel, par montant), 7 messages d'erreur.
+- **Exemple** : `comprendre/parcours-commande/validation` dans Acme Orders : 11 étapes d'exécution, 4 cas de circuit de validation (aucun, unique, séquentiel, par montant), 7 messages d'erreur.
 - **Erreurs fréquentes** : citer une fonction sans sa ligne ; omettre l'état laissé par un échec.
 
 ## `troubleshooting` — Diagnostic par symptôme
@@ -229,7 +241,7 @@ L'entrée « ça ne marche pas » : les vérifications qui expliquent la moitié
 | Pour aller plus loin | ✱ | Points d'attention, parcours, exploitation |
 
 - **Longueur** : environ 1 450 mots sur le meilleur site ; limite 2 000.
-- **Exemple** : `reprendre/diagnostic` dans Acme Orders : 7 vérifications, 4 requêtes de journaux, 4 domaines (accès, validations, factures, l'assistant).
+- **Exemple** : `risques/diagnostic` dans Acme Orders : 7 vérifications, 4 requêtes de journaux, 4 domaines (accès, validations, factures, l'assistant).
 - **Erreur fréquente** : des requêtes de journaux qui n'ont jamais été exécutées. Vérifiez chaque nom de table et de colonne dans la documentation de la plateforme de journalisation, et datez la vérification.
 
 ## `troubleshooting-area` — Domaine de diagnostic
@@ -243,7 +255,7 @@ Les symptômes d'un domaine, regroupés selon le moment du parcours de l'utilisa
 | Pour aller plus loin | ✱ | La page parente, les parcours, les constats |
 
 - **Longueur** : constatée entre 1 400 et 1 600 mots ; limite 2 000.
-- **Exemple** : `reprendre/diagnostic/acces` dans Acme Orders : « Se connecter », « Voir », « Agir et changer les droits ».
+- **Exemple** : `risques/diagnostic/acces` dans Acme Orders : « Se connecter », « Voir », « Agir et changer les droits ».
 - **Erreur fréquente** : un symptôme formulé avec le vocabulaire du code au lieu des mots de l'utilisateur.
 
 ## `findings` — Points d'attention
@@ -264,7 +276,7 @@ La liste de travail de celui qui reprend le projet : écarts, risques et dettes,
   - critique : `## C1 — titre`, puis **Constat**, **Impact**, **Recommandation** ;
   - les autres : un tableau `\| N° \| Point \| Où \| Constat et impact \| Recommandation \|` ; les familles production et sans effet ajoutent une colonne **Gravité**.
 - **Numérotation** : voir [writing.fr.md](writing.fr.md#9-la-numérotation-des-constats). Les numéros ne changent jamais.
-- **Exemple** : `reprendre/points-attention` dans Acme Orders et ses six sous-pages. Le découpage compte ici : le même contenu gardé sur une seule page atteignait environ 10 800 mots.
+- **Exemple** : `risques/points-attention` dans Acme Orders et ses six sous-pages. Le découpage compte ici : le même contenu gardé sur une seule page atteignait environ 10 800 mots.
 - **Erreurs fréquentes** : renuméroter les constats (les numéros sont cités partout) ; un constat sans sa preuve `fichier:ligne` ; mélanger un défaut du code et un réglage de production.
 
 ## `architecture` — Dossier d'architecture technique (DAT)
@@ -282,7 +294,7 @@ L'implantation en production, reconstituée à partir du portail du fournisseur 
 | Qui gère quoi | ✱ | Un encadré DROITS « Responsabilités » |
 
 - **Longueur** : constatée entre 1 750 mots (avec deux sous-pages) et 2 850 mots (sans) ; limite 2 000.
-- **Exemple** : `reprendre/dat` dans Acme Orders : 15 flux, dont 3 absents ou qui ne fonctionnent pas.
+- **Exemple** : `exploiter/dat` dans Acme Orders : 15 flux, dont 3 absents ou qui ne fonctionnent pas.
 - **Erreur fréquente** : présenter une valeur de l'infrastructure as code comme constatée en production.
 
 ## `variables` — Variables d'environnement
@@ -297,7 +309,7 @@ Les variables réellement déclarées sur le service de production, confrontées
 | À vérifier | ✱ | `:::etapes` : ce qu'il faut regarder la prochaine fois que quelqu'un ouvre le portail |
 
 - **Longueur** : environ 1 850 mots ; limite 2 200.
-- **Exemple** : `reprendre/deploiement/variables` dans Acme Orders : 28 variables, dont 7 références au coffre de secrets.
+- **Exemple** : `exploiter/deploiement/variables` dans Acme Orders : 28 variables, dont 7 références au coffre de secrets.
 - **Erreur fréquente** : mettre le nombre dans le titre. « Les 28 variables, une par une » ne commence pas par « Les variables » : la section n'est plus reconnue. C'est pourquoi cette section n'est pas obligatoire. Le nombre va dans « En bref ».
 
 ## `resources` — Ressources du déploiement
@@ -317,41 +329,51 @@ Les ressources du déploiement de production, par famille, et ce qui se sert ré
 | Ce que l'application utilise hors de ce groupe | ✱ | Identité, passerelles, registres, services internes |
 
 - **Longueur** : environ 2 050 mots ; limite 2 200.
-- **Exemple** : `reprendre/deploiement/ressources` dans Acme Orders : 24 ressources en 6 familles.
+- **Exemple** : `exploiter/deploiement/ressources` dans Acme Orders : 24 ressources en 6 familles.
 - **Erreur fréquente** : lister les ressources sans dire ce qui s'en sert. Une ressource inutilisée qui détient encore des droits est un constat (famille production).
 
 ---
 
-# Les types de l'espace Métier (ARCHITECTURE.md §6.8)
+# Les types métier : l'espace Produit (ARCHITECTURE.md §6.8)
 
 Ces 5 types décrivent **chaque fonctionnalité** pour les personnes qui l'utilisent, en décident ou la
-soutiennent : pas de code, pas de preuve `fichier:ligne` (voir « Les pages métier ne citent pas de code »
-plus bas). Ils suivent la structure des cas d'utilisation de Cockburn (acteurs, déclencheur, scénario
+soutiennent. Ils sont écrits pour l'espace Produit, qui se lit, comme l'espace Utiliser, sans le code : pas de
+code, pas de preuve `fichier:ligne` (voir « Les pages métier ne citent pas de code » plus bas). Ils suivent la structure des cas d'utilisation de Cockburn (acteurs, déclencheur, scénario
 principal, variantes numérotées) et les règles métier de RuleSpeak (un énoncé, un exemple « Étant donné /
 Quand / Alors »).
 
 ## `feature` — Fiche de fonctionnalité
 
-Une fonctionnalité, de bout en bout, pour un lecteur métier : qui l'utilise, quand elle démarre, ce qu'elle
-fait pas à pas, et les règles qu'elle impose. Porte l'identifiant `feature` de la page (`toc.json`, par
-exemple `"feature": "F-01"`) et, quand un pendant technique existe, son `counterpart`.
+Une fonctionnalité, de bout en bout, comme une spécification qu'un lecteur métier et un product owner peuvent
+vérifier sur l'application : qui l'utilise, ses user stories, son parcours habituel, chacun de ses comportements
+répondu rubrique par rubrique, ses règles, ses messages, ses droits par action et ses critères d'acceptation. Porte
+l'identifiant `feature` de la page (`toc.json`, par exemple `"feature": "F-01"`) et, quand un pendant technique
+existe, son `counterpart`. Une section qui ne s'applique pas reste, avec une ligne : « Sans objet — la raison ».
 
 | Section | | Contenu |
 |---|---|---|
-| Accès | ✱ | Un tableau à deux colonnes, lignes fixes : Module · Qui peut l'utiliser (`[[droit …]]`) · Prérequis · Vérifié le (version, date) |
 | À quoi ça sert | ✱ | Le besoin métier en 2 à 4 phrases ; le titre de la page en gras dans la première phrase |
-| Qui l'utilise | ✱ | Une ligne par rôle : « **Rôle** : ce qu'il fait » |
-| Déclencheur et prérequis | | Facultatif ; à supprimer quand le déclencheur est simplement « quelqu'un ouvre l'écran » |
-| Scénario principal | ✱ | `:::etapes` ; une capture `:::ecran` ou `::capture` seulement quand elle éclaire une étape (ni l'une ni l'autre n'est obligatoire ici) |
-| Variantes et exceptions | | Numérotées après l'étape dont elles bifurquent : « 3a. Si … » |
-| Règles métier | ✱ | Les règles propres à cette fonctionnalité, définies avec `:::regle` ; une règle partagée est seulement citée avec `[[regle …]]` |
-| Données traitées | | Les données métier lues ou modifiées, nommées comme les connaît un lecteur métier — jamais un nom de table ou de colonne |
-| Notifications et effets | | Ce que la fonctionnalité déclenche au-delà de l'écran : un e-mail, une entrée ailleurs, un compteur qui change |
+| Qui l'utilise | ✱ | Un tableau, Rôle · Ce qu'il en fait |
+| User stories | ✱ | Un `:::recit{id titre role depuis ref}` par besoin : « En tant que …, je veux … afin de … » |
+| Parcours principal | ✱ | `:::etapes` ; une capture `:::ecran` ou `::capture` seulement quand elle éclaire une étape (ni l'une ni l'autre n'est obligatoire ici) |
+| Variantes | | Numérotées après l'étape dont elles bifurquent : « 3a. Si … » |
+| Comportements | ✱ | Une carte `:::comportement{type titre id}` par comportement (recherche, filtre, tri, pagination, liste, formulaire, import, export, calcul, notification, circuit, traitement planifié, contrôle de droits) : chaque rubrique de son type répondue, ou « Sans objet — raison », ou « Inconnu — question » |
+| Règles de gestion | ✱ | Les règles propres à cette fonctionnalité, définies avec `:::regle` ; une règle partagée est seulement citée avec `[[regle …]]` |
+| Champs et saisies | | Un tableau : Champ · Obligatoire · Format et valeurs admises · Par défaut · Contrôle et son message |
+| États | | Les états par lesquels passe un élément (`[[statut …]]`), ce qui le fait passer, et qui le peut |
+| Messages | ✱ | Chaque message que le lecteur peut voir, mot pour mot : Message · Quand il apparaît · Que faire |
+| Droits par action | ✱ | Un tableau : Action · Droit (`[[droit …]]`) · Condition ; puis ce que voit un lecteur sans le droit |
+| Critères d'acceptation | ✱ | Un `:::scenario{titre recit comportement}` par critère, Soit / Quand / Alors avec des valeurs réelles |
 | Limites | | Ce que la fonctionnalité ne fait délibérément pas, en termes métier, jamais un piège de code |
-| Questions fréquentes | | 2 à 5 questions réelles, chacune avec une réponse courte et directe |
+| Questions ouvertes | | Chaque question à laquelle personne n'a encore su répondre (les « Inconnu — … » des cartes compris), avec qui peut y répondre |
 
-- **Longueur** : limite 2 500 mots ; la plupart des fiches restent bien en dessous — une fonctionnalité qui en
-  demande plus est souvent plusieurs fonctionnalités, ou relève en partie de `process`.
+- **Longueur** : limite 4 000 mots ; son dossier de contexte a 24 000 jetons (`contextBudget`). Une fonctionnalité qui
+  en demande plus est souvent plusieurs fonctionnalités, ou relève en partie de `process`.
+- **Cartes de comportement** (`standard/behaviours.json`) : les rubriques de chaque type, obligatoires ou non, et ce
+  que chacune doit dire ; une rubrique obligatoire omise est signalée par le build (`behaviour.missing`). La syntaxe :
+  ARCHITECTURE.md §6.8a.
+- **Titres de la 0.3** toujours reconnus : « Scénario principal » pour « Parcours principal », « Règles métier » pour
+  « Règles de gestion ».
 - **Exemple** : `fonctionnalites/validation-en-deux-temps` dans Acme Orders : qui peut relever le seuil, les
   deux étapes de validation, ce qui arrive à une commande déjà en attente quand le circuit change.
 - **Erreurs fréquentes** :
@@ -405,7 +427,7 @@ que le support ouvre en premier quand quelqu'un dit « je ne vois pas le bouton 
 ## `process` — Processus
 
 Un processus métier de bout en bout, en langage métier : qui y prend part, les étapes, ce qui est automatique
-et ce qui attend une personne. L'équivalent, côté métier, d'un `journey`, sans le code.
+et ce qui attend une personne. L'équivalent, dans l'espace Produit, d'un `journey` (une page de Développer), sans le code.
 
 | Section | | Contenu |
 |---|---|---|
@@ -444,16 +466,20 @@ un administrateur remarque.
 - **Erreur fréquente** : recopier le journal des modifications technique tel quel — réécrivez chaque entrée
   pour le lecteur qui ne voit jamais un commit.
 
-**Les pages métier ne citent pas de code.** Une page dont l'espace effectif est `business` et qui contient
-encore une preuve `fichier:ligne` reçoit l'avertissement `business.technical` : déplacez le détail vers le
-`counterpart` de la page, la fiche technique de la même fonctionnalité.
+**Les pages métier ne citent pas de code.** Une page de l'un de ces 5 types dont l'espace effectif se lit sans
+le code (l'espace Utiliser ou Produit, ou un espace propre au projet déclaré avec `"kind": "use"` ou
+`"product"`) et qui contient encore une preuve `fichier:ligne` reçoit l'avertissement `business.technical` :
+déplacez le détail vers le `counterpart` de la page, la fiche technique de la même fonctionnalité dans l'espace
+Développer.
 
 ---
 
-# Les types de l'espace Reprise (ARCHITECTURE.md §6.9, §6.13)
+# Les types de reprise : les espaces Développer et Administrer (ARCHITECTURE.md §6.9, §6.13)
 
 Ces 13 types forment le dossier dont une équipe a besoin pour reprendre une application, surtout une
-application largement écrite par des agents IA (« vibe-codée »). Chaque affirmation est appuyée par une preuve
+application largement écrite par des agents IA (« vibe-codée »). Ils sont écrits pour l'espace Développer, sauf
+`runbook` et `access-ownership`, qui relèvent de la partie Exploiter de l'espace Administrer, avec le dossier
+d'architecture technique (`architecture`), `variables` et `resources`. Chaque affirmation est appuyée par une preuve
 `fichier:ligne`, ou marquée `[[deduit]]` ou `[[inconnu]]` (voir [writing.fr.md](writing.fr.md)). Les deux
 derniers, `security-review` et `maintainability-review`, sont des revues optionnelles à la demande (§6.13) :
 voir leurs propres gabarits (`templates/pages/<langue>/security-review.md`, `maintainability-review.md`) et
@@ -474,7 +500,7 @@ passation commence.
 | Checklist de passation | | Les étapes concrètes : réinitialiser les secrets partagés, créer des comptes nominatifs, révoquer les accès de l'équipe précédente |
 
 - **Longueur** : limite 2 200 mots.
-- **Exemple** : `reprendre/acces-et-propriete` dans Acme Orders : la base de production et le fournisseur de
+- **Exemple** : `exploiter/acces-et-propriete` dans Acme Orders : la base de production et le fournisseur de
   paiement ont un propriétaire nommé ; la moitié des variables CI/CD n'en ont pas.
 - **Erreur fréquente** : un « Propriétaire : l'équipe précédente » sans nom ni moyen de la contacter — c'est un
   propriétaire inconnu, dites-le.
@@ -493,7 +519,7 @@ isolation par locataire — construite à partir de `::facts{source="api"}`, pui
 | Manques | ✱ | Une route sans contrôle visible, citée comme constat numéroté |
 
 - **Longueur** : limite 3 000 mots.
-- **Exemple** : `reprendre/surface-api` dans Acme Orders : 61 routes, 3 publiques (vérification de santé,
+- **Exemple** : `securiser/surface-api` dans Acme Orders : 61 routes, 3 publiques (vérification de santé,
   webhook, la page publique de suivi de commande), un manque (`C1`, une route qui fait confiance à un id de
   locataire fourni par le client).
 - **Erreur fréquente** : faire confiance au nom d'une route plutôt qu'à son code — une route nommée
@@ -516,7 +542,7 @@ et les scripts réels, jamais de mémoire.
 | Quand ça casse | | Les premières vérifications pour les incidents les plus fréquents |
 
 - **Longueur** : limite 3 000 mots.
-- **Exemple** : `reprendre/manuel-exploitation` dans Acme Orders : le pipeline déploie à chaque push sur `main`
+- **Exemple** : `exploiter/manuel-exploitation` dans Acme Orders : le pipeline déploie à chaque push sur `main`
   (`[[verifie .github/workflows/deploy.yml:1]]`) ; le retour arrière redéploie l'image précédente depuis le
   registre.
 - **Erreur fréquente** : une « Sauvegarde et restauration » qui dit seulement que des sauvegardes existent —
@@ -538,7 +564,7 @@ s'en souvient, avec un œil sur les données personnelles et leur conservation.
 | Migrations | | Comment les changements de schéma sont faits, et le retard de ceux qui restent à appliquer |
 
 - **Longueur** : limite 2 500 mots.
-- **Exemple** : `reprendre/modele-donnees` dans Acme Orders : 22 tables ; l'e-mail et l'adresse du client sont
+- **Exemple** : `comprendre/modele-donnees` dans Acme Orders : 22 tables ; l'e-mail et l'adresse du client sont
   des données personnelles sans politique de conservation documentée (`M3`).
 - **Erreur fréquente** : décrire les modèles de l'ORM au lieu de la base réelle — une migration jamais
   appliquée en production désynchronise les deux ; dites laquelle vous avez vérifiée.
@@ -559,7 +585,7 @@ risque de chaîne d'approvisionnement).
 | À vérifier | | Les dépendances dont le rôle dans le code n'était pas évident |
 
 - **Longueur** : limite 2 200 mots.
-- **Exemple** : `reprendre/dependances` dans Acme Orders : 84 dépendances directes ; l'une, importée une seule
+- **Exemple** : `maintenir/dependances` dans Acme Orders : 84 dépendances directes ; l'une, importée une seule
   fois, n'existe pas dans le registre npm (`C2`).
 - **Erreur fréquente** : passer « Paquets qui n'existent pas » parce que l'application tourne bien en local —
   un paquet halluciné ne casse qu'une installation *propre*, exactement ce qu'une reprise fait en premier.
@@ -579,7 +605,7 @@ entre eux — la carte façon C4 qu'un nouveau développeur dessine sa première
 | Code dupliqué ou mort | | Le code qui existe deux fois avec une dérive, ou que plus rien n'appelle |
 
 - **Longueur** : limite 2 500 mots.
-- **Exemple** : `reprendre/carte-du-code` dans Acme Orders : un conteneur Next.js (écrans, routes API, actions
+- **Exemple** : `comprendre/carte-du-code` dans Acme Orders : un conteneur Next.js (écrans, routes API, actions
   serveur) et un conteneur de tâches planifiées partageant la même base de données.
 - **Erreur fréquente** : un schéma de composants copié d'un starter générique de framework — vérifiez chaque
   flèche contre un import ou un appel réseau réel.
@@ -598,7 +624,7 @@ coûteux dans le code généré par IA (un test qui n'affirme rien, ou qui simul
 | Comment les lancer | ✱ | La commande exacte, et ce à quoi ressemble une exécution propre |
 
 - **Longueur** : limite 2 200 mots.
-- **Exemple** : `reprendre/tests-et-qualite` dans Acme Orders : 340 tests, 61 % de couverture d'instructions ;
+- **Exemple** : `maintenir/tests-et-qualite` dans Acme Orders : 340 tests, 61 % de couverture d'instructions ;
   la suite de tests des circuits de validation simule le service de validation lui-même, donc ne teste rien de
   la validation (`I9`).
 - **Erreur fréquente** : citer un pourcentage de couverture sans avoir lancé la suite — un badge périmé dans un
@@ -619,7 +645,7 @@ spécification cachée, et dérivent souvent du code qu'ils étaient censés pil
 | Ce qu'il faut garder | | Une fois chaque règle statuée, ce qu'il faut verser dans cette documentation, ce qu'il faut abandonner |
 
 - **Longueur** : limite 2 500 mots.
-- **Exemple** : `reprendre/instructions-agents` dans Acme Orders : un `CLAUDE.md`, 340 mots ; une règle
+- **Exemple** : `maintenir/instructions-agents` dans Acme Orders : un `CLAUDE.md`, 340 mots ; une règle
   (« toujours filtrer par locataire ») contredite par une route (`C1`, également listée sur `api-surface`).
 - **Erreur fréquente** : traiter le fichier d'instructions comme de la documentation au lieu de l'auditer —
   une règle que le code ne suit plus est un constat, pas un fait.
@@ -638,7 +664,7 @@ n'a écrit — une sous-page de la page `technical` ou `architecture` qu'elle co
 | Comment elle a été reconstituée | ✱ | À partir de quel code, quels commits ou quelles personnes cette page est construite |
 
 - **Longueur** : limite 1 500 mots ; une ADR qui la dépasse est en général deux décisions.
-- **Exemple** : `reprendre/architecture/adr-01-base-donnees` dans Acme Orders : pourquoi une base de données
+- **Exemple** : `comprendre/architecture/adr-01-base-donnees` dans Acme Orders : pourquoi une base de données
   unique et partagée sert chaque locataire (sécurité au niveau ligne, pas une base par locataire) —
   reconstituée à partir des migrations et d'une description de pull request survivante.
 - **Erreur fréquente** : présenter une supposition comme la décision — dites franchement quand « Comment elle
@@ -659,7 +685,7 @@ données — la pièce maîtresse sécurité du dossier de reprise.
 | Risques acceptés | | Une menace que le propriétaire a décidé d'accepter, avec qui a décidé et quand |
 
 - **Longueur** : limite 3 000 mots.
-- **Exemple** : `reprendre/modele-menaces` dans Acme Orders : 4 frontières de confiance ; la frontière
+- **Exemple** : `securiser/modele-menaces` dans Acme Orders : 4 frontières de confiance ; la frontière
   navigateur-API a une menace d'altération non atténuée sur le total de la commande (`C3`, également sur
   `api-surface`).
 - **Erreur fréquente** : un tableau STRIDE générique copié d'un modèle, sans frontière ni preuve — chaque ligne

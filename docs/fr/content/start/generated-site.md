@@ -31,8 +31,11 @@ fichier.
 :::ecran{capture="site-page" titre="Une page du site généré"}
 1. **Sections** : les titres courts des sections (`shortTitle` dans le sommaire) ; la section courante est mise en
    valeur.
-2. **Recherche** : une recherche plein texte dans chaque section de chaque page, ouverte avec [[touche Ctrl+K]] ou
-   [[touche /]] ; les flèches choisissent un résultat, Entrée l'ouvre, Échap ferme.
+2. **Recherche** : une recherche plein texte dans chaque section de chaque page — son résumé et les tableaux que le
+   kit génère compris —, ouverte avec [[touche Ctrl+K]] ou [[touche /]] ; les flèches choisissent un résultat, Entrée
+   l'ouvre, Échap ferme. Un mot d'un titre passe d'abord, son début avant son milieu ; un mot que la documentation ne
+   contient pas est lu comme ses mots proches (une faute de frappe, « comandes » : « commandes »), annoncés au-dessus
+   des résultats. Avec des espaces, **Chercher dans : Tout · Utiliser · …** garde les résultats d'un seul espace.
 3. **Thème** : bascule entre clair et sombre ; le choix est mémorisé pour ce fichier dans ce navigateur.
 4. **Imprimer** : imprime la page courante, ou **toute la documentation** avec son plan, prête à être enregistrée en
    PDF.

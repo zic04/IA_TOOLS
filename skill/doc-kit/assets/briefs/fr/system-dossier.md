@@ -3,10 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — dossier système : runbook, modèle de données, carte du code, ADR
 
-Tu rédiges une partie de l'espace DE REPRISE, dans la langue du projet : comment le système s'installe, se
-construit, se déploie et se restaure ; quelles données il porte ; comment ses pièces s'assemblent ; et les
-décisions qui l'ont façonné, reconstituées après coup. Ces pages complètent `code-health` et `access-ownership`
-(ARCHITECTURE.md §6.9).
+Tu rédiges une partie du dossier de reprise, dans la langue du projet : comment le système s'installe, se
+construit, se déploie et se restaure (le runbook, dans la partie Exploiter de l'espace ADMINISTRER) ; quelles
+données il porte ; comment ses pièces s'assemblent ; et les décisions qui l'ont façonné, reconstituées après coup
+(dans l'espace DÉVELOPPER). Ces pages complètent `code-health` et `access-ownership` (ARCHITECTURE.md §6.9).
 
 Tes pages sont DÉJÀ déclarées dans le sommaire (voir Variables pour savoir lesquelles) : ne change ni ids ni
 titres.
@@ -18,18 +18,22 @@ titres.
    extraits, les libellés exacts et les lignes de faits pertinentes — la lecture dont tu as besoin pour
    l'application, en plus de ce qui suit.
 2. Pour `data-model`, l'orchestrateur a pu déjà lancer `doc-kit new <id> --prefill` : un tableau « Tables »
-   pré-rempli à partir de `facts/db.json`, avec un marqueur `<!-- doc-kit:prefill -->` au-dessus. Complète-le (ce
+   pré-rempli à partir de `facts/db.json` (`new --prefill` ne laisse aucun marqueur : les lignes sont ordinaires). Complète-le (ce
    que porte chaque table, les données personnelles, la base légale) ; ne retire jamais une ligne pré-remplie
    sans l'avoir d'abord vérifiée dans le code.
 3. **Les faits** (dossier dans Variables) : `db.json` (tables, colonnes, sécurité au niveau ligne) pour
    `data-model` ; `tool-knip.json`, quand `doc-kit facts --tools` l'a produit (fichiers et exports inutilisés)
    pour « Code dupliqué ou mort » de `code-map` — en son absence, trouve la duplication en lisant le code, ne
-   devine jamais un pourcentage.
+   devine jamais un pourcentage ; `infra.json` (ce que déclarent les fichiers d'infrastructure : environnements,
+   pipelines qui déploient, charges, images, points d'entrée, ressources cloud, tâches planifiées ; des noms et
+   des réglages avec `fichier:ligne`, jamais une valeur) pour `runbook` et les « Conteneurs » de `code-map`.
 4. Les pages de reprise existantes — `api-surface`, `dependencies`, `access-ownership` (chemins dans Variables)
    — pour les citer plutôt que de répéter leur preuve, et la page des points d'attention pour les numéros déjà
    pris.
 5. Les scripts, le Dockerfile, la configuration CI et le dossier de migrations de l'application
-   (`package.json`, `Dockerfile`, `.github/workflows/` ou équivalent), pour `runbook`.
+   (`package.json`, `Dockerfile`, `.github/workflows/` ou équivalent), pour `runbook`. Les faits d'infrastructure
+   les listent déjà et le contexte les donne par environnement ; lis quand même les fichiers pour les commandes
+   exactes.
 6. Toute lecture complémentaire listée dans Variables (un `CHANGELOG.md` existant, une note de conception, une
    réponse déjà obtenue par l'orchestrateur auprès d'une personne), pour la reconstitution d'`adr`.
 
@@ -37,12 +41,18 @@ titres.
 
 - **`runbook`** : `## En bref` ; `## Installation` (`:::etapes`, les commandes exactes et les versions
   qu'elles exigent) ; `## Construction` (facultatif) ; `## Déploiement` (le chemin réel : un nom de pipeline ou
-  une commande manuelle, avec le `fichier:ligne` de la définition du pipeline) ; `## Retour arrière`
+  une commande manuelle, avec le `fichier:ligne` de la définition du pipeline ; quand `facts/infra.json` existe, elle peut porter un seul
+  `::c4{vue="deploiement"}`, jamais une copie dessinée à la main, et chaque environnement est nommé avec le
+  `fichier:ligne` de son pipeline) ; `## Retour arrière`
   (redéployer la version précédente, le retour arrière propre d'une migration, un feature flag — ce que le
   dépôt offre réellement) ; `## Tâches planifiées` (facultatif, un tableau Tâche · Planification · Ce qu'elle
-  fait · Preuve) ; `## Sauvegarde et restauration` (où sont prises les sauvegardes, à quelle fréquence, et la
+  fait · Preuve ; il peut arriver pré-rempli depuis `facts/infra.json` par `new --prefill`, chaque ligne avec
+  son `[[verifie fichier:ligne]]` : complète « Ce qu'elle fait », ne retire jamais une ligne sans
+  l'avoir vérifiée) ; `## Sauvegarde et restauration` (où sont prises les sauvegardes, à quelle fréquence, et la
   procédure de restauration réelle — dis clairement quand elle n'a jamais été testée) ; `## Quand ça casse`
-  (facultatif). Chaque commande est une que tu as trouvée dans le dépôt (un script, un fichier de workflow, une
+  (facultatif ; signales-y, ou dans tes constats, ce que les faits d'infrastructure montrent comme « ouvert à
+  tous », « tourne en root », « sans TLS » ou « sans étiquette (latest) » : des faits à rapporter, jamais à corriger).
+  Chaque commande est une que tu as trouvée dans le dépôt (un script, un fichier de workflow, une
   instruction du Dockerfile) : jamais une que tu supposes exister parce qu'elle est courante ailleurs.
 - **`data-model`** : `## En bref` ; `## Le schéma` (facultatif, ton propre schéma entité-relation en SVG,
   `::diagram{id="data-model"}`) ; `## Tables` (`::faits{source="db"}`, puis le tableau pré-rempli complété à la

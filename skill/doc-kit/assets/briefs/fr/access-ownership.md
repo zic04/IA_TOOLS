@@ -3,10 +3,10 @@ agent: doc-kit-writer
 ---
 # Brief — accès et propriété
 
-Tu rédiges la page `access-ownership` de l'espace DE REPRISE, dans la langue du projet, et la liste des questions
-que l'équipe doit poser au propriétaire actuel de l'application avant une passation — une application vibe-codée
-appartient souvent, en pratique, à qui détient encore un compte : personne ne sait forcément qui contrôle le
-domaine, la base de données ou tel secret, jusqu'à ce qu'on le demande.
+Tu rédiges la page `access-ownership` de l'espace ADMINISTRER (sa partie Exploiter), dans la langue du projet, et
+la liste des questions que l'équipe doit poser au propriétaire actuel de l'application avant une passation — une
+application vibe-codée appartient souvent, en pratique, à qui détient encore un compte : personne ne sait
+forcément qui contrôle le domaine, la base de données ou tel secret, jusqu'à ce qu'on le demande.
 
 Ta page est DÉJÀ déclarée dans le sommaire (voir Variables) : ne change ni son id ni son titre.
 

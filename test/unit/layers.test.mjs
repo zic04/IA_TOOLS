@@ -82,6 +82,31 @@ test("the cycle finder reports a folder cycle, and only a cycle", () => {
   assert.deepEqual(cycles(g({ build: ["sync", "core"], sync: ["core"], core: [] })), []);
 });
 
+// The scan reads every module of engine/, the browser code of engine/site/ included, comments and strings too (a
+// mention of console in a comment is rewritten rather than excused). The "errors are KitError" part of M1 is
+// reviewed, not tested.
+test("engine/ never imports cli/, never ends the process and never prints (RULES.md M1)", () => {
+  const CLI = path.join(KIT_ROOT, "cli");
+  const found = [];
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const file = path.join(dir, e.name);
+      if (e.isDirectory()) walk(file);
+      else if (/\.(mjs|js)$/.test(e.name)) {
+        const text = fs.readFileSync(file, "utf8");
+        const rel = path.relative(KIT_ROOT, file).split(path.sep).join("/");
+        for (const [, spec] of text.matchAll(SPECIFIER))
+          if (path.resolve(path.dirname(file), spec).startsWith(CLI + path.sep)) found.push(`${rel} imports ${spec}`);
+        if (/\bprocess\.exit\s*\(/.test(text)) found.push(`${rel} calls process.exit`);
+        if (/\bconsole\.\w+\s*\(/.test(text)) found.push(`${rel} prints with console`);
+        if (/\bprocess\.(?:stdout|stderr)\.write\b/.test(text)) found.push(`${rel} writes to stdout or stderr`);
+      }
+    }
+  };
+  walk(ENGINE);
+  assert.deepEqual(found, [], "the engine returns results and errors; only cli/ prints and chooses the exit code");
+});
+
 test("the folders of engine/ import one another without a cycle (RULES.md M14)", () => {
   const graph = folderGraph();
   assert.ok(graph.get("build")?.has("core"), "the scan sees the imports (build imports core)");

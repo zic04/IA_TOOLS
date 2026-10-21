@@ -74,6 +74,16 @@ function sectionLabels(table, type, index, language) {
 export const sectionCount = (table, type) =>
   (table.types[type].sections?.en || Object.values(table.types[type].sections || {})[0] || []).length;
 
+/** Token budget of a page's context file (doc-kit context, ARCHITECTURE.md §6.11): its template's `contextBudget`, else 16,000. */
+export const contextBudgetOf = (table, type) => table?.types?.[type]?.contextBudget ?? 16000;
+
+/**
+ * The digests of facts a page's context file gets (doc-kit context, ARCHITECTURE.md §6.11): its template's
+ * `digests` (the runbook: ["infra"], what the infrastructure declares), else none.
+ * @returns {string[]}
+ */
+export const digestsOf = (table, type) => table?.types?.[type]?.digests ?? [];
+
 /** Word limit of a page: the `maxWords` of its template, otherwise DEFAULT_MAX_WORDS. */
 export const maxWordsOf = (table, type) => table?.types?.[type]?.maxWords ?? DEFAULT_MAX_WORDS;
 

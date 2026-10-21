@@ -25,7 +25,8 @@ function classify({ sourceToc, targetToc, anchor }) {
 /**
  * The heading at the same position (index) in the target page's outline as `anchor` is in the source's, when
  * both outlines have the same number of headings; otherwise `null` (ARCHITECTURE.md §6.12 §5, used identically
- * by `counterpartOf` at build time and by `switchLanguage` in the site — kept here as the one pure reference).
+ * by the topic groups at build time, engine/build/build.mjs, and by `switchLanguage` in the site — kept here as the
+ * one pure reference).
  * @param {{ sourceToc: object[]|null, targetToc: object[]|null, anchor: string }} p
  * @returns {string|null}
  */

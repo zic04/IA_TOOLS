@@ -1,0 +1,73 @@
+# The shop's pipeline.
+trigger:
+  branches:
+    include: [main]
+
+schedules:
+  - cron: "0 2 * * *"
+    displayName: Nightly
+    branches:
+      include: [main]
+
+parameters:
+  - name: deployProduction
+    type: boolean
+    default: false
+
+variables:
+  - group: shop-secrets
+  - name: buildConfiguration
+    value: Release
+  - name: connectionString
+    value: Server=db.example.test;Password=do-not-keep-sql
+
+resources:
+  containers:
+    - container: sdk
+      image: mcr.microsoft.com/dotnet/sdk:8.0
+    - container: node
+      image: node:20.11
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    variables:
+      dotnetVersion: "8.0"
+    jobs:
+      - job: Compile
+        container: sdk
+        steps:
+          - script: dotnet build -c $(buildConfiguration)
+      - job: Frontend
+        container: node:20.11-alpine
+        variables:
+          npm_config_cache: $(Pipeline.Workspace)/.npm
+        steps:
+          - script: npm ci
+  # - stage: Legacy
+  #   jobs:
+  #     - job: Old
+  - stage: DeployStaging
+    dependsOn: Build
+    jobs:
+      - deployment: DeployWeb
+        environment: staging.webapp
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: ./deploy.sh
+  - ${{ if eq(parameters.deployProduction, true) }}:
+    - stage: DeployProduction
+      jobs:
+        - deployment: DeployWebProd
+          environment:
+            name: prod
+            resourceType: VirtualMachine
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - script: ./deploy.sh

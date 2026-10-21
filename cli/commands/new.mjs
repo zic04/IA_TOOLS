@@ -2,20 +2,19 @@
 // Creates <content>/<page-id>.md from templates/pages/<language>/<type>.md (never overwrites: exit code 1), in the
 // variant of the project's capture mode (capture.mode "none": tables instead of screenshots), and declares the page
 // in the table of contents. --prefill (ARCHITECTURE.md §6.11, types variables/api-surface/data-model/dependencies/
-// agent-instructions only): fills the page's main table from the facts (`doc-kit facts`) instead of leaving every
+// agent-instructions/runbook only): fills the page's main table from the facts (`doc-kit facts`) instead of leaving every
 // cell a placeholder; without the facts file, exit code 1; on another type, exit code 2.
 //   --parent <id>   right after the parent and its sub-pages, with level 2;
 //   otherwise       at the end of the group whose pages share the longest id prefix, or of the last group of
 //                   the section named by the first segment of the id.
 // The entry gets title, menuTitle, a summary placeholder and template. The table of contents is edited as TEXT:
-// its formatting (indentation, line endings, inline arrays) is kept, and a legacy French-keyed file
-// (sommaire.json: titre, titre_menu, resume, niveau, gabarit) receives keys in the same style.
+// its formatting (indentation, line endings, inline arrays) is kept.
 // A page already declared but not written yet is only written (its template is added to its entry if missing).
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT } from "../../engine/project/find.mjs";
-import { normalizeToc, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
+import { TOC_FILE, stripBom } from "../../engine/project/toc.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { loadPageTemplates, captureVariant } from "../../engine/core/page-templates.mjs";
@@ -30,15 +29,6 @@ export const options = {
 
 /** Page ids: lower-case segments separated by "/", the first one being the section id. */
 export const PAGE_ID = /^[a-z0-9][a-z0-9_-]*(?:\/[a-z0-9][a-z0-9_-]*)+$/;
-const LEGACY_KEYS = {
-  title: "titre",
-  menuTitle: "titre_menu",
-  level: "niveau",
-  summary: "resume",
-  template: "gabarit",
-  groups: "groupes",
-  file: "fichier",
-};
 
 // ─── JSON located as text ────────────────────────────────────────────────────
 
@@ -86,9 +76,7 @@ export function locateJson(text) {
   return value();
 }
 
-/** Text without its byte order mark (JSON.parse refuses it). */
-const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
-const prop = (node, ...keys) => node?.props?.find((p) => keys.includes(p.key))?.value;
+const prop = (node, key) => node?.props?.find((p) => p.key === key)?.value;
 /** Whitespace at the start of the line that holds `pos`, and whether `pos` is the first thing on it. */
 function lineIndent(text, pos) {
   const start = text.lastIndexOf("\n", pos - 1) + 1;
@@ -179,24 +167,18 @@ export function createPage({ root, config, id, template, title, parent, summary,
     throw new KitError(EXIT.USAGE, "new.unknownTemplate", { template, known });
 
   const { content } = config.paths;
-  const tocRel = [CURRENT_FILES.toc, LEGACY_FILES.toc]
-    .map((f) => `${content}/${f}`)
-    .find((f) => fs.existsSync(path.join(root, f)));
-  if (!tocRel) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${content}/${CURRENT_FILES.toc}` });
+  const tocRel = `${content}/${TOC_FILE}`;
   const tocAbs = path.join(root, tocRel);
+  if (!fs.existsSync(tocAbs)) throw new KitError(EXIT.CHECK, "new.noToc", { file: tocRel });
   const text = fs.readFileSync(tocAbs, "utf8");
-  let raw;
+  let toc;
   try {
-    raw = JSON.parse(stripBom(text));
+    toc = JSON.parse(stripBom(text));
   } catch (e) {
     throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: e.message });
   }
-  const toc = normalizeToc(raw).value;
   if (validate(toc, readSchema("toc")).errors.length || !Array.isArray(toc.sections))
     throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "schema" });
-  const legacy =
-    tocRel.endsWith(LEGACY_FILES.toc) || "titre" in raw || (raw.sections || []).some((x) => x && "titre" in x);
-  const k = (key) => (legacy ? LEGACY_KEYS[key] || key : key);
 
   // Where every declared page is: section, group, index.
   const where = [];
@@ -209,8 +191,7 @@ export function createPage({ root, config, id, template, title, parent, summary,
   if (fs.existsSync(fileAbs)) throw new KitError(EXIT.CHECK, "new.exists", { file: fileRel });
 
   const tree = locateJson(text);
-  const pageNode = (w) =>
-    prop(prop(prop(tree, "sections").items[w.si], "groups", "groupes").items[w.gi], "pages").items[w.pi];
+  const pageNode = (w) => prop(prop(prop(tree, "sections").items[w.si], "groups").items[w.gi], "pages").items[w.pi];
   let newText = text;
   let entry = null;
   /** @type {any} */
@@ -225,7 +206,7 @@ export function createPage({ root, config, id, template, title, parent, summary,
       });
     if (!declared.p.template && !template) throw new KitError(EXIT.USAGE, "new.missingTemplate", { known });
     if (!declared.p.template) {
-      newText = addProperty(text, pageNode(declared), k("template"), template);
+      newText = addProperty(text, pageNode(declared), "template", template);
       placement = { kind: "typed" };
     } else placement = { kind: "declared" };
     template = declared.p.template || template;
@@ -272,18 +253,18 @@ export function createPage({ root, config, id, template, title, parent, summary,
     const pageTitle = title || humanise(id);
     entry = {
       id,
-      [k("title")]: pageTitle,
-      [k("menuTitle")]: pageTitle,
-      ...(parent ? { [k("level")]: 2 } : {}),
-      [k("summary")]: summary,
-      [k("template")]: template,
+      title: pageTitle,
+      menuTitle: pageTitle,
+      ...(parent ? { level: 2 } : {}),
+      summary,
+      template,
     };
-    const pagesNode = prop(prop(prop(tree, "sections").items[si], "groups", "groupes").items[gi], "pages");
+    const pagesNode = prop(prop(prop(tree, "sections").items[si], "groups").items[gi], "pages");
     newText = insertEntry(text, pagesNode, after, entry);
   }
 
   // The result must still be a valid table of contents, with the page where expected.
-  const check = normalizeToc(JSON.parse(stripBom(newText))).value;
+  const check = JSON.parse(stripBom(newText));
   const found = check.sections.flatMap((s) => s.groups.flatMap((g) => g.pages)).find((p) => p.id === id);
   if (validate(check, readSchema("toc")).errors.length || !found || found.template !== template)
     throw new KitError(EXIT.CHECK, "new.invalidToc", { file: tocRel, error: "insertion" });

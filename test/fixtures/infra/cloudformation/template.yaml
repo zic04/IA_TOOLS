@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: The shop's order service (SAM).
+
+Parameters:
+  Stage:
+    Type: String
+    Default: fixture-default-not-kept
+    AllowedValues: [dev, staging, prod]
+  DbPassword:
+    Type: String
+    NoEcho: true
+    Default: fixture-password-not-kept
+
+Globals:
+  Function:
+    Timeout: 10
+
+Resources:
+  OrdersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+          PAYMENT_API_KEY: fixture-env-value-not-kept
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: get
+        Nightly:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 3 * * ? *)
+
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTPS from anywhere
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+
+  AdminSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH from the office
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref OfficeCidr
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.50.0.0/16
+
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://acme-templates.s3.eu-west-1.amazonaws.com/network.yaml?X-Amz-Signature=fixture-signature-not-kept
+      Parameters:
+        VpcCidr: 10.50.0.0/16
+        Stage: !Ref Stage
+
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://${TemplatesBucket}.s3.amazonaws.com/database.yaml"
+
+  # OldBucket:
+  #   Type: AWS::S3::Bucket
+
+  CleanupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "cron(30 2 * * ? *)"
+      State: ENABLED
+
+Outputs:
+  OrdersApi:
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  TableName:
+    Value: !Ref OrdersTable

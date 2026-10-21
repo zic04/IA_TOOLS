@@ -29,8 +29,9 @@ The token names, the contrast check and the logo rules are on [Theme, colours an
 | `spaces.export` | boolean · `true` | `false`: `build` writes the full site alone | `false` |
 | `spaces.output` | path or `null` · `null` | The file of each space, relative to the project; it must contain `{space}` (exit code 2 otherwise). Default: the output with `-<space>` before its extension | `"dist/Acme-Orders-{space}.html"` |
 
-A space is the part of the documentation written for one audience, such as `business` or `takeover`. The site gets
-a space selector, and `build` also writes one file per space, from which the other spaces are removed.
+A space is the part of the documentation written for one audience: `use`, `product`, `admin`, `develop`
+([Four spaces, one source](#/spaces/overview)). The site gets a space selector, and `build` also writes one file per
+space (`dist/Acme-Orders-Documentation-use.html`…), from which the other spaces are removed.
 
 ## Status badges
 

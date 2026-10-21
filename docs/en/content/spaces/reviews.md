@@ -1,6 +1,6 @@
 ## In short
 
-Two reviews, on demand, written the same way as the rest of the takeover space: deterministic facts first, no
+Two reviews, on demand, written the same way as the rest of the takeover dossier, in the Develop space: deterministic facts first, no
 guesswork, then an agent writes the page from them.
 
 1. **`security-review`**: authentication, access control, input handling, secrets and configuration, findings
@@ -72,7 +72,8 @@ thing — and exactly the moment a mistake is most expensive: an access-control 
 write path, a rate limit that trips a real alert, a response body that happens to hold a real customer's data. The
 kit would rather be checked against a local copy or a prepared demo, same as every screenshot it takes
 ([Demo or production: capturing safely](#/capture/safety)) — the facts sources (`api`, `security`, `quality`) have
-no such restriction, since they only ever read files, never a network.
+no such restriction, since they only read files; only `--network` reaches a public registry, with the names of
+public packages alone.
 
 ## Pitfalls and observed gaps
 

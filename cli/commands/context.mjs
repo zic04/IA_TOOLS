@@ -14,13 +14,15 @@ import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
-import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
+import { loadPageTemplates, contextBudgetOf } from "../../engine/core/page-templates.mjs";
+import { readFeatures, featuresFileOf } from "../../engine/core/features.mjs";
+import { featureOf } from "../../engine/sync/feature-files.mjs";
+import { projectBehaviours } from "../../engine/build/behaviours.mjs";
 import { checkLanguageOption, translatedToc, translatedGlossary } from "../../engine/build/languages.mjs";
 import { readSources, translationState } from "../../engine/core/translations.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { hashText } from "../../engine/core/hash.mjs";
-import { normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../../engine/project/legacy.mjs";
-import { readToc, stripBom } from "../../engine/project/toc.mjs";
+import { readToc, stripBom, TOC_FILE, GLOSSARY_FILE } from "../../engine/project/toc.mjs";
 import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
@@ -32,22 +34,18 @@ export const options = {
   translate: { type: "string" },
 };
 
-/** Reads content/toc.json (or the legacy sommaire.json), normalised; null when missing or invalid. */
+/** Reads content/toc.json; null when missing or invalid. */
 function readProjectToc(root, config) {
   const { toc } = readToc(root, config.paths.content);
   return toc && !validate(toc, readSchema("toc")).errors.length ? toc : null;
 }
 
-/** Reads content/glossary.json (or the legacy glossaire.json); [] when missing or invalid. */
+/** Reads content/glossary.json; [] when missing or invalid. */
 function readGlossary(root, config) {
-  const { content } = config.paths;
-  const rel = [CURRENT_FILES.glossary, LEGACY_FILES.glossary]
-    .map((f) => `${content}/${f}`)
-    .find((f) => fs.existsSync(path.join(root, f)));
-  if (!rel) return [];
+  const file = path.join(root, config.paths.content, GLOSSARY_FILE);
+  if (!fs.existsSync(file)) return [];
   try {
-    const raw = JSON.parse(stripBom(fs.readFileSync(path.join(root, rel), "utf8")));
-    const glossary = normalizeGlossary(raw).value;
+    const glossary = JSON.parse(stripBom(fs.readFileSync(file, "utf8")));
     return validate(glossary, readSchema("glossary")).errors.length ? [] : glossary;
   } catch {
     return [];
@@ -94,23 +92,33 @@ async function readPlans(root, config) {
   }
 }
 
+/** The kinds of behaviour cards (§6.8a), the features file told once when it cannot be read. */
+function behaviourKinds(ctx, root, config) {
+  const { problem } = readFeatures(root, featuresFileOf(config));
+  if (problem && !ctx.json) ctx.print(`⚠ ${ctx.t(`cli.${problem.key}`, problem.vars)}`);
+  return projectBehaviours(root, config).registry;
+}
+
+/** The budget of a page's context: --budget when given, else its template's (contextBudgetOf). */
+const budgetOf = (budget, templates, entry) => budget ?? contextBudgetOf(templates, entry?.template);
+
+/** --budget, a whole number > 0; null without it: each page gets its template's (a feature sheet needs more). */
+function budgetOption(value) {
+  if (value === undefined) return null;
+  const budget = Number(value);
+  if (!Number.isInteger(budget) || budget <= 0)
+    throw new KitError(EXIT.USAGE, "option.value", { option: "budget", value, expected: "a whole number > 0" });
+  return budget;
+}
+
 export async function run({ ctx, values, positionals }) {
   if (!positionals.length) throw new KitError(EXIT.USAGE, "context.missingPage");
-  let budget = 16000;
-  if (values.budget !== undefined) {
-    budget = Number(values.budget);
-    if (!Number.isInteger(budget) || budget <= 0)
-      throw new KitError(EXIT.USAGE, "option.value", {
-        option: "budget",
-        value: values.budget,
-        expected: "a whole number > 0",
-      });
-  }
+  const budget = budgetOption(values.budget);
 
   const { project, config } = await ctx.loadProject();
   const root = project.root;
   const toc = readProjectToc(root, config);
-  if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${CURRENT_FILES.toc}` });
+  if (!toc) throw new KitError(EXIT.CHECK, "new.noToc", { file: `${config.paths.content}/${TOC_FILE}` });
   for (const id of positionals)
     if (!findPageEntry(toc, id)) throw new KitError(EXIT.USAGE, "context.unknownPage", { page: id });
 
@@ -147,6 +155,8 @@ export async function run({ ctx, values, positionals }) {
   const product = config.product?.name ?? null;
   const version = readProjectVersion(root, config.version);
 
+  const registry = behaviourKinds(ctx, root, config);
+
   const dir = path.join(root, ".doc-kit", "context");
   fs.mkdirSync(dir, { recursive: true });
   const written = [];
@@ -176,9 +186,10 @@ export async function run({ ctx, values, positionals }) {
       templates,
       report,
       update: !!values.update,
-      budget,
+      budget: budgetOf(budget, templates, findPageEntry(toc, pageId)),
       product,
       version,
+      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId)) },
       t: ctx.t,
     });
     const file = contextFileName(pageId);
@@ -202,10 +213,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
   const rawTranslatedToc = readProjectToc(root, translationsConfig);
   const tocL = rawTranslatedToc ? translatedToc({ source: toc, translated: rawTranslatedToc }).toc : null;
   const glossary = readGlossary(root, config);
-  const glossaryLExists = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].some((f) =>
-    fs.existsSync(path.join(root, translations, lang, f)),
-  );
-  const glossaryL = glossaryLExists
+  const glossaryL = fs.existsSync(path.join(root, translations, lang, GLOSSARY_FILE))
     ? translatedGlossary({ source: glossary, translated: readGlossary(root, translationsConfig) }).glossary
     : null;
   const recorded = readSources(root, translations, lang);
@@ -240,7 +248,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
       glossaryL,
       templates,
       diff,
-      budget,
+      budget: budgetOf(budget, templates, page),
       t: ctx.t,
     });
     const file = translateContextFileName(pageId, lang);

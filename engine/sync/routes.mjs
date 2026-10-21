@@ -3,7 +3,7 @@
 // adapters' own options, e.g. `app: "../../app"`); the caller (engine/sync/dependencies.mjs) converts them to
 // paths relative to the application with its own `appRelOf`.
 import { routeOf } from "../../adapters/coverage/next-app-router.mjs";
-import { fastapiRoutes } from "../facts/api.mjs";
+import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { normalize } from "../check/coverage.mjs";
 
 const PAGE_FILE = /(^|\/)page\.(tsx|ts|jsx|js|mdx)$/;

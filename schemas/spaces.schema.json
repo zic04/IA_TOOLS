@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "doc-kit kinds of spaces (standard/spaces.json)",
+  "description": "One profile per audience: what the kit does differently for the pages of a space of that kind (ARCHITECTURE.md §6.1a).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "profiles"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "const": 1 },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "icon", "noCode", "proofs", "glossaryTechnical", "takeoverItems", "preferTypes"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "icon": { "type": "string", "minLength": 1, "description": "Default icon of the space, from the kit's set." },
+          "board": { "type": "boolean", "description": "Its home shows the Product board (ARCHITECTURE.md §6.8b): the backlog of the feature sheets." },
+          "depth": { "type": "boolean", "description": "The audit measures the depth of its feature sheets (standard/maturity.md: featureSheets, scenarios, behaviourDepth); with spaces declared, n/a when none is of such a kind." },
+          "noCode": {
+            "type": "boolean",
+            "description": "Its pages are read without the code: a business page that cites a file is reported (business.technical)."
+          },
+          "proofs": {
+            "type": "boolean",
+            "description": "Its written pages are expected to carry file:line proofs (audit: proofs4); it is then the takeover space, outside written2."
+          },
+          "glossaryTechnical": {
+            "type": "boolean",
+            "description": "Its readers see the technical correspondence of the glossary terms (§6.8)."
+          },
+          "takeoverItems": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "enum": ["architecture", "dat", "journey", "operations", "troubleshooting", "findings", "maintaining"] },
+            "description": "The required takeover pages (standard/maturity.md) that live in a space of this kind (audit: takeover4)."
+          },
+          "preferTypes": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "The usual page types of the space, preferred when the audit guesses the type of an untyped page."
+          }
+        }
+      }
+    }
+  }
+}

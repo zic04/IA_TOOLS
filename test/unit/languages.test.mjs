@@ -218,8 +218,29 @@ describe("multilingual build (draft)", () => {
     const anchorProblem = r.warnings.concat(r.errors).find((p) => p.key === "link.anchor" && p.vars.lang === "fr");
     assert.ok(anchorProblem, "the deliberately wrong #/use/settings~what-it-is-for link is reported for fr");
     const dataFr = dataOf(r.html, "fr");
-    // take-over/orders-api~ (counterpart of use/orders) maps "the-screen" (en slug) to "l-ecran" (fr slug).
-    assert.equal(dataFr.pages["take-over/orders-api"].counterpart.anchor, "l-ecran");
+    // take-over/orders-api's topic names use/orders~the-screen: "the-screen" (en slug) maps to "l-ecran" (fr slug).
+    assert.deepEqual(dataFr.pages["take-over/orders-api"].topic, [{ id: "use/orders", anchor: "l-ecran" }]);
+  });
+
+  test("an anchor of a topic group that cannot be mapped: dropped, one warning on the page it points into", async () => {
+    const dir = languagesCopy();
+    try {
+      // The French outline of use/orders gets one more heading: the-screen has no place to map to.
+      const page = path.join(dir, "translations", "fr", "use", "orders.md");
+      fs.writeFileSync(page, `## En plus\n\nUn titre de plus.\n\n${fs.readFileSync(page, "utf8")}`);
+      const r = await buildLanguages({ root: dir, draft: true });
+      const dataFr = dataOf(r.html, "fr");
+      assert.deepEqual(dataFr.pages["take-over/orders-api"].topic, [{ id: "use/orders" }], "the link goes to the page");
+      assert.deepEqual(
+        r.warnings.filter((w) => w.key === "translation.anchor").map((w) => w.vars),
+        [{ lang: "fr", page: "use/orders", anchor: "the-screen" }],
+      );
+      assert.deepEqual(dataOf(r.html).pages["take-over/orders-api"].topic, [
+        { id: "use/orders", anchor: "the-screen" },
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("languages.idClash: a section or page id equal to a declared language is blocking, even a draft build", async () => {
@@ -246,22 +267,22 @@ describe("multilingual build (draft)", () => {
 describe("exports (ARCHITECTURE.md §6.1a + §6.12)", () => {
   test("each export embeds both languages (#site-data and #site-data-fr), pages filtered in both", async () => {
     const r = await buildLanguages({ draft: true });
-    const business = r.sites.find((s) => s.space === "business");
-    assert.ok(business.html.includes('id="site-data"'));
-    assert.ok(business.html.includes('id="site-data-fr"'));
-    const en = dataOf(business.html);
-    const fr = dataOf(business.html, "fr");
-    assert.ok(Object.keys(en.pages).every((id) => en.pages[id].space === "business"));
-    assert.ok(Object.keys(fr.pages).every((id) => fr.pages[id].space === "business"));
+    const use = r.sites.find((s) => s.space === "use");
+    assert.ok(use.html.includes('id="site-data"'));
+    assert.ok(use.html.includes('id="site-data-fr"'));
+    const en = dataOf(use.html);
+    const fr = dataOf(use.html, "fr");
+    assert.ok(Object.keys(en.pages).every((id) => en.pages[id].space === "use"));
+    assert.ok(Object.keys(fr.pages).every((id) => fr.pages[id].space === "use"));
   });
 
-  test("--lang fr --space business: mono-language export", async () => {
-    const r = await buildLanguages({ draft: true, options: { lang: "fr", space: "business" } });
+  test("--lang fr --space use: mono-language export", async () => {
+    const r = await buildLanguages({ draft: true, options: { lang: "fr", space: "use" } });
     assert.equal(r.sites.length, 1);
     assert.ok(!r.sites[0].html.includes("site-data-fr"));
     const data = dataOf(r.sites[0].html);
     assert.equal(data.meta.language, undefined);
-    assert.ok(Object.keys(data.pages).every((id) => data.pages[id].space === "business"));
+    assert.ok(Object.keys(data.pages).every((id) => data.pages[id].space === "use"));
   });
 });
 
@@ -292,6 +313,33 @@ describe("translatedToc", () => {
       source.sections[0].groups[0].pages[0].routes,
       "non-text fields come from the source",
     );
+    // An epic's summary is a text field (§6.8b); its id and ticket are not.
+    const epicSource = {
+      ...source,
+      sections: source.sections.map((s, i) =>
+        i
+          ? s
+          : {
+              ...s,
+              groups: s.groups.map((g, j) => (j ? g : { ...g, epic: "E-01", summary: "Find it.", ref: "ADO#1" })),
+            },
+      ),
+    };
+    const epicTranslated = {
+      ...translated,
+      sections: translated.sections.map((s, i) =>
+        i
+          ? s
+          : {
+              ...s,
+              groups: s.groups.map((g, j) => (j ? g : { ...g, summary: "Le retrouver.", epic: "E-01", ref: "ADO#1" })),
+            },
+      ),
+    };
+    const epic = translatedToc({ source: epicSource, translated: epicTranslated });
+    assert.deepEqual(epic.problems, []);
+    assert.equal(epic.toc.sections[0].groups[0].summary, "Le retrouver.");
+    assert.equal(epic.toc.sections[0].groups[0].epic, "E-01");
   });
 
   test("no translated toc.json yet (a translation just started): the source's texts, no problem at all", () => {
@@ -331,7 +379,7 @@ describe("translatedToc", () => {
     const source = sourceToc();
     const translated = {
       sections: source.sections,
-      spaces: ["business", { id: "takeover", subtitle: "FR" }],
+      spaces: ["use", { id: "develop", subtitle: "FR" }],
       journeys: [
         { title: "FR1", description: "d1" },
         { title: "FR2", description: "d2" },

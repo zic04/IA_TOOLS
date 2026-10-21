@@ -29,6 +29,13 @@
   "cli.init.auth.manual": "manual — you sign in yourself in the browser (SSO and MFA work)",
   "cli.init.auth.none": "none — the application needs no sign-in",
   "cli.init.auth.nextauth": "nextauth — NextAuth session (detected in the dependencies)",
+  "cli.init.ask.spaces": "Who is the documentation for? (its spaces)",
+  "cli.init.spaces.all": "use, product, admin, develop — the four audiences: users, product, administrators, developers",
+  "cli.init.spaces.product": "use, product — users and product owners (no code)",
+  "cli.init.spaces.takeover": "admin, develop — a takeover: administrators, operators and developers",
+  "cli.init.spaces.use": "use — the users alone",
+  "cli.init.spaces.none": "none — one documentation for everyone, without spaces",
+  "cli.init.spaces.noneShort": "none (one documentation for everyone)",
   "cli.init.summary": "Summary",
   "cli.init.recap.folder": "Folder",
   "cli.init.recap.name": "Product name",
@@ -38,6 +45,7 @@
   "cli.init.recap.version": "Version",
   "cli.init.recap.capture": "Screenshots",
   "cli.init.recap.auth": "Sign-in",
+  "cli.init.recap.spaces": "Spaces",
   "cli.init.recap.coverage": "Coverage",
   "cli.init.recap.masking": "Masked .env",
   "cli.init.recap.appDir": "Application",
@@ -53,7 +61,7 @@
   "cli.init.authUnused": "not used without screenshots",
   "cli.init.coverage.none": "none (no known framework: the coverage check stays empty)",
   "cli.init.masking.none": "none found (.env, .env.local)",
-  "cli.init.rename": "To rename the product afterwards: product.name in doc.config.mjs, then the title, the tagline and the section titles of content/toc.json.",
+  "cli.init.rename": "To rename the product afterwards: product.name in doc.config.mjs, then the title, the tagline, the section titles and the journey titles of content/toc.json.",
   "cli.init.ask.where": "Where will the screenshots be taken?",
   "cli.init.target.ask.local": "local or demo application",
   "cli.init.target.ask.production": "production, read-only",
@@ -331,5 +339,6 @@
   "ui.footer.screenshots.versionOnly": {
     "one": "Screenshots of version {version}",
     "other": "Screenshots of versions {version}"
-  }
+  },
+  "ui.search.fuzzy": "No exact match: close words — {words}"
 }

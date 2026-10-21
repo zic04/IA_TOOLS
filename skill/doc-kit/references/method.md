@@ -7,14 +7,16 @@ invoices, roles, administration, AI assistant; Next.js App Router; sign-in throu
 
 Contents: [Orders of magnitude](#orders-of-magnitude) · [0 Scoping](#0--scoping) · [1 Project](#1--set-up-the-project) ·
 [2 Inventory](#2--code-inventory) · [3 Plan](#3--site-plan-and-reference-page) · [4 Captures](#4--captures) ·
-[5 Writing](#5--writing-in-batches) · [6 Consolidation](#6--consolidation) · [7 Journeys](#7--end-to-end-journeys-and-troubleshooting) ·
-[8 Takeover dossier](#8--takeover-dossier) · [9 Checks](#9--checks-and-review) · [10 Delivery](#10--delivery-and-maintenance) ·
+[4b Analysis](#4b--analysis-of-the-features) · [5 Writing](#5--writing-in-batches) ·
+[5b Depth loop](#5b--depth-loop) · [6 Consolidation](#6--consolidation) ·
+[7 Journeys](#7--end-to-end-journeys-and-troubleshooting) · [8 Takeover dossier](#8--takeover-dossier) · [9 Checks](#9--checks-and-review) · [10 Delivery](#10--delivery-and-maintenance) ·
 [The update cycle](#the-update-cycle)
 
-Sites A and B below predate the business/takeover spaces, `doc-kit facts` and `doc-kit sync` (ARCHITECTURE.md
-§6.1a, §6.9, §6.10): their numbers stay a faithful lower bound for a single-space takeover-style site. Where this
-file describes the business space, the takeover dossier or the update cycle, it gives the method, not a
-fabricated statistic from a site that never used it.
+Sites A and B below predate spaces, `doc-kit facts` and `doc-kit sync` (ARCHITECTURE.md §6.1a, §6.9, §6.10):
+their numbers, given by their four sections Use, Configure, Administer and Take over, stay a faithful lower bound
+for a site without spaces. Where this file describes the four spaces (Use, Product, Administer, Develop), the
+Product space's feature sheets, the takeover dossier or the update cycle, it gives the method, not a fabricated
+statistic from a site that never used it.
 
 ## Orders of magnitude
 
@@ -32,7 +34,7 @@ fabricated statistic from a site that never used it.
 
 Site A's inventory listed 85 routes, 17 permissions and 9 roles, and proposed a 99-page plan; the final site has 170,
 because sub-pages, journeys, troubleshooting and the architecture document came afterwards. Expect the initial plan to
-grow by 50 to 70 % for the Take over section.
+grow by 50 to 70 % for the Take over section (today the Develop space and the Operate part of Administer).
 
 ## 0 · Scoping
 
@@ -40,9 +42,10 @@ Decisions to make with the owner, **before any code**:
 
 | Decision | Options | What depends on it |
 |---|---|---|
-| Space(s) | business · takeover · both | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
-| Audience | users, administrators, technical successors | the 4 sections: Use / Configure / Administer / Take over |
+| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
+| Audience | users, product owners, administrators and operators, technical successors | one space per audience, and its parts (`{{KIT_PATH}}/standard/structure.md`) |
 | Language | `en` or `fr` | `language` in `doc.config.mjs`, briefs `assets/briefs/<lang>/` |
+| Level of detail | `essential` (the required rubrics of each behaviour, the stories, the rules, the permissions) · `standard` (the default: also the fields, states, messages word for word, one acceptance criterion per story, the limits) · `detailed` (also every optional rubric, the variants, a criterion per behaviour) | the `level` of every `behaviour-analysis` brief: `extra: { briefs: { level: "standard" } }` in `doc.config.mjs`; the cost grows with it |
 | Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (ARCHITECTURE.md §6.11): the per-million-token price of each model in play |
 | Capture mode | prepared demo · read-only production · none | `capture.target` (`init --target`), phase 4, safety, `capture.setup` |
 | Visible data | real in clear · masked · fictitious | **written** decision of the owner; `masking.patterns` |
@@ -74,8 +77,9 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   **root**, even when the front end sits in `frontend/` or `web/`. It detects the framework, the product name (Next.js
   `metadata.title`, else `package.json` without its `-frontend`/`-web` suffix), the version file (`version.txt` or
   `VERSION` at the root first) and the `.env` files to mask, then asks for the product name, language, application
-  URL, where the screenshots are taken (`capture.target`) and sign-in method (`--name`, `--lang`, `--url`, `--capture`,
-  `--target`, `--auth`, `--framework` answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
+  URL, where the screenshots are taken (`capture.target`), the sign-in method and the spaces (who the documentation
+  is for) (`--name`, `--lang`, `--url`, `--capture`, `--target`, `--auth`, `--spaces <ids>|none`, `--framework`
+  answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
   then offers to open the browser (`connect`) and a first test screenshot (`capture --preview`). Its **recap** is printed before anything is written, even with `--yes`: read it
   (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `doc-kit` with no command
   starts the **guided mode**, which detects the current state and proposes the next step.
@@ -91,8 +95,6 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   - `capture.cookies` / `capture.storage`: language and theme set before each capture
     (for example `[{ name: "NEXT_LOCALE", value: "en" }]`);
   - `capture.forbidden`: route regular expressions never opened (filled after reading the detail pages' code).
-- A project created before the kit keeps its French folders through `paths` (`contenu/`, `schemas/`); `doc-kit migrate`
-  rewrites its JSON files in the current format.
 - `doc-kit doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
   starts until it has no ✖ (exit code 3 environment, 2 configuration, 1 project).
 - **Then, before any agent**: `doc-kit facts [--network] [--tools]` (ARCHITECTURE.md §6.9) reads the application's
@@ -131,9 +133,11 @@ keeps the same items.
 - Lesson: on site A, a roles document in the repository announced 8 roles and 11 permissions (the code: 9 and 17), and a
   screen inventory described the mock-up, not the application. Writers are warned from the brief on: "always check in
   the code".
-- **With a business space**: `doc-kit inventory --features --write` groups the adapters' routes, API routes and
+- **With a Product space**: `doc-kit inventory --features --write` groups the adapters' routes, API routes and
   i18n keys into candidate features (by their first static segment, ARCHITECTURE.md §6.8), each a suggested
-  `F-xx` id — a starting `features.json` for phase 3's plan and phase 5's `functional-spec` batches.
+  `F-xx` id — a starting `features.json` for phase 3's plan and phase 5's `functional-spec` batches. The
+  inventory report also gives each feature its size (S, M, L), its epic and the behaviours to document in depth:
+  the sizes budget phase 4b.
 
 ## 3 · Site plan and reference page
 
@@ -142,20 +146,22 @@ keeps the same items.
    - `doc-kit new <id> --template <type> --title "…" [--parent <id>]` page by page (skeleton + toc entry);
    - a small script that writes the whole toc at once (for example a helper `P(id, title, menuTitle, summary, routes,
      permissions)` with permission abbreviations taken from the inventory legend).
-   **With both spaces**: declare `spaces: ["business", "takeover"]` and give each section a `space`
-   (ARCHITECTURE.md §6.1a); a page's own `space` overrides its section's, and `counterpart` links a feature sheet
-   to its technical page (and back).
+   **With spaces**: declare `spaces: ["use", "product", "admin", "develop"]` (what `doc-kit init` writes; keep
+   only the spaces the project has readers for) and give each section a `space` (ARCHITECTURE.md §6.1a); a
+   page's own `space` overrides its section's, and `counterpart` joins the pages of one subject — a feature sheet, its
+   screen, its technical page, its runbook — in a topic group (one page or a list; declared once, shown on each). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
+   "Operations" }`.
 2. **Coverage**: `doc-kit check coverage` must find each route in the `routes` field of a page (the `features`
    adapter too, when `features.json` exists: a feature is covered once a written `feature` page cites its id).
 3. The project's **`WRITING-GUIDE.md`**: where the exact labels live, the reference page(s), capture prefixes,
    rules of the capture mode, decisions from scoping.
 4. **Reference page(s)**: the orchestrator writes it (or one agent does), at the target level, and has it
-   approved. Every brief asks to match it. A good business-space reference is a feature sheet with real business
-   rules (`:::rule`) and a main scenario; a good takeover reference is an editor page: what it is for, how it
+   approved. Every brief asks to match it. A good Product reference is a feature sheet with real business
+   rules (`:::rule`) and a main scenario; a good Administer reference is an editor page: what it is for, how it
    works with the real mechanism, annotated screens, a reference of every setting, step by step, pitfalls,
    permissions (Acme Orders: `configure/approvals/chains`).
 5. **Batches**: see `agent-orchestration.md`. Decide codes, prefixes, pages and reading lists of each batch, for
-   both spaces.
+   every space.
 
 ## 4 · Captures
 
@@ -177,6 +183,15 @@ Two organisations worked:
 Capture rules: 3 to 12 zones per screen, in reading order; `viewport: { height: 2200 }` and `frame` for long panels;
 the `main` target for the area without the menu; small runs of 3 to 8 captures per command in production.
 
+## 4b · Analysis of the features
+
+With a Product space (or any feature sheet or technical counterpart), once the plan and the captures are done and
+before the writing: each feature is traced once in the code, and every space's writer starts from a digest of that
+analysis. For each feature of `features.json`: `doc-kit context <its sheet>`, then one `doc-kit-analyst`
+(brief `behaviour-analysis`, estimated first, up to 8 at a time: the first alone, the others in the next message); then `analysis.mjs check`, `analysis.mjs
+findings` (candidates for the consolidation file) and `analysis.mjs digest <feature> --for product|develop|use|admin`.
+The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, ARCHITECTURE.md §6.11a.
+
 ## 5 · Writing in batches
 
 - **Before generating a brief**, for every page of the batch: `doc-kit context <page>` writes
@@ -187,15 +202,17 @@ the `main` target for the area without the menu; small runs of 3 to 8 captures p
   table arrives already filled from the facts.
 - One brief per batch, **estimated first**: `node scripts/brief.mjs writing-batch --estimate --project . --var
   code=u1 --var prefix=u1 --var pages=@.doc-kit/pages-u1.txt --var captureMode=production`, then the same without
-  `--estimate` to write the file (`@` reads the value from a file). A business batch uses `functional-spec`
+  `--estimate` to write the file (`@` reads the value from a file). A Product batch uses `functional-spec`
   instead (no capture-related variables, no `prefix`: it never takes a screenshot).
-- Launch the agents (the type the brief's front matter names — `doc-kit-writer` for both of these two) in waves;
-  each one only receives "Read the brief and carry it out". Log each one as it ends: `node scripts/usage.mjs log
-  --brief writing-batch --agent doc-kit-writer --model sonnet --tokens <n> --pages u1-a,u1-b --phase 5`.
+- Launch the agents (the type the brief's front matter names — `doc-kit-writer` for both of these two) in waves,
+  the first alone and the others in the next message; each one receives the brief's full text as its prompt
+  (agent-orchestration.md §3). Log each one as it ends: `node scripts/usage.mjs log --brief writing-batch --agent
+  doc-kit-writer --model sonnet --tokens <n> --pages u1-a,u1-b --phase 5` (a floor: its last context), and `scan`
+  the session's `subagents` folder once at the end for the spend.
 - Depth asked: "VERY detailed and educational": every screen element, every action, every setting (label, role, values,
   default, effect, permissions) and the real mechanism — for `writing-batch`. For `functional-spec`: every rule,
   every role, every step, in business language, with **no** `file:line` (`business.technical` warns otherwise):
-  the technical mechanism belongs to the page's `counterpart`, written in phase 8.
+  the technical mechanism belongs to the page's `counterpart` in the Develop space, written in phase 8.
 - Every agent's final report has the same outline (pages, captures and zones, blocked writes, candidate findings,
   errors, glossary, not captured): it is pasted as is into the consolidation file.
 - **Each writer ends its own pages with** `doc-kit sync --mark <page> --sources …`, once that page's checks pass,
@@ -203,6 +220,17 @@ the `main` target for the area without the menu; small runs of 3 to 8 captures p
   `doc-kit sync` (the update cycle) can tell it apart from a page nobody has touched since.
 - An instruction discovered along the way is added to the briefs **and** sent to the agents already running (site A:
   "open no other order record" once a detail page was found to write when rendered).
+- With analyses: a `functional-spec` writer starts from each sheet's Product digest, and the technical
+  counterpart of a feature sheet (Develop) is written by `feature-mechanism` from the Develop digest.
+
+## 5b · Depth loop
+
+After the writing wave: `doc-kit build --draft`, `doc-kit audit` (it writes `.doc-kit/audit.json`), then
+`analysis.mjs depth`. For each feature, `deepen` means one `doc-kit-writer` on `haiku` with brief `deepen` for the gaps it lists, and
+`analyse again` means `behaviour-analysis` with `focus`, then the digest again. At most two rounds per feature;
+`analysis.mjs questions` then writes `.doc-kit/open-questions.md` for the product owner. The loop ends when `depth`
+prints ✔ (nothing left to deepen or to analyse again); what stays open goes to `questions`. A new loop starts
+with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, ARCHITECTURE.md §6.11a.
 
 ## 6 · Consolidation
 
@@ -212,7 +240,7 @@ the `main` target for the area without the menu; small runs of 3 to 8 captures p
    existing findings already citing them. Settle by hand under "Duplicates found" (`inv 5 = tbl 2`).
 4. Launch **in parallel** two agents, on disjoint files:
    - `findings-verification`: re-checks each candidate, integrates it (next number), merges or rejects it; updates the
-     counters; the only one writing the findings pages. With a takeover space, the findings page is the risk
+     counters; the only one writing the findings pages. With a Develop space, the findings page is the risk
      register: a candidate that already carries a suggested Decision (from `code-health` or `access-ownership`)
      keeps it unless the code shows otherwise, and every new finding gets an Owner (start it "—" when none was
      proposed), a Status and a Due date;
@@ -239,6 +267,11 @@ result: 8 new important and 13 new minor findings, and one production finding co
 
 ## 8 · Takeover dossier
 
+With spaces, the dossier is split by reader: its operating pages (`access-ownership`, `runbook`, the technical
+architecture document, resources, variables) go to the Operate part of the Administer space; the others
+(`api-surface`, `dependencies`, `agent-instructions`, `tests-quality`, `threat-model`, `data-model`, `code-map`,
+`adr`) to the Develop space.
+
 Four disjoint agents, each able to start as soon as its own inputs are ready (none waits for another):
 
 - **`code-health`** (one `doc-kit-reviewer`, from `facts/*.json`, ARCHITECTURE.md §6.9): `api-surface`
@@ -253,7 +286,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   (never on the page), the question list for the real owner — domain, repository, hosting, database, payment,
   e-mail, each AI tool account, each secret by name. The orchestrator relays the questions; the agent never
   contacts the owner.
-- **`system-dossier`** (one `doc-kit-writer`, from `facts/db.json` and `facts/tool-knip.json` when present):
+- **`system-dossier`** (one `doc-kit-writer`, from `facts/db.json`, `facts/infra.json` and `facts/tool-knip.json` when present):
   `runbook` (install, build, deploy, roll back, scheduled jobs, backup and restore — every command checked in a
   script, a Dockerfile instruction or a CI workflow, never assumed); `data-model` (from `doc-kit new <id>
   --prefill` on `facts/db.json`: personal data, retention, processors); `code-map` (a C4-style context diagram,
@@ -262,6 +295,12 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   answer it rests on — never a bare "from the code". No git command: a decision's history comes from what is
   already readable (comments, `CHANGELOG.md`, an answer the orchestrator already obtained), not from running
   `git log` itself.
+- **`architecture-reconcile`** (one `doc-kit-reviewer`), when a DAT was ingested: inputs are the first pass
+  `doc-kit inputs reconcile` writes (`.doc-kit/inputs/reconcile.json`: confirmed, said by the DAT without a trace,
+  in the code but not in the DAT, the hosts), the converted DAT and the facts. One Develop page, linked from
+  Administer: what the code confirms, what only the DAT says, what only the code does, addresses and
+  environments, flows, questions for the DAT's author. A trace is evidence, never proof; each statement cites
+  the DAT ("Source: DAT v2.3 § 4.1") and its proof. Risky gaps are candidate findings.
 - **`production-technical`** (one `doc-kit-reviewer`), when portal screenshots are available: inputs are the
   screenshots provided by the owner (site A: the 24 resources of the group, 30 application variables, 7 of them
   vault references) and the infrastructure code, **read-only** (Terraform, Bicep, CloudFormation, Pulumi…).
@@ -277,7 +316,10 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   present.
 - `doc-kit check all`: coverage, links, tables (no overflow), images (orphans, heavy), secrets.
 - `doc-kit audit`: score and maturity level (1 Skeleton → 4 Takeover), with the "to do for the next level" list;
-  with `spaces` declared, also a "Level by space" table.
+  with `spaces` declared, also a "Level by space" table, each space held to the criteria of its kind (`n/a`:
+  `written2` in Develop, `proofs4` outside Develop, `takeover4` in Use and Product, the depth of the feature sheets —
+  `featureSheets3`, `scenarios4`, `behaviourDepth4` — outside Product; Administer's `takeover4` counts only its two
+  required pages, the technical architecture document and Operate).
 - Visual review: `doc-kit view <page> --theme light|dark`, `--tour 2` for the guided tour, diagrams in light and dark.
 - `doc-kit optimize` when the HTML is heavier than what is easy to share.
 - `node scripts/usage.mjs report`: totals the phase's cost by brief, agent type and model, against the waves'
@@ -291,7 +333,8 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 - `doc-kit sync --mark --all`: records every written page as checked against this version, so the first run of
   the update cycle (below) after delivery reports `unchanged`, not `unmarked`, for all of them.
 - `doc-kit export <target> --with-dist [--zip]` for a self-contained handover; with `spaces`, `--with-dist` also
-  copies every per-space export; checklist `{{KIT_PATH}}/standard/delivery.md`.
+  copies every per-space export (`dist/<Product>-Documentation-use.html`, `-product`, `-admin`, `-develop`);
+  checklist `{{KIT_PATH}}/standard/delivery.md`.
 - Maintenance after an application release: see "The update cycle" below. After a kit release: `doc-kit
   upgrade`, then `--apply`.
 
@@ -301,7 +344,9 @@ What to run after an application release, so the documentation catches up withou
 (ARCHITECTURE.md §6.10-6.11); none of it calls an LLM before the triage step.
 
 1. `doc-kit facts [--network]`: refresh the deterministic facts (zero tokens; skip sources that have not
-   changed with `--source` if the application is large).
+   changed with `--source` if the application is large). `doc-kit bricks` shows which brick is stale (the inputs,
+   each facts source, the tools, the documentation audit), and `doc-kit bricks run <id> --deps --stale` runs the
+   deterministic steps of those that are.
 2. `doc-kit sync`: compares the application now with `sync.json` (or a git ref with `--since`) and writes
    `.doc-kit/sync.md`, `.doc-kit/sync-report.json` and one `.doc-kit/sync/<page>.diff` per flagged page — proofs
    moved or broken, labels whose value changed, pages to review by priority (`direct`, `shared`,
@@ -316,8 +361,13 @@ What to run after an application release, so the documentation catches up withou
    before/after sheets.
 6. **Triage** (`doc-kit-triage`, haiku, read-only, brief `triage`): one decision per page from its `--update`
    context file alone — `intact` (the orchestrator runs `sync --mark` on it, no agent needed), `edit` (a small,
-   localised change) or `rewrite` (redo it from the context file). Estimate the wave first (`sync --estimate`);
+   localised change), `rewrite` (redo it from the context file) or, for a feature sheet that is still right but has
+   gaps the depth loop measures, `deepen`. Estimate the wave first (`sync --estimate`);
    log each agent as it ends.
+6b. A feature sheet, or its technical counterpart, whose code changed has its analysis redone before its update
+    (`behaviour-analysis`, with `focus` on what changed, or whole), then `analysis.mjs check` and its digest again;
+    the `update` agent works from the fresh digest (outside its 1-read budget). A new depth loop starts
+    with `node scripts/analysis.mjs depth --reset <feature>`, before `deepen`.
 7. **Update** (`doc-kit-writer`, sonnet, brief `update`), one wave for the `edit` and `rewrite` pages: each
    changes only what its context file's flagged reasons require, then ends with `doc-kit sync --mark <page>
    --sources …`.

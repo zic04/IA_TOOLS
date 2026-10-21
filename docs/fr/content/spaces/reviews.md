@@ -1,6 +1,6 @@
 ## En bref
 
-Deux revues, à la demande, écrites de la même façon que le reste de l'espace de reprise : des faits déterministes
+Deux revues, à la demande, écrites de la même façon que le reste du dossier de reprise, dans l'espace Développer : des faits déterministes
 d'abord, aucune supposition, puis un agent rédige la page à partir d'eux.
 
 1. **`security-review`** : authentification, contrôle d'accès, traitement des entrées, secrets et configuration,
@@ -78,7 +78,8 @@ coûte le plus cher : une sonde de contrôle d'accès qui exerce accidentellemen
 limitation de débit qui déclenche une vraie alerte, un corps de réponse qui contient les données d'un vrai
 client. Le kit préfère qu'on la vérifie sur une copie locale ou une démo préparée, comme chaque capture d'écran
 ([Démo ou production : capturer sans risque](#/capture/safety)) — les sources de faits (`api`, `security`,
-`quality`) n'ont pas cette restriction, puisqu'elles ne font jamais que lire des fichiers, jamais le réseau.
+`quality`) n'ont pas cette restriction, puisqu'elles ne font que lire des fichiers ; seul `--network` joint un
+registre public, avec les seuls noms des paquets publics.
 
 ## Pièges et écarts constatés
 

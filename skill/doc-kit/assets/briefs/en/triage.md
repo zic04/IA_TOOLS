@@ -16,6 +16,10 @@ required sections, the files and excerpts that matter, exact labels, relevant fa
   agent can patch it without rereading everything.
 - `rewrite`: the change is structural, or touches most of the page (a removed feature, a new permission
   model, many facts changed): a writer agent should redo it from the context file.
+- `deepen`: a feature sheet that is still right but has gaps the depth loop measures (rubrics of a behaviour card
+  left out or unknown, user stories without acceptance criteria): the orchestrator then runs
+  `analysis.mjs depth` and the `deepen` brief for it. Not for a sheet whose content is wrong: that is `edit` or
+  `rewrite`.
 
 One short sentence of reason per page, citing what changed (a route, a label, a permission, a diff hunk, or a
 fact row).
@@ -31,7 +35,7 @@ fact row).
 ## Final report
 
 A JSON object, one entry per page, in the order given: `{ "<page id>": { "decision": "intact"|"edit"|
-"rewrite", "reason": "…" }, … }`. The orchestrator saves it as `.doc-kit/triage.json`: you write no file
+"rewrite"|"deepen", "reason": "…" }, … }`. The orchestrator saves it as `.doc-kit/triage.json`: you write no file
 yourself.
 
 ## Variables

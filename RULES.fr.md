@@ -11,33 +11,34 @@ ou son test est mis à jour dans la même modification.
 - `test/unit/security.test.mjs`, lancé par `npm test`, ou seul par `npm run test:security` ;
 - `.github/workflows/ci.yml` : tests sous Linux, Windows et macOS, règles de sécurité et `npm audit` ;
 - la liste de contrôle de `.github/pull_request_template.md` ;
-- les consignes de relecture de `CLAUDE.md`.
+- les consignes de relecture de `CLAUDE.md`, et l'agent `kit-reviewer` (`.claude/agents/`).
 
 ## Sécurité
 
 | # | Règle | Vérifiée par |
 |---|---|---|
 | S1 | **Jamais de shell.** Les processus se lancent avec `spawn`/`spawnSync` et un tableau d'arguments. Jamais `shell: true`, `exec`, `execSync`, `eval` ni `new Function`. Seule exception : `npm install` sans argument venu de l'extérieur, sous Windows. | `security.test.mjs` › règles du code |
-| S2 | **git uniquement par `engine/util/safe-git.mjs`.** Utiliser `ctx.exec` (durci par `defaultExec`) ou `safeGitArgs` + `riskyGitConfig` + `resolveOnPath`. Jamais `spawnSync("git", …)` en direct. git reste en lecture : `rev-parse`, `show`, `diff`, `log`, `ls-files`, `check-ignore`. | règles du code, tests git |
+| S2 | **git uniquement par `engine/util/safe-git.mjs`.** Utiliser `ctx.exec` (durci par `defaultExec`) ou `safeGitArgs` + `riskyGitConfig` + `resolveOnPath`. Jamais `spawnSync("git", …)` en direct. git reste en lecture : `rev-parse`, `show`, `diff`, `log`, `ls-files`, `check-ignore` — à une exception près, les dépôts partagés des sources (`doc-kit inputs fetch`, ARCHITECTURE.md §6.19) : `clone`, `fetch` et `checkout` seulement dans `engine/inputs/repos.mjs`, dans `.doc-kit/inputs/repos/`, l'adresse contrôlée par `isSafeRepoUrl` (https sans identifiants, ssh) et chaque clone durci dès sa création (aucun hook, liens en fichiers, pas de transport `ext`/`file`, pas de sous-module, objets vérifiés, aucune demande de mot de passe, le nom du clone vérifié avant que son dossier soit jamais supprimé). | règles du code, tests git, `inputs.test.mjs` |
 | S3 | **Une référence git venue d'un fichier ou d'une option est vérifiée** avec `isSafeRef` et placée après `--end-of-options`. | `sync.test.mjs`, `security.test.mjs` |
 | S4 | **Le dossier de l'application n'est pas sûr.** Les binaires sont cherchés dans le `PATH`, jamais dans le dossier lu. Rien de l'application n'est exécuté, importé ni chargé par `require`. Tout nouvel outil externe est décrit dans SECURITY.md, avec ce qu'il exécute. | relecture, SECURITY.md |
 | S5 | **Toute expression qui analyse un texte non sûr reste linéaire.** Pas de quantificateurs imbriqués sur des classes qui se recouvrent, comme `(\s*x?\s*)+`. Tout nouveau détecteur, heuristique ou extracteur est ajouté à `test/tools/redos-worker.mjs`, où chaque contrôle doit finir en moins de 300 ms. | test ReDoS |
 | S6 | **Captures en lecture seule.** Une requête laissée passer est un `GET`, `HEAD` ou `OPTIONS`. Chaque redirection d'une navigation est vérifiée avant d'être suivie. `capture.forbidden` est testé sur toutes les formes du chemin (`pathForms`). Toute nouvelle façon d'ouvrir une URL (fenêtre, page, action) passe par la garde. | `capture.test.mjs`, e2e `capture.test.mjs` |
-| S7 | **Un secret n'est jamais stocké, affiché ni exporté.** `facts` garde les noms et les emplacements, jamais les valeurs. Les rapports montrent au plus un début masqué. Les rapports d'outils sont nettoyés (`--redact`, `scrubGitleaks`). `export` écarte, à toute profondeur, les sessions, les clés, les identifiants et les fichiers d'environnement. | `security.test.mjs` › export, `export.test.mjs` |
+| S7 | **Un secret n'est jamais stocké, affiché ni exporté.** `facts` garde les noms et les emplacements, jamais les valeurs. Les rapports montrent au plus un début masqué. Les rapports d'outils ne gardent qu'une liste blanche de champs (`--redact`, `NORMALISE` dans `engine/facts/tools.mjs`). `export` écarte, à toute profondeur, les sessions, les clés, les identifiants et les fichiers d'environnement. | `security.test.mjs` › export, `export.test.mjs`, `facts.test.mjs` › liste blanche des outils |
 | S8 | **Le serveur local ne répond qu'à lui-même.** Il écoute sur `127.0.0.1` et vérifie `Host` (`isLocalHost`). Il n'a aucune route d'écriture et ne sert aucun fichier du disque. | `security.test.mjs` › serveur dev |
 | S9 | **Le HTML généré échappe tout ce qu'il tire du contenu ou des données** (`esc`, et `<` échappé dans le JSON en ligne). Le HTML et le SVG bruts du contenu restent sous la responsabilité de l'auteur (SECURITY.md). | tests d'instantanés, relecture |
 | S10 | **Chaîne d'approvisionnement.** Les dépendances d'exécution ont une version figée et restent au strict minimum ; toute nouvelle dépendance se justifie dans la PR. L'installation se fait par `npm ci --ignore-scripts`. Les actions CI sont épinglées par SHA. `npm audit --omit=dev --audit-level=high` reste propre. | CI › sécurité |
 | S11 | **SECURITY.md dit vrai.** Chaque protection promise a un test, et chaque limite connue y est écrite. | relecture |
+| S12 | **Une seule passerelle réseau.** Toute requête que le kit envoie lui-même à un registre de paquets passe par `createRegistryClient` (`engine/facts/network.mjs`), le seul fichier qui construit leurs URL ou leur envoie une requête (les lecteurs de dépendances ne font que reconnaître ces hôtes dans les fichiers de verrouillage) ; elle refuse un paquet privé (`isPrivatePackage`), quoi qu'ait fait l'appelant, et son délai couvre toute la réponse. Un nom privé n'est jamais envoyé (AUDIT.md S13). Seule exception, un outil externe : avec `--tools --network`, osv-scanner télécharge sa propre base (des fichiers publics, aucun nom envoyé). | `security.test.mjs` › règles du source, `facts.test.mjs` › réseau |
 
 ## Maintenabilité
 
 | # | Règle |
 |---|---|
-| M1 | `engine/` n'importe jamais `cli/`, n'appelle jamais `process.exit` et n'écrit jamais dans la console. Les erreurs sont des `KitError`, avec un code de sortie et une clé i18n. |
+| M1 | `engine/` n'importe jamais `cli/`, n'appelle jamais `process.exit` et n'écrit jamais dans la console. Les erreurs sont des `KitError`, avec un code de sortie et une clé i18n. Les imports, la sortie du processus et la console sont vérifiés par `test/unit/layers.test.mjs`. |
 | M2 | Chaque message existe en anglais et en français (`i18n/en`, `i18n/fr`), et le test de parité passe. |
 | M3 | Chaque fonctionnalité ou correction arrive avec son test ; une correction de sécurité arrive avec le test qui l'aurait détectée. On ne saute, ne désactive ni n'affaiblit jamais un test pour passer au vert. |
 | M4 | Les tests ne dépendent pas de la machine : pas de vrai réseau, pas de vrai git, pas de Chromium installé dans les tests unitaires. On utilise les points d'injection du contexte (`exec`, `fetch`, `launch`, `commit`, `chromium`). |
-| M5 | Une nouvelle fonction reste sous 80 lignes environ, un fichier sous 600 environ ; au-delà, on découpe. On n'ajoute rien à `build()`, `runAudit()` ni `runCaptures()` : on en extrait une étape. |
+| M5 | Une nouvelle fonction reste sous 80 lignes environ ; un fichier JavaScript d'`engine/`, `cli/`, `adapters/` ou `skill/` a 600 lignes au plus (les tests ne sont pas concernés). Au-delà, on découpe. On n'ajoute rien à `build()`, `runAudit()` ni `runCaptures()` : on en extrait une étape. Les fichiers qui dépassent déjà 600 lignes sont tenus à leur taille par `test/unit/sizes.test.mjs` : ils ne peuvent que diminuer. |
 | M6 | Un seul utilitaire par tâche. Avant d'écrire un analyseur, un lecteur de sommaire ou un appel git, on cherche celui qui existe (`engine/project`, `engine/util`). |
 | M7 | Pas de délai magique : un délai ou une attente Playwright est une constante nommée, et attendre une condition vaut mieux qu'une pause fixe. |
 | M8 | Les références pointent vers des documents versionnés (ARCHITECTURE.md §, RULES.md), jamais vers un document hors du dépôt. |
@@ -47,6 +48,7 @@ ou son test est mis à jour dans la même modification.
 | M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passe : aucune erreur, et pas plus d'avertissements que son plafond `--max-warnings`. Le plafond compte les fonctions qui dépassent encore les règles de taille de M5 ; il ne fait que baisser, à mesure qu'elles sont découpées. |
 | M13 | `npm run typecheck` (TypeScript sur la JSDoc, `tsconfig.json`, rien n'est compilé) passe sans erreur. Une JSDoc qui ne correspond plus au code est corrigée, jamais réduite au silence : pas de `@ts-ignore` ; un `@ts-expect-error` seulement avec sa raison. |
 | M14 | Les dossiers d'`engine/` s'importent sans cycle : de bas en haut, `core`, `capture`, `check`, `facts`, `sync`, `build`. Un module que deux dossiers partagent va dans `engine/core/`. Vérifié par `test/unit/layers.test.mjs`. |
+| M15 | Le skill reste cohérent : chaque brief existe en anglais et en français avec le même en-tête et les mêmes variables ; chaque type d'agent sert, et sa description nomme les briefs qu'il exécute ; `DEFAULT_ROUTING` nomme de vrais briefs et correspond au tableau des modèles de `SKILL.md`. Vérifié par `test/unit/skill-briefs.test.mjs`. |
 
 ## Avant chaque version
 

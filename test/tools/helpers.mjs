@@ -37,7 +37,7 @@ export function demoCopy() {
   return dir;
 }
 
-/** The test project with two spaces, business and takeover (ARCHITECTURE.md §6.1a). */
+/** The test project with two spaces, use and develop (ARCHITECTURE.md §6.1a). */
 export const SPACES = path.join(KIT_ROOT, "test", "fixtures", "spaces");
 
 /** Configuration of the spaces project (validated, completed), optionally modified first. */
@@ -151,9 +151,10 @@ export function businessCopy(editToc) {
 
 /**
  * Isolated Markdown engine: fake screenshots and files, collected reports.
- * @param {{ captures?: object, files?: Record<string,string>, language?: string, statuses?: object }} p
+ * @param {{ captures?: object, files?: Record<string,string>, language?: string, statuses?: object, behaviours?: any }} p
+ *   behaviours: the kinds of behaviour cards and the strict flag (default: the kit's kinds, not strict)
  */
-export function testEngine({ captures = {}, files = {}, language = "en", statuses = {} } = {}) {
+export function testEngine({ captures = {}, files = {}, language = "en", statuses = {}, behaviours } = {}) {
   const reports = [];
   const i18n = createI18n({ language });
   const engine = createMarkdownEngine({
@@ -164,6 +165,7 @@ export function testEngine({ captures = {}, files = {}, language = "en", statuse
     t: i18n.t,
     icon,
     statuses,
+    ...(behaviours ? { behaviours, locale: language } : {}),
   });
   return { engine, reports, render: (src, id = "page/test") => engine.render(src, id) };
 }

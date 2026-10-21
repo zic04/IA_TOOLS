@@ -17,6 +17,10 @@ chemins sont dans Variables.
   `doc-kit context <page>` quand l'orchestrateur l'a lancé avant ce brief) : les fichiers à lire avec leurs
   extraits, les libellés exacts et les faits pertinents — la lecture dont tu as besoin pour l'application, en
   plus de ce qui suit.
+- En option, quand une étape passe par une fonctionnalité qui a une analyse, le digest Développer de cette
+  fonctionnalité (`{{docDir}}/.doc-kit/analysis/<id de fonctionnalité>.develop.md`, produit par
+  `analysis.mjs digest`, quand l'orchestrateur l'a préparé) : le mécanisme et les preuves qu'il porte peuvent
+  servir de base aux tiennes, revérifiées dans le code. Une lecture de plus.
 - Le guide de rédaction (syntaxe étendue : `:::etapes`, `:::ecran`, `::capture`, `::schema`, encadrés
   `> [!MECANISME]`, `> [!ATTENTION]`, `> [!NOTE]`, puces `[[droit …]]`, `[[menu …]]`, `[[statut …]]`,
   `[[route …]]`, liens `#/id` et `#/id~ancre`, schémas).

@@ -14,10 +14,11 @@
 // blended input/output rate) for plain `log` entries, which carry only a total; the gap with a fresh estimate
 // of the same briefs (ARCHITECTURE.md §6.11, `brief.mjs --estimate`), when a brief template for that name
 // exists and at least one entry named its pages.
-// `scan`: tolerant -- reads every `.jsonl` file under `--transcripts <folder>` (recursively), and for every
-// line that parses as JSON and has a `message.usage` object, sums `input_tokens`, `output_tokens`,
-// `cache_read_input_tokens` and `cache_creation_input_tokens` where they exist; everything else in a line, and
-// any line that is not valid JSON or has no such object, is ignored. One aggregate entry is appended.
+// `scan`: tolerant -- reads every `.jsonl` file under `--transcripts <folder>` (recursively), and sums
+// `input_tokens`, `output_tokens`, `cache_read_input_tokens` and `cache_creation_input_tokens` of every API
+// response, once each however many lines and files repeat it, its output at least what it wrote
+// (transcript-usage.mjs); everything else in a line, and any line that is not valid JSON or has no
+// `message.usage` object, is ignored. One aggregate entry is appended.
 // Exit codes: 0 OK, 2 usage or configuration.
 import fs from "node:fs";
 import path from "node:path";
@@ -40,6 +41,7 @@ import {
   setMessageLanguage,
   t,
 } from "./common.mjs";
+import { responseTally } from "./transcript-usage.mjs";
 
 useMessages("usage");
 
@@ -113,7 +115,7 @@ async function freshEstimate(brief, pages, docDir, config, lang) {
   const template = fs.readFileSync(file, "utf8");
   const inputTokens = Math.ceil(template.length / 4);
   const kitRoot = path.resolve(SKILL_ROOT, "..", "..");
-  const pagesOfToc = await flattenedPages(docDir, config, kitRoot);
+  const pagesOfToc = flattenedPages(docDir, config);
   const byId = new Map(pagesOfToc.map((p) => [p.id, p]));
   const table = await pageTemplatesTable(kitRoot);
   const contentDir = config?.paths?.content ?? "content";
@@ -161,8 +163,7 @@ async function cmdScan(o, docDir) {
         .map(String)
         .filter((f) => f.endsWith(".jsonl"))
     : [path.basename(folder)];
-  const totals = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
-  let lines = 0;
+  const tally = responseTally();
   for (const f of files) {
     const abs = isDir ? path.join(folder, f) : folder;
     let text;
@@ -171,7 +172,9 @@ async function cmdScan(o, docDir) {
     } catch {
       continue; // unreadable file: ignored, scan is tolerant
     }
+    let n = 0;
     for (const line of text.split(/\r?\n/)) {
+      n++;
       if (!line.trim()) continue;
       let obj;
       try {
@@ -179,17 +182,11 @@ async function cmdScan(o, docDir) {
       } catch {
         continue; // not JSON: ignored
       }
-      const usage = obj?.message?.usage;
-      if (!usage || typeof usage !== "object") continue;
-      let found = false;
-      for (const key of Object.keys(totals))
-        if (typeof usage[key] === "number") {
-          totals[key] += usage[key];
-          found = true;
-        }
-      if (found) lines++;
+      // One response, however many lines repeat it (and in whichever file): its id, else this line alone.
+      tally.add(obj, `${abs}\0${n}`);
     }
   }
+  const { responses, lines, output_estimated, ...totals } = tally.totals();
   const tokens = Object.values(totals).reduce((a, b) => a + b, 0);
   if (!lines) {
     console.log(t("scannedNone", { files: files.length }));
@@ -201,23 +198,35 @@ async function cmdScan(o, docDir) {
     transcripts: folder,
     files: files.length,
     lines,
+    responses,
     ...totals,
+    output_estimated,
     tokens,
   });
-  console.log(t("scanned", { files: files.length, lines, tokens }));
+  console.log(t("scanned", { files: files.length, responses, lines, tokens }));
+  if (output_estimated) console.log(t("scannedEstimated", { tokens: output_estimated }));
   return 0;
+}
+
+/**
+ * The spend of the entries. A `log` entry is what Claude Code reported when an agent ended (its last context, a
+ * floor); a `scan` entry is what the transcripts say the agents used. The same work logged then scanned is never
+ * added up: with a scan, the total is the scans', and the logged tokens stay apart.
+ */
+function spendOf(entries) {
+  const sum = (list) => list.reduce((a, e) => a + entryTokens(e), 0);
+  const scans = entries.filter((e) => e.source === "scan");
+  const logged = sum(entries.filter((e) => e.source !== "scan"));
+  const scanned = sum(scans);
+  return { total: scans.length ? scanned : logged, logged, scanned, both: scans.length > 0 && logged > 0 };
 }
 
 async function cmdReport(o, docDir) {
   const entries = readEntries(docDir);
+  const spend = spendOf(entries);
   if (o.json) {
-    console.log(
-      JSON.stringify(
-        { file: usageFile(docDir), entries: entries.length, total: entries.reduce((a, e) => a + entryTokens(e), 0) },
-        null,
-        2,
-      ),
-    );
+    const { total, logged, scanned } = spend;
+    console.log(JSON.stringify({ file: usageFile(docDir), entries: entries.length, total, logged, scanned }, null, 2));
     return 0;
   }
   if (!entries.length) {
@@ -225,7 +234,8 @@ async function cmdReport(o, docDir) {
     return 0;
   }
   console.log(t("reportTitle", { n: entries.length }));
-  console.log(`  total: ${entries.reduce((a, e) => a + entryTokens(e), 0)} tokens`);
+  console.log(`  total: ${spend.total} tokens`);
+  if (spend.both) console.log(t("loggedApart", { tokens: spend.logged }));
   printGroup(
     "phase",
     groupTotals(entries, (e) => e.phase || ""),

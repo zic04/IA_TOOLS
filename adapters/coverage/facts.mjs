@@ -1,6 +1,8 @@
 // Coverage adapter of a `doc-kit facts` file (ARCHITECTURE.md §6.9): one item per fact, for the sources where
 // being cited in the documentation means something: `env` (its name), `api` (METHOD route, in its {id}, :id and
-// [id] forms), `db` (the table), `dependencies` (the direct dependencies only) and `agents` (the file).
+// [id] forms), `screens` (the route of a screen, in the same forms), `db` (the table), `dependencies` (the direct
+// dependencies only) and `agents` (the file). An item of `api` or `screens` carries its file (relative to the
+// project, through the facts file's `app`), so that sync follows the code of the page that cites it (§6.10).
 //   coverage: [{ adapter: "facts", source: "env" }, { adapter: "facts", source: "api", family: "API routes" }]
 // Missing facts/<source>.json: { available: false, reason: "noFacts" } (run `doc-kit facts` first).
 // `dependencies` is searched across the whole application (§6.9: a separate front end and API, each with its own
@@ -18,16 +20,26 @@ function deduplicate(items) {
 const DEFAULT_FAMILY = Object.freeze({
   env: "Environment variables",
   api: "API routes",
+  screens: "Screens",
   db: "Tables",
   dependencies: "Dependencies",
   agents: "Agent instruction files",
 });
 
-/** The coverage item of one fact of `source`, or null when that source has nothing worth citing (e.g. a transitive dependency). */
-function itemOf(source, fact) {
+/**
+ * The coverage item of one fact of `source`, or null when that source has nothing worth citing (e.g. a transitive
+ * dependency). `app`: the application folder relative to the project (the facts file's), for the files of a route.
+ */
+function itemOf(source, fact, app) {
+  const files = typeof app === "string" && fact.file ? { files: [`${app}/${fact.file}`] } : {};
   if (source === "env") return { id: fact.name, match: [fact.name] };
   if (source === "api")
-    return { id: `${fact.method} ${fact.route}`, match: routeMatches(fact.route).map((r) => `${fact.method} ${r}`) };
+    return {
+      id: `${fact.method} ${fact.route}`,
+      match: routeMatches(fact.route).map((r) => `${fact.method} ${r}`),
+      ...files,
+    };
+  if (source === "screens") return { id: fact.route, match: routeMatches(fact.route), ...files };
   if (source === "db") return { id: fact.table, match: [fact.table] };
   if (source === "dependencies") return fact.direct ? { id: fact.name, match: [fact.name] } : null;
   if (source === "agents") return { id: fact.file, match: [fact.file] };
@@ -52,7 +64,7 @@ export default {
       return { available: false, reason: "error", vars: { error: String(e.message).split("\n")[0] } };
     }
     const items = deduplicate(
-      (Array.isArray(data.items) ? data.items : []).map((f) => itemOf(options.source, f)).filter(Boolean),
+      (Array.isArray(data.items) ? data.items : []).map((f) => itemOf(options.source, f, data.app)).filter(Boolean),
     );
     const family = options.family || DEFAULT_FAMILY[options.source] || options.source;
     return { available: true, families: [{ name: family, items: excludeItems(items, options.exclude) }] };

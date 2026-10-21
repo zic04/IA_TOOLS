@@ -1,0 +1,208 @@
+{
+  "$schema": "../schemas/behaviours.schema.json",
+  "version": 1,
+  "description": "The kinds of behaviour a feature sheet describes with a card (:::behaviour, ARCHITECTURE.md §6.8a): for each kind, the rubrics a reader expects answered. A required rubric left out is reported (behaviour.missing); \"n/a — reason\" and \"unknown — question\" are answers. A project adds its own kinds with config.behaviours.file (same format, no `answers`).",
+  "answers": {
+    "na": ["n/a", "not applicable", "sans objet", "non applicable"],
+    "unknown": ["unknown", "to confirm", "to be confirmed", "inconnu", "inconnue", "à confirmer"]
+  },
+  "kinds": [
+    {
+      "id": "search",
+      "aliases": ["recherche"],
+      "title": { "en": "Search", "fr": "Recherche" },
+      "icon": "search",
+      "rubrics": [
+        { "id": "where", "label": { "en": "Where", "fr": "Où" }, "required": true, "hint": { "en": "The field, its label and placeholder, and where it sits on the screen.", "fr": "Le champ, son libellé et son texte d'aide, et où il se trouve à l'écran." } },
+        { "id": "fields", "label": { "en": "Fields searched", "fr": "Champs cherchés" }, "aliases": { "en": ["Searched fields"], "fr": ["Champs recherchés"] }, "required": true, "hint": { "en": "Which data the typed text is compared with, and which it is not (an order number, an amount…).", "fr": "Les données comparées au texte tapé, et celles qui ne le sont pas (un numéro de commande, un montant…)." } },
+        { "id": "match", "label": { "en": "Matching", "fr": "Correspondance" }, "required": true, "hint": { "en": "Contains, starts with or exact; whether case and accents count, with an example of each.", "fr": "Contient, commence par ou exact ; si les majuscules et les accents comptent, avec un exemple de chaque." } },
+        { "id": "words", "label": { "en": "Several words", "fr": "Plusieurs mots" }, "required": true, "hint": { "en": "How a text of several words is read: one phrase, every word, or any of the words.", "fr": "Comment se lit un texte de plusieurs mots : une seule expression, tous les mots, ou l'un des mots." } },
+        { "id": "trigger", "label": { "en": "Trigger", "fr": "Déclenchement" }, "required": true, "hint": { "en": "At each keystroke, on Enter or with a button; any delay or minimum length; spaces at the ends.", "fr": "À chaque frappe, sur Entrée ou avec un bouton ; un délai ou une longueur minimale ; les espaces aux extrémités." } },
+        { "id": "filters", "label": { "en": "Combined filters", "fr": "Filtres associés" }, "required": false, "hint": { "en": "Whether it combines with the screen's filters, and how (every condition, or any).", "fr": "S'il se combine avec les filtres de l'écran, et comment (toutes les conditions, ou l'une)." } },
+        { "id": "order", "label": { "en": "Order of results", "fr": "Ordre des résultats" }, "aliases": { "en": ["Sort", "Order"], "fr": ["Tri", "Ordre"] }, "required": true, "hint": { "en": "In which order the results come, and whether the reader can change it.", "fr": "Dans quel ordre viennent les résultats, et si le lecteur peut le changer." } },
+        { "id": "paging", "label": { "en": "Pagination", "fr": "Pagination" }, "required": false, "hint": { "en": "How many results at once, and how to see the next ones.", "fr": "Combien de résultats à la fois, et comment voir les suivants." } },
+        { "id": "empty", "label": { "en": "No result", "fr": "Aucun résultat" }, "required": true, "hint": { "en": "What the reader sees when nothing matches.", "fr": "Ce que voit le lecteur quand rien ne correspond." } },
+        { "id": "errors", "label": { "en": "Errors", "fr": "Erreurs" }, "required": false, "hint": { "en": "What the reader sees when the search cannot be done.", "fr": "Ce que voit le lecteur quand la recherche ne peut pas se faire." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": true, "hint": { "en": "Who can search, and whether the results are limited to what the reader may see.", "fr": "Qui peut chercher, et si les résultats se limitent à ce que le lecteur a le droit de voir." } }
+      ]
+    },
+    {
+      "id": "filter",
+      "aliases": ["filtre"],
+      "title": { "en": "Filter", "fr": "Filtre" },
+      "icon": "filter",
+      "rubrics": [
+        { "id": "criteria", "label": { "en": "Criteria", "fr": "Critères" }, "required": true, "hint": { "en": "Each criterion, the values it offers and how it compares (exact value, range, one day).", "fr": "Chaque critère, les valeurs proposées et la façon de comparer (valeur exacte, intervalle, un seul jour)." } },
+        { "id": "combination", "label": { "en": "Combination", "fr": "Combinaison" }, "required": true, "hint": { "en": "How criteria combine with each other and with the search; several values of one criterion.", "fr": "Comment les critères se combinent entre eux et avec la recherche ; plusieurs valeurs d'un même critère." } },
+        { "id": "default", "label": { "en": "Default", "fr": "Par défaut" }, "required": true, "hint": { "en": "The value of each criterion when the screen opens.", "fr": "La valeur de chaque critère à l'ouverture de l'écran." } },
+        { "id": "trigger", "label": { "en": "Trigger", "fr": "Déclenchement" }, "required": true, "hint": { "en": "Applied as soon as a value changes, or with a button.", "fr": "Appliqué dès qu'une valeur change, ou avec un bouton." } },
+        { "id": "reset", "label": { "en": "Reset", "fr": "Remise à zéro" }, "required": false, "hint": { "en": "How to go back to no filter.", "fr": "Comment revenir à aucun filtre." } },
+        { "id": "memory", "label": { "en": "Remembered", "fr": "Conservation" }, "required": false, "hint": { "en": "Whether the filters are kept on leaving the screen, on reloading, in a shared link.", "fr": "Si les filtres restent en quittant l'écran, en rechargeant, dans un lien partagé." } },
+        { "id": "effect", "label": { "en": "Effect", "fr": "Effet" }, "required": false, "hint": { "en": "What else follows the filters: counters, totals, an export.", "fr": "Ce qui suit aussi les filtres : compteurs, totaux, un export." } },
+        { "id": "empty", "label": { "en": "No result", "fr": "Aucun résultat" }, "required": true, "hint": { "en": "What the reader sees when no item is left.", "fr": "Ce que voit le lecteur quand il ne reste aucun élément." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": false, "hint": { "en": "Whether some criteria or values depend on the reader's rights.", "fr": "Si certains critères ou valeurs dépendent des droits du lecteur." } }
+      ]
+    },
+    {
+      "id": "sort",
+      "aliases": ["tri"],
+      "title": { "en": "Sort", "fr": "Tri" },
+      "icon": "sort",
+      "rubrics": [
+        { "id": "default", "label": { "en": "Default order", "fr": "Ordre par défaut" }, "required": true, "hint": { "en": "The order of the items when the screen opens.", "fr": "L'ordre des éléments à l'ouverture de l'écran." } },
+        { "id": "columns", "label": { "en": "Sortable by", "fr": "Triable par" }, "required": true, "hint": { "en": "What the reader can sort on, and how they do it (a column header, a menu).", "fr": "Ce sur quoi le lecteur peut trier, et comment (un en-tête de colonne, un menu)." } },
+        { "id": "direction", "label": { "en": "Direction", "fr": "Sens" }, "required": false, "hint": { "en": "Ascending or descending, and how to switch.", "fr": "Croissant ou décroissant, et comment passer de l'un à l'autre." } },
+        { "id": "ties", "label": { "en": "Ties", "fr": "Égalités" }, "required": false, "hint": { "en": "The order of the items that have the same value.", "fr": "L'ordre des éléments qui ont la même valeur." } },
+        { "id": "text", "label": { "en": "Text order", "fr": "Ordre du texte" }, "required": false, "hint": { "en": "Case, accents, and numbers inside text (does 2 come before 10?).", "fr": "Majuscules, accents, et nombres dans le texte (2 vient-il avant 10 ?)." } },
+        { "id": "memory", "label": { "en": "Remembered", "fr": "Conservation" }, "required": false, "hint": { "en": "Whether the chosen order is kept on leaving the screen.", "fr": "Si l'ordre choisi reste en quittant l'écran." } }
+      ]
+    },
+    {
+      "id": "pagination",
+      "aliases": ["pages"],
+      "title": { "en": "Pagination", "fr": "Pagination" },
+      "icon": "pages",
+      "rubrics": [
+        { "id": "size", "label": { "en": "Page size", "fr": "Taille de page" }, "required": true, "hint": { "en": "How many items a page holds, and whether the reader can change it.", "fr": "Combien d'éléments tient une page, et si le lecteur peut le changer." } },
+        { "id": "navigation", "label": { "en": "Navigation", "fr": "Navigation" }, "required": true, "hint": { "en": "Numbered pages, next and previous, \"load more\", or endless scrolling.", "fr": "Pages numérotées, suivante et précédente, « afficher plus », ou défilement sans fin." } },
+        { "id": "total", "label": { "en": "Total", "fr": "Total" }, "required": false, "hint": { "en": "Whether the total number of items is shown.", "fr": "Si le nombre total d'éléments est affiché." } },
+        { "id": "reset", "label": { "en": "Back to the start", "fr": "Retour au début" }, "required": true, "hint": { "en": "What happens to the current page when the search, the filters or the order change.", "fr": "Ce que devient la page en cours quand la recherche, les filtres ou l'ordre changent." } },
+        { "id": "limit", "label": { "en": "Maximum", "fr": "Maximum" }, "required": false, "hint": { "en": "A cap on the items that can be reached, if any.", "fr": "Une limite au nombre d'éléments accessibles, s'il y en a une." } }
+      ]
+    },
+    {
+      "id": "list",
+      "aliases": ["liste"],
+      "title": { "en": "List", "fr": "Liste" },
+      "icon": "list",
+      "rubrics": [
+        { "id": "content", "label": { "en": "What is listed", "fr": "Ce qui est listé" }, "required": true, "hint": { "en": "The items the list holds.", "fr": "Les éléments que contient la liste." } },
+        { "id": "scope", "label": { "en": "Scope", "fr": "Portée" }, "required": true, "hint": { "en": "Whose items: all, the reader's own, their team's; whether archived or deleted ones appear.", "fr": "Les éléments de qui : tous, ceux du lecteur, ceux de son équipe ; si les archivés ou supprimés apparaissent." } },
+        { "id": "columns", "label": { "en": "Columns", "fr": "Colonnes" }, "required": true, "hint": { "en": "Each column, and how its values are shown (dates, amounts, statuses).", "fr": "Chaque colonne, et comment ses valeurs s'affichent (dates, montants, statuts)." } },
+        { "id": "order", "label": { "en": "Order", "fr": "Ordre" }, "required": true, "hint": { "en": "The order of the items.", "fr": "L'ordre des éléments." } },
+        { "id": "empty", "label": { "en": "Empty list", "fr": "Liste vide" }, "required": true, "hint": { "en": "What the reader sees when there is nothing to list.", "fr": "Ce que voit le lecteur quand il n'y a rien à lister." } },
+        { "id": "actions", "label": { "en": "Row actions", "fr": "Actions par ligne" }, "required": false, "hint": { "en": "What the reader can do from a row: open, edit, delete…", "fr": "Ce que le lecteur peut faire depuis une ligne : ouvrir, modifier, supprimer…" } },
+        { "id": "refresh", "label": { "en": "Refresh", "fr": "Actualisation" }, "required": false, "hint": { "en": "Whether the list updates on its own when the data changes.", "fr": "Si la liste se met à jour d'elle-même quand les données changent." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": false, "hint": { "en": "Who can see the list, and whether some columns or rows depend on the reader's rights.", "fr": "Qui peut voir la liste, et si des colonnes ou des lignes dépendent des droits du lecteur." } }
+      ]
+    },
+    {
+      "id": "form",
+      "aliases": ["formulaire"],
+      "title": { "en": "Form", "fr": "Formulaire" },
+      "icon": "form",
+      "rubrics": [
+        { "id": "fields", "label": { "en": "Fields", "fr": "Champs" }, "required": true, "hint": { "en": "Each field, its kind (text, date, list…) and the values it offers.", "fr": "Chaque champ, sa nature (texte, date, liste…) et les valeurs proposées." } },
+        { "id": "required", "label": { "en": "Required fields", "fr": "Champs obligatoires" }, "required": true, "hint": { "en": "Which fields must be filled, and how the reader can tell.", "fr": "Les champs à remplir obligatoirement, et comment le lecteur le sait." } },
+        { "id": "defaults", "label": { "en": "Default values", "fr": "Valeurs par défaut" }, "required": false, "hint": { "en": "The values already filled when the form opens.", "fr": "Les valeurs déjà remplies à l'ouverture du formulaire." } },
+        { "id": "checks", "label": { "en": "Checks", "fr": "Contrôles" }, "required": true, "hint": { "en": "Each check, when it runs (typing, leaving the field, saving) and the message it shows.", "fr": "Chaque contrôle, quand il a lieu (à la frappe, en quittant le champ, à l'enregistrement) et le message affiché." } },
+        { "id": "save", "label": { "en": "Saving", "fr": "Enregistrement" }, "required": true, "hint": { "en": "What saving does, what the reader sees after it, and where they land.", "fr": "Ce que fait l'enregistrement, ce que voit le lecteur ensuite, et où il arrive." } },
+        { "id": "failure", "label": { "en": "When it fails", "fr": "En cas d'échec" }, "required": true, "hint": { "en": "What the reader sees when saving fails, and what they keep of their input.", "fr": "Ce que voit le lecteur quand l'enregistrement échoue, et ce qu'il garde de sa saisie." } },
+        { "id": "leave", "label": { "en": "Leaving", "fr": "Abandon" }, "required": false, "hint": { "en": "Leaving or cancelling with unsaved changes.", "fr": "Quitter ou annuler avec des changements non enregistrés." } },
+        { "id": "concurrency", "label": { "en": "Edits at the same time", "fr": "Modifications simultanées" }, "required": false, "hint": { "en": "Two people editing the same item at once.", "fr": "Deux personnes qui modifient le même élément en même temps." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": false, "hint": { "en": "Fields read-only or hidden for some readers.", "fr": "Les champs en lecture seule ou masqués pour certains lecteurs." } }
+      ]
+    },
+    {
+      "id": "import",
+      "aliases": ["importer"],
+      "title": { "en": "Import", "fr": "Import" },
+      "icon": "import",
+      "rubrics": [
+        { "id": "formats", "label": { "en": "Formats", "fr": "Formats" }, "required": true, "hint": { "en": "The file formats accepted, with their encoding and separators.", "fr": "Les formats de fichier acceptés, avec leur encodage et leurs séparateurs." } },
+        { "id": "content", "label": { "en": "Expected content", "fr": "Contenu attendu" }, "required": true, "hint": { "en": "The columns or fields expected, and which ones are required.", "fr": "Les colonnes ou champs attendus, et ceux qui sont obligatoires." } },
+        { "id": "limits", "label": { "en": "Limits", "fr": "Limites" }, "required": true, "hint": { "en": "Maximum file size and number of rows.", "fr": "Taille de fichier et nombre de lignes maximum." } },
+        { "id": "checks", "label": { "en": "Checks", "fr": "Contrôles" }, "required": true, "hint": { "en": "What is checked in each row.", "fr": "Ce qui est contrôlé dans chaque ligne." } },
+        { "id": "rejected", "label": { "en": "Rejected rows", "fr": "Lignes refusées" }, "required": true, "hint": { "en": "Whether one bad row stops the whole import or only itself, and how the reader learns which.", "fr": "Si une ligne fausse arrête tout l'import ou seulement elle-même, et comment le lecteur sait laquelle." } },
+        { "id": "duplicates", "label": { "en": "Duplicates", "fr": "Doublons" }, "required": true, "hint": { "en": "An item that already exists: replaced, skipped or refused.", "fr": "Un élément qui existe déjà : remplacé, ignoré ou refusé." } },
+        { "id": "report", "label": { "en": "Report", "fr": "Compte rendu" }, "required": false, "hint": { "en": "What the reader is told at the end: rows imported, rejected, skipped.", "fr": "Ce qui est dit au lecteur à la fin : lignes importées, refusées, ignorées." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": false, "hint": { "en": "Who can import.", "fr": "Qui peut importer." } }
+      ]
+    },
+    {
+      "id": "export",
+      "aliases": ["exporter"],
+      "title": { "en": "Export", "fr": "Export" },
+      "icon": "export",
+      "rubrics": [
+        { "id": "format", "label": { "en": "Format", "fr": "Format" }, "required": true, "hint": { "en": "The file format, its encoding and separators, how dates and numbers are written.", "fr": "Le format du fichier, son encodage et ses séparateurs, l'écriture des dates et des nombres." } },
+        { "id": "content", "label": { "en": "Content", "fr": "Contenu" }, "required": true, "hint": { "en": "Which items, and which columns.", "fr": "Quels éléments, et quelles colonnes." } },
+        { "id": "scope", "label": { "en": "Filters applied", "fr": "Filtres appliqués" }, "required": true, "hint": { "en": "Whether the export follows what the screen shows (search, filters, order).", "fr": "Si l'export suit ce que montre l'écran (recherche, filtres, ordre)." } },
+        { "id": "limit", "label": { "en": "Maximum", "fr": "Maximum" }, "required": false, "hint": { "en": "A cap on the number of rows, if any.", "fr": "Une limite au nombre de lignes, s'il y en a une." } },
+        { "id": "delivery", "label": { "en": "Delivery", "fr": "Remise" }, "required": false, "hint": { "en": "Downloaded at once, sent by email, prepared in the background.", "fr": "Téléchargé tout de suite, envoyé par courriel, préparé en arrière-plan." } },
+        { "id": "rights", "label": { "en": "Permissions", "fr": "Droits" }, "required": true, "hint": { "en": "Who can export, and whether the file holds only what the reader may see.", "fr": "Qui peut exporter, et si le fichier ne contient que ce que le lecteur a le droit de voir." } }
+      ]
+    },
+    {
+      "id": "calculation",
+      "aliases": ["calcul"],
+      "title": { "en": "Calculation", "fr": "Calcul" },
+      "icon": "calculation",
+      "rubrics": [
+        { "id": "inputs", "label": { "en": "Inputs", "fr": "Données d'entrée" }, "required": true, "hint": { "en": "The values the calculation uses, named as the reader knows them.", "fr": "Les valeurs utilisées par le calcul, nommées comme le lecteur les connaît." } },
+        { "id": "formula", "label": { "en": "Formula", "fr": "Formule" }, "required": true, "hint": { "en": "The rule, in words or as a formula.", "fr": "La règle, en mots ou sous forme de formule." } },
+        { "id": "rounding", "label": { "en": "Rounding", "fr": "Arrondi" }, "required": true, "hint": { "en": "How and when the result is rounded.", "fr": "Comment et à quel moment le résultat est arrondi." } },
+        { "id": "unit", "label": { "en": "Unit", "fr": "Unité" }, "required": false, "hint": { "en": "The unit or the currency of the result.", "fr": "L'unité ou la devise du résultat." } },
+        { "id": "when", "label": { "en": "When it is computed", "fr": "Moment du calcul" }, "required": true, "hint": { "en": "On each change, on saving, every night; whether a stored result is computed again.", "fr": "À chaque changement, à l'enregistrement, chaque nuit ; si un résultat déjà enregistré est recalculé." } },
+        { "id": "missing", "label": { "en": "Missing input", "fr": "Donnée manquante" }, "required": true, "hint": { "en": "What happens when an input is empty.", "fr": "Ce qui se passe quand une donnée d'entrée est vide." } },
+        { "id": "example", "label": { "en": "Worked example", "fr": "Exemple chiffré" }, "required": true, "hint": { "en": "A real example, with its figures and its result.", "fr": "Un exemple réel, avec ses chiffres et son résultat." } }
+      ]
+    },
+    {
+      "id": "notification",
+      "title": { "en": "Notification", "fr": "Notification" },
+      "icon": "bell",
+      "rubrics": [
+        { "id": "event", "label": { "en": "Trigger event", "fr": "Événement déclencheur" }, "required": true, "hint": { "en": "What sends it.", "fr": "Ce qui l'envoie." } },
+        { "id": "recipients", "label": { "en": "Recipients", "fr": "Destinataires" }, "required": true, "hint": { "en": "Who receives it, and who does not.", "fr": "Qui la reçoit, et qui ne la reçoit pas." } },
+        { "id": "channel", "label": { "en": "Channel", "fr": "Canal" }, "required": true, "hint": { "en": "Email, a message in the application, a text message…", "fr": "Courriel, message dans l'application, SMS…" } },
+        { "id": "content", "label": { "en": "Content", "fr": "Contenu" }, "required": true, "hint": { "en": "What it says, and the link it carries.", "fr": "Ce qu'elle dit, et le lien qu'elle porte." } },
+        { "id": "timing", "label": { "en": "Timing", "fr": "Délai" }, "required": false, "hint": { "en": "Sent at once, grouped, or later; reminders.", "fr": "Envoyée tout de suite, regroupée, ou plus tard ; relances." } },
+        { "id": "failure", "label": { "en": "When it fails", "fr": "En cas d'échec" }, "required": false, "hint": { "en": "What happens when it cannot be delivered.", "fr": "Ce qui se passe quand elle ne peut pas être remise." } },
+        { "id": "optout", "label": { "en": "Opting out", "fr": "Désabonnement" }, "required": false, "hint": { "en": "Whether, and how, a recipient can stop receiving it.", "fr": "Si, et comment, un destinataire peut ne plus la recevoir." } }
+      ]
+    },
+    {
+      "id": "workflow",
+      "aliases": ["circuit"],
+      "title": { "en": "Workflow", "fr": "Circuit" },
+      "icon": "flow",
+      "rubrics": [
+        { "id": "states", "label": { "en": "States", "fr": "États" }, "required": true, "hint": { "en": "Each state an item can be in, as the reader sees it.", "fr": "Chaque état dans lequel peut être un élément, tel que le lecteur le voit." } },
+        { "id": "transitions", "label": { "en": "Transitions", "fr": "Passages" }, "required": true, "hint": { "en": "Each move from one state to another, and what triggers it.", "fr": "Chaque passage d'un état à un autre, et ce qui le déclenche." } },
+        { "id": "actors", "label": { "en": "Who acts", "fr": "Qui agit" }, "required": true, "hint": { "en": "Who can make each move.", "fr": "Qui peut faire chaque passage." } },
+        { "id": "automatic", "label": { "en": "Automatic moves", "fr": "Passages automatiques" }, "required": false, "hint": { "en": "The moves that happen on their own, and when.", "fr": "Les passages qui se font tout seuls, et quand." } },
+        { "id": "deadlines", "label": { "en": "Deadlines and reminders", "fr": "Délais et relances" }, "required": false, "hint": { "en": "Time limits, reminders, what happens when nobody acts.", "fr": "Délais, relances, ce qui se passe quand personne n'agit." } },
+        { "id": "back", "label": { "en": "Going back", "fr": "Retour en arrière" }, "required": false, "hint": { "en": "Cancelling, rejecting, reopening.", "fr": "Annuler, refuser, rouvrir." } },
+        { "id": "history", "label": { "en": "History", "fr": "Historique" }, "required": false, "hint": { "en": "What is kept of each move (who, when, why) and who can see it.", "fr": "Ce qui est gardé de chaque passage (qui, quand, pourquoi) et qui peut le voir." } }
+      ]
+    },
+    {
+      "id": "scheduled-job",
+      "aliases": ["traitement-planifie", "scheduled"],
+      "title": { "en": "Scheduled job", "fr": "Traitement planifié" },
+      "icon": "clock",
+      "rubrics": [
+        { "id": "schedule", "label": { "en": "Schedule", "fr": "Fréquence" }, "required": true, "hint": { "en": "When it runs: every night at 2 a.m., every hour, on the first of the month.", "fr": "Quand il tourne : chaque nuit à 2 h, toutes les heures, le premier du mois." } },
+        { "id": "scope", "label": { "en": "What it processes", "fr": "Ce qui est traité" }, "required": true, "hint": { "en": "The items it picks, and those it leaves alone.", "fr": "Les éléments qu'il prend, et ceux qu'il laisse." } },
+        { "id": "effects", "label": { "en": "Effects", "fr": "Effets" }, "required": true, "hint": { "en": "What it changes, and what the readers see of it the next morning.", "fr": "Ce qu'il change, et ce que les lecteurs en voient le lendemain." } },
+        { "id": "failure", "label": { "en": "When it fails", "fr": "En cas d'échec" }, "required": true, "hint": { "en": "What happens to the items not processed, and who is told.", "fr": "Ce que deviennent les éléments non traités, et qui est prévenu." } },
+        { "id": "overlap", "label": { "en": "Overlap", "fr": "Chevauchement" }, "required": false, "hint": { "en": "What happens when a run is still going when the next one starts.", "fr": "Ce qui se passe quand un passage n'est pas fini au moment du suivant." } },
+        { "id": "follow", "label": { "en": "Where to follow it", "fr": "Où le suivre" }, "required": false, "hint": { "en": "Where a reader sees that it ran, and how it went.", "fr": "Où un lecteur voit qu'il a tourné, et comment cela s'est passé." } }
+      ]
+    },
+    {
+      "id": "permission-check",
+      "aliases": ["controle-droits", "permission"],
+      "title": { "en": "Permission check", "fr": "Contrôle de droits" },
+      "icon": "lock",
+      "rubrics": [
+        { "id": "who", "label": { "en": "Who is allowed", "fr": "Qui est autorisé" }, "required": true, "hint": { "en": "The roles or permissions that allow it.", "fr": "Les rôles ou droits qui l'autorisent." } },
+        { "id": "actions", "label": { "en": "Actions checked", "fr": "Actions contrôlées" }, "required": true, "hint": { "en": "Each action the check covers.", "fr": "Chaque action que couvre le contrôle." } },
+        { "id": "scope", "label": { "en": "Data scope", "fr": "Portée des données" }, "required": true, "hint": { "en": "Whether the right covers every item or only some (their own, their team's, their region's).", "fr": "Si le droit couvre tous les éléments ou seulement certains (les siens, ceux de son équipe, de sa région)." } },
+        { "id": "denied", "label": { "en": "When refused", "fr": "En cas de refus" }, "required": true, "hint": { "en": "Hidden, greyed out, or refused with a message: what the reader sees.", "fr": "Masqué, grisé, ou refusé avec un message : ce que voit le lecteur." } },
+        { "id": "delegation", "label": { "en": "Delegation", "fr": "Délégation" }, "required": false, "hint": { "en": "Whether the right can be lent to someone else, and how.", "fr": "Si le droit peut être confié à quelqu'un d'autre, et comment." } }
+      ]
+    }
+  ]
+}

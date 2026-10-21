@@ -1,0 +1,17 @@
+[
+  {
+    "id": "F-01",
+    "title": "Track orders",
+    "routes": ["/orders"],
+    "api": ["GET /api/orders"],
+    "sources": ["public/app.js", "public/orders.html"],
+    "behaviours": ["search", "filter"]
+  },
+  {
+    "id": "F-02",
+    "title": "Approve an order",
+    "routes": ["/orders/[id]/approval"],
+    "sources": ["public/approval.html", "serve.mjs"],
+    "behaviours": ["notification"]
+  }
+]

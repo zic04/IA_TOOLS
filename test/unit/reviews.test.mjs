@@ -447,6 +447,26 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
     assert.equal(summary.outdated, 1, "only left-behind (major 1 vs 4); the transitive one is never checked");
   });
 
+  test("--network never sends a private package's name (AUDIT.md S13), even when no registries are passed", async () => {
+    const dir = fixture();
+    write(dir, "src/a.js", "function f() {}\n");
+    write(dir, ".npmrc", "@acme:registry=https://npm.acme.internal/\n");
+    const dependencies = [
+      { name: "@acme/ui", version: "1.0.0", ecosystem: "npm", direct: true },
+      { name: "shared", version: "workspace:*", ecosystem: "npm", direct: true },
+      { name: "tooling", version: "file:../tooling", ecosystem: "npm", direct: true },
+      { name: "react", version: "17.0.0", ecosystem: "npm", direct: true },
+    ];
+    const sent = [];
+    const fetchImpl = async (url) => {
+      sent.push(url);
+      return { ok: true, json: async () => ({ version: "19.0.0" }) };
+    };
+    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies });
+    assert.deepEqual(sent, ["https://registry.npmjs.org/react/latest"]);
+    assert.equal(summary.outdated, 1);
+  });
+
   test("without --network, summary.outdated is absent", async () => {
     const dir = fixture();
     write(dir, "src/a.js", "function f() {}\n");

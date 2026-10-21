@@ -1,0 +1,41 @@
+---
+# The shop's servers.
+- name: Web servers
+  hosts: webservers_prod
+  become: true
+  vars:
+    http_port: 80
+    db_password: do-not-keep-vault
+  vars_files:
+    - vars/main.yml
+  roles:
+    - common
+    - role: nginx
+      vars:
+        worker_processes: 4
+    - { role: geerlingguy.certbot, certbot_email: do-not-keep@example.test }
+  tasks:
+    - name: Deploy the application
+      ansible.builtin.include_role:
+        name: shop-app
+    - block:
+        - name: Migrations
+          ansible.builtin.import_role:
+            name: migrations
+      rescue:
+        - name: Roll back
+          include_role:
+            name: rollback
+
+# - name: Legacy servers
+#   hosts: legacy
+#   roles: [old]
+
+- hosts: db-staging
+  vars_prompt:
+    - name: admin_password
+      prompt: Admin password
+      private: true
+  roles:
+    - common
+    - postgres

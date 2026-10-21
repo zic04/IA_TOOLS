@@ -13,7 +13,7 @@ import { KitError, EXIT } from "../project/errors.mjs";
 export const TEXT_FIELDS = Object.freeze({
   toc: ["title", "tagline"],
   section: ["title", "shortTitle", "subtitle", "highlights"],
-  group: ["title"],
+  group: ["title", "summary"],
   page: ["title", "menuTitle", "summary"],
   journey: ["title", "description"],
   space: ["title", "shortTitle", "subtitle", "for"],
@@ -74,6 +74,7 @@ function mergeGroup(sg, section, i, problems, basePath) {
   return {
     ...sg,
     title: pickText(sg, tg, "title"),
+    summary: pickText(sg, tg, "summary"),
     pages: (sg.pages || []).map((p, j) => mergePage(p, tg, j, problems, path)),
   };
 }
@@ -144,7 +145,7 @@ function mergeJourney(sj, translated, i, problems) {
  * Merges a translated table of contents onto the source's structure (ARCHITECTURE.md §6.12): every non-text field
  * (ids, routes, permissions, counterparts, steps…) comes from the SOURCE; every text field (titles, summaries…)
  * comes from the TRANSLATION when present, else the source (a partial translation is accepted, without warning).
- * @param {{ source: object, translated: object|null }} p   normalised toc.json objects
+ * @param {{ source: object, translated: object|null }} p   toc.json objects
  * @returns {{ toc: object, problems: Array<{ key: string, vars: object, blocking: boolean }> }}
  *   problems: "translation.toc.structure" (blocking: a section/group/page/journey/space missing, added, out of
  *   order, or a different count of steps/suggestions) and "translation.toc.ignored" (a non-text field the

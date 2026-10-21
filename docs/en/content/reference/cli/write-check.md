@@ -26,10 +26,10 @@ the table of contents. Never overwrites a file (exit code 1).
 
 | Option | Effect |
 |---|---|
-| `--template <type>` | One of the 13 types; required unless the page is already declared with one |
+| `--template <type>` | One of the 31 types; required unless the page is already declared with one |
 | `--title "…"` | Title and menu title; default: the last segment of the id, humanised |
 | `--parent <page-id>` | Makes it a sub-page (`"level": 2`), right after the parent and its sub-pages |
-| `--prefill` | Fills the page's main table from the facts (`variables`, `api-surface`, `data-model`, `dependencies` and `agent-instructions` only); the other cells stay guidance placeholders |
+| `--prefill` | Fills the page's main table from the facts (`variables`, `api-surface`, `data-model`, `dependencies`, `agent-instructions` and `runbook` — its scheduled jobs — only); the other cells stay guidance placeholders |
 
 Page ids are lower-case segments separated by `/`, the first one being the section id: `use/orders/export`.
 [Page templates](#/write/page-templates~creating-a-page-doc-kit-new) gives the placement rules. `--prefill` reads
@@ -110,20 +110,19 @@ doc-kit facts [--source <name>]... [--network] [--tools] [--json]
 ```
 
 Reads the application code (`app.dir`) and writes one file per source into `paths.facts` (`facts/<source>.json` by
-default), in the documentation project — never in the application: `dependencies`, `env`, `api`, `db`, `agents`,
-`secrets` and `tests`. `::facts{source="…"}` reads these files at build time, and the takeover page types
+default), in the documentation project — never in the application: `dependencies`, `stack`, `env`, `api`, `screens`, `db`, `infra`, `behaviours`, `agents`, `secrets`, `security`, `quality`, `tests`, `modules` and `history`. `::facts{source="…"}` reads these files at build time, and the takeover page types
 (`access-ownership`, `api-surface`, `runbook`, `data-model`, `dependencies`, `code-map`, `tests-quality`,
 `agent-instructions`, `adr`, `threat-model`) are written from them. Without `app.dir`, exit code 2.
 
 | Option | Effect |
 |---|---|
 | `--source <name>` | Repeatable: only these sources (default: all seven) |
-| `--network` | `dependencies`: also looks up whether each direct package exists in its registry (the name only, nothing else) |
-| `--tools` | Also runs `gitleaks`, `osv-scanner`, `syft` and `knip` when they are on the PATH, each into `facts/tool-<name>.json`; a missing tool is reported, never an error |
+| `--network` | `dependencies`: also looks up whether each direct package exists in its registry; `quality`: how many majors behind (the name only, nothing else, and never a private package's name); `--tools`: lets `osv-scanner` download its database |
+| `--tools` | Also runs `gitleaks`, `osv-scanner` (offline), `syft` and `knip` when they are on the PATH, each into `facts/tool-<name>.json` (status `ok`, `findings`, `failed` or `missing`; only an allowlist of fields is kept); a missing tool is reported, never an error |
 
 The same code, run against the same commit of the application, writes the same file (its `generated` timestamp
 aside): `doc-kit facts` is safe to commit alongside the pages it feeds. See [Example · API surface](#/examples/api-surface)
-and the other examples of the takeover space for `::facts` in use.
+and the other takeover examples for `::facts` in use.
 
 ## doc-kit sync
 
@@ -135,7 +134,7 @@ doc-kit sync [--since <ref>] [--apply [--labels]] [--mark <page…> | --mark --a
 What the documentation must follow after a change of the application (`app.dir`): a report comparing it now with
 the reference, `sync.json` (`paths.sync`), or, with `--since <ref>`, a git commit — git is only ever read, never
 written to. `--mark <page…>` or `--all` record, for each page, the application files it depends on: its `routes`,
-its `file:line` proofs, the captures it cites, its `::facts` tables, its `counterpart` and its `sources` (a page
+its `file:line` proofs, the captures it cites, its `::facts` tables, its topic group (`counterpart`) and its `sources` (a page
 field for a page with none of the above). The report then lists the pages to review, grouped by priority
 (`direct`: a file of the page itself changed; `shared`: only a file it merely imports did; `probablyIntact`: that
 shared file changed, but nothing the page names), the `file:line` proofs that moved or broke, the labels whose
@@ -169,17 +168,18 @@ doc-kit context <page…> [--budget <tokens>] [--update]
 Writes `.doc-kit/context/<page>.md`, one file per page (`/` replaced with `__` in the file name): the only reading
 an agent needs to write or update that page, instead of the whole code inventory and table of contents. It is
 built from the page's **dependencies** (the same ones `doc-kit sync` computes: its routes, `file:line` proofs,
-captures, `::facts` tables, `counterpart` and declared `sources`) — direct files (the page's own route) before
+captures, `::facts` tables, topic group (`counterpart`) and declared `sources`) — direct files (the page's own route) before
 shared ones (merely imported): the page itself, the required sections of its template, the files to read (a file
 of 150 lines or fewer in full; otherwise ±40 lines around each cited line; a direct file with no cited line gives
 its first 80 lines; a shared file with no cited line is listed by its path alone), the exact labels and facts rows
-these files reference, and the glossary terms they match. A page declared in the table of contents but not written
+these files reference, and the glossary terms they match; a runbook also gets what the infrastructure declares
+(`facts/infra.json`), by environment, with the `file:line` to cite. A page declared in the table of contents but not written
 yet is accepted (the context serves to write it); an unknown page is refused (exit code 2).
 
 | Option | Effect |
 |---|---|
 | `page…` | One or more page ids of `content/toc.json` |
-| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default 16,000); the page and its required sections are never cut — shared excerpts go first, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
+| `--budget <tokens>` | Maximum size of each context, estimated as characters ÷ 4 (default: the budget of the page's template, 24,000 for a feature sheet, 16,000 otherwise); the page and its required sections are never cut — a runbook's infrastructure overview goes first, then shared excerpts, then the excerpts farthest from a cited line, then facts, then labels; each cut leaves a one-line note, repeated in a final list |
 | `--update` | Also includes the page's entry of the last `doc-kit sync` report (every category, with its reasons), the diff of its changed files, and the paths of its captures' before/after sheets (`.doc-kit/compare/<id>.png`, never inlined); without a report yet (`doc-kit sync --mark`), exit code 2 |
 
 `--json` gives `[{ page, file, tokens, cut: [{ kind, path?, lines? }] }]`. A context folder runs to a few thousand

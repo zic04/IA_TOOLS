@@ -5,7 +5,6 @@
 //           the style and the browser engine come from the kit.
 //   Strict by default: any inconsistency (screenshot, zones, link, missing page) is an error;
 //   options.draft turns them into warnings (missing pages are replaced by a "page being written" note).
-//   Legacy French-keyed files (ARCHITECTURE.md §6.7) are normalised when read.
 //   Spaces (§6.1a, engine/build/spaces.mjs): besides the full site, one export per declared space (`sites`).
 //   Languages (§6.12, engine/build/languages.mjs): besides the source data, one data object per other declared
 //   language (`renderLanguage`, below), or with `options.lang` the single requested language instead of every one.
@@ -30,32 +29,54 @@ import { resolve as resolveTokens } from "../theme/contrast.mjs";
 import { validate, closest } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
-import { normalizeToc, normalizeGlossary, LEGACY_FILES, CURRENT_FILES } from "../project/legacy.mjs";
+import { TOC_FILE, GLOSSARY_FILE } from "../project/toc.mjs";
 import { generatorTag } from "../brand.mjs";
 import { readProjectVersion } from "../project/version.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
 import { readUsage, USAGE_DIR } from "../stats/usage.mjs";
 import { readChanges } from "../facts/changes.mjs";
 import { createBuildContext, readZoneFolder, readTranslatedJson } from "./build-context.mjs";
-import { renderLanguage, siteDate, HOME_FILES } from "./render-language.mjs";
+import { renderLanguage, siteDate } from "./render-language.mjs";
+import { loadBehaviours } from "./behaviours.mjs";
+import { siteScript } from "./site-script.mjs";
 
-export { siteDate, HOME_FILES };
+export { siteDate };
 export const SITE_DIR = path.join(KIT_ROOT, "engine", "site");
 const IMAGE_TYPES = { webp: "image/webp", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
+
+/** The kit's standards a build reads: the page templates (§6.4), the kinds of behaviour cards with the project's (§6.8a). */
+const standardsOf = (b) => ({ templates: loadPageTemplates(KIT_ROOT), behaviours: loadBehaviours(b) });
+
+/** What build() returns when the outline itself is wrong: nothing rendered, only its problems. */
+const failed = ({ errors, warnings, output }) => ({
+  html: null,
+  data: null,
+  stats: null,
+  errors,
+  warnings,
+  output,
+  sites: [],
+  languages: [],
+  backlog: null,
+});
 
 /**
  * @param {object} p
  * @param {{ root: string }} p.project
  * @param {object} p.config     validated and completed configuration (engine/project/load.mjs)
  * @param {{ draft?: boolean, date?: string, output?: string, siteDir?: string, space?: string, spaceOutput?: string, lang?: string }} [p.options]
- *   siteDir: alternative folder for template.html, app.js and style.css (equivalence tests of older engines).
+ *   siteDir: alternative folder for template.html, app.js (and its lib/) and style.css (equivalence tests of older
+ *   engines).
  *   space: only the export of that space in `sites` (the full site is still computed), even with
  *   spaces.export false; spaceOutput: the file of that export. lang (§6.12, a declared language other than the
  *   caller validates with checkLanguageOption): a mono-language file of that language alone, instead of the
  *   multilingual file.
  * @returns {{ html: string|null, data: object|null, stats: object|null, errors: object[], warnings: object[], output: string,
  *   sites: Array<{ space: string, html: string, data: object, stats: object, output: string, excludedLinks: number }>,
- *   languages: Array<{ id: string, source: boolean, current: number, stale: number, unmarked: number, missing: number }> }}
+ *   languages: Array<{ id: string, source: boolean, current: number, stale: number, unmarked: number, missing: number }>,
+ *   backlog: ReturnType<typeof import("./backlog.mjs").backlogModel>|null }}
+ *   backlog: the backlog of the language built (`doc-kit backlog export`, engine/backlog/); null when the outline
+ *   itself is wrong (nothing is rendered).
  *   errors and warnings: { kind, key, vars } (text: i18n key `cli.build.<key>`);
  *   kind "validate": { kind, key, vars, file, path } (key `cli.validate.<key>`).
  *   sites: one export per declared space, in declaration order; [] without spaces (§6.1a).
@@ -67,7 +88,7 @@ export function build({ project, config, options = {} }) {
   const { root, errors, warnings, report, languages } = b;
   const outputRel = options.output || (options.lang ? languageOutput(config.output, options.lang) : config.output);
   const output = path.resolve(root, outputRel);
-  const fail = () => ({ html: null, data: null, stats: null, errors, warnings, output, sites: [], languages: [] });
+  const fail = () => failed({ errors, warnings, output });
   // Production statistics (ARCHITECTURE.md §6.14), for ::usage, and the recorded changes of the application
   // (doc-kit changes --record), for ::changes: read once, whatever the language.
   const usage = readUsage(path.join(root, USAGE_DIR));
@@ -99,7 +120,6 @@ export function build({ project, config, options = {} }) {
   // Sync reference (ARCHITECTURE.md §6.10): which pages were marked as checked, and against which version —
   // common to every language (translations are never read by sync).
   const version = readProjectVersion(root, config.version);
-  const templates = loadPageTemplates(KIT_ROOT);
   const { reference: syncRef, problem: syncProblem } = readSyncReference(root, config);
   if (syncProblem) report(false, { kind: "sync", ...syncProblem });
   const site = {
@@ -110,7 +130,7 @@ export function build({ project, config, options = {} }) {
     iconKey,
     spaces,
     syncRef,
-    templates,
+    ...standardsOf(b),
     version,
     sourceLangId: languages ? languages[0] : null,
     recordedByLang: {},
@@ -118,7 +138,7 @@ export function build({ project, config, options = {} }) {
 
   // ─── Source language, then the other declared languages (§6.12) ─────────────
   const { glossary, glossaryFile } = loadGlossary(b);
-  const sourceCaptures = loadSourceZones(b);
+  const sourceCaptures = readZoneFolder(b, `${b.paths.images}/zones`);
   const sourcePass = renderLanguage(b, site, {
     lang: config.language,
     isSource: true,
@@ -166,22 +186,18 @@ function checkTexts(b) {
       });
 }
 
-/** The source table of contents (current or legacy file name), normalised and valid; null after an error. */
+/** The source table of contents (`<content>/toc.json`), valid; null after an error. */
 function loadToc(b) {
-  const { content } = b.paths;
-  const tocFile = [CURRENT_FILES.toc, LEGACY_FILES.toc].map((f) => `${content}/${f}`).find(b.existsFs);
-  if (!tocFile) {
-    b.errors.push({ kind: "toc", key: "toc.missing", vars: { file: `${content}/${CURRENT_FILES.toc}` } });
+  const tocFile = `${b.paths.content}/${TOC_FILE}`;
+  if (!b.existsFs(tocFile)) {
+    b.errors.push({ kind: "toc", key: "toc.missing", vars: { file: tocFile } });
     return null;
   }
-  const rawToc = b.readJson(tocFile);
-  if (rawToc === undefined) {
+  const toc = b.readJson(tocFile);
+  if (toc === undefined) {
     if (b.draft) b.errors.push(b.warnings.pop());
     return null;
   }
-  const nt = normalizeToc(rawToc);
-  if (nt.legacy) b.legacyFiles.push(tocFile);
-  const toc = nt.value;
   const vt = validate(toc, readSchema("toc"));
   if (vt.errors.length) {
     for (const e of vt.errors)
@@ -197,18 +213,14 @@ function loadToc(b) {
   return toc;
 }
 
-/** The source glossary (current or legacy file name), its patterns checked: { glossary, glossaryFile }. */
+/** The source glossary (`<content>/glossary.json`), its patterns checked: { glossary, glossaryFile }. */
 function loadGlossary(b) {
-  const { content } = b.paths;
-  const glossaryFile = [CURRENT_FILES.glossary, LEGACY_FILES.glossary].map((f) => `${content}/${f}`).find(b.existsFs);
+  const file = `${b.paths.content}/${GLOSSARY_FILE}`;
+  const glossaryFile = b.existsFs(file) ? file : undefined;
   let glossary = [];
   if (glossaryFile) {
     const raw = b.readJson(glossaryFile);
-    if (raw !== undefined) {
-      const ng = normalizeGlossary(raw);
-      if (ng.legacy) b.legacyFiles.push(glossaryFile);
-      if (b.validateContent(ng.value, "glossary", glossaryFile)) glossary = ng.value;
-    }
+    if (raw !== undefined && b.validateContent(raw, "glossary", glossaryFile)) glossary = raw;
   }
   for (const g of glossary) {
     try {
@@ -218,14 +230,6 @@ function loadGlossary(b) {
     }
   }
   return { glossary, glossaryFile };
-}
-
-/** The source zone files (`<images>/zones/*.json`): { id: zones }. */
-function loadSourceZones(b) {
-  const zonesDir = `${b.paths.images}/zones`;
-  const { captures, legacy } = readZoneFolder(b, zonesDir);
-  if (legacy) b.legacyFiles.push(`${zonesDir}/*.json (${legacy})`);
-  return captures;
 }
 
 /**
@@ -238,8 +242,7 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
   const capturesByLang = { [config.language]: sourceCaptures };
   const toRender = languages ? (options.lang ? [options.lang] : languages.slice(1)) : [];
   for (const lang of toRender) {
-    const rawToc = readTranslatedJson(b, lang, CURRENT_FILES.toc);
-    const translatedTocRaw = rawToc ? normalizeToc(rawToc).value : null;
+    const translatedTocRaw = readTranslatedJson(b, lang, TOC_FILE);
     const { toc: langToc, problems: tocProblems } = translatedToc({ source: toc, translated: translatedTocRaw });
     // A structural mismatch is blocking even with --draft (like an invalid outline, ARCHITECTURE.md §6.12); a
     // non-text field the translation changed ("ignored") is only ever informative.
@@ -249,10 +252,9 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
       else warnings.push(problem);
     }
     if (!translatedTocRaw)
-      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: "toc.json" } });
+      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: TOC_FILE } });
 
-    const rawGlossary = readTranslatedJson(b, lang, CURRENT_FILES.glossary);
-    const translatedGlossaryRaw = rawGlossary ? normalizeGlossary(rawGlossary).value : null;
+    const translatedGlossaryRaw = readTranslatedJson(b, lang, GLOSSARY_FILE);
     let langGlossary = glossary;
     if (translatedGlossaryRaw) {
       const { glossary: merged, problem } = translatedGlossary({ source: glossary, translated: translatedGlossaryRaw });
@@ -260,9 +262,9 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
       if (problem)
         report(true, { kind: "translation", key: "translation.glossary.structure", vars: { lang, ...problem } });
     } else if (glossaryFile)
-      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: CURRENT_FILES.glossary } });
+      report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: GLOSSARY_FILE } });
 
-    const langCaptures = { ...sourceCaptures, ...readZoneFolder(b, `${b.paths.images}/${lang}/zones`).captures };
+    const langCaptures = { ...sourceCaptures, ...readZoneFolder(b, `${b.paths.images}/${lang}/zones`) };
     capturesByLang[lang] = langCaptures;
     const langI18n = createI18n({ language: lang, overrides: config.texts });
     const reportLang = (strict, s) => report(strict, { ...s, vars: { ...s.vars, lang } });
@@ -282,24 +284,27 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
 }
 
 /**
- * Counterpart anchors (§5): mapped by position from the source target's outline to this language's, once every
- * page of both languages has rendered. Unmappable: the anchor is dropped, warning `translation.anchor`.
+ * The anchors of the topic groups (§5): each member's, mapped by position from its source outline to this
+ * language's, once every page of both languages has rendered. Unmappable (the translated outline differs): the
+ * anchor is dropped, warning `translation.anchor` once per page it points into — the page whose translation to fix.
  */
 function mapCounterpartAnchors(b, lang, pass, sourceData) {
-  for (const pageId of Object.keys(pass.counterparts)) {
-    const page = pass.pages[pageId];
-    if (!page?.counterpart?.anchor) continue;
-    const targetId = page.counterpart.id;
-    const sourceToc = sourceData.pages[targetId]?.toc;
-    const targetToc = pass.pages[targetId]?.toc;
-    const i = sourceToc ? sourceToc.findIndex((h) => h.id === page.counterpart.anchor) : -1;
-    const mapped = i >= 0 && targetToc && targetToc.length === sourceToc.length ? targetToc[i]?.id : null;
-    if (mapped) page.counterpart.anchor = mapped;
-    else {
-      delete page.counterpart.anchor;
-      b.report(false, { kind: "translation", key: "translation.anchor", vars: { lang, page: pageId } });
+  const dropped = new Map();
+  for (const page of Object.values(pass.pages))
+    for (const member of page.topic ?? []) {
+      if (!member.anchor) continue;
+      const sourceToc = sourceData.pages[member.id]?.toc;
+      const targetToc = pass.pages[member.id]?.toc;
+      const i = sourceToc ? sourceToc.findIndex((h) => h.id === member.anchor) : -1;
+      const mapped = i >= 0 && targetToc && targetToc.length === sourceToc.length ? targetToc[i]?.id : null;
+      if (mapped) member.anchor = mapped;
+      else {
+        dropped.set(member.id, member.anchor);
+        delete member.anchor;
+      }
     }
-  }
+  for (const [page, anchor] of dropped)
+    b.report(false, { kind: "translation", key: "translation.anchor", vars: { lang, page, anchor } });
 }
 
 /**
@@ -334,7 +339,7 @@ function assembleOutputs(
   const brand = resolveTokens(themeTokens(config.theme, "light")).brand;
   const siteDir = options.siteDir || SITE_DIR;
   const template = fs.readFileSync(path.join(siteDir, "template.html"), "utf8");
-  const app = fs.readFileSync(path.join(siteDir, "app.js"), "utf8");
+  const app = siteScript(siteDir);
   const style = fs.readFileSync(path.join(siteDir, "style.css"), "utf8");
   const langTOf = (lang) => createI18n({ language: lang, overrides: config.texts });
   const mainT = monoLang ? langTOf(monoLang).t : i18n.t;
@@ -405,6 +410,8 @@ function assembleOutputs(
     output,
     sites,
     languages: languagesSummary,
+    // The backlog of the language built (the source's, or --lang's): engine/build/backlog.mjs, for `backlog export`.
+    backlog: (monoLang ? byLang[monoLang] : sourcePass).backlog,
   };
 }
 

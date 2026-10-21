@@ -19,7 +19,7 @@ Rappels :
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.3.0", // versions du kit acceptées ; hors de cette plage, chaque commande s'arrête avec le code 3
+  kit: "^0.4.0", // versions du kit acceptées ; hors de cette plage, chaque commande s'arrête avec le code 3
   product: { name: "Acme Orders", slug: "acme-orders" },
   language: "fr", // langue du site et des messages de la CLI
   output: "dist/Acme-Orders-Documentation.html",
@@ -115,7 +115,7 @@ doc-kit connect --forget                             # supprime la session
 import { defineConfig } from "doc-kit/config";
 
 export default defineConfig({
-  kit: "^0.3.0",
+  kit: "^0.4.0",
   product: { name: "Acme Deliveries", slug: "acme-deliveries" },
   language: "fr",
   output: "dist/Acme-Deliveries-Documentation.html",
@@ -260,7 +260,7 @@ Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "h
 
 ## Espaces, faits, suivi et économie des agents
 
-Exemples fictifs des clés ajoutées par le standard à deux espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
+Exemples fictifs des clés ajoutées par le standard des espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 Aucune n'a de défaut qui change le comportement existant : un projet qui ne les règle pas continue de se
 construire exactement comme avant.
 
@@ -310,6 +310,8 @@ export default defineConfig({
 |---|---|---|
 | `spaces.export` | Écrire un export par espace déclaré, en plus du site complet | `true` |
 | `spaces.output` | Chemin de chaque export, doit contenir `{space}` | la sortie du site complet, `-{space}` inséré avant son extension |
+| `bricks.enabled` | Les briques du projet (`doc-kit bricks`) : ids ou préréglages (`facts`, `full`) | `null` : toutes les briques |
+| `bricks.disabled` | Briques ou préréglages écartés : ils ne sont jamais lancés | `[]` |
 | `paths.facts` | Dossier de `facts/<source>.json`, commité avec le projet | `"facts"` |
 | `paths.sync` | Dossier de `sync.json`, commité avec le projet | la racine du projet (`"."`) |
 | `sync.labels` | Fichiers de messages que `sync --apply --labels` peut toucher | les `messages` propres aux adaptateurs de couverture |
@@ -326,6 +328,6 @@ Quand la documentation doit s'écrire sans aucun accès à l'application, décla
 
 `capture` et `connect` expliquent alors le mode et s'arrêtent (code de sortie 2), `doctor` et le mode guidé ne demandent plus de session, `doc-kit new` écrit « L'écran » sous forme de tableau `| Élément | Ce qu'il montre |`, et `doc-kit audit` compte `annotated` comme `n/a` ([maturity.fr.md](maturity.fr.md)).
 
-## Les projets plus anciens
+## Les noms de dossiers et les projets plus anciens
 
-Un projet écrit avant doc-kit, avec des noms de dossiers en français, continue de fonctionner : déclarez ses dossiers dans `paths`, par exemple `paths: { content: "contenu", diagrams: "schemas" }`. Ses fichiers JSON à clés françaises sont lus tels quels ; `doc-kit migrate` les réécrit au format actuel.
+Un projet peut nommer ses dossiers dans sa langue : déclarez-les dans `paths`, par exemple `paths: { content: "contenu", diagrams: "schemas" }`. Les fichiers qu'ils contiennent gardent leur nom et leurs clés anglaises (`toc.json`, `glossary.json`, `home.md`, fichiers de zones, plans de capture). Les fichiers à clés françaises des projets écrits avant la 0.4.0 (`sommaire.json`, `glossaire.json`, `accueil.md`, `titre`, `groupes`…) ne sont plus lus, et `doc-kit migrate` a été retiré : un tel projet repart de `doc-kit init`.

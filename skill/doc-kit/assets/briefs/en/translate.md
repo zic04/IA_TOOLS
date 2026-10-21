@@ -29,6 +29,8 @@ Every read and every command costs: keep to the step budget instead of exploring
 - Directives and their syntax: `:::screen`, `::diagram`, `:::rule`, `[[menu …]]`, `[[perm …]]`, `[[status …]]`,
   `[[feature …]]`, `[[rule …]]`, callout markers (`[!NOTE]`…) — translate the callout's own text, never its marker.
 - Code spans and code blocks, and any `file:line` proof inside one.
+- The analyses: never translate nor write a file of `.doc-kit/analysis/` or a digest; the pages are what get
+  translated.
 - Links: keep `#/<page>~<anchor>` exactly as written; a wrong anchor is fixed afterwards by
   `translate --fix-anchors`, not by guessing a translated slug yourself.
 

@@ -21,7 +21,7 @@ and what is missing.
   secret values.
 - The **application code** (path and version in Variables): variables read (`process.env`, `os.environ`…),
   default values, Dockerfile, build and deployment scripts, migrations run at start-up.
-- The existing Take over pages (architecture, deployment, operations, security) and the findings page with its
+- The existing technical pages (architecture, deployment, operations, security) and the findings page with its
   sub-pages (path in Variables). Further reading, if any, is listed in Variables.
 
 ## Your pages

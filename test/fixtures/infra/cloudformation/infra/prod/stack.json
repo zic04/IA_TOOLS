@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "BucketName": { "Type": "String", "Default": "fixture-json-default-not-kept" }
+  },
+  "Resources": {
+    "AssetsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": { "BucketName": { "Ref": "BucketName" } }
+    },
+    "PublicIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "WebGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": 443,
+        "ToPort": 443,
+        "CidrIpv6": "::/0"
+      }
+    },
+    "AllOut": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": { "GroupId": { "Ref": "WebGroup" }, "IpProtocol": "-1", "CidrIp": "0.0.0.0/0" }
+    },
+    "Worker": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Runtime": "python3.12",
+        "Environment": { "Variables": { "QUEUE_URL": { "Ref": "Queue" }, "LOG_LEVEL": "fixture-json-env-not-kept" } }
+      }
+    }
+  },
+  "Outputs": {
+    "BucketArn": { "Value": { "Fn::GetAtt": ["AssetsBucket", "Arn"] } }
+  }
+}
