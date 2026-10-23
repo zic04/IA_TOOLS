@@ -19,12 +19,17 @@ import { renderUsage, costOf, USAGE_VIEWS } from "../../engine/stats/render.mjs"
 import { transcriptUsage, recordAgent, projectFor } from "../../skill/doc-kit/scripts/usage-hook.mjs";
 import { installHooks } from "../../cli/commands/skill.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { demoCopy, tempDir } from "../tools/helpers.mjs";
+import { demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env,
+    exec: noExec,
+  });
   return { code, out, err };
 }
 
@@ -456,7 +461,7 @@ describe("statistics hook (skill/doc-kit/scripts/usage-hook.mjs, skill install -
     const app = tempDir("doc-kit-hook-");
     try {
       const docs = path.join(app, "docs", "manual");
-      fs.cpSync(demoCopy(), docs, { recursive: true });
+      demoCopy(docs);
       const file = path.join(app, "agent.jsonl");
       fs.writeFileSync(file, transcript);
       const input = { cwd: app, agent_id: "a1", agent_type: "doc-kit-writer", agent_transcript_path: file };

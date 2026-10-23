@@ -5,7 +5,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { demoCopy, tempDir } from "../tools/helpers.mjs";
+import { demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 let claude;
 before(() => {
@@ -28,6 +28,7 @@ async function cli(args, env = {}, io = {}) {
     stderr: { write: (s) => (err += s) },
     env: { CLAUDE_CONFIG_DIR: claude, ...env },
     chromium: CHROMIUM_OK,
+    exec: noExec,
     ...io,
   });
   return { code, out, err };

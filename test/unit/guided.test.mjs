@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { runCli, detectSituation } from "../../cli/doc-kit.mjs";
-import { demoCopy, tempDir } from "../tools/helpers.mjs";
+import { demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 async function cli(args, { input, env = {} } = {}) {
   let out = "";
@@ -16,6 +16,7 @@ async function cli(args, { input, env = {} } = {}) {
     stderr: { write: (s) => (err += s) },
     env,
     chromium: async () => ({ ok: true, path: "/opt/chromium/chrome", command: "npx playwright install chromium" }),
+    exec: noExec,
     ...(input ? { stdin: Readable.from([input.map((l) => l + "\n").join("")]), interactive: true } : {}),
   });
   return { code, out, err };

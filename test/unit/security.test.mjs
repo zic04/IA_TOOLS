@@ -202,6 +202,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
 
   test("riskyGitConfig: commands named by the repository are found; Git LFS and harmless values are not", () => {
     const dir = tempDir("doc-kit-git-");
+    let dir2;
     try {
       fs.mkdirSync(path.join(dir, ".git"));
       const write = (text) => fs.writeFileSync(path.join(dir, ".git", "config"), text);
@@ -209,7 +210,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
         '[core]\n\tfsmonitor = false\n\tpager = less\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tprocess = git-lfs filter-process\n[remote "origin"]\n\turl = x\n',
       );
       assert.deepEqual(riskyGitConfig(path.join(dir)), []);
-      const dir2 = tempDir("doc-kit-git-");
+      dir2 = tempDir("doc-kit-git-");
       fs.mkdirSync(path.join(dir2, ".git"));
       fs.mkdirSync(path.join(dir2, "app"));
       fs.writeFileSync(
@@ -225,9 +226,9 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
       const r = defaultExec("git", ["ls-files"], { cwd: path.join(dir2, "app") });
       assert.equal(r.status, 128);
       assert.equal(r.refused.length, 5);
-      fs.rmSync(dir2, { recursive: true, force: true });
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+      if (dir2) fs.rmSync(dir2, { recursive: true, force: true });
     }
   });
 

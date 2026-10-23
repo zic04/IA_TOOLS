@@ -279,6 +279,7 @@ describe("the sources the stack adapters feed", () => {
   });
 
   test("screens: the App Router's pages and the Pages Router's, their API, shell and error pages left out; no claimed access", () => {
+    const guardedApp = tree("doc-kit-stacks-r-", { "r.ts": "x" });
     const app = tree("doc-kit-stacks-screens-", {
       "app/orders/[id]/page.tsx": "export default function P() {}\n",
       "app/(shop)/cart/page.tsx": "export default function P() {}\n",
@@ -301,11 +302,12 @@ describe("the sources the stack adapters feed", () => {
         files: /\.ts$/,
         screens: () => [{ route: "/admin", file: "r.ts", line: 3, guards: ["isAdmin"] }],
       };
-      assert.deepEqual(collectScreens(tree("doc-kit-stacks-r-", { "r.ts": "x" }), {}, [guarded]), [
+      assert.deepEqual(collectScreens(guardedApp, {}, [guarded]), [
         { route: "/admin", file: "r.ts", line: 3, framework: "router", auth: "role", guards: ["isAdmin"] },
       ]);
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
+      fs.rmSync(guardedApp, { recursive: true, force: true });
     }
   });
 
