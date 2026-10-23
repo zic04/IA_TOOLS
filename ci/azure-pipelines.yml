@@ -15,11 +15,13 @@ pr:
 
 strategy:
   matrix:
+    # Ubuntu 24.04, not ubuntu-latest: Ubuntu 26.04 has no Chromium for Playwright 1.60 (`playwright install
+    # --with-deps` refuses it). Back to ubuntu-latest with a Playwright that has one.
     linux_node20:
-      imageName: ubuntu-latest
+      imageName: ubuntu-24.04
       nodeVersion: 20.x
     linux_node22:
-      imageName: ubuntu-latest
+      imageName: ubuntu-24.04
       nodeVersion: 22.x
     windows_node20:
       imageName: windows-latest
@@ -80,7 +82,7 @@ steps:
 #   kit: $(Build.SourcesDirectory)/doc-kit
 #
 # pool:
-#   vmImage: ubuntu-latest
+#   vmImage: ubuntu-24.04                  # Ubuntu 26.04 has no Chromium for Playwright 1.60 yet
 #
 # steps:
 #   - checkout: self

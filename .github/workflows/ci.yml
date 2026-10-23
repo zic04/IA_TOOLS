@@ -18,7 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Ubuntu 24.04, not ubuntu-latest: since 2026-10-19 that label is Ubuntu 26.04, for which Playwright 1.60 has no
+        # Chromium (`playwright install --with-deps` refuses it). Back to ubuntu-latest with a Playwright that has one.
+        os: [ubuntu-24.04, windows-latest, macos-latest]
         node: [20, 22]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -39,7 +41,7 @@ jobs:
 
   security:
     name: security (rules, dependencies)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # the same Linux as the tests
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
