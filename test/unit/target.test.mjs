@@ -10,7 +10,7 @@ import { Readable } from "node:stream";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { readOnlyMode } from "../../engine/capture/capture.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
-import { demoConfig, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { demoConfig, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 /** Runs the CLI; `input`: lines typed at the questions; `launch`: browser launcher (a stub). */
 async function cli(args, { input, env = {}, launch } = {}) {
@@ -21,6 +21,7 @@ async function cli(args, { input, env = {}, launch } = {}) {
     stderr: { write: (s) => (err += s) },
     env,
     launch,
+    exec: noExec,
     ...(input ? { stdin: Readable.from([input.map((l) => l + "\n").join("")]), interactive: true } : {}),
   });
   return { code, out, err };

@@ -44,6 +44,7 @@ import {
   dataOf,
   tempDir,
   demoCopy,
+  noExec,
 } from "../tools/helpers.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
 
@@ -53,7 +54,12 @@ const demoConfigOf = async (dir) => (await loadProject({ project: dir, env: {} }
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env,
+    exec: noExec,
+  });
   return { code, out, err };
 }
 const keys = (list) => list.map((p) => p.key);

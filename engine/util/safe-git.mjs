@@ -6,6 +6,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
+/**
+ * A process launcher with the contract of the CLI context's `ctx.exec` (cli/common.mjs `defaultExec`, which hardens
+ * git with `safeGitArgs` and `riskyGitConfig`): null when the binary is not on the PATH; status 128 and `refused`
+ * (the risky keys) when the repository's configuration names a program. The engine's git helpers take one, so that
+ * a command goes through its context and a test gives a fake.
+ * @typedef {(bin: string, args: string[], options?: { cwd?: string }) =>
+ *   { status: number|null, stdout: string, stderr?: string, refused?: string[] } | null} Exec
+ */
+
 /** Options put before every git command: no file system monitor, no pager, no external diff, no textconv. */
 const GIT_HARDENING = Object.freeze(["-c", "core.fsmonitor=false", "-c", "core.pager=cat", "--no-pager"]);
 

@@ -29,6 +29,28 @@ entries between a project's `kit` range and the installed version.
 - `doc-kit view --tour <n>` on a multilingual site: it clicked the tour's "Next" button by its label in the source
   language and timed out when the browser showed another language. It now clicks the button itself, and, without
   `--lang`, opens the source language, so that the image never depends on the machine's language.
+- `doctor`, `export`, `check secrets` and the audit's secrets measure start git through the command's process
+  launcher, as the other commands do: in a repository whose git configuration names a program, they now warn and
+  name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
+  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its two git
+  helpers).
+
+### Changed
+
+- **The kit's test suite** (for its developers; RULES.md M4, M17):
+  - Time is measured only through `test/tools/growth.mjs` (`assertLinear`, `linearAt`, the ReDoS harness), in
+    dedicated `*-growth.test.mjs` files run alone. Every millisecond budget and home-made growth loop is gone:
+    80 clock readings in 20 files and 32 budgets in 17. `test/unit/timing-files.test.mjs` keeps them out, and
+    `run-plan.mjs` finds a timing file by its import of `growth.mjs`.
+  - The stack expressions are measured once, by the ReDoS harness (`test/tools/stack-shapes.mjs`). `npm test` is
+    about twice as fast (336 s → 185 s on the reference machine).
+  - Temporary folders: `test/run.mjs` gives the tests a fresh temporary root and fails the run if anything is
+    left in it. 8 leaks fixed; the demo copies take a destination (`into`).
+  - No real git and no Chromium in the unit tests: the CLI tests pass `exec: noExec`, and the session refresh
+    test with a real browser moved to `test/e2e/`. `test/unit/seams.test.mjs` is the guard: 64 git starts per
+    run before, 0 now.
+  - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
+    file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
 
 ## [0.4.1] - 2026-10-23
 

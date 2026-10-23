@@ -72,18 +72,22 @@ export function readCoverage(r) {
 /**
  * Secrets (engine/check/secrets.mjs, when present): values that must never be published, in the site and its
  * sources; session files out of place. Only where each finding is and its kind are kept (never the value).
+ * `exec`: the launcher of the context (`ctx.exec`, engine/util/safe-git.mjs `Exec`) for the git check of the
+ * session; without it, checkSecrets starts git itself.
  * @returns {Promise<{ measured: boolean, reason?: string, error?: string, findings?: Array<{ where: string, kind: string }> }>}
  */
-export async function measureSecrets({ project, config, data, env = process.env }) {
+export async function measureSecrets({ project, config, data, env = process.env, exec = undefined }) {
   try {
     const secrets = await optionalModule("engine/check/secrets.mjs");
     const session = await optionalModule("engine/capture/session.mjs");
     if (!isFn(secrets?.checkSecrets) || !isFn(session?.sessionFile)) return { measured: false, reason: "unavailable" };
+    const tracked = exec && isFn(secrets.trackedByGit) ? (file) => secrets.trackedByGit(file, { exec }) : undefined;
     const r = secrets.checkSecrets({
       root: project.root,
       config,
       data,
       session: session.sessionFile(project.root, config, env),
+      tracked,
     });
     return {
       measured: true,

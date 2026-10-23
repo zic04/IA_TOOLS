@@ -10,12 +10,17 @@ import { runCli } from "../../cli/doc-kit.mjs";
 import { freezeFallback, closingBrace, VENDOR } from "../../cli/commands/export.mjs";
 import { readZip } from "../../engine/dev/zip.mjs";
 import { BRAND, generatorTag } from "../../engine/brand.mjs";
-import { KIT_ROOT, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
+import { KIT_ROOT, demoCopy, tempDir, dataOf, noExec } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env,
+    exec: noExec,
+  });
   return { code, out, err };
 }
 
@@ -24,7 +29,7 @@ function repository() {
   const repo = tempDir("doc-kit-repo-");
   const docs = path.join(repo, "docs", "manual");
   fs.mkdirSync(path.dirname(docs), { recursive: true });
-  fs.cpSync(demoCopy(), docs, { recursive: true });
+  demoCopy(docs);
   fs.writeFileSync(path.join(repo, "package.json"), JSON.stringify({ name: "acme-orders", version: "2.4.0" }));
   fs.writeFileSync(path.join(repo, ".env"), "ACME_API=https://api.acme.example\n");
   fs.mkdirSync(path.join(repo, "app"));

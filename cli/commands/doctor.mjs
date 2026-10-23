@@ -376,9 +376,9 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     else add("target", "ok", "project", `cli.doctor.target.${target}`, vars);
   }
 
-  // .gitignore: the work folder (session!) and the built site.
-  const work = isIgnored(root, ".doc-kit/session.json");
-  const dist = isIgnored(root, "dist/site.html");
+  // .gitignore: the work folder (session!) and the built site; git through the context's launcher (ctx.exec).
+  const work = isIgnored(root, ".doc-kit/session.json", { exec: ctx.exec });
+  const dist = isIgnored(root, "dist/site.html", { exec: ctx.exec });
   const ignore = { file: rel(path.join(root, ".gitignore")), work: ".doc-kit/", dist: "dist/" };
   if (work === null && dist === null) add("gitignore", "warn", "project", "cli.doctor.gitignore.none", ignore);
   else if (!work) add("gitignore", "fail", "project", "cli.doctor.gitignore.work", ignore);
@@ -391,7 +391,7 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
   if (noCapture) {
     add("session", "ok", "project", "cli.doctor.session.noCapture", {});
     // An old session left behind still holds sign-in cookies.
-    if (session.exists && isTracked(root, session.file))
+    if (session.exists && isTracked(root, session.file, { exec: ctx.exec }))
       add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
   } else if (!session.needed) add("session", "ok", "project", "cli.doctor.session.notNeeded", {});
   else if (!session.exists)
@@ -408,7 +408,7 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     else if (session.ageHours > 24)
       add("session", "warn", "project", "cli.doctor.session.old", { file: shown, age, command: BRAND.command });
     else add("session", "ok", "project", "cli.doctor.session.ok", { file: shown, age });
-    if (isTracked(root, session.file))
+    if (isTracked(root, session.file, { exec: ctx.exec }))
       add("sessionGit", "fail", "project", "cli.doctor.session.tracked", { file: shown });
   }
 

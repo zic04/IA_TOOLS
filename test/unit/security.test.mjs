@@ -12,11 +12,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { Worker } from "node:worker_threads";
-import { GENERIC } from "../../engine/check/secrets.mjs";
+import { GENERIC, trackedByGit } from "../../engine/check/secrets.mjs";
+import { git, isTracked } from "../../engine/dev/environment.mjs";
 import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath } from "../../engine/util/safe-git.mjs";
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
-import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 import { MEASURABLE_MS } from "../tools/growth.mjs";
 
 /** Source files of the kit (what ships): engine, cli, adapters, skill scripts, templates. */
@@ -202,6 +203,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
 
   test("riskyGitConfig: commands named by the repository are found; Git LFS and harmless values are not", () => {
     const dir = tempDir("doc-kit-git-");
+    let dir2;
     try {
       fs.mkdirSync(path.join(dir, ".git"));
       const write = (text) => fs.writeFileSync(path.join(dir, ".git", "config"), text);
@@ -209,7 +211,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
         '[core]\n\tfsmonitor = false\n\tpager = less\n[filter "lfs"]\n\tclean = git-lfs clean -- %f\n\tprocess = git-lfs filter-process\n[remote "origin"]\n\turl = x\n',
       );
       assert.deepEqual(riskyGitConfig(path.join(dir)), []);
-      const dir2 = tempDir("doc-kit-git-");
+      dir2 = tempDir("doc-kit-git-");
       fs.mkdirSync(path.join(dir2, ".git"));
       fs.mkdirSync(path.join(dir2, "app"));
       fs.writeFileSync(
@@ -225,7 +227,25 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
       const r = defaultExec("git", ["ls-files"], { cwd: path.join(dir2, "app") });
       assert.equal(r.status, 128);
       assert.equal(r.refused.length, 5);
-      fs.rmSync(dir2, { recursive: true, force: true });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      if (dir2) fs.rmSync(dir2, { recursive: true, force: true });
+    }
+  });
+
+  test("the engine's own git (git, isTracked, trackedByGit without an exec) is refused there too, without starting any process", () => {
+    // A repository made by hand: a git started there answers "true" to the work-tree question, so null proves that
+    // none was started. Its core.fsmonitor names a program, which the hardening would override anyway.
+    const dir = tempDir("doc-kit-git-");
+    try {
+      for (const d of ["objects", "refs"]) fs.mkdirSync(path.join(dir, ".git", d), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".git", "HEAD"), "ref: refs/heads/main\n");
+      fs.writeFileSync(path.join(dir, ".git", "config"), '[core]\n\tfsmonitor = "touch pwned"\n');
+      assert.deepEqual(riskyGitConfig(dir), ["core.fsmonitor = touch pwned"]);
+      assert.equal(git(dir, ["rev-parse", "--is-inside-work-tree"]), null);
+      assert.equal(isTracked(dir, path.join(dir, "session.json")), null);
+      assert.equal(trackedByGit(path.join(dir, "session.json")), false);
+      assert.ok(!fs.existsSync(path.join(dir, "pwned")));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -284,6 +304,7 @@ describe("export never carries a secret", () => {
         stdout: { write: () => {} },
         stderr: { write: (s) => (err += s) },
         env: { DOC_KIT_SESSION: "elsewhere.json" },
+        exec: noExec,
       });
       assert.equal(code, 0, err);
       for (const f of [

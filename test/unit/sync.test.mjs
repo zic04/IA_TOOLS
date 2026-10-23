@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, tempDir, noExec } from "../tools/helpers.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
 import { hashText, hashPlanEntry, stableStringify, hashFile } from "../../engine/core/hash.mjs";
@@ -59,6 +59,7 @@ async function cli(args, io = {}) {
     stdout: { write: (s) => (out += s) },
     stderr: { write: (s) => (err += s) },
     env: {},
+    exec: noExec,
     ...io,
   });
   return { code, out, err };
