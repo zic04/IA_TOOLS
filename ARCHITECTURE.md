@@ -15,7 +15,7 @@ Any change to an interface described here goes first into this file, then into t
 - **Shared engine.** A project keeps only its content. It depends on the kit through `"doc-kit": "file:<relative path to the kit>"`, which on Windows is a directory junction.
   - `doc-kit export` produces a **self-contained** copy of a project: engine vendored, no kit needed.
 - **Location.** The kit is its own repository. Nothing in the kit may depend on where it sits on disk.
-- **Few dependencies.** Only two runtime dependencies: `marked` 18.0.14 and `playwright` 1.60.0.
+- **Few dependencies.** Only two runtime dependencies: `marked` 18.0.14 and `playwright` 1.64.0.
   - Validation is home-made, a subset of JSON Schema.
   - Tests use `node:test`.
 - **Runs everywhere.** Node ≥ 20 on Windows, macOS and Linux.

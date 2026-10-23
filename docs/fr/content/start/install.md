@@ -69,7 +69,7 @@ de projet.
 
 - **Version** : `doc-kit --version` affiche `doc-kit 0.4.0` (ou la version de votre copie).
 - **Node** : la première ligne de `doctor` est ✔, avec votre version de Node et la plage exigée (`>=20`).
-- **Dépendances** : `doctor` affiche ✔ pour `marked 18.0.14, playwright 1.60.0`.
+- **Dépendances** : `doctor` affiche ✔ pour `marked 18.0.14, playwright 1.64.0`.
 - **Navigateur** : `doctor` affiche ✔ avec le chemin de l'exécutable Chromium.
 - **Aide** : `doc-kit --help` liste toutes les commandes, et `doc-kit --help --lang fr` les liste en français.
 

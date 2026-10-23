@@ -22,9 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Ubuntu 24.04, not ubuntu-latest: since 2026-10-19 that label is Ubuntu 26.04, for which Playwright 1.60 has no
-        # Chromium (`playwright install --with-deps` refuses it). Back to ubuntu-latest with a Playwright that has one.
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node: [20, 22]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -72,7 +70,7 @@ jobs:
 #
 # jobs:
 #   docs:
-#     runs-on: ubuntu-24.04                  # Ubuntu 26.04 has no Chromium for Playwright 1.60 yet
+#     runs-on: ubuntu-latest
 #     defaults:
 #       run:
 #         working-directory: app/docs/manual
@@ -150,7 +148,7 @@ jobs:
 #
 # jobs:
 #   update:
-#     runs-on: ubuntu-24.04                  # Ubuntu 26.04 has no Chromium for Playwright 1.60 yet
+#     runs-on: ubuntu-latest
 #     defaults:
 #       run:
 #         working-directory: app/docs/manual
