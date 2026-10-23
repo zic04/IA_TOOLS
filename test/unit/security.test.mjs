@@ -12,11 +12,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { Worker } from "node:worker_threads";
-import { GENERIC } from "../../engine/check/secrets.mjs";
+import { GENERIC, trackedByGit } from "../../engine/check/secrets.mjs";
+import { git, isTracked } from "../../engine/dev/environment.mjs";
 import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath } from "../../engine/util/safe-git.mjs";
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
-import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 import { MEASURABLE_MS } from "../tools/growth.mjs";
 
 /** Source files of the kit (what ships): engine, cli, adapters, skill scripts, templates. */
@@ -232,6 +233,24 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
     }
   });
 
+  test("the engine's own git (git, isTracked, trackedByGit without an exec) is refused there too, without starting any process", () => {
+    // A repository made by hand: a git started there answers "true" to the work-tree question, so null proves that
+    // none was started. Its core.fsmonitor names a program, which the hardening would override anyway.
+    const dir = tempDir("doc-kit-git-");
+    try {
+      for (const d of ["objects", "refs"]) fs.mkdirSync(path.join(dir, ".git", d), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".git", "HEAD"), "ref: refs/heads/main\n");
+      fs.writeFileSync(path.join(dir, ".git", "config"), '[core]\n\tfsmonitor = "touch pwned"\n');
+      assert.deepEqual(riskyGitConfig(dir), ["core.fsmonitor = touch pwned"]);
+      assert.equal(git(dir, ["rev-parse", "--is-inside-work-tree"]), null);
+      assert.equal(isTracked(dir, path.join(dir, "session.json")), null);
+      assert.equal(trackedByGit(path.join(dir, "session.json")), false);
+      assert.ok(!fs.existsSync(path.join(dir, "pwned")));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("parseGitConfig: sections, subsections, keys in any case, quoted values", () => {
     assert.deepEqual(parseGitConfig('[Core]\n  FSMonitor = "x y"\n# c\n[diff "A b"]\ntextconv=z\nbare\n'), [
       ["core.fsmonitor", "x y"],
@@ -285,6 +304,7 @@ describe("export never carries a secret", () => {
         stdout: { write: () => {} },
         stderr: { write: (s) => (err += s) },
         env: { DOC_KIT_SESSION: "elsewhere.json" },
+        exec: noExec,
       });
       assert.equal(code, 0, err);
       for (const f of [

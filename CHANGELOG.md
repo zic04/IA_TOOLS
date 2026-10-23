@@ -6,6 +6,14 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Fixed
+
+- `doctor`, `export`, `check secrets` and the audit's secrets measure start git through the command's process
+  launcher, as the other commands do: in a repository whose git configuration names a program, they now warn and
+  name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
+  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its two git
+  helpers).
+
 ## [0.4.1] - 2026-10-23
 
 ### Added

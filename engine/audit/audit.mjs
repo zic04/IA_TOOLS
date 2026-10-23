@@ -70,14 +70,15 @@ const summaryPlaceholders = () =>
  * @param {{ root: string }} p.project
  * @param {object} p.config  validated configuration
  * @param {{ coverage?: Function|null, secrets?: Function|null, tables?: Function|null, tablesReason?: string,
- *   commit?: string|null }} [p.measure]
- *   coverage({ project, config }), secrets({ project, config, data, env }) and tables(html) return { measured, … }
+ *   commit?: string|null, exec?: import("../util/safe-git.mjs").Exec }} [p.measure]
+ *   coverage({ project, config }), secrets({ project, config, data, env, exec }) and tables(html) return { measured, … }
  *   (optional.mjs). `null`: not measured. Default: coverage and secrets measured when the checks of the kit exist;
  *   tables not measured (they need a browser: the CLI passes them).
  * @param {Date} [p.now]
  * @param {object} [p.env]  environment (session file of the secrets check)
  *   `commit`: the application's current HEAD (ARCHITECTURE.md §6.9: `facts.stale`), read by the CLI through the
- *   `commit` test seam; null when it cannot be known (no app.dir, no git).
+ *   `commit` test seam; null when it cannot be known (no app.dir, no git). `exec`: the launcher of the CLI context
+ *   (`ctx.exec`), for the git check of the secrets measure (is the session tracked).
  */
 export async function runAudit({ project, config, measure = {}, now = new Date(), env = process.env }) {
   const root = project.root;
@@ -293,6 +294,9 @@ function readPage(
   return page;
 }
 
+/** An optional measure the caller turned off (`measure.coverage` or `measure.secrets` null). */
+const skipped = () => ({ measured: false, reason: "skipped" });
+
 /**
  * The indicators of standard/maturity.md, and what the actions need to name the pages behind them. `written` owns
  * the pages not written yet (missing or draft); the other page indicators are measured on the written pages only,
@@ -343,9 +347,9 @@ async function measureIndicators({
   );
 
   const coverageFn = measure.coverage === undefined ? measureCoverage : measure.coverage;
-  const coverage = coverageFn ? await coverageFn({ project, config }) : { measured: false, reason: "skipped" };
+  const coverage = coverageFn ? await coverageFn({ project, config }) : skipped();
   const secretsFn = measure.secrets === undefined ? measureSecrets : measure.secrets;
-  const secrets = secretsFn ? await secretsFn({ project, config, data, env }) : { measured: false, reason: "skipped" };
+  const secrets = secretsFn ? await secretsFn({ project, config, data, env, exec: measure.exec }) : skipped();
   const tables = measure.tables
     ? await measure.tables(built.html)
     : { measured: false, reason: measure.tablesReason || "skipped" };

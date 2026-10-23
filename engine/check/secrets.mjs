@@ -287,13 +287,21 @@ export function isStorageState(text) {
   }
 }
 
-/** Is a file tracked by git? (false when git is not available or the folder is not a repository) */
-function trackedByGit(file) {
+/**
+ * Is a file tracked by git? (false when git is not available, refused, or the folder is not a repository)
+ * @param {string} file
+ * @param {{ exec?: import("../util/safe-git.mjs").Exec }} [o]   exec: the launcher of the context (`ctx.exec`),
+ *   called as exec("git", args, { cwd }); without it, git is hardened and started here
+ */
+export function trackedByGit(file, { exec } = {}) {
   const cwd = path.dirname(file);
+  const args = ["ls-files", "--error-unmatch", "--", path.basename(file)];
+  // null: git missing; a refused git answers status 128.
+  if (exec) return exec("git", args, { cwd })?.status === 0;
   if (riskyGitConfig(cwd).length) return false;
   const bin = resolveOnPath("git", { exclude: [cwd] });
   if (!bin) return false;
-  const r = spawnSync(bin, safeGitArgs(["ls-files", "--error-unmatch", "--", path.basename(file)]), {
+  const r = spawnSync(bin, safeGitArgs(args), {
     cwd,
     encoding: "utf8",
     windowsHide: true,
@@ -307,7 +315,8 @@ function trackedByGit(file) {
  * @param {object} p.config
  * @param {object|null} p.data       embedded data of the site built as a draft (null: sources only)
  * @param {string} p.session         session file (sessions elsewhere in the project are reported)
- * @param {(file: string) => boolean} [p.tracked]   git check (injectable for the tests)
+ * @param {(file: string) => boolean} [p.tracked]   git check: by default `trackedByGit` starting git itself; a
+ *   command passes one built on its context's launcher, (file) => trackedByGit(file, { exec: ctx.exec })
  * @returns {{ findings: object[], files: number, places: number, ignored: object }}
  *   each finding: { where, kind, preview, line?, key?, file? } or { where, kind: "sessionOutside" | "sessionTracked" };
  *   ignored: the matches that are not secrets, counted by rule ({ local?, template?, exclude?, allow? })

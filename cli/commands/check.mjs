@@ -10,7 +10,7 @@ import { build } from "../../engine/build/build.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
 import { checkTables } from "../../engine/check/tables.mjs";
 import { checkImages } from "../../engine/check/images.mjs";
-import { checkSecrets } from "../../engine/check/secrets.mjs";
+import { checkSecrets, trackedByGit } from "../../engine/check/secrets.mjs";
 import { runCoverage } from "../../engine/check/coverage.mjs";
 import { numbers } from "../../engine/build/format.mjs";
 import { sessionFile } from "../../engine/capture/session.mjs";
@@ -129,7 +129,9 @@ async function checkSecretsCommand(ctx) {
   const { project, config } = await ctx.loadProject();
   const r = build({ project, config, options: { draft: true } });
   const session = sessionFile(project.root, config, ctx.env);
-  const res = checkSecrets({ root: project.root, config, data: r.data, session });
+  // Is the session tracked: git through the context's launcher (hardened by defaultExec, a fake in the tests).
+  const tracked = (file) => trackedByGit(file, { exec: ctx.exec });
+  const res = checkSecrets({ root: project.root, config, data: r.data, session, tracked });
   if (!ctx.json) {
     const dir = path.relative(project.root, path.dirname(session)).split(path.sep).join("/") + "/";
     for (const f of res.findings) {

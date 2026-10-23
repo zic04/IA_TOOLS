@@ -177,32 +177,49 @@ export function captureCount(root, config) {
   return fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".json")).length : 0;
 }
 
-/**
- * Runs a read-only git command in `cwd`. Returns null when git is missing or the folder is not in a repository;
- * otherwise { status, stdout }.
- */
-export function git(cwd, args) {
-  // Hardened, and refused on a repository whose configuration names a program (engine/util/safe-git.mjs).
+/** @typedef {import("../util/safe-git.mjs").Exec} Exec */
+
+/** git started here, hardened (engine/util/safe-git.mjs): a runner of `cwd`, or null when git is refused or missing. */
+function hardenedGit(cwd) {
   if (riskyGitConfig(cwd).length) return null;
   const bin = resolveOnPath("git", { exclude: [cwd] });
   if (!bin) return null;
-  const inside = spawnSync(bin, ["-C", cwd, ...safeGitArgs(["rev-parse", "--is-inside-work-tree"])], {
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  if (inside.error || inside.status !== 0 || inside.stdout.trim() !== "true") return null;
-  const r = spawnSync(bin, ["-C", cwd, ...safeGitArgs(args)], { encoding: "utf8", windowsHide: true });
-  if (r.error) return null;
-  return { status: r.status, stdout: (r.stdout || "").trim() };
+  return (args) => {
+    const r = spawnSync(bin, ["-C", cwd, ...safeGitArgs(args)], { encoding: "utf8", windowsHide: true });
+    return r.error ? null : { status: r.status, stdout: r.stdout || "" };
+  };
+}
+
+/**
+ * Runs a read-only git command in `cwd`. Returns null when git is missing, refused (a configuration that names a
+ * program) or the folder is not in a repository; otherwise { status, stdout } (stdout trimmed).
+ * @param {string} cwd
+ * @param {string[]} args
+ * @param {{ exec?: Exec }} [o]   exec: the launcher of the context (`ctx.exec`), called as exec("git", args, { cwd });
+ *   without it, git is hardened and started here
+ * @returns {{ status: number|null, stdout: string }|null}
+ */
+export function git(cwd, args, { exec } = {}) {
+  const run = exec ? (a) => exec("git", a, { cwd }) : hardenedGit(cwd);
+  if (!run) return null;
+  // A refused git answers status 128: not a repository, as far as the kit knows.
+  const inside = run(["rev-parse", "--is-inside-work-tree"]);
+  if (!inside || inside.status !== 0 || String(inside.stdout).trim() !== "true") return null;
+  const r = run(args);
+  if (!r || r.refused) return null;
+  return { status: r.status, stdout: String(r.stdout || "").trim() };
 }
 
 /**
  * Is `rel` (relative to root) ignored? With git: `git check-ignore` (every .gitignore of the repository counts);
  * otherwise the project's own .gitignore, read naively (a line equal to the folder, with or without slashes).
+ * @param {string} root
+ * @param {string} rel
+ * @param {{ exec?: Exec }} [o]   the launcher of the context (git)
  * @returns {boolean|null} null: nothing to decide from (no git repository and no .gitignore)
  */
-export function isIgnored(root, rel) {
-  const g = git(root, ["check-ignore", "-q", "--no-index", rel]);
+export function isIgnored(root, rel, { exec } = {}) {
+  const g = git(root, ["check-ignore", "-q", "--no-index", rel], { exec });
   if (g) return g.status === 0;
   const name = rel.replace(/\/.*$/, "");
   const lines = (file) =>
@@ -220,9 +237,14 @@ export function isIgnored(root, rel) {
   return own.some((l) => l.replace(/^\/|\/$/g, "").replace(/\/\*\*?$/, "") === name);
 }
 
-/** Is a file tracked by git? null when git cannot tell. */
-export function isTracked(root, file) {
-  const g = git(root, ["ls-files", "--error-unmatch", "--", path.relative(root, file)]);
+/**
+ * Is a file tracked by git? null when git cannot tell.
+ * @param {string} root
+ * @param {string} file
+ * @param {{ exec?: Exec }} [o]   the launcher of the context (git)
+ */
+export function isTracked(root, file, { exec } = {}) {
+  const g = git(root, ["ls-files", "--error-unmatch", "--", path.relative(root, file)], { exec });
   return g ? g.status === 0 : null;
 }
 

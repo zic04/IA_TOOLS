@@ -670,7 +670,7 @@ describe("CLI", () => {
       assert.equal((await cli(["build", "--project", dir])).code, 0);
       assert.ok(fs.existsSync(path.join(root, "exports", "acme-use.html")));
       const { project, config } = await loadProject({ project: dir, env: {} });
-      const r = exportProject({ project, config, target: path.join(root, "copy"), withDist: true });
+      const r = exportProject({ project, config, target: path.join(root, "copy"), withDist: true, exec: noExec });
       for (const f of ["dist/Acme-Orders-Documentation.html", "dist/acme-use.html", "dist/acme-develop.html"])
         assert.ok(fs.existsSync(path.join(r.target, f)), f);
     } finally {

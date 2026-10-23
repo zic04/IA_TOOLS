@@ -30,10 +30,11 @@ export async function run({ ctx }) {
       };
   // Facts (§6.9): the application's current HEAD, read read-only, to tell a stale facts file; null without app.dir.
   const commit = config.app.dir ? ctx.commit(path.resolve(project.root, config.app.dir)) : null;
+  // The secrets measure asks git whether the session is tracked through the context's launcher (`exec`).
   const result = await runAudit({
     project,
     config,
-    measure: /** @type {any} */ ({ tables, tablesReason: noBrowser ? "disabled" : undefined, commit }),
+    measure: /** @type {any} */ ({ tables, tablesReason: noBrowser ? "disabled" : undefined, commit, exec: ctx.exec }),
   });
 
   const dir = path.join(project.root, WORK_DIR);
