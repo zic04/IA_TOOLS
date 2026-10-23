@@ -232,7 +232,7 @@ describe("in a build", () => {
 });
 
 describe("review of Lot 6a", () => {
-  test("a backlog field on a page that is no feature sheet is reported; a large table of contents read in one pass", () => {
+  test("a backlog field on a page that is no feature sheet is reported", () => {
     const one = (pages) => ({ sections: [{ id: "s", title: "S", groups: [{ title: "G", epic: "E-01", pages }] }] });
     const r = backlogModel({
       toc: one([{ id: "p/notes", title: "n", since: "2.0", ref: "ADO#1" }]),
@@ -250,24 +250,6 @@ describe("review of Lot 6a", () => {
         ["backlog.field", "ref"],
       ],
     );
-    /** The time of the model of n features in one epic, the best of two runs. */
-    const timed = (n) => {
-      const pages = Array.from({ length: n }, (_, k) => ({ id: `p/${k}`, title: `${k}` }));
-      const features = new Map(
-        pages.map((p, k) => [`F-${k}`, { id: `F-${k}`, title: p.title, summary: "", page: p.id }]),
-      );
-      const p = { toc: one(pages), features, stories: new Map(), scenarios: [], rules: new Map(), cards: new Map() };
-      let best = Infinity;
-      for (let k = 0; k < 2; k++) {
-        const start = performance.now();
-        assert.equal(backlogModel({ ...p, sheets: {} }).epics[0].features.length, n);
-        best = Math.min(best, performance.now() - start);
-      }
-      return best;
-    };
-    const [small, large] = [10_000, 40_000].map(timed);
-    // A search per feature (quadratic) grows ×16 for ×4 features; one pass about ×4.
-    assert.ok(large < 50 || large / small < 8, `${small.toFixed(0)} → ${large.toFixed(0)} ms`);
   });
 
   test("::recits{} is ::stories{}; a hostile reference and a template with a quote stay escaped", async () => {

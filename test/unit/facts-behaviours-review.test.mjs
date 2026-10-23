@@ -7,18 +7,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
-import {
-  createSink,
-  jsCommentRanges,
-  pyCommentRanges,
-  htmlCommentRanges,
-} from "../../engine/facts/behaviour-common.mjs";
+import { createSink, jsCommentRanges, pyCommentRanges } from "../../engine/facts/behaviour-common.mjs";
 import { jsBehaviours } from "../../engine/facts/behaviour-js.mjs";
 import { sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
 import { schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
 import { openapiBehaviours } from "../../engine/facts/openapi.mjs";
-import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { featuresFileOf } from "../../engine/core/features.mjs";
 import { behaviourRegistry } from "../../engine/core/behaviours.mjs";
 import { safeSources } from "../../engine/sync/feature-files.mjs";
@@ -96,55 +90,7 @@ describe("never a secret", () => {
   });
 });
 
-describe("linear on what a crafted file holds", () => {
-  test("every reader stays linear on 200,000 characters built to make it backtrack (a quadratic one never ends)", () => {
-    const n = 200_000;
-    const shapes = [
-      " ".repeat(n),
-      "a".repeat(n),
-      "a.".repeat(n / 2),
-      "(".repeat(n),
-      "/* ".repeat(n / 3),
-      "<!--".repeat(n / 4),
-      '"""'.repeat(n / 3),
-      "select a from t " + "limit 1 ".repeat(n / 8),
-      ".find(".repeat(n / 6),
-      ".find(".repeat(2000) + "order:" + " ".repeat(n / 2) + ")".repeat(2000),
-      "orderBy:" + " ".repeat(n),
-      ".sort(" + " ".repeat(n),
-      "a" + " ".repeat(n) + "x",
-      "<select>".repeat(n / 8),
-      "<input ".repeat(n / 7),
-      "a__".repeat(n / 3),
-      "class A(BaseModel):\n    a:" + " ".repeat(n) + "=" + "x".repeat(301),
-      ".filter(".repeat(n / 8),
-      "type A = '".repeat(n / 10),
-      "enum A {".repeat(n / 8),
-      "choices=[(".repeat(n / 10),
-      "a: z.string(".repeat(n / 12),
-      // Round 2 of the review: two blank runs side by side (fixed), and a generic tag.
-      ".limit(" + " ".repeat(n),
-      ".offset(" + " ".repeat(n),
-      "schedule.every(" + " ".repeat(n),
-      "type A = " + " ".repeat(n),
-      "<Select<".repeat(n / 8),
-    ];
-    for (const text of shapes)
-      for (const language of ["js", "py"]) {
-        const start = Date.now();
-        read(text, language, language === "py" ? "x.py" : "x.js");
-        htmlCommentRanges(text);
-        const ms = Date.now() - start;
-        assert.ok(ms < 3000, `${language} ${JSON.stringify(text.slice(0, 30))}…: ${ms} ms`);
-      }
-  });
-
-  test("fastapiRoutes: a long run of letters is read once (the router expression is anchored at a name)", () => {
-    const start = Date.now();
-    fastapiRoutes(new Map([["x.py", "a".repeat(200_000) + "!"]]));
-    assert.ok(Date.now() - start < 1000, `${Date.now() - start} ms`);
-  });
-
+describe("an OpenAPI document that is malformed or large", () => {
   test("an OpenAPI document: malformed, read as far as it goes; one schema used by every operation, stopped at the cap", () => {
     for (const doc of [
       { paths: { "/a": { get: { parameters: { name: "q" } } } } },
@@ -166,10 +112,8 @@ describe("linear on what a crafted file holds", () => {
     const ref = { content: { "application/json": { schema: { $ref: "#/components/schemas/Big" } } } };
     const paths = Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`/r${i}`, { post: { requestBody: ref } }]));
     const doc = { paths, components: { schemas: { Big: { properties } } } };
-    const start = Date.now();
     const sink = createSink("o.json", "{}", []);
     openapiBehaviours(doc, JSON.stringify(doc), sink);
-    assert.ok(Date.now() - start < 1000);
     assert.equal(sink.items.length, 300);
   });
 });
@@ -195,10 +139,8 @@ describe("what is read as it is", () => {
       paths: { "/a": { get: { parameters } } },
       components: { parameters: { P: { name: "status", in: "query", schema: { enum: values } } } },
     };
-    const start = Date.now();
     const sink = createSink("o.json", "{}", []);
     openapiBehaviours(doc, JSON.stringify(doc), sink);
-    assert.ok(Date.now() - start < 1000, `${Date.now() - start} ms`);
     assert.equal(sink.items.length, 300);
   });
 

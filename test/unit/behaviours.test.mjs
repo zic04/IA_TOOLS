@@ -257,13 +257,6 @@ describe("readCard: the 'Rubric: value' lines of a card", () => {
     ])
       assert.equal(answerState(v, answers), "answered", v);
   });
-
-  test("linear on a hostile body", () => {
-    const start = Date.now();
-    readCard(":".repeat(200_000) + "\n" + "Where:".repeat(50_000) + "\n" + "- **".repeat(50_000), search, answers);
-    readCard("a\n".repeat(200_000), search, answers);
-    assert.ok(Date.now() - start < 1500, `${Date.now() - start} ms`);
-  });
 });
 
 describe("readScenario: Given / When / Then (Soit / Quand / Alors)", () => {
@@ -299,12 +292,6 @@ describe("readScenario: Given / When / Then (Soit / Quand / Alors)", () => {
     assert.equal(readScenario("Then x\nGiven y\nThen z").complete, true, "a Then after a Given, wherever it is");
     assert.equal(readScenario("Given x\nAnd y").complete, false);
     assert.equal(readScenario("Soit x\nAlors y").complete, true);
-  });
-
-  test("linear on a hostile body", () => {
-    const start = Date.now();
-    readScenario("**".repeat(100_000) + "\n" + "Étant ".repeat(100_000) + "\n" + "x\n".repeat(100_000));
-    assert.ok(Date.now() - start < 1500, `${Date.now() - start} ms`);
   });
 });
 

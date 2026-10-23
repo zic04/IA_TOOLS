@@ -5,16 +5,6 @@ import assert from "node:assert/strict";
 import { readYaml, at, text, items, entries, field, YAML_PATTERNS } from "../../engine/core/yaml.mjs";
 import { jsonTree, withoutJsonComments } from "../../engine/core/json-tree.mjs";
 
-/** The time of `fn`, the best of two runs, in milliseconds. */
-const best = (fn) =>
-  Math.min(
-    ...[0, 1].map(() => {
-      const start = performance.now();
-      fn();
-      return performance.now() - start;
-    }),
-  );
-
 describe("what the files of an application write", () => {
   test("Kubernetes manifests: several documents, nested mappings and sequences, a flow collection over two lines", () => {
     const docs = readYaml(
@@ -122,9 +112,7 @@ describe("nothing is expanded or resolved", () => {
           .fill(`*a${i - 1}`)
           .join(", ")}]`,
       );
-    const ms = best(() => readYaml(lines.join("\n")));
     const doc = readYaml(lines.join("\n"))[0];
-    assert.ok(ms < 50, `${ms.toFixed(0)} ms`);
     assert.deepEqual(items(at(doc, "a9")).map(text), Array(10).fill("*a8"));
   });
 
@@ -154,32 +142,7 @@ describe("bounded and linear on what a crafted file holds (RULES.md S5)", () => 
     assert.equal(text(at(block, "b")), "1");
   });
 
-  test("every shape of 200,000 characters is read in linear time (N, 4N, 16N)", () => {
-    const shapes = {
-      keys: (n) => "a: b\n".repeat(n / 5),
-      nested: (n) => Array.from({ length: n / 40 }, () => "a:\n  b:\n    c:\n      - d: e\n").join(""),
-      items: (n) => "- a\n".repeat(n / 4),
-      flow: (n) => `a: [${"[".repeat(n)}`,
-      quotes: (n) => `a: "${'\\"'.repeat(n / 2)}`,
-      colons: (n) => `a${": a".repeat(n / 3)}`,
-      comments: (n) => "# x\n".repeat(n / 4),
-      unclosedFlow: (n) => "a: [b,\n  c,\n".repeat(n / 12),
-      blocks: (n) => "a: |\n  x\n".repeat(n / 10),
-      blanks: (n) => " ".repeat(n),
-      hashes: (n) => `a: ${"x #".repeat(n / 3)}`,
-    };
-    for (const [name, make] of Object.entries(shapes)) {
-      const times = [12_500, 50_000, 200_000].map((n) => {
-        const t = make(n);
-        return best(() => readYaml(t));
-      });
-      assert.ok(times[2] < 1000, `${name}: ${times[2].toFixed(0)} ms`);
-      for (const k of [1, 2])
-        assert.ok(
-          times[k] < 20 || times[k] / Math.max(times[k - 1], 0.05) <= 8,
-          `${name}: ×${(times[k] / times[k - 1]).toFixed(1)}`,
-        );
-    }
+  test("the expressions of the reader are declared (their growth: infra-growth.test.mjs)", () => {
     assert.ok(Object.values(YAML_PATTERNS).every((re) => re instanceof RegExp));
   });
 });
@@ -203,10 +166,7 @@ describe("the JSON form (engine/core/json-tree.mjs)", () => {
     assert.equal(jsonTree('{ "a": "not closed }'), null);
     assert.equal(jsonTree("[".repeat(300) + "]".repeat(300)), null);
     assert.equal(jsonTree("[".repeat(200) + "]".repeat(200))?.type, "seq");
-    for (const n of [50_000, 200_000]) {
-      const ms = best(() => jsonTree("[".repeat(n) + "]".repeat(n)));
-      assert.ok(ms < 200, `${n} brackets: ${ms.toFixed(0)} ms`);
-    }
+    assert.equal(jsonTree("[".repeat(50_000) + "]".repeat(50_000)), null, "brackets nested far deeper: refused");
   });
 });
 

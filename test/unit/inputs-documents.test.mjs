@@ -435,9 +435,7 @@ describe("linear XML reader", () => {
   <!ATTLIST foo a CDATA "x]>">
 ]>
 <foo a="&lol9;">&xxe;&lol9;</foo>`;
-    const start = performance.now();
     assert.deepEqual(events(xml), ["<foo a=&lol9;>", "&xxe;&lol9;", "</foo>"]);
-    assert.ok(performance.now() - start < 200, "finishes at once");
   });
 
   test("the predefined entities and valid numeric references are decoded, anything else stays literal", () => {

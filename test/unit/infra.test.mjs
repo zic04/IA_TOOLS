@@ -237,21 +237,6 @@ describe("the Dockerfiles", () => {
       },
     ]);
   });
-
-  test("a crafted Dockerfile of 256 KB is read at once (continuations, instructions, long words)", () => {
-    for (const text of [
-      "FROM a\n" + "RUN x \\\n".repeat(30_000),
-      "FROM a\n" + "ENV " + "A=1 ".repeat(60_000),
-      "FROM " + "a".repeat(250_000),
-      "FROM a\n" + "EXPOSE 1\n".repeat(25_000),
-      "FROM a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p" + ":q".repeat(100_000),
-    ]) {
-      const start = performance.now();
-      dockerfile.infra({ sources: new Map([["Dockerfile", text]]) });
-      const ms = performance.now() - start;
-      assert.ok(ms < 1000, `${text.slice(0, 20)}: ${ms.toFixed(0)} ms`);
-    }
-  });
 });
 
 describe("the project's own infra adapters (config.infra)", () => {

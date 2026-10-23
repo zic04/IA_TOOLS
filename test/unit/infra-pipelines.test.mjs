@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { KIT_ROOT } from "../tools/helpers.mjs";
 import { collectInfra, keptInfra } from "../../engine/facts/infra.mjs";
-import { MAX_ITEMS } from "../../engine/facts/stack-common.mjs";
 import githubActions, { GITHUB_ACTIONS_PATTERNS } from "../../adapters/infra/github-actions.mjs";
 import gitlabCi, { GITLAB_CI_PATTERNS } from "../../adapters/infra/gitlab-ci.mjs";
 import azurePipelines, { AZURE_PIPELINES_PATTERNS } from "../../adapters/infra/azure-pipelines.mjs";
@@ -29,9 +28,6 @@ function fixture(name, adapter) {
   assert.doesNotMatch(JSON.stringify(items), /do-not-keep/);
   return items;
 }
-
-/** `k` pieces of text, each made from its index. */
-const list = (k, piece) => Array.from({ length: k }, (_, i) => piece(i)).join("");
 
 /** A token's shape, built here so that no file of the repository holds one. */
 const TOKEN = "gh" + "p_" + "Zq8vN3kT6wP1xR4mY7bLc2Hd9sF0gJ5aQ1wE";
@@ -609,165 +605,5 @@ describe("Ansible", () => {
         ["job", "web:&qa", "qa", undefined],
       ],
     );
-  });
-});
-
-describe("a crafted file is read at once", () => {
-  const N = 200_000;
-  const READERS = [
-    [githubActions, ".github/workflows/x.yml"],
-    [gitlabCi, ".gitlab-ci.yml"],
-    [azurePipelines, "azure-pipelines.yml"],
-    [ansible, "site.yml"],
-  ];
-  const read = (adapter, sources) => adapter.infra({ sources }).length;
-
-  /** The time of `fn`, the best of two runs, in milliseconds. */
-  const best = (fn) =>
-    Math.min(
-      ...[0, 1].map(() => {
-        const start = performance.now();
-        fn();
-        return performance.now() - start;
-      }),
-    );
-
-  test("long runs, unclosed brackets and strings, deep nesting, many declarations: under a second each", () => {
-    const deep = (unit) => Array.from({ length: 600 }, (_, i) => " ".repeat(i) + unit).join("\n");
-    const texts = [
-      "a".repeat(N),
-      " ".repeat(N) + "x:",
-      "- ".repeat(N / 2),
-      "[".repeat(N),
-      "{".repeat(N),
-      'name: "' + "a".repeat(N),
-      "name: '" + "a\\".repeat(N / 2),
-      "#".repeat(N),
-      "x: |\n" + "  ${{ secrets.A }}\n".repeat(N / 20),
-      "${{ secrets.".repeat(N / 12),
-      deep("a:"),
-      deep("- a:"),
-      deep("- hosts: a\n" + "  block:"),
-      "jobs:\n" + list(N / 40, (i) => `  j${i}: { environment: e${i}, stage: s }\n`),
-      list(N / 40, (i) => `- hosts: h${i}\n  roles: [r${i}]\n`),
-      "stages:\n" + list(N / 60, (i) => `- \${{ if a }}:\n  - stage: s${i}\n    jobs: [{ job: j${i} }]\n`),
-      "include:\n" + list(N / 20, () => "  - local: '*/*.yml'\n"),
-    ];
-    for (const [adapter, file] of READERS)
-      for (const text of texts) {
-        const ms = best(() => read(adapter, new Map([[file, text]])));
-        assert.ok(ms < 1000, `${adapter.name} ${JSON.stringify(text.slice(0, 30))}: ${ms.toFixed(0)} ms`);
-      }
-  });
-
-  /**
-   * Reads a shape built for k, k·step and k·step² (its text four times longer each time): each time at most 8 times
-   * the one before once it takes 20 ms or more (the rule of test/tools/redos-worker.mjs), MAX_ITEMS items at most.
-   */
-  function grows(adapter, name, k0, step, build) {
-    const times = [];
-    for (let s = 0, k = k0; s < 3; s++, k *= step) {
-      const sources = new Map(build(k));
-      for (const [file, text] of sources) assert.ok(text.length < 512 * 1024, `${name}: ${file}, ${text.length}`);
-      let n = 0;
-      times.push(best(() => (n = read(adapter, sources))));
-      assert.ok(n <= MAX_ITEMS, `${name}: ${n} items`);
-    }
-    const shown = times.map((t) => t.toFixed(0)).join(" → ");
-    for (let s = 1; s < times.length; s++)
-      if (times[s] >= 20)
-        assert.ok(times[s] / Math.max(times[s - 1], 0.1) <= 8, `${adapter.name} ${name}: ${shown} ms`);
-  }
-
-  test("GitHub Actions: K jobs, K secrets read by a job, K jobs of K services and K secrets", () => {
-    const file = ".github/workflows/x.yml";
-    grows(githubActions, "jobs", 400, 4, (k) => [
-      [file, "jobs:\n" + list(k, (i) => `  j${i}:\n    environment: e${i}\n    container: i${i}:1\n`)],
-    ]);
-    grows(githubActions, "secrets", 500, 4, (k) => [
-      [file, "jobs:\n  a:\n    steps:\n" + list(k, (i) => `      - run: \${{ secrets.S${i} }} secrets.T${i}\n`)],
-    ]);
-    grows(githubActions, "services × secrets", 20, 2, (k) => [
-      [
-        file,
-        "jobs:\n" +
-          list(
-            k,
-            (i) =>
-              `  j${i}:\n    services:\n${list(k, (j) => `      s${j}: { image: x }\n`)}    env:\n${list(k, (j) => `      A${j}: \${{ secrets.S${j} }}\n`)}`,
-          ),
-      ],
-    ]);
-  });
-
-  test("GitLab CI: K files including one another, K wildcards, K jobs extending a long chain or a large template", () => {
-    grows(gitlabCi, "includes", 30, 2, (k) => [
-      [".gitlab-ci.yml", "include:\n" + list(k, (i) => `  - local: f${i}.yml\n`)],
-      ...Array.from({ length: k }, (_, i) => [
-        `f${i}.yml`,
-        `include:\n${list(k, (j) => `  - f${j}.yml\n`)}j${i}:\n  stage: s\n`,
-      ]),
-    ]);
-    grows(gitlabCi, "wildcards", 20, 2, (k) => [
-      [".gitlab-ci.yml", "include:\n" + list(k * k, () => "  - local: 'ci/*.yml'\n")],
-      ...Array.from({ length: k }, (_, i) => [`ci/f${i}.yml`, `j${i}:\n  script: x\n`]),
-    ]);
-    grows(gitlabCi, "extends", 300, 4, (k) => [
-      [
-        ".gitlab-ci.yml",
-        list(k, (i) => `.t${i}:\n  extends: .t${i + 1}\n`) + list(k, (i) => `j${i}:\n  extends: [.x, .t0]\n`),
-      ],
-    ]);
-    grows(gitlabCi, "large template", 300, 4, (k) => [
-      [
-        ".gitlab-ci.yml",
-        `.big:\n${list(k, (i) => `  k${i}: v\n`)}  services:\n${list(k, (i) => `    - s${i}\n`)}` +
-          list(k, (i) => `j${i}:\n  extends: .big\n`),
-      ],
-    ]);
-  });
-
-  test("Azure Pipelines: K stages of K jobs and K variables, K container aliases, nested blocks", () => {
-    const file = "azure-pipelines.yml";
-    grows(azurePipelines, "stages × jobs", 16, 2, (k) => [
-      [
-        file,
-        "stages:\n" +
-          list(
-            k,
-            (i) =>
-              `  - stage: s${i}\n    variables:\n${list(k, (j) => `      v${j}: x\n`)}    jobs:\n${list(k, (j) => `      - deployment: d${j}\n        environment: e${j}.r\n        container: c${j}\n`)}`,
-          ),
-      ],
-    ]);
-    grows(azurePipelines, "aliases", 250, 4, (k) => [
-      [
-        file,
-        `resources:\n  containers:\n${list(k, (i) => `    - container: c${i}\n      image: i${i}:1\n`)}jobs:\n` +
-          list(k, (i) => `  - job: j${i}\n    container: c${i}\n`),
-      ],
-    ]);
-    grows(azurePipelines, "blocks", 300, 4, (k) => [
-      [file, "jobs:\n" + list(k, (i) => `  - \${{ if a }}:\n    - \${{ each b in c }}:\n      - job: j${i}\n`)],
-    ]);
-  });
-
-  test("Ansible: K plays of K roles, K tasks in blocks, K hosts", () => {
-    grows(ansible, "plays × roles", 40, 2, (k) => [
-      ["site.yml", list(k, (i) => `- hosts: h${i}_prod\n  roles:\n${list(k, (j) => `    - r${j}\n`)}`)],
-    ]);
-    grows(ansible, "tasks", 250, 4, (k) => [
-      [
-        "site.yml",
-        "- hosts: a\n  tasks:\n" +
-          list(k, (i) => `    - block:\n        - include_role: { name: r${i} }\n      rescue:\n        - debug: x\n`),
-      ],
-    ]);
-    grows(ansible, "hosts", 1000, 4, (k) => [
-      [
-        "site.yml",
-        `- hosts: [${list(k, (i) => `h${i}_stg, `)}]\n  tasks: []\n- hosts: ${"a:&!".repeat(k)}\n  roles: []\n`,
-      ],
-    ]);
   });
 });

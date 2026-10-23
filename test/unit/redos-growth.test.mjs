@@ -3,7 +3,7 @@
 // to the canary in 0.4.0, which passed under the trusted floor and failed the security test there.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { growthOf, MEASURABLE_MS, assertLinear } from "../tools/growth.mjs";
+import { growthOf, MEASURABLE_MS, assertLinear, linearAt } from "../tools/growth.mjs";
 
 const SIZE = 3000;
 /** The growth of a scanner whose time is `model(length, run)` ms (run: how many times that length was timed). */
@@ -93,4 +93,34 @@ test("assertLinear: a reader quadratic on its shape fails, naming it; every inpu
 test("assertLinear: a linear reader passes, its steps returned; one too fast to be trusted passes too", () => {
   assert.ok(assertLinear("linear", reader((n) => 30 * (n / 1000)).p).every((s) => s.ratio < 8));
   assert.ok(assertLinear("fast", reader((n) => 0.001 * (n / 1000)).p).length >= 2);
+});
+
+/** linearAt on a played clock: a reader of lists whose time is `model(length)` ms. */
+function listReader(model) {
+  let now = 0;
+  const removed = [];
+  const p = {
+    size: 100,
+    make: (n) => Array.from({ length: n }, (_, i) => i),
+    read: (list) => ((now += model(list.length)), list.length),
+    remove: (list) => removed.push(list.length),
+    clock: () => now,
+  };
+  return { p, removed };
+}
+
+test("linearAt: inputs that are not strings; a linear reader gives what it read at the largest size, all removed", () => {
+  const r = listReader((n) => 30 * (n / 100));
+  const { n, found } = linearAt("lists", r.p);
+  assert.ok(n >= 16 * 100, `measured up to ${n}`);
+  assert.equal(found, n, "what the reader gave on the largest input");
+  assert.ok(r.removed.includes(n) && r.removed.includes(100));
+});
+
+test("linearAt: a quadratic reader fails, naming its label; an instant one is measured up to 256 times the size", () => {
+  assert.throws(
+    () => linearAt("quadratic lists", listReader((n) => 30 * (n / 100) ** 2).p),
+    /quadratic lists: not linear/,
+  );
+  assert.equal(linearAt("instant", listReader(() => 0).p).n, 256 * 100);
 });

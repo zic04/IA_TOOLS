@@ -123,12 +123,10 @@ describe("search-core", () => {
     assert.equal(core.mark("nothing", ["x"], norm, esc), "nothing");
   });
 
-  test("linear on a long text: a term found once per occurrence, never from each character", () => {
-    const long = entry("p", "a", "t", "t", "ab ".repeat(100000));
-    const started = performance.now();
-    core.match([long], "ab", norm);
-    core.match([long], "abq", norm);
-    assert.ok(performance.now() - started < 2000);
+  test("a long text: a term is found once, and a word close to it is not (its growth: inputs-growth.test.mjs)", () => {
+    const long = entry("p", "a", "t", "t", "ab ".repeat(1000));
+    assert.equal(core.match([long], "ab", norm).found.length, 1);
+    assert.equal(core.match([long], "abq", norm).found.length, 0);
   });
 });
 
