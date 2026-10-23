@@ -36,7 +36,7 @@ attend ces preuves sur les pages de l'espace Développer.
 ## Lire le code automatiquement : `doc-kit facts`
 
 ```bash
-doc-kit facts                      # les neuf sources
+doc-kit facts                      # toutes les sources
 doc-kit facts --source dependencies --network
 doc-kit facts --tools              # aussi gitleaks, osv-scanner, syft, knip, quand ils sont installés
 ```
@@ -61,10 +61,15 @@ maintenabilité](#/spaces/reviews).
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
-alimente. `--network` n'envoie que le nom d'une dépendance publique à son registre, pour vérifier qu'elle existe et
-son retard — jamais le nom d'un paquet privé (un paquet de l'application elle-même, une portée à registre propre, un
+alimente. `--network` n'envoie le nom d'une dépendance à son registre, pour vérifier qu'elle existe et son retard,
+que si un fichier de verrouillage prouve que le registre public l'a servie (`package-lock.json`, `yarn.lock` de Yarn 1,
+`poetry.lock`, `uv.lock`) — un nom connu par un manifeste seul, `pnpm-lock.yaml`, un lock de Yarn berry ou
+un `Pipfile.lock` n'est jamais envoyé — et jamais le nom d'un paquet privé (un paquet de l'application elle-même, une portée à registre propre, un
 index privé, un paquet de workspace, local ou hébergé en privé), lu dans l'application, ses fichiers de
-verrouillage, chaque dossier jusqu'à chaque manifeste, et votre propre configuration npm, yarn, bun, pip et uv ;
+verrouillage, chaque dossier jusqu'à chaque manifeste, et votre propre configuration npm, yarn, bun, pip, uv et
+Poetry (quand vos installations passent par un registre ou un miroir d'entreprise que les fichiers de verrouillage
+ne nomment pas — `replace-registry-host` de npm, le plugin de miroir PyPI de Poetry —, déclarez-le là, ou dans une
+variable, avant `--network`) ;
 `--tools` lance ceux de `gitleaks`, `osv-scanner`, `syft` et `knip` qui sont sur le `PATH`, chacun dans son propre
 `facts/tool-<nom>.json` avec un état (`ok`, `findings`, `failed`, `missing`) et seulement les champs utiles (règle,
 fichier, ligne, paquet, version…), jamais un secret ni une ligne de code. `osv-scanner` fonctionne hors ligne : sa

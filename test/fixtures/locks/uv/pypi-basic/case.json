@@ -1,0 +1,12 @@
+{
+  "generated": {
+    "tool": "uv 0.11.17 (a33a629d6 2026-05-28 x86_64-pc-windows-msvc) (win32)",
+    "command": "uv lock --offline --no-config",
+    "index": "PyPI metadata from uv's own cache (no network)"
+  },
+  "reading": "uv-export",
+  "missed": {},
+  "readingOf": {
+    "uv.lock": "f58c16aa880cbba654131d5230c8f54b9b0526e647a4109d76902fd841f93ba7"
+  }
+}

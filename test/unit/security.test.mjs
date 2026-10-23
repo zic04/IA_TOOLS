@@ -108,18 +108,26 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
   const GROWTH_RATIO = 8;
   // The time from which a ratio is trusted: the harness measures a suspect step longer until it reaches it.
   const GROWTH_MIN_MS = MEASURABLE_MS;
-  // A hang detector, not a budget: with every stack adapter registered the run takes 25 to 45 s on a loaded machine.
-  const TIMEOUT_MS = 180_000;
+  // A hang detector, not a budget, re-armed at each check's start: one check (its growth steps included) takes a few
+  // seconds; the whole run, every reader registered, two to three minutes on a loaded machine.
+  const TIMEOUT_MS = 60_000;
   test(`every scanner of untrusted text stays under ${BUDGET_MS} ms on adversarial input`, async () => {
     const worker = new Worker(new URL("../tools/redos-worker.mjs", import.meta.url));
     const results = [];
     let canary = null;
     let running = null;
     const outcome = await new Promise((resolve) => {
-      const timer = setTimeout(() => resolve({ hang: running }), TIMEOUT_MS);
+      let timer = null;
+      const arm = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => resolve({ hang: running }), TIMEOUT_MS);
+      };
+      arm();
       worker.on("message", (m) => {
-        if (m.start) running = m.start;
-        else if (m.canary) canary = m.canary;
+        if (m.start) {
+          running = m.start;
+          arm();
+        } else if (m.canary) canary = m.canary;
         else if (m.done) {
           clearTimeout(timer);
           resolve({});

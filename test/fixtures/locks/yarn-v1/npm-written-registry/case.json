@@ -1,0 +1,11 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (arborist's YarnLock writer: npm rewrites a yarn.lock it finds), NOT Yarn",
+    "command": "npm install --package-lock-only (an empty yarn.lock present)"
+  },
+  "reading": "npm-yarn-lock",
+  "missed": {},
+  "readingOf": {
+    "yarn.lock": "7ad54f86e0851304f9875276b07bb26a4d8561519345bbdd22bedcfb9e46afc5"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "acme-admin",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "my-lodash": "npm:lodash@^4.17.21",
+    "lodash": "^4.17.20",
+    "@corp/ui": "^1.4.0",
+    "@corp/tokens": "^2.0.0",
+    "debug": "^4.3.4"
+  },
+  "overrides": {
+    "ms": "2.1.2"
+  }
+}

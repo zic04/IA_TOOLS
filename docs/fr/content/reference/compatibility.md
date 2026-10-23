@@ -37,12 +37,12 @@ Un adaptateur de pile lit les routes de l'API, leurs gardes, les écrans ou les 
 
 ### Dépendances
 
-Chaque manifeste et fichier de verrouillage ci-dessous est lu seul, à quatre dossiers de profondeur au plus (source `dependencies`). Avec `--network`, seuls les noms publics de npm et de PyPI partent vers leur registre ; les autres écosystèmes sont lus hors ligne.
+Chaque manifeste et fichier de verrouillage ci-dessous donne ses propres éléments, à quatre dossiers de profondeur au plus (source `dependencies`) ; un fichier de verrouillage sans entrée racine prend ses dépendances directes dans le manifeste voisin (`yarn.lock` et un `package-lock.json` v1 dans `package.json`, `poetry.lock` dans `pyproject.toml`, `Pipfile.lock` dans `Pipfile`), et une dépendance transitive d'un fichier qui liste celles de chaque paquet dit par où elle arrive (`via`). Avec `--network`, un nom de npm ou de PyPI ne part vers son registre que si un fichier de verrouillage prouve que ce registre l'a servi (`package-lock.json`, `yarn.lock` de Yarn 1, `poetry.lock`, `uv.lock`), et jamais un nom privé ; les autres écosystèmes sont lus hors ligne.
 
 | Écosystème | Fichiers |
 |---|---|
 | npm, pnpm, Yarn (`npm`) | `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` |
-| pip, Poetry (`pip`) | `requirements*.txt`, `poetry.lock`, `pyproject.toml` |
+| pip, Poetry, uv, Pipenv (`pip`) | `requirements*.txt`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `Pipfile`, `Pipfile.lock` |
 | Maven, Gradle (`maven`) | `pom.xml`, `build.gradle`, `build.gradle.kts`, `gradle.lockfile`, `libs.versions.toml` |
 | NuGet (`nuget`) | `*.csproj`, `*.fsproj`, `*.vbproj`, `packages.lock.json`, `packages.config`, `Directory.Packages.props` |
 | Composer (`composer`) | `composer.json`, `composer.lock` |

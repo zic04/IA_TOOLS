@@ -1,0 +1,17 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (node v24.12.0, win32)",
+    "command": "npm install --package-lock-only --ignore-scripts --no-audit --no-fund",
+    "registry": "a loopback registry standing for a company registry declared outside the project (the person's ~/.npmrc, a CI variable) whose packuments keep npmjs-shaped tarball URLs; debug and ms replayed from registry.npmjs.org's packuments"
+  },
+  "reading": "arborist",
+  "missed": {},
+  "limit": {
+    "why": "a private package served by a registry declared outside what the kit reads, under npm-shaped tarball URLs: npm itself reads the lock as the public registry's; the kit cannot tell (SECURITY.md writes the limit)",
+    "securityMd": "a tarball URL shaped as npm's own",
+    "name": "npm acme-internal-sdk"
+  },
+  "readingOf": {
+    "package-lock.json": "2619e7232672fc5982e8024c4d5bf648817fcdf21437348af306b8df3ef14406"
+  }
+}

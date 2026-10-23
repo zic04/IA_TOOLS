@@ -1,0 +1,17 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (node v24.12.0, win32)",
+    "command": "npm install --ignore-scripts --no-audit --no-fund (full reify; node_modules removed afterwards)",
+    "registry": "loopback; is-number from the real registry data (user npm cache), bundle-host-demo synthetic (npm pack of a folder with node_modules/is-number)"
+  },
+  "reading": "arborist",
+  "missed": {},
+  "limit": {
+    "why": "bundle-host-demo is synthetic (npm pack of a local folder, served by the loopback registry under npm's own URL shape): npm, like the kit, reads it as a package of npm's registry — the same limit as a private registry serving npm-shaped tarball URLs",
+    "securityMd": "a tarball URL shaped as npm's own",
+    "name": "npm bundle-host-demo"
+  },
+  "readingOf": {
+    "package-lock.json": "5887fe8aa1330540bb7fd996e522688ae9dd5c3fc6101daf5fa9307922dcc665"
+  }
+}

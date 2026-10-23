@@ -1,0 +1,13 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (node v24.12.0, win32)",
+    "command": "npm install --package-lock-only --lockfile-version=1 --ignore-scripts --no-audit --no-fund",
+    "registry": "loopback replay of registry.npmjs.org packuments (user npm cache, read-only); .npmrc pointed at loopback while generating, committed with the host shown",
+    "rewritten": "the loopback registry's address replaced by the host shown (npm.corp.example, npm.pkg.github.com for a scope's registry, artifactory.corp.example for a mirror), in the lock and in .npmrc"
+  },
+  "reading": "arborist",
+  "missed": {},
+  "readingOf": {
+    "package-lock.json": "ffae50b43926b4c6337b8cde82fad8fb6d1810a7c4429aa3ae76153383da4fd2"
+  }
+}

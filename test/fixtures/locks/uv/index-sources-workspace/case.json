@@ -1,0 +1,19 @@
+{
+  "generated": {
+    "tool": "uv 0.11.17 (a33a629d6 2026-05-28 x86_64-pc-windows-msvc) (win32)",
+    "command": "uv lock --offline --no-config",
+    "index": "PyPI metadata from uv's own cache (no network); corp index = a local flat folder of hand-built wheels (../corp-wheels)",
+    "rewritten": "the flat index's folder (a local folder of hand-built wheels) written as file:///C:/ci/corp-wheels, no path of the machine that generated it"
+  },
+  "reading": "uv-export",
+  "removed": {
+    "files": [
+      "corp-wheels/corp_auth-1.2.0-py3-none-any.whl"
+    ],
+    "why": "binaries the kit never reads, left out of the repository"
+  },
+  "missed": {},
+  "readingOf": {
+    "uv.lock": "50ec2a8183418e1c38734e3eb0e0a3f3f7827ebdfc461eff7ceff3aaa1f21463"
+  }
+}

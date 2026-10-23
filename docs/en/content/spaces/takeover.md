@@ -34,7 +34,7 @@ pages of the Develop space.
 ## Reading the code automatically: `doc-kit facts`
 
 ```bash
-doc-kit facts                      # all nine sources
+doc-kit facts                      # every source
 doc-kit facts --source dependencies --network
 doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, when installed
 ```
@@ -58,10 +58,14 @@ local or demo instance: see [Security and maintainability reviews](#/spaces/revi
 
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
-`--network` only sends a public dependency's name to its registry, to check it exists and how far behind it is —
+`--network` only sends a dependency's name to its registry, to check it exists and how far behind it is, when a lock
+file proves the public registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`)
+— a name known only from a manifest, `pnpm-lock.yaml`, a Yarn berry lock or a `Pipfile.lock` is never sent — and
 never the name of a private package (one of the application's own packages, a scope with its own registry, a
 private index, a workspace, local or privately hosted package), read from the application, its lock files, every
-folder down to each manifest, and your own npm, yarn, bun, pip and uv configuration;
+folder down to each manifest, and your own npm, yarn, bun, pip, uv and Poetry configuration (when your installs go
+through a company registry or mirror the lock files do not name — npm's `replace-registry-host`, Poetry's PyPI
+mirror plugin —, declare it there, or in a variable, before `--network`);
 `--tools` runs whichever of `gitleaks`, `osv-scanner`, `syft` and `knip` are on the `PATH`, each into its own
 `facts/tool-<name>.json` with a status (`ok`, `findings`, `failed`, `missing`) and only the fields that matter
 (rule, file, line, package, version…), never a secret or a line of code. `osv-scanner` runs offline: its database

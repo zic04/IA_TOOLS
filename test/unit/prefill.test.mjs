@@ -69,6 +69,18 @@ describe("prefillTemplate: the five sources", () => {
   const read = (type, lang = "en") =>
     fs.readFileSync(path.join(KIT_ROOT, "templates", "pages", lang, `${type}.md`), "utf8");
 
+  test("env (variables): a name with '|' or a backquote stays in its cell", () => {
+    const { text } = prefillTemplate(read("variables"), {
+      source: "env",
+      items: [{ name: "A|B`C", files: [] }],
+      template: "variables",
+    });
+    assert.ok(
+      text.includes("| `A\\|B'C` |"),
+      text.split("\n").find((l) => l.includes("A\\|B")),
+    );
+  });
+
   test("env (variables): name, files (or —, or `.env.example` without any), the rest guidance", () => {
     const items = [
       { name: "DATABASE_URL", files: ["lib/db.ts:5", "lib/pool.ts:1"] },
@@ -124,6 +136,53 @@ describe("prefillTemplate: the five sources", () => {
       /\| `no-license` \| 1\.0\.0 \| <!-- guidance: What it is used for --> \| <!-- guidance: MIT --> \|/,
     );
     assert.doesNotMatch(text, /transitive-dep/);
+  });
+
+  test("dependencies: a package named by a manifest and by its lock is one row, the lock's exact version; else the range", () => {
+    const items = [
+      { name: "react", version: null, spec: "^18", ecosystem: "npm", direct: true },
+      { name: "react", version: "18.3.1", ecosystem: "npm", direct: true },
+      { name: "zod", version: null, spec: "^3.23", ecosystem: "npm", direct: true },
+    ];
+    const { text, rows } = prefillTemplate(read("dependencies"), {
+      source: "dependencies",
+      items,
+      template: "dependencies",
+    });
+    assert.equal(rows, 2, "react once");
+    assert.match(text, /\| `react` \| 18\.3\.1 \|/);
+    assert.match(text, /\| `zod` \| \^3\.23 \|/, "no exact version anywhere: the range declared");
+  });
+
+  test("dependencies: my_lib in a pyproject.toml and My-Lib in its lock are one row (PEP 503), the lock's version", () => {
+    const items = [
+      { name: "my_lib", version: null, spec: ">=1.0", ecosystem: "pip", direct: true },
+      { name: "My-Lib", version: "1.2.0", ecosystem: "pip", direct: true },
+    ];
+    const { text, rows } = prefillTemplate(read("dependencies"), {
+      source: "dependencies",
+      items,
+      template: "dependencies",
+    });
+    assert.equal(rows, 1);
+    assert.match(text, /\| `My-Lib` \| 1\.2\.0 \|/);
+  });
+
+  test("dependencies: a name with '|' or a backquote (any TOML key is one) stays in its cell", () => {
+    const items = [{ name: "corp|lib`x", version: "1.0.0", ecosystem: "pip", direct: true, license: "MIT|X" }];
+    const { text } = prefillTemplate(read("dependencies"), { source: "dependencies", items, template: "dependencies" });
+    const row = text.split("\n").find((l) => l.startsWith("| `corp"));
+    assert.ok(row?.startsWith("| `corp\\|lib'x` |"), row);
+    assert.ok(row.includes("| MIT\\|X |"), "the licence cell too");
+    assert.equal(row.split(/(?<!\\)\|/).length, 6, "four cells, as the template's");
+  });
+
+  test("dependencies: a range with '|' or a backquote stays in its cell", () => {
+    const items = [{ name: "react", version: null, spec: "^17.0.0 || ^18.0.0", ecosystem: "npm", direct: true }];
+    const { text } = prefillTemplate(read("dependencies"), { source: "dependencies", items, template: "dependencies" });
+    const row = text.split("\n").find((l) => l.startsWith("| `react`"));
+    assert.ok(row?.includes("^17.0.0 \\|\\| ^18.0.0"), row);
+    assert.equal(row.split(/(?<!\\)\|/).length, 6, "four cells, as the template's");
   });
 
   test("agents (agent-instructions): file, lines, words, hidden.length (0 without any)", () => {

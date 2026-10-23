@@ -435,9 +435,10 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
     const dir = fixture();
     write(dir, "src/a.js", "function f() {}\n");
     const dependencies = [
-      { name: "left-behind", version: "1.0.0", ecosystem: "npm", direct: true },
-      { name: "up-to-date", version: "3.0.0", ecosystem: "npm", direct: true },
-      { name: "transitive-old", version: "1.0.0", ecosystem: "npm", direct: false },
+      // As a package-lock.json proving them public marks them (only such a name is ever sent).
+      { name: "left-behind", version: "1.0.0", ecosystem: "npm", direct: true, public: true },
+      { name: "up-to-date", version: "3.0.0", ecosystem: "npm", direct: true, public: true },
+      { name: "transitive-old", version: "1.0.0", ecosystem: "npm", direct: false, public: true },
     ];
     const fetchImpl = async (url) => ({
       ok: true,
@@ -452,10 +453,11 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
     write(dir, "src/a.js", "function f() {}\n");
     write(dir, ".npmrc", "@acme:registry=https://npm.acme.internal/\n");
     const dependencies = [
-      { name: "@acme/ui", version: "1.0.0", ecosystem: "npm", direct: true },
-      { name: "shared", version: "workspace:*", ecosystem: "npm", direct: true },
-      { name: "tooling", version: "file:../tooling", ecosystem: "npm", direct: true },
-      { name: "react", version: "17.0.0", ecosystem: "npm", direct: true },
+      // Every one as if a lock proved it public: the declarations and the places alone keep the first three back.
+      { name: "@acme/ui", version: "1.0.0", ecosystem: "npm", direct: true, public: true },
+      { name: "shared", version: "workspace:*", ecosystem: "npm", direct: true, public: true },
+      { name: "tooling", version: "file:../tooling", ecosystem: "npm", direct: true, public: true },
+      { name: "react", version: "17.0.0", ecosystem: "npm", direct: true, public: true },
     ];
     const sent = [];
     const fetchImpl = async (url) => {

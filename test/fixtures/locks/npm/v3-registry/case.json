@@ -1,0 +1,12 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (node v24.12.0, win32)",
+    "command": "npm install --package-lock-only --lockfile-version=3 --ignore-scripts --no-audit --no-fund",
+    "registry": "loopback replay of registry.npmjs.org packuments (user npm cache, read-only)"
+  },
+  "reading": "arborist",
+  "missed": {},
+  "readingOf": {
+    "package-lock.json": "5b4056e6b56d8a1484e515741bea87ee0b5ae74a38bdc5976b3e4e32499dd217"
+  }
+}

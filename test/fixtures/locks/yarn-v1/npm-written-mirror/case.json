@@ -1,0 +1,12 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (arborist's YarnLock writer: npm rewrites a yarn.lock it finds), NOT Yarn",
+    "command": "npm install --package-lock-only (an empty yarn.lock present)",
+    "rewritten": "the loopback registry's address replaced by the host shown (npm.corp.example, npm.pkg.github.com for a scope's registry, artifactory.corp.example for a mirror), in the lock and in .npmrc"
+  },
+  "reading": "npm-yarn-lock",
+  "missed": {},
+  "readingOf": {
+    "yarn.lock": "1492d41420e29a6d2219880d9d2ac4a0e62a6527a7431efd9a88cb13fab897a7"
+  }
+}

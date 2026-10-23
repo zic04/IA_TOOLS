@@ -26,6 +26,10 @@ to the code you test before writing anything: the repository has a pattern for a
   (green). The test proves the leak or the bypass is closed: for the network, record every URL and assert that no
   private name is among them.
 - Fixtures for a whole application go in `test/fixtures/apps/<name>/`; small inline files are written by the test.
+- A rule of a dependency reader, `declarations.mjs` or `network.mjs` (RULES.md M16): add its mutant to
+  `test/mutations/<module>.mjs` (`find`: the exact code, once in the file; `replace`: the rule taken out) and show
+  `npm run mutate -- --only <module>` catching it. A "nothing sent" test is a minimal pair (`expectProofDropped`,
+  test/tools/deps-apps.mjs): the same files without the rule send the name.
 
 ## Rules
 

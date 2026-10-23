@@ -1,0 +1,19 @@
+{
+  "generated": {
+    "tool": "npm 11.6.2 (node v24.12.0, win32)",
+    "command": "npm install --package-lock-only --lockfile-version=2 --ignore-scripts --no-audit --no-fund",
+    "registry": "loopback replay of registry.npmjs.org packuments (user npm cache, read-only)",
+    "rewritten-after-generation": "git+file:///<local bare repo> -> git+ssh://git@github.com/acme/gitdep.git"
+  },
+  "reading": "arborist",
+  "removed": {
+    "files": [
+      "app/vendor/vendored-1.0.0.tgz"
+    ],
+    "why": "binaries the kit never reads, left out of the repository"
+  },
+  "missed": {},
+  "readingOf": {
+    "package-lock.json": "fa6ca437d1ec667f397d6f8027cbfe66fc1d480641291257559a146f88e39dac"
+  }
+}

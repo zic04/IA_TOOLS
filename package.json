@@ -22,7 +22,9 @@
     "format": "prettier --write \"**/*.{js,mjs}\"",
     "format:check": "prettier --check \"**/*.{js,mjs}\"",
     "lint": "eslint . --max-warnings 51",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "mutate": "node test/tools/mutate.mjs",
+    "mutate:check": "node test/tools/mutate.mjs --check"
   },
   "dependencies": {
     "marked": "18.0.14",

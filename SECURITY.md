@@ -267,16 +267,93 @@ The kit talks to nothing but the application you capture and, with `doc-kit inpu
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
 the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest
-version), except the private ones: the application's own packages (its workspaces), an npm scope that has its own
-registry, every npm package when a registry replaces the default one, every pip package when a private index is
-declared, any package taken from a folder, a workspace, a git repository, a URL or a private registry (as
-`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` or `poetry.lock` shows; a requirements line that is a path or a local archive
-is never read as a package name), and any package of an ecosystem other than npm and pip. The declarations are read
+version) **only when a lock file proves the public registry served the package**: a `package-lock.json` or Yarn 1
+`yarn.lock` entry resolved to that package's own tarball on npm's registry (an alias resolved to another package's
+proves nothing, and another entry of the same lock resolved to another package's tarball, or written without `resolved` (a
+copy bundled inside another package's tarball apart), drops the proof, whatever the order of the lock's keys; a
+`yarn.lock` proves only when written as a whole as Yarn 1 writes one — no lone carriage return, no blank or
+comment line inside a block, no berry metadata, no git conflict marker, no string left open on its line, no backslash — and a name only when every
+block naming it does and no other name of the lock goes into the same folder (`corp-lib.`, `Corp-Lib`, another
+Unicode form), each in Yarn 1's own form: its header, its fields with one space before their value and nothing after
+it, `version` and `resolved` once), a `poetry.lock` entry
+with no other source (a lock holding an array of tables other than `[[package]]` proves nothing), a `uv.lock`
+entry from PyPI's registry whose files are on PyPI's file host (a source or files written in a form uv never
+writes, or a key given twice in their inline table, prove nothing); the TOML locks are read by the decoded path of
+each value, as their tools read them (a header spelled `[["package"]]` or `[package . sdist]`, an escaped key or
+value: a name that is no one-line string is a doubt); a package-lock whose locations are not written as npm writes
+them (`node_modules/x/`, `node_modules//x`, `a/../x`, a location that leaves the lock's folder and comes back into
+it, past the filesystem's root too, a drive, a UNC path, a `\`; two locations a case-insensitive filesystem reads
+as one, in any case or Unicode form, or as a Windows 8.3 short name; a v1 dependency named as a path, or one a link
+to the lock's own folder may bring onto the root's — counted at every place npm may put it, wider than npm's own
+reading —, or a link to a home folder, an absolute path or a drive) proves nothing — a `file:` link outside the folder
+(`../shared`) is npm's own form —, and so does a lock in UTF-16, which its tool does not read; a TOML lock with what TOML and its tool refuse (a key given twice under one header, a table
+defined twice in one block, a table over an array of tables, what no value holds inside an array or an inline
+table — a header or a `key = value` line in one —, a control character or a lone carriage return, an escape it does not
+know, a key with no value or a value followed by more, a bare key holding a blank, a `[[package]]` with no name) or a
+key or a table name over 1,000 characters as written (the kit's own limit: what it holds is left out) proves nothing, and
+one that is not valid UTF-8 is unreadable (Poetry and uv read none). A name known only from a manifest, a `pnpm-lock.yaml` or a Yarn berry lock (they write no registry), or
+from a `Pipfile.lock` (it names PyPI even for a package Pipenv's mirror, `PIPENV_PYPI_MIRROR`, served), is never sent, wherever its registry is declared (a
+CI file, a Dockerfile, a monorepo's root, the first team's `~/.npmrc`): `unproven`. Nor is a name its public
+registry cannot hold, whatever a lock says of it (npm: URL-safe, neither `.` nor `_` first, 214 characters at most;
+pip: PEP 508's — `café`, `_corp`, `corp-`). On top of that proof, a second
+net keeps back the private ones: the application's own packages (its workspaces), an npm scope that has its own
+registry, every npm package when a registry replaces the default one, every pip package when a private index is declared, every npm package when a `package.json` cannot be read as JSON (a
+merge left unresolved: its own name and the places its ranges name cannot be told), any package taken from a folder (a spec that starts with `.` or a drive included, as npm reads it), an
+archive, a workspace, a git repository, a URL, any protocol but `npm:`, or a private registry, an npm alias
+(`npm:@corp/ui@^1`, `npm:corp-ui`) (as a
+`package.json` range, `package-lock.json` (v1 to v3), `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `uv.lock`, a
+`Pipfile` or `Pipfile.lock`, a PEP 621 direct reference or `[tool.uv.sources]` shows; a requirements line that is a
+path or a local archive is never read as a package name), every package a `[tool.uv.sources]` names in any
+`pyproject.toml` of the application (the root of a uv workspace names its members'), whatever its form, and any
+package of an ecosystem other than npm and pip. Every TOML file these declarations are read from (`pyproject.toml`,
+`Pipfile`, `uv.toml`, `bunfig.toml`, Poetry's configuration) goes through the kit's one TOML reader, the one the
+manifests are read with: a value is known by its full dotted path, whatever the form a table is written in (a
+header followed by a comment, a dotted or a quoted key, an inline table), 16 parts and 8 inline tables deep at most;
+a file it cannot read as TOML to its end (a string or a bracket left open…), or holding what TOML refuses (a key given twice, a table defined twice in one block, what no value
+holds inside an array or an inline table, a control character) or a key or a table name over 1,000 characters,
+makes every package of its ecosystem private; so does a registry, an index, an own name or a requirement written as a string the kit does
+not read (a multi-line one). A requirements file's options are an allowlist too (any other option, pip's abbreviations included, is
+taken as an index), your `pip.conf` keys are read as pip reads them, an `.npmrc` as npm's ini reader reads it and a `.yarnrc` word by
+word (any registry key the kit does not follow, and a key that loads another file, `userconfig` or `globalconfig`,
+make every npm package private), a `.yarnrc.yml` in the forms the kit follows only (any other makes every npm
+package private), every option word of every logical line of a requirements file is judged, and a byte order mark
+hides no first line (a UTF-16 file is read as one).
+Poetry's and a Pipfile's dependencies are read the same way, and a dependency with a field that is not a registry's
+(`path`, `git`, `develop`… — an allowlist, so that a field the kit does not know never lets a name out) is never
+sent. Behind every reader, a range or a pip version holding anything but a release's characters (`/`, `:`, `@`, `\`…)
+names a place: it is never sent.
+The manifests read beside a lock file to tell its direct dependencies (a `package.json` and its workspace members,
+a `pyproject.toml`, a `Pipfile`) are read in the lock's own folder only: a workspace pattern is compared with the
+folders listed there, never resolved (three folders deep, 2,000 folders, 50 patterns of 8 segments, 200 members;
+a form other than a name, `*`, `**` or one `*` in a name is not followed), and a link, a folder the facts never walk (`build/`, `dist/`, `vendor/`…), or
+an unusual file (a device, a pipe, over 4 MB) is not read. The declarations are read
 in the application (every folder down to each manifest: `.npmrc`, `.yarnrc`, `.yarnrc.yml`, `bunfig.toml`,
-`pip.conf`, `pip.ini`, requirements files, Poetry and uv indexes, `uv.toml`, Pipfile sources), in your own
+`pip.conf`, `pip.ini`, requirements files and the files they include (`-r`, `-c`; one the kit cannot read counts as
+an index), their `--find-links`, Poetry, PDM, Rye and uv indexes, uv's `find-links` and `[tool.uv.pip]`, `uv.toml`,
+Pipfile sources, a project's `poetry.toml`, Poetry's PyPI mirror plugin a `pyproject.toml` requires), in your own
 configuration (every home folder, `NPM_CONFIG_USERCONFIG`, `PIP_CONFIG_FILE`, `UV_CONFIG_FILE`, Poetry's
-repositories) and in the npm, yarn, bun, pip, uv and Poetry variables. A yarn or bun file that names scopes in a form the kit does not follow makes every
-npm package private. Not read: the global npm and pip configurations of the machine. A private package declared nowhere cannot be told apart: do not use `--network` on such a project.
+repositories and its PyPI mirror plugin's table, `find-links` in your `pip.conf`) and in the npm, yarn, bun, pip,
+uv and Poetry variables (their `FIND_LINKS`, `PIPENV_PYPI_MIRROR`, `POETRY_PYPI_MIRROR_URL` and Yarn 1's
+`YARN_REGISTRY` too). A yarn or bun file that names scopes in a
+form the kit does not follow makes every npm package private. **What these readers promise** (the second net, behind the lock files'
+proof): each reads the forms its tool documents as the tool reads them (line breaks, comments, quotes and escapes, a requirements file's
+joined lines), and fails closed on what it does not follow — a whole family of forms at once where it can (any
+quote or escape in a requirements line's options, any key escaped or quoted strangely, any TOML it cannot read to
+its end). A declaration written on purpose to look like something else, by the application's own authors, may
+still escape a reader: the protection is against the accidental leak of an ordinary configuration. Not read: the global npm and pip configurations of the machine, PDM's and Rye's own configurations, Hatch's
+environments, a uv workspace root above the application folder. What the proof cannot tell: a private package published on npm's or PyPI's public registry itself is proven by
+its lock like any other, and its name sent to the registry that already hosts it. A lock written without
+`resolved` (npm's `omit-lockfile-registry-resolved`) proves nothing: nothing of it is sent. Nor can a lock tell
+an install that went elsewhere than the registry it names: a lock whose URLs a team rewrites to the public
+registry while npm (`replace-registry-host`) or Yarn sends the installs to its own registry, or a `poetry.lock`
+installed through Poetry's PyPI mirror plugin, proves its packages public; so does a lock written through a private
+registry declared elsewhere than the kit reads (a CI variable, another computer) that serves a private package under
+a tarball URL shaped as npm's own (`https://registry.npmjs.org/<name>/-/…`): npm writes that URL in the lock, and
+npm itself reads the lock so. The second net keeps them back only when that registry or mirror is declared where the
+kit reads (the application's files, your configuration, your variables), not when it is set on the installing
+machines alone: declare it before `--network`. Nor can the kit tell a link (v1) or a location (v3) that comes back
+into the application folder under another name than the folder has where the kit reads it (a renamed clone): it is
+read as an outside folder.
 `facts --tools` runs `osv-scanner` **offline only**: its database is downloaded (public files, no package name sent)
 only with `--network`. The reports of the external tools are kept through an allowlist of fields (rule, file, line,
 package, version…): a matched secret, a line of code, an author or an e-mail address never reaches `facts/`.
