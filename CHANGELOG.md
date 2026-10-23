@@ -6,6 +6,8 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-23
+
 ### Added
 
 - A `package.json`'s `optionalDependencies` are read (not dev).
