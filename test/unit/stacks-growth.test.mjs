@@ -1,26 +1,25 @@
 // The readers of the stacks (the adapters of adapters/stack/) stay linear on what a crafted file holds (RULES.md S5):
 // each input is built at a base size, then 4 and 16 times larger (assertLinear and linearAt, test/tools/growth.mjs),
-// no absolute time. test/tools/run-plan.mjs runs this file alone, after the others. The functional tests of these
-// readers (the routes, the guards, the bounds of their output) stay in stack-front.test.mjs,
+// no absolute time. test/tools/run-plan.mjs runs this file alone, after the others. Each reader is measured here on the
+// shapes of test/tools/stack-shapes.mjs; each expression (every *_PATTERNS of every adapter) alone, on those shapes and
+// the harness's own, by test/tools/redos-worker.mjs (stackChecks), which security.test.mjs runs. The functional tests
+// of these readers (the routes, the guards, the bounds of their output) stay in stack-front.test.mjs,
 // stack-jvm-dotnet.test.mjs, stack-other.test.mjs, stack-php.test.mjs, stacks.test.mjs and stacks-hardening.test.mjs.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createSink, jsCommentRanges } from "../../engine/facts/behaviour-common.mjs";
 import { MAX_GUARDS, MAX_ITEMS } from "../../engine/facts/stack-common.mjs";
-import { STACK_JS_PATTERNS } from "../../engine/facts/stack-js.mjs";
-import { STACK_C_PATTERNS } from "../../engine/facts/stack-c.mjs";
-import { STACK_PY_PATTERNS } from "../../engine/facts/stack-py.mjs";
-import { nestRoutes, nestBehaviours, NESTJS_PATTERNS } from "../../adapters/stack/nestjs.mjs";
-import { angularScreens, ANGULAR_PATTERNS } from "../../adapters/stack/angular.mjs";
-import { vueScreens, VUE_ROUTER_PATTERNS } from "../../adapters/stack/vue-router.mjs";
-import { reactRouterScreens, REACT_ROUTER_PATTERNS } from "../../adapters/stack/react-router.mjs";
-import spring, { springRoutes, SPRING_PATTERNS } from "../../adapters/stack/spring.mjs";
-import aspnet, { aspnetRoutes, ASPNET_PATTERNS } from "../../adapters/stack/aspnet.mjs";
-import { djangoRoutes, DJANGO_PATTERNS } from "../../adapters/stack/django.mjs";
-import { flaskRoutes, FLASK_PATTERNS } from "../../adapters/stack/flask.mjs";
-import { goRoutes, goBehaviours, GO_PATTERNS } from "../../adapters/stack/go.mjs";
-import { railsApi, railsBehaviours, RAILS_PATTERNS } from "../../adapters/stack/rails.mjs";
-import { rustRoutes, RUST_PATTERNS } from "../../adapters/stack/rust.mjs";
+import { nestRoutes, nestBehaviours } from "../../adapters/stack/nestjs.mjs";
+import { angularScreens } from "../../adapters/stack/angular.mjs";
+import { vueScreens } from "../../adapters/stack/vue-router.mjs";
+import { reactRouterScreens } from "../../adapters/stack/react-router.mjs";
+import spring, { springRoutes } from "../../adapters/stack/spring.mjs";
+import aspnet, { aspnetRoutes } from "../../adapters/stack/aspnet.mjs";
+import { djangoRoutes } from "../../adapters/stack/django.mjs";
+import { flaskRoutes } from "../../adapters/stack/flask.mjs";
+import { goRoutes, goBehaviours } from "../../adapters/stack/go.mjs";
+import { railsApi, railsBehaviours } from "../../adapters/stack/rails.mjs";
+import { rustRoutes } from "../../adapters/stack/rust.mjs";
 import laravel from "../../adapters/stack/laravel.mjs";
 import symfony from "../../adapters/stack/symfony.mjs";
 import { expressRoutes } from "../../adapters/stack/express.mjs";
@@ -31,43 +30,14 @@ import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { collectScreens } from "../../engine/facts/api.mjs";
 import { app } from "../tools/deps-apps.mjs";
 import { assertLinear, linearAt } from "../tools/growth.mjs";
+import { FRONT_UNITS, SPRING_SHAPES, ASPNET_SHAPES, PY_UNITS } from "../tools/stack-shapes.mjs";
 
 describe("the front-end routers on adversarial characters (RULES.md S5)", () => {
   /** The base size: each input is built again 4 and 16 times larger (200,000 characters). */
   const SIZE = 12_500;
   const fill = (unit, n) => unit.repeat(Math.ceil(n / unit.length)).slice(0, n);
   // Long runs of each special character of the patterns, many unclosed calls, many matches, huge lines.
-  const UNITS = [
-    ...[" ", "\n", "x", "(", ")", "[", "{", "}", "'", '"', "`", "/*", "//", "\\", "@", ",", ":", "<", "/", "=>"],
-    ...["@Get(", "@Get()\n", "@a ", "@UseGuards(", "@Controller('a')\nexport class A {\n", "@IsString() a: string;\n"],
-    ...["@Roles(", "@Query('", ".setGlobalPrefix('a');", ".useGlobalGuards(", "provide: APP_GUARD, useClass: A,"],
-    ...[
-      "const routes = [",
-      "const aRoutes: Routes = [",
-      "export default [",
-      "routes: [",
-      "forRoot([",
-      "createBrowserRouter([",
-    ],
-    ...["{ path: 'a', children: [", "{ path: 'a', component: A }, ", "{ path: '', component: A, children: [] }, "],
-    ...["...aRoutes, ", "children: aRoutes, ", "{ loadChildren: () => import('./x').then((m) => m.M) }, "],
-    ...[
-      "canActivate: [",
-      "meta: { roles: [",
-      "beforeEnter: (",
-      "import a from './x';\n",
-      "import { a as aRoutes } from './x';\n",
-    ],
-    ...[
-      "<Route ",
-      '<Route path="a">',
-      "</Route>",
-      "<Route path={",
-      "<Route element={<RequireAuth>",
-      '<Route path="a/*" element={<A />} />',
-    ],
-    ...["<Route index element={<A />} />", "{/* <Route", "path: '"],
-  ];
+  const UNITS = FRONT_UNITS;
   /** The inputs, each one a function of the size. */
   const INPUTS = [
     ...UNITS.map((unit) => (n) => fill(unit, n)),
@@ -130,25 +100,6 @@ describe("the front-end routers on adversarial characters (RULES.md S5)", () => 
           build: input,
           run,
         });
-  });
-
-  // stack-front.test.mjs › "every expression of the adapters, alone, too"
-  test("every expression of the adapters, alone, too", () => {
-    const patterns = {
-      NESTJS_PATTERNS,
-      ANGULAR_PATTERNS,
-      VUE_ROUTER_PATTERNS,
-      REACT_ROUTER_PATTERNS,
-      STACK_JS_PATTERNS,
-    };
-    for (const [set, entries] of Object.entries(patterns))
-      for (const [name, re] of Object.entries(entries))
-        for (const [k, input] of INPUTS.entries())
-          assertLinear(`${set}.${name}, input ${k}`, {
-            size: SIZE,
-            build: input,
-            run: (s) => (re.global ? [...s.matchAll(re)].length : re.exec(s)),
-          });
   });
 });
 
@@ -308,89 +259,17 @@ describe("Spring and ASP.NET Core on a crafted file (RULES.md S5)", () => {
     (n) =>
       prefix + unit.repeat(Math.ceil((n - prefix.length) / unit.length));
   const never = { push() {}, full: false };
-  const repository = "interface R extends JpaRepository<A, Long> {\n";
-  const controller =
-    '@RestController\n@RequestMapping({"/a","/b","/c","/d","/e","/f","/g","/h","/i","/j"})\nclass A {\n';
-  const SPRING = [
-    fill("@GetMapping("),
-    fill(
-      '@GetMapping({"/a","/b","/c","/d","/e","/f","/g","/h","/i","/j"}) @PreAuthorize("y")\nvoid a() {}\n',
-      controller,
-    ),
-    fill("@"),
-    fill("@A "),
-    fill("class A "),
-    fill('@RestController @RequestMapping("/a") class A {'),
-    fill("/*"),
-    fill("@GetMapping //"),
-    fill('"'),
-    fill("("),
-    fill("findByAContainingIgnoreCaseOrderByBDesc(", repository),
-    fill("findBy" + "A".repeat(300) + " ", repository),
-    fill("@Query(x) findByA(", repository),
-    fill("@NotNull @Size(min = 1, max = 2) @RequestParam("),
-    fill("@Min a "),
-    fill('Sort.by("a", '),
-    fill("Pageable "),
-    fill("PageRequest.of(1, "),
-    fill("public "),
-    fill(" "),
-    fill('"""'),
-    fill("{"),
-    fill("}"),
-    fill("class A "),
-    fill("@RestController class A { record R(int x) {} @GetMapping void a() {} "),
-    fill("@RestController class A(val x: Int)\n"),
-  ];
-  const routes = '[ApiController]\n[Route("a")][Route("b")][Route("c")]\npublic class AController : ControllerBase {\n';
-  const ASPNET = [
-    fill("["),
-    fill("[A]"),
-    fill('[HttpGet("'),
-    fill("[HttpGet("),
-    fill('[HttpGet("x")][HttpPost("y")][Authorize(Roles = "A")]\npublic IActionResult A() => Ok();\n', routes),
-    fill('[Route("a")]'),
-    fill("class A : ControllerBase { "),
-    fill("record "),
-    fill("app.MapGet("),
-    fill('app.MapGet("/a", h).RequireAuthorization("x").WithName("y");\n'),
-    fill('var a = a.MapGroup("/a").RequireAuthorization("r");\n'),
-    fill('.MapGroup("/a")'),
-    fill("a.RequireAuthorization("),
-    fill(".Where(o => o.a.ToLower().Contains("),
-    fill(".Where(o => o.A == b && o.B > 1 && l.Contains(o.C)) "),
-    fill(".OrderBy(o => o."),
-    fill("EF.Functions.Like(o."),
-    fill("RecurringJob.AddOrUpdate("),
-    fill('.WithCronSchedule("'),
-    fill('[FromQuery(Name = "page")] int p = 1, '),
-    fill("[Required] a "),
-    fill(".WithName<"),
-    fill("= "),
-    fill(" "),
-    fill('@"'),
-    fill('@$"'),
-    fill('"""'),
-    fill("public class A : ControllerBase { public enum E { X } [HttpGet] public void G() {} "),
-    fill("public record R(int X);\n"),
-  ];
+  const SPRING = SPRING_SHAPES.map(([prefix, unit]) => fill(unit, prefix));
+  const ASPNET = ASPNET_SHAPES.map(([prefix, unit]) => fill(unit, prefix));
   const cases = [
     ["spring api", SPRING, (s) => springRoutes(new Map([["X.java", s]]))],
     ["spring behaviours", SPRING, (s) => spring.behaviours(s, never, "X.java")],
     ["aspnet api", ASPNET, (s) => aspnetRoutes(new Map([["X.cs", s]]))],
     ["aspnet behaviours", ASPNET, (s) => aspnet.behaviours(s, never, "X.cs")],
-    // Each object apart: their names collide (WORD_AT, NAMED, FILES…), a merged one would leave some out.
-    ...[STACK_C_PATTERNS, SPRING_PATTERNS, ASPNET_PATTERNS].flatMap((patterns) =>
-      Object.entries(patterns).map(([name, re]) => [
-        `expression ${name}`,
-        [...SPRING, ...ASPNET],
-        (s) => (re.global ? [...s.matchAll(re)].length : re.exec(s)),
-      ]),
-    ),
   ];
 
-  // stack-jvm-dotnet.test.mjs › "every reader and every expression reads a crafted file of 200,000 characters in under a second"
-  test("every reader and every expression reads a crafted file in linear time", () => {
+  // stack-jvm-dotnet.test.mjs › "every reader and every expression reads a crafted file of 200,000 characters in under a second" (the expressions: redos-worker.mjs)
+  test("every reader reads a crafted file in linear time", () => {
     for (const [name, inputs, run] of cases)
       for (const input of inputs)
         assertLinear(`${name} on ${JSON.stringify(input(SIZE).slice(0, 40))}…`, { size: SIZE, build: input, run });
@@ -466,7 +345,7 @@ describe("Spring and ASP.NET Core on the shapes that multiply (RULES.md S5)", ()
 
   for (const [name, k0, build, read, cut] of shapes)
     test(name, () => {
-      const { at16 } = linearAt(name, {
+      linearAt(name, {
         size: k0,
         make: (n) => {
           const text = build(n);
@@ -481,14 +360,15 @@ describe("Spring and ASP.NET Core on the shapes that multiply (RULES.md S5)", ()
             out.every((r) => r.guards.length <= MAX_GUARDS),
             `${name}: a route with more than ${MAX_GUARDS} guards`,
           );
+          // At every size measured (K, 4K and 16K, as the old test), not at the last one only.
+          if (cut)
+            assert.ok(
+              out.some((r) => r.guards.length === MAX_GUARDS),
+              `${name}: guards not cut`,
+            );
           return out;
         },
       });
-      if (cut)
-        assert.ok(
-          at16.some((r) => r.guards.length === MAX_GUARDS),
-          `${name}: guards not cut`,
-        );
     });
 });
 
@@ -496,29 +376,7 @@ describe("Django, Flask, Go, Rails and Rust on a crafted file (RULES.md S5)", ()
   /** The base size: each input is built again 4 and 16 times larger (200,000 characters). */
   const SIZE = 12_500;
   const repeat = (s, n) => s.repeat(Math.ceil(n / s.length));
-  const UNITS = [
-    " ",
-    "\n",
-    "a",
-    "(",
-    ")",
-    "[",
-    "{",
-    "'",
-    '"',
-    "`",
-    "/",
-    "\\",
-    ":",
-    ".",
-    "#",
-    "*",
-    ",",
-    "<",
-    "@",
-    "|",
-    "%",
-  ];
+  const UNITS = PY_UNITS;
   const READERS = {
     django: [
       (s) =>
@@ -617,21 +475,6 @@ describe("Django, Flask, Go, Rails and Rust on a crafted file (RULES.md S5)", ()
       for (const unit of [...lists.flat(), ...UNITS])
         assertLinear(`${name} on ${JSON.stringify(unit)}`, { size: SIZE, build: (n) => repeat(unit, n), run: read });
     });
-
-  test("every expression of the five adapters on long runs of each special character", () => {
-    const patterns = { DJANGO_PATTERNS, FLASK_PATTERNS, GO_PATTERNS, RAILS_PATTERNS, RUST_PATTERNS, STACK_PY_PATTERNS };
-    for (const [group, all] of Object.entries(patterns))
-      for (const [name, re] of Object.entries(all))
-        for (const unit of UNITS)
-          assertLinear(`${group}.${name} on ${JSON.stringify(unit)}`, {
-            size: 1250, // 20,000 repeats at 16 times, as the old test
-            build: (n) => `${unit.repeat(n)}!`,
-            run: (s) => {
-              if (re.global) for (const m of s.matchAll(re)) void m;
-              else re.exec(s);
-            },
-          });
-  });
 });
 
 describe("Django, Flask, Go, Rails and Rust on the shapes that multiply (RULES.md S5)", () => {

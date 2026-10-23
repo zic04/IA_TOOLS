@@ -71,7 +71,7 @@ describe("an OpenAPI document built to cost (engine/facts/openapi.mjs)", () => {
       make: (n) => {
         const doc = {
           paths: { "/a": { get: { parameters: Array.from({ length: n }, () => ({ $ref: "#/p" })) } } },
-          p: { $ref: "#/" + "a/".repeat(5 * n) },
+          p: { $ref: "#/" + "a/".repeat(10 * n) },
         };
         return { doc, text: JSON.stringify(doc) };
       },
@@ -243,17 +243,21 @@ describe("the backlog of a documentation (engine/build/backlog.mjs)", () => {
   // backlog.test.mjs › "review of Lot 6a" (10,000 then 40,000 features in one epic, large < 50 ms or under 8 times)
   test("backlogModel: a search per feature would be quadratic, one pass is linear", () => {
     const one = (pages) => ({ sections: [{ id: "s", title: "S", groups: [{ title: "G", epic: "E-01", pages }] }] });
-    const { found } = linearAt("backlogModel on features of one epic", {
-      size: 625,
+    const { n, found } = linearAt("backlogModel on features of one epic", {
+      size: 2500, // 40,000 features at 16 times, the old test's largest
       make: (n) => {
         const pages = Array.from({ length: n }, (_, k) => ({ id: `p/${k}`, title: `${k}` }));
         const features = new Map(
           pages.map((p, k) => [`F-${k}`, { id: `F-${k}`, title: p.title, summary: "", page: p.id }]),
         );
-        return { toc: one(pages), features, stories: new Map(), scenarios: [], rules: new Map(), cards: new Map() };
+        return { n, toc: one(pages), features, stories: new Map(), scenarios: [], rules: new Map(), cards: new Map() };
       },
-      read: (p) => backlogModel({ ...p, sheets: {} }).epics[0].features.length,
+      read: ({ n: expected, ...model }) => {
+        const count = backlogModel({ ...model, sheets: {} }).epics[0].features.length;
+        assert.equal(count, expected, "every feature of the epic is in the model");
+        return count;
+      },
     });
-    assert.ok(found >= 10_000, `every feature of the largest epic is in the model: ${found}`);
+    assert.equal(found, n, "every feature of the epic is in the model, at every size");
   });
 });

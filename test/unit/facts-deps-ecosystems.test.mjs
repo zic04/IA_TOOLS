@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { manifestShapes, READER_NAMES } from "../tools/manifest-shapes.mjs";
 import { collectDependencies, dependencyReader, DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { createRegistryClient, isPrivatePackage } from "../../engine/facts/network.mjs";
 import { NPM_PATTERNS } from "../../engine/facts/deps/npm.mjs";
@@ -445,5 +446,20 @@ describe("linear on what a crafted manifest holds (RULES.md S5)", () => {
     assert.equal(new Set(names).size, names.length, "two readers name an expression alike");
     assert.deepEqual(Object.keys(DEPENDENCY_PATTERNS).sort(), [...names, "URL_CREDENTIALS"].sort());
     for (const g of groups) assert.ok(Object.isFrozen(g) && Object.values(g).every((re) => re instanceof RegExp));
+  });
+
+  // The time it takes is measured in facts-deps-growth.test.mjs (4 and 16 times larger, through growth.mjs); this one
+  // has no clock, so that every mutant of test/mutations/ runs it: a rule taken out of a reader that makes it throw.
+  test("every reader of the dependencies source reads the crafted shapes without throwing", () => {
+    const shapes = manifestShapes(12_500);
+    assert.ok(shapes.length >= 30 && READER_NAMES.length === 16);
+    withFolder({ manifest: "" }, (dir) => {
+      const file = path.join(dir, "manifest");
+      for (const [i, text] of shapes.entries()) {
+        fs.writeFileSync(file, text);
+        for (const name of READER_NAMES)
+          assert.doesNotThrow(() => dependencyReader(name)(file, name, []), `${name} on shape ${i}`);
+      }
+    });
   });
 });

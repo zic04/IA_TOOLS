@@ -70,29 +70,46 @@ describe("the readers of a document (engine/inputs)", () => {
   };
   const removeDocx = (file) => fs.rmSync(path.dirname(file), { recursive: true, force: true });
 
-  // inputs.test.mjs › "a table bomb" (4,000 rows after two cells spanning 64 columns, was under 2,000 ms)
-  test("docxToMarkdown: a table bomb (spans, then rows) is refused as it grows", () => {
+  // inputs.test.mjs › "a table bomb" (4,000 rows after two cells spanning 64 columns, was under 2,000 ms). A table
+  // is refused from MAX_TABLE_CELLS (200,000 cells, 64 wide: more than 3,125 rows): the growth is measured on sizes
+  // that are all built, then on sizes that are all refused; never one against the other.
+  const bomb = (rows) => {
     const wide = '<w:tc><w:tcPr><w:gridSpan w:val="64"/></w:tcPr><w:p/></w:tc>';
-    const refused = assertLinear("docxToMarkdown on a table bomb", {
-      size: 250,
-      // Each row its own text: the archive compresses like a real document (no ratio refusal before the table is read).
-      build: (n) =>
-        docx(
-          `<w:document xmlns:w="w"><w:body><w:tbl><w:tr>${wide}${wide}</w:tr>${Array.from(
-            { length: n },
-            (_, i) => `<w:tr><w:tc><w:p><w:r><w:t>r${i * 7919}</w:t></w:r></w:p></w:tc></w:tr>`,
-          ).join("")}</w:tbl></w:body></w:document>`,
-        ),
-      run: (file) => {
-        try {
-          docxToMarkdown(fs.readFileSync(file));
-        } catch (e) {
-          if (e.key !== "inputs.refused") throw e;
-        }
-      },
-      cleanup: removeDocx,
+    // Each row its own text: the archive compresses like a real document (no ratio refusal before the table is read).
+    return docx(
+      `<w:document xmlns:w="w"><w:body><w:tbl><w:tr>${wide}${wide}</w:tr>${Array.from(
+        { length: rows },
+        (_, i) => `<w:tr><w:tc><w:p><w:r><w:t>r${i * 7919}</w:t></w:r></w:p></w:tc></w:tr>`,
+      ).join("")}</w:tbl></w:body></w:document>`,
+    );
+  };
+
+  test("docxToMarkdown: a wide table of thousands of rows is read in linear time while it is under the cap", () => {
+    const { n, found } = linearAt("docxToMarkdown on a wide table", {
+      size: 195, // 3,120 rows at 16 times: 64 columns × 3,120 = 199,680 cells, under the cap
+      make: bomb,
+      read: (file) => docxToMarkdown(fs.readFileSync(file)).markdown,
+      remove: removeDocx,
     });
-    assert.ok(refused.length >= 2);
+    assert.ok(found.includes(`r${(n - 1) * 7919}`), "the last row of the largest table is in the Markdown");
+  });
+
+  test("docxToMarkdown: a table bomb (spans, then thousands of rows) is refused at every size, in linear time", () => {
+    const { n, found } = linearAt("docxToMarkdown refusing a table bomb", {
+      size: 4000, // 4,000 rows: 64 columns × 4,000 = 256,000 cells, over the cap, and 16 and 64 times as many
+      make: bomb,
+      read: (file) => {
+        let refused = null;
+        assert.throws(
+          () => docxToMarkdown(fs.readFileSync(file)),
+          (e) => ((refused = e.vars.reason), e.key === "inputs.refused"),
+        );
+        return refused;
+      },
+      remove: removeDocx,
+    });
+    assert.ok(n >= 16 * 4000);
+    assert.equal(found, "tooLarge", "refused for its size, not for another reason");
   });
 
   // inputs.test.mjs › "paragraphs nested deep inside each other" (250 deep, 200,000 words, was under 2,000 ms)

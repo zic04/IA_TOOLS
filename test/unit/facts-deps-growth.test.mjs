@@ -14,6 +14,7 @@ import { linearAt, assertLinear } from "../tools/growth.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 import { app } from "../tools/deps-apps.mjs";
 import { HOST, tarball } from "../tools/locks.mjs";
+import { manifestShapes, READER_NAMES } from "../tools/manifest-shapes.mjs";
 
 const readAll = (dir) => ({ items: collectDependencies(dir), registries: privateRegistries(dir, { env: {} }) });
 
@@ -309,70 +310,12 @@ describe("package-lock v1 stays linear in its depth: a deep chain is read level 
 });
 
 describe("the readers of the manifests stay linear on what a crafted file holds (dependencies.mjs)", () => {
-  // facts-deps-ecosystems.test.mjs › "every reader stays linear on 200,000 characters built to make it backtrack"
-  // (n = 200,000 there, every reader on every shape, under 1,000 ms each): here the base size, then 4 and 16 times larger.
+  // facts-deps-ecosystems.test.mjs › "every reader of the dependencies source reads the crafted shapes without
+  // throwing": the same shapes (test/tools/manifest-shapes.mjs) at the base size there; here 4 and 16 times larger.
   test("every reader of a manifest stays linear on characters built to make it backtrack", () => {
     const SIZE = 12_500;
-    const shapesAt = (n) => [
-      " ".repeat(n),
-      '"'.repeat(n),
-      "'".repeat(n),
-      "[".repeat(n),
-      "{".repeat(n),
-      "=".repeat(n),
-      "#".repeat(n),
-      "/*".repeat(n / 2),
-      "\\".repeat(n),
-      "a".repeat(n) + " v" + "1".repeat(n),
-      "[dependencies]\n" + "a = {".repeat(n / 5),
-      "[dependencies]\na = { " + 'version = "1", '.repeat(n / 15) + "}",
-      "[" + "a".repeat(n),
-      "[target.'" + "a".repeat(n),
-      "[[package]]\n" + 'name = "'.repeat(n / 8),
-      "implementation(" + " ".repeat(n),
-      "implementation group: " + "'".repeat(n),
-      "implementation 'a:b:1'\n".repeat(n / 22),
-      "a:b:" + "1".repeat(n) + "=" + "test,".repeat(n / 5),
-      'gem "a", ' + ",".repeat(n),
-      'gem "a", group: [' + ":test, ".repeat(n / 7),
-      "group :test do\n".repeat(n / 15),
-      "end\n".repeat(n / 4),
-      "GEM\n  remote: x\n  specs:\n" + "    a (1)\n".repeat(n / 10),
-      "    a (" + "(".repeat(n),
-      "require (\n" + "a v1 // indirect\n".repeat(n / 17),
-      "replace a => " + ".".repeat(n),
-      "<project><dependencies>" +
-        "<dependency><groupId>g</groupId><artifactId>a</artifactId><version>${x}</version></dependency>".repeat(
-          n / 100,
-        ) +
-        "</dependencies></project>",
-      "<a>".repeat(n / 3),
-      "<Project><ItemGroup>" + '<PackageReference Include="x" Version="1" />'.repeat(n / 45) + "</ItemGroup></Project>",
-      '{"require":{' +
-        '"a/b":"1",'.repeat(n / 10) +
-        '"c/d":"1"},"repositories":[' +
-        '{"type":"path","url":"./a/b"},'.repeat(n / 30) +
-        "{}]}",
-      '{"dependencies":{"net8.0":{' + '"a":{"type":"Direct","resolved":"1"},'.repeat(n / 40) + '"b":{}}}}',
-    ];
-    const names = [
-      "pom.xml",
-      "build.gradle",
-      "build.gradle.kts",
-      "libs.versions.toml",
-      "gradle.lockfile",
-      "a.csproj",
-      "directory.packages.props",
-      "packages.config",
-      "packages.lock.json",
-      "composer.json",
-      "composer.lock",
-      "go.mod",
-      "gemfile",
-      "gemfile.lock",
-      "cargo.toml",
-      "cargo.lock",
-    ];
+    const names = READER_NAMES;
+    const shapesAt = manifestShapes;
     // The shapes of the three first sizes are kept (every reader reads each of them); longer ones are built when needed.
     const memo = new Map();
     const shapesOf = (n) => {
