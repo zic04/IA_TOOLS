@@ -240,7 +240,12 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
   const { config, options, languages, errors, warnings, report } = b;
   const byLang = { [config.language]: sourcePass };
   const capturesByLang = { [config.language]: sourceCaptures };
-  const toRender = languages ? (options.lang ? [options.lang] : languages.slice(1)) : [];
+  // `--lang` the source language: no translation to render, the source's own pass is that file's data.
+  const toRender = !languages
+    ? []
+    : options.lang
+      ? [options.lang].filter((lang) => lang !== config.language)
+      : languages.slice(1);
   for (const lang of toRender) {
     const translatedTocRaw = readTranslatedJson(b, lang, TOC_FILE);
     const { toc: langToc, problems: tocProblems } = translatedToc({ source: toc, translated: translatedTocRaw });

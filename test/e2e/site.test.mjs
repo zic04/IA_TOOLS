@@ -32,7 +32,9 @@ after(async () => {
 });
 
 async function open(hash = "", { language = "en", colorScheme = "light", width = 1440 } = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme });
+  // The demo is bilingual (ARCHITECTURE.md §6.12) and its site follows the browser's language: English here,
+  // whatever the machine's.
+  const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme, locale: "en-US" });
   const page = await context.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   // The site's own Content Security Policy must never refuse anything the site does (AUDIT.md S9).
@@ -63,7 +65,7 @@ async function hover(page, sel) {
 
 describe("content security policy (AUDIT.md S9)", () => {
   test("a script slipped into the content does not run: inline handler, inline script, javascript: link", async () => {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ locale: "en-US" });
     const page = await context.newPage();
     const refused = [];
     page.on("console", (m) => /Content Security Policy/i.test(m.text()) && refused.push(m.text()));
@@ -319,6 +321,23 @@ describe("doc-kit view", () => {
     } finally {
       await browser.close();
     }
+  });
+
+  test("--tour <n> --lang fr: the tour goes on in a translation (the button clicked by its role, never its label)", async () => {
+    // The demo is written in English and translated into French: "Suivant" on the card, not "Next". Waiting for the
+    // source language's label timed out, whatever the machine's language.
+    const shot = path.join(dir, "tour-fr.png");
+    const err = [];
+    const code = await runCli(
+      ["view", "use/orders", "--tour", "2", "--lang", "fr", "--project", DEMO, "--output", shot],
+      {
+        stdout: { write() {} },
+        stderr: { write: (s) => err.push(s) },
+        env: {},
+      },
+    );
+    assert.equal(code, 0, err.join(""));
+    assert.ok(fs.statSync(shot).size > 0);
   });
 });
 

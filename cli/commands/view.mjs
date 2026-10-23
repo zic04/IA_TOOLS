@@ -8,7 +8,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createI18n } from "../../engine/i18n.mjs";
 import { launchBrowser } from "../../engine/project/browser.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { declaredSpaceIds, checkSpaceOption } from "../../engine/build/spaces.mjs";
@@ -28,11 +27,13 @@ export const options = {
 
 export async function run({ ctx, values, positionals }) {
   const { project, config } = await ctx.loadProject();
-  // --lang (ARCHITECTURE.md §6.12): the built site is already multilingual; only the opened URL changes.
-  const lang =
-    config.languages && ctx.globals.lang
+  // --lang (ARCHITECTURE.md §6.12): the built site is already multilingual; only the opened URL changes. Without
+  // it, the source language: the site would otherwise follow the browser's, and the image the machine's language.
+  const lang = !config.languages
+    ? null
+    : ctx.globals.lang
       ? checkLanguageOption({ languages: config.languages, lang: ctx.globals.lang, t: ctx.t })
-      : null;
+      : config.language;
   const hash = (lang ? `${lang}/` : "") + (positionals[0] || "").replace(/^\/+/, "");
   const theme = values.theme || "light";
   if (!["light", "dark"].includes(theme))
@@ -54,8 +55,6 @@ export async function run({ ctx, values, positionals }) {
   const output = path.resolve(values.output ? process.cwd() : project.root, values.output || ".doc-kit/page.png");
   fs.mkdirSync(path.dirname(output), { recursive: true });
 
-  // Label of the tour's "Next" button, in the site's language.
-  const next = createI18n({ language: config.language, overrides: config.texts }).t("ui.tour.next");
   const site = await builtSite(ctx, { space });
   const browser = await launchBrowser();
   const errors = [];
@@ -79,7 +78,8 @@ export async function run({ ctx, values, positionals }) {
       await page.locator("[data-action=visite]").first().click();
       await shown();
       for (let i = 1; i < step; i++) {
-        await page.getByRole("button", { name: next }).click();
+        // The card's "Next" button by its role in the tour, never by its label: that is in the language shown.
+        await card.locator("[data-vis=suiv]").click();
         await shown();
       }
     }

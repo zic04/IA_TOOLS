@@ -3,6 +3,8 @@
 node_modules/
 dist/
 .doc-kit/
+# The local agents' git worktrees (.claude/worktrees/): copies of the repository, never the kit itself.
+.claude/
 *.md
 *.json
 *.html

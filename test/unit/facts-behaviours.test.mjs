@@ -306,7 +306,8 @@ describe("the context of a feature sheet: Behaviours to describe", () => {
     const docs = path.join(base, "demo-docs");
     if (language === "fr") {
       const config = path.join(docs, "doc.config.mjs");
-      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/language: "en"/, 'language: "fr"'));
+      // The demo is written in English and translated (`languages`): a French project of one language here.
+      fs.writeFileSync(config, fs.readFileSync(config, "utf8").replace(/languages: \["en", "fr"\]/, 'language: "fr"'));
     }
     fs.writeFileSync(
       path.join(docs, "features.json"),

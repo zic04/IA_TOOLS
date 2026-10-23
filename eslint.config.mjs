@@ -4,7 +4,10 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  { ignores: ["node_modules/", "dist/", ".doc-kit/", "templates/", "examples/", "docs/", "test/fixtures/"] },
+  // .claude/: the local agents' git worktrees (copies of the repository), never the kit itself.
+  {
+    ignores: ["node_modules/", "dist/", ".doc-kit/", ".claude/", "templates/", "examples/", "docs/", "test/fixtures/"],
+  },
   js.configs.recommended,
   {
     languageOptions: { ecmaVersion: "latest", sourceType: "module", globals: { ...globals.node } },

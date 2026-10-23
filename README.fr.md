@@ -85,7 +85,9 @@ dans [les cinq premières minutes](docs/fr/content/start/first-five-minutes.md).
 fonctionnalité et les règles métier ; Administrer, avec les accès et la propriété ; Développer, avec la surface
 d'API et les points d'attention) et le cycle de mise à jour complet :
 `examples/demo-app-v2` est une seconde version de l'application (libellé renommé, écran modifié, route ajoutée)
-que `doc-kit sync` suit de bout en bout.
+que `doc-kit sync` suit de bout en bout. Le projet de documentation est écrit en anglais et traduit en français :
+`doc-kit build --project examples/demo-docs` donne un seul fichier avec un sélecteur de langue, `--lang fr` le
+fichier français seul.
 
 ## Prérequis
 

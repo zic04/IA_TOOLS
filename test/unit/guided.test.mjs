@@ -144,14 +144,21 @@ describe("guided mode", () => {
         /^doc-kit \d+\.\d+\.\d+ — guided mode\nAcme Orders: the project is ready, but there is no session to capture the application yet\.\n\nNext step: doc-kit connect\n\(no terminal: nothing was run\)\n$/,
       );
       withSession(dir);
+      // The demo is translated (`languages`, ARCHITECTURE.md §6.12): the menu ends with `translate status`.
       const menu = await cli(["--project", dir, "--lang", "fr"]);
       assert.match(
         menu.out,
-        /Acme Orders : le projet est en place\.\n\nÉtape suivante : doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor/,
+        /Acme Orders : le projet est en place\.\n\nÉtape suivante : doc-kit dev · doc-kit audit · doc-kit build · doc-kit doctor · doc-kit translate status\n/,
       );
       const j = JSON.parse((await cli(["--project", dir, "--json"])).out);
       assert.equal(j.step, "menu");
-      assert.deepEqual(j.next, ["doc-kit dev", "doc-kit audit", "doc-kit build", "doc-kit doctor"]);
+      assert.deepEqual(j.next, [
+        "doc-kit dev",
+        "doc-kit audit",
+        "doc-kit build",
+        "doc-kit doctor",
+        "doc-kit translate status",
+      ]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -171,7 +178,10 @@ describe("guided mode", () => {
       assert.match(doctor.out, /\? What do you want to do\?\n {2}1\) doc-kit dev/);
       assert.match(doctor.out, /doc-kit \d+\.\d+\.\d+ doctor — /, "doctor ran");
       assert.equal(doctor.code, 0);
-      const quit = await cli(["--project", dir], { input: ["5"] });
+      // Five commands (the last, `translate status`), then "quit": nothing runs.
+      const quit = await cli(["--project", dir], { input: ["6"] });
+      assert.match(quit.out, /\n {2}5\) doc-kit translate status/);
+      assert.doesNotMatch(quit.out, /doc-kit \d+\.\d+\.\d+ (translate|doctor)/, "nothing ran");
       assert.equal(quit.code, 0);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

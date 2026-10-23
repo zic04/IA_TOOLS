@@ -60,6 +60,16 @@ describe("locating and editing JSON as text", () => {
     assert.equal(tree.props[0].value.items[1].props[0].value.value, 'x"y');
   });
 
+  test(
+    "locateJson: a string left open is an error, never a read past the end nor a loop without end",
+    { timeout: 10_000 },
+    () => {
+      for (const text of ['{"sections": [{"id": "use', '"', '{"a": "x\\', '{"a": "x\\"'])
+        assert.throws(() => locateJson(text), SyntaxError, JSON.stringify(text));
+      assert.equal(locateJson('{"a": "x\\""}').props[0].value.value, 'x"', "the control: the same string closed");
+    },
+  );
+
   test("insertEntry: a multi-line sibling, an inline sibling, an empty array; CRLF and tabs kept", () => {
     const multi = '{\r\n\t"pages": [\r\n\t\t{\r\n\t\t\t"id": "a"\r\n\t\t}\r\n\t]\r\n}\r\n';
     const out = insertEntry(multi, locateJson(multi).props[0].value, 0, { id: "b", list: ["x", "y"] });
@@ -186,6 +196,115 @@ describe("creating a page", () => {
       assert.ok(b.html);
       assert.deepEqual(b.errors, []);
       assert.ok(b.warnings.some((w) => w.key === "template.guidance" && w.vars.page === "maintain/deployment"));
+    }));
+
+  test("a multilingual project (the demo, en and fr): the same entry, at the same place, in the French table of contents; a draft build passes", () =>
+    withDir(demoCopy, async (dir) => {
+      const cfg = await config(dir);
+      assert.deepEqual(cfg.languages, ["en", "fr"], "the demo is bilingual");
+      const frenchBefore = read(dir, "translations/fr/toc.json");
+      const r = createPage({
+        root: dir,
+        config: cfg,
+        id: "maintain/deployment",
+        template: "technical",
+        summary: SUMMARY,
+      });
+      assert.deepEqual(r.translations, [{ lang: "fr", file: "translations/fr/toc.json" }]);
+      const french = JSON.parse(read(dir, "translations/fr/toc.json"));
+      assert.deepEqual(
+        outline(french),
+        outline(JSON.parse(read(dir, "content/toc.json"))),
+        "the structure is the source's",
+      );
+      const entry = french.sections
+        .flatMap((s) => s.groups.flatMap((g) => g.pages))
+        .find((p) => p.id === "maintain/deployment");
+      assert.equal(entry.title, "Deployment", "the source's text, to translate");
+      assertOnlyAdded(frenchBefore, read(dir, "translations/fr/toc.json"));
+      const b = build({ project: { root: dir }, config: cfg, options: { draft: true } });
+      assert.deepEqual(b.errors, []);
+      assert.ok(
+        b.warnings.some((w) => w.key === "translation.missing" && w.vars.lang === "fr"),
+        "the French page is missing: the source is shown with its banner",
+      );
+      assert.ok(!b.warnings.some((w) => w.key === "translation.toc.structure"), "no structure difference");
+    }));
+
+  // Each row edits the French table of contents of a copy of the demo before `new maintain/deployment` (it goes at
+  // the end of the group of maintain/architecture); `gains`: whether that file gets the entry. The source page is
+  // created in every case; a file left as it is is the build's to report (translation.toc.structure).
+  const asJson = (fn) => (text) => {
+    const toc = JSON.parse(text);
+    fn(toc);
+    return JSON.stringify(toc, null, 2);
+  };
+  const groupOf = (toc, id) => toc.sections.flatMap((s) => s.groups).find((g) => g.pages.some((p) => p.id === id));
+  for (const [label, edit, gains] of [
+    ["in step with the source (the control)", (text) => text, true],
+    [
+      "its maintain section missing",
+      asJson((t) => (t.sections = t.sections.filter((s) => s.id !== "maintain"))),
+      false,
+    ],
+    [
+      "one more page in that group: the index is not the source's",
+      asJson((t) => groupOf(t, "maintain/architecture").pages.unshift({ id: "maintain/other", title: "Autre" })),
+      false,
+    ],
+    [
+      "the page already declared there (in another group): never twice",
+      asJson((t) => groupOf(t, "use/settings").pages.push({ id: "maintain/deployment", title: "Déploiement" })),
+      false,
+    ],
+    [
+      "not valid JSON, cut inside a string: read once, never located (it used to loop without end)",
+      (text) => text.slice(0, text.indexOf('"maintain/architecture"') + 10),
+      false,
+    ],
+  ])
+    test(
+      `a translated table of contents ${label}: ${gains ? "the entry added" : "left as it is"}`,
+      { timeout: 30_000 },
+      () =>
+        withDir(demoCopy, async (dir) => {
+          const file = path.join(dir, "translations/fr/toc.json");
+          fs.writeFileSync(file, edit(fs.readFileSync(file, "utf8")));
+          const before = fs.readFileSync(file, "utf8");
+          const r = createPage({
+            root: dir,
+            config: await config(dir),
+            id: "maintain/deployment",
+            template: "technical",
+            summary: SUMMARY,
+          });
+          assert.ok(fs.existsSync(path.join(dir, r.file)), "the source page is created");
+          assert.deepEqual(r.translations, gains ? [{ lang: "fr", file: "translations/fr/toc.json" }] : []);
+          const after = fs.readFileSync(file, "utf8");
+          if (!gains) assert.equal(after, before);
+          else
+            assert.deepEqual(
+              groupOf(JSON.parse(after), "maintain/architecture").pages.map((p) => p.id),
+              ["maintain/architecture", "maintain/deployment"],
+            );
+        }),
+    );
+
+  test("the CLI says which translated table of contents gained the entry, in English and in French", () =>
+    withDir(demoCopy, async (dir) => {
+      for (const [lang, id, expected] of [
+        ["en", "maintain/deployment", "the same entry, at the same place, in the fr table of contents"],
+        ["fr", "maintain/upgrade", "la même entrée, au même endroit, dans le sommaire fr"],
+      ]) {
+        let out = "";
+        const code = await runCli(["new", id, "--template", "technical", "--project", dir, "--lang", lang], {
+          stdout: { write: (s) => (out += s) },
+          stderr: { write: () => {} },
+          env: {},
+        });
+        assert.equal(code, 0);
+        assert.match(out, new RegExp(`translations/fr/toc\\.json.*${expected}`));
+      }
     }));
 
   test("capture.mode none: the screen and editor pages describe the screen with a table, never a :::screen", () =>

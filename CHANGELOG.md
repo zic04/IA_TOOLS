@@ -6,6 +6,30 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Added
+
+- **The demo in English and French** (ARCHITECTURE.md §6.12): `examples/demo-docs` declares `languages: ["en", "fr"]`
+  instead of `language: "en"`, with a French translation of every page, section introduction, the home page, the
+  table of contents and the glossary (`translations/fr/`, 16 files, all current), of its diagram, and the French
+  labels of its annotated screens' zones (`images/fr/zones/`, the screenshots shared). `doc-kit build --project
+  examples/demo-docs` gives one file with a language switch; `--lang fr` the French file alone. The French snapshot
+  is now a strict build.
+
+### Fixed
+
+- **`doc-kit new` in a multilingual project** adds the same entry, at the same place, to every translated table of
+  contents (`translations/<l>/toc.json`), its texts left to translate: a new page no longer stops every build with
+  `translation.toc.structure`. A translated table of contents that is not valid JSON, or already out of step there
+  (another section, other pages in that group, the page already declared), is left as it is (the build's structure
+  check names it).
+- `doc-kit build --lang <source language>` writes the source language's file alone (`-en.html`); it failed with
+  `translation.missing`.
+- A page not written yet in the source is not written in any language: the links to its anchors are no longer
+  errors in the translations, and `page.missing` is reported once, by the source.
+- `doc-kit view --tour <n>` on a multilingual site: it clicked the tour's "Next" button by its label in the source
+  language and timed out when the browser showed another language. It now clicks the button itself, and, without
+  `--lang`, opens the source language, so that the image never depends on the machine's language.
+
 ## [0.4.1] - 2026-10-23
 
 ### Added

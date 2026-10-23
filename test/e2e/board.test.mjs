@@ -105,7 +105,9 @@ after(async () => {
 
 /** A page of a site (the demo by default) at `hash`, in a context of its own (its own storage) unless one is given. */
 async function open(hash, { width = 1440, context, site = "demo" } = {}) {
-  const ctx = context ?? (await browser.newContext({ viewport: { width, height: 900 } }));
+  // The demo is bilingual (ARCHITECTURE.md §6.12) and its site follows the browser's language: English here,
+  // whatever the machine's.
+  const ctx = context ?? (await browser.newContext({ viewport: { width, height: 900 }, locale: "en-US" }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => /Content Security Policy/i.test(m.text()) && errors.push(m.text()));

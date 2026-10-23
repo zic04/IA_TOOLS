@@ -43,7 +43,12 @@ import {
   languagesCopy,
   dataOf,
   tempDir,
+  demoCopy,
 } from "../tools/helpers.mjs";
+import { loadProject } from "../../engine/project/load.mjs";
+
+/** The configuration of a copy of the demo (bilingual, en and fr), as the CLI loads it. */
+const demoConfigOf = async (dir) => (await loadProject({ project: dir, env: {} })).config;
 
 async function cli(args, env = {}) {
   let out = "";
@@ -195,6 +200,37 @@ describe("multilingual build (draft)", () => {
       ["en", "fr"],
       "languages summary still returned with --lang",
     );
+  });
+
+  test("a page not written yet in the source is not written in any language: no anchor into it is an error, its translation kept or not", async () => {
+    for (const keepTranslation of [false, true]) {
+      const dir = demoCopy();
+      try {
+        // use/orders (en and fr) links to an anchor of use/settings; the source page goes missing.
+        fs.rmSync(path.join(dir, "content/use/settings.md"));
+        if (!keepTranslation) fs.rmSync(path.join(dir, "translations/fr/use/settings.md"));
+        const r = build({ project: { root: dir }, config: await demoConfigOf(dir), options: {} });
+        assert.deepEqual(keys(r.errors), ["page.missing"], `translation kept: ${keepTranslation}`);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("`build --lang en`, the source language alone: the source's data without meta.languages/language, no translation read", async () => {
+    const r = await buildLanguages({ draft: true });
+    const source = structuredClone(r.data);
+    delete source.meta.languages;
+    delete source.meta.language;
+    // Strict: the source is no translation of itself (a translation.missing for "en" would block it).
+    const mono = await buildLanguages({ options: { lang: "en" } });
+    assert.deepEqual(mono.errors, []);
+    assert.ok(!mono.warnings.some((w) => w.vars?.lang === "en"), "nothing reported for the source as a translation");
+    assert.deepEqual(mono.data, source);
+    assert.match(mono.output, /-en\.html$/);
+    // The selector's element stays in the template; with no meta.languages, the site removes it.
+    assert.ok(!mono.html.includes("site-data-fr"), "one language");
+    assert.match(mono.html, /<html lang="en"/);
   });
 
   test("images: img-orders-list@fr embedded once, only for the id fr actually uses; settings-profile has no fr variant", async () => {

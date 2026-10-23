@@ -62,9 +62,12 @@ motif : `doc-kit capture "utiliser-commandes-*"`.
 
 ### Quelles langues ?
 
-L'anglais et le français : le site, les gabarits, les messages et le standard. Chaque projet en choisit une ; une
-documentation bilingue, ce sont deux projets, comme ce site (`docs/en` et `docs/fr`). Chaque commande parle la langue
-du projet dans lequel elle s'exécute ; `--lang` la change le temps d'une exécution.
+L'anglais et le français : le site, les gabarits, les messages et le standard. Chaque projet en choisit une, ou en
+déclare plusieurs avec `languages` : une source, ses traductions, et un seul fichier avec un sélecteur de langue
+([Documenter en plusieurs langues](#/spaces/languages)) ; la démo, `examples/demo-docs`, est écrite en anglais et
+traduite en français. Une documentation bilingue peut aussi être deux projets, comme ce site (`docs/en` et
+`docs/fr`). Chaque commande parle la langue du projet dans lequel elle s'exécute ; `--lang` la change le temps d'une
+exécution.
 
 ### Puis-je écrire du HTML dans les pages ?
 

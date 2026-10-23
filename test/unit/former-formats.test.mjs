@@ -62,7 +62,11 @@ describe("the files of the project", () => {
   test("a glossaire.json alone is not read: no glossary, no error, no warning of its own", async () => {
     const current = await buildDemo();
     assert.ok(dataOf(current.html).glossary.length > 0, "the demo has a glossary");
-    const r = await buildEdited((d) => move(d, "content/glossary.json", "content/glossaire.json"));
+    // The demo's French translation keeps the same glossary (§6.12): renamed the same way, there too.
+    const r = await buildEdited((d) => {
+      move(d, "content/glossary.json", "content/glossaire.json");
+      move(d, "translations/fr/glossary.json", "translations/fr/glossaire.json");
+    });
     assert.deepEqual(r.errors, []);
     assert.deepEqual(dataOf(r.html).glossary, []);
     assert.deepEqual(
