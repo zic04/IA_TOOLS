@@ -1,4 +1,4 @@
-// test/tools/run-plan.mjs runs this file alone (it reads performance.now(): timing).
+// test/tools/run-plan.mjs runs this file alone, after the others (it imports test/tools/growth.mjs: it measures time).
 // The readers of the dependencies source (RULES.md S5) stay linear on the shapes that once made them quadratic: each
 // input is built at a base size, then 4 and 16 times larger (assertLinear, test/tools/growth.mjs), no absolute time.
 // A reader that gives up early would be "linear" by doing nothing, so every test also asserts what the reader found
@@ -6,34 +6,14 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
 import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
-import { collectDependencies } from "../../engine/facts/dependencies.mjs";
+import { collectDependencies, dependencyReader } from "../../engine/facts/dependencies.mjs";
 import { privateRegistries } from "../../engine/facts/network.mjs";
-import { assertLinear } from "../tools/growth.mjs";
+import { linearAt, assertLinear } from "../tools/growth.mjs";
+import { tempDir } from "../tools/helpers.mjs";
 import { app } from "../tools/deps-apps.mjs";
 import { HOST, tarball } from "../tools/locks.mjs";
-
-/**
- * Measures `read` on inputs of growing size and returns what it read at the largest one.
- * `make(n)` gives the input of size n; `read(input)` reads it; `remove(input)` removes what `make` wrote.
- */
-function linearAt(label, { size, make, read, remove = () => {} }) {
-  const reads = new Map();
-  const made = new Map(); // assertLinear wants a string per input: its key here
-  assertLinear(label, {
-    size,
-    build: (n) => {
-      const key = `n=${n}`;
-      made.set(key, { n, input: make(n) });
-      return key;
-    },
-    run: (key) => void reads.set(made.get(key).n, read(made.get(key).input)),
-    cleanup: (key) => remove(made.get(key).input),
-  });
-  const largest = Math.max(...reads.keys());
-  assert.ok(largest >= 16 * size, `${label}: measured up to ${largest}, 16 times ${size} at least`);
-  return { n: largest, found: reads.get(largest) };
-}
 
 const readAll = (dir) => ({ items: collectDependencies(dir), registries: privateRegistries(dir, { env: {} }) });
 
@@ -325,5 +305,108 @@ describe("package-lock v1 stays linear in its depth: a deep chain is read level 
       [],
       "every level a folder, none sent",
     );
+  });
+});
+
+describe("the readers of the manifests stay linear on what a crafted file holds (dependencies.mjs)", () => {
+  // facts-deps-ecosystems.test.mjs › "every reader stays linear on 200,000 characters built to make it backtrack"
+  // (n = 200,000 there, every reader on every shape, under 1,000 ms each): here the base size, then 4 and 16 times larger.
+  test("every reader of a manifest stays linear on characters built to make it backtrack", () => {
+    const SIZE = 12_500;
+    const shapesAt = (n) => [
+      " ".repeat(n),
+      '"'.repeat(n),
+      "'".repeat(n),
+      "[".repeat(n),
+      "{".repeat(n),
+      "=".repeat(n),
+      "#".repeat(n),
+      "/*".repeat(n / 2),
+      "\\".repeat(n),
+      "a".repeat(n) + " v" + "1".repeat(n),
+      "[dependencies]\n" + "a = {".repeat(n / 5),
+      "[dependencies]\na = { " + 'version = "1", '.repeat(n / 15) + "}",
+      "[" + "a".repeat(n),
+      "[target.'" + "a".repeat(n),
+      "[[package]]\n" + 'name = "'.repeat(n / 8),
+      "implementation(" + " ".repeat(n),
+      "implementation group: " + "'".repeat(n),
+      "implementation 'a:b:1'\n".repeat(n / 22),
+      "a:b:" + "1".repeat(n) + "=" + "test,".repeat(n / 5),
+      'gem "a", ' + ",".repeat(n),
+      'gem "a", group: [' + ":test, ".repeat(n / 7),
+      "group :test do\n".repeat(n / 15),
+      "end\n".repeat(n / 4),
+      "GEM\n  remote: x\n  specs:\n" + "    a (1)\n".repeat(n / 10),
+      "    a (" + "(".repeat(n),
+      "require (\n" + "a v1 // indirect\n".repeat(n / 17),
+      "replace a => " + ".".repeat(n),
+      "<project><dependencies>" +
+        "<dependency><groupId>g</groupId><artifactId>a</artifactId><version>${x}</version></dependency>".repeat(
+          n / 100,
+        ) +
+        "</dependencies></project>",
+      "<a>".repeat(n / 3),
+      "<Project><ItemGroup>" + '<PackageReference Include="x" Version="1" />'.repeat(n / 45) + "</ItemGroup></Project>",
+      '{"require":{' +
+        '"a/b":"1",'.repeat(n / 10) +
+        '"c/d":"1"},"repositories":[' +
+        '{"type":"path","url":"./a/b"},'.repeat(n / 30) +
+        "{}]}",
+      '{"dependencies":{"net8.0":{' + '"a":{"type":"Direct","resolved":"1"},'.repeat(n / 40) + '"b":{}}}}',
+    ];
+    const names = [
+      "pom.xml",
+      "build.gradle",
+      "build.gradle.kts",
+      "libs.versions.toml",
+      "gradle.lockfile",
+      "a.csproj",
+      "directory.packages.props",
+      "packages.config",
+      "packages.lock.json",
+      "composer.json",
+      "composer.lock",
+      "go.mod",
+      "gemfile",
+      "gemfile.lock",
+      "cargo.toml",
+      "cargo.lock",
+    ];
+    // The shapes of the three first sizes are kept (every reader reads each of them); longer ones are built when needed.
+    const memo = new Map();
+    const shapesOf = (n) => {
+      if (n > 16 * SIZE) return shapesAt(n);
+      if (!memo.has(n)) memo.set(n, shapesAt(n));
+      return memo.get(n);
+    };
+    const dir = tempDir("doc-kit-deps-growth-");
+    try {
+      for (const [i, sample] of shapesOf(SIZE).entries())
+        for (const name of names)
+          assertLinear(`${name} on ${JSON.stringify(sample.slice(0, 30))}…`, {
+            size: SIZE,
+            build: (n) => {
+              const file = path.join(dir, `manifest-${n}`);
+              fs.writeFileSync(file, shapesOf(n)[i]);
+              return file;
+            },
+            run: (file) => assert.doesNotThrow(() => dependencyReader(name)(file, name, [])),
+          });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // stacks-hardening.test.mjs › "a Gemfile of blocks never closed is read in linear time" (512,000 characters, was
+  // under 1,000 ms each)
+  test("a Gemfile of blocks never closed: each gem in them is read once", () => {
+    for (const unit of ['group :test do\n  gem "a"\n', 'if x\ngem "a"\n']) {
+      const { at16 } = linearApp(`Gemfile of ${JSON.stringify(unit)}`, {
+        size: 32_000,
+        files: (n) => ({ Gemfile: unit.repeat(Math.ceil(n / unit.length)) }),
+      });
+      assert.equal(at16.items[0].dev, unit.startsWith("group"), "the gems of the block are dev ones, or not");
+    }
   });
 });

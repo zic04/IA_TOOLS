@@ -102,3 +102,34 @@ export function assertLinear(label, { build, run, size, cleanup = () => {}, cloc
     for (const input of made) cleanup(input);
   }
 }
+
+/**
+ * assertLinear for a reader whose input is not a string (files, a list, a document), and which gives something back
+ * worth checking: `make(n)` builds the input of size n, `read(input)` reads it (it may assert on what it reads),
+ * `remove(input)` removes what `make` wrote. Fails as assertLinear does, and also when the measure never reached 16
+ * times `size` (a reader that gives up early would be "linear" by doing nothing).
+ * @template I, O
+ * @param {string} label
+ * @param {{ size: number, make: (n: number) => I, read: (input: I) => O, remove?: (input: I) => void,
+ *   clock?: () => number }} p
+ * @returns {{ n: number, found: O, at16: O }} the size measured last and what the reader read there; what it read
+ *   at 16 times `size`, where the shapes of the tests are meant to be checked
+ */
+export function linearAt(label, { size, make, read, remove = () => {}, clock }) {
+  const reads = new Map();
+  const made = new Map(); // assertLinear wants a string per input: its key here
+  assertLinear(label, {
+    size,
+    clock,
+    build: (n) => {
+      const key = `n=${n}`;
+      made.set(key, { n, input: make(n) });
+      return key;
+    },
+    run: (key) => void reads.set(made.get(key).n, read(made.get(key).input)),
+    cleanup: (key) => remove(made.get(key).input),
+  });
+  const largest = Math.max(...reads.keys());
+  if (largest < 16 * size) throw new Error(`${label}: measured up to ${largest}, 16 times ${size} at least`);
+  return { n: largest, found: /** @type {O} */ (reads.get(largest)), at16: /** @type {O} */ (reads.get(16 * size)) };
+}

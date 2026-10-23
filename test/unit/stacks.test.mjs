@@ -14,8 +14,8 @@ import { collectApi, collectScreens } from "../../engine/facts/api.mjs";
 import { collectStack } from "../../engine/facts/languages.mjs";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
 import { expressRoutes, EXPRESS_PATTERNS } from "../../adapters/stack/express.mjs";
-import { fastapiRoutes, FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
-import { nextRouteHandlers, NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
+import { FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
+import { NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
 import { unreadPart } from "../../engine/context/unread-section.mjs";
 import factsAdapter from "../../adapters/coverage/facts.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
@@ -327,23 +327,6 @@ describe("the sources the stack adapters feed", () => {
       );
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
-    }
-  });
-
-  test("a crafted file of 256 KB is read at once: 32,000 unclosed route calls, decorators, exports (0.3 took minutes)", () => {
-    const n = 32_000;
-    const cases = [
-      ["express, unclosed calls", () => expressRoutes("app.get(".repeat(n), "x.js")],
-      ["express, routes", () => expressRoutes('app.get("/a", h);\n'.repeat(n), "x.js")],
-      ["fastapi, decorators", () => fastapiRoutes(new Map([["x.py", '@router.get("/a")\n'.repeat(n)]]))],
-      ["fastapi, unclosed routers", () => fastapiRoutes(new Map([["x.py", "r = APIRouter(".repeat(n / 2)]]))],
-      ["next, exports", () => nextRouteHandlers("export function GET(".repeat(n / 2))],
-    ];
-    for (const [name, run] of cases) {
-      const start = performance.now();
-      run();
-      const ms = performance.now() - start;
-      assert.ok(ms < 1000, `${name}: ${ms.toFixed(0)} ms`);
     }
   });
 

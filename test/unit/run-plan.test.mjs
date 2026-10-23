@@ -5,12 +5,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runPlan, testFiles } from "../tools/run-plan.mjs";
+import { runPlan, testFiles, isTimingFile } from "../tools/run-plan.mjs";
 
-const CLOCK = "performance" + ".now()";
 const TEXTS = {
   "a.test.mjs": "plain",
-  "timed.test.mjs": `const t = ${CLOCK};`,
+  "timed.test.mjs": `import { assertLinear } from "../tools/growth.mjs";`,
   "redos.test.mjs": 'import "../tools/redos-worker.mjs";',
   "b.test.mjs": "plain",
 };
@@ -34,6 +33,26 @@ function plan(codes = {}, { e2e = false, files = Object.keys(TEXTS) } = {}) {
   });
   return { code, calls, logs };
 }
+
+test("a file that measures time is one that imports the growth measure or runs the ReDoS harness, nothing else", () => {
+  const timing = [
+    'import { assertLinear } from "../tools/growth.mjs";',
+    "import {\n  assertLinear,\n  linearAt,\n} from '../tools/growth.mjs';",
+    'const { growthOf } = await import("../tools/growth.mjs");',
+    'const worker = new Worker(new URL("../tools/redos-worker.mjs", import.meta.url));',
+    'import "../tools/redos-worker.mjs";',
+  ];
+  for (const text of timing) assert.equal(isTimingFile(text), true, text);
+  const plain = [
+    "",
+    "// measures its time with test/tools/growth.mjs, in growth-measure.test.mjs", // a comment names it
+    'import { growth } from "../tools/my-growth-helper.mjs";', // another file
+    'import { x } from "../tools/mygrowth.mjs";', // another file, ending alike
+    "const t = performance" + ".now();", // a clock alone: not a measure (test/unit/timing-files.test.mjs refuses it)
+    'const note = "see growth.mjs";', // no folder
+  ];
+  for (const text of plain) assert.equal(isTimingFile(text), false, text);
+});
 
 test("the others together first, then each file that measures time alone, in their order", () => {
   const r = plan();

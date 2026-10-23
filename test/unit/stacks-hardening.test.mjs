@@ -321,15 +321,12 @@ describe("the manifests", () => {
     }
   });
 
-  test("a Gemfile of blocks never closed is read in linear time (each gem in them)", () => {
+  test("a Gemfile of blocks never closed: each gem in them (its growth: facts-deps-growth.test.mjs)", () => {
     const app = tree("doc-kit-harden-gem-", {});
     try {
       for (const unit of ['group :test do\n  gem "a"\n', 'if x\ngem "a"\n']) {
-        fs.writeFileSync(path.join(app, "Gemfile"), unit.repeat(Math.ceil(512_000 / unit.length)));
-        const start = performance.now();
+        fs.writeFileSync(path.join(app, "Gemfile"), unit.repeat(Math.ceil(5_000 / unit.length)));
         const items = collectDependencies(app);
-        const ms = performance.now() - start;
-        assert.ok(ms < 1000, `${JSON.stringify(unit)}: ${ms.toFixed(0)} ms`);
         assert.equal(items[0].dev, unit.startsWith("group"));
       }
     } finally {
@@ -440,17 +437,7 @@ describe("thirteen stacks, one route per declaration", () => {
 });
 
 describe("the second review of the thirteen stacks", () => {
-  /** The best of three runs of `fn`, in milliseconds. */
-  const best = (fn) =>
-    Math.min(
-      ...[0, 1, 2].map(() => {
-        const start = performance.now();
-        fn();
-        return performance.now() - start;
-      }),
-    );
-
-  test("guards written thousands of times over compose in a bounded time (a Vue route of K children)", () => {
+  test("guards written thousands of times over compose in a bounded part of the list (a Vue route of K children)", () => {
     // One child whose guards are 31 names then thousands of copies of the last, mounted k times under a parent.
     const app = (k, copies) => {
       const guards = [...Array.from({ length: 31 }, (_, i) => `g${i}`), ...Array(copies).fill("g30")].join(", ");
@@ -459,23 +446,28 @@ describe("the second review of the thirteen stacks", () => {
         "src/router/index.ts": `export const kidRoutes = [{ path: 'x', component: X, beforeEnter: [${guards}] }];\nconst routes = [{ path: '/a', component: A, children: [${"...kidRoutes, ".repeat(k)}] }];\n`,
       });
     };
-    const small = app(500, 6000);
+    // The growth of this read is measured in stacks-growth.test.mjs; here, what it gives stays bounded.
     const large = app(2000, 24000);
     try {
-      const n = best(() => collectScreens(small));
-      const n4 = best(() => collectScreens(large));
       const screens = collectScreens(large);
-      assert.ok(n4 < 1000, `${n4.toFixed(0)} ms`);
-      assert.ok(n4 < 20 || n4 / Math.max(n, 0.05) <= 8, `×${(n4 / n).toFixed(1)}`);
       assert.ok(screens.length >= 1 && screens.every((x) => !x.guards || x.guards.length <= MAX_GUARDS));
     } finally {
-      fs.rmSync(small, { recursive: true, force: true });
       fs.rmSync(large, { recursive: true, force: true });
     }
-    const start = performance.now();
-    const copies = Array(100_000).fill("b");
-    for (let i = 0; i < 10_000; i++) withGuards(["a"], copies);
-    assert.ok(performance.now() - start < 1000, "withGuards reads a bounded part of a list");
+    // withGuards reads a bounded part of a list: the entries it looks at are counted, whatever the list's length.
+    const readsOf = (length) => {
+      let reads = 0;
+      const copies = new Proxy(Array(length).fill("b"), {
+        get: (target, key) => {
+          if (typeof key === "string" && /^\d+$/.test(key)) reads++;
+          return target[key];
+        },
+      });
+      assert.deepEqual(withGuards(["a"], copies), ["a", "b"]);
+      return reads;
+    };
+    assert.equal(readsOf(100_000), readsOf(1_000), "the entries read do not depend on the length of the list");
+    assert.ok(readsOf(100_000) > 0 && readsOf(100_000) <= 5 * MAX_GUARDS, "and they are few");
   });
 
   test("a project's adapter is never overruled by the kit's on the same line; the bounds hold for it too", () => {
@@ -665,24 +657,12 @@ describe("the third review of the thirteen stacks", () => {
     }
   });
 
-  test("brackets nested far deeper than routes are counted, not built: linear (an Angular route table)", () => {
-    const at = (n) =>
-      new Map([
-        ["src/app.routes.ts", "const routes: Routes = [{ path: 'a', component: A, canActivate: [" + "{".repeat(n)],
-      ]);
+  test("brackets nested far deeper than routes are counted, not built (an Angular route table; its growth: stacks-growth.test.mjs)", () => {
     const angular = BUILT_IN_STACKS.find((a) => a.name === "angular");
-    const time = (n) => {
-      const sources = at(n);
-      const start = performance.now();
-      angular.screens({ sources });
-      return performance.now() - start;
-    };
-    const small = Math.min(time(48_000), time(48_000));
-    const large = Math.min(time(192_000), time(192_000));
-    assert.ok(
-      large < 20 || large / Math.max(small, 0.05) <= 8,
-      `×${(large / small).toFixed(1)} (${large.toFixed(0)} ms)`,
-    );
+    const sources = new Map([
+      ["src/app.routes.ts", "const routes: Routes = [{ path: 'a', component: A, canActivate: [" + "{".repeat(48_000)],
+    ]);
+    assert.doesNotThrow(() => angular.screens({ sources }));
   });
 });
 

@@ -1,5 +1,5 @@
 // The test files that guard the dependency readers and the network gateway: what a mutant of their engine files is
-// run against (test/tools/mutate.mjs). The growth tests (they read the clock) only for a mutant that names them.
+// run against (test/tools/mutate.mjs). The growth tests (they measure time) only for a mutant that names them.
 export const DEPENDENCY_TESTS = Object.freeze([
   "test/unit/facts-deps-text.test.mjs",
   "test/unit/facts-deps-common.test.mjs",

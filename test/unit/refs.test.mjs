@@ -71,18 +71,7 @@ describe("refUrl", () => {
     assert.equal(refUrl(parseRef("ADO#1"), undefined), null);
   });
 
-  test("linear on crafted references", () => {
+  test("the expressions of the references are declared, and frozen (their growth: inputs-growth.test.mjs)", () => {
     assert.ok(Object.isFrozen(REFS_PATTERNS) && Object.values(REFS_PATTERNS).every((re) => re instanceof RegExp));
-    for (const make of [
-      (n) => `ADO#${"1".repeat(n)}`,
-      (n) => `${"A".repeat(n)}-1`,
-      (n) => `${"a/".repeat(n)}#1`,
-      (n) => `${"a".repeat(n)}#`,
-    ]) {
-      const s = make(200_000);
-      const start = performance.now();
-      for (const re of Object.values(REFS_PATTERNS)) re.exec(s);
-      assert.ok(performance.now() - start < 200, make.toString());
-    }
   });
 });
