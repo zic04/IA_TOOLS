@@ -58,3 +58,47 @@ export function growthOf(fn, times, { shapes, inputs, size, build, time }) {
   }
   return steps;
 }
+
+/** What the tests call quadratic: a trusted step (MEASURABLE_MS or longer) this many times slower for 4 times. */
+export const GROWTH_RATIO = 8;
+
+/**
+ * Asserts a reader of whole files stays linear on a crafted shape (RULES.md S5): built at `size`, then 4 and 16 times
+ * larger — larger still while a step is too short to be trusted —, the best of several runs each (growthOf). `build(n)`
+ * returns the input of about n units (a folder written for it, say), `run(input)` reads it, `cleanup(input)` removes
+ * what build wrote. Fails, naming the shape, on a trusted step more than GROWTH_RATIO times slower for 4 times.
+ * @param {string} label
+ * @param {{ build: (n: number) => string, run: (input: string) => unknown, size: number,
+ *   cleanup?: (input: string) => void, clock?: () => number }} p
+ */
+export function assertLinear(label, { build, run, size, cleanup = () => {}, clock = () => performance.now() }) {
+  const made = [];
+  const make = (n) => {
+    const input = build(n);
+    made.push(input);
+    return input;
+  };
+  const time = (fn, input) => {
+    const t0 = clock();
+    fn(input);
+    return clock() - t0;
+  };
+  try {
+    const base = make(size);
+    const steps = growthOf(run, [Math.min(time(run, base), time(run, base))], {
+      shapes: [["", ""]],
+      inputs: [base],
+      size,
+      build: (p, u, n) => make(n),
+      time,
+    });
+    const bad = steps.find((s) => s.ms >= MEASURABLE_MS && s.ratio > GROWTH_RATIO);
+    if (bad)
+      throw new Error(
+        `${label}: not linear — ${steps.map((s) => `×${s.ratio.toFixed(1)} (${s.ms.toFixed(0)} ms)`).join(", ")}`,
+      );
+    return steps;
+  } finally {
+    for (const input of made) cleanup(input);
+  }
+}

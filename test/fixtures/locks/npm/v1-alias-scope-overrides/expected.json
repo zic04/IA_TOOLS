@@ -1,0 +1,20 @@
+{
+ "items": [
+  "package-lock.json npm @corp/tokens@2.0.0 direct local",
+  "package-lock.json npm @corp/ui@1.4.0 direct local",
+  "package-lock.json npm debug@4.4.3 direct public",
+  "package-lock.json npm lodash@4.18.1 direct public",
+  "package-lock.json npm ms@2.1.2 public",
+  "package-lock.json npm my-lodash@npm:lodash@4.18.1 direct local",
+  "package.json npm @corp/tokens@ direct",
+  "package.json npm @corp/ui@ direct",
+  "package.json npm debug@ direct",
+  "package.json npm lodash@ direct",
+  "package.json npm my-lodash@ direct"
+ ],
+ "sent": [
+  "npm debug",
+  "npm lodash"
+ ],
+ "unreadable": []
+}

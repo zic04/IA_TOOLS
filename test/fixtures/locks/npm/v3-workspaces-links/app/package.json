@@ -1,0 +1,14 @@
+{
+  "name": "acme-mono",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "x": "file:./libs/x",
+    "shared": "file:../shared",
+    "vendored": "file:vendor/vendored-1.0.0.tgz",
+    "gitdep": "git+ssh://git@github.com/acme/gitdep.git"
+  }
+}

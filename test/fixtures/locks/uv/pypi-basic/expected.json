@@ -1,0 +1,33 @@
+{
+ "items": [
+  "pyproject.toml pip httpx@ direct",
+  "pyproject.toml pip openpyxl@ direct",
+  "pyproject.toml pip pyjwt@ direct",
+  "pyproject.toml pip pytest@ direct dev",
+  "pyproject.toml pip starlette@ direct",
+  "uv.lock pip anyio@4.13.0 public",
+  "uv.lock pip certifi@2026.10.19 public",
+  "uv.lock pip colorama@0.4.6 public",
+  "uv.lock pip et-xmlfile@2.0.0 public",
+  "uv.lock pip h11@0.16.0 public",
+  "uv.lock pip httpcore@1.0.9 public",
+  "uv.lock pip httpx@0.28.1 direct public",
+  "uv.lock pip idna@3.20 public",
+  "uv.lock pip iniconfig@2.3.0 public",
+  "uv.lock pip openpyxl@3.1.5 direct public",
+  "uv.lock pip packaging@26.2 public",
+  "uv.lock pip pluggy@1.6.0 public",
+  "uv.lock pip pyjwt@2.9.0 direct public",
+  "uv.lock pip pytest@8.3.4 direct dev public",
+  "uv.lock pip starlette@0.41.3 direct public",
+  "uv.lock pip typing-extensions@4.15.0 public"
+ ],
+ "sent": [
+  "pip httpx",
+  "pip openpyxl",
+  "pip pyjwt",
+  "pip pytest",
+  "pip starlette"
+ ],
+ "unreadable": []
+}

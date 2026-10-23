@@ -3,7 +3,7 @@
 // to the canary in 0.4.0, which passed under the trusted floor and failed the security test there.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { growthOf, MEASURABLE_MS } from "../tools/growth.mjs";
+import { growthOf, MEASURABLE_MS, assertLinear } from "../tools/growth.mjs";
 
 const SIZE = 3000;
 /** The growth of a scanner whose time is `model(length, run)` ms (run: how many times that length was timed). */
@@ -64,4 +64,33 @@ test("a growth that stays suspect but too short to trust stops at the longest in
     steps.every((s) => s.ms < MEASURABLE_MS),
     "too short to be trusted: the security test reads none",
   );
+});
+
+/** A reader whose time is `model(n)` ms on an input of n units, on a played clock; the inputs built and removed. */
+function reader(model) {
+  let now = 0;
+  const built = [];
+  const removed = [];
+  return {
+    built,
+    removed,
+    p: {
+      size: 1000,
+      build: (n) => (built.push(String(n)), String(n)),
+      run: (input) => void (now += model(Number(input))),
+      cleanup: (input) => removed.push(input),
+      clock: () => now,
+    },
+  };
+}
+
+test("assertLinear: a reader quadratic on its shape fails, naming it; every input it built is removed", () => {
+  const r = reader((n) => 30 * (n / 1000) ** 2);
+  assert.throws(() => assertLinear("a quadratic reader", r.p), /a quadratic reader: not linear/);
+  assert.deepEqual([...r.removed].sort(), [...r.built].sort());
+});
+
+test("assertLinear: a linear reader passes, its steps returned; one too fast to be trusted passes too", () => {
+  assert.ok(assertLinear("linear", reader((n) => 30 * (n / 1000)).p).every((s) => s.ratio < 8));
+  assert.ok(assertLinear("fast", reader((n) => 0.001 * (n / 1000)).p).length >= 2);
 });

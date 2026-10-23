@@ -24,12 +24,13 @@ a change") and `SECURITY.md` first, then the diff you are given (`git diff`, `gi
    - The network: every request goes through the single gateway, and no private package name or internal host is
      ever sent (AUDIT.md S13).
    - S11: every protection SECURITY.md promises has a test; every known limit is written there.
-2. **Maintainability (M1–M15).** M1 engine/cli split; M2 en and fr for every message; M3 a test for every change
+2. **Maintainability (M1–M16).** M1 engine/cli split; M2 en and fr for every message; M3 a test for every change
    (a security fix comes with the test that would have caught it); M4 no real network, git or browser in unit
    tests; M5 function and file size (no growth of `build()`, `runAudit()`, `runCaptures()`, and of the files held
    by `test/unit/sizes.test.mjs`); M6 an existing helper reused rather than rewritten (`engine/project`,
    `engine/util`, `engine/core`, `engine/facts/common.mjs`); M10 no unused export; M14 no folder cycle; M15 skill
-   coherence.
+   coherence; M16 a fix in a dependency reader, `declarations.mjs` or `network.mjs` comes with its mutant in
+   `test/mutations/` (run `npm run mutate -- --only <file>`: a surviving mutant is a missing test).
 3. **Data before special cases.** A new `if (id === "…")` where a registry fits (`standard/*.json`,
    `DEFAULT_ROUTING`, a brief's front matter) is a finding.
 4. **The contract.** ARCHITECTURE.md describes the change; docs in `docs/en` and `docs/fr`, `standard/*.md` and

@@ -37,12 +37,12 @@ A stack adapter reads the routes of the API, their guards, the screens or behavi
 
 ### Dependencies
 
-Every manifest and lock file below is read on its own, four folders deep at most (source `dependencies`). With `--network`, only the public names of npm and PyPI are ever sent to their registry; the other ecosystems are read offline.
+Every manifest and lock file below gives its own items, four folders deep at most (source `dependencies`); a lock file without a root entry of its own takes its direct dependencies from the manifest beside it (`yarn.lock` and a `package-lock.json` v1 from `package.json`, `poetry.lock` from `pyproject.toml`, `Pipfile.lock` from `Pipfile`), and a transitive dependency of a lock file that lists each package's own says how it comes in (`via`). With `--network`, a name of npm or PyPI is sent to its registry only when a lock file proves that registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`), and never a private one; the other ecosystems are read offline.
 
 | Ecosystem | Files |
 |---|---|
 | npm, pnpm, Yarn (`npm`) | `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` |
-| pip, Poetry (`pip`) | `requirements*.txt`, `poetry.lock`, `pyproject.toml` |
+| pip, Poetry, uv, Pipenv (`pip`) | `requirements*.txt`, `pyproject.toml`, `poetry.lock`, `uv.lock`, `Pipfile`, `Pipfile.lock` |
 | Maven, Gradle (`maven`) | `pom.xml`, `build.gradle`, `build.gradle.kts`, `gradle.lockfile`, `libs.versions.toml` |
 | NuGet (`nuget`) | `*.csproj`, `*.fsproj`, `*.vbproj`, `packages.lock.json`, `packages.config`, `Directory.Packages.props` |
 | Composer (`composer`) | `composer.json`, `composer.lock` |

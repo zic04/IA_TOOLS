@@ -1,0 +1,13 @@
+{
+ "items": [
+  "package-lock.json npm bundle-host-demo@1.0.0 direct public",
+  "package-lock.json npm is-number@7.0.0 direct public",
+  "package.json npm bundle-host-demo@ direct",
+  "package.json npm is-number@ direct"
+ ],
+ "sent": [
+  "npm bundle-host-demo",
+  "npm is-number"
+ ],
+ "unreadable": []
+}

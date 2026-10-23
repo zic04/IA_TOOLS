@@ -4,6 +4,7 @@
 // without `--prefill` (like the capture variant markers of ARCHITECTURE.md §6.4).
 import { KitError, EXIT } from "../project/errors.mjs";
 import { oneLine } from "../core/text.mjs";
+import { oncePerPackage } from "../core/packages.mjs";
 
 export const PREFILL_MARKER = /^[ \t]*<!--\s*doc-kit:prefill\s+source="([a-z]+)"\s*-->[ \t]*\r?\n/gm;
 
@@ -46,13 +47,18 @@ const cellText = (s) => oneLine(s).replaceAll("|", "\\|").replaceAll("`", "'");
  */
 const KEY_CELLS = {
   env: (item) => ({
-    0: `\`${item.name}\``,
+    0: `\`${cellText(item.name)}\``,
     2: filesCell(item.files),
     ...(item.example && !item.files?.length ? { 1: "`.env.example`" } : {}),
   }),
   api: (item, verified) => ({ 0: item.method, 1: `\`${item.route}\``, 5: `[[${verified} file]]` }),
   db: (item, verified) => ({ 0: `\`${item.table}\``, 1: (item.columns || []).join(", "), 3: `[[${verified} file]]` }),
-  dependencies: (item) => ({ 0: `\`${item.name}\``, 1: item.version, ...(item.license ? { 3: item.license } : {}) }),
+  // The exact version a lock file gives, else the range a manifest declares.
+  dependencies: (item) => ({
+    0: `\`${cellText(item.name)}\``,
+    1: cellText(item.version ?? item.spec ?? ""),
+    ...(item.license ? { 3: cellText(item.license) } : {}),
+  }),
   // A scheduled job of the infrastructure (a CronJob, a pipeline's schedule, an EventBridge rule): its proof is
   // where it is declared, a path the build and sync check.
   infra: (item, verified) => ({
@@ -70,11 +76,12 @@ const KEY_CELLS = {
 
 /**
  * The items a table lists (ARCHITECTURE.md §6.11): only the direct dependencies (a dev or transitive package tells a
- * reviewer little), only the infrastructure items that run on a schedule (the runbook's scheduled jobs).
+ * reviewer little), once each (a manifest and its lock file name a package twice: the lock's exact version is kept),
+ * only the infrastructure items that run on a schedule (the runbook's scheduled jobs).
  */
 const itemsFor = (source, items) =>
   source === "dependencies"
-    ? items.filter((i) => i.direct === true)
+    ? oncePerPackage(items.filter((i) => i.direct === true))
     : source === "infra"
       ? items.filter((i) => typeof i.schedule === "string" && i.schedule)
       : items;

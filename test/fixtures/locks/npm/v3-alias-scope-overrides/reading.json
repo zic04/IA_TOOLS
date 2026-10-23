@@ -1,0 +1,50 @@
+[
+ {
+  "location": "node_modules/@corp/tokens",
+  "name": "@corp/tokens",
+  "packageName": "@corp/tokens",
+  "version": "2.0.0",
+  "resolved": "https://npm.corp.example/@corp/tokens/-/tokens-2.0.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/@corp/ui",
+  "name": "@corp/ui",
+  "packageName": "@corp/ui",
+  "version": "1.4.0",
+  "resolved": "https://npm.pkg.github.com/download/@corp/ui/1.4.0/5f2c1d9e0b7a4c3d8e6f1a2b3c4d5e6f7a8b9c0d",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/debug",
+  "name": "debug",
+  "packageName": "debug",
+  "version": "4.4.3",
+  "resolved": "https://registry.npmjs.org/debug/-/debug-4.4.3.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/lodash",
+  "name": "lodash",
+  "packageName": "lodash",
+  "version": "4.18.1",
+  "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.18.1.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/ms",
+  "name": "ms",
+  "packageName": "ms",
+  "version": "2.1.2",
+  "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.2.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/my-lodash",
+  "name": "my-lodash",
+  "packageName": "lodash",
+  "version": "4.18.1",
+  "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.18.1.tgz",
+  "integrity": true
+ }
+]

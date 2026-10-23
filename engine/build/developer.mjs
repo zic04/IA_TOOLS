@@ -6,6 +6,7 @@
 //                      each file and the bus factor
 //   ::health           one summary of the application's state: ratings, security, tests, architecture, knowledge,
 //                      dependencies, tooling, and the main risks found in those facts
+import { packageId } from "../core/packages.mjs";
 
 const DEFAULT_LIMIT = 10;
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"];
@@ -284,10 +285,12 @@ const HEALTH_CARDS = [
       const deps = f.dependencies?.items;
       if (!deps) return null;
       const checked = deps.some((d) => "exists" in d);
+      // Packages, not items: a manifest and its lock file name a package twice.
+      const packages = (list) => String(new Set(list.map(packageId)).size);
       return [
-        [t("render.health.direct"), String(deps.filter((d) => d.direct && !d.dev).length)],
+        [t("render.health.direct"), packages(deps.filter((d) => d.direct && !d.dev))],
         [t("render.health.outdated"), text(f.quality?.summary?.outdated)],
-        [t("render.health.unknownPackages"), checked ? String(deps.filter((d) => d.exists === false).length) : "—"],
+        [t("render.health.unknownPackages"), checked ? packages(deps.filter((d) => d.exists === false)) : "—"],
       ];
     },
   },

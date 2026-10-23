@@ -1,0 +1,21 @@
+{
+ "items": [
+  "packages/worker/pyproject.toml pip corp-auth@ direct",
+  "packages/worker/pyproject.toml pip redis@ direct",
+  "pyproject.toml pip acme-worker@ direct local",
+  "pyproject.toml pip click@ direct",
+  "pyproject.toml pip corp-auth@ direct local",
+  "pyproject.toml pip shared@ direct local",
+  "uv.lock pip acme-worker@0.1.0 direct local",
+  "uv.lock pip click@8.4.1 direct public",
+  "uv.lock pip colorama@0.4.6 public",
+  "uv.lock pip corp-auth@1.2.0 direct local",
+  "uv.lock pip pyjwt@2.9.0 public",
+  "uv.lock pip python-dateutil@2.9.0.post0 direct public",
+  "uv.lock pip redis@5.2.1 direct public",
+  "uv.lock pip shared@1.0.0 direct local",
+  "uv.lock pip six@1.17.0 public"
+ ],
+ "sent": [],
+ "unreadable": []
+}

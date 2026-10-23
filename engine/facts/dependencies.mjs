@@ -1,8 +1,9 @@
 // `dependencies` source (ARCHITECTURE.md §6.9): every manifest and lock file found under the application, searched
 // recursively (vibe-coded applications almost always split a front end and an API into their own folders, each
 // with its own manifest), by ecosystem:
-//   npm       package.json, package-lock.json (v2/v3), pnpm-lock.yaml, yarn.lock (v1 and berry)  (deps/npm.mjs)
-//   pip       requirements*.txt, poetry.lock, pyproject.toml                                        (deps/python.mjs)
+//   npm       package.json, package-lock.json (v1 to v3), pnpm-lock.yaml (deps/npm.mjs), yarn.lock (deps/yarn.mjs)
+//   pip       requirements*.txt, pyproject.toml (PEP 621, PEP 735, Poetry), poetry.lock             (deps/python.mjs)
+//             uv.lock, Pipfile, Pipfile.lock                                                         (deps/python-locks.mjs)
 //   maven     pom.xml, build.gradle, build.gradle.kts, libs.versions.toml, gradle.lockfile          (deps/jvm.mjs)
 //   nuget     *.csproj, *.fsproj, *.vbproj, Directory.Packages.props, packages.config,
 //             packages.lock.json                                                                    (deps/dotnet.mjs)
@@ -10,7 +11,7 @@
 //   go        go.mod                                                                                (deps/golang.mjs)
 //   rubygems  Gemfile, Gemfile.lock                                                                 (deps/ruby.mjs)
 //   cargo     Cargo.toml, Cargo.lock                                                                (deps/rust.mjs)
-// Each file is read ON ITS OWN, never merged with another: an item keeps the `manifest` it was read from, so the
+// Each file gives its OWN items, never merged with another's: an item keeps the `manifest` it was read from, so the
 // same package named by two manifests (a package.json and its own package-lock.json, for instance) gives two items;
 // a version another file holds (a Maven parent, a Gradle catalog alias, a Cargo workspace, a central .NET version)
 // stays null. No YAML, TOML or XML library is used: pnpm-lock.yaml, yarn.lock, the TOML files, go.mod and the
@@ -19,23 +20,31 @@
 // (engine/core/xml.mjs). A manifest that cannot be read, a JSON one that is not valid JSON or an XML one that is
 // not well-formed is listed in `unreadable` ({ file, reason: "read"|"json"|"xml" }): its dependencies are unknown,
 // which is not the same as none (AUDIT.md M14). Nothing is executed, and these readers never touch the network.
-//   item: { name, version, ecosystem, direct, dev, manifest, license?, local? } (local: not from a public registry,
-//   or not identifiable: a folder, git, a workspace member, a private registry — its name is never sent)
+//   item: { name, version, ecosystem, direct, dev, manifest, spec?, via?, license?, local? } (local: not from a
+//   public registry, or not identifiable: a folder, git, a workspace member, a private registry — its name is never
+//   sent)
 // `direct` is read from the manifest itself when it says so (a manifest's own declarations; a lock file's own
-// "root" entry or marks, when the format carries them: package-lock.json v2/v3, pnpm-lock.yaml, packages.lock.json,
-// Gemfile.lock, go.mod's `// indirect`); formats with no such self-contained signal (yarn.lock, poetry.lock,
-// gradle.lockfile, packages.config, composer.lock, Cargo.lock) report every item as `direct: false` rather than
-// guessing from another file.
+// "root" entries or marks: package-lock.json v2/v3 (its root and its workspace members), pnpm-lock.yaml (every
+// importer), uv.lock (the project's own packages), packages.lock.json, Gemfile.lock, go.mod's `// indirect`); a lock
+// file that has none takes it from the manifest beside it, in the same folder — yarn.lock and package-lock.json v1
+// from package.json (and the package.json of its workspaces, inside that folder), poetry.lock from pyproject.toml,
+// Pipfile.lock from Pipfile. The others (gradle.lockfile, packages.config, composer.lock, Cargo.lock) report every
+// item as `direct: false`. `dev` is a dev only dependency (a devDependency nowhere declared as a dependency).
+// `via` (a transitive item of a lock file that gives each package its own dependencies: package-lock.json, yarn.lock,
+// poetry.lock, uv.lock) is the shortest chain of names from a direct dependency down to its parent (deps/graph.mjs).
 // `version` is the exact version the file states, else null — a range is never reported as if it were an installed
-// version; `spec` keeps the constraint as written when it is not that exact version (requirements*.txt, Maven and
-// Gradle, NuGet, Composer, Gemfile, Cargo.toml). requirements*.txt items also carry `extras` (array, e.g.
-// `uvicorn[standard]` → `["standard"]`, omitted when there is none), `operator` (the first comparison found, e.g.
-// "==", ">=", "~=", or null) and `spec` (the constraint as written, e.g. ">=2.0,<3.0", or null).
+// version; `spec` keeps the constraint as written when it is not that exact version (package.json, pyproject.toml,
+// Pipfile, requirements*.txt, Maven and Gradle, NuGet, Composer, Gemfile, Cargo.toml). requirements*.txt and
+// PEP 621 items also carry `extras` (array, e.g. `uvicorn[standard]` → `["standard"]`, omitted when there is none),
+// `operator` (the first comparison found, e.g. "==", ">=", "~=", or null) and `spec` (the constraint as written,
+// e.g. ">=2.0,<3.0", or null).
 import path from "node:path";
 import { GENERIC } from "../check/secrets.mjs";
 import { listFiles, SKIP_DIRS } from "./common.mjs";
 import { NPM_PATTERNS, NPM_READERS } from "./deps/npm.mjs";
+import { YARN_READERS } from "./deps/yarn.mjs";
 import { PYTHON_PATTERNS, pythonReader } from "./deps/python.mjs";
+import { PYTHON_LOCK_READERS } from "./deps/python-locks.mjs";
 import { JVM_PATTERNS, JVM_READERS } from "./deps/jvm.mjs";
 import { DOTNET_PATTERNS, dotnetReader } from "./deps/dotnet.mjs";
 import { PHP_PATTERNS, PHP_READERS } from "./deps/php.mjs";
@@ -45,7 +54,7 @@ import { RUST_PATTERNS, RUST_READERS } from "./deps/rust.mjs";
 
 /** Manifests and lock files searched for, by file name (case-insensitive). */
 const MANIFEST_NAME =
-  /^(?:package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml|pom\.xml|build\.gradle(?:\.kts)?|libs\.versions\.toml|gradle\.lockfile|[^/]*\.(?:cs|fs|vb)proj|directory\.packages\.props|packages\.config|packages\.lock\.json|composer\.(?:json|lock)|go\.mod|gemfile(?:\.lock)?|cargo\.(?:toml|lock))$/i;
+  /^(?:package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|requirements[^/]*\.txt|poetry\.lock|pyproject\.toml|uv\.lock|pipfile(?:\.lock)?|pom\.xml|build\.gradle(?:\.kts)?|libs\.versions\.toml|gradle\.lockfile|[^/]*\.(?:cs|fs|vb)proj|directory\.packages\.props|packages\.config|packages\.lock\.json|composer\.(?:json|lock)|go\.mod|gemfile(?:\.lock)?|cargo\.(?:toml|lock))$/i;
 /** How deep under the application a manifest may sit (ARCHITECTURE.md §6.9: a separate front end and API). */
 const MAX_DEPTH = 4;
 /**
@@ -89,7 +98,16 @@ function kept(item) {
   const version = withoutCredentials(item.version) ?? null;
   const out = { ...item, version };
   if ("spec" in item) out.spec = withoutCredentials(item.spec) ?? null;
+  // The names an item carries besides its own (the chain that brings it in, its extras) are kept on the same terms:
+  // a chain through a name that is a URL or looks like a secret is left out whole.
+  const plain = (n) => typeof n === "string" && !n.includes("://") && withoutCredentials(n) === n;
+  if ("via" in item && !(Array.isArray(item.via) && item.via.every(plain))) delete out.via;
+  if ("extras" in item) {
+    out.extras = Array.isArray(item.extras) ? item.extras.filter(plain) : [];
+    if (!out.extras.length) delete out.extras;
+  }
   if (unusual(item.version, version) || ("spec" in item && unusual(item.spec, out.spec))) out.local = true;
+  if (out.local) delete out.public; // a place is never a proof
   return out;
 }
 
@@ -109,6 +127,8 @@ export const DEPENDENCY_PATTERNS = Object.freeze({
 /** The readers known by their whole file name (lower case). */
 const READERS = Object.freeze({
   ...NPM_READERS,
+  ...YARN_READERS,
+  ...PYTHON_LOCK_READERS,
   ...JVM_READERS,
   ...PHP_READERS,
   ...GO_READERS,

@@ -305,7 +305,9 @@ describe("the manifests", () => {
       assert.doesNotMatch(text, /SECRET123|user:|u:SECRET/);
       assert.ok(!text.includes(token));
       const byName = Object.fromEntries(items.map((i) => [`${i.ecosystem}:${i.name}`, i]));
-      assert.equal(byName["npm:x"].version, "git+https://github.com/a/b.git");
+      // An address is no version: kept, without its user and password, as the constraint written (`spec`).
+      assert.equal(byName["npm:x"].version, null);
+      assert.equal(byName["npm:x"].spec, "git+https://github.com/a/b.git");
       assert.equal(byName["npm:x"].local, true);
       assert.equal(byName["npm:y"].version, null);
       assert.equal(byName["npm:y"].local, true);

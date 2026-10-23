@@ -1,0 +1,13 @@
+{
+ "items": [
+  "package-lock.json npm acme-billing-sdk@3.1.0 direct local",
+  "package-lock.json npm debug@4.4.3 direct local",
+  "package-lock.json npm lodash@4.18.1 direct local",
+  "package-lock.json npm ms@2.1.3 local",
+  "package.json npm acme-billing-sdk@ direct",
+  "package.json npm debug@ direct",
+  "package.json npm lodash@ direct"
+ ],
+ "sent": [],
+ "unreadable": []
+}

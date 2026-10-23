@@ -41,3 +41,23 @@ test("::facts with no source: facts.missing names facts/.json, as before the mov
   assert.equal(render("facts"), "");
   assert.deepEqual(signals, [{ strict: true, key: "facts.missing", vars: { source: "", file: "facts/.json" } }]);
 });
+
+test("::health counts packages, not items: a package named by a manifest and by its lock is one", () => {
+  const items = [
+    { name: "react", version: null, spec: "^18", ecosystem: "npm", direct: true, dev: false, manifest: "package.json" },
+    { name: "react", version: "18.3.1", ecosystem: "npm", direct: true, dev: false, manifest: "yarn.lock" },
+    { name: "left-pad", version: "1.3.0", ecosystem: "npm", direct: false, dev: false, manifest: "yarn.lock" },
+  ];
+  const { render } = renderer({ "facts/dependencies.json": JSON.stringify({ source: "dependencies", items }) });
+  assert.match(render("health"), /render\.health\.direct<\/span><strong>1</);
+});
+
+test("::health: my_lib and My-Lib are one pip package (PEP 503), two npm ones", () => {
+  const item = (name, ecosystem) => ({ name, version: "1.0.0", ecosystem, direct: true, dev: false, manifest: "m" });
+  const count = (items) =>
+    renderer({ "facts/dependencies.json": JSON.stringify({ source: "dependencies", items }) })
+      .render("health")
+      .match(/render\.health\.direct<\/span><strong>(\d+)</)?.[1];
+  assert.equal(count([item("my_lib", "pip"), item("My-Lib", "pip")]), "1");
+  assert.equal(count([item("my_lib", "npm"), item("my-lib", "npm")]), "2");
+});

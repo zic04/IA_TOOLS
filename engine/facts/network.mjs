@@ -2,26 +2,39 @@
 // package name is sent (never the version, never any file content); 8 requests at a time, 5 s each. `fetchImpl`
 // is the test seam of the CLI context (`ctx.fetch`, defaulting to the global `fetch`): the tests never reach the
 // network.
-// A PRIVATE package's name is never sent (AUDIT.md S13): it would tell the public registry what the company
-// builds. Every network request of the facts goes through `isPrivatePackage` first. A package is private when:
-//   - its version is not a registry release (a folder, a workspace, a link, a git repository or a URL), or a lock
-//     file took it from a source that is not a public registry (`local: true`, engine/facts/deps/npm.mjs and
-//     engine/facts/deps/python.mjs);
+// A name is sent ONLY when a lock file proves its public registry served the package: an item its lock reader marks
+// `public: true` (a package-lock.json or yarn.lock v1 tarball of npm's registry, a poetry.lock entry with no other
+// source, a uv.lock entry from PyPI's registry) — the package's `registries.proven`. Any other is `unproven`, never
+// sent: a manifest, pnpm-lock.yaml and a yarn berry lock write no registry, a Pipfile.lock names PyPI even for what
+// Pipenv's mirror served, and a private registry may be declared where the kit never looks (a CI file, a monorepo's root).
+// On top of that proof, a PRIVATE package's name is never sent (AUDIT.md S13): it would tell the public registry what
+// the company builds. Every network request of the facts goes through `isPrivatePackage` first. Private when:
+//   - its version is not a registry release (a folder, an archive, a workspace, a link, a git repository or a URL),
+//     it is an npm alias, or a lock file took it from a source that is not a public registry (`local: true`,
+//     engine/facts/deps/npm.mjs and engine/facts/deps/python.mjs);
 //   - its name is one of the application's own packages (every package.json and pyproject.toml under it: npm
-//     workspaces point at their siblings with plain ranges);
+//     workspaces point at their siblings with plain ranges), or one a `[tool.uv.sources]` names;
 //   - its npm scope has its own registry, or a registry replaces the default one (then every npm package is
 //     private), in an .npmrc, a .yarnrc, a .yarnrc.yml or a bunfig.toml;
-//   - a package index other than PyPI is declared (pip.conf / pip.ini, --index-url / --extra-index-url in a
-//     requirements file, Poetry sources, uv indexes, Pipfile sources): then every pip package is private;
+//   - a package index other than PyPI is declared (pip.conf / pip.ini, --index-url / --extra-index-url /
+//     --find-links in a requirements file, Poetry, PDM and Rye sources, uv indexes and find-links, Pipfile
+//     sources): then every pip package is private;
 //   - an ecosystem the kit does not know.
-// These declarations are read in the application root and in every folder down to each manifest (a separate front
-// end keeps its own .npmrc), in the person's own configuration (~/.npmrc, ~/.yarnrc(.yml), ~/.bunfig.toml, pip.conf
-// / pip.ini, every home given) and in the npm_config_* / YARN_NPM_REGISTRY_SERVER / BUN_CONFIG_REGISTRY / PIP_*
-// variables — where a company usually declares its private registries. Such an item gets `private: true` and
-// `exists: null`. A private package declared nowhere cannot be told apart (SECURITY.md).
-import fs from "node:fs";
+// Where these declarations are read, and how: engine/facts/declarations.mjs.
 import path from "node:path";
 import { listFiles } from "./common.mjs";
+import { packageKey, packageId } from "../core/packages.mjs";
+import { uvSourceNames } from "./deps/python.mjs";
+import {
+  readIf,
+  emptyRegistries,
+  tomlValues,
+  tomlText,
+  under,
+  readFolder,
+  readPythonIndexes,
+  readUserDeclarations,
+} from "./declarations.mjs";
 // ─── The network gateway ────────────────────────────────────────────────────────────────────────────────────────
 // The ONLY place of the kit that builds the URL of a public registry or sends a request to one (RULES.md S12,
 // checked by test/unit/security.test.mjs; the dependency readers only RECOGNISE those hosts in lock files). Every
@@ -91,240 +104,37 @@ export function createRegistryClient({ fetch: fetchImpl, registries, timeoutMs =
 }
 
 /** A version that is not a registry release: local folder, workspace, link, git repository or URL. */
-export const LOCAL_SPEC = /^(?:file:|link:|workspace:|portal:|git(?:\+|:|hub:)|https?:|[\w.-]+\/[\w.-]+(?:#|$))/;
+// Any protocol but a registry's own (npm:, patch:): file:, link:, workspace:, portal:, exec:, git:, git+ssh:, github:,
+// gitlab:, https:… and a drive (C:x); a folder (./x, ../x, . or .., ~/x, and any spec holding a slash: npm reads
+// "@corp/lib" or "a/b" as a folder, "user/repo" as GitHub), a scp-like git address (git@host:…), an archive (x.tgz,
+// x.tar.gz, x.tar); in any case (npm reads "LIB.TGZ" as an archive too; on a doubt, never sent).
+export const LOCAL_SPEC =
+  /^(?:(?!npm:|patch:)[a-z][\w+.-]*:|\.|[^\\/]*[\\/]|[\w.-]+@[\w.-]+:|\S*\.(?:tgz|tar\.gz|tar)$)/i;
 /** The application's files are untrusted: these expressions are linear (RULES.md S5, test/tools/redos-worker.mjs). */
 export const NETWORK_PATTERNS = Object.freeze({
-  npmScope: /^[ \t]*(@[\w.-]+):registry[ \t]*=/gm,
-  npmRegistry: /^[ \t]*registry[ \t]*=[ \t]*(\S+)/m,
-  yarnScope: /^[ \t]*"?(@[\w.-]+):registry"?[ \t]/gm,
-  yarnRegistry: /^[ \t]*"?registry"?[ \t]+"?([^"\s]+)/m,
-  yarnServer: /^npmRegistryServer:[ \t]*["']?([^"'\s]+)/m,
-  yamlKey: /^([ \t]*)["']?@?([\w.-]+)["']?:[ \t]*$/,
-  tomlSection: /^[ \t]*\[{1,2}([^\]]+)\]{1,2}[ \t]*$/,
-  tomlKey: /^[ \t]*["']?@?([\w.-]+)["']?[ \t]*=[ \t]*["']?([^"'\s]*)/,
-  pipIndex: /^[ \t]*(?:--index-url|--extra-index-url|-i)\b/m,
-  pipConfIndex: /^[ \t]*(?:index-url|extra-index-url|index)[ \t]*=/m,
+  // A registry range or version (npm, PEP 440, Poetry, Pipenv) holds these characters only: any other ("/", ":",
+  // "@", "\", "#"…) names a place, not a release — an npm alias too: npm reads every "npm:" spec as one
+  // ("npm:@corp/ui@^1", "npm:corp-ui", "npm:x"), and berry's explicit "npm:^1" cannot be told apart from it.
+  registryRange: /^[\w.*<>=!~^|+, \t-]*$/,
   pipDirect: /^\s*@|\s@\s|^(?:git\+|https?:|file:)/,
-  envScope: /^npm_config_(@[\w.-]+):registry$/i,
-  publicNpm: /^https?:\/\/registry\.(?:npmjs\.(?:org|com)|yarnpkg\.com)\/?$/i,
-  publicPip: /^https?:\/\/(?:pypi\.org|files\.pythonhosted\.org)(?:\/|$)/i,
-  yarnScopesBlock: /^npmScopes:[ \t]*$/,
-  yarnScopesMention: /\bnpmScopes\b/,
-  bunScopesMention: /\binstall\.scopes\b/,
+  // A name the public registry can hold (npm: URL-safe, no "." or "_" first, its scope likewise; PEP 508 for pip): any
+  // other (`café`, `_corp`, `corp-`) a lock cannot have from there — a forged proof, never sent.
+  npmName: /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/i,
+  pipName: /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i,
 });
-const readIf = (file) => {
-  try {
-    return fs.existsSync(file) && fs.statSync(file).isFile() ? fs.readFileSync(file, "utf8") : "";
-  } catch {
-    return "";
-  }
-};
-const isPublicNpm = (url) => NETWORK_PATTERNS.publicNpm.test(String(url));
-const isPublicPip = (url) => NETWORK_PATTERNS.publicPip.test(String(url));
-/** A package name compared case-insensitively; a pip name normalised as PEP 503 says (runs of -_. are one "-"). */
-const keyOf = (ecosystem, name) =>
-  ecosystem === "pip"
-    ? String(name)
-        .toLowerCase()
-        .replace(/[-_.]+/g, "-")
-    : String(name).toLowerCase();
-const emptyRegistries = () => ({ npmScopes: new Set(), npmAll: false, pipAll: false, names: new Set() });
 
-/** One .npmrc (`@scope:registry=…`, `registry=…`), added to `out`. */
-function readNpmrc(text, out) {
-  for (const m of text.matchAll(NETWORK_PATTERNS.npmScope)) out.npmScopes.add(m[1].toLowerCase());
-  const registry = NETWORK_PATTERNS.npmRegistry.exec(text)?.[1];
-  if (registry && !isPublicNpm(registry)) out.npmAll = true;
-}
-
-/** One .yarnrc of Yarn 1 (`registry "…"`, `"@scope:registry" "…"`), added to `out`. */
-function readYarnrc(text, out) {
-  for (const m of text.matchAll(NETWORK_PATTERNS.yarnScope)) out.npmScopes.add(m[1].toLowerCase());
-  const registry = NETWORK_PATTERNS.yarnRegistry.exec(text)?.[1];
-  if (registry && !isPublicNpm(registry)) out.npmAll = true;
-}
-
+/** The longest name npm's registry holds. */
+const NPM_NAME_MAX = 214;
+/** Whether a public registry can hold `item`'s name at all. */
+const registryName = (item) =>
+  item.ecosystem === "npm"
+    ? item.name.length <= NPM_NAME_MAX && NETWORK_PATTERNS.npmName.test(item.name)
+    : NETWORK_PATTERNS.pipName.test(item.name);
 /**
- * One .yarnrc.yml of Yarn 2+: `npmRegistryServer` at the top, and the keys of the `npmScopes` map (no "@"). A file
- * that mentions `npmScopes` in a form this reader does not follow (flow style, a comment after the key) makes every
- * npm package private: on a doubt, no name is sent.
+ * A private name compared in any case (a name private in one case is private in all: fail closed); a pip name
+ * normalised as PEP 503 says (engine/core/packages.mjs).
  */
-function readYarnrcYml(text, out) {
-  const server = NETWORK_PATTERNS.yarnServer.exec(text)?.[1];
-  if (server && !isPublicNpm(server)) out.npmAll = true;
-  let inScopes = false;
-  let indent = null;
-  let found = 0;
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.trim() || line.trim().startsWith("#")) continue;
-    if (NETWORK_PATTERNS.yarnScopesBlock.test(line)) {
-      inScopes = true;
-      indent = null;
-      continue;
-    }
-    if (!inScopes) continue;
-    if (!/^[ \t]/.test(line)) {
-      inScopes = false;
-      continue;
-    }
-    const key = NETWORK_PATTERNS.yamlKey.exec(line);
-    if (!key) continue;
-    if (indent === null) indent = key[1].length;
-    if (key[1].length === indent) (out.npmScopes.add("@" + key[2].toLowerCase()), found++);
-  }
-  if (!found && NETWORK_PATTERNS.yarnScopesMention.test(text)) out.npmAll = true;
-}
-
-/**
- * A TOML text read line by line: `visit(section)` when a section opens, `visit(section, key, value)` for every
- * `key = value` line. Enough for bunfig.toml, pyproject.toml and Pipfile (never a full TOML parser).
- */
-function eachToml(text, visit) {
-  let section = "";
-  for (const line of text.split(/\r?\n/)) {
-    const s = NETWORK_PATTERNS.tomlSection.exec(line);
-    if (s) {
-      section = s[1].trim();
-      visit(section);
-      continue;
-    }
-    const k = NETWORK_PATTERNS.tomlKey.exec(line);
-    if (k) visit(section, k[1], k[2]);
-  }
-}
-
-/**
- * One bunfig.toml: `[install] registry`, the keys of `[install.scopes]` and the `[install.scopes.<name>]` sections,
- * added to `out`. A file that mentions `install.scopes` in a form this reader does not follow makes every npm package
- * private: on a doubt, no name is sent.
- */
-function readBunfig(text, out) {
-  let found = 0;
-  eachToml(text, (section, key, value) => {
-    if (section === "install" && key === "registry" && value && !isPublicNpm(value)) out.npmAll = true;
-    if (section === "install.scopes" && key) (out.npmScopes.add("@" + key.toLowerCase()), found++);
-    const own = key === undefined && section.startsWith("install.scopes.") ? section.slice(15).replace(/^@/, "") : "";
-    if (own) (out.npmScopes.add("@" + own.replace(/^["']|["']$/g, "").toLowerCase()), found++);
-  });
-  if (!found && NETWORK_PATTERNS.bunScopesMention.test(text)) out.npmAll = true;
-}
-
-/**
- * One pyproject.toml, Pipfile or uv.toml: a package index other than PyPI (Poetry `[[tool.poetry.source]]`, uv
- * `[[tool.uv.index]]`, `[tool.uv] index-url`, uv.toml `index-url` / `[[index]]`, Pipfile `[[source]]`) makes every
- * pip package private.
- */
-function readPythonIndexes(text, out, { uvToml = false } = {}) {
-  eachToml(text, (section, key, value) => {
-    if (key === undefined) {
-      if (section === "tool.uv.index" || (uvToml && section === "index")) out.pipAll = true;
-      return;
-    }
-    const sourceUrl = (section === "tool.poetry.source" || section === "source") && key === "url";
-    const uvSection = section === "tool.uv" || (uvToml && section === "");
-    const uvIndex = uvSection && /^(?:index-url|extra-index-url)$/.test(key);
-    if ((sourceUrl || uvIndex) && !isPublicPip(value)) out.pipAll = true;
-  });
-}
-
-/** The private declarations of one folder of the application, added to `out`. */
-function readFolder(dir, out) {
-  readNpmrc(readIf(path.join(dir, ".npmrc")), out);
-  readYarnrc(readIf(path.join(dir, ".yarnrc")), out);
-  readYarnrcYml(readIf(path.join(dir, ".yarnrc.yml")), out);
-  readBunfig(readIf(path.join(dir, "bunfig.toml")), out);
-  readPythonIndexes(readIf(path.join(dir, "pyproject.toml")), out);
-  readPythonIndexes(readIf(path.join(dir, "Pipfile")), out);
-  readPythonIndexes(readIf(path.join(dir, "uv.toml")), out, { uvToml: true });
-  if (["pip.conf", "pip.ini"].some((f) => fs.existsSync(path.join(dir, f)))) out.pipAll = true;
-  let names;
-  try {
-    names = fs.readdirSync(dir);
-  } catch {
-    return;
-  }
-  for (const f of names)
-    if (/^requirements.*\.(?:txt|in)$/i.test(f) && NETWORK_PATTERNS.pipIndex.test(readIf(path.join(dir, f))))
-      out.pipAll = true;
-}
-
-/**
- * The person's own configuration files that can declare private registries (never the application's): those of
- * every home given (HOME and USERPROFILE can differ on Windows), of APPDATA and XDG_CONFIG_HOME, and the files named
- * by NPM_CONFIG_USERCONFIG and PIP_CONFIG_FILE.
- */
-function userConfigFiles(env) {
-  const get = (name) => Object.entries(env).find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1] || null;
-  const files = [];
-  for (const home of new Set([env.HOME, env.USERPROFILE].filter(Boolean))) {
-    files.push({ kind: "npmrc", file: path.join(home, ".npmrc") });
-    files.push({ kind: "yarnrc", file: path.join(home, ".yarnrc") });
-    files.push({ kind: "yarnrcYml", file: path.join(home, ".yarnrc.yml") });
-    files.push({ kind: "bunfig", file: path.join(home, ".bunfig.toml") });
-    for (const f of [
-      ".config/pip/pip.conf",
-      ".pip/pip.conf",
-      "pip/pip.ini",
-      "Library/Application Support/pip/pip.conf",
-    ])
-      files.push({ kind: "pip", file: path.join(home, f) });
-    files.push({ kind: "uv", file: path.join(home, ".config", "uv", "uv.toml") });
-  }
-  if (env.APPDATA) {
-    files.push({ kind: "pip", file: path.join(env.APPDATA, "pip", "pip.ini") });
-    files.push({ kind: "uv", file: path.join(env.APPDATA, "uv", "uv.toml") });
-  }
-  if (env.XDG_CONFIG_HOME) {
-    files.push({ kind: "pip", file: path.join(env.XDG_CONFIG_HOME, "pip", "pip.conf") });
-    files.push({ kind: "uv", file: path.join(env.XDG_CONFIG_HOME, "uv", "uv.toml") });
-  }
-  const npmUser = get("NPM_CONFIG_USERCONFIG");
-  if (npmUser) files.push({ kind: "npmrc", file: npmUser });
-  const pipFile = get("PIP_CONFIG_FILE");
-  if (pipFile) files.push({ kind: "pip", file: pipFile });
-  const uvFile = get("UV_CONFIG_FILE");
-  if (uvFile) files.push({ kind: "uv", file: uvFile });
-  // Poetry's own configuration (`poetry config repositories.<name> <url>`).
-  const poetryDirs = [get("POETRY_CONFIG_DIR"), env.APPDATA && path.join(env.APPDATA, "pypoetry")];
-  if (env.XDG_CONFIG_HOME) poetryDirs.push(path.join(env.XDG_CONFIG_HOME, "pypoetry"));
-  for (const home of new Set([env.HOME, env.USERPROFILE].filter(Boolean)))
-    poetryDirs.push(
-      path.join(home, ".config", "pypoetry"),
-      path.join(home, "Library", "Application Support", "pypoetry"),
-    );
-  for (const dir of poetryDirs.filter(Boolean)) files.push({ kind: "poetry", file: path.join(dir, "config.toml") });
-  return files;
-}
-
-const READ_USER_FILE = {
-  npmrc: readNpmrc,
-  yarnrc: readYarnrc,
-  yarnrcYml: readYarnrcYml,
-  bunfig: readBunfig,
-  pip: (text, out) => {
-    if (NETWORK_PATTERNS.pipConfIndex.test(text)) out.pipAll = true;
-  },
-  uv: (text, out) => readPythonIndexes(text, out, { uvToml: true }),
-  // A repository declared in Poetry's configuration: every pip package may come from it.
-  poetry: (text, out) =>
-    eachToml(text, (section, key, value) => {
-      if (section.startsWith("repositories.") && key === "url" && !isPublicPip(value)) out.pipAll = true;
-    }),
-};
-
-/** The environment variables of npm, yarn, bun, pip and uv that name a registry or an index, added to `out`. */
-function readEnv(env, out) {
-  for (const [key, value] of Object.entries(env)) {
-    if (!value) continue;
-    const scope = NETWORK_PATTERNS.envScope.exec(key);
-    if (scope) out.npmScopes.add(scope[1].toLowerCase());
-    else if (/^(?:npm_config_registry|YARN_NPM_REGISTRY_SERVER|BUN_CONFIG_REGISTRY)$/i.test(key)) {
-      if (!isPublicNpm(value)) out.npmAll = true;
-    } else if (/^(?:PIP_(?:EXTRA_)?INDEX_URL|UV_(?:EXTRA_)?INDEX_URL|UV_DEFAULT_INDEX|UV_INDEX)$/i.test(key)) {
-      if (!isPublicPip(value)) out.pipAll = true;
-    } else if (/^POETRY_REPOSITORIES_\w+_URL$/i.test(key) && !isPublicPip(value)) out.pipAll = true;
-  }
-}
+const keyOf = (ecosystem, name) => packageKey(ecosystem, name).toLowerCase();
 
 /** Every folder from the application root down to each manifest's folder (a workspace root's .npmrc counts). */
 function foldersOf(root, items) {
@@ -347,7 +157,7 @@ function foldersOf(root, items) {
  * every package.json and pyproject.toml under it), and every item a lock file took from somewhere else than a
  * public registry (`local: true`).
  */
-function privateNames(appDir, items) {
+function privateNames(appDir, items, out) {
   const names = new Set();
   for (const rel of listFiles(appDir, { maxDepth: 6 })) {
     const base = rel.split("/").pop();
@@ -356,23 +166,49 @@ function privateNames(appDir, items) {
         const name = JSON.parse(readIf(path.join(appDir, rel)))?.name;
         if (typeof name === "string" && name) names.add(keyOf("npm", name));
       } catch {
-        // a package.json that is not valid JSON names nothing
+        // A package.json that is not valid JSON (a merge left unresolved): its own name, and the places its ranges name,
+        // cannot be told — while a lock beside it may still prove them. Every npm package is private, as a pyproject.toml
+        // the kit cannot read makes every pip one.
+        out.npmAll = true;
       }
-    } else if (base === "pyproject.toml")
-      eachToml(readIf(path.join(appDir, rel)), (section, key, value) => {
-        if ((section === "project" || section === "tool.poetry") && key === "name" && value)
-          names.add(keyOf("pip", value));
-      });
+    } else if (base === "uv.toml") {
+      // Read as the folders' declarations are (an index, a source, a requirement it does not read), wherever it is.
+      readPythonIndexes(readIf(path.join(appDir, rel)), out, { uvToml: true });
+    } else if (base === "pyproject.toml") {
+      const text = readIf(path.join(appDir, rel));
+      const leaves = tomlValues(text);
+      if (leaves.doubt) out.pipAll = true; // its sources cannot be told: every pip package is private
+      // Its indexes, sources and requirements, as the folders' declarations are read — in a folder no item names too.
+      readPythonIndexes(text, out);
+      // Every package `tool.uv.sources` names, whatever the TOML form and in whichever pyproject.toml (the root of a
+      // uv workspace declares the sources of its members): it comes from git, a folder, a URL, the workspace or an
+      // index of its own.
+      for (const name of uvSourceNames(leaves)) names.add(keyOf("pip", name));
+      for (const { path: keys, value } of leaves) {
+        const own =
+          (keys.length === 2 && under(keys, ["project", "name"])) ||
+          (keys.length === 3 && under(keys, ["tool", "poetry", "name"]));
+        if (!own) continue;
+        // An own name the kit does not read (a multi-line string…): which name is the application's own cannot be told.
+        const name = tomlText(value);
+        if (name === null) out.pipAll = true;
+        else if (name) names.add(keyOf("pip", name));
+      }
+    }
   }
-  for (const i of items) if (i.local && i.name) names.add(keyOf(i.ecosystem, i.name));
+  // An item whose own fields name a place (itemPlace): its name is private in every manifest too.
+  for (const i of items) if (itemPlace(i) && i.name) names.add(keyOf(i.ecosystem, i.name));
   return names;
 }
 
 /**
- * What is declared private (see the header): `{ npmScopes, npmAll, pipAll, names }`. Conservative: one folder that
- * replaces the npm registry makes every npm package private (a name is never sent on a doubt).
+ * What may and may not be sent (see the header): `{ proven, npmScopes, npmAll, pipAll, names }`. `proven`: the
+ * packages (packageId) a lock file proves its public registry served — an item marked `public: true` by its reader
+ * (deps/npm.mjs, deps/python.mjs, deps/python-locks.mjs) that names no place; only these are ever sent. The rest is the
+ * second net: what is declared private. Conservative: one folder that replaces the npm registry makes every npm
+ * package private (a name is never sent on a doubt).
  * @param {string} appDir
- * @param {{ items?: Array<{ name?: string, ecosystem?: string, manifest?: string, local?: boolean }>,
+ * @param {{ items?: Array<{ name?: string, ecosystem?: string, manifest?: string, local?: boolean, public?: boolean }>,
  *   env?: Record<string, string|undefined> }} [options]
  *   items: the `dependencies` items — the folders of their manifests (and every folder above them, up to the root)
  *   are read, and a name a lock file took from a non-public source is private everywhere.
@@ -382,32 +218,63 @@ function privateNames(appDir, items) {
 export function privateRegistries(appDir, { items = [], env } = {}) {
   const out = emptyRegistries();
   const root = path.resolve(appDir);
-  for (const dir of foldersOf(root, items)) readFolder(dir, out);
-  if (env) {
-    for (const { kind, file } of userConfigFiles(env)) READ_USER_FILE[kind](readIf(file), out);
-    readEnv(env, out);
-  }
-  out.names = privateNames(root, items);
+  for (const dir of foldersOf(root, items)) readFolder(dir, out, root);
+  if (env) readUserDeclarations(env, out);
+  out.names = privateNames(root, items, out);
+  out.proven = new Set(items.filter((i) => i.public === true && !itemPlace(i)).map(proofId));
   return out;
 }
 
 /**
- * Is a dependency item private (its name must never be sent to a public service)? Every network request of the facts
- * checks it first (AUDIT.md S13).
- * @param {{ name: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
- * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string> }} registries
+ * Does an item's own fields name a place rather than a registry's release — then it is never sent, and its name is
+ * private in every manifest (privateNames)? Local (its reader said so), a version or a range LOCAL_SPEC reads as a
+ * place, and behind the readers an allowlist: a range (npm, pip) or a pip version holding anything but a release's
+ * characters (an npm alias, `npm:…`, among them).
+ * @param {{ name?: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
  */
-export function isPrivatePackage(item, registries) {
+function itemPlace(item) {
   if (item.local) return true;
   if (item.version && LOCAL_SPEC.test(String(item.version))) return true;
-  if (registries.names?.has(keyOf(item.ecosystem, item.name))) return true;
+  if (item.ecosystem === "npm" && item.spec && LOCAL_SPEC.test(String(item.spec))) return true;
+  const ranges = item.ecosystem === "pip" ? [item.spec, item.version] : item.ecosystem === "npm" ? [item.spec] : [];
+  return ranges.some((r) => r != null && !NETWORK_PATTERNS.registryRange.test(String(r)));
+}
+
+/**
+ * The identity a proof is kept by: the package's own (packageId) — an npm name as written (npm's registry tells
+ * `Corp-Utils` from `corp-utils`), a pip name as PEP 503 compares it.
+ */
+const proofId = packageId;
+
+/**
+ * Why a dependency item is never sent, or null when it may be: "private" — its own fields name a place, or it is
+ * declared private —, "unproven" — no lock file proves its public registry served the package (`registries.proven`).
+ * @param {{ name: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
+ * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string> }} registries
+ * @returns {"private"|"unproven"|null}
+ */
+function privacyOf(item, registries) {
+  if (itemPlace(item)) return "private";
+  if (registries.names?.has(keyOf(item.ecosystem, item.name))) return "private";
   if (item.ecosystem === "npm") {
-    if (registries.npmAll) return true;
+    if (registries.npmAll) return "private";
     const scope = item.name.startsWith("@") ? item.name.split("/")[0].toLowerCase() : null;
-    return !!scope && registries.npmScopes.has(scope);
-  }
-  if (item.ecosystem === "pip") return registries.pipAll || NETWORK_PATTERNS.pipDirect.test(String(item.spec || ""));
-  return true; // an ecosystem the kit does not know: never sent
+    if (scope && registries.npmScopes.has(scope)) return "private";
+  } else if (item.ecosystem === "pip") {
+    if (registries.pipAll || NETWORK_PATTERNS.pipDirect.test(String(item.spec || ""))) return "private";
+  } else return "private"; // an ecosystem the kit does not know
+  if (!registryName(item)) return "private";
+  return registries.proven?.has(proofId(item)) ? null : "unproven";
+}
+
+/**
+ * Is a dependency item never to be sent to a public service — private, or not proven public by a lock file? Every
+ * network request of the facts checks it first (AUDIT.md S13).
+ * @param {{ name: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
+ * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string> }} registries
+ */
+export function isPrivatePackage(item, registries) {
+  return privacyOf(item, registries) !== null;
 }
 
 /**
@@ -424,15 +291,21 @@ export async function checkExistence(
   { concurrency = 8, timeoutMs = 5000, registries = emptyRegistries() } = {},
 ) {
   const isPrivate = (i) => isPrivatePackage(i, registries);
-  const direct = items.filter((i) => i.direct && !isPrivate(i));
+  // One request a package, however many manifests name it (a package.json and its lock file, a pyproject.toml and
+  // its poetry.lock): the answer is shared.
+  const keyOfItem = packageId;
+  const direct = [...new Map(items.filter((i) => i.direct && !isPrivate(i)).map((i) => [keyOfItem(i), i])).values()];
   const client = createRegistryClient({ fetch: fetchImpl, registries, timeoutMs });
   const results = new Map();
   const queue = [...direct];
   async function worker() {
-    for (let item = queue.shift(); item; item = queue.shift()) results.set(item, await client.exists(item));
+    for (let item = queue.shift(); item; item = queue.shift()) results.set(keyOfItem(item), await client.exists(item));
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, direct.length) }, worker));
-  return items.map((i) =>
-    !i.direct ? i : isPrivate(i) ? { ...i, private: true, exists: null } : { ...i, exists: results.get(i) },
-  );
+  return items.map((i) => {
+    if (!i.direct) return i;
+    const why = privacyOf(i, registries);
+    if (why === null) return { ...i, exists: results.get(keyOfItem(i)) };
+    return why === "private" ? { ...i, private: true, exists: null } : { ...i, unproven: true, exists: null };
+  });
 }

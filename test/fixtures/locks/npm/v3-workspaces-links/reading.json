@@ -1,0 +1,160 @@
+[
+ {
+  "location": "../shared",
+  "name": "shared",
+  "packageName": "shared",
+  "version": "1.0.0",
+  "resolved": null,
+  "integrity": false
+ },
+ {
+  "location": "libs/x",
+  "name": "x",
+  "packageName": "x",
+  "version": "1.0.0",
+  "resolved": null,
+  "integrity": false
+ },
+ {
+  "location": "node_modules/@acme/api",
+  "name": "@acme/api",
+  "packageName": "@acme/api",
+  "version": "1.0.0",
+  "resolved": "file:../../packages/api",
+  "integrity": false,
+  "link": true,
+  "target": "packages/api",
+  "workspace": true
+ },
+ {
+  "location": "node_modules/@acme/web",
+  "name": "@acme/web",
+  "packageName": "@acme/web",
+  "version": "1.0.0",
+  "resolved": "file:../../packages/web",
+  "integrity": false,
+  "link": true,
+  "target": "packages/web",
+  "workspace": true
+ },
+ {
+  "location": "node_modules/@types/node",
+  "name": "@types/node",
+  "packageName": "@types/node",
+  "version": "20.19.43",
+  "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.43.tgz",
+  "integrity": true,
+  "dev": true
+ },
+ {
+  "location": "node_modules/debug",
+  "name": "debug",
+  "packageName": "debug",
+  "version": "4.4.3",
+  "resolved": "https://registry.npmjs.org/debug/-/debug-4.4.3.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/gitdep",
+  "name": "gitdep",
+  "packageName": "gitdep",
+  "version": "0.3.0",
+  "resolved": "git+ssh://git@github.com/acme/gitdep.git#fd41c0f7ecffca0071140852ac03b71027316782",
+  "integrity": false
+ },
+ {
+  "location": "node_modules/is-number",
+  "name": "is-number",
+  "packageName": "is-number",
+  "version": "7.0.0",
+  "resolved": "https://registry.npmjs.org/is-number/-/is-number-7.0.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/js-tokens",
+  "name": "js-tokens",
+  "packageName": "js-tokens",
+  "version": "4.0.0",
+  "resolved": "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/loose-envify",
+  "name": "loose-envify",
+  "packageName": "loose-envify",
+  "version": "1.4.0",
+  "resolved": "https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/ms",
+  "name": "ms",
+  "packageName": "ms",
+  "version": "2.1.3",
+  "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/react",
+  "name": "react",
+  "packageName": "react",
+  "version": "18.3.1",
+  "resolved": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/shared",
+  "name": "shared",
+  "packageName": "shared",
+  "version": "1.0.0",
+  "resolved": "file:../../shared",
+  "integrity": false,
+  "link": true,
+  "target": "../shared"
+ },
+ {
+  "location": "node_modules/undici-types",
+  "name": "undici-types",
+  "packageName": "undici-types",
+  "version": "6.21.0",
+  "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz",
+  "integrity": true,
+  "dev": true
+ },
+ {
+  "location": "node_modules/vendored",
+  "name": "vendored",
+  "packageName": "vendored",
+  "version": "1.0.0",
+  "resolved": "file:vendor/vendored-1.0.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/x",
+  "name": "x",
+  "packageName": "x",
+  "version": "1.0.0",
+  "resolved": "file:../libs/x",
+  "integrity": false,
+  "link": true,
+  "target": "libs/x"
+ },
+ {
+  "location": "packages/api",
+  "name": "api",
+  "packageName": "@acme/api",
+  "version": "1.0.0",
+  "resolved": null,
+  "integrity": false,
+  "workspace": true
+ },
+ {
+  "location": "packages/web",
+  "name": "web",
+  "packageName": "@acme/web",
+  "version": "1.0.0",
+  "resolved": null,
+  "integrity": false,
+  "workspace": true
+ }
+]

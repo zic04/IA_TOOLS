@@ -12,7 +12,18 @@ import vm from "node:vm";
 import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
 import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
+import {
+  DECLARATION_PATTERNS,
+  READ_USER_FILE,
+  requirementsIndex,
+  emptyRegistries,
+} from "../../engine/facts/declarations.mjs";
+import { logicalLines, uvSourceNames } from "../../engine/facts/deps/python.mjs";
+import { tomlString, inlineFields } from "../../engine/facts/deps/toml-values.mjs";
 import { DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
+import { tomlEntries, tomlLeaves, dottedParts, tableDependencies, configLines } from "../../engine/facts/deps/read.mjs";
+import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
+import { packageKey } from "../../engine/core/packages.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
@@ -456,7 +467,103 @@ export const CHECKS = [
     (s) => (re.global ? [...s.matchAll(re)].length : re.test(s)),
   ]),
   ["network LOCAL_SPEC", (s) => LOCAL_SPEC.test(s)],
+  // The logical lines of a requirements file (deps/python.mjs): continued lines joined, pip's comments dropped.
+  ["requirements logicalLines", (s) => logicalLines(`${s}\\\n${s} #${s}\n${s}\\`).length],
+  // Every line break a configuration's tools read (deps/read.mjs).
+  ["declarations configLines", (s) => configLines(`${s}\r${s}\r\n${s}\f`).length],
+  // The readers of the person's own files, and of a requirements file's options (declarations.mjs): loops over the
+  // characters of each line, and the patterns above.
+  ...Object.entries(READ_USER_FILE).map(([kind, read]) => [
+    `declarations ${kind}`,
+    (s) => (read(`${s} = ${s}\n  ${s}:\n`, emptyRegistries()), 0),
+  ]),
+  ["declarations requirementsIndex", (s) => requirementsIndex(`${s}\n-e ${s} --pre ${s}\n`, "/", "/", new Set())],
+  ...Object.entries(DECLARATION_PATTERNS).map(([name, re]) => [
+    `declarations ${name}`,
+    (s) => (re.global ? [...s.matchAll(re)].length : re.test(s)),
+  ]),
   ...Object.entries(DEPENDENCY_PATTERNS).map(([name, re]) => [`dependencies ${name}`, (s) => re.exec(s)]),
+  // The same with a line ending one character after the run (a CR, U+2028): "." crosses neither, so an expression
+  // ending in `(.*)$` fails there — late, after every split of the run (the review of Lot 11a found `requirement`
+  // cubic). Right after the run, `\s` would take the line ending itself and the match succeed at once.
+  ...Object.entries(DEPENDENCY_PATTERNS).flatMap(([name, re]) =>
+    [
+      ["CR", "\r"],
+      ["U+2028", "\u2028"],
+    ].map(([label, end]) => [
+      `dependencies ${name} (${label} after the run)`,
+      (s) => re.exec(s.slice(0, -1) + "x" + end + "x"),
+    ]),
+  ),
+  // The workspace patterns of a package.json against its folders (deps/workspaces.mjs): the whole text as a pattern
+  // and as a folder, and its first 99 characters around one "*" (the longest segment followed).
+  [
+    "workspaces membersOf",
+    (s) => {
+      const t = s.slice(0, 99);
+      const patterns = [s, `${s}/*`, `!${s}`, `${t}*`, `*${t}`, `**/${t}*`, `${t.slice(0, 49)}*${t.slice(49)}`];
+      return membersOf(patterns, [[s], ["a", s], [t, "b", t], [t + t]]).length;
+    },
+  ],
+  // A package's key (engine/core/packages.mjs): PEP 503's runs of separators.
+  ["packages packageKey", (s) => packageKey("pip", s)],
+  // The TOML of the Python manifests and locks (deps/read.mjs): one pass, its arrays over many lines included.
+  ["dependencies tomlEntries", (s) => tomlEntries(s).length],
+  ["dependencies tomlEntries (an array left open)", (s) => tomlEntries(`deps = [\n${s}`).length],
+  // A long table name over many distinct keys: each key is told apart from the others without the table's text.
+  [
+    "dependencies tomlEntries (a long header, many keys)",
+    (s) =>
+      tomlEntries(
+        `[t${"a".repeat(s.length)}]\n${Array.from({ length: Math.ceil(s.length / 8) }, (_, i) => `k${i} = 1`).join("\n")}\n`,
+      ).length,
+  ],
+  // The full path of each value (network.mjs reads every private declaration by it): the text as a dotted key, a
+  // header and an inline table; a long dotted name's parts copied into many values (bounded at 16 parts).
+  ["dependencies dottedParts", (s) => dottedParts(s).length],
+  // A basic string's escapes (\uXXXX…) decoded in a quoted part, one left unfinished.
+  ["dependencies dottedParts (quoted, escaped)", (s) => dottedParts(`"${s}\\u00"."\\${s}"`).length],
+  // Triple quotes are one token (deps/read.mjs stepQuotes): a lone quote inside, one left open.
+  [
+    "dependencies tomlEntries (triple quotes)",
+    (s) => tomlEntries(`a = ['''${s}''', """${s}\n${s}"""]\nb = '''${s}\n`).length,
+  ],
+  // Poetry's and a Pipfile's tables read by path.
+  [
+    "dependencies tableDependencies",
+    (s) => tableDependencies(tomlEntries(`[t]\n${s} = { ${s} = [{ v = 2 }] }\n`), () => 1).length,
+  ],
+  // A TOML string and an inline table read as the tools read them (deps/toml-values.mjs).
+  ["dependencies tomlString", (s) => tomlString(`"${s}"`)?.length ?? 0],
+  ["dependencies inlineFields", (s) => inlineFields(`{ ${s} = 1, a = "${s}", "${s}" = { b = 2 } }`)?.size ?? 0],
+  // A long table name (a Poetry group, a uv source) over many keys: a name over 1,000 characters is left out, so no
+  // reader below builds a string from it for each key.
+  [
+    "dependencies tableDependencies (a long table, many keys)",
+    (s) =>
+      tableDependencies(
+        tomlEntries(
+          `[t${"a".repeat(s.length)}]\n${Array.from({ length: Math.ceil(s.length / 8) }, (_, i) => `k${i} = 1`).join("\n")}\n`,
+        ),
+        () => 1,
+      ).length,
+  ],
+  [
+    "dependencies uv sources (a long name, many values)",
+    (s) =>
+      uvSourceNames(
+        tomlLeaves(
+          tomlEntries(
+            `[tool.uv.sources.s${"s".repeat(s.length)}]\n${Array.from({ length: Math.ceil(s.length / 8) }, (_, i) => `k${i} = 1`).join("\n")}\n`,
+          ),
+        ),
+      ).length,
+  ],
+  ["dependencies tomlLeaves", (s) => tomlLeaves(tomlEntries(`[${s}]\nx = { ${s} = [{ b = 2 }] }\n`)).length],
+  [
+    "dependencies tomlLeaves (a long dotted name, many values)",
+    (s) => tomlLeaves(tomlEntries(`[${"a.".repeat(s.length)}a]\nx = { ${"b = 1, ".repeat(s.length)} }\n`)).length,
+  ],
   ["js-scan closingBrace", (s) => closingBrace(s, 0)],
   ["js-scan braceDepths", (s) => braceDepths(s)],
   // The readers of documents scan without regular expressions; they are checked as scanners, a refusal

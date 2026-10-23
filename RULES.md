@@ -49,6 +49,7 @@ same change.
 | M13 | `npm run typecheck` (TypeScript on the JSDoc, `tsconfig.json`, nothing compiled) passes with no error. A JSDoc that no longer matches the code is fixed, never silenced: no `@ts-ignore`; a `@ts-expect-error` only with its reason. |
 | M14 | The folders of `engine/` import one another without a cycle: from the bottom up, `core`, `capture`, `check`, `facts`, `sync`, `build`. A module two folders share moves to `engine/core/`. Checked by `test/unit/layers.test.mjs`. |
 | M15 | The skill stays coherent: every brief exists in English and French with the same front matter and placeholders; every agent type is used and its description names the briefs it runs; `DEFAULT_ROUTING` names real briefs and matches the model table of `SKILL.md`. Checked by `test/unit/skill-briefs.test.mjs`. |
+| M16 | A rule of a reader of untrusted manifests (`engine/facts/deps/`, `engine/facts/declarations.mjs`, `engine/facts/network.mjs`) has its mutant in `test/mutations/<module>.mjs`: the rule taken out, which its tests must catch. A fix there adds the mutant of what it fixes. `npm run mutate` reports no surviving mutant before the pull request; `npm test` checks that every mutant still finds, once, the code it changes (`test/unit/mutations.test.mjs`): a refactor moves its mutants with the code. |
 
 ## Before every release
 

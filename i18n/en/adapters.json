@@ -10,7 +10,7 @@
   "cli.adapters.matrix.read.screens": "screens",
   "cli.adapters.matrix.read.behaviours": "behaviour hints",
   "cli.adapters.matrix.deps": "Dependencies",
-  "cli.adapters.matrix.deps.intro": "Every manifest and lock file below is read on its own, four folders deep at most (source `dependencies`). With `--network`, only the public names of npm and PyPI are ever sent to their registry; the other ecosystems are read offline.",
+  "cli.adapters.matrix.deps.intro": "Every manifest and lock file below gives its own items, four folders deep at most (source `dependencies`); a lock file without a root entry of its own takes its direct dependencies from the manifest beside it (`yarn.lock` and a `package-lock.json` v1 from `package.json`, `poetry.lock` from `pyproject.toml`, `Pipfile.lock` from `Pipfile`), and a transitive dependency of a lock file that lists each package's own says how it comes in (`via`). With `--network`, a name of npm or PyPI is sent to its registry only when a lock file proves that registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`), and never a private one; the other ecosystems are read offline.",
   "cli.adapters.matrix.ecosystem": "Ecosystem",
   "cli.adapters.matrix.files": "Files",
   "cli.adapters.matrix.lowcode": "Low-code platforms",

@@ -11,6 +11,7 @@ import { lineAt } from "./api.mjs";
 import { listFiles } from "./common.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
 import { createRegistryClient, isPrivatePackage, privateRegistries } from "./network.mjs";
+import { oncePerPackage } from "../core/packages.mjs";
 import { closingBrace } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
@@ -229,16 +230,29 @@ function majorOf(version) {
   return m ? Number(m[1]) : null;
 }
 
-/** Direct, public dependencies at least one major behind their latest published version. */
+/**
+ * Direct, public dependencies at least one major behind their latest published version.
+ * @param {Array<{ name: string, ecosystem: string, version?: string|null, spec?: string, direct?: boolean }>} dependencies
+ * @param {(url: string) => Promise<any>} fetchImpl
+ * @param {{ registries: ReturnType<typeof privateRegistries>, concurrency?: number }} options
+ */
 async function countOutdated(dependencies, fetchImpl, { registries, concurrency = 8 }) {
   const sendable = dependencies.filter((d) => d.direct && !isPrivatePackage(d, registries));
-  const direct = [...new Map(sendable.map((d) => [d.name, d])).values()]; // de-duplicated by name
+  // Once a package (PEP 503 for pip), the item with an exact version first: a lower bound alone names no major.
+  const direct = oncePerPackage(sendable);
   const client = createRegistryClient({ fetch: fetchImpl, registries });
   const queue = [...direct];
   let outdated = 0;
   async function worker() {
     for (let item = queue.shift(); item; item = queue.shift()) {
-      const current = majorOf(item.version);
+      // The exact version, else a range that names the major in use ("^17.0.0", "~17.1", "~=17.0", "==17.*"): a
+      // lower bound alone (">=1.26") says nothing of the version installed.
+      const namesMajor = ["^", "~", "=="].some((op) =>
+        String(item.spec ?? "")
+          .trim()
+          .startsWith(op),
+      );
+      const current = majorOf(item.version ?? (namesMajor ? item.spec : null));
       const latestMajor = majorOf(await client.latest(item));
       if (current != null && latestMajor != null && latestMajor > current) outdated++;
     }
@@ -260,7 +274,7 @@ export function rating(ratio, thresholds) {
  * @param {string} appDir
  * @param {object} [options]
  * @param {(url: string) => Promise<{ok,status}>} [options.fetch]   --network: outdated direct dependencies
- * @param {Array<{name,version,ecosystem,direct}>} [options.dependencies]   --network: already-collected `dependencies` items
+ * @param {Array<{name,version,ecosystem,direct,spec?}>} [options.dependencies]   --network: already-collected `dependencies` items
  * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
  *   the application alone when absent (a private name is never sent)
  * @returns {Promise<{ items: Array<object>, summary: object }>}
@@ -318,7 +332,7 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, r
   };
   if (fetchImpl && dependencies)
     summary.outdated = await countOutdated(dependencies, fetchImpl, {
-      registries: registries ?? privateRegistries(appDir),
+      registries: registries ?? privateRegistries(appDir, { items: dependencies }),
     });
   return { items, summary };
 }

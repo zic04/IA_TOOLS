@@ -1,0 +1,11 @@
+{
+  "generated": {
+    "note": "DERIVED from uv/pypi-basic (uv 0.11.17 output), hosts substituted by tools/derive-uv.mjs; checked readable by uv export --frozen",
+    "rewritten": "derived from uv/pypi-basic, PyPI's registry replaced by pypi.corp.example, the files left on files.pythonhosted.org; read back by uv export --frozen, its reading.json uv's own"
+  },
+  "reading": "uv-export",
+  "missed": {},
+  "readingOf": {
+    "uv.lock": "43e4a8edcc3e92ec2b21618d8a6eaa5d3f67beeb31deb4a585fa4718862916ab"
+  }
+}

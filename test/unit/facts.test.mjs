@@ -18,16 +18,27 @@ import { collectDb } from "../../engine/facts/db.mjs";
 import { collectAgents, hiddenCharacters } from "../../engine/facts/agents.mjs";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
-import {
-  checkExistence,
-  privateRegistries,
-  isPrivatePackage,
-  createRegistryClient,
-} from "../../engine/facts/network.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/capture/session.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
+
+/** A package-lock.json (v3) as npm writes it: each name's tarball from the registry given (npm's public one by default). */
+function npmLock(names, registryOf = () => "https://registry.npmjs.org") {
+  const packages = { "": { dependencies: Object.fromEntries(names.map((n) => [n, "*"])) } };
+  for (const n of names)
+    packages[`node_modules/${n}`] = {
+      version: "1.0.0",
+      resolved: `${registryOf(n)}/${n}/-/${n.split("/").pop()}-1.0.0.tgz`,
+    };
+  return JSON.stringify({ lockfileVersion: 3, packages });
+}
+
+/** A uv.lock as uv writes it: each name from PyPI's registry. */
+const uvLock = (names) =>
+  names
+    .map((n) => `[[package]]\nname = "${n}"\nversion = "1.0.0"\nsource = { registry = "https://pypi.org/simple" }\n`)
+    .join("\n");
 
 const APPS = path.join(KIT_ROOT, "test", "fixtures", "apps");
 const app = (name) => path.join(APPS, name);
@@ -85,6 +96,7 @@ describe("engine/facts sources on their fixtures", () => {
       dev: false,
       manifest: "package-lock.json",
       license: "MIT",
+      public: true, // its `resolved` is npm's public registry: the proof --network needs
     });
     assert.equal(lock.scheduler.direct, false, "transitive package, absent from the lock's own root entry");
     assert.equal(items.filter((i) => i.name === "next").length, 2, "one item per manifest that names it");
@@ -99,16 +111,16 @@ describe("engine/facts sources on their fixtures", () => {
     assert.equal(lock["body-parser"].direct, false);
   });
 
-  test("dependencies: yarn.lock v1 and berry — no self-contained direct signal, so every item is `direct: false`", () => {
+  test("dependencies: yarn.lock v1 and berry — no root entry of their own: direct from the package.json beside them", () => {
     const classic = byManifest(collectDependencies(app("yarn-classic")), "yarn.lock");
     assert.equal(classic.lodash.version, "4.17.21");
-    assert.equal(classic.lodash.direct, false);
-    assert.equal(classic["object-is"].direct, false);
+    assert.equal(classic.lodash.direct, true, "the package.json beside it declares it");
+    assert.equal(classic["object-is"].direct, false, "declared by no package.json of that folder");
 
     const berry = byManifest(collectDependencies(app("yarn-berry")), "yarn.lock");
     assert.deepEqual(Object.keys(berry), ["lodash"], "the workspace root itself is not a dependency");
     assert.equal(berry.lodash.version, "4.17.21");
-    assert.equal(berry.lodash.direct, false);
+    assert.equal(berry.lodash.direct, true);
   });
 
   test("dependencies: requirements.txt (+ -dev), pyproject.toml (poetry) and poetry.lock, each its own manifest", () => {
@@ -160,10 +172,11 @@ describe("engine/facts sources on their fixtures", () => {
     const items = collectDependencies(app("poetry-app"));
     const toml = byManifest(items, "pyproject.toml");
     const lock = byManifest(items, "poetry.lock");
-    assert.equal(toml.fastapi.version, "^0.104.1", "the range declared in pyproject.toml, not refined by the lock");
+    assert.equal(toml.fastapi.version, null, "a range is not an installed version");
+    assert.equal(toml.fastapi.spec, "^0.104.1", "the range declared in pyproject.toml, not refined by the lock");
     assert.equal(toml.fastapi.direct, true);
     assert.equal(lock.fastapi.version, "0.104.1", "the resolved version, its own item");
-    assert.equal(lock.fastapi.direct, false, "poetry.lock has no direct/transitive signal of its own");
+    assert.equal(lock.fastapi.direct, true, "no root entry of its own: direct from the pyproject.toml beside it");
     assert.equal(lock.pytest.dev, true, "a non-main group is dev");
   });
 
@@ -579,456 +592,6 @@ describe("engine/facts sources on their fixtures", () => {
   });
 });
 
-describe("--network (simulated: never the real registry)", () => {
-  test("exists: true, false (404), null (no usable answer) — direct dependencies only", async () => {
-    const items = [
-      { name: "next", ecosystem: "npm", direct: true },
-      { name: "left-pad-pro", ecosystem: "npm", direct: true },
-      { name: "acme-internal", ecosystem: "npm", direct: true },
-      { name: "scheduler", ecosystem: "npm", direct: false },
-    ];
-    const fakeFetch = async (url) => {
-      if (url.includes("left-pad-pro")) return { ok: false, status: 404 };
-      if (url.includes("acme-internal")) throw new Error("network down");
-      return { ok: true, status: 200 };
-    };
-    const out = await checkExistence(items, fakeFetch);
-    assert.equal(out.find((i) => i.name === "next").exists, true);
-    assert.equal(out.find((i) => i.name === "left-pad-pro").exists, false);
-    assert.equal(out.find((i) => i.name === "acme-internal").exists, null);
-    assert.ok(!("exists" in out.find((i) => i.name === "scheduler")), "never checked for a transitive package");
-  });
-});
-
-describe("--network never sends a private package's name (AUDIT.md S13)", () => {
-  test("npm scope with its own registry, local/workspace/git versions, every pip package behind a private index", async () => {
-    const app = tempDir("doc-kit-network-");
-    try {
-      fs.writeFileSync(path.join(app, ".npmrc"), "@acme:registry=https://npm.acme.internal/\n");
-      fs.writeFileSync(
-        path.join(app, "requirements.txt"),
-        "--extra-index-url https://pypi.acme.internal/simple\nacme-billing==1.0\n",
-      );
-      const registries = privateRegistries(app);
-      assert.deepEqual([...registries.npmScopes], ["@acme"]);
-      assert.equal(registries.pipAll, true);
-      const items = [
-        { name: "next", version: "15.0.0", ecosystem: "npm", direct: true },
-        { name: "@acme/ui", version: "2.1.0", ecosystem: "npm", direct: true },
-        { name: "@types/node", version: "22.0.0", ecosystem: "npm", direct: true },
-        { name: "shared", version: "workspace:*", ecosystem: "npm", direct: true },
-        { name: "tooling", version: "file:../tooling", ecosystem: "npm", direct: true },
-        { name: "fork", version: "github:acme/fork", ecosystem: "npm", direct: true },
-        { name: "acme-billing", version: "1.0", ecosystem: "pip", direct: true },
-      ];
-      const sent = [];
-      const out = await checkExistence(
-        items,
-        async (url) => {
-          sent.push(url);
-          return { ok: true, status: 200 };
-        },
-        { registries },
-      );
-      assert.deepEqual(sent.sort(), ["https://registry.npmjs.org/%40types%2Fnode", "https://registry.npmjs.org/next"]);
-      for (const name of ["@acme/ui", "shared", "tooling", "fork", "acme-billing"]) {
-        const item = out.find((i) => i.name === name);
-        assert.equal(item.private, true, name);
-        assert.equal(item.exists, null, name);
-      }
-      // A .npmrc that replaces the default registry makes every npm package private.
-      fs.writeFileSync(path.join(app, ".npmrc"), "registry=https://npm.acme.internal/\n");
-      assert.equal(privateRegistries(app).npmAll, true);
-      fs.writeFileSync(path.join(app, ".npmrc"), "registry=https://registry.npmjs.org/\n");
-      assert.equal(privateRegistries(app).npmAll, false);
-    } finally {
-      fs.rmSync(app, { recursive: true, force: true });
-    }
-  });
-});
-
-describe("--network: what is private is read everywhere it can be declared (AUDIT.md S13)", () => {
-  /** A temporary application from `files` ({ relative path: text }); `fn(appDir)`, then removed. */
-  async function withApp(files, fn) {
-    const appDir = tempDir("doc-kit-network-app-");
-    try {
-      for (const [rel, text] of Object.entries(files)) {
-        fs.mkdirSync(path.dirname(path.join(appDir, rel)), { recursive: true });
-        fs.writeFileSync(path.join(appDir, rel), text);
-      }
-      return await fn(appDir);
-    } finally {
-      fs.rmSync(appDir, { recursive: true, force: true });
-    }
-  }
-  /** The URLs `--network` would request for the application's dependencies (direct ones), and the items. */
-  async function sentFor(appDir, env) {
-    const items = collectDependencies(appDir);
-    const urls = [];
-    const out = await checkExistence(
-      items,
-      async (url) => {
-        urls.push(url);
-        return { ok: true, status: 200 };
-      },
-      { registries: privateRegistries(appDir, { items, env }) },
-    );
-    return { urls, out };
-  }
-
-  test("an .npmrc of a manifest folder or of any folder above it counts; a folder outside the application never", () =>
-    withApp(
-      {
-        "frontend/.npmrc": "@corp:registry=https://npm.corp.internal/\n",
-        "frontend/packages/ui/package.json": JSON.stringify({ dependencies: { "@corp/tokens": "^1.0.0" } }),
-      },
-      (appDir) => {
-        assert.deepEqual([...privateRegistries(appDir).npmScopes], [], "the root alone does not know the scope");
-        const items = [{ manifest: "frontend/packages/ui/package.json" }];
-        assert.deepEqual([...privateRegistries(appDir, { items }).npmScopes], ["@corp"], "the workspace root counts");
-        const outside = [{ manifest: "../../package.json" }];
-        assert.deepEqual([...privateRegistries(appDir, { items: outside }).npmScopes], [], "outside: ignored");
-      },
-    ));
-
-  test("PEP 508 direct references and URL lines of a requirements file never reach PyPI", () =>
-    withApp(
-      {
-        "requirements.txt": [
-          "mylib @ file:///opt/mylib",
-          "corp-sdk @ git+https://git.corp.internal/sdk.git",
-          "git+https://git.corp.internal/other.git#egg=other",
-          "./vendored/pkg",
-          "requests==2.32.0",
-        ].join("\n"),
-      },
-      async (appDir) => {
-        const { urls } = await sentFor(appDir);
-        assert.deepEqual(urls, ["https://pypi.org/pypi/requests/json"]);
-      },
-    ));
-
-  test("Poetry path / git / url / private-source dependencies, and a private index, never reach PyPI", async () => {
-    const pyproject = (extra = "") =>
-      [
-        '[tool.poetry]\nname = "acme-orders"\n',
-        "[tool.poetry.dependencies]",
-        'python = "^3.12"',
-        'corp-path = { path = "../corp-path" }',
-        'corp-git = { git = "https://git.corp.internal/x.git" }',
-        'corp-url = { url = "https://files.corp.internal/x.whl" }',
-        'corp-src = { version = "^1", source = "corp" }',
-        'fastapi = "^0.110"',
-        extra,
-      ].join("\n");
-    await withApp({ "pyproject.toml": pyproject() }, async (appDir) => {
-      const { urls } = await sentFor(appDir);
-      assert.deepEqual(urls, ["https://pypi.org/pypi/fastapi/json"]);
-    });
-    const source = '\n[[tool.poetry.source]]\nname = "corp"\nurl = "https://pypi.corp.internal/simple"\n';
-    await withApp({ "pyproject.toml": pyproject(source) }, async (appDir) => {
-      assert.deepEqual((await sentFor(appDir)).urls, [], "a private Poetry source: every pip package is private");
-    });
-    await withApp({ "pyproject.toml": '[[tool.uv.index]]\nurl = "https://pypi.corp/simple"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).pipAll, true, "uv index"),
-    );
-    await withApp({ Pipfile: '[[source]]\nurl = "https://pypi.corp/simple"\nname = "corp"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).pipAll, true, "Pipfile source"),
-    );
-    await withApp({ Pipfile: '[[source]]\nurl = "https://pypi.org/simple"\nname = "pypi"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).pipAll, false, "PyPI declared explicitly stays public"),
-    );
-  });
-
-  test("npm workspaces: the application's own packages, links and private tarballs are never sent", () =>
-    withApp(
-      {
-        "package.json": JSON.stringify({
-          name: "acme",
-          workspaces: ["packages/*"],
-          dependencies: { "@acme/billing-core": "*", "acme-utils": "^1.0.0", "corp-private": "^2.0.0", next: "15.0.0" },
-        }),
-        "packages/billing-core/package.json": JSON.stringify({ name: "@acme/billing-core" }),
-        "package-lock.json": JSON.stringify({
-          lockfileVersion: 3,
-          packages: {
-            "": { dependencies: { "@acme/billing-core": "*", "corp-private": "^2.0.0", next: "15.0.0" } },
-            "node_modules/@acme/billing-core": { resolved: "packages/billing-core", link: true },
-            "node_modules/corp-private": {
-              version: "2.1.0",
-              resolved: "https://npm.corp.internal/corp-private/-/x.tgz",
-            },
-            "node_modules/next": { version: "15.0.0", resolved: "https://registry.npmjs.org/next/-/next-15.0.0.tgz" },
-          },
-        }),
-        "utils/package.json": JSON.stringify({ name: "acme-utils" }),
-      },
-      async (appDir) => {
-        const { urls, out } = await sentFor(appDir);
-        assert.deepEqual(urls, ["https://registry.npmjs.org/next", "https://registry.npmjs.org/next"]);
-        for (const name of ["@acme/billing-core", "acme-utils", "corp-private"])
-          assert.ok(
-            out.filter((i) => i.name === name && i.direct).every((i) => i.private === true),
-            name,
-          );
-      },
-    ));
-
-  test("yarn (.yarnrc, .yarnrc.yml) and bun (bunfig.toml) registries count like an .npmrc", async () => {
-    const yml =
-      "nodeLinker: node-modules\nnpmScopes:\n  corp:\n    npmRegistryServer: https://npm.corp/\n  team:\n    npmAlwaysAuth: true\nenableTelemetry: false\n";
-    await withApp({ ".yarnrc.yml": yml }, (appDir) =>
-      assert.deepEqual([...privateRegistries(appDir).npmScopes].sort(), ["@corp", "@team"]),
-    );
-    await withApp({ ".yarnrc.yml": 'npmRegistryServer: "https://npm.corp/"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).npmAll, true),
-    );
-    await withApp({ ".yarnrc.yml": 'npmRegistryServer: "https://registry.yarnpkg.com"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).npmAll, false),
-    );
-    await withApp({ ".yarnrc": '"@corp:registry" "https://npm.corp/"\nregistry "https://npm.corp/"\n' }, (appDir) => {
-      const r = privateRegistries(appDir);
-      assert.deepEqual([...r.npmScopes], ["@corp"]);
-      assert.equal(r.npmAll, true);
-    });
-    await withApp(
-      { "bunfig.toml": '[install]\nregistry = "https://npm.corp/"\n\n[install.scopes]\ncorp = "https://npm.corp/"\n' },
-      (appDir) => {
-        const r = privateRegistries(appDir);
-        assert.deepEqual([...r.npmScopes], ["@corp"]);
-        assert.equal(r.npmAll, true);
-      },
-    );
-  });
-
-  test("yarn.lock and pnpm-lock.yaml: a package taken from a private registry, git or a file is never sent", async () => {
-    const pkg = JSON.stringify({ dependencies: { "@corp/ui": "^1.0.0", "corp-x": "^2.0.0", next: "15.0.0" } });
-    const yarnV1 = [
-      '"@corp/ui@^1.0.0":',
-      '  version "1.0.0"',
-      '  resolved "https://npm.corp.internal/@corp/ui/-/ui-1.0.0.tgz#abc"',
-      "",
-      'next@15.0.0:\n  version "15.0.0"\n  resolved "https://registry.yarnpkg.com/next/-/next-15.0.0.tgz#def"',
-    ].join("\n");
-    await withApp({ "package.json": pkg, "yarn.lock": yarnV1 }, async (appDir) => {
-      const { urls } = await sentFor(appDir);
-      assert.ok(!urls.some((u) => u.includes("corp%2Fui")), urls.join(", "));
-      assert.ok(urls.includes("https://registry.npmjs.org/next"));
-    });
-    const berry = [
-      '"corp-x@npm:^2.0.0":\n  version: 2.0.0\n  resolution: "corp-x@https://files.corp.internal/corp-x-2.0.0.tgz"',
-      "",
-      '"next@npm:15.0.0":\n  version: 15.0.0\n  resolution: "next@npm:15.0.0"',
-    ].join("\n");
-    await withApp({ "package.json": pkg, "yarn.lock": berry }, (appDir) => {
-      const items = collectDependencies(appDir).filter((i) => i.manifest === "yarn.lock");
-      assert.equal(items.find((i) => i.name === "corp-x").local, true);
-      assert.ok(!("local" in items.find((i) => i.name === "next")), "npm: protocol: the configured registry");
-    });
-    const pnpm = [
-      "lockfileVersion: '9.0'",
-      "packages:",
-      "  corp-x@2.0.0:",
-      "    resolution: {tarball: https://files.corp.internal/corp-x-2.0.0.tgz}",
-      "  next@15.0.0:",
-      "    resolution: {integrity: sha512-abc}",
-    ].join("\n");
-    await withApp({ "package.json": pkg, "pnpm-lock.yaml": pnpm }, (appDir) => {
-      const items = collectDependencies(appDir).filter((i) => i.manifest === "pnpm-lock.yaml");
-      assert.equal(items.find((i) => i.name === "corp-x").local, true);
-      assert.ok(!("local" in items.find((i) => i.name === "next")));
-    });
-  });
-
-  test("a requirements line that is a local archive or a path is never read as a package name", () =>
-    withApp(
-      {
-        "requirements.txt": [
-          "corp_lib-1.0-py3-none-any.whl",
-          "corp-tools-2.0.tar.gz",
-          "vendor/corp-pkg",
-          "mylib @ file:///opt/mylib",
-          "requests==2.32.0",
-        ].join("\n"),
-      },
-      async (appDir) => {
-        const items = collectDependencies(appDir);
-        assert.deepEqual(items.map((i) => i.name).sort(), ["mylib", "requests"], "a direct reference keeps its item");
-        assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/requests/json"]);
-      },
-    ));
-
-  test("on a doubt, nothing is sent: Poetry constraint lists, yarn and bun scopes in forms the reader does not follow", async () => {
-    const poetry = [
-      "[tool.poetry.dependencies]",
-      'corp-a = [ { path = "../a", markers = "sys_platform == \'linux\'" }, { version = "^1" } ]',
-      "corp-b = [",
-      '  { version = "^1", source = "corp" },',
-      "]",
-      'fastapi = "^0.110"',
-    ].join("\n");
-    await withApp({ "pyproject.toml": poetry }, async (appDir) => {
-      assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/fastapi/json"]);
-    });
-    await withApp({ ".yarnrc.yml": 'npmScopes: { corp: { npmRegistryServer: "https://npm.corp/" } }\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).npmAll, true, "flow style"),
-    );
-    await withApp({ ".yarnrc.yml": "npmScopes: # private\n  corp:\n    npmAlwaysAuth: true\n" }, (appDir) =>
-      assert.equal(privateRegistries(appDir).npmAll, true, "a comment after the key"),
-    );
-    await withApp({ "bunfig.toml": '[install.scopes.corp]\nurl = "https://npm.corp/"\n' }, (appDir) => {
-      const r = privateRegistries(appDir);
-      assert.deepEqual([...r.npmScopes], ["@corp"]);
-      assert.equal(r.npmAll, false);
-    });
-    await withApp(
-      { "bunfig.toml": '[install]\nscopes = { corp = "https://npm.corp/" } # install.scopes\n' },
-      (appDir) => assert.equal(privateRegistries(appDir).npmAll, true, "an inline scopes table"),
-    );
-  });
-
-  test("poetry.lock [package.source] other than PyPI, and Poetry's own repositories, keep a name private", async () => {
-    const pyproject = '[tool.poetry.dependencies]\npython = "^3.11"\ncorp-lib = "^1.0"\nfastapi = "^0.110"\n';
-    const lock = [
-      '[[package]]\nname = "corp-lib"\nversion = "1.0.0"\n',
-      '[package.source]\ntype = "legacy"\nurl = "https://pypi.corp.internal/simple"\nreference = "corp"\n',
-      '[[package]]\nname = "fastapi"\nversion = "0.110.0"\n',
-      '[[package]]\nname = "vendored"\nversion = "1.0.0"\n\n[package.source]\ntype = "directory"\nurl = "../vendored"\n',
-    ].join("\n");
-    await withApp({ "pyproject.toml": pyproject, "poetry.lock": lock }, async (appDir) => {
-      const items = collectDependencies(appDir).filter((i) => i.manifest === "poetry.lock");
-      assert.equal(items.find((i) => i.name === "vendored").local, true);
-      assert.ok(!("local" in items.find((i) => i.name === "fastapi")));
-      assert.deepEqual((await sentFor(appDir)).urls, ["https://pypi.org/pypi/fastapi/json"]);
-    });
-    const home = tempDir("doc-kit-network-poetry-home-");
-    try {
-      fs.mkdirSync(path.join(home, ".config", "pypoetry"), { recursive: true });
-      fs.writeFileSync(
-        path.join(home, ".config", "pypoetry", "config.toml"),
-        '[repositories.corp]\nurl = "https://pypi.corp.internal/simple"\n',
-      );
-      await withApp({}, (appDir) => {
-        assert.equal(privateRegistries(appDir, { env: { HOME: home } }).pipAll, true);
-        const env = { POETRY_REPOSITORIES_CORP_URL: "https://pypi.corp/simple" };
-        assert.equal(privateRegistries(appDir, { env }).pipAll, true);
-      });
-    } finally {
-      fs.rmSync(home, { recursive: true, force: true });
-    }
-  });
-
-  test("uv: an index in uv.toml (application or user) or in UV_* variables makes every pip package private", async () => {
-    await withApp({ "uv.toml": 'index-url = "https://pypi.corp/simple"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).pipAll, true),
-    );
-    await withApp({ "uv.toml": '[[index]]\nname = "corp"\nurl = "https://pypi.corp/simple"\n' }, (appDir) =>
-      assert.equal(privateRegistries(appDir).pipAll, true),
-    );
-    await withApp({}, (appDir) => {
-      assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.corp/simple" } }).pipAll, true);
-      assert.equal(privateRegistries(appDir, { env: { UV_INDEX_URL: "https://pypi.org/simple" } }).pipAll, false);
-    });
-  });
-
-  test("the network gateway itself refuses a private package (defence in depth: nothing is sent)", async () => {
-    const sent = [];
-    const fetch = async (url) => (sent.push(url), { ok: true, status: 200, json: async () => ({ version: "2.0.0" }) });
-    const registries = { npmScopes: new Set(["@corp"]), npmAll: false, pipAll: false, names: new Set() };
-    const client = createRegistryClient({ fetch, registries });
-    await assert.rejects(client.exists({ name: "@corp/ui", ecosystem: "npm" }), /private package/);
-    await assert.rejects(client.latest({ name: "tooling", version: "file:../tooling", ecosystem: "npm" }), /private/);
-    assert.deepEqual(sent, [], "a refused package sends nothing");
-    assert.equal(await client.exists({ name: "next", ecosystem: "npm" }), true);
-    assert.equal(await client.latest({ name: "next", ecosystem: "npm" }), "2.0.0");
-    assert.deepEqual(sent, ["https://registry.npmjs.org/next", "https://registry.npmjs.org/next/latest"]);
-  });
-
-  test("the gateway's timeout covers the whole answer: a registry that trickles its body gets null, not a wait", async () => {
-    const slowBody = async (url, { signal }) => ({
-      ok: true,
-      status: 200,
-      json: () =>
-        new Promise((resolve, reject) => {
-          const late = setTimeout(() => resolve({ version: "9.0.0" }), 500);
-          signal.addEventListener("abort", () => (clearTimeout(late), reject(new Error("aborted"))));
-        }),
-    });
-    const none = { npmScopes: new Set(), npmAll: false, pipAll: false, names: new Set() };
-    const client = createRegistryClient({ fetch: slowBody, registries: none, timeoutMs: 20 });
-    const started = Date.now();
-    assert.equal(await client.latest({ name: "next", ecosystem: "npm" }), null);
-    assert.ok(Date.now() - started < 400, "the body is cut at the timeout");
-  });
-
-  test("an ecosystem the kit does not know is never sent", () => {
-    const none = { npmScopes: new Set(), npmAll: false, pipAll: false, names: new Set() };
-    assert.equal(isPrivatePackage({ name: "golang.org/x/net", ecosystem: "go" }, none), true);
-    assert.equal(isPrivatePackage({ name: "next", ecosystem: "npm" }, none), false);
-  });
-
-  test("the person's own .npmrc / pip configuration and npm_config_* / PIP_* variables count too", () => {
-    const appDir = tempDir("doc-kit-network-user-");
-    const home = tempDir("doc-kit-network-home-");
-    try {
-      fs.writeFileSync(path.join(home, ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
-      const fromHome = privateRegistries(appDir, { env: { HOME: home } });
-      assert.deepEqual([...fromHome.npmScopes], ["@corp"]);
-      assert.equal(fromHome.pipAll, false);
-
-      fs.mkdirSync(path.join(home, "pip"));
-      fs.writeFileSync(path.join(home, "pip", "pip.ini"), "[global]\nindex-url = https://pypi.corp.internal/simple\n");
-      assert.equal(privateRegistries(appDir, { env: { USERPROFILE: home } }).pipAll, true);
-
-      const fromEnv = privateRegistries(appDir, {
-        env: { "npm_config_@team:registry": "https://npm.corp.internal/", PIP_EXTRA_INDEX_URL: "https://p/simple" },
-      });
-      assert.deepEqual([...fromEnv.npmScopes], ["@team"]);
-      assert.equal(fromEnv.pipAll, true);
-      assert.equal(privateRegistries(appDir, { env: { npm_config_registry: "https://npm.corp/" } }).npmAll, true);
-      assert.equal(
-        privateRegistries(appDir, { env: { npm_config_registry: "https://registry.npmjs.org/" } }).npmAll,
-        false,
-      );
-      assert.equal(isPrivatePackage({ name: "@team/x", ecosystem: "npm" }, fromEnv), true);
-      assert.equal(isPrivatePackage({ name: "@types/node", ecosystem: "npm" }, fromEnv), false);
-    } finally {
-      fs.rmSync(appDir, { recursive: true, force: true });
-      fs.rmSync(home, { recursive: true, force: true });
-    }
-  });
-
-  test("every home is read (HOME and USERPROFILE can differ), and the files named by the environment", () => {
-    const appDir = tempDir("doc-kit-network-homes-");
-    const msys = tempDir("doc-kit-network-msys-");
-    const windows = tempDir("doc-kit-network-win-");
-    try {
-      fs.writeFileSync(path.join(windows, ".npmrc"), "@corp:registry=https://npm.corp.internal/\n");
-      fs.writeFileSync(
-        path.join(windows, ".yarnrc.yml"),
-        "npmScopes:\n  team:\n    npmRegistryServer: https://npm.corp/\n",
-      );
-      const both = privateRegistries(appDir, { env: { HOME: msys, USERPROFILE: windows } });
-      assert.deepEqual([...both.npmScopes].sort(), ["@corp", "@team"]);
-
-      const mac = path.join(msys, "Library", "Application Support", "pip");
-      fs.mkdirSync(mac, { recursive: true });
-      fs.writeFileSync(path.join(mac, "pip.conf"), "[global]\nextra-index-url = https://pypi.corp/simple\n");
-      assert.equal(privateRegistries(appDir, { env: { HOME: msys } }).pipAll, true, "macOS pip configuration");
-
-      const npmUser = path.join(windows, "custom-npmrc");
-      fs.writeFileSync(npmUser, "@named:registry=https://npm.corp/\n");
-      const pipFile = path.join(windows, "custom-pip.ini");
-      fs.writeFileSync(pipFile, "[global]\nindex-url = https://pypi.corp/simple\n");
-      const named = privateRegistries(appDir, { env: { NPM_CONFIG_USERCONFIG: npmUser, PIP_CONFIG_FILE: pipFile } });
-      assert.deepEqual([...named.npmScopes], ["@named"]);
-      assert.equal(named.pipAll, true);
-    } finally {
-      for (const d of [appDir, msys, windows]) fs.rmSync(d, { recursive: true, force: true });
-    }
-  });
-});
-
 describe("--tools (simulated: never a real process)", () => {
   /** An exec that answers `outputs[bin]` ({ status, stdout }) and records every call; null for any other binary. */
   function fakeExec(outputs) {
@@ -1405,6 +968,12 @@ describe("doc-kit facts (CLI)", () => {
       path.join(appDir, "web", "package.json"),
       JSON.stringify({ name: "web", dependencies: { "@corp/design": "^2.0.0", react: "^17.0.0" } }),
     );
+    // A range that names the major in use (~=2.0) counts; a lower bound alone (>=1.26) says nothing of it.
+    fs.writeFileSync(path.join(appDir, "web", "requirements.txt"), "urllib3>=1.26\nflask~=2.0\n");
+    // The lock files that prove the public names (only those are ever sent); @corp/design came from its own registry.
+    const corp = (n) => (n.startsWith("@corp/") ? "https://npm.corp.internal" : "https://registry.npmjs.org");
+    fs.writeFileSync(path.join(appDir, "web", "package-lock.json"), npmLock(["@corp/design", "react"], corp));
+    fs.writeFileSync(path.join(appDir, "web", "uv.lock"), uvLock(["urllib3", "flask"]));
     const dir = mk(appDir);
     const urls = [];
     const calls = [];
@@ -1418,7 +987,7 @@ describe("doc-kit facts (CLI)", () => {
         ),
         fetch: async (url) => {
           urls.push(url);
-          return { ok: true, status: 200, json: async () => ({ version: "19.0.0" }) };
+          return { ok: true, status: 200, json: async () => ({ version: "19.0.0", info: { version: "3.1.0" } }) };
         },
       },
     );
@@ -1429,7 +998,11 @@ describe("doc-kit facts (CLI)", () => {
     );
     assert.ok(!urls.some((u) => /corp/i.test(u)), `a private name was sent: ${urls.join(", ")}`);
     const quality = JSON.parse(fs.readFileSync(path.join(dir, "facts", "quality.json"), "utf8"));
-    assert.equal(quality.summary.outdated, 1, "react 17 → 19; @corp/design never asked");
+    assert.equal(
+      quality.summary.outdated,
+      2,
+      "react ^17 → 19 and flask ~=2.0 → 3; urllib3>=1.26 not; @corp/design never asked",
+    );
     assert.ok(calls.some((c) => c[0] === "osv-scanner" && c.includes("--download-offline-databases")));
   });
 
@@ -1442,6 +1015,9 @@ describe("doc-kit facts (CLI)", () => {
       path.join(appDir, "package.json"),
       JSON.stringify({ name: "web", dependencies: { "@corp/design": "^2.0.0", react: "^17.0.0" } }),
     );
+    // A lock as a person whose ~/.npmrc names the corp registry gets: both from npm's public registry by mistake would
+    // be no proof of privacy — the declaration in ~/.npmrc still keeps @corp/design back.
+    fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["@corp/design", "react"]));
     const dir = mk(appDir);
     const urls = [];
     const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {

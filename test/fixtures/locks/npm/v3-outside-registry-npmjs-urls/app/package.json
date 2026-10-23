@@ -1,0 +1,9 @@
+{
+  "name": "acme-pay",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "acme-internal-sdk": "^1.0.0",
+    "debug": "^4.3.4"
+  }
+}

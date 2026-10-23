@@ -1,0 +1,34 @@
+[
+ {
+  "location": "node_modules/acme-billing-sdk",
+  "name": "acme-billing-sdk",
+  "packageName": "acme-billing-sdk",
+  "version": "3.1.0",
+  "resolved": "https://artifactory.corp.example/artifactory/api/npm/npm-virtual/acme-billing-sdk/-/acme-billing-sdk-3.1.0.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/debug",
+  "name": "debug",
+  "packageName": "debug",
+  "version": "4.4.3",
+  "resolved": "https://artifactory.corp.example/artifactory/api/npm/npm-virtual/debug/-/debug-4.4.3.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/lodash",
+  "name": "lodash",
+  "packageName": "lodash",
+  "version": "4.18.1",
+  "resolved": "https://artifactory.corp.example/artifactory/api/npm/npm-virtual/lodash/-/lodash-4.18.1.tgz",
+  "integrity": true
+ },
+ {
+  "location": "node_modules/ms",
+  "name": "ms",
+  "packageName": "ms",
+  "version": "2.1.3",
+  "resolved": "https://artifactory.corp.example/artifactory/api/npm/npm-virtual/ms/-/ms-2.1.3.tgz",
+  "integrity": true
+ }
+]
