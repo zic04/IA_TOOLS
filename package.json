@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "marked": "18.0.14",
-    "playwright": "1.60.0"
+    "playwright": "1.64.0"
   },
   "engines": {
     "node": ">=20"

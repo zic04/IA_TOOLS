@@ -50,9 +50,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
-- The CI templates (`ci/github-actions.yml`, `ci/azure-pipelines.yml`) and the kit's own CI run their Linux jobs on
-  Ubuntu 24.04: `ubuntu-latest` is Ubuntu 26.04 since 2026-10-19, for which Playwright 1.60 installs no Chromium
-  (`playwright install --with-deps` failed before any test).
+- **Playwright 1.64.0** (Chromium 156), from 1.60.0: `ubuntu-latest` is Ubuntu 26.04 since 2026-10-19, for which
+  Playwright 1.60 installs no Chromium (`npx playwright install --with-deps chromium`, in the CI templates
+  `ci/github-actions.yml` and `ci/azure-pipelines.yml`, failed before any test); 1.64 has one. The fixed renderer of
+  `standard/captures.md` is `mcr.microsoft.com/playwright:v1.64.0-noble`. Run `npm ci`, then
+  `npx playwright install chromium`.
 - The PEP 508 reader (`requirements*.txt`, now `pyproject.toml`) was cubic on a run of spaces followed by a line
   ending (a carriage return, U+2028): a 2 KB file took five seconds. The ReDoS test now tries each dependency
   pattern with a line ending after its run.
