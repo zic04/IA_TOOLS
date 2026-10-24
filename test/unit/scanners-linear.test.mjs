@@ -251,7 +251,7 @@ describe("check secrets finds what its former form found (engine/check/secrets.m
       "Password=abcd3fgh9",
       "'",
       "(",
-      "AKIAABCDEFGHIJKLMNOP",
+      "AKIA" + "ABCDEFGHIJKLMNOP",
       "/",
       "x",
     ];
