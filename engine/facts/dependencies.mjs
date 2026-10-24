@@ -20,7 +20,7 @@
 // (engine/core/xml.mjs). A manifest that cannot be read, a JSON one that is not valid JSON or an XML one that is
 // not well-formed is listed in `unreadable` ({ file, reason: "read"|"json"|"xml" }): its dependencies are unknown,
 // which is not the same as none (AUDIT.md M14). Nothing is executed, and these readers never touch the network.
-//   item: { name, version, ecosystem, direct, dev, manifest, spec?, via?, license?, local? } (local: not from a
+//   item: { name, version, ecosystem, direct, dev, manifest, spec?, via?, license?, licenseFrom?, local? } (local: not from a
 //   public registry, or not identifiable: a folder, git, a workspace member, a private registry — its name is never
 //   sent)
 // `direct` is read from the manifest itself when it says so (a manifest's own declarations; a lock file's own
@@ -51,6 +51,7 @@ import { PHP_PATTERNS, PHP_READERS } from "./deps/php.mjs";
 import { GO_PATTERNS, GO_READERS } from "./deps/golang.mjs";
 import { RUBY_PATTERNS, RUBY_READERS } from "./deps/ruby.mjs";
 import { RUST_PATTERNS, RUST_READERS } from "./deps/rust.mjs";
+import { LICENCE_PATTERNS, safeLicence } from "./deps/licences.mjs";
 
 /** Manifests and lock files searched for, by file name (case-insensitive). */
 const MANIFEST_NAME =
@@ -106,6 +107,15 @@ function kept(item) {
     out.extras = Array.isArray(item.extras) ? item.extras.filter(plain) : [];
     if (!out.extras.length) delete out.extras;
   }
+  // A licence only as a licence's name, whatever reader gave it (deps/licences.mjs): the readers' own allowlist, again.
+  if ("license" in item) {
+    const license = safeLicence(item.license);
+    if (license) out.license = license;
+    else {
+      delete out.license;
+      delete out.licenseFrom;
+    }
+  }
   if (unusual(item.version, version) || ("spec" in item && unusual(item.spec, out.spec))) out.local = true;
   if (out.local) delete out.public; // a place is never a proof
   return out;
@@ -122,6 +132,7 @@ export const DEPENDENCY_PATTERNS = Object.freeze({
   ...GO_PATTERNS,
   ...RUBY_PATTERNS,
   ...RUST_PATTERNS,
+  ...LICENCE_PATTERNS,
 });
 
 /** The readers known by their whole file name (lower case). */

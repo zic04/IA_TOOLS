@@ -6,6 +6,7 @@ export const DEPENDENCY_TESTS = Object.freeze([
   "test/unit/facts-deps-npm.test.mjs",
   "test/unit/facts-deps-python.test.mjs",
   "test/unit/facts-deps-ecosystems.test.mjs",
+  "test/unit/facts-deps-licences.test.mjs",
   "test/unit/facts-deps-real-locks.test.mjs",
   "test/unit/facts-network-proof-package-lock.test.mjs",
   "test/unit/facts-network-proof-yarn.test.mjs",

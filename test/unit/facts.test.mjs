@@ -96,6 +96,7 @@ describe("engine/facts sources on their fixtures", () => {
       dev: false,
       manifest: "package-lock.json",
       license: "MIT",
+      licenseFrom: "lock",
       public: true, // its `resolved` is npm's public registry: the proof --network needs
     });
     assert.equal(lock.scheduler.direct, false, "transitive package, absent from the lock's own root entry");
