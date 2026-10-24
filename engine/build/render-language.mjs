@@ -169,10 +169,10 @@ function renderPage(r, sec, g, p) {
   const missing = !b.existsFs(file);
   if (!missing) sourceText = b.readFs(file);
   else {
-    if (r.isSource) {
-      r.unwritten.add(p.id);
-      b.report(true, { kind: "page", key: "page.missing", vars: { page: p.id, file } });
-    }
+    // A page not written yet in the source is not written in any language: the anchors that point into it are no
+    // error there either (§6.12); the page itself is reported once, by the source.
+    r.unwritten.add(p.id);
+    if (r.isSource) b.report(true, { kind: "page", key: "page.missing", vars: { page: p.id, file } });
     sourceText = `> [!NOTE] ${langT("render.draftPage.title")}\n> ${langT("render.draftPage.text")}\n`;
   }
   const { text: source, fallback } = resolveDoc(r, rel, sourceText, missing);

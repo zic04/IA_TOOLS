@@ -63,6 +63,9 @@ la langue courante, sans ajouter d'entrée d'historique — une adresse partagé
 toujours sa langue. Une page traduite seulement en partie affiche un bandeau, « Pas encore traduite — affichée en
 {langue} », sur une page, une introduction de section ou la page d'accueil construites depuis la source à sa
 place (seulement en build `--draft` ; un build strict refuse carrément une traduction manquante, voir plus bas).
+Une page pas encore écrite dans la source ne l'est dans aucune langue, quelle que soit sa traduction : elle est
+signalée une seule fois, par la source (`page.missing`), et un lien vers l'une de ses ancres n'est pas une erreur
+dans une traduction.
 
 ## Les quatre états d'un fichier traduit
 
@@ -127,15 +130,21 @@ comme la source les a, ne traduit que la prose, puis lance `translate --fix-anch
 
 - **`doc-kit build --lang <l>`** : un fichier mono-langue, la sortie configurée avec `-<l>` avant son extension
   (`Acme-Orders-Documentation.html` → `Acme-Orders-Documentation-fr.html` ; `--output` le remplace). Ses données
-  sont exactement ce que le fichier multilingue embarque pour `<l>`, sans les autres langues.
+  sont exactement ce que le fichier multilingue embarque pour `<l>`, sans les autres langues ; `<l>` peut aussi
+  être la langue source.
 - **`doc-kit capture --lang <l>`** : prend les plans avec `capture.languages.<l>` (`locale`, `cookies`,
   `storage`, chacun fusionné par-dessus `capture.locale`/`capture.cookies`/`capture.storage` du haut ; `locale`
   prend par défaut la locale propre à cette langue) et écrit `<images>/<l>/<id>.webp` et
   `<images>/<l>/zones/<id>.json`. Une capture sans fichier pour `<l>` est partagée : chaque langue montre alors
   l'image source et ses zones. `check images` et `optimize` parcourent aussi `<images>/<l>/`.
 
-`doc-kit view --lang <l>` et `doc-kit open --lang <l>` ouvrent le site sur `#/<l>/…` ; `doc-kit dev` surveille
-aussi `<paths.translations>/`.
+`doc-kit view --lang <l>` et `doc-kit open --lang <l>` ouvrent le site sur `#/<l>/…` ; sans `--lang`, `view`
+montre la langue source (son image ne dépend jamais de la langue de la machine), `open` laisse le navigateur
+choisir. `doc-kit dev` surveille aussi `<paths.translations>/`.
+
+Le projet de démonstration du kit en est un exemple complet : `examples/demo-docs` est écrit en anglais et traduit
+en français (`translations/fr/`, les zones de ses écrans dans `images/fr/zones/`). Depuis le dossier du kit,
+`doc-kit build --project examples/demo-docs` donne le fichier bilingue, `--lang fr` le fichier français seul.
 
 ## Le cycle de mise à jour
 
@@ -154,7 +163,9 @@ jamais le niveau de maturité.
 > [!ATTENTION] Un écart de structure bloque même un build brouillon
 > Ajouter, retirer ou réordonner une section, un groupe, une page, un parcours ou un espace dans un `toc.json`
 > traduit est `translation.toc.structure`, bloquant quel que soit le mode de build — seul le sommaire source peut
-> changer de forme ; une traduction ne fournit jamais qu'un texte différent pour la même forme.
+> changer de forme ; une traduction ne fournit jamais qu'un texte différent pour la même forme. `doc-kit new`
+> les garde alignés : il ajoute l'entrée de la nouvelle page, au même endroit, à chaque `toc.json` traduit, ses
+> textes restant à traduire (un sommaire traduit déjà décalé à cet endroit est laissé tel quel).
 
 > [!NOTE] Une ancre non reportée est signalée, jamais devinée
 > `translate --fix-anchors` ne réécrit une ancre que quand la page cible source et la page cible traduite ont

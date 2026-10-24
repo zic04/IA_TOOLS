@@ -59,9 +59,11 @@ The site shows the version read in `version.file`. Every capture records the ver
 
 ### Which languages?
 
-English and French: the site, the templates, the messages and the standard. Each project chooses one; a bilingual
-documentation is two projects, as this site is (`docs/en` and `docs/fr`). Every command speaks the language of the
-project it runs in; `--lang` changes it for one run.
+English and French: the site, the templates, the messages and the standard. Each project chooses one, or declares
+several with `languages`: one source, its translations, and one file with a language switch
+([Documenting in multiple languages](#/spaces/languages)); the demo, `examples/demo-docs`, is written in English and
+translated into French. A bilingual documentation can also be two projects, as this site is (`docs/en` and
+`docs/fr`). Every command speaks the language of the project it runs in; `--lang` changes it for one run.
 
 ### Can I write HTML in the pages?
 

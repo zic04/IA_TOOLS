@@ -43,7 +43,9 @@ export function locateJson(text) {
   };
   const string = () => {
     const start = i++;
-    while (text[i] !== '"') i += text[i] === "\\" ? 2 : 1;
+    while (i < text.length && text[i] !== '"') i += text[i] === "\\" ? 2 : 1;
+    // A text that is not valid JSON after all (never read past its end, never a loop without end).
+    if (i >= text.length) throw new SyntaxError("unterminated string");
     i++;
     return { type: "string", start, end: i, value: JSON.parse(text.slice(start, i)) };
   };
@@ -155,8 +157,9 @@ const commonSegments = (a, b) => {
 /**
  * Creates a page and declares it. Pure enough to be tested: reads and writes only under `root`.
  * @param {{ root: string, config: object, id: string, template?: string, title?: string, parent?: string, summary: string, prefill?: boolean }} p
- * @returns {{ file: string, toc: string, template: string, entry: object|null, placement: object, prefilled: { rows: number, source: string }|null }}
- *   `prefilled`: null without `--prefill` (ARCHITECTURE.md §6.11)
+ * @returns {{ file: string, toc: string, template: string, entry: object|null, placement: object, prefilled: { rows: number, source: string }|null, translations: Array<{ lang: string, file: string }> }}
+ *   `prefilled`: null without `--prefill` (ARCHITECTURE.md §6.11); `translations`: the translated tables of contents
+ *   the new entry was added to (a multilingual project, §6.12)
  */
 export function createPage({ root, config, id, template, title, parent, summary, prefill = false }) {
   if (!id) throw new KitError(EXIT.USAGE, "new.missingId");
@@ -194,6 +197,8 @@ export function createPage({ root, config, id, template, title, parent, summary,
   const pageNode = (w) => prop(prop(prop(tree, "sections").items[w.si], "groups").items[w.gi], "pages").items[w.pi];
   let newText = text;
   let entry = null;
+  /** @type {Array<{ lang: string, file: string, text: string }>} */
+  let translations = [];
   /** @type {any} */
   let placement;
   if (declared) {
@@ -261,6 +266,7 @@ export function createPage({ root, config, id, template, title, parent, summary,
     };
     const pagesNode = prop(prop(prop(tree, "sections").items[si], "groups").items[gi], "pages");
     newText = insertEntry(text, pagesNode, after, entry);
+    translations = translatedTocs({ root, config, toc, entry, at: { si, gi, after } });
   }
 
   // The result must still be a valid table of contents, with the page where expected.
@@ -301,7 +307,58 @@ export function createPage({ root, config, id, template, title, parent, summary,
 
   fs.writeFileSync(fileAbs, pageText);
   if (newText !== text) fs.writeFileSync(tocAbs, newText);
-  return { file: fileRel, toc: tocRel, template, entry, placement, prefilled };
+  for (const t of translations) fs.writeFileSync(path.join(root, t.file), t.text);
+  return {
+    file: fileRel,
+    toc: tocRel,
+    template,
+    entry,
+    placement,
+    prefilled,
+    translations: translations.map(({ lang, file }) => ({ lang, file })),
+  };
+}
+
+/**
+ * The translated tables of contents of a multilingual project (ARCHITECTURE.md §6.12) with the new entry inserted at
+ * the same place as in the source: their structure is the source's, a difference blocks every build. The entry keeps
+ * the source's texts, to translate (a text missing there falls back to the source's anyway). A translation that is
+ * missing, not valid JSON, or already out of step with the source at that place (another section, other pages in
+ * the group, the page already declared) is left as it is: the build reports it.
+ * @param {{ root: string, config: any, toc: any, entry: object, at: { si: number, gi: number, after: number } }} p
+ *   `toc`: the source's table of contents, before the insertion
+ * @returns {Array<{ lang: string, file: string, text: string }>}
+ */
+function translatedTocs({ root, config, toc, entry, at }) {
+  const out = [];
+  const sections = (t) => (Array.isArray(t?.sections) ? t.sections : []);
+  const pages = (s) =>
+    (Array.isArray(s?.groups) ? s.groups : []).flatMap((g) => (Array.isArray(g?.pages) ? g.pages : []));
+  const idsOf = (g) => (Array.isArray(g?.pages) ? g.pages.map((p) => p?.id) : []);
+  const source = toc.sections[at.si];
+  const expected = JSON.stringify(idsOf(source.groups[at.gi]));
+  for (const lang of (config.languages || []).slice(1)) {
+    const file = `${config.paths.translations}/${lang}/${TOC_FILE}`;
+    const abs = path.join(root, file);
+    if (!fs.existsSync(abs)) continue;
+    const text = fs.readFileSync(abs, "utf8");
+    let translated;
+    try {
+      translated = JSON.parse(stripBom(text));
+    } catch {
+      continue;
+    }
+    const section = sections(translated)[at.si];
+    if (
+      section?.id !== source.id ||
+      JSON.stringify(idsOf(section.groups?.[at.gi])) !== expected ||
+      sections(translated).some((s) => pages(s).some((p) => p?.id === entry.id))
+    )
+      continue;
+    const group = prop(prop(prop(locateJson(text), "sections").items[at.si], "groups").items[at.gi], "pages");
+    out.push({ lang, file, text: insertEntry(text, group, at.after, entry) });
+  }
+  return out;
 }
 
 export async function run({ ctx, values, positionals }) {
@@ -329,6 +386,7 @@ export async function run({ ctx, values, positionals }) {
   else if (r.placement.kind === "typed") ctx.print(ctx.t("cli.new.tocTyped", { toc: r.toc, id, template: r.template }));
   else ctx.print(ctx.t("cli.new.tocDeclared", { toc: r.toc, id }));
   if (r.placement.parentHint) ctx.print(ctx.t("cli.new.parentHint", { parent: r.placement.parentHint }));
+  for (const t of r.translations) ctx.print(ctx.t("cli.new.tocTranslated", t));
   ctx.print(ctx.t("cli.new.next", { file: r.file, toc: r.toc }));
   return EXIT.OK;
 }

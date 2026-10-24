@@ -99,7 +99,8 @@ describe("dispatching", () => {
     const dir = demoCopy();
     try {
       const file = path.join(dir, "doc.config.mjs");
-      fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(/language:\s*"en"/, 'language: "fr"'));
+      // A French project: the bilingual demo's languages replaced by French alone.
+      fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(/languages:\s*\["en", "fr"\]/, 'language: "fr"'));
       assert.match(fs.readFileSync(file, "utf8"), /language: "fr"/);
       // An error raised before the command loads the project (unknown check), and the usage.
       let r = await cli(["check", "nope", "--project", dir], { DOC_KIT_LANG: "en" });
@@ -136,11 +137,11 @@ describe("build", () => {
       const out = path.join(dir, "site.html");
       const r = await cli(["build", "--project", DEMO, "--date", "2026-01-01", "--output", out]);
       assert.equal(r.code, 0, r.err);
-      // Four spaces (ARCHITECTURE.md §6.1a): the full site, then one export per space (warnings on stderr; the
-      // last export's own summary line also carries their count).
+      // Four spaces (ARCHITECTURE.md §6.1a): the full site, then one export per space (warnings on stderr), then
+      // the line of the French translation (§6.12: the demo is bilingual), which carries their count.
       assert.match(
         r.out,
-        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-use\.html — 0\.\d MB · 3 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-product\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-admin\.html — 0\.\d MB · 1 page · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-develop\.html — 0\.\d MB · 3 pages · 0 screenshots · 0 annotated elements · 1 diagram · 4 warnings\n$/,
+        /^✔ .*site\.html — 0\.\d MB · 11 pages · 2 screenshots · 5 annotated elements · 1 diagram\n✔ .*site-use\.html — 0\.\d MB · 3 pages · 2 screenshots · 5 annotated elements · 0 diagrams\n✔ .*site-product\.html — 0\.\d MB · 4 pages · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-admin\.html — 0\.\d MB · 1 page · 0 screenshots · 0 annotated elements · 0 diagrams\n✔ .*site-develop\.html — 0\.\d MB · 3 pages · 0 screenshots · 0 annotated elements · 1 diagram\nfr: 16 current · 0 stale · 0 missing · 4 warnings\n$/,
       );
       assert.match(
         r.err,
@@ -160,7 +161,7 @@ describe("build", () => {
       ]);
       assert.match(
         fr.out,
-        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma · 4 avertissements\n$/,
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma\nfr : 16 à jour · 0 en retard · 0 manquantes · 4 avertissements\n$/,
       );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);

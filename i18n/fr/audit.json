@@ -10,6 +10,7 @@
   "cli.new.tocDeclared": "✔ {toc} : « {id} » était déjà déclarée",
   "cli.new.next": "→ rédigez la page ({file}) et son résumé dans {toc}, puis regardez-la : {command} dev",
   "cli.new.parentHint": "  astuce : pour en faire une sous-page de « {parent} », déplacez son entrée après cette page avec \"niveau\": 2 ou \"level\": 2 (--parent {parent} le fait à la création)",
+  "cli.new.tocTranslated": "  {file} : la même entrée, au même endroit, dans le sommaire {lang} (ses textes sont à traduire)",
   "cli.new.missingId": "identifiant de page manquant",
   "cli.new.missingId.help": "{command} new <id-de-page> --template <type> [--title \"…\"] [--parent <id>]",
   "cli.new.invalidId": "identifiant de page invalide : « {id} »",

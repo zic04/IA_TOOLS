@@ -7,7 +7,7 @@
 export default {
   kit: "^0.4.0",
   product: { name: "Acme Orders", slug: "acme-orders" },
-  language: "en",
+  languages: ["en", "fr"],
   version: { file: "version.txt", pattern: "^([\\d.]+)", fallback: "0.0.0" },
   app: { url: "http://127.0.0.1:4173", dir: "../demo-app" },
   auth: { adapter: "manual", loginPattern: "^/login" },

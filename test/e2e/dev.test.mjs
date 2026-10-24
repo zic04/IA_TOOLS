@@ -43,7 +43,7 @@ describe("dev server", () => {
       texts,
       debounce: 60,
     });
-    const page = await browser.newPage();
+    const page = await browser.newPage({ locale: "en-US" }); // the bilingual demo, in English
     page.on("pageerror", (e) => errors.push(e.message));
     try {
       assert.equal((await state(server.url)).id, 1);
@@ -58,7 +58,8 @@ describe("dev server", () => {
         null,
         { timeout: 8000 },
       );
-      assert.equal(await page.evaluate(() => location.hash), "#/use/orders");
+      // The page kept across the reload; a multilingual site writes its language in the URL (§6.12).
+      assert.equal(await page.evaluate(() => location.hash), "#/en/use/orders");
       assert.equal((await state(server.url)).id, 2);
 
       // A build error (invalid table of contents): overlay, the last good build stays on screen.
@@ -110,7 +111,7 @@ describe("dev server", () => {
       texts,
       debounce: 60,
     });
-    const page = await browser.newPage();
+    const page = await browser.newPage({ locale: "en-US" }); // the bilingual demo, in English
     page.on("pageerror", (e) => errors.push(e.message));
     try {
       await page.goto(server.url);
@@ -140,7 +141,8 @@ describe("dev server", () => {
       const url = await waitFor(() => /Site: (http:\/\/127\.0\.0\.1:\d+\/)/.exec(out)?.[1]);
       // 4 warnings: the four spaces' own (ARCHITECTURE.md §6.1a, links to another space replaced by their text).
       assert.match(out, /✔ built in \d+\.\d s — 11 pages · 2 screenshots · 4 warnings \(draft\)/);
-      assert.match(out, /watching content\/, images\/, diagrams\/, theme\/, doc\.config\.mjs/);
+      // The demo is translated: translations/ is watched too (ARCHITECTURE.md §6.12).
+      assert.match(out, /watching content\/, images\/, diagrams\/, theme\/, translations\/, doc\.config\.mjs/);
       const html = await (await fetch(url)).text();
       assert.match(html, /<script id="doc-kit-dev">/);
       controller.abort();

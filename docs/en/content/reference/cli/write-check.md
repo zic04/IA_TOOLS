@@ -22,7 +22,8 @@ doc-kit new <page-id> --template <type> [--title "…"] [--parent <page-id>] [--
 ```
 
 Creates `content/<page-id>.md` from the template of the type, in the project's language, and declares the page in
-the table of contents. Never overwrites a file (exit code 1).
+the table of contents — with `languages`, at the same place in every translated `toc.json` too, its texts left to
+translate ([Documenting in multiple languages](#/spaces/languages)). Never overwrites a file (exit code 1).
 
 | Option | Effect |
 |---|---|

@@ -63,7 +63,9 @@ after(async () => {
 });
 
 async function open(name, hash = "") {
-  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  // The demo is bilingual (ARCHITECTURE.md §6.12) and its site follows the browser's language: English here,
+  // whatever the machine's.
+  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "en-US" })).newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(pathToFileURL(files[name]).href + (hash ? "#/" + hash : ""));
   return page;

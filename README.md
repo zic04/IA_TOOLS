@@ -80,7 +80,9 @@ on `http://127.0.0.1:4173` and accepts any e-mail and password. The documentatio
 `examples/demo-docs`, shows the four spaces (Use, with its annotated screens; Product, with feature sheets and
 business rules; Administer, with access and ownership; Develop, with the API surface and the findings) and the
 full update cycle: `examples/demo-app-v2` is a second version of
-the app (a renamed label, a modified screen, a new route) that `doc-kit sync` follows end to end.
+the app (a renamed label, a modified screen, a new route) that `doc-kit sync` follows end to end. The documentation project is
+written in English and translated into French: `doc-kit build --project examples/demo-docs` gives one file with a language
+switch, `--lang fr` the French file alone.
 
 ## Requirements
 

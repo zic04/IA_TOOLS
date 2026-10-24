@@ -1,4 +1,5 @@
-// Snapshots of the demo project built with --date 2026-01-01, in English and in French.
+// Snapshots of the demo project built with --date 2026-01-01, in English and in French: the demo is written in
+// English and translated into French (`languages`, ARCHITECTURE.md §6.12), each snapshot the file of one language.
 // Update after an intended change of the output: UPDATE=1 npm run test:snapshot
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -14,16 +15,14 @@ const stable = (html) => html.split(generatorTag()).join("<generator>");
 
 for (const language of ["en", "fr"]) {
   test(`demo project, ${language}`, async () => {
-    // The content is in English: in French, the page-template check (French section titles) only warns, once
-    // per required section missing across the 8 typed pages. Both languages also carry the four spaces' own
-    // warning (ARCHITECTURE.md §6.1a): a link to another space, replaced by its text in that space's export.
-    const r = await buildDemo({ language, draft: language === "fr" });
+    // A strict build in either language: every French page is translated and current, its sections the French
+    // ones of its template. Both carry the four spaces' own warning (ARCHITECTURE.md §6.1a): a link to another
+    // space, replaced by its text in that space's export.
+    const r = await buildDemo({ language });
     assert.deepEqual(r.errors, []);
     assert.deepEqual(
       r.warnings.map((w) => w.key),
-      language === "fr"
-        ? [...Array(32).fill("template.missingSection"), ...Array(4).fill("space.excludedLinks")]
-        : Array(4).fill("space.excludedLinks"),
+      Array(4).fill("space.excludedLinks"),
     );
     const html = stable(r.html);
     const file = path.join(FOLDER, `demo-docs.${language}.html`);

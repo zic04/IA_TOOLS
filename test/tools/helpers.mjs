@@ -19,12 +19,11 @@ export async function demoConfig(modify = (c) => c) {
 }
 
 /** Builds the demo project in memory (nothing is written in examples/). */
-export async function buildDemo({ language = "en", date = "2026-01-01", draft = false, modify, root = DEMO } = {}) {
-  const config = await demoConfig((c) => {
-    c.language = language;
-    return modify ? modify(c) : c;
-  });
-  return build({ project: { root }, config, options: { date, draft } });
+export async function buildDemo({ language, date = "2026-01-01", draft = false, modify, root = DEMO } = {}) {
+  const config = await demoConfig((c) => (modify ? modify(c) : c));
+  // The demo is written in English and translated into French (`languages`, ARCHITECTURE.md §6.12): without
+  // `language`, the bilingual site; with it, the file of that language alone (`build --lang`).
+  return build({ project: { root }, config, options: { date, draft, ...(language ? { lang: language } : {}) } });
 }
 
 /** Temporary folder (to be removed by the caller). */

@@ -1,0 +1,5 @@
+[
+  { "term": "Commande", "pattern": "commandes?", "def": "La demande d'un client pour un ou plusieurs produits, avec une adresse de livraison et un statut.", "technical": "data.json → orders[] ; champ status ; servie par GET /api/orders et GET /api/orders/[id] (serve.mjs)." },
+  { "term": "Reliquat", "pattern": "reliquats?", "def": "Une ligne de commande qui ne peut pas encore être expédiée, faute de stock du produit." },
+  { "term": "API", "pattern": "API(?: REST)?", "def": "Interface de programmation exposée par le serveur d'Acme Orders.", "technical": "serve.mjs : un seul gestionnaire http.createServer, des routes reconnues par de simples comparaisons de chaînes et d'expressions régulières — pas de routeur." }
+]

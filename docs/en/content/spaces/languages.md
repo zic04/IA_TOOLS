@@ -59,6 +59,8 @@ routing such a link, the address bar is rewritten to carry the current language 
 entry — so a shared or bookmarked address always names its language. A page translated only part way shows a
 banner, "Not translated yet — shown in {language}", on a page, a section introduction or the home page built from
 the source in its place (a `--draft` build only; a strict build refuses a missing translation outright, below).
+A page not written yet in the source is not written in any language, whatever its translation: it is reported
+once, by the source (`page.missing`), and a link to one of its anchors is no error in a translation.
 
 ## The four states of a translated file
 
@@ -120,15 +122,21 @@ on the batch it just wrote.
 
 - **`doc-kit build --lang <l>`**: a mono-language file, the configured output with `-<l>` before its extension
   (`Acme-Orders-Documentation.html` → `Acme-Orders-Documentation-fr.html`; `--output` overrides it). Its data is
-  exactly what the multilingual file embeds for `<l>`, without the other languages.
+  exactly what the multilingual file embeds for `<l>`, without the other languages; `<l>` may be the source
+  language too.
 - **`doc-kit capture --lang <l>`**: takes the plans with `capture.languages.<l>` (`locale`, `cookies`, `storage`,
   each merged over the top-level `capture.locale`/`capture.cookies`/`capture.storage`; `locale` defaults to that
   language's own locale) and writes `<images>/<l>/<id>.webp` and `<images>/<l>/zones/<id>.json`. A capture
   without a file for `<l>` is shared: every language shows the source image and its zones. `check images` and
   `optimize` also walk `<images>/<l>/`.
 
-`doc-kit view --lang <l>` and `doc-kit open --lang <l>` open the site on `#/<l>/…`; `doc-kit dev` also watches
-`<paths.translations>/`.
+`doc-kit view --lang <l>` and `doc-kit open --lang <l>` open the site on `#/<l>/…`; without `--lang`, `view` shows
+the source language (its image never depends on the machine's language), `open` lets the browser choose.
+`doc-kit dev` also watches `<paths.translations>/`.
+
+The kit's demo project is a worked example: `examples/demo-docs` is written in English and translated into French
+(`translations/fr/`, the zones of its screens in `images/fr/zones/`). From the kit's folder,
+`doc-kit build --project examples/demo-docs` gives the bilingual file, `--lang fr` the French one alone.
 
 ## The update cycle
 
@@ -146,7 +154,9 @@ ratio of current files to the total) — informative only, it never changes the 
 > [!WARNING] A structural mismatch blocks even a draft build
 > Adding, removing or reordering a section, group, page, journey or space in a translated `toc.json` is
 > `translation.toc.structure`, blocking whatever the build mode — only the source table of contents may change
-> structure; a translation only ever supplies different text for the same shape.
+> structure; a translation only ever supplies different text for the same shape. `doc-kit new` keeps them in
+> step: it adds the new page's entry, at the same place, to every translated `toc.json`, its texts left to
+> translate (a translated table of contents already out of step there is left as it is).
 
 > [!NOTE] An unmapped anchor is reported, not guessed
 > `translate --fix-anchors` rewrites an anchor only when the source and the translated target page have the

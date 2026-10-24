@@ -22,7 +22,8 @@ doc-kit new <id-page> --template <type> [--title "…"] [--parent <id-page>] [--
 ```
 
 Crée `content/<id-page>.md` à partir du gabarit du type, dans la langue du projet, et déclare la page dans le
-sommaire. N'écrase jamais un fichier (code de sortie 1).
+sommaire — avec `languages`, au même endroit dans chaque `toc.json` traduit aussi, ses textes restant à traduire
+([Documenter en plusieurs langues](#/spaces/languages)). N'écrase jamais un fichier (code de sortie 1).
 
 | Option | Effet |
 |---|---|
