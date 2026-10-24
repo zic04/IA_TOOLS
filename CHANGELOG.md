@@ -45,6 +45,11 @@ entries between a project's `kit` range and the installed version.
 - The docs say which global access rules are not read (DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's
   `SecurityFilterChain`, ASP.NET's `FallbackPolicy`, `FastAPI(dependencies=…)`): a route they alone protect is
   `"none"`.
+- `--lang=fr` (and `--lang=en`) chose nothing: only `--lang fr` was read, so the messages stayed in the project's
+  language, `DOC_KIT_LANG` or English. Both forms now work, `--help` included.
+- `doc-kit constructor` (or `toString`, `__proto__`: names every JavaScript object inherits) stopped on an unexpected
+  error (`module.run is not a function`), and `doc-kit help constructor` printed `cli.help.constructor`: both are an
+  unknown command now.
 
 ### Changed
 
@@ -62,6 +67,28 @@ entries between a project's `kit` range and the installed version.
     run before, 0 now.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
+- **The CLI starts in about a sixth of the time** (ARCHITECTURE.md §4): `doc-kit --version` took 1.3 s, now 0.2 s
+  (Node alone: 0.08 s). The dispatcher imports only the module of the command that runs (`cli/registry.mjs`), not
+  all 30, and Playwright is imported where a browser is launched, no longer at the start of every command that
+  reaches the capture engine (`build`, `audit`, `sync`…); the hook `hooks install` writes, which runs `facts`
+  then `sync` after each `git pull`, saves it twice. The adapter loader moved from the capture session to
+  `engine/core/adapter-loader.mjs`: the coverage check, the facts and `sync` no longer import the capture session
+  (`engine/capture/session.mjs`).
+- **`doc-kit --help` lists every command**, in groups generated from the registry: `backlog`, `context`, `probe`,
+  `sync` and `translate` were missing, and `inventory`, `facts`, `inputs` and `bricks` were filed under
+  "Screenshots" (now "Read the application"). Each command's line names every option it declares (`init --target`,
+  `--languages`, `--spaces`, `capture --compare`, `--stale`, `--trace`, `--verify`, `skill install --hooks`… were
+  missing); a test keeps both true.
+
+### Security
+
+- **`doc-kit --version` and `--help` ran the `doc.config.mjs` of the folder they were typed in**, or of a parent, to
+  find the language of the messages: typed in a cloned application that ships a documentation project, they ran
+  its code. `--version` and `--help` (`<command> --help` too) no longer import `doc.config.mjs`: the language is
+  read in its text (a literal `language`, or the first item of `languages`; a regular file only, 1 MB read at most). A
+  command that loads the project still runs its configuration, and so does `doc-kit` without a command (the guided
+  mode loads the project to tell the next step). This holds for the doc-kit you installed: `npx doc-kit` in a cloned
+  application runs the kit of its `node_modules` (SECURITY.md, `test/unit/cli-startup.test.mjs`).
 
 ### Security
 

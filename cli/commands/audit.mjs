@@ -13,11 +13,9 @@ import { runAudit } from "../../engine/audit/audit.mjs";
 import { measureTables } from "../../engine/audit/optional.mjs";
 import { renderMarkdown, renderSummary, withTexts } from "../../engine/audit/report.mjs";
 import { EXIT } from "../../engine/project/errors.mjs";
+import { WORK_DIR } from "../registry.mjs";
 
 export const options = {};
-
-/** Folder of the work files of a project (git-ignored, ARCHITECTURE.md §2.1). */
-export const WORK_DIR = ".doc-kit";
 
 export async function run({ ctx }) {
   const { project, config } = await ctx.loadProject();

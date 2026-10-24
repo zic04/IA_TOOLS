@@ -5,6 +5,9 @@
 
 export const EXIT = Object.freeze({ OK: 0, CHECK: 1, USAGE: 2, ENVIRONMENT: 3 });
 
+/** First line of an error message (Playwright's and Node's messages are long). */
+export const firstLine = (e) => String(e?.message ?? e).split("\n")[0];
+
 export class KitError extends Error {
   /**
    * @param {number} code      exit code
