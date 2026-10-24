@@ -32,8 +32,8 @@ entries between a project's `kit` range and the installed version.
 - `doctor`, `export`, `check secrets` and the audit's secrets measure start git through the command's process
   launcher, as the other commands do: in a repository whose git configuration names a program, they now warn and
   name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
-  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its two git
-  helpers).
+  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its launcher
+  and its git helpers).
 - FastAPI: the dependencies of a route's decorator (`@router.get("/x", dependencies=[Depends(require_admin)])`)
   and `Security(…)` are guards; such an admin route came out with no guard (`"none"`). A `Depends(…)` in a comment
   or a string (`# dependencies=[…]`, `description="… Depends(require_admin)"`), of a decorator, a signature, an
@@ -148,6 +148,40 @@ entries between a project's `kit` range and the installed version.
   returning `[AllowAny()]` under `[IsAdminUser]`), Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")`
   under a class `@Secured("ROLE_ADMIN")`, and rare argument forms (Flask's `**{"optional": True}`,
   `optional=False or True`) (SECURITY.md).
+- **The Git LFS exception accepts only the values Git LFS writes**, each for its own key and as the whole value
+  (`git-lfs clean -- %f`, `git-lfs smudge -- %f`, `git-lfs filter-process`, the last two also with `--skip`). A
+  value that merely started like one was taken for Git LFS, so a repository's configuration could have a read-only
+  git command run another program.
+- **More keys that name a program refuse git**: what git-lfs runs or writes to when its filters run
+  (`lfs.extension.<name>.clean`/`smudge`, `lfs.customtransfer.<name>.path`, `lfs.storage`), and the program that
+  checks a signature (`gpg.program`, `gpg.<format>.program`), which `git log` and `git show` run when
+  `log.showSignature` is set. git no longer starts git in a submodule (`diff.ignoreSubmodules=dirty`,
+  `diff.submodule=short`, `submodule.recurse=false`): a submodule's own configuration, which the kit does not read,
+  could name a filter that a read-only `git diff` ran. It never fetches what a partial clone lacks
+  (`GIT_NO_LAZY_FETCH=1`).
+- **The configuration is read as git reads it**: a line separator (U+2028, U+2029) in a value or a subsection no
+  longer hides a key; a value keeps any blank but spaces and tabs; and every git folder git may use is read — a
+  `.git` file's path and a `commondir` taken as git takes them, a bare repository, and what lies above a `.git` git
+  would skip (empty, without objects or refs).
+- **A program is never taken from the application, the documentation project or a `node_modules/.bin`**: when the
+  kit ran as an npm script of a documentation project inside the application, npm put the application's
+  `node_modules/.bin` first on the `PATH`, and a `git` there was run. This holds for git and for the tools of
+  `facts --tools` (a `knip` installed only in the application is no longer run), and the program started gets that
+  `PATH` too (what git starts in turn, `git-lfs` included). The folders are compared by their real paths too (links
+  and junctions followed, in any case on Windows): a `PATH` folder that reached the application, the current folder
+  or a `node_modules/.bin` through a link, macOS's `/var` included, was not left out.
+- **git runs with a cleaned environment**: no `GIT_*` variable of the environment reaches it (they could move the
+  repository read, add to or replace its configuration, or name a program), but those `inputs fetch` connects
+  with (`GIT_SSH_COMMAND`, `GIT_SSH`, `GIT_ASKPASS`, `GIT_SSL_CAINFO`, `GIT_SSL_CAPATH`); `GIT_TERMINAL_PROMPT=0`
+  everywhere. One launcher starts git and the external tools (`spawnHardened`, engine/util/safe-git.mjs), for the
+  commands and the engine alike; the tools get the same environment, and are not run in a repository whose
+  configuration names a program (a tool may start git there: `facts --tools` reports them `failed`, reason
+  `refused`, with a warning).
+- **`hooks install` writes only inside the repository or its git folder**, links followed: a `core.hooksPath` that
+  leads out of them, a hook that is a link out of them or leading nowhere, or a hard link, is refused
+  (`hooks.unsafeFolder`, exit code 3).
+- For the kit's developers: the rules of engine/util/safe-git.mjs have their mutants (`test/mutations/util-safe-git.mjs`,
+  RULES.md M16, 66 mutants), against `test/unit/safe-git.test.mjs`, which `npm run test:security` now runs too.
 - **No crafted file of the application blocks `facts` or `check secrets`** (RULES.md S5): twenty scanners took
   four times as long, or more, for twice the input on a file built for it (a 2 KB file took seconds). They are now
   linear, and find what they found on normal input:

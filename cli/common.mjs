@@ -4,14 +4,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { spawnSync } from "node:child_process";
 import { createI18n, LANGUAGES } from "../engine/i18n.mjs";
 import { loadProject, readSchema } from "../engine/project/load.mjs";
 import { findProject, languageInConfig } from "../engine/project/find.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { spaceOutput } from "../engine/build/spaces.mjs";
 import { BRAND } from "../engine/brand.mjs";
-import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
+import { spawnHardened } from "../engine/util/safe-git.mjs";
 import { chromiumStatus } from "../engine/dev/environment.mjs";
 
 /** The largest doc.config.mjs whose text is read for the language of the first messages (useProjectLanguage). */
@@ -59,31 +58,25 @@ function createPaint(enabled) {
 }
 
 /**
- * Default `exec` of a context: a real child process, synchronous, never through a shell. `null` when the binary is
- * not found (ENOENT). The binary is looked up on the PATH only, never in the folder read (SECURITY.md); a git
- * command is hardened (safeGitArgs) and refused, with status 128 and `refused`, when the repository's
- * configuration names a program that git could run (riskyGitConfig).
+ * Default `exec` of a context: a real child process, synchronous, never through a shell (engine/util/safe-git.mjs
+ * `spawnHardened`). `null` when the binary is not found. The binary is looked up on the PATH only, never in the
+ * folder read, in `untrusted` (the documentation project and the application of the project loaded) or a
+ * node_modules/.bin (SECURITY.md); a git command is hardened (safeGitArgs, gitEnv) and refused, with status 128 and
+ * `refused`, when the repository's configuration names a program that git could run (riskyGitConfig).
+ * @param {string} bin
+ * @param {string[]} [args]
+ * @param {object} [options]   given to the process (cwd, env, timeout…)
+ * @param {{ untrusted?: string[], spawn?: Function }} [o]   spawn: the test seam of spawnHardened
  */
-export function defaultExec(bin, args = [], options = {}) {
-  const cwd = options.cwd || process.cwd();
-  if (bin === "git") {
-    const risky = riskyGitConfig(cwd);
-    if (risky.length) return { status: 128, stdout: "", stderr: "", refused: risky };
-    args = safeGitArgs(args);
-  }
-  const file = resolveOnPath(bin, { exclude: [cwd] });
-  if (!file) return null;
-  const r = spawnSync(file, args, {
-    encoding: "utf8",
-    windowsHide: true,
-    maxBuffer: 32 * 1024 * 1024,
-    ...options,
-    shell: false,
-  });
-  return /** @type {NodeJS.ErrnoException|undefined} */ (r.error)?.code === "ENOENT"
-    ? null
-    : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
+export function defaultExec(bin, args = [], options = {}, { untrusted = [], spawn } = {}) {
+  return spawnHardened(bin, args, { ...options, exclude: untrusted, ...(spawn ? { spawn } : {}) });
 }
+
+/** The folders of the project loaded that no program is started from: the documentation project, the application. */
+const untrustedFolders = (ctx) =>
+  ctx.project
+    ? [ctx.project.root, ...(ctx.config?.app?.dir ? [path.resolve(ctx.project.root, ctx.config.app.dir)] : [])]
+    : [];
 
 /**
  * Execution context of a command.
@@ -111,7 +104,7 @@ export function createContext(
     steps,
     launch,
     fetch: fetchImpl = fetch,
-    exec = defaultExec,
+    exec,
     commit,
     codegen,
     chromium,
@@ -119,6 +112,9 @@ export function createContext(
 ) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const warnedGit = new Set();
+  // Without a seam, the real launcher, told the folders of the project loaded (none before it is).
+  const launcher =
+    exec ?? ((bin, args, options) => defaultExec(bin, args, options, { untrusted: untrustedFolders(ctx) }));
   const ctx = {
     globals,
     env,
@@ -132,15 +128,18 @@ export function createContext(
     /** Test seam of `doctor` (AUDIT.md M7): () => { ok, path, command } for the Chromium of Playwright. */
     chromium: chromium ?? (() => chromiumStatus()),
     fetch: fetchImpl,
-    /** `exec`, with a warning (once per repository) when git is refused because of a risky configuration. */
+    /**
+     * `exec`, with a warning (once per repository, for git, then for the external tools) when a program is refused
+     * because of a risky configuration.
+     */
     exec: (bin, args, options) => {
-      const r = exec(bin, args, options);
-      if (r?.refused && !warnedGit.has(options?.cwd)) {
-        warnedGit.add(options?.cwd);
+      const r = launcher(bin, args, options);
+      const key = bin === "git" ? "cli.git.unsafeConfig" : "cli.git.unsafeConfigTools";
+      const once = `${key}\n${options?.cwd}`;
+      if (r?.refused && !warnedGit.has(once)) {
+        warnedGit.add(once);
         const vars = { folder: options?.cwd || ".", keys: r.refused.join("; ") };
-        stderr.write(
-          `⚠ ${ctx.t ? ctx.t("cli.git.unsafeConfig", vars) : `git refused in ${vars.folder}: ${vars.keys}`}\n`,
-        );
+        stderr.write(`⚠ ${ctx.t ? ctx.t(key, vars) : `${bin} refused in ${vars.folder}: ${vars.keys}`}\n`);
         if (ctx.t) stderr.write(`  → ${ctx.t("cli.git.unsafeConfig.help", vars)}\n`);
       }
       return r;

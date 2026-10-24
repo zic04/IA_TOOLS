@@ -119,7 +119,7 @@ default), in the documentation project — never in the application: `dependenci
 |---|---|
 | `--source <name>` | Repeatable: only these sources (default: every source) |
 | `--network` | `dependencies`: also looks up whether each direct package exists in its registry; `quality`: how many majors behind (the name only, nothing else: only a name a lock file proves public, never a private package's name); `--tools`: lets `osv-scanner` download its database |
-| `--tools` | Also runs `gitleaks`, `osv-scanner` (offline), `syft` and `knip` when they are on the PATH, each into `facts/tool-<name>.json` (status `ok`, `findings`, `failed` or `missing`; only an allowlist of fields is kept); a missing tool is reported, never an error |
+| `--tools` | Also runs `gitleaks`, `osv-scanner` (offline), `syft` and `knip` when they are on the PATH (never in the application, the documentation project or a `node_modules/.bin`), each into `facts/tool-<name>.json` (status `ok`, `findings`, `failed` or `missing`; only an allowlist of fields is kept); a missing tool is reported, never an error |
 
 The same code, run against the same commit of the application, writes the same file (its `generated` timestamp
 aside): `doc-kit facts` is safe to commit alongside the pages it feeds. See [Example · API surface](#/examples/api-surface)

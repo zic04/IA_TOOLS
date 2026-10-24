@@ -98,13 +98,48 @@ reads text only, never images. **Review every image** before delivering a site.
 A takeover reads an application written by someone else, often with its `.git/` folder. The kit treats that folder
 as untrusted input:
 
-- git is only run with hardened options (no file system monitor, no pager, no external diff, no textconv), and a
-  git reference read from `sync.json` or `--since` is refused unless it is a plain reference (never an option);
+- git is only run with hardened options (no file system monitor, no pager, no external diff, no textconv, no git
+  started in a submodule: a diff never looks into a submodule's working tree nor shows its inner diff, nothing
+  recurses into one — a submodule has a configuration of its own, which the kit does not read), and a git reference
+  read from `sync.json` or `--since` is refused unless it is a plain reference (never an option);
+- git runs with a cleaned environment: no variable of git's own (`GIT_*`, in any case) reaches it — none can move
+  the repository read (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`,
+  `GIT_ALTERNATE_OBJECT_DIRECTORIES`), add to or replace the configuration read (`GIT_CONFIG_COUNT` and
+  `GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n`, `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`) or
+  name a program (`GIT_EXEC_PATH`, `GIT_EXTERNAL_DIFF`…) — but how `inputs fetch` connects (`GIT_SSH_COMMAND`,
+  `GIT_SSH`, `GIT_ASKPASS`, the certificate authorities `GIT_SSL_CAINFO` and `GIT_SSL_CAPATH`); it never asks for a
+  password (`GIT_TERMINAL_PROMPT=0`), and never fetches the objects a partial clone lacks (`GIT_NO_LAZY_FETCH=1`:
+  the fetch would start the transport the repository names). Your `HOME` and your global configuration (its
+  credential helper) still apply. The external tools get the same environment, for any git they start;
 - git is **not run at all** in a repository whose configuration names a program it could start (`core.fsmonitor`,
-  `diff.external`, a `textconv` driver, a `clean`/`smudge`/`process` filter other than Git LFS, an
-  `include`): the command warns, names the keys, and works without git (files are listed directly);
-- programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
-  placed in the application cannot replace the real one on Windows;
+  `diff.external`, a `textconv` driver, a `clean`/`smudge`/`process` filter, an `include`, the program that checks
+  a signature — `gpg.program`, `gpg.<format>.program`: `git log` and `git show` check signatures when
+  `log.showSignature` says so —, and what Git LFS runs or writes to when its filters run: an extension
+  `lfs.extension.<name>.clean`/`smudge`, a custom transfer agent `lfs.customtransfer.<name>.path`, `lfs.storage`):
+  the command warns, names the keys, and works without git (files are listed directly). Nor is any external tool run
+  there (`facts --tools`: `failed`, reason `refused`): a tool may start git in the repository itself (semgrep lists
+  the files with `git ls-files`). The one exception is Git LFS's own filters, for exactly the values it writes,
+  each for its own key and as the whole value (`git-lfs clean -- %f`, `git-lfs smudge -- %f`,
+  `git-lfs filter-process`, the last two also with `--skip`): anything before or after (`;`, `&&`, `|`, a backtick,
+  `$(`, a newline, one more word, a blank other than a space or a tab) makes it a program named. These filters stay
+  on, so that a file stored in Git LFS is compared as its pointer, never reported changed for its content; they
+  start `git-lfs` from the `PATH` below. The configuration is read as git reads it — a line separator (U+2028,
+  U+2029) in a value or a subsection included — from every git folder git may use: walking up from the folder, a
+  `.git` folder, the one a `.git` file names (its path as git reads it, line ends only taken off; so is a worktree's
+  `commondir`), a folder that is itself a git folder (a bare repository); the walk goes past a `.git` git would not
+  take for one (no HEAD naming a branch or a commit, no objects, no refs, a HEAD that is a link), as git does, and
+  stops at the first git surely uses;
+- programs (git, gitleaks, osv-scanner, syft, knip, semgrep) are looked up on the `PATH` only, never in the folder
+  read, the application, the documentation project, a folder inside them, or a `node_modules/.bin` (npm puts the
+  application's, and its parent folders', first on the `PATH` when the kit runs as an npm script of a documentation
+  project inside it): a `git.exe` or a `node_modules/.bin/git` placed in the application cannot replace the real
+  one. The program started gets that `PATH`, without those folders: what git starts in turn (`git-lfs`, a credential
+  helper) is looked up there too. The folders are compared by their real paths as well (links and junctions
+  followed, in any case on Windows), so a `PATH` folder reached through a link, macOS's `/var` included, is still
+  left out;
+- `hooks install` writes only into a hooks folder inside the repository or its git folder (for a worktree, the main
+  repository's), links followed: a `core.hooksPath` that leads out of them, a hook that is a link out of them or
+  leading nowhere, or a hook that is a hard link, is refused;
 - every expression and every loop that scans the application's files stays linear (a crafted file cannot block
   `facts` or `check secrets`), and is tested for it: the ReDoS test runs each on adversarial inputs — the shapes
   that once made one quadratic among them: an occurrence repeated, a construct left open, a long run — and
@@ -234,8 +269,16 @@ as untrusted input:
   so in any folder you open that holds such a project: keep it to the projects you trust.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
-(JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
-`.git/config` handed over with an application before running anything on it.
+(JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. A knip
+installed only in the application (its `node_modules/.bin`) is not run: install it outside the application. Read a
+`.git/config` handed over with an application before running anything on it. The cleaned environment of git is a
+defence in depth, not a sandbox: an environment the application controls (a `direnv` `.envrc` you allowed, a shared
+CI runner) can still change what the kit itself runs (its `PATH`, `NODE_OPTIONS`); a `GIT_CONFIG_GLOBAL` of
+your own is not read (git then reads `~/.gitconfig`); and a git too old to know `GIT_NO_LAZY_FETCH` ignores it.
+Reading every configuration git may use can refuse git where git would not have read the one named (a parent
+repository above a `.git` the kit cannot be sure of): the warning names the keys. On Windows a program is started
+as a `.exe` or a `.com` only, never through a shell: a tool installed as a `.cmd` (a global npm package) is not
+found.
 
 ### The sources: shared repositories and documents (`inputs`)
 
