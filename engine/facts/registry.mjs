@@ -30,6 +30,12 @@ import { checkExistence } from "./network.mjs";
  * @typedef {{ items: Array<object>, extra?: object, unreadable?: Array<{ file: string, reason: string }> }} Collected
  */
 
+/** The items of a reader that lists in `unreadable` the files it does not read (over 512 KB: readCode), with them. */
+const withUnreadable = (collect) => {
+  const unreadable = [];
+  return { items: collect(unreadable), unreadable };
+};
+
 /** @type {ReadonlyArray<{ name: string, collect: (seams: Seams) => Collected|Promise<Collected> }>} */
 const FACT_SOURCES = Object.freeze([
   {
@@ -45,7 +51,7 @@ const FACT_SOURCES = Object.freeze([
     },
   },
   { name: "stack", collect: ({ appDir, stacks }) => collectStack(appDir, stacks) },
-  { name: "env", collect: ({ appDir }) => ({ items: collectEnv(appDir) }) },
+  { name: "env", collect: ({ appDir }) => withUnreadable((unreadable) => collectEnv(appDir, unreadable)) },
   {
     name: "api",
     collect: ({ appDir, config, stacks }) => ({ items: collectApi(appDir, config.review?.guards, stacks) }),
@@ -54,21 +60,21 @@ const FACT_SOURCES = Object.freeze([
     name: "screens",
     collect: ({ appDir, config, stacks }) => ({ items: collectScreens(appDir, config.review?.guards, stacks) }),
   },
-  { name: "db", collect: ({ appDir }) => ({ items: collectDb(appDir) }) },
+  { name: "db", collect: ({ appDir }) => withUnreadable((unreadable) => collectDb(appDir, unreadable)) },
   { name: "infra", collect: ({ appDir, infra }) => ({ items: collectInfra(appDir, infra) }) },
   { name: "behaviours", collect: ({ appDir, stacks }) => collectBehaviours(appDir, stacks) },
-  { name: "agents", collect: ({ appDir }) => ({ items: collectAgents(appDir) }) },
+  { name: "agents", collect: ({ appDir }) => withUnreadable((unreadable) => collectAgents(appDir, unreadable)) },
   { name: "secrets", collect: ({ appDir, exec }) => ({ items: collectSecrets(appDir, exec) }) },
   { name: "security", collect: ({ appDir, exec }) => ({ items: collectSecurity(appDir, exec) }) },
   {
     name: "quality",
     async collect({ appDir, fetch, network }) {
-      const { items, summary } = await collectQuality(appDir, {
+      const { items, summary, unreadable } = await collectQuality(appDir, {
         fetch: network ? fetch : undefined,
         dependencies: collectDependencies(appDir),
         registries: network?.registries,
       });
-      return { items, extra: { summary } };
+      return { items, extra: { summary }, unreadable };
     },
   },
   {
