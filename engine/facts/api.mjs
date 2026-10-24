@@ -1,6 +1,7 @@
 // Sources `api` and `screens` (ARCHITECTURE.md §6.9, §6.13): the routes and the screens of the application, read
 // by the stack adapters (engine/facts/stacks.mjs, adapters/stack/: Next.js, Express, FastAPI… and the project's own),
-// and the access of each from its guards, classified here with the project's patterns (`review.guards`).
+// and the access of each from its guards, classified with the project's patterns (`review.guards`) by
+// engine/facts/guards.mjs.
 //   api item: { method, route, file, line, framework, auth, guards } — line: 1-based line of the handler (decorator,
 //   export or call).
 //   screens item: { route, file, line, framework, auth?, guards? } — auth and guards when the router declares them.
@@ -8,42 +9,10 @@
 import { BUILT_IN_STACKS, stackSources } from "./stacks.mjs";
 import { routeWithoutSecrets } from "./behaviour-common.mjs";
 import { MAX_GUARDS, MAX_ITEMS } from "./stack-common.mjs";
+import { classifyAuth, resolveGuardPatterns } from "./guards.mjs";
 
 /** 1-based line of a character index of a text. */
 export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
-
-// ─── Authentication of a route (ARCHITECTURE.md §6.13) ────────────────────────────────────────────────────────
-// `auth` is classified from the `guards` found at the handler: "none" (no guard), "role" (a guard matching the
-// role pattern, checked first), "user" (a guard matching the user pattern), "unknown" (a guard matching neither).
-export const DEFAULT_ROLE_GUARD = /admin|role|permission|scope|owner|super|staff/i;
-/**
- * The user guards: names that say a signed-in user (a session, a token), and the conventions of the stacks read,
- * each a whole name — Laravel's `auth` and `auth:sanctum`, ASP.NET's `Authorize` and `RequireAuthorization`
- * without a role or a policy, NestJS's `AuthGuard(…)`, Rails's `authenticate_user!`, Django's `LoginRequiredMixin`,
- * Flask's `jwt_required`.
- */
-export const DEFAULT_USER_GUARD =
-  /current_user|authenticated|login_required|require_auth|session|token|^auth(?::\w{1,40})?$|^authorize$|^requireauthorization$|^authguard\b|^authenticate(?:_\w{1,40})?!?$|loginrequired|jwt_required/i;
-
-/**
- * Guard patterns to classify `auth`, from `review.guards` (ARCHITECTURE.md §6.13: regular expressions as strings;
- * a non-empty list replaces the built-in pattern, joined with "|"). `review.guards` may be undefined.
- */
-export function resolveGuardPatterns(guards = {}) {
-  const role = guards?.role?.length ? new RegExp(guards.role.join("|"), "i") : DEFAULT_ROLE_GUARD;
-  const user = guards?.user?.length ? new RegExp(guards.user.join("|"), "i") : DEFAULT_USER_GUARD;
-  return { role, user };
-}
-
-/** `auth` of a route from its `guards` (the names found at the handler), against `patterns` (resolveGuardPatterns). */
-export function classifyAuth(guards, patterns = {}) {
-  if (!guards || !guards.length) return "none";
-  const role = patterns.role ?? DEFAULT_ROLE_GUARD;
-  const user = patterns.user ?? DEFAULT_USER_GUARD;
-  if (guards.some((g) => role.test(g))) return "role";
-  if (guards.some((g) => user.test(g))) return "user";
-  return "unknown";
-}
 
 /** Content between the matching closing parenthesis of the "(" found at `openIndex`, not included. */
 export function balancedParens(text, openIndex) {
@@ -128,7 +97,8 @@ export function collectApi(appDir, guards = {}, stacks = BUILT_IN_STACKS) {
   for (const { adapter, sources } of stackSources(appDir, stacks, "api")) {
     const mentions = namer(sources, adapter);
     let n = 0;
-    for (const r of adapter.api({ sources })) {
+    // `guards`: the project's patterns, for an adapter that keeps a hook only when it guards (Flask's before_request).
+    for (const r of adapter.api({ sources, guards: patterns })) {
       // The bounds of every adapter, the project's own too: MAX_ITEMS routes, MAX_GUARDS guards each.
       if (n === MAX_ITEMS) break;
       if (!complete(r, ["method", "route", "file"])) continue;

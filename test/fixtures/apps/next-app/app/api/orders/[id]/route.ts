@@ -1,6 +1,6 @@
 // Fixture: a Next.js App Router route handler with a dynamic segment, for the `api` facts source. GET only calls
-// currentUser() (ARCHITECTURE.md §6.13): that guard name matches neither default pattern (no "current_user" with
-// an underscore, no "session", no "token"), so auth is "unknown" — a guard is present, but not classified.
+// currentUser() (ARCHITECTURE.md §6.13): a lookup in a handler's body gives an anonymous caller nothing and refuses
+// him nothing, so auth is "unknown" (`currentUser (body)`) — a guard is present, but not classified.
 async function currentUser() {
   return { id: "u1" };
 }

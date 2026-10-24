@@ -29,6 +29,10 @@ import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
 import { expressRoutes } from "../../adapters/stack/express.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
+import { classifyAuth } from "../../engine/facts/guards.mjs";
+import { djangoViews } from "../../adapters/stack/django.mjs";
+import { railsApi } from "../../adapters/stack/rails.mjs";
+import { flaskRoutes } from "../../adapters/stack/flask.mjs";
 import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
 import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { BUILT_IN_INFRA } from "../../engine/facts/infra.mjs";
@@ -96,6 +100,8 @@ const PREFIXES = [
   "Rails.application.routes.draw do\n  namespace :a do\n    resources :",
   "urlpatterns = [\n  path('a/', views.a),\n  path('",
   '@bp.route("/a")\n@login_required\ndef a(): pass\n@bp.route("',
+  // A before_request hook's body, whose statements and calls Flask reads (adapters/stack/flask.mjs, mayDeny).
+  "@bp.before_request\ndef a():\n    ",
   "class A extends AbstractController {\n  #[Route('/a', methods: ['GET'])]\n  public function a() {}\n  #[Route('",
   'var g = app.MapGroup("/a").RequireAuthorization();\ng.MapGet("',
   '<Routes>\n  <Route path="a" element={<RequireAuth><A /></RequireAuth>}>\n    <Route path="',
@@ -364,6 +370,7 @@ async function stackChecks() {
   const modules = [
     ...BUILT_IN_STACKS.map((a) => [a.name, `../../adapters/stack/${a.name}.mjs`]),
     ...["js", "c", "py", "php", "common"].map((x) => [`stack-${x}`, `../../engine/facts/stack-${x}.mjs`]),
+    ["guards", "../../engine/facts/guards.mjs"],
     ["infra-common", "../../engine/facts/infra-common.mjs"],
     ...BUILT_IN_INFRA.map((a) => [`infra ${a.name}`, `../../adapters/infra/${a.name}.mjs`]),
     ["infra", "../../engine/facts/infra.mjs"],
@@ -439,6 +446,33 @@ export const CHECKS = [
   ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
+  // The access of a route from its guards' names, which an adapter takes from the application (engine/facts/guards.mjs).
+  [
+    "api classifyAuth",
+    (s) => classifyAuth([s, `${s}()`, s.toUpperCase(), `a.${s}`, `(${s}) and !(${s}) or ${s}`, `${s} (body)`]),
+  ],
+  // What a reader keeps of a guard the text writes: DRF's permission classes (an expression of several), Rails's
+  // callbacks (a condition, a statement on several lines), Flask's decorator arguments (`@jwt_required (…)`).
+  [
+    "api django permission_classes",
+    (s) =>
+      djangoViews(`class A(APIView):\n    permission_classes = [${s}]\n@permission_classes([${s}])\ndef a(r): ...\n`)
+        .size,
+  ],
+  [
+    "api rails callbacks",
+    (s) =>
+      railsApi(
+        new Map([
+          ["config/routes.rb", "resources :a\n"],
+          ["app/controllers/a_controller.rb", `class AController\n  before_action :a, ${s}\n  before_action ${s}\n`],
+        ]),
+      ).length,
+  ],
+  [
+    "api flask decorators",
+    (s) => flaskRoutes(new Map([["a.py", `@app.get('/a')\n@jwt_required ${s}\ndef a(): ...\n`]])).length,
+  ],
   // The stack adapters (adapters/stack/) and the engine modules they share: each expression, then each reader.
   ...(await stackChecks()),
   // The paths of the application: what is a test, a generated file; which files an adapter reads; what tells a stack.

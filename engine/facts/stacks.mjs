@@ -30,7 +30,7 @@ import { adaptersOf, detectedBy } from "../core/adapters.mjs";
 
 /**
  * @typedef {{ name: string, files: RegExp, marker?: RegExp, languages?: string[],
- *   api?: (p: { sources: Map<string, string> }) => object[],
+ *   api?: (p: { sources: Map<string, string>, guards?: import("./guards.mjs").GuardPatterns }) => object[],
  *   screens?: (p: { sources: Map<string, string> }) => object[],
  *   behaviours?: (text: string, sink: any, file: string) => void }} StackAdapter
  */

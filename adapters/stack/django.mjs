@@ -9,8 +9,9 @@
 // the view's decorators (`@login_required`, `@permission_required(…)`, `@staff_member_required`,
 // `@permission_classes([...])`, `@method_decorator(…)` on the class or on its `dispatch`), its guard mixins
 // (`LoginRequiredMixin`, `PermissionRequiredMixin`…) and its `permission_classes`; a view whose module is not among
-// the files read has none. The admin site is guarded by itself ("admin.site"). A route in a comment or a docstring
-// is none. The readers of Python it shares with the Flask adapter are engine/facts/stack-py.mjs.
+// the files read has none. The admin site is guarded by itself ("AdminSite": its staff; "admin.site" would read as
+// the module `admin`, which names no role). A route in a comment or a docstring is none. The readers of Python it
+// shares with the Flask adapter are engine/facts/stack-py.mjs.
 import { textIndex, pyCommentRanges, callSpan } from "../../engine/facts/behaviour-common.mjs";
 import {
   STACK_PY_PATTERNS,
@@ -48,6 +49,10 @@ const KEYWORD = /^(?:True|False|None|lambda|and|or|not)$/;
 /** A route translated by gettext: `path(_("orders/"), …)`. */
 const TRANSLATED = /^\s{0,200}_\(/;
 const AS_VIEW = /\.as_view$/;
+/** A token of a permission class's expression: a name, one of DRF's operators (`|`, `&`, `~`), a parenthesis. */
+const PERMISSION_TOKEN = /[A-Za-z_][\w.]{0,120}|[|&~()]/g;
+/** A `#` comment, to its line's end. */
+const COMMENT = /#[^\n]{0,2000}/g;
 
 /** The expressions of this adapter (test/tools/redos-worker.mjs, RULES.md S5). */
 export const DJANGO_PATTERNS = Object.freeze({
@@ -69,6 +74,8 @@ export const DJANGO_PATTERNS = Object.freeze({
   KEYWORD,
   TRANSLATED,
   AS_VIEW,
+  PERMISSION_TOKEN,
+  COMMENT,
 });
 
 /** At most this many entries read in all: urls modules that include one another many times are not read past it. */
@@ -83,6 +90,58 @@ const namesIn = (code) =>
 
 /** The depth a bracket adds. */
 const BRACKETS = { "(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1 };
+
+/** Python's words between permission classes, as DRF's operators: `or` and `and` give one of their operands. */
+const BOOLEAN_OPERATORS = new Map([
+  ["or", "|"],
+  ["and", "|"],
+  ["not", "~"],
+]);
+
+/**
+ * The entries of a list (`[A, B | C]`, `(A,)`, or what is inside it): its parts between top-level commas. A walk.
+ * @param {string} code
+ */
+function listEntries(code) {
+  let text = code.trim();
+  if (text[0] === "[" || text[0] === "(") {
+    let depth = 0;
+    let close = -1;
+    for (let i = 0; i < text.length && close === -1; i++) if ((depth += BRACKETS[text[i]] ?? 0) === 0) close = i;
+    if (close === text.length - 1) text = text.slice(1, -1);
+  }
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i <= text.length; i++)
+    if (i === text.length || (text[i] === "," && depth === 0)) {
+      if (text.slice(from, i).trim()) out.push(text.slice(from, i));
+      from = i + 1;
+    } else depth += BRACKETS[text[i]] ?? 0;
+  return out;
+}
+
+/**
+ * The guards of a `permission_classes` list, all of which DRF requires: an entry that is one class is its name
+ * without its module (`permissions.AllowAny` → `AllowAny`: the module names no role); an expression of several
+ * (DRF's `|`, `&`, `~`; Python's `or`, `and`, `not`) is one guard, written with DRF's operators, which
+ * engine/facts/guards.mjs reads: an alternative as weak as its weakest (Python's `and` gives one of its operands, as
+ * `|` does), a negation as none (`[IsAuthenticated | ReadOnly]` is no user guard).
+ * @param {string} code
+ */
+function permissionGuards(code) {
+  const out = [];
+  for (const entry of listEntries(code.replace(STRING, "").replace(COMMENT, "").replace(KEYWORD_ARGUMENT, ""))) {
+    const tokens = [...entry.matchAll(PERMISSION_TOKEN)]
+      .map((m) => BOOLEAN_OPERATORS.get(m[0]) ?? m[0])
+      .filter((t) => !KEYWORD.test(t))
+      .map((t) => t.slice(t.lastIndexOf(".") + 1))
+      .filter(Boolean);
+    if (!tokens.some((t) => "|&~".includes(t))) out.push(...tokens.filter((t) => !"()".includes(t)));
+    else out.push(tokens.map((t) => (t === "|" || t === "&" ? ` ${t} ` : t)).join(""));
+  }
+  return out;
+}
 
 /** The index of the quote that closes the string opened at `i` (or the end of the text). */
 function quoteEnd(s, i) {
@@ -115,7 +174,7 @@ function decorate(view, { name, args }) {
   if (last === "api_view") view.methods = quoted.length ? quoted : ["GET"];
   else if (last === "require_http_methods") view.methods = quoted;
   else if (SAFE_METHODS[last]) view.methods = SAFE_METHODS[last];
-  else if (last === "permission_classes") view.guards = withGuards(view.guards, namesIn(args));
+  else if (last === "permission_classes") view.guards = withGuards(view.guards, permissionGuards(args));
   else if (last === "method_decorator") view.guards = withGuards(view.guards, namesIn(args).filter(pyGuard));
   else if (pyGuard(name)) view.guards = withGuards(view.guards, [name]);
 }
@@ -152,7 +211,7 @@ function classAttributes(text, index, classes) {
     const owner = classes[k].view;
     if (m[1] === "lookup_field") owner.lookup = literalOf(LITERAL.exec(text.slice(at, at + 600))) ?? null;
     else if (text[at] === "[" || text[at] === "(")
-      owner.guards = withGuards(owner.guards, namesIn(callSpan(text, at, 2000, "py").args));
+      owner.guards = withGuards(owner.guards, permissionGuards(callSpan(text, at, 2000, "py").args));
   }
 }
 
@@ -324,7 +383,7 @@ function emit(ctx, file, e, prefix, stack, items) {
   if (items.length >= MAX_ITEMS || ++ctx.visits > MAX_VISITS) return;
   const route = prefix + e.piece;
   if (e.inline) for (const x of e.inline) emit(ctx, file, x, route, stack, items);
-  else if (e.admin) add(items, "ANY", route, file, e.line, ["admin.site"]);
+  else if (e.admin) add(items, "ANY", route, file, e.line, ["AdminSite"]);
   else if (e.view) viewItems(ctx, file, e, route, items);
   else if (e.module || e.included) includeItems(ctx, file, e, route, stack, items);
 }

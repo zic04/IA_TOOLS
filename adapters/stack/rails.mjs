@@ -10,6 +10,7 @@
 import { textIndex, pyCommentRanges, paramSignal } from "../../engine/facts/behaviour-common.mjs";
 import { sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { MAX_ITEMS, singular, withGuards } from "../../engine/facts/stack-common.mjs";
+import { partialGuard } from "../../engine/facts/guards.mjs";
 
 const ROUTES_FILE = /(?:^|\/)config\/routes\.rb$/;
 const WORD = /^([a-z_]{1,40})(?![\w:])/;
@@ -59,13 +60,15 @@ const EMAIL = /EMAIL/i;
 const PRESENCE = /\bpresence:[ \t]{0,20}true\b/;
 const UNIQUENESS = /\buniqueness:[ \t]{0,20}(?:true|\{)/;
 const ONLY_INTEGER = /only_integer:[ \t]{0,20}true/;
+/** A callback's condition: `if:`, `unless:`, or `:if =>`, `:unless =>`. */
+const CONDITION = /\b(?:if|unless):|:(?:if|unless)[ \t]{0,20}=>/;
 
 /** The expressions of this adapter (test/tools/redos-worker.mjs, RULES.md S5). */
 export const RAILS_PATTERNS = Object.freeze({
   ...{ ROUTES_FILE, WORD, BLOCK, OPENER, FIRST, SYMBOL, TARGET, CONTROLLER_ACTION, CONTROLLER, ACTION, ON, VIA },
   ...{ ONLY, PATH_OPTION, MODULE, PARAM, AT, CONSTANT, WORDS, CLASS_LINE, CALLBACK, DEF, AUTHORIZE, ORDER },
   ...{ PER, LIMIT, PARAMS, VALIDATES, HASH, NUMBER, RANGE, LIST, LIST_VALUE, BLANKS, LOADER, CONTROLLER_SUFFIX },
-  ...{ CAMEL, EMAIL, PRESENCE, UNIQUENESS, ONLY_INTEGER },
+  ...{ CAMEL, EMAIL, PRESENCE, UNIQUENESS, ONLY_INTEGER, CONDITION },
 });
 
 /** At most this many callbacks read in a controller, and names in one: an action's guards cost a bounded time. */
@@ -93,7 +96,34 @@ function symbolsOf(text) {
 const controllerPath = (name) => name.replace(CONTROLLER_SUFFIX, "").split("::").map(snakeCase).join("/");
 const snakeCase = (s) => s.replace(CAMEL, "$1_$2").toLowerCase();
 
-/** A controller's parent, its callbacks in order and the actions that call `authorize` (Pundit, CanCanCan). */
+/**
+ * A callback's statement from `from`, outside its comments: its next lines too while a line ends with a comma or a
+ * bracket is open, 1,000 characters at most (a walk).
+ * @param {string} text
+ * @param {number} from
+ * @param {{ inComment: (i: number) => boolean }} index
+ */
+function callbackStatement(text, from, index) {
+  const limit = Math.min(text.length, from + 1000);
+  let code = "";
+  let depth = 0;
+  let last = "";
+  for (let i = from; i < limit; i++) {
+    if (index.inComment(i)) continue;
+    const c = text[i];
+    if (c === "\n" && depth <= 0 && last !== ",") break;
+    depth += BRACKETS[c] ?? 0;
+    if (c.trim()) last = c;
+    code += c;
+  }
+  return code;
+}
+
+/**
+ * A controller's parent, its callbacks in order and the actions that call `authorize` (Pundit, CanCanCan). A
+ * callback is read to the end of its statement (`only:` or `unless:` on the next line); one under a condition
+ * (`if:`, `unless:`) guards some requests only: `conditional`.
+ */
 function readController(text) {
   const index = textIndex(text, pyCommentRanges(text));
   const parent = CLASS_LINE.exec(text)?.[2];
@@ -101,14 +131,18 @@ function readController(text) {
   for (const m of text.matchAll(CALLBACK)) {
     if (filters.length >= MAX_FILTERS) break;
     if (index.inComment(m.index)) continue;
+    const rest = callbackStatement(text, m.index + m[0].length - m[2].length, index)
+      .split(BLANKS)
+      .join(" ");
     const names = m[1].endsWith("authorize_resource")
       ? [m[1]]
-      : symbolsOf(m[2])
+      : symbolsOf(rest)
           .filter((n) => !LOADER.test(n))
           .slice(0, MAX_FILTER_NAMES);
-    const only = ONLY.exec(m[2]);
+    const only = ONLY.exec(rest);
     const list = (kind) => only?.[1] === kind && wordsOf(only);
-    filters.push({ skip: m[1].startsWith("skip_"), names, only: list("only"), except: list("except") });
+    const conditional = CONDITION.test(rest);
+    filters.push({ skip: m[1].startsWith("skip_"), names, only: list("only"), except: list("except"), conditional });
   }
   const defs = [...text.matchAll(DEF)].filter((m) => !index.inComment(m.index));
   const authorized = new Map();
@@ -138,13 +172,24 @@ function actionGuards(ctx, path, action, depth = 0) {
   return ctx.memo.get(key);
 }
 
-/** The callback names of an action after a controller's callbacks: each adds its names, a skip removes them. */
+/**
+ * The callback names of an action after a controller's callbacks: each adds its names, a skip removes them. A
+ * callback declared again replaces the one of the same name, whatever the actions either applies to (ActiveSupport's
+ * `remove_duplicates`): a parent's `before_action :authenticate_user!` redeclared with `unless:` or `only: :destroy`
+ * guards the other requests no more. A callback under a condition adds a partial guard (`authenticate_user! (if)`,
+ * "unknown"); a skip under a condition leaves the guard it skips on some requests only: partial too.
+ */
 function filtered(names, filters, action) {
   for (const f of filters) {
-    if ((f.only && !f.only.includes(action)) || (f.except && f.except.includes(action))) continue;
-    for (const n of f.names)
-      if (f.skip) names.delete(n);
-      else names.add(n);
+    const applies = !((f.only && !f.only.includes(action)) || (f.except && f.except.includes(action)));
+    for (const n of f.names) {
+      const partial = partialGuard(n, "if");
+      if (!f.skip) {
+        names.delete(n);
+        names.delete(partial);
+        if (applies) names.add(f.conditional ? partial : n);
+      } else if (applies && [n, partial].filter((x) => names.delete(x)).length && f.conditional) names.add(partial);
+    }
   }
   return names;
 }
