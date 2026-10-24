@@ -43,7 +43,7 @@ doc-kit facts --tools              # aussi gitleaks, osv-scanner, syft, knip, qu
 
 | Source | Ce qu'elle lit | Jamais |
 |---|---|---|
-| `dependencies` | Chaque manifeste et fichier de verrouillage trouvé sous l'application, jusqu'à 4 dossiers de profondeur | — |
+| `dependencies` | Chaque manifeste et fichier de verrouillage trouvé sous l'application, jusqu'à 4 dossiers de profondeur ; pour une licence qu'aucun fichier de verrouillage ne donne, la copie installée (`node_modules/`, `.venv/`) | Exécuter quoi que ce soit d'installé, suivre un lien qui sort de l'application |
 | `env` | Les noms lus par le code, et par un fichier `.env` d'exemple | Une valeur |
 | `api` | Les gestionnaires de route : Next.js, FastAPI, Express — avec `auth` et `guards` (voir plus bas) | — |
 | `db` | Tables, colonnes, sécurité au niveau ligne et politiques : Prisma, SQLAlchemy, migrations SQL | — |
@@ -58,6 +58,16 @@ doc-kit facts --tools              # aussi gitleaks, osv-scanner, syft, knip, qu
 alimentent la matrice d'accès statique de la revue de sécurité, et ce qu'attend `doc-kit probe` de chaque route
 quand il vérifie une instance locale ou de démo en cours d'exécution : voir [Revues de sécurité et de
 maintenabilité](#/spaces/reviews).
+
+Le `license` de `dependencies` est le nom d'une licence ou une expression SPDX, jamais son texte, et `licenseFrom`
+dit où il a été lu : `"lock"`, l'entrée de l'élément lui-même dans un `package-lock.json` ou un `composer.lock` ;
+sinon, pour npm et pip, `"installed"`, sa copie installée, lue hors ligne — `node_modules/<nom>/package.json`, la
+copie que Node chargerait, du dossier du manifeste jusqu'à celui de l'application, ou le `*.dist-info/METADATA` d'un
+dossier `.venv/` ou `venv/` (`License-Expression`, un `License` d'une ligne, les classificateurs de licence). Cette
+copie ne compte que si elle se trouve dans l'application (un lien qui en sort n'est jamais suivi), porte le nom de
+l'élément et, quand l'élément indique une version exacte, cette version ; un `package.json` de plus de 1 Mo n'est
+pas lu, ni un METADATA au-delà de son en-tête. Une application récupérée sans ses installations (ni `node_modules/`,
+ni environnement virtuel) n'a que les licences que donnent ses fichiers de verrouillage.
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il

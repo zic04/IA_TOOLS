@@ -14,6 +14,15 @@ entries between a project's `kit` range and the installed version.
   labels of its annotated screens' zones (`images/fr/zones/`, the screenshots shared). `doc-kit build --project
   examples/demo-docs` gives one file with a language switch; `--lang fr` the French file alone. The French snapshot
   is now a strict build.
+- **Licences from the installed copies** (ARCHITECTURE.md §6.9): an npm or pip item of `facts --source
+  dependencies` its lock gives no licence takes the one its installed copy names, `licenseFrom: "installed"` —
+  `node_modules/<name>/package.json`, the copy Node would load from the manifest's folder up, or the
+  `*.dist-info/METADATA` of a `.venv/` or `venv/` (`License-Expression`, a one-line `License`, the licence
+  classifiers). Read offline, never executed, and only inside the application (each link's target judged before it
+  is touched: a link out of it is never followed), from the item's own copy (its name, its exact version), the
+  nearest one judged alone, within bounds (10,000 entries a folder listed, 5,000 dist-info folders a site-packages, a
+  `package.json` of 1 MB, a METADATA's header, 64 KB read at most); a lock's licence (`licenseFrom: "lock"`) is kept,
+  and a licence is only ever a licence's name (SECURITY.md).
 
 ### Fixed
 

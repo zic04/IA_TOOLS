@@ -41,7 +41,7 @@ doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, whe
 
 | Source | What it reads | Never |
 |---|---|---|
-| `dependencies` | Every manifest and lock file found under the application, up to 4 folders deep | — |
+| `dependencies` | Every manifest and lock file found under the application, up to 4 folders deep; for a licence no lock gives, the installed copy (`node_modules/`, `.venv/`) | Anything installed run, a link out of the application followed |
 | `env` | Names read by the code, and by an example `.env` file | A value |
 | `api` | Route handlers: Next.js, FastAPI, Express — with `auth` and `guards` (see below) | — |
 | `db` | Tables, columns, row-level security and policies: Prisma, SQLAlchemy, SQL migrations | — |
@@ -55,6 +55,15 @@ doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, whe
 `api`'s `auth` (`"none"` \| `"user"` \| `"role"` \| `"unknown"`) and `guards` (the guard names found) feed the
 security review's static access matrix, and what `doc-kit probe` expects from each route when it checks a running
 local or demo instance: see [Security and maintainability reviews](#/spaces/reviews).
+
+`dependencies`'s `license` is a licence's name or SPDX expression, never its text, and `licenseFrom` says where it
+was read: `"lock"`, the item's own entry in `package-lock.json` or `composer.lock`; else, for npm and pip,
+`"installed"`, its installed copy, read offline — `node_modules/<name>/package.json`, the copy Node would load from
+the manifest's folder up to the application's, or the `*.dist-info/METADATA` of a `.venv/` or `venv/` folder
+(`License-Expression`, a one-line `License`, the licence classifiers). That copy counts only when it lies inside the
+application (a link out of it is never followed), has the item's name and, when the item states an exact version,
+that version; a `package.json` over 1 MB is not read, nor a METADATA past its header. An application checked out
+without its installs (no `node_modules/`, no virtual environment) only has the licences its lock files give.
 
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
