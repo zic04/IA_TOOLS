@@ -52,7 +52,7 @@ describe("optimize", () => {
       assert.deepEqual(JSON.parse(r.out), { heavy: 0, lighter: [], saved: 0 });
       assert.deepEqual(images(dir), before);
       const text = await cli(["optimize", "--threshold", "100000", "--project", dir]);
-      assert.match(text.out, /0 image\(s\) above 100000 KB — total saving 0\.0 MB\./);
+      assert.match(text.out, /0 images above 100000 KB — total saving 0\.0 MB\./);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

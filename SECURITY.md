@@ -2,15 +2,15 @@
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for a vulnerability. Report it privately to the maintainers, through the
-private vulnerability reporting of the platform that hosts the repository (for example a private security advisory).
-If the platform offers no private channel, open a public issue that only asks the maintainers to contact you, without
-any detail of the vulnerability. Include the kit version (`doc-kit --version`), the operating system, what you did, what
-happened, and, when possible, a minimal project that reproduces it — built on the fictional demo of `examples/`,
-never on a real application or with a real session.
+Please **do not open a public issue** for a vulnerability. Report it privately, through GitHub's private
+vulnerability reporting, which is enabled on the repository: on its **Security** tab, choose **Report a
+vulnerability** ([github.com/zic04/IA_TOOLS/security/advisories/new](https://github.com/zic04/IA_TOOLS/security/advisories/new)).
+Only you and the maintainers see the report. Include the kit version (`doc-kit --version`), the operating system,
+what you did, what happened, and, when possible, a minimal project that reproduces it — built on the fictional demo
+of `examples/`, never on a real application or with a real session.
 
-The maintainers acknowledge each report and keep the reporter informed until a fix is released. Only the latest
-release receives security fixes.
+The maintainers answer each report within **7 days**, and keep the reporter informed until a fix is released. Only
+the latest release receives security fixes.
 
 ## What doc-kit protects, and what it does not
 

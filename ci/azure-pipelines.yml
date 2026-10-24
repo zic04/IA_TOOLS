@@ -21,6 +21,9 @@ strategy:
     linux_node22:
       imageName: ubuntu-latest
       nodeVersion: 22.x
+    linux_node24:
+      imageName: ubuntu-latest
+      nodeVersion: 24.x
     windows_node20:
       imageName: windows-latest
       nodeVersion: 20.x
@@ -73,7 +76,9 @@ steps:
 #     - repository: kit
 #       type: git                      # or github, with an endpoint
 #       name: <project>/doc-kit        # the kit's repository
-#       ref: refs/tags/v0.1.0          # the version the project's `kit` range accepts
+#       # A release tag of the kit: the version the project's `kit` range accepts. Updated at each release of the
+#       # kit (RULES.md, before every release).
+#       ref: refs/tags/v0.4.1
 #
 # variables:
 #   docs: $(Build.SourcesDirectory)/$(Build.Repository.Name)/docs/manual
@@ -84,11 +89,13 @@ steps:
 #
 # steps:
 #   - checkout: self
+#     persistCredentials: false        # the default, said out loud: no token left in .git/config
 #   - checkout: kit
+#     persistCredentials: false
 #
 #   - task: NodeTool@0
 #     inputs:
-#       versionSpec: 20.x
+#       versionSpec: 22.x
 #
 #   - script: npm ci --ignore-scripts && npx playwright install --with-deps chromium
 #     displayName: Install the kit and Chromium (for `check tables` and the audit's table widths)

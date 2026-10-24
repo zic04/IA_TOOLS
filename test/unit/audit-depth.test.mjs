@@ -112,7 +112,7 @@ describe("the depth in the audit", () => {
     assert.ok(ids.indexOf("featureSheets3") < ids.indexOf("takeover4"));
     const behaviour = r.actions.find((a) => a.key === "behaviourDepth");
     assert.deepEqual(behaviour.items, [
-      { id: "features/approve-order", key: "rubrics", vars: { feature: "F-02", left: 2, total: 4 } },
+      { id: "features/approve-order", key: "rubrics", vars: { feature: "F-02", left: 2, total: 4, n: 2 } },
     ]);
     const product = r.spaces.find((s) => s.id === "product");
     assert.deepEqual(values(product.indicators), [

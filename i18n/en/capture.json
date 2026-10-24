@@ -36,7 +36,7 @@
   "cli.connect.noUrl.help": "set app.url in doc.config.mjs, or pass --url https://…",
   "cli.connect.unreachable": "the application cannot be reached: {url} ({error})",
   "cli.connect.unreachable.help": "check the address, and that the application is running",
-  "cli.connect.timeout": "no sign-in within {minutes} minutes",
+  "cli.connect.timeout": { "one": "no sign-in within {minutes} minute", "other": "no sign-in within {minutes} minutes" },
   "cli.connect.timeout.help": "run {command} connect again",
   "cli.connect.closed": "the browser window was closed before the session was saved",
   "cli.connect.closed.help": "run {command} connect again, and press Enter once you are signed in",
@@ -173,6 +173,8 @@
   "cli.check.count.sourceFiles": { "one": "{count} source file", "other": "{count} source files" },
   "cli.check.count.places": { "one": "{count} place of the site", "other": "{count} places of the site" },
 
-  "cli.inventory.family": { "one": "{adapter} › {name}: {n} element, {covered} already cited", "other": "{adapter} › {name}: {n} elements, {covered} already cited" },
-  "cli.inventory.summary": { "one": "{n} element inventoried, {covered} cited in the documentation.", "other": "{n} elements inventoried, {covered} cited in the documentation." }
+  "cli.inventory.family": { "one": "{adapter} › {name}: {n} element, {covered}", "other": "{adapter} › {name}: {n} elements, {covered}" },
+  "cli.inventory.summary": { "one": "{n} element inventoried, {covered} in the documentation.", "other": "{n} elements inventoried, {covered} in the documentation." },
+  "cli.inventory.count.cited": { "one": "{count} already cited", "other": "{count} already cited" },
+  "cli.inventory.count.citedHere": { "one": "{count} cited", "other": "{count} cited" }
 }

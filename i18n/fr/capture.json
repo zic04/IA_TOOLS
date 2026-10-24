@@ -36,7 +36,7 @@
   "cli.connect.noUrl.help": "renseignez app.url dans doc.config.mjs, ou passez --url https://…",
   "cli.connect.unreachable": "l'application est injoignable : {url} ({error})",
   "cli.connect.unreachable.help": "vérifiez l'adresse, et que l'application tourne",
-  "cli.connect.timeout": "aucune connexion en {minutes} minutes",
+  "cli.connect.timeout": { "one": "aucune connexion en {minutes} minute", "other": "aucune connexion en {minutes} minutes" },
   "cli.connect.timeout.help": "relancez {command} connect",
   "cli.connect.closed": "la fenêtre du navigateur a été fermée avant l'enregistrement de la session",
   "cli.connect.closed.help": "relancez {command} connect, puis appuyez sur Entrée une fois connecté",
@@ -173,6 +173,8 @@
   "cli.check.count.sourceFiles": { "one": "{count} fichier source", "other": "{count} fichiers sources" },
   "cli.check.count.places": { "one": "{count} emplacement du site", "other": "{count} emplacements du site" },
 
-  "cli.inventory.family": { "one": "{adapter} › {name} : {n} élément, {covered} déjà cité(s)", "other": "{adapter} › {name} : {n} éléments, {covered} déjà cité(s)" },
-  "cli.inventory.summary": { "one": "{n} élément inventorié, {covered} cité(s) dans la documentation.", "other": "{n} éléments inventoriés, {covered} cité(s) dans la documentation." }
+  "cli.inventory.family": { "one": "{adapter} › {name} : {n} élément, {covered}", "other": "{adapter} › {name} : {n} éléments, {covered}" },
+  "cli.inventory.summary": { "one": "{n} élément inventorié, {covered} dans la documentation.", "other": "{n} éléments inventoriés, {covered} dans la documentation." },
+  "cli.inventory.count.cited": { "one": "{count} déjà cité", "other": "{count} déjà cités" },
+  "cli.inventory.count.citedHere": { "one": "{count} cité", "other": "{count} cités" }
 }
