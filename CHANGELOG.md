@@ -64,12 +64,29 @@ entries between a project's `kit` range and the installed version.
   the way, and the server is never asked twice for a hop — one that answers its second request otherwise is no
   longer replayed. A hop sends the cookies the browser holds for its own address, never those of the first request
   (they went to the identity provider), and only the referrer's origin to another origin. These requests are sent by
-  Playwright from Node.js, without Chromium's own rules (`SameSite`, HSTS, system proxy): SECURITY.md lists it. `test/e2e/capture-redirects.test.mjs` (real servers
-  on three ports), mutants `test/mutations/capture-guard.mjs` (RULES.md M16, S6).
+  Playwright from Node.js, without Chromium's own rules (`SameSite`, HSTS, system proxy): SECURITY.md lists it.
+  After a goto, `capture` waits until the frame has committed the answer held for it (the guard's own signal, never
+  the address: a sign-in callback or a router that rewrites it with `history.replaceState` is captured, the run's
+  session check included). The guard now lives in `engine/capture/guard.mjs`.
+  `test/e2e/capture-redirects.test.mjs` (real servers on three ports), mutants `test/mutations/capture-guard.mjs`
+  (RULES.md M16, S6).
+- **A redirect chain the guard follows has bounds** (RULES.md M7): 20 s for a hop (`TIMINGS.redirectHop`), 25 s for
+  the whole chain (`TIMINGS.redirectChain`, below the 30 s of a start page, so the guard gives up first and says why:
+  `cli.capture.error.redirectTimeout`), and 32 MB for the answer held for a frame
+  (`cli.capture.error.landingTooLarge`). Each answer the guard fetched is freed once used (Playwright kept every body
+  until the browser context closed).
+- **Every address of the application is the application for `capture.forbidden`**: its host and port whatever the
+  scheme (an `http` `app.url` its server upgrades to `https` no longer turns the protection off), without a trailing
+  dot, and `localhost`, `127.x` and `[::1]` as one host (`applicationKey`). With `auth: none`, a start page that
+  lands anywhere else stops the run (`capture.offApplication`, exit code 2, en and fr).
 - **`capture.forbidden` reads a path as a server does**: also without its path parameters (`/approval;jsessionid=…`,
-  `/orders;v=1/7`), with its `.` and `..` segments resolved (`/orders/7/x/../approval`, `%2e%2e`) and its
-  backslashes read as slashes (`%5C`, IIS). Mutants
+  `/orders;v=1/7`), dropped before decoding as Tomcat does and after, with each run of escapes decoded on its own (one
+  malformed escape, `%zz`, no longer turns all decoding off), decoded twice (`%252e`), with its `.` and `..` segments
+  resolved (`/orders/7/x/../approval`, `%2e%2e`) and its backslashes read as slashes (`%5C`, IIS). Mutants
   `test/mutations/capture-paths.mjs`.
+- **A path parameter is never printed** (RULES.md S7): a refused, aborted or blocked request, and a forbidden route
+  shown, are reported by their path without `;jsessionid=…` and without a query string, in the messages and in
+  `--json` (`shownPath`).
 - **A local application keeps its local API with `capture.forbidden`**: a page the guard answers itself has no
   address for Chromium, which refused its calls to another local port (Local Network Access). The kit allows them
   again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns

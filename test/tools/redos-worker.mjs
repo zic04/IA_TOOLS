@@ -39,7 +39,7 @@ import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
-import { forbiddenMatch, forbiddenMatchers } from "../../engine/capture/plans.mjs";
+import { forbiddenMatch, forbiddenMatchers, shownPath, applicationKey } from "../../engine/capture/plans.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
@@ -484,6 +484,14 @@ export const CHECKS = [
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
   // The forms of a path a server may read as a forbidden route (plans.mjs): a URL or a Location header, untrusted.
   ["capture forbiddenMatch", (s) => forbiddenMatch(`/${s};${s}/./${s}/../${s}`, FORBIDDEN_MATCHERS)],
+  // Each run of escapes decoded on its own, one that is not UTF-8 (%FF) and one malformed (%zz) among them.
+  [
+    "capture forbiddenMatch (escapes)",
+    (s) =>
+      forbiddenMatch(`/${"%FF%2e%25".repeat(Math.ceil(s.length / 9))}%zz${s};%2F${s}/%252e${s}`, FORBIDDEN_MATCHERS),
+  ],
+  ["capture shownPath", (s) => shownPath(`/${s};${s}/${s};`)],
+  ["capture applicationKey", (s) => applicationKey(`http://${s}/`)],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
   ["csp INLINE_SCRIPT", (s) => [...s.matchAll(INLINE_SCRIPT)].length],
   ...Object.entries(NETWORK_PATTERNS).map(([name, re]) => [

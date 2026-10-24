@@ -17,6 +17,12 @@ export const TIMINGS = Object.freeze({
   /** Navigation: the sign-in start page (and a session refresh request), a captured page. */
   start: 30_000,
   page: 45_000,
+  /**
+   * A redirect chain the capture guard fetches itself (capture.forbidden): one hop, and the whole chain. Below
+   * `start`, so that the guard gives up, and says why, before the goto it serves does.
+   */
+  redirectHop: 20_000,
+  redirectChain: 25_000,
   /** The network to go idle after the session check. */
   sessionIdle: 5_000,
   /** A bot challenge (Cloudflare and the like) clearing by itself, and how often it is checked. */

@@ -13,17 +13,14 @@ import {
   forbiddenMatchers,
   forbiddenMatch,
   routePath,
+  shownPath,
+  applicationKey,
 } from "../../engine/capture/plans.mjs";
 import { measureZone, routeWithView, describeTarget, actionKind } from "../../engine/capture/actions.mjs";
-import {
-  storageValues,
-  summarizeRequests,
-  zoneFile,
-  forbiddenRequestKind,
-  requestGuard,
-  localNetworkGrant,
-} from "../../engine/capture/capture.mjs";
+import { storageValues, summarizeRequests, zoneFile } from "../../engine/capture/capture.mjs";
+import { forbiddenRequestKind, requestGuard, localNetworkGrant } from "../../engine/capture/guard.mjs";
 import { afterRedirects } from "../../engine/capture/take.mjs";
+import { TIMINGS } from "../../engine/capture/timings.mjs";
 import { compareOutcome } from "../../engine/capture/compare.mjs";
 import { parseEnv, sensitiveValues, maskSource, maskText, DOTS } from "../../engine/capture/masking.mjs";
 import { webpSize } from "../../engine/capture/webp.mjs";
@@ -331,26 +328,54 @@ describe("plan entries", () => {
   /**
    * A guard on a fake site: `run(url)` hands it one navigation of the top-level frame `top` (or of `frame`), and
    * tells what it did with it. Every request the guard sends is in `requested` (always without following redirects),
-   * with the headers it set in `sent` (none: the request's own, as the browser built them). The request carries a
-   * cookie and a referrer, like a navigation of a signed-in page.
+   * with the headers it set in `sent` (none: the request's own, as the browser built them), and the timeout it gave
+   * in `timeouts`. The request carries a cookie and a referrer, like a navigation of a signed-in page. A page of the
+   * site may take `ms` on the fake clock (a hop past its timeout fails as Playwright's do) and weigh `bytes`; each
+   * answer freed by the guard is in `disposed`, each wait for a frame's next commit in `commits`.
    */
-  function fakeSite(site, { forbidden = forbiddenMatchers(["^/orders/\\d+/approval$"]) } = {}) {
+  function fakeSite(site, { forbidden = forbiddenMatchers(["^/orders/\\d+/approval$"]), appOrigin, limits } = {}) {
     const result = { blocked: [], refused: [], prefetched: [] };
     const navigations = [];
+    const stops = [];
     const requested = [];
     const sent = [];
-    const top = { parentFrame: () => null };
+    const timeouts = [];
+    const disposed = [];
+    const commits = [];
+    let clock = 0;
+    const page = {
+      waitForEvent: async (event, { predicate, timeout }) => {
+        commits.push([event, timeout]);
+        return predicate(top) ? top : null;
+      },
+    };
+    const frameIn = (parent) => ({ parentFrame: () => parent, page: () => page });
+    const top = frameIn(null);
     const guard = requestGuard({
-      appOrigin: "http://app.test",
+      appOrigin: appOrigin || "http://app.test",
       forbidden,
       readOnly: true,
       result,
       onNavigation: (p) => navigations.push(p),
+      onStop: (key, vars) => stops.push([key, vars]),
+      ...(limits ? { limits } : {}),
+      now: () => clock,
     });
-    const answer = (target) => {
+    const answer = (target, timeout) => {
       requested.push(target);
       const r = site[target] || { status: 404 };
-      return { status: () => r.status, headers: () => (r.location ? { location: r.location } : {}) };
+      timeouts.push(timeout);
+      if ((r.ms || 0) > timeout) {
+        clock += timeout;
+        throw Object.assign(new Error(`apiResponse: Timeout ${timeout}ms exceeded`), { name: "TimeoutError" });
+      }
+      clock += r.ms || 0;
+      return {
+        status: () => r.status,
+        headers: () => (r.location ? { location: r.location } : {}),
+        body: async () => Buffer.alloc(r.bytes || 0),
+        dispose: async () => disposed.push(target),
+      };
     };
     const signedIn = { accept: "text/html", cookie: "sid=APP", referer: "http://app.test/orders?page=2" };
     const run = async (url, { frame = top, method = "GET", headers = signedIn } = {}) => {
@@ -364,10 +389,10 @@ describe("plan entries", () => {
       };
       await guard({
         request: () => request,
-        fetch: async ({ url: target, maxRedirects, headers } = {}) => {
+        fetch: async ({ url: target, maxRedirects, headers, timeout } = {}) => {
           assert.equal(maxRedirects, 0, "the guard never lets a request follow a redirect");
           sent.push([target || url, headers]);
-          return answer((target || url).split("#")[0]); // a fragment is never sent
+          return answer((target || url).split("#")[0], timeout); // a fragment is never sent
         },
         fulfill: async ({ response, status, body }) =>
           (outcome = response ? { response: response.status() } : { status, body }),
@@ -376,7 +401,7 @@ describe("plan entries", () => {
       });
       return outcome;
     };
-    return { run, guard, top, result, navigations, requested, sent };
+    return { run, guard, top, frameIn, result, navigations, stops, requested, sent, timeouts, disposed, commits };
   }
 
   test("a server redirect to a forbidden route is refused before the browser follows it (SECURITY.md)", async () => {
@@ -484,7 +509,7 @@ describe("plan entries", () => {
     assert.deepEqual(s.requested, [...hops, "http://app.test/home", "http://app.test/home"]);
     assert.equal(s.guard.landing(s.top), undefined);
     // Another frame (an iframe) has its own landing.
-    const inner = { parentFrame: () => s.top };
+    const inner = s.frameIn(s.top);
     assert.equal((await s.run("http://app.test/signin", { frame: inner })).status, 200);
     assert.deepEqual([s.guard.landing(inner).url, s.guard.landing(s.top)], ["http://app.test/home#top", undefined]);
     // A frame that goes elsewhere before opening the end of its chain: the answer held for it is dropped.
@@ -498,7 +523,7 @@ describe("plan entries", () => {
       "http://app.test/signin": { status: 302, location: "/home" },
       "http://app.test/home": { status: 200 },
     });
-    const other = { parentFrame: () => null };
+    const other = s.frameIn(null);
     assert.equal((await s.run("http://app.test/signin")).status, 200);
     assert.deepEqual(await s.run("http://app.test/home", { frame: other }), { response: 200 });
     assert.equal(s.requested.filter((u) => u === "http://app.test/home").length, 2, "another frame: asked again");
@@ -510,33 +535,189 @@ describe("plan entries", () => {
     assert.equal(s.requested.filter((u) => u === "http://app.test/home").length, 4, "its own frame: the held answer");
   });
 
-  test("after a goto, the page is awaited at the end of the chain the guard followed, and its answer read (afterRedirects)", async () => {
+  test("each answer the guard fetched is freed: a hop's once read, the end's once the browser has it, a held one once opened or dropped", async () => {
+    const s = fakeSite({
+      "http://app.test/signin": { status: 302, location: "https://idp.test/authorize" },
+      "https://idp.test/authorize": { status: 302, location: "http://app.test/home" },
+      "http://app.test/home": { status: 200 },
+      "http://app.test/latest": { status: 302, location: "/orders/7/approval" },
+    });
+    assert.deepEqual(await s.run("http://app.test/home"), { response: 200 });
+    assert.deepEqual(s.disposed, ["http://app.test/home"], "the answer itself, once the browser has it");
+    assert.equal((await s.run("http://app.test/signin")).status, 200);
+    assert.deepEqual(s.disposed.slice(1), ["http://app.test/signin", "https://idp.test/authorize"], "each hop");
+    assert.deepEqual(s.commits, [], "the end is held, not opened yet");
+    // The frame opens the end: its next commit awaited (the signal of afterRedirects), the held answer freed after.
+    const landing = s.guard.landing(s.top);
+    assert.deepEqual(await s.run("http://app.test/home"), { response: 200 });
+    assert.deepEqual(s.commits, [["framenavigated", TIMINGS.page]]);
+    assert.equal(await landing.committed, s.top);
+    assert.deepEqual(s.disposed.slice(3), ["http://app.test/home"]);
+    // A frame that goes elsewhere before opening the end of its chain: the held answer is freed, its wait fails.
+    assert.equal((await s.run("http://app.test/signin")).status, 200);
+    const dropped = s.guard.landing(s.top);
+    assert.equal(await s.run("http://app.test/latest"), "abort:blockedbyclient");
+    const settled = (p) =>
+      Promise.race([
+        p.then(
+          () => "committed",
+          (e) => e.message,
+        ),
+        new Promise(setImmediate),
+      ]);
+    assert.match(await settled(dropped.committed), /went elsewhere before the end of its redirects/);
+    assert.deepEqual(s.disposed.slice(4), [
+      "http://app.test/signin",
+      "https://idp.test/authorize",
+      "http://app.test/home",
+      "http://app.test/latest",
+    ]);
+    // A pop-up being created holds nothing: the end it fetched is freed at once.
+    assert.equal((await s.run("http://app.test/signin", { frame: null })).status, 200);
+    assert.equal(s.disposed.at(-1), "http://app.test/home");
+  });
+
+  test("a hop gets the hop timeout at most, and the whole chain its deadline: a slow chain is stopped and said, never followed further", async () => {
+    const limits = { hop: 100, chain: 250, bytes: 1000 };
+    const secret = ["SESSION", "SECRET", "42"].join("-");
+    const s = fakeSite(
+      {
+        "http://app.test/slow": { status: 200, ms: 101 },
+        [`http://app.test/a;jsessionid=${secret}?token=${secret}`]: { status: 302, location: "/b", ms: 90 },
+        "http://app.test/b": { status: 302, location: "/c", ms: 90 },
+        "http://app.test/c": { status: 302, location: "/d", ms: 70 },
+        "http://app.test/d": { status: 200 },
+        "http://app.test/quick": { status: 302, location: "/d", ms: 100 },
+      },
+      { limits },
+    );
+    // One hop past its timeout.
+    assert.equal(await s.run("http://app.test/slow"), "abort:timedout");
+    assert.deepEqual(s.timeouts, [100]);
+    assert.deepEqual(s.stops, [["redirectTimeout", { route: "/slow", seconds: 1 }]]);
+    // The whole chain past its deadline: each hop gets what is left of it, and no hop is asked once it has passed.
+    assert.equal(await s.run(`http://app.test/a;jsessionid=${secret}?token=${secret}`), "abort:timedout");
+    assert.deepEqual(s.timeouts.slice(1), [100, 100, 70]);
+    assert.ok(!s.requested.includes("http://app.test/d"));
+    assert.deepEqual(s.stops[1], ["redirectTimeout", { route: "/a", seconds: 1 }], "reported without its parameters");
+    // Within both bounds: followed.
+    assert.match((await s.run("http://app.test/quick")).body, /location\.replace\("http:\/\/app\.test\/d"\)/);
+    assert.equal(s.stops.length, 2);
+    // An iframe's chain too slow: aborted, the capture goes on.
+    assert.equal(await s.run("http://app.test/slow", { frame: s.frameIn(s.top) }), "abort:timedout");
+    assert.equal(s.stops.length, 2);
+    // Playwright's own bounds, without a test seam.
+    const real = fakeSite({
+      "http://app.test/x": { status: 302, location: "/y" },
+      "http://app.test/y": { status: 200 },
+    });
+    await real.run("http://app.test/x");
+    assert.deepEqual(real.timeouts, [TIMINGS.redirectHop, TIMINGS.redirectHop]);
+    assert.ok(TIMINGS.redirectHop <= TIMINGS.redirectChain && TIMINGS.redirectChain < TIMINGS.start);
+  });
+
+  test("the answer held for a frame is capped: past the cap the navigation is refused and said; the end itself is not held", async () => {
+    const limits = { hop: 100, chain: 250, bytes: 1000 };
+    const s = fakeSite(
+      {
+        "http://app.test/big": { status: 302, location: "/huge" },
+        "http://app.test/huge": { status: 200, bytes: 1001 },
+        "http://app.test/fits": { status: 302, location: "/full" },
+        "http://app.test/full": { status: 200, bytes: 1000 },
+      },
+      { limits },
+    );
+    assert.equal(await s.run("http://app.test/big"), "abort:failed");
+    assert.deepEqual(s.stops, [["landingTooLarge", { route: "/big", mb: 0 }]]);
+    assert.equal(s.guard.landing(s.top), undefined);
+    assert.deepEqual(s.disposed, ["http://app.test/big", "http://app.test/huge"]);
+    assert.equal((await s.run("http://app.test/fits")).status, 200);
+    assert.equal(s.guard.landing(s.top).url, "http://app.test/full");
+    // An answer handed to the browser as is (no redirect) is not held: no cap.
+    assert.deepEqual(await s.run("http://app.test/huge"), { response: 200 });
+    assert.equal(s.stops.length, 1);
+  });
+
+  test("an address of the application in another form is the application: scheme upgrade, trailing dot, a loopback alias", async () => {
+    const site = { "http://app.test/up": { status: 302, location: "https://app.test/orders/7/approval" } };
+    const s = fakeSite(site);
+    assert.equal(await s.run("http://app.test/up"), "abort:blockedbyclient", "upgraded to https");
+    for (const url of ["https://app.test/orders/7/approval", "http://app.test./orders/7/approval"])
+      assert.equal(await s.run(url), "abort:blockedbyclient", url);
+    assert.deepEqual(s.result.refused, Array(3).fill("GET /orders/7/approval"));
+    assert.deepEqual(s.requested, ["http://app.test/up"]);
+    // Another port, another host: another application.
+    for (const url of ["https://app.test:8443/orders/7/approval", "http://www.app.test/orders/7/approval"])
+      assert.deepEqual(await s.run(url), { response: 404 }, url);
+    const local = fakeSite({}, { appOrigin: "http://127.0.0.1:3000" });
+    for (const url of ["http://localhost:3000/orders/7/approval", "http://[::1]:3000/orders/7/approval"])
+      assert.equal(await local.run(url), "abort:blockedbyclient", url);
+    assert.deepEqual(await local.run("http://localhost:3001/orders/7/approval"), { response: 404 });
+    // The key itself.
+    assert.deepEqual(
+      [
+        "http://App.Test/x",
+        "https://app.test:443/",
+        "http://app.test.:80",
+        "http://127.0.0.9:3000",
+        "http://[::1]:3000",
+        "http://localhost:3000",
+        "http://app.localhost:3000",
+        "http://app.test:8080",
+        "data:text/plain,x",
+        "not a url",
+      ].map((u) => applicationKey(u)),
+      [
+        "app.test:",
+        "app.test:",
+        "app.test:",
+        "loopback:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "app.localhost:3000",
+        "app.test:8080",
+        null,
+        null,
+      ],
+    );
+  });
+
+  test("after a goto, the page is awaited until it has committed the end of the chain the guard followed, and its answer read (afterRedirects)", async () => {
     const top = {};
     const waits = [];
     const page = {
       mainFrame: () => top,
-      waitForURL: async (match, options) => waits.push([match, options]),
+      waitForLoadState: async (state, options) => waits.push([state, options]),
+      waitForURL: () => assert.fail("never the address: the page may rewrite it at once (history.replaceState)"),
     };
     const goto = { status: () => 200 };
     const end = { status: () => 401 };
     // No chain followed for this frame: the goto's own answer, nothing awaited.
     assert.equal(await afterRedirects(page, { landing: () => undefined }, goto, { timeout: 5 }), goto);
     assert.deepEqual(waits, []);
-    const guard = {
-      landing: (frame) => (frame === top ? { url: "http://app.test/home#top", response: end } : undefined),
-    };
-    assert.equal(await afterRedirects(page, guard, goto, { timeout: 5 }), end, "the end's answer: a 401 is seen");
-    assert.equal(waits.length, 1);
-    const [match, options] = waits[0];
-    assert.deepEqual(options, { waitUntil: "load", timeout: 5 });
-    assert.deepEqual(
-      ["http://app.test/home", "http://app.test/home#other", "http://app.test/signin", "http://app.test/home/"].map(
-        (u) => match(new URL(u)),
-      ),
-      [true, true, false, false],
+    const held = (committed) => ({ landing: (frame) => (frame === top ? { response: end, committed } : undefined) });
+    // The end committed: its load state, then its answer (a 401 is seen).
+    assert.equal(await afterRedirects(page, held(Promise.resolve()), goto, { timeout: 5 }), end);
+    assert.deepEqual(waits, [["load", { timeout: 5 }]]);
+    await afterRedirects(page, held(Promise.resolve()), goto, { waitUntil: "domcontentloaded", timeout: 7 });
+    assert.deepEqual(waits[1], ["domcontentloaded", { timeout: 7 }]);
+    // Not committed yet: the load state waits for it.
+    let commit;
+    const pending = afterRedirects(page, held(new Promise((r) => (commit = r))), goto, { timeout: 1000 });
+    await new Promise(setImmediate);
+    assert.equal(waits.length, 2, "nothing awaited before the end has committed");
+    commit();
+    assert.equal(await pending, end);
+    // The frame went elsewhere first, or the end never committed: an error, never a capture of the wrong page.
+    await assert.rejects(
+      afterRedirects(page, held(Promise.reject(new Error("went elsewhere"))), goto, { timeout: 5 }),
+      /went elsewhere/,
     );
-    await afterRedirects(page, guard, goto, { waitUntil: "domcontentloaded", timeout: 7 });
-    assert.deepEqual(waits[1][1], { waitUntil: "domcontentloaded", timeout: 7 });
+    await assert.rejects(
+      afterRedirects(page, held(new Promise(() => {})), goto, { timeout: 5 }),
+      /Timeout 5ms exceeded/,
+    );
+    assert.equal(waits.length, 3);
   });
 
   test("the session check reads the answer at the end of the chain: a 401 there means expired (checkSession settle)", async () => {
@@ -628,6 +809,55 @@ describe("plan entries", () => {
     const folder = forbiddenMatchers(["^/admin/$"]);
     assert.equal(forbiddenMatch("/admin/x/..", folder), "^/admin/$");
     assert.equal(forbiddenMatch("/admin/x/.x", folder), null);
+  });
+
+  test("forbidden routes: path parameters dropped before decoding, each run of escapes decoded on its own, and twice", () => {
+    const m = forbiddenMatchers(["^/orders/\\d+/approval$"]);
+    // [a form a server reads as the forbidden route, the closest form it does not]
+    const pairs = [
+      // A malformed escape leaves the others decoded: Tomcat drops the parameters, then decodes the rest.
+      ["/orders/7/%61pproval;x=%zz", "/orders/7/%61pprovals;x=%zz"],
+      ["/%zz/../orders/7/%61pproval", "/%zz/../orders/7/%61pprovals"],
+      // Parameters dropped before decoding: an escaped slash inside one never makes a segment.
+      ["/orders/7/%61pproval;x=%2Fy", "/orders/7/%61pproval:x=%2Fy"],
+      // A run of escapes that is not UTF-8 still has its ASCII escapes decoded.
+      ["/orders/7/x%FF%2F%2E%2E%2Fapproval", "/orders/7/x%FF%2F%2E%2E%2E%2Fapproval"],
+      // Decoded twice: a proxy that decodes the path before the server does.
+      ["/orders/7/%2561pproval", "/orders/7/%2562pproval"],
+      ["/orders/7/x/%252e%252e/approval", "/orders/7/x/%252e%252e%252e/approval"],
+    ];
+    for (const [hit, miss] of pairs) {
+      assert.equal(forbiddenMatch(hit, m), "^/orders/\\d+/approval$", hit);
+      assert.equal(forbiddenMatch(miss, m), null, miss);
+    }
+  });
+
+  test("a path is reported without its path parameters, so a session id in the URL is never printed (shownPath)", async () => {
+    const secret = ["SESSION", "SECRET", "42"].join("-");
+    const s = fakeSite({
+      [`http://app.test/latest;jsessionid=${secret}`]: {
+        status: 302,
+        location: `/orders/7/approval;jsessionid=${secret}?token=${secret}`,
+      },
+    });
+    assert.equal(
+      await s.run(`http://app.test/orders/7/approval;jsessionid=${secret}?x=${secret}`),
+      "abort:blockedbyclient",
+    );
+    assert.equal(await s.run(`http://app.test/latest;jsessionid=${secret}`), "abort:blockedbyclient");
+    await s.run(`http://app.test/api/save;jsessionid=${secret}?x=${secret}`, { method: "POST" });
+    await s.run(`https://cdn.test/beacon;jsessionid=${secret}`, { method: "POST" });
+    assert.deepEqual(s.result, {
+      blocked: ["POST /api/save", "POST cdn.test/beacon"],
+      refused: ["GET /orders/7/approval", "GET /orders/7/approval"],
+      prefetched: [],
+    });
+    assert.deepEqual(s.navigations, ["/orders/7/approval", "/orders/7/approval"]);
+    assert.ok(!JSON.stringify([s.result, s.navigations]).includes(secret));
+    assert.deepEqual(
+      ["/a;b=1/c;d", "/a", "/;x", "/a%3Bb"].map((p) => shownPath(p)),
+      ["/a/c", "/a", "/", "/a%3Bb"],
+    );
   });
 
   test("forbidden routes: on the path only, invalid expression → exit code 2", () => {

@@ -167,7 +167,9 @@ sortie 2. Répondre non ne capture rien (code de sortie 0).
 
 Avec une session, la session est d'abord vérifiée et l'exécution se fait en lecture seule
 (`capture.readOnly: "auto"`). Code de sortie 1 quand une route est interdite ou qu'une capture a échoué, 3 quand
-l'application est injoignable ou que la session a expiré, 2 pour une erreur de plan. `--json` affiche `ok`, `failed`,
+l'application est injoignable ou que la session a expiré, 2 pour une erreur de plan, ou quand, avec `capture.forbidden`
+et `auth: none`, la page de départ s'ouvre sur une autre adresse que l'application (`capture.forbidden` ne couvrirait
+pas ses pages). `--json` affiche `ok`, `failed`,
 `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired` et, avec `--compare` ou `--stale`,
 `compared: [{ id, ratio, changed }]`. [Les plans de capture](#/capture/plans) expliquent les plans ;
 [Suivre l'application](#/reference/cli/write-check~doc-kit-sync) explique `doc-kit sync`, que `--stale` lit.

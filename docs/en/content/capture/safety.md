@@ -98,10 +98,19 @@ A browser follows a redirect without asking the kit again. With `capture.forbidd
 redirects of every navigation itself, one hop at a time and across origins, a sign-in round trip through the identity
 provider included: a hop that comes back to a forbidden route of the application is refused before it is requested,
 and the capture stops. The browser only receives the end of the chain, so the server is never asked twice for a hop.
+A chain has bounds: 20 s for a hop, 25 s for the whole chain, 32 MB for the page at its end; past them the capture
+stops and says why.
 
-A forbidden pattern is tested on the path as a server reads it: percent-decoded, its backslashes read as slashes,
-without its path parameters (`;jsessionid=…`), with its `.` and `..` segments resolved, with doubled slashes
-collapsed and without a trailing slash. The letter case is kept: on a server that ignores it, write the pattern for every case (`[Aa]pprove`).
+The application is every address of its own: `https` when its server upgrades `http`, a trailing dot, and
+`localhost`, `127.0.0.1` and `[::1]` for one another (same port). With `auth: none`, a start page that opens
+anywhere else (`www.`, another port) stops the run: set `app.url` to the address the application answers on.
+
+A forbidden pattern is tested on the path as a server reads it: percent-decoded (once and twice), its backslashes
+read as slashes, without its path parameters (`;jsessionid=…`), with its `.` and `..` segments resolved, with
+doubled slashes collapsed and without a trailing slash. The letter case is kept: on a server that ignores it, write
+the pattern for every case (`[Aa]pprove`); on a server that matches a suffix (`/approval.json` for `/approval`),
+write it too (`^/orders/\d+/approval(\.\w+)?$`). A refused route is shown without its path parameters, so a session
+id in the URL is never printed.
 
 With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
 is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during

@@ -257,29 +257,72 @@ function withoutDotSegments(p) {
   return out.join("/") || "/";
 }
 
+/** A path without its path parameters (`;jsessionid=…` at the end of a segment, read apart by Java servers). */
+const withoutParameters = (p) => p.replace(/;[^/]*/g, "");
+
 /**
- * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %2e, %61…), its
- * backslashes read as slashes (IIS, ASP.NET), without its path parameters (`;jsessionid=…` at the end of a segment,
- * read apart by Java servers), with repeated slashes collapsed, with its dot segments resolved and without a trailing
- * slash. A forbidden pattern is tested on each (SECURITY.md).
+ * A path with each run of percent escapes decoded on its own (%61, %2F%2e…): a malformed escape (%zz) is left as
+ * written and leaves the others decoded; a run that is not UTF-8 (%FF) has its ASCII escapes decoded, the others
+ * left as written.
+ */
+const decodeEscapes = (p) =>
+  p.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run.replace(/%[0-7][0-9A-Fa-f]/g, (e) => String.fromCharCode(parseInt(e.slice(1), 16)));
+    }
+  });
+
+/**
+ * Forms of a path a server may treat as the same route: as written, percent-decoded once or twice (%2F, %2e, %61…;
+ * %252e, for a proxy that decodes before the server does), its backslashes read as slashes (IIS, ASP.NET), without
+ * its path parameters (dropped before decoding, as Tomcat does, and after: `%3B`), with repeated slashes collapsed,
+ * with its dot segments resolved and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
  */
 function pathForms(p) {
-  let decoded = p;
-  try {
-    decoded = decodeURIComponent(p);
-  } catch {
-    // malformed escape: the path as written
-  }
   const forms = new Set();
-  for (const f of [p, decoded, decoded.replace(/\\/g, "/")])
-    for (const g of [f, f.replace(/;[^/]*/g, "")]) {
-      const collapsed = g.replace(/\/{2,}/g, "/");
-      for (const h of [g, collapsed, withoutDotSegments(g), withoutDotSegments(collapsed)]) {
-        forms.add(h);
-        if (h.length > 1) forms.add(h.replace(/\/$/, ""));
-      }
-    }
+  for (const raw of [p, withoutParameters(p)]) {
+    const once = decodeEscapes(raw);
+    for (const decoded of [raw, once, decodeEscapes(once)])
+      for (const f of [decoded, decoded.replace(/\\/g, "/")])
+        for (const g of [f, withoutParameters(f)]) {
+          const collapsed = g.replace(/\/{2,}/g, "/");
+          for (const h of [g, collapsed, withoutDotSegments(g), withoutDotSegments(collapsed)]) {
+            forms.add(h);
+            if (h.length > 1) forms.add(h.replace(/\/$/, ""));
+          }
+        }
+  }
   return [...forms];
+}
+
+/**
+ * A path as the kit reports it (a refused or blocked request, a forbidden route shown): without its path parameters,
+ * which may hold a session id (`;jsessionid=…`, S7). A query string is never part of it.
+ */
+export const shownPath = (pathname) => withoutParameters(pathname);
+
+/** The host names of the loopback interface, one host for capture.forbidden. */
+const LOOPBACK = /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/;
+
+/**
+ * The application an address belongs to, for capture.forbidden: its host and port, whatever its scheme (an http
+ * application that its server upgrades to https stays the application), without a trailing dot, and every loopback
+ * name (localhost, 127.x, [::1]) one host. null for an address off the web, or that cannot be read.
+ * @param {string|URL} url
+ * @returns {string|null}
+ */
+export function applicationKey(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const host = u.hostname.replace(/\.$/, "");
+  return `${LOOPBACK.test(host) ? "loopback" : host}:${u.port}`;
 }
 
 /** The forbidden pattern matched by a route (its path only, in any of its forms), or null. */

@@ -20,7 +20,7 @@ import {
 } from "./actions.mjs";
 import { maskPage } from "./masking.mjs";
 import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
-import { forbiddenMatch } from "./plans.mjs";
+import { forbiddenMatch, shownPath, applicationKey } from "./plans.mjs";
 import { waitForStable } from "./stable.mjs";
 import { TIMINGS } from "./timings.mjs";
 import { isSignInUrl } from "./session.mjs";
@@ -81,8 +81,12 @@ export async function takeOne(rc, entry, w) {
   }
   const part = startSpans(rc, entry, w);
   part("navigate");
-  const current = (w.state = { forbidden: null });
-  const stop = () => new CaptureError("forbiddenHit", { path: current.forbidden });
+  // What the guard stopped (guard.mjs): a forbidden route, or a navigation it could not complete.
+  const current = (w.state = { forbidden: null, stopped: null });
+  const stop = () =>
+    current.forbidden
+      ? new CaptureError("forbiddenHit", { path: current.forbidden })
+      : new CaptureError(current.stopped.key, current.stopped.vars);
   await openRoute(rc, page, entry, { name, current, stop, guard: w.guard });
   await playEntry(rc, page, entry, { network, current, stop, part });
 
@@ -120,20 +124,30 @@ function startSpans(rc, entry, w) {
 }
 
 /**
- * After a goto: when the guard followed the navigation's redirects itself (requestGuard, capture.mjs), the page is
- * sent on to the end of the chain; waits until it has opened it, and gives the end's response rather than the
- * guard's page. Otherwise, the response of the goto.
+ * After a goto: when the guard followed the navigation's redirects itself (requestGuard, guard.mjs), the page is
+ * sent on to the end of the chain; waits until the frame has committed the answer the guard held for it (the guard's
+ * own signal: never the address, which the page may rewrite at once, history.replaceState), then for its load
+ * state, and gives the end's response rather than the guard's page. Otherwise, the response of the goto.
  * @param {import("playwright").Page} page
- * @param {{ landing: (frame: object) => { url: string, response: any }|undefined }} guard
+ * @param {{ landing: (frame: object) => { response: any, committed: Promise<unknown> }|undefined }} guard
  * @param {any} response   what the goto answered
  * @param {{ waitUntil?: "load"|"domcontentloaded", timeout: number }} options
  */
-export async function afterRedirects(page, guard, response, options) {
+export async function afterRedirects(page, guard, response, { waitUntil = "load", timeout }) {
   const landing = guard.landing(page.mainFrame());
   if (!landing) return response;
-  const end = landing.url.split("#")[0];
-  await page.waitForURL((u) => u.href.split("#")[0] === end, { waitUntil: "load", ...options });
+  await within(landing.committed, timeout);
+  await page.waitForLoadState(waitUntil, { timeout });
   return landing.response;
+}
+
+/** `promise`, or an error once `ms` have passed without it settling. */
+function within(promise, ms) {
+  let timer;
+  const late = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout ${ms}ms exceeded waiting for the end of the redirects`)), ms);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
 }
 
 /** Has the application sent the browser to its sign-in page (or answered 401)? */
@@ -151,14 +165,19 @@ async function openRoute(rc, page, entry, { name, current, stop, guard }) {
   const { cap, appUrl, appOrigin, auth } = rc;
   await page.setViewportSize({ ...cap.viewports[name], ...(entry.viewport || {}) });
   const storage = { ...rc.baseline, ...storageValues({ ...cap.storage, ...(entry.storage || {}) }, rc.version) };
-  if (!onOrigin(page, appOrigin)) {
+  if (!onApplication(page, appOrigin)) {
     try {
       const start = { waitUntil: /** @type {const} */ ("domcontentloaded"), timeout: TIMINGS.start };
       await afterRedirects(page, guard, await page.goto(appUrl + auth.options.start, start), start);
     } catch (e) {
-      if (current.forbidden) throw stop();
+      if (current.forbidden || current.stopped) throw stop();
       throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url: appUrl, error: firstLine(e) }, { cause: e });
     }
+    // capture.forbidden only covers the application's addresses: a start page elsewhere (another host, an upgrade
+    // to another port) would turn it off for every page. With sign-in, another origin is a sign-in page, which the
+    // capture then reports (SessionExpired).
+    if (rc.forbidden.length && !rc.checksSignIn && !onApplication(page, appOrigin))
+      throw new KitError(EXIT.USAGE, "capture.offApplication", { origin: originOf(page.url()), app: appOrigin });
   }
   await page.evaluate((kv) => {
     localStorage.clear();
@@ -173,19 +192,23 @@ async function openRoute(rc, page, entry, { name, current, stop, guard }) {
     });
     response = await afterRedirects(page, guard, response, { timeout: TIMINGS.page });
   } catch (e) {
-    if (current.forbidden) throw stop();
+    if (current.forbidden || current.stopped) throw stop();
     throw new CaptureError("navigation", { route: entry.route, error: firstLine(e) });
   }
   await waitForChallenge(page);
   if (signedOut(rc, page, response, entry)) throw new SessionExpired(page.url());
 }
 
-/** Is the page on the application's origin? */
-function onOrigin(page, appOrigin) {
+/** Is the page on the application, at one of its addresses (applicationKey, plans.mjs)? */
+const onApplication = (page, appOrigin) => applicationKey(page.url()) === applicationKey(appOrigin);
+
+/** The origin of an address, as shown (no path, no query), or the address itself when it has none. */
+function originOf(url) {
   try {
-    return new URL(page.url()).origin === appOrigin;
+    const { origin } = new URL(url);
+    return origin === "null" ? url : origin;
   } catch {
-    return false;
+    return url;
   }
 }
 
@@ -200,7 +223,7 @@ async function playEntry(rc, page, entry, { network, current, stop, part }) {
     try {
       await play(page, a, rc.sel);
     } catch (e) {
-      if (current.forbidden) throw stop();
+      if (current.forbidden || current.stopped) throw stop();
       if (e instanceof CaptureError) throw e;
       throw new CaptureError("action", { n: i + 1, kind: actionKind(a), error: firstLine(e) });
     }
@@ -209,11 +232,11 @@ async function playEntry(rc, page, entry, { network, current, stop, part }) {
   if ((entry.actions || []).length || entry.settle) await waitForStable(page, { network, min: entry.settle ?? 0 });
   // A client-side navigation (history API) to a forbidden route: its payload was aborted, the page shown is
   // not the route of the plan.
-  if (!current.forbidden && forbidden.length && onOrigin(page, rc.appOrigin)) {
+  if (!current.forbidden && forbidden.length && onApplication(page, rc.appOrigin)) {
     const shown = new URL(page.url()).pathname;
-    if (forbiddenMatch(shown, forbidden)) current.forbidden = shown;
+    if (forbiddenMatch(shown, forbidden)) current.forbidden = shownPath(shown);
   }
-  if (current.forbidden) throw stop();
+  if (current.forbidden || current.stopped) throw stop();
   if (signedOut(rc, page, null, entry)) throw new SessionExpired(page.url());
 }
 

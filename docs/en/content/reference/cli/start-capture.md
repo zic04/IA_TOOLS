@@ -160,7 +160,8 @@ code 2. Answering no captures nothing (exit code 0).
 
 With a session, the session is checked first and the run is read-only (`capture.readOnly: "auto"`). Exit code 1
 when a route is forbidden or a capture failed, 3 when the application cannot be reached or the session expired, 2
-for a plan error. `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired`
+for a plan error, or when, with `capture.forbidden` and `auth: none`, the start page opens on another address than
+the application (`capture.forbidden` would not cover its pages). `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired`
 and, with `--compare` or `--stale`, `compared: [{ id, ratio, changed }]`.
 [Capture plans](#/capture/plans) explains the plans; [Following the application](#/reference/cli/write-check~doc-kit-sync)
 explains `doc-kit sync`, which `--stale` reads.
