@@ -4,6 +4,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readYaml, at, text, items, entries, field, YAML_PATTERNS } from "../../engine/core/yaml.mjs";
 import { jsonTree, withoutJsonComments } from "../../engine/core/json-tree.mjs";
+import { rng } from "../tools/fuzz/prng.mjs";
 
 describe("what the files of an application write", () => {
   test("Kubernetes manifests: several documents, nested mappings and sequences, a flow collection over two lines", () => {
@@ -205,5 +206,43 @@ describe("a tag before a value read below it (review of Lot 5c-1, round 2)", () 
       ],
     );
     assert.equal(text(at(doc, "url")), "https://x.example.test/y");
+  });
+});
+
+describe("the lines read one at a time (a long text never held as an object per line)", () => {
+  test("a block scalar after a look-ahead, a tagged value beside a plain one, an anchor dropped", () => {
+    // The item's mapping looks at the next line before its block scalar is read: the scalar still starts there.
+    const [seq] = readYaml("- k: |\n    a\n    b\n- c\n");
+    assert.deepEqual(
+      items(seq).map((i) => (i?.type === "map" ? text(at(i, "k")) : text(i))),
+      ["a\nb", "c"],
+    );
+    const [doc] = readYaml("a: !Ref x\nb: x\nc: &n 1\n");
+    assert.deepEqual(
+      ["a", "b", "c"].map((k) => [text(at(doc, k)), at(doc, k)?.tag]),
+      [
+        ["x", "!Ref"],
+        ["x", undefined],
+        ["1", undefined],
+      ],
+    );
+  });
+
+  test("seeded texts: read alike with LF and CRLF, each entry at the line that holds its key", () => {
+    const r = rng(0x9a11e5);
+    const pieces = ["a: 1", "b:", "- x", "- k: v", "-", "k: |", "  text # kept", "", "# c", "---", "t: !Ref x"];
+    const all = (node, out = []) => {
+      if (node?.type === "map") for (const e of node.entries) (out.push(e), all(e.value, out));
+      else if (node?.type === "seq") for (const i of node.items) all(i, out);
+      return out;
+    };
+    for (let k = 0; k < 400; k++) {
+      const lines = Array.from({ length: r.int(20) }, () => "  ".repeat(r.int(3)) + r.pick(pieces));
+      const lf = lines.join("\n");
+      const docs = readYaml(lf);
+      assert.deepEqual(readYaml(lines.join("\r\n")), docs, JSON.stringify(lf));
+      for (const e of docs.flatMap((d) => all(d)))
+        assert.ok(lines[e.line - 1].includes(`${e.key}:`), `${JSON.stringify(lf)}: ${e.key} at ${e.line}`);
+    }
   });
 });

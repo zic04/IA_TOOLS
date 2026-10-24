@@ -5,26 +5,28 @@
 //   api item: { method, route, file, line, framework, auth, guards } — line: 1-based line of the handler (decorator,
 //   export or call).
 //   screens item: { route, file, line, framework, auth?, guards? } — auth and guards when the router declares them.
-// Also the helpers the other sources share: the line of an index, the content of a call.
+// Also a helper the security source uses: the content of a call. (The line of an index: textIndex, in
+// behaviour-common.mjs.)
 import { BUILT_IN_STACKS, stackSources } from "./stacks.mjs";
 import { routeWithoutSecrets } from "./behaviour-common.mjs";
 import { MAX_GUARDS, MAX_ITEMS } from "./stack-common.mjs";
 import { classifyAuth, resolveGuardPatterns } from "./guards.mjs";
 
-/** 1-based line of a character index of a text. */
-export const lineAt = (text, index) => text.slice(0, index).split("\n").length;
-
-/** Content between the matching closing parenthesis of the "(" found at `openIndex`, not included. */
-export function balancedParens(text, openIndex) {
+/**
+ * Content between the matching closing parenthesis of the "(" found at `openIndex`, not included; `max` characters
+ * at most (calls never closed are not each read to the end of the text: RULES.md S5).
+ */
+export function balancedParens(text, openIndex, max = text.length) {
+  const end = Math.min(text.length, openIndex + 1 + max);
   let depth = 0;
-  for (let i = openIndex; i < text.length; i++) {
+  for (let i = openIndex; i < end; i++) {
     if (text[i] === "(") depth++;
     else if (text[i] === ")") {
       depth--;
       if (depth === 0) return text.slice(openIndex + 1, i);
     }
   }
-  return text.slice(openIndex + 1);
+  return text.slice(openIndex + 1, end);
 }
 
 /** Whether an adapter's item has each of `keys` as a string (a project adapter may return anything: it is left out). */

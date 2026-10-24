@@ -121,6 +121,45 @@ entries between a project's `kit` range and the installed version.
   returning `[AllowAny()]` under `[IsAdminUser]`), Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")`
   under a class `@Secured("ROLE_ADMIN")`, and rare argument forms (Flask's `**{"optional": True}`,
   `optional=False or True`) (SECURITY.md).
+- **No crafted file of the application blocks `facts` or `check secrets`** (RULES.md S5): twenty scanners took
+  four times as long, or more, for twice the input on a file built for it (a 2 KB file took seconds). They are now
+  linear, and find what they found on normal input:
+  - `security`: the line of each match comes from one index of the file (it was the text before it, sliced for
+    each); `cors.wildcardCredentials` sweeps its two sorted lists once (it compared every pair); `sql.concat`
+    walks the build lines once; `redirect.open` reads a call's arguments over 1,000 characters at most,
+    `jwt.noVerify` an algorithms list over 200; `auth.noRateLimit` looks for the word of a sign-in route once;
+    `secret.default` reads an interpolation up to its `}` or the next `${`.
+  - `db`: a Prisma model and a `CREATE TABLE` are read up to the last of their closers only; a SQLAlchemy class
+    ends at the next class or the end (never "newlines, then the end", tested at every character), its bases are
+    500 characters at most, a column's blanks those of its line. `env`: a destructuring of `process.env` is read
+    up to the next brace.
+  - `quality`: its function expressions no longer split a run of blanks two or three ways, a method is looked for
+    from the start of a word, a type annotation is 200 characters at most; the bodies are matched in one pass
+    (`closingBraces`), their branches counted by difference. A function header in a comment or a string is still
+    read as code to its brace, those reads bounded together by eight times the file.
+  - `check secrets`: `isUrlTemplate` searches the rest of a word once; the matches of one long token share it (a
+    chain of JWTs joined by dots was cubic); the text of a page blanks scripts, styles and tags left open without
+    reading to the end again from each.
+  - `sync`: `apiPathsIn` matches the braces of a text once and takes trailing slashes off in one pass;
+    `PROOF_REF` reads a file name up to its `:` once.
+  - `parseEnv` (masking), `pySpecifiers` (imports): no run of blanks read two ways, no blank line (nor carriage
+    return, nor U+2028, where a multiline `^` also starts) read again from each line start. A `from` without a
+    module (not Python) is no longer read as an empty one.
+  - `infra`: the YAML reader makes its lines one at a time and cuts each from the text when it reads it (it held an
+    object and a string for every line of the file until the end), and the Compose adapter builds no item past the
+    source's 5,000: on a Compose file of many volumes, the collector's work no longer grows faster than the file
+    (Node 22).
+  - A verified badge's text is 500 characters at most. The build's Content Security Policy looks for the inline
+    scripts of a page up to its last `</script>` only.
+- **`quality`, `env`, `db`, `agents` and `tests` read no source, schema, instruction or test file over 512 KB**, as
+  the other readers: one is listed in the facts file's `unreadable` (`tooLarge`) and reported by `doc-kit facts`.
+  `quality` still counts it among the files, and as a big one; `tests` among the test files.
+- **For the kit's developers**: `test/unit/redos-registration.test.mjs` fails when a regular expression that
+  `engine/facts`, `engine/check`, `engine/sync` or the masking export is not measured by the ReDoS harness. The
+  eight it found are registered, the expressions of `db`, `env`, `quality` and `imports` and the scanners above
+  as whole readers too, and the harness builds the crafted shapes
+  (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
+  the former forms against the new ones on random input).
 
 ## [0.4.1] - 2026-10-23
 

@@ -4,32 +4,46 @@
 // table both appear, each with its own file and its own share of the information.
 //   item: { table, columns, file, rls, policies, references }   references: the tables this one points to (a Prisma
 //   relation field, a SQLAlchemy ForeignKey, a SQL REFERENCES), for the entity-relationship diagram (::erd)
-import fs from "node:fs";
-import path from "node:path";
 import { listFiles } from "./common.mjs";
+import { readListed } from "./code-files.mjs";
+import { upToLast } from "../core/text.mjs";
 
 const NOT_A_COLUMN = /^(PRIMARY|FOREIGN|UNIQUE|CHECK|CONSTRAINT)$/i;
 
-/** The expressions that read the application's schema files (RULES.md S5: kept linear, tested by the ReDoS worker). */
+/**
+ * The expressions that read the application's schema files (RULES.md S5: kept linear, tested by the ReDoS worker).
+ * A SQLAlchemy class ends at the next class or at the end of the text (never "newlines, then the end", tested at
+ * every character), its bases are 500 characters at most, and a column's blanks and annotation are those of its
+ * line (a multiline `^` also starts after a carriage return or U+2028: nothing reads across one).
+ */
 export const DB_PATTERNS = Object.freeze({
   prismaModel: /model\s+(\w+)\s*\{([\s\S]*?)\n\}/g,
   prismaField: /^(\w+)\s+(\w+)/,
   foreignKey: /ForeignKey\(\s*["'](\w+)\./g,
   createTable: /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?"?(\w+)"?\s*\(([\s\S]*?)\)\s*;/gi,
   references: /REFERENCES\s+"?(\w+)"?/gi,
+  // \r?\n, never a bare \n: a Windows checkout (CRLF) must match just as well as a Unix one (LF).
+  sqlalchemyClass: /class\s+(\w+)\s*\([^)]{0,500}\):\r?\n([\s\S]*?)(?=\r?\nclass\s+\w|$)/g,
+  sqlalchemyColumn: /^[ \t]*(\w+)[ \t]*(?::[^=\r\n\u2028\u2029]+)?=\s*(?:mapped_column|Column)\(/gm,
 });
+/**
+ * What ends a match of prismaModel and createTable: each is run on the text up to the last of them (upToLast), so
+ * that openings never closed are not each read to the end of the file.
+ */
+export const DB_CLOSERS = Object.freeze({ prismaModel: /\n\}/g, createTable: /\)\s*;/g });
 
 /** First file under `appDir` whose name is `name` (anywhere), or null. */
 const findFirst = (appDir, name) => listFiles(appDir).find((f) => f === name || f.endsWith("/" + name)) ?? null;
 
 /** Tables of a Prisma schema: `model X { … }`, columns = field names, table = `@@map("…")` or the model name. */
-function collectPrisma(appDir) {
+function collectPrisma(appDir, unreadable) {
   const rel = findFirst(appDir, "schema.prisma");
   if (!rel) return [];
-  const text = fs.readFileSync(path.join(appDir, rel), "utf8");
+  const text = readListed(appDir, rel, unreadable);
+  if (text === null) return [];
   const items = [];
   const models = new Map(); // model name → its item (relations are resolved once every model is known)
-  for (const m of text.matchAll(DB_PATTERNS.prismaModel)) {
+  for (const m of upToLast(text, DB_CLOSERS.prismaModel).matchAll(DB_PATTERNS.prismaModel)) {
     const [, model, body] = m;
     let table = model;
     const columns = [];
@@ -64,19 +78,16 @@ function collectPrisma(appDir) {
 }
 
 /** Tables of SQLAlchemy models: `class X(Base): __tablename__ = "…"`, columns = Column(…) / mapped_column(…) names. */
-function collectSqlAlchemy(appDir) {
+function collectSqlAlchemy(appDir, unreadable) {
   const items = [];
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".py"))) {
-    const text = fs.readFileSync(path.join(appDir, rel), "utf8");
-    if (!/__tablename__/.test(text)) continue;
-    // \r?\n, never a bare \n: a Windows checkout (CRLF) must match just as well as a Unix one (LF).
-    for (const m of text.matchAll(/class\s+(\w+)\s*\([^)]*\):\r?\n([\s\S]*?)(?=\r?\nclass\s+\w|\r?\n*$)/g)) {
+    const text = readListed(appDir, rel, unreadable);
+    if (text === null || !/__tablename__/.test(text)) continue;
+    for (const m of text.matchAll(DB_PATTERNS.sqlalchemyClass)) {
       const body = m[2];
       const tm = /__tablename__\s*=\s*["']([^"']+)["']/.exec(body);
       if (!tm) continue;
-      const columns = [...body.matchAll(/^\s*(\w+)\s*(?::[^=\n]+)?=\s*(?:mapped_column|Column)\(/gm)].map(
-        (cm) => cm[1],
-      );
+      const columns = [...body.matchAll(DB_PATTERNS.sqlalchemyColumn)].map((cm) => cm[1]);
       const references = [...new Set([...body.matchAll(DB_PATTERNS.foreignKey)].map((fm) => fm[1]))]
         .filter((t) => t !== tm[1])
         .sort();
@@ -87,14 +98,14 @@ function collectSqlAlchemy(appDir) {
 }
 
 /** Tables of SQL migrations: CREATE TABLE (columns), ENABLE ROW LEVEL SECURITY (rls), CREATE POLICY … ON (policies). */
-function collectSqlMigrations(appDir) {
+function collectSqlMigrations(appDir, unreadable) {
   const items = new Map();
   const get = (table, file) =>
     items.get(table) ||
     items.set(table, { table, columns: [], file, rls: false, policies: [], references: [] }).get(table);
   for (const rel of listFiles(appDir).filter((f) => f.endsWith(".sql"))) {
-    const text = fs.readFileSync(path.join(appDir, rel), "utf8");
-    for (const m of text.matchAll(DB_PATTERNS.createTable)) {
+    const text = readListed(appDir, rel, unreadable) ?? "";
+    for (const m of upToLast(text, DB_CLOSERS.createTable).matchAll(DB_PATTERNS.createTable)) {
       const item = get(m[1], rel);
       item.columns = m[2]
         .split(",")
@@ -113,10 +124,14 @@ function collectSqlMigrations(appDir) {
 
 /**
  * The `db` source: Prisma, SQLAlchemy, then SQL migrations.
+ * @param {string} appDir
+ * @param {Array<{ file: string, reason: string }>} [unreadable]   receives the files not read (over 512 KB: readCode)
  * @returns {Array<{table,columns,file,rls,policies,references}>} sorted by table then file
  */
-export function collectDb(appDir) {
-  return [...collectPrisma(appDir), ...collectSqlAlchemy(appDir), ...collectSqlMigrations(appDir)].sort(
-    (a, b) => a.table.localeCompare(b.table) || a.file.localeCompare(b.file),
-  );
+export function collectDb(appDir, unreadable = []) {
+  return [
+    ...collectPrisma(appDir, unreadable),
+    ...collectSqlAlchemy(appDir, unreadable),
+    ...collectSqlMigrations(appDir, unreadable),
+  ].sort((a, b) => a.table.localeCompare(b.table) || a.file.localeCompare(b.file));
 }
