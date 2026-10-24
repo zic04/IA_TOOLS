@@ -74,10 +74,14 @@ reads text only, never images. **Review every image** before delivering a site.
 - `doc.config.mjs`, capture plans, setup scripts and local adapters are JavaScript modules run with your rights.
   Only run doc-kit on projects you trust.
 - `doc-kit --version`, `doc-kit --help` and `doc-kit <command> --help` run nothing of the folder they are typed in,
-  nor of its parents: the dispatcher never imports `doc.config.mjs` itself, it reads the language of the messages in
-  the file's text (a literal `language`, or the first item of `languages`). Typing them in a cloned application that
-  ships a documentation project is safe; any other command that loads the project runs its `doc.config.mjs`
-  (`test/unit/cli-startup.test.mjs`, with a configuration that leaves a file behind when it runs).
+  nor of its parents: for them, `doc.config.mjs` is never imported; the language of the messages is read in the
+  file's text (a literal `language`, or the first item of `languages`; a regular file only, and 1 MB read at most, whatever size it reports). Every
+  other command that loads the project runs its `doc.config.mjs`, and so does `doc-kit` without a command: the
+  guided mode loads the project like a command to tell the next step, even without a terminal
+  (`test/unit/cli-startup.test.mjs`, with a configuration that leaves a file behind when it runs). Limit: this holds
+  for the doc-kit you installed. `npx doc-kit` typed in a cloned application runs the kit its `node_modules` holds,
+  which is the folder's code; and on Windows, `cmd.exe` runs a `doc-kit.cmd` of the current folder before the one
+  on the `PATH`.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.

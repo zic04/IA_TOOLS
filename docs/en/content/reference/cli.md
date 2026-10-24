@@ -14,8 +14,9 @@ options, in the language of the messages: `doc-kit init --help` shows `--lang` a
    from the current folder upwards.
 2. **The messages** are in the project's language from the first line, `doctor` included; `--lang fr` (or
    `--lang=fr`) changes it for one run. That language is read in the text of `doc.config.mjs`, never by running
-   it: `doc-kit --version` and `doc-kit --help` run nothing of the folder they are typed in. `init`, which creates a
-   project elsewhere, speaks `--lang`, `DOC_KIT_LANG` or English.
+   it: `doc-kit --version` and `doc-kit --help` run nothing of the folder they are typed in (`doc-kit` alone, the
+   guided mode, loads the project like a command). `init`, which creates a project elsewhere, speaks `--lang`,
+   `DOC_KIT_LANG` or English.
 3. **Every error** says what is wrong (`✖`), then what to do (`→`).
 4. **The exit code** tells a script what happened, the same way for every command.
 

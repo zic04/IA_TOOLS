@@ -3,7 +3,7 @@
 // Global options: --project <dir>, --json, --verbose, --lang en|fr, --profile, --help, --version.
 // Exit codes: 0 OK · 1 failed check · 2 usage or configuration · 3 environment.
 // Start-up (ARCHITECTURE.md §4): only the module of the command that runs is imported (cli/registry.mjs);
-// --version and --help import none, and nothing of the project: its doc.config.mjs is never run for them.
+// --version and --help alone import none, and nothing of the project: its doc.config.mjs is never run for them.
 import { parseArgs } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
@@ -83,7 +83,8 @@ export async function runCli(argv, io = {}) {
     return EXIT.OK;
   }
   if (!name) return runSafely(ctx, () => guided({ ctx, values }));
-  if (!module && LATER[name]) {
+  // Own names only: `constructor` or `toString` is an unknown command, never an inherited property.
+  if (!module && Object.hasOwn(LATER, name)) {
     ctx.error("command.notYet", { name, batch: LATER[name], available: COMMANDS.join(", ") });
     return EXIT.USAGE;
   }
@@ -93,7 +94,7 @@ export async function runCli(argv, io = {}) {
   }
   // An option that belongs to another command is a usage error.
   for (const k of Object.keys(values))
-    if (!(k in GLOBALS) && !(k in (module.options || {}))) {
+    if (!Object.hasOwn(GLOBALS, k) && !Object.hasOwn(module.options || {}, k)) {
       ctx.error("option.invalid", { error: `--${k} (${name})` });
       return EXIT.USAGE;
     }
@@ -108,8 +109,8 @@ export async function runCli(argv, io = {}) {
 /**
  * Reads the command line with the global options and those of the command named first (`guess`): only that
  * command's module is imported. When that reading fails, or finds another command (an option of another command
- * written before the name), it is read again with the options of every command, all imported, so that the error
- * names the option and the command it belongs to (`--tour (build)`), as it always did.
+ * written before the name), it is read again with the options of every command, all imported, so that an option of
+ * another command is refused by name, with the command typed (`--tour (build)`), as it always was.
  * @param {string[]} args
  * @param {string} [guess]   the first word of a lenient reading
  * @returns {Promise<{ values: object, positionals: string[], module: object|null }>}
@@ -127,7 +128,7 @@ async function readCommandLine(args, guess) {
   const all = { ...GLOBALS };
   for (const m of Object.values(modules)) Object.assign(all, m.options || {});
   const r = parseArgs({ args, options: all, allowPositionals: true, strict: true });
-  return { ...r, module: modules[r.positionals[0]] ?? null };
+  return { ...r, module: COMMANDS.includes(r.positionals[0]) ? modules[r.positionals[0]] : null };
 }
 
 /** `doc-kit --help`: every command of the registry, group by group (cli/registry.mjs), so that none is left out. */
@@ -360,11 +361,8 @@ ${ctx.t("cli.guided.next", { command: next })}`);
     const r = spawnSync("npm", ["install"], { cwd: s.root, stdio: "inherit", shell: process.platform === "win32" });
     return r.status === 0 ? EXIT.OK : EXIT.ENVIRONMENT;
   }
-  const module = COMMANDS.includes(step) ? await importCommand(step) : null;
-  if (!module) {
-    ctx.error("command.notYet", { name: step, batch: LATER[step] || "?", available: COMMANDS.join(", ") });
-    return EXIT.USAGE;
-  }
+  // Every step but install is a command of the registry.
+  const module = await importCommand(step);
   const globals = Object.fromEntries(Object.entries(values).filter(([k]) => k in GLOBALS));
   // A production capture was confirmed right after its banner: capture does not ask a second time.
   const confirmed = production && step === "capture" ? { yes: true } : {};

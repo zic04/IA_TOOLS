@@ -1,18 +1,20 @@
 // The CLI's start-up (ARCHITECTURE.md §4): `--version` and `--help` run nothing of the folder they are typed in (its
 // doc.config.mjs, or a parent's, is never imported for them: the language of the messages is read as text) and
-// load no command module and no Playwright; `--lang=fr` is `--lang fr`; `--help` lists every command of
-// cli/commands/, in its group, with every option the command declares.
+// load no command module and no Playwright; `doc-kit` alone (the guided mode) loads the project like a command;
+// the command line is read with the options of the command named, then of every command; `--lang=fr` is
+// `--lang fr`; `--help` lists every command of cli/commands/, in its group, with every option the command declares.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { runCli } from "../../cli/doc-kit.mjs";
+import { runCli, menuFor } from "../../cli/doc-kit.mjs";
+import { absolutePath } from "../../cli/common.mjs";
 import { COMMANDS } from "../../cli/registry.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { languageInConfig } from "../../engine/project/find.mjs";
-import { KIT_ROOT, tempDir, noExec } from "../tools/helpers.mjs";
+import { KIT_ROOT, DEMO, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 const CLI = path.join(KIT_ROOT, "cli", "doc-kit.mjs");
 const TRACE = pathToFileURL(path.join(KIT_ROOT, "test", "tools", "module-trace.mjs")).href;
@@ -83,7 +85,14 @@ describe("--version and --help run nothing of the project", () => {
       const help = await cli(["--help", "--project", dir]);
       assert.equal(help.code, 0);
       assert.ok(help.out.startsWith("Usage : doc-kit [<commande>] [options]\n"), "French, read without running it");
-      for (const args of [["build", "--help"], ["help", "sync"], ["-v"], ["-h"]])
+      for (const args of [
+        ["-v"],
+        ["-h"],
+        ...COMMANDS.flatMap((c) => [
+          [c, "--help"],
+          ["help", c],
+        ]),
+      ])
         assert.equal((await cli([...args, "--project", dir])).code, 0, args.join(" "));
       assert.equal(ran(), false, "doc.config.mjs did not run");
       // The control: a command loads the project, and runs its configuration (which lacks `product`, in French).
@@ -109,6 +118,11 @@ describe("--version and --help run nothing of the project", () => {
       );
       assert.deepEqual(commandModules(version.modules), [], "--version: no command module");
       assert.deepEqual(playwright(version.modules), [], "--version: no Playwright");
+      assert.deepEqual(
+        version.modules.filter((u) => /\/engine\/(?:build\/build|dev\/server)\.mjs$/.test(u)),
+        [],
+        "--version: neither the build engine nor the dev server",
+      );
       const help = traced(["--help"], cwd, trace);
       assert.equal(help.code, 0);
       assert.ok(help.out.startsWith("Usage : doc-kit [<commande>] [options]\n"), "the project's language");
@@ -119,6 +133,7 @@ describe("--version and --help run nothing of the project", () => {
       const build = traced(["build", "--help"], cwd, trace);
       assert.equal(build.code, 0);
       assert.deepEqual(commandModules(build.modules), ["build.mjs"]);
+      assert.deepEqual(playwright(build.modules), [], "build --help: no Playwright");
       const capture = traced(["capture", "--help"], cwd, trace);
       assert.equal(capture.code, 0);
       assert.deepEqual(commandModules(capture.modules), ["capture.mjs", "connect.mjs"], "connect.mjs: its `shown`");
@@ -126,6 +141,139 @@ describe("--version and --help run nothing of the project", () => {
       assert.equal(ran(), false, "doc.config.mjs did not run");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("what else reads the project", () => {
+  test("doc-kit without a command (the guided mode) loads the project like a command: it runs doc.config.mjs", async () => {
+    const { dir, ran } = trap();
+    try {
+      // Without a terminal, it only prints the next step; to tell which, it loads the configuration.
+      assert.deepEqual(await cli(["--project", dir]), {
+        code: 0,
+        out: [
+          `${BRAND.name} ${BRAND.version} — mode guidé`,
+          `Projet de documentation trouvé dans ${absolutePath(dir)}, mais il n'est pas utilisable en l'état :`,
+          "",
+          "Étape suivante : doc-kit doctor",
+          "(pas de terminal : rien n'a été lancé)",
+          "",
+        ].join("\n"),
+        err: [
+          "✖ doc.config.mjs : 1 erreur de configuration",
+          "  → corrigez les clés signalées ci-dessous (voir schemas/config.schema.json dans le kit)",
+          "✖ doc.config.mjs › product: clé obligatoire absente : product",
+          "  → ajoutez la clé « product »",
+          "",
+        ].join("\n"),
+      });
+      assert.equal(ran(), true, "the guided mode ran doc.config.mjs");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("every step of the guided mode but npm install, and every entry of its menu, is a command of the registry", () => {
+    // The guided mode imports the step's module by its name: a step outside the registry would be an internal error.
+    for (const step of [...menuFor({ languages: ["en", "fr"] }), "init", "doctor", "connect", "capture", "sync"])
+      assert.ok(COMMANDS.includes(step), step);
+  });
+
+  test("the language is read only in a regular file of at most 1 MB: a folder or a huge file keeps the default", async () => {
+    const LIMIT = 1024 * 1024;
+    const folder = tempDir();
+    const huge = tempDir();
+    const limit = tempDir();
+    try {
+      fs.mkdirSync(path.join(folder, "doc.config.mjs"));
+      const text = 'export default { language: "fr" };\n//';
+      // The boundary pair: exactly 1 MB is read, one byte more is not.
+      fs.writeFileSync(path.join(limit, "doc.config.mjs"), text.padEnd(LIMIT, "x"));
+      fs.writeFileSync(path.join(huge, "doc.config.mjs"), text.padEnd(LIMIT + 1, "x"));
+      for (const dir of [folder, huge]) {
+        const r = await cli(["--help", "--project", dir]);
+        assert.equal(r.code, 0);
+        assert.ok(r.out.startsWith("Usage: doc-kit [<command>] [options]\n"), dir);
+      }
+      assert.ok((await cli(["--help", "--project", limit])).out.startsWith("Usage : doc-kit [<commande>] [options]\n"));
+    } finally {
+      for (const dir of [folder, huge, limit]) fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /** `doc-kit --help --project <a folder whose doc.config.mjs links to target>`, in a child process with a timeout:
+   * a reading that never ends fails the test instead of holding up the run. */
+  function helpThroughLink(target) {
+    const dir = tempDir();
+    try {
+      fs.symlinkSync(target, path.join(dir, "doc.config.mjs"));
+      const r = spawnSync(process.execPath, [CLI, "--help", "--project", dir], {
+        encoding: "utf8",
+        timeout: 60_000,
+        env: { ...process.env, DOC_KIT_LANG: "" },
+      });
+      assert.equal(r.status, 0, r.stderr);
+      assert.ok(r.stdout.startsWith("Usage: doc-kit [<command>] [options]\n"), target);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // POSIX: git checks out a symbolic link as it is. /dev/zero never ends and reports a size of 0: not a regular file.
+  test(
+    "a doc.config.mjs that is a link to a device is never read: --help does not wait for its end",
+    { skip: !fs.existsSync("/dev/zero") && "no /dev/zero on this system" },
+    () => helpThroughLink("/dev/zero"),
+  );
+
+  // Linux: a /proc file is a regular file that reports a size of 0, and /proc/self/pagemap runs to hundreds of GB.
+  test(
+    "a doc.config.mjs that is a link to an endless regular file: no more than 1 MB is read",
+    { skip: !fs.existsSync("/proc/self/pagemap") && "no /proc/self/pagemap on this system" },
+    () => helpThroughLink("/proc/self/pagemap"),
+  );
+});
+describe("the command line, read with the options of the command named, then of every command", () => {
+  test("an option of another command is refused, with the command typed", async () => {
+    assert.deepEqual(await cli(["build", "--tour", "3"]), {
+      code: 2,
+      out: "",
+      err: "✖ invalid option: --tour (build)\n  → doc-kit <command> --help lists the options of a command; doc-kit --help lists the commands\n",
+    });
+  });
+
+  test("an option written before the command: the command still runs", async () => {
+    // `--width 10` first: the first word is "10", not a command; read again with every option, `check` runs.
+    assert.deepEqual(await cli(["--width", "10", "check", "nope", "--project", DEMO]), {
+      code: 2,
+      out: "",
+      err: "✖ unknown check: nope\n  → available checks: coverage, links, tables, images, secrets, all\n",
+    });
+    // `--since stats sync`: read with the options of stats (which has --since), the command found is sync, not
+    // stats: read again, sync runs, with --since stats. A copy of the demo has no application beside it: sync's own
+    // refusal is the proof (stats would have printed its statistics).
+    const dir = demoCopy();
+    try {
+      assert.deepEqual(await cli(["--since", "stats", "sync", "--project", dir]), {
+        code: 2,
+        out: "",
+        err: "✖ no application to read\n  → set app.dir in doc.config.mjs, pointing at the application's code\n",
+      });
+      assert.equal((await cli(["stats", "--since", "sync", "--project", dir])).code, 0, "the control: stats runs");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a name inherited by every object is an unknown command, never a command announced", async () => {
+    for (const name of ["constructor", "toString", "__proto__"]) {
+      const r = await cli([name]);
+      assert.equal(r.code, 2, name);
+      assert.ok(r.err.startsWith(`✖ unknown command: ${name}\n  → available commands: audit, backlog,`), r.err);
+      assert.ok((await cli(["help", name])).err.startsWith(`✖ unknown command: ${name}\n`), name);
+      // Read again with every option (`--width` is not a global one): still an unknown command.
+      assert.ok((await cli(["--width", "10", name])).err.startsWith(`✖ unknown command: ${name}\n`), name);
     }
   });
 });

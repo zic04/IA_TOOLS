@@ -14,6 +14,37 @@ import { BRAND } from "../engine/brand.mjs";
 import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
 import { chromiumStatus } from "../engine/dev/environment.mjs";
 
+/** The largest doc.config.mjs whose text is read for the language of the first messages (useProjectLanguage). */
+const CONFIG_TEXT_LIMIT = 1024 * 1024;
+
+/**
+ * The language a doc.config.mjs declares, read in its text, never by running it (languageInConfig); the schema's
+ * default when it names none. A regular file only (opening a pipe would wait), and never more than CONFIG_TEXT_LIMIT
+ * bytes read, whatever size it reports (a /proc file reports 0): a device, a pipe or an endless file never holds up
+ * the first message. @returns {string|null} null: not read, or computed
+ */
+function configLanguage(configFile) {
+  const stat = fs.statSync(configFile);
+  if (!stat.isFile() || stat.size > CONFIG_TEXT_LIMIT) return null;
+  // A few bytes past the limit, and a multiple of 8: a /proc file such as pagemap refuses any other read size.
+  const buffer = Buffer.alloc(CONFIG_TEXT_LIMIT + 8);
+  let length = 0;
+  const fd = fs.openSync(configFile, "r");
+  try {
+    // Until the end of the file, or past the limit: then it is too long, whatever its size said.
+    for (;;) {
+      const n = fs.readSync(fd, buffer, length, buffer.length - length, null);
+      length += n;
+      if (n === 0 || length === buffer.length) break;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (length > CONFIG_TEXT_LIMIT) return null;
+  const found = languageInConfig(buffer.toString("utf8", 0, length));
+  return found === undefined ? readSchema("config").properties.language.default : found;
+}
+
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
 function createPaint(enabled) {
   const wrap = (open, close) => (s) => (enabled ? `\x1b[${open}m${s}\x1b[${close}m` : String(s));
@@ -170,16 +201,14 @@ export function createContext(
      * --project, or found from the current folder upwards) is located and the `language` of its doc.config.mjs is
      * read in its text, never by running it (SECURITY.md: `--version` and `--help` run nothing of the folder); a
      * command that loads the project then speaks the language the configuration gives (loadProject). Nothing is
-     * reported here: without a project, with a file that cannot be read, a computed or an invalid language, the
-     * language stays as it is and the command reports the problem.
+     * reported here: without a project, with a file that cannot be read, is not a regular file or is over 1 MB, a
+     * computed or an invalid language, the language stays as it is and the command reports the problem.
      * @returns {string} the message language
      */
     useProjectLanguage() {
       if (globals.lang) return ctx.language;
       try {
-        const { configFile } = findProject({ project: globals.project });
-        const found = languageInConfig(fs.readFileSync(configFile, "utf8"));
-        const language = found === undefined ? readSchema("config").properties.language.default : found;
+        const language = configLanguage(findProject({ project: globals.project }).configFile);
         if (LANGUAGES.includes(language)) ctx.setLanguage(language);
       } catch {
         // reported by the command itself

@@ -14,8 +14,9 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
    `doc.config.mjs`, en remontant depuis le dossier courant.
 2. **Les messages** sont dans la langue du projet dès la première ligne, `doctor` compris ; `--lang fr` (ou
    `--lang=fr`) la change le temps d'une exécution. Cette langue est lue dans le texte de `doc.config.mjs`, sans
-   jamais l'exécuter : `doc-kit --version` et `doc-kit --help` n'exécutent rien du dossier où on les tape. `init`,
-   qui crée un projet ailleurs, parle `--lang`, `DOC_KIT_LANG` ou l'anglais.
+   jamais l'exécuter : `doc-kit --version` et `doc-kit --help` n'exécutent rien du dossier où on les tape (`doc-kit`
+   seul, le mode guidé, charge le projet comme une commande). `init`, qui crée un projet ailleurs, parle `--lang`,
+   `DOC_KIT_LANG` ou l'anglais.
 3. **Chaque erreur** dit ce qui ne va pas (`✖`), puis ce qu'il faut faire (`→`).
 4. **Le code de sortie** dit à un script ce qui s'est passé, de la même façon pour toutes les commandes.
 

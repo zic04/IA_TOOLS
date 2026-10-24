@@ -69,6 +69,10 @@ describe("dispatching", () => {
     const unknown = await cli(["nope"]);
     assert.equal(unknown.code, 2);
     assert.match(unknown.err, /^✖ unknown command: nope\n {2}→ available commands: /);
+    // A name every object inherits is not a command announced for later.
+    const inherited = await cli(["constructor"]);
+    assert.equal(inherited.code, 2);
+    assert.match(inherited.err, /^✖ unknown command: constructor\n {2}→ available commands: /);
     // Every command of the contract is delivered.
     for (const c of [
       "init",
