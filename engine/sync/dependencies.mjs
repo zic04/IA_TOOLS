@@ -14,6 +14,7 @@ import { extractProofs } from "./proofs.mjs";
 import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
+import { isPlainName } from "../core/text.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -52,10 +53,28 @@ export function captureIds(markdown) {
   return [...ids];
 }
 
-/** `::facts` / `::faits` sources cited by a page's Markdown. */
+/**
+ * `::facts` / `::faits` sources cited by a page's Markdown: a plain name only (isPlainName), as the build reads it
+ * (engine/build/fact-directives.mjs) — a path (`../../x`) names no facts file, and is never read nor hashed.
+ */
 const factsSourcesOf = (markdown) => [
-  ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1])),
+  ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1]).filter(isPlainName)),
 ];
+
+/**
+ * The file of a "doc:" dependency of a page — a `::facts` table, `doc:<factsDir>/<source>.json` — or null when it is
+ * not one: its source a plain name (isPlainName), never a path out of the facts folder (an older sync.json may hold
+ * one).
+ * @param {string} root
+ * @param {string} factsDir   config.paths.facts
+ * @param {string} ref        "doc:<path>"
+ * @returns {string|null}
+ */
+export function docFile(root, factsDir, ref) {
+  const prefix = `doc:${factsDir}/`;
+  const name = ref.startsWith(prefix) && ref.endsWith(".json") ? ref.slice(prefix.length, -".json".length) : null;
+  return isPlainName(name) ? path.join(root, factsDir, `${name}.json`) : null;
+}
 
 /** Written pages (ARCHITECTURE.md §5): a file that exists and holds no template guidance. */
 export function writtenPages({ root, config, toc }) {

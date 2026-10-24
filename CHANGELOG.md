@@ -53,6 +53,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Breaking: a page or section id with a capital letter, a dot, an accent or another character outside `a-z`,
+  `0-9`, `-`, `_` and `/` is now refused by the build** (`toc.json`, the ids of `doc-kit new`; Security below): the
+  error names the id. Rename it in `toc.json` (each translated one too, and the `counterpart`, `suggestions` and
+  links that cite it) and rename its page file to match (`content/<id>.md` unless the entry gives its `file`, and
+  its translations).
 - **The kit's test suite** (for its developers; RULES.md M4, M17):
   - Time is measured only through `test/tools/growth.mjs` (`assertLinear`, `linearAt`, the ReDoS harness), in
     dedicated `*-growth.test.mjs` files run alone. Every millisecond budget and home-made growth loop is gone:
@@ -224,19 +229,27 @@ entries between a project's `kit` range and the installed version.
   only when its real path (links and junctions followed) is in the application, the confinement of a page's
   `sources` (`engine/core/confine.mjs`, now the one helper of `sources`, `inputs reconcile` and the project's
   adapters).
+- **The imports of a page's code are never followed through a link out of the application** (SECURITY.md): an
+  import resolved through a junction to a folder outside (`./j/util.js`, a `tsconfig.json` alias, a Python module)
+  joined the page's dependencies, and its context gave an agent up to 200 lines of that file. An import, a
+  `tsconfig.json` and every file of the closure (`sync`, the context, the `modules` facts) are now resolved and read
+  only where they really are in the application, and the context never excerpts a dependency outside it (named,
+  path only). The coverage report `facts --source tests` reads by its fixed name is confined the same way.
 - **A route segment that looks like a token is masked in the coverage ids** (RULES.md S7): the `fastapi`,
-  `next-app-router`, `openapi` and `react-router` adapters wrote it in clear in `check coverage` and the audit,
-  while `facts` writes "…".
+  `next-app-router`, `openapi`, `react-router` and `glob` adapters (a segment of a file's path) wrote it in clear in
+  `check coverage` and the audit, while `facts` writes "…". `sync` still finds the file of a masked id.
 - **`::facts{source}` and `::diagram{id}` name a file by a plain name** (`a-z`, `0-9`, `-`): `source="../../x"` or
   `id="../.."` read a file outside the project. Such an attribute is now a build error, `facts.source` or
-  `diagram.id`, and nothing is read.
+  `diagram.id`, and nothing is read; `sync` no longer reads nor hashes it as a dependency of the page
+  (`doc:facts/../../x.json`), nor one an older `sync.json` recorded.
 - **Page and section ids** (RULES.md S9): the toc schema accepted a `"` in an id, which reached the site's links
   unescaped (an attribute could be added; the Content Security Policy only stops it from running). An id is now
   lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` — the ids of `doc-kit new` — and one outside them
   is refused by the build, the error naming it (rename it in `toc.json` and its page file); the site and the
   anchors of headings and cards escape every id all the same.
 - **`inputs ingest` of an HTML page**: a tag written as text (`&lt;img onerror=…&gt;`) became a real tag of the
-  converted text once decoded. Every `<` that could open a tag is written `&lt;`, as for a Word file.
+  converted text once decoded. Every `<` that could open a tag is written `&lt;`, as for a Word file; and so it is
+  in a Markdown or a text document, whose HTML reached the converted text as written (its other text is kept).
 
 ## [0.4.1] - 2026-10-23
 

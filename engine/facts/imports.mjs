@@ -1,9 +1,11 @@
 // Local import resolver (ARCHITECTURE.md §6.10, §2.2): a lightweight, regex-based closure of the local imports of
 // a set of files, bounded in depth and in size. No AST, no package resolution (a specifier that is not relative
-// and matches no `paths` alias is a package: ignored). Never reads outside app.dir.
+// and matches no `paths` alias is a package: ignored). Never reads outside app.dir: a file, a tsconfig.json or an
+// import is read or resolved only when its real path (links and junctions followed) is in it (SECURITY.md).
 import fs from "node:fs";
 import path from "node:path";
-import { relPath } from "./common.mjs";
+import { relPath, confinedReader } from "./common.mjs";
+import { realInside, realPathOf } from "../core/confine.mjs";
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", ".venv", "venv"]);
 const CODE_FILE = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
@@ -74,18 +76,19 @@ function stripJsonc(text) {
 
 /**
  * The nearest tsconfig.json/jsconfig.json of a file, from its folder up to (and including) app.dir. `extends` is
- * never followed. `baseUrl` is returned already resolved relative to app.dir (not to the tsconfig's own folder).
+ * never followed, nor a link out of app.dir (confinedReader). `baseUrl` is returned already resolved relative to
+ * app.dir (not to the tsconfig's own folder).
  * @returns {{ baseUrl: string, paths: Record<string,string[]> } | null}
  */
 export function loadTsconfig(appDir, fileAppRel) {
+  const read = confinedReader(appDir, { maxSize: Infinity });
   let dir = path.posix.dirname(fileAppRel.split(path.sep).join("/"));
   for (;;) {
     for (const name of ["tsconfig.json", "jsconfig.json"]) {
-      const rel = dir === "." ? name : `${dir}/${name}`;
-      const abs = path.join(appDir, rel);
-      if (fs.existsSync(abs)) {
+      const text = read(dir === "." ? name : `${dir}/${name}`);
+      if (text !== null) {
         try {
-          const json = JSON.parse(stripJsonc(fs.readFileSync(abs, "utf8")));
+          const json = JSON.parse(stripJsonc(text));
           const co = json.compilerOptions || {};
           if (co.paths) return { baseUrl: path.posix.join(dir, co.baseUrl || "."), paths: co.paths };
         } catch {
@@ -98,13 +101,6 @@ export function loadTsconfig(appDir, fileAppRel) {
   }
 }
 
-/** Is `rel` (posix, relative to appDir) inside app.dir once resolved? */
-function withinApp(appDir, rel) {
-  const abs = path.resolve(appDir, rel);
-  const base = path.resolve(appDir);
-  return abs === base || abs.startsWith(base + path.sep);
-}
-
 /** Candidate files for a specifier resolved to `base` (no known extension yet), in resolution order (§2.2). */
 function codeCandidates(base) {
   const out = [];
@@ -115,12 +111,18 @@ function codeCandidates(base) {
   return out;
 }
 
-/** The first candidate that exists within app.dir, as a path relative to it (forward slashes), or null. */
+/**
+ * The first candidate (posix, relative to appDir) that is a file within app.dir, as a path relative to it (forward
+ * slashes), or null. Within: where it really is, links and junctions followed (realInside) — a candidate that climbs
+ * out of app.dir (`../`) or reaches a folder outside through a link (`j/util.js`, `j` a junction) is never one.
+ */
 function firstExisting(appDir, candidates) {
+  const base = realPathOf(appDir);
   for (const c of candidates) {
-    if (!withinApp(appDir, c)) continue;
     const abs = path.resolve(appDir, c);
-    if (fs.existsSync(abs) && fs.statSync(abs).isFile()) return relPath(appDir, abs);
+    if (!fs.existsSync(abs)) continue;
+    const real = realInside(base, abs);
+    if (real && fs.statSync(real).isFile()) return relPath(appDir, abs);
   }
   return null;
 }
@@ -167,12 +169,7 @@ export function resolvePy({ module, level }, fromFile, appDir) {
     const dir = path.posix.dirname(posixFrom);
     if (dir !== ".") candidates.push(`${dir}/${modPath}.py`, `${dir}/${modPath}/__init__.py`);
   }
-  for (const c of candidates) {
-    if (!withinApp(appDir, c)) continue;
-    const abs = path.resolve(appDir, c);
-    if (fs.existsSync(abs) && fs.statSync(abs).isFile()) return relPath(appDir, abs);
-  }
-  return null;
+  return firstExisting(appDir, candidates);
 }
 
 /** Is any segment of `rel` one of the folders never traversed? */
@@ -180,7 +177,8 @@ const inSkippedDir = (rel) => rel.split("/").some((s) => SKIP_DIRS.has(s));
 
 /**
  * The transitive closure of the local imports of `files` (BFS), bounded in depth and in size. The starting
- * files are included at depth 0; a file reached at `maxDepth` is included but its own imports are not resolved.
+ * files are included at depth 0; a file reached at `maxDepth` is included but its own imports are not resolved. A
+ * file is read only inside app.dir, links followed (confinedReader): one outside is never read, nor its imports.
  * @param {{ appDir: string, files: string[], maxDepth?: number, maxFiles?: number }} p   files: appRel
  * @returns {{ files: Set<string>, truncated: boolean }}
  */
@@ -189,17 +187,12 @@ export function resolveImports({ appDir, files, maxDepth = 3, maxFiles = 200 }) 
   const queue = files.map((file) => ({ file, depth: 0 }));
   let truncated = false;
   const tsconfigCache = new Map();
+  const read = confinedReader(appDir, { maxSize: Infinity });
   while (queue.length) {
     const { file, depth } = queue.shift();
     if (depth >= maxDepth) continue;
-    const abs = path.join(appDir, file);
-    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) continue;
-    let text;
-    try {
-      text = fs.readFileSync(abs, "utf8");
-    } catch {
-      continue;
-    }
+    const text = read(file);
+    if (text === null) continue;
     const next = [];
     if (CODE_FILE.test(file)) {
       if (!tsconfigCache.has(file)) tsconfigCache.set(file, loadTsconfig(appDir, file));

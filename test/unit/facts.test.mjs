@@ -22,6 +22,7 @@ import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
+import { routeFiles } from "../../engine/sync/routes.mjs";
 
 /** A package-lock.json (v3) as npm writes it: each name's tarball from the registry given (npm's public one by default). */
 function npmLock(names, registryOf = () => "https://registry.npmjs.org") {
@@ -1189,6 +1190,42 @@ describe("coverage adapters: facts, fastapi, next-app-router (api)", () => {
       const ids = results.flatMap((r) => r.families.flatMap((f) => f.items.map((i) => i.id)));
       assert.deepEqual(ids, ["POST /hooks/…", "/hooks/…", "POST /api/hooks/…", "POST /hooks/…", "/hooks/…"]);
       assert.ok(!JSON.stringify(results).includes(token), "the token is in no id and no form of a route");
+      // sync still finds the file of a masked FastAPI route (engine/sync/routes.mjs).
+      const fastapi = { adapter: "fastapi", app: "py" };
+      const { options } = await loadAdapter("coverage", fastapi, dir, "coverage[0]");
+      const item = results[0].families[0].items[0];
+      assert.deepEqual(routeFiles({ spec: fastapi, options, item, route: item.match[0], tools: adapterTools(dir) }), [
+        "py/main.py",
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // The same for the glob adapter, whose ids are file paths and whose forms are often routes (match: "/{path}"):
+  // sync still finds the file of a masked id (engine/sync/routes.mjs).
+  test("glob: a path segment that looks like a token is masked in the id and the forms; sync still finds its file", async () => {
+    const token = "Zq8vN3kT6wP1" + "xR4mY7bLc2Hd9sF0"; // a random token of 28 characters, written in two parts
+    const dir = tempDir("doc-kit-coverage-glob-masked-");
+    try {
+      for (const file of [`routes/hooks/${token}.tsx`, "routes/orders/list.tsx"]) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.writeFileSync(path.join(dir, file), "export default function Page() {}\n");
+      }
+      const spec = { adapter: "glob", family: "Routes", base: "routes", pattern: "**/*.tsx", match: "/{path}" };
+      const r = await inventory(dir, spec);
+      // The whole segment is masked, its extension with it: the forms are rendered from the masked path.
+      assert.deepEqual(r.families[0].items, [
+        { id: "hooks/…", match: ["/hooks/…"] },
+        { id: "orders/list.tsx", match: ["/orders/list"] },
+      ]);
+      const named = await inventory(dir, { ...spec, match: "{dir}|{name}|{file}" });
+      assert.deepEqual(named.families[0].items[0].match, ["hooks|…|…"]);
+      assert.ok(!JSON.stringify([r, named]).includes(token), "the token is in no id and no form");
+      const { options } = await loadAdapter("coverage", spec, dir, "coverage[0]");
+      const files = (item) => routeFiles({ spec, options, item, route: item.match[0], tools: adapterTools(dir) });
+      assert.deepEqual(files(r.families[0].items[0]), [`routes/hooks/${token}.tsx`]);
+      assert.deepEqual(files(r.families[0].items[1]), ["routes/orders/list.tsx"]);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

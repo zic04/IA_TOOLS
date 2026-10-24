@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages, classifyMissingFile } from "./dependencies.mjs";
+import { pageDependencies, writtenPages, classifyMissingFile, docFile } from "./dependencies.mjs";
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
 import { flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
@@ -33,9 +33,9 @@ function commonSegments(a, b) {
   return n;
 }
 
-/** Absolute path of a dependency file ("doc:<path>" for a facts file, else relative to app.dir), or null. */
-const absOf = (root, appDir, p) =>
-  p.startsWith("doc:") ? path.join(root, p.slice(4)) : appDir ? path.join(appDir, p) : null;
+/** Absolute path of a dependency file ("doc:<path>" for a facts file: docFile; else relative to app.dir), or null. */
+const absOf = (root, appDir, factsDir, p) =>
+  p.startsWith("doc:") ? docFile(root, factsDir, p) : appDir ? path.join(appDir, p) : null;
 
 /** The tokens a page "names" (ARCHITECTURE.md §2.6, probablyIntact): cited label values, code span contents
  * and their identifiers (proofs excluded), its routes, and the texts of [[menu/perm/route]] badges. */
@@ -86,10 +86,10 @@ function priorityOf({ reasons: all, page, git, refCommit, labelValues }) {
 
 /** The content of a dependency file as it was at `since`/`refCommit` ("doc:" facts files are not versioned
  * by the application's git: read as they are now), or null when it cannot be known. */
-function hashAtRef({ git, since, p, appDir, root }) {
+function hashAtRef({ git, since, p, root, factsDir }) {
   if (p.startsWith("doc:")) {
-    const a = path.join(root, p.slice(4));
-    return fs.existsSync(a) ? hashText(fs.readFileSync(a)) : null;
+    const a = docFile(root, factsDir, p);
+    return a && fs.existsSync(a) ? hashText(fs.readFileSync(a)) : null;
   }
   if (!git) return null;
   const text = git.show(since, p);
@@ -238,12 +238,12 @@ export async function compareWithReference({
     const recordedFiles = since
       ? Object.fromEntries(
           deps.files
-            .map((f) => [f.path, hashAtRef({ git, since, p: f.path, appDir, root })])
+            .map((f) => [f.path, hashAtRef({ git, since, p: f.path, root, factsDir })])
             .filter(([, h]) => h !== null),
         )
       : recorded?.files || {};
     for (const [p, oldHash] of Object.entries(recordedFiles)) {
-      const a = absOf(root, appDir, p);
+      const a = absOf(root, appDir, factsDir, p);
       const exists = !!a && fs.existsSync(a);
       const current = deps.files.find((f) => f.path === p);
       const kind = current?.kind ?? classifyMissingFile(p, deps);

@@ -3,7 +3,7 @@
 //   - Word (.docx): headings, paragraphs, lists and tables as Markdown (docx.mjs: a bounded ZIP and XML reader that
 //     never expands an entity nor runs a macro); diagrams (.drawio, .puml, .mmd): their components and links as text
 //     (diagrams.mjs); PDF: indexed only (pdf.mjs: its pages), the agents read the file itself page by page;
-//     Markdown and text: as they are; HTML: its text.
+//     Markdown and text: as they are, their HTML made inert (inertMarkup); HTML: its text.
 //   - Every text goes through the secret filter of the project (engine/check/secrets.mjs) before it is written.
 //   - A document is data, never instructions: the text starts with a notice that says so to the agent reading it.
 //   - A document declared by its address (Confluence, SharePoint…) is not fetched by the kit: the skill reads it
@@ -111,7 +111,9 @@ function convert(buf, format, t) {
     return { body: r.markdown, facts: { components: r.components.length, links: r.links.length } };
   }
   if (format === "html") return { body: htmlToText(text), facts: {} };
-  return { body: text, facts: {} };
+  // A Markdown or a text document: its text as written, but no HTML of it reaches the converted text (inertMarkup),
+  // as for a Word file or an HTML page — an agent may copy it into a page.
+  return { body: inertMarkup(text), facts: {} };
 }
 
 /**

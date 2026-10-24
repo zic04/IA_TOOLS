@@ -1380,6 +1380,68 @@ describe("engine/sync/report.mjs: a file reached only through the page's proofs"
   });
 });
 
+// SECURITY.md: `::facts{source}` names a facts file by a plain name (a-z, 0-9, -), as the build reads it
+// (engine/build/fact-directives.mjs). A source written as a path (`../../outside`) is no dependency: never read nor
+// hashed outside the project, nor read from an older sync.json that recorded one.
+describe("engine/sync: a ::facts source that is no plain name is never read", () => {
+  test("pageDependencies, markPages and the report never read doc:facts/../../outside.json", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      const config = await syncConfig(fx.root);
+      const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
+      fs.appendFileSync(page, '\n::facts{source="../../outside"}\n::facts{source="a/b"}\n');
+      // facts/../../outside.json, from the project: the folder that holds the project and the application.
+      const ref = `doc:${config.paths.facts}/../../outside.json`;
+      fs.writeFileSync(path.join(fx.root, config.paths.facts, "..", "..", "outside.json"), '{ "items": [] }\n');
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const deps = await pageDependencies({
+        root: fx.root,
+        config,
+        toc,
+        pageId: "take-over/orders-api",
+        inventory,
+        tools: adapterTools(fx.root),
+        factsDir: config.paths.facts,
+      });
+      assert.deepEqual(deps.factsSources, ["api"]);
+      assert.deepEqual(
+        deps.files.filter((f) => f.path.startsWith("doc:")).map((f) => f.path),
+        [`doc:${config.paths.facts}/api.json`],
+      );
+      const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+      const { reference } = await markPages({ root: fx.root, config, toc, all: true, ...at });
+      assert.deepEqual(
+        Object.keys(reference.pages["take-over/orders-api"].files).filter((p) => p.startsWith("doc:")),
+        [`doc:${config.paths.facts}/api.json`],
+      );
+      // An older sync.json that recorded it, with another hash: never read (a "modified" would mean read), gone.
+      reference.pages["take-over/orders-api"].files[ref] = "0".repeat(64);
+      const r = await compareWithReference({
+        root: fx.root,
+        config,
+        toc,
+        reference,
+        since: null,
+        git: createGit(() => null, fx.appDir),
+        inventory,
+        plans: [],
+        appDir: fx.appDir,
+        version: "1.0.0",
+        commit: "c0ffee",
+        factsDir: config.paths.facts,
+      });
+      const reasons = r.review.find((x) => x.page === "take-over/orders-api")?.reasons ?? [];
+      assert.deepEqual(
+        reasons.filter((x) => x.path === ref).map((x) => x.change),
+        ["deleted"],
+      );
+    } finally {
+      fx.release();
+    }
+  });
+});
+
 describe("a verified claim badge is a proof (sync and audit)", () => {
   test("extractProofs: [[verified file:line]] and [[verifie …]] are proofs, in order; one shown in a code span is not", async () => {
     const md =

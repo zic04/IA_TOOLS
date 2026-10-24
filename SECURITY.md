@@ -89,7 +89,8 @@ reads text only, never images. **Review every image** before delivering a site.
   lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` (the toc schema refuses another, and the error
   names it), and the site escapes every id it writes into a link or an attribute all the same. `::facts{source}` and
   `::diagram{id}` name a file of the project by a plain name (`a-z`, `0-9`, `-`): a path (`../..`, `a/b`) is a build
-  error (`facts.source`, `diagram.id`), and nothing is read.
+  error (`facts.source`, `diagram.id`), and nothing is read; `sync` takes such a `::facts` table for no dependency of
+  the page, and neither reads nor hashes the file it names (nor one an older `sync.json` recorded).
 - The generated site carries a Content Security Policy (a `<meta>` in its `<head>`): only its own inline scripts
   run, each allowed by its hash; images and fonts must be embedded; no request, frame, form or `<base>` is allowed.
   A script, an `onclick=`, a `javascript:` link, an iframe or an external image written in a page is refused by the
@@ -176,7 +177,8 @@ as untrusted input:
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
   parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked. The kit's
   coverage adapters that read routes (`fastapi`, `next-app-router`, `openapi`, `react-router`) mask their ids and
-  forms the same way, so a coverage report or the audit never shows a segment that `facts` masks;
+  forms the same way, and so does `glob` for a segment of a file's path (its forms rendered from the masked path),
+  so a coverage report or the audit never shows a segment that `facts` masks;
 - the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
   a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
   `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
@@ -245,8 +247,24 @@ as untrusted input:
   agent;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
-  (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never read, so a
-  link to a file of the operator (`~/.aws/credentials`) tells nothing of what it holds;
+  (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
+  finding of their reports comes from a link to a file of the operator (`~/.aws/credentials`);
+- the imports of a page's code (the closure of `sync` and of the context of a page, two levels for a feature sheet)
+  and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
+  the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
+  and a dependency of a page outside the application (a route's file reached through a link) is named in its
+  context, never excerpted. The coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
+  `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private declarations of the
+  dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a requirements file…,
+  read by their fixed names) follow links, as they read the operator's own configuration on purpose; only flags,
+  scopes and names to keep off the network come out of them (whether a registry or an index is private, a private
+  scope, the application's own package names), never a value;
+- limits of this confinement: a hard link cannot be told from the file itself (it is another name of the same file,
+  with no target to follow), so a hard link in the application to a file outside it is read as a file of the
+  application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
+  checked, then read: a folder of the application swapped for a link in between, by a process that changes the
+  application while the kit reads it, is not seen. Read an application received as an archive from a fresh clone,
+  and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
@@ -321,8 +339,10 @@ Both are untrusted input.
   refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
   `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
   expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
-  is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag, in a Word file's
-  text or in an HTML page's (a tag written there as text, `&lt;img …&gt;`, included), is written `&lt;`.
+  is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag (followed by a
+  letter, `/`, `!` or `?`) is written `&lt;` — in a Word file's text, a diagram's labels, a Markdown or a text
+  document (its other text kept as written, a `<` in a code block too) and an HTML page's text (a tag written there
+  as text, `&lt;img …&gt;`, included).
   A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
   Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
   is written, and starts with a notice telling the agent that reads it that it is information to check, never an

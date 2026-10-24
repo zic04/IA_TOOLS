@@ -10,6 +10,7 @@ import path from "node:path";
 import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectSecurity } from "../../engine/facts/security.mjs";
 import { confinedReader } from "../../engine/facts/common.mjs";
+import { collectTests } from "../../engine/facts/tests.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
 /** A secret-shaped text (a password in a URL) and an insecure setting, written in parts (push protection). */
@@ -110,5 +111,28 @@ describe("the secrets and security sources never read through a link out of the 
     assert.deepEqual(opened, [at("inside.js"), at("sub", "ok.js")], "only the two files inside were opened");
     // Without the folder itself (gone), nothing is read.
     assert.equal(confinedReader(path.resolve("/srv/none"), { maxSize: 10, io })("inside.js"), null);
+  });
+});
+
+// The `tests` source reads a coverage report by its fixed name (coverage/lcov.info, coverage/coverage-summary.json,
+// coverage.xml): only a number comes out of it, and still never through a link out of the application.
+describe("the tests source never reads a coverage report through a link out of the application", () => {
+  test("coverage/ a junction to a folder outside: its report is not read; the coverage.xml beside is", () => {
+    const dir = tempDir("doc-kit-confine-coverage-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    const junction = path.join(app, "coverage");
+    try {
+      fs.mkdirSync(app);
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "lcov.info"), "LF:10\nLH:9\n");
+      fs.writeFileSync(path.join(app, "coverage.xml"), '<coverage line-rate="0.5"></coverage>\n');
+      fs.writeFileSync(path.join(app, "app.test.js"), "test('a', () => {});\n");
+      fs.symlinkSync(outside, junction, "junction");
+      assert.deepEqual(collectTests(app).summary, { files: 1, tests: 1, coverage: 50 });
+    } finally {
+      unlinkQuietly(junction);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

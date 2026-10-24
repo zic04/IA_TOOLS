@@ -9,6 +9,7 @@ import { labelKeysInCode } from "../sync/labels.mjs";
 import { findPageEntry } from "../sync/dependencies.mjs";
 import { topicOf } from "../core/counterparts.mjs";
 import { escapeRegex } from "../core/text.mjs";
+import { confinedReader } from "../facts/common.mjs";
 import { fitBudget, estimateTokens } from "./budget.mjs";
 import { behaviourParts } from "./behaviours-section.mjs";
 import { unreadPart } from "./unread-section.mjs";
@@ -71,7 +72,7 @@ function distanceFromCited(range, lines) {
   return Math.min(...lines.flatMap(([f, t]) => [Math.abs(range.from - f), Math.abs(range.from - t)]));
 }
 
-/** Reads an application (or project) file as text, or null when it does not exist. */
+/** Reads a file of the project as text, or null when it does not exist (the application's: confinedReader). */
 function readText(abs) {
   try {
     return fs.readFileSync(abs, "utf8");
@@ -122,7 +123,8 @@ export function glossaryFor(glossary, texts) {
  * @param {object} p.toc             content/toc.json: the page's topic group, each member's title
  * @param {string} p.pageId
  * @param {import("../sync/dependencies.mjs").PageDependencies} p.deps   pageDependencies() of this page
- * @param {string|null} [p.appDir]   absolute path of app.dir, to read `deps.files` (null: no excerpt possible)
+ * @param {string|null} [p.appDir]   absolute path of app.dir, to read `deps.files` (null: no excerpt possible); a file
+ *   whose real path (links and junctions followed) is not in it is never read: named, path only (SECURITY.md)
  * @param {Record<string, Record<string,string>>} [p.labels]   { [projRelFile]: flattened messages }
  * @param {Record<string, object[]>} [p.facts]   { [source]: items }
  * @param {object[]} [p.glossary]     content/glossary.json
@@ -212,8 +214,9 @@ export function buildContext({
   const excerptTexts = [];
   const fileHeading = (f) => `### ${f.path} (${t(`cli.context.file.${f.kind}`)})`;
   const EXTENT_KEY = { whole: "wholeFile", head: "headOnly", range: "lines" };
+  const readApp = appDir ? confinedReader(appDir, { maxSize: Infinity }) : () => null;
   for (const f of [...direct, ...shared]) {
-    const text = appDir ? readText(path.join(appDir, f.path)) : null;
+    const text = readApp(f.path);
     // The screen's own files (reached by the page's routes, not a layout) are what the page is about: given whole
     // up to 800 lines, and the last excerpts a budget cuts.
     const own = f.kind === "direct" && f.via.includes("route");

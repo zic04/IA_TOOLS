@@ -3,7 +3,10 @@
 // `base` without extension, {name} the file name without extension, {dir} its folder and {file} the file name.
 //   one page per specification:  { adapter: "glob", family: "Specifications", base: "../../specs", pattern: "**/*.md", match: "{name}" }
 //   one route per file:           { adapter: "glob", family: "Routes", base: "../../src/routes", pattern: "**/*.tsx", match: "/{path}" }
+// A path segment that looks like a key or a token is "…" in the id and the forms, as the facts write a route (RULES.md
+// S7); engine/sync/routes.mjs finds the file of a masked id again.
 import { excludeItems } from "../../engine/check/coverage.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
 
 /** Applies a `match` template to a file path (relative to `base`, forward slashes). */
 export function render(template, file) {
@@ -29,7 +32,10 @@ export default {
   },
   async inventory({ options, tools }) {
     if (!tools.exists(options.base)) return { available: false, reason: "notFound", vars: { path: options.base } };
-    const items = tools.glob(options.pattern, options.base).map((f) => ({ id: f, match: [render(options.match, f)] }));
+    const items = tools.glob(options.pattern, options.base).map((f) => {
+      const file = routeWithoutSecrets(f);
+      return { id: file, match: [render(options.match, file)] };
+    });
     return { available: true, families: [{ name: options.family, items: excludeItems(items, options.exclude) }] };
   },
 };

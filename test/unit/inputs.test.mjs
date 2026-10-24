@@ -709,6 +709,26 @@ describe("doc-kit inputs (CLI)", () => {
     assert.equal(again.documents[0].state, "stale", "changed since it was converted");
   });
 
+  // SECURITY.md: no markup of a document reaches its converted text, which an agent may copy into a page — a Markdown
+  // or a text document as much as a Word file or an HTML page (inertMarkup); the rest of its text is kept as written.
+  test("ingest: the HTML of a Markdown or a text document is made inert, its text kept", async () => {
+    const dir = project();
+    fs.writeFileSync(
+      path.join(dir, "notes.md"),
+      "# Notes\n\n<img src=x onerror=alert(1)>\n<details><summary>More</summary>x</details>\n<!-- c -->\n\na < b, `List<T>` & co.\n",
+    );
+    fs.writeFileSync(path.join(dir, "readme.txt"), "Run it.\n<script>alert(1)</script>\n<?php x ?>\n");
+    for (const value of ["notes.md", "readme.txt"]) await cli(["inputs", "add", "document", value, "--project", dir]);
+    assert.equal((await cli(["inputs", "ingest", "--project", dir])).code, 0);
+    const read = (name) => fs.readFileSync(path.join(dir, ".doc-kit/inputs/docs", name), "utf8");
+    const notes = read("notes.md");
+    const readme = read("readme.md");
+    for (const text of [notes, readme]) assert.doesNotMatch(text, /<[a-z/!?]/i, text);
+    assert.match(notes, /# Notes\n\n&lt;img src=x onerror=alert\(1\)>\n&lt;details>&lt;summary>More&lt;\/summary>x/);
+    assert.match(notes, /&lt;!-- c -->\n\na < b, `List&lt;T>` & co\.\n/);
+    assert.match(readme, /Run it\.\n&lt;script>alert\(1\)&lt;\/script>\n&lt;\?php x \?>\n/);
+  });
+
   test("a Word document: converted; a ZIP bomb: refused, with the reason in English and French", async () => {
     const dir = project();
     const parts = temp("doc-kit-docx-");

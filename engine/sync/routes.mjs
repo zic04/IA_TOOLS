@@ -5,6 +5,7 @@
 import { routeOf } from "../../adapters/coverage/next-app-router.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { normalize } from "../check/coverage.mjs";
+import { routeWithoutSecrets } from "../facts/behaviour-common.mjs";
 
 const PAGE_FILE = /(^|\/)page\.(tsx|ts|jsx|js|mdx)$/;
 const LAYOUT_EXTENSIONS = ["tsx", "ts", "jsx", "js"];
@@ -46,11 +47,17 @@ export function routeFiles({ spec, options, item, route, tools }) {
     case "fastapi": {
       const files = tools.walk(options.app).filter((f) => f.endsWith(".py"));
       const sources = new Map(files.map((f) => [f, tools.read(`${options.app}/${f}`)]));
-      const matching = fastapiRoutes(sources).filter((r) => `${r.method} ${r.route}` === item?.id);
+      // The adapter's id masks a segment that looks like a token (routeWithoutSecrets): compared masked.
+      const matching = fastapiRoutes(sources).filter((r) => `${r.method} ${routeWithoutSecrets(r.route)}` === item?.id);
       return [...new Set(matching.map((r) => `${options.app}/${r.file}`))];
     }
     case "glob":
-      return [`${options.base}/${item.id}`];
+      // A masked id ("…", adapters/coverage/glob.mjs): the files whose masked path it is.
+      if (!item.id.includes("…")) return [`${options.base}/${item.id}`];
+      return tools
+        .glob(options.pattern, options.base)
+        .filter((f) => routeWithoutSecrets(f) === item.id)
+        .map((f) => `${options.base}/${f}`);
     default:
       return [];
   }
