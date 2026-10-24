@@ -111,9 +111,6 @@ entries between a project's `kit` range and the installed version.
   command that loads the project still runs its configuration, and so does `doc-kit` without a command (the guided
   mode loads the project to tell the next step). This holds for the doc-kit you installed: `npx doc-kit` in a cloned
   application runs the kit of its `node_modules` (SECURITY.md, `test/unit/cli-startup.test.mjs`).
-
-### Security
-
 - **A public route is no longer reported as protected** (`facts --source api`, `screens`; SECURITY.md,
   ARCHITECTURE.md §6.13). The built-in user guards matched `session`, `token` and `authenticated` anywhere in a
   name: `Depends(get_session)` (the database session of FastAPI's tutorial), Laravel's `VerifyCsrfToken` and DRF's
