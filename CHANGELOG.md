@@ -73,7 +73,9 @@ entries between a project's `kit` range and the installed version.
   kit ran as an npm script of a documentation project inside the application, npm put the application's
   `node_modules/.bin` first on the `PATH`, and a `git` there was run. This holds for git and for the tools of
   `facts --tools` (a `knip` installed only in the application is no longer run), and the program started gets that
-  `PATH` too (what git starts in turn, `git-lfs` included).
+  `PATH` too (what git starts in turn, `git-lfs` included). The folders are compared by their real paths too (links
+  and junctions followed, in any case on Windows): a `PATH` folder that reached the application, the current folder
+  or a `node_modules/.bin` through a link, macOS's `/var` included, was not left out.
 - **git runs with a cleaned environment**: no `GIT_*` variable of the environment reaches it (they could move the
   repository read, add to or replace its configuration, or name a program), but those `inputs fetch` connects
   with (`GIT_SSH_COMMAND`, `GIT_SSH`, `GIT_ASKPASS`, `GIT_SSL_CAINFO`, `GIT_SSL_CAPATH`); `GIT_TERMINAL_PROMPT=0`
@@ -85,7 +87,7 @@ entries between a project's `kit` range and the installed version.
   leads out of them, a hook that is a link out of them or leading nowhere, or a hard link, is refused
   (`hooks.unsafeFolder`, exit code 3).
 - For the kit's developers: the rules of engine/util/safe-git.mjs have their mutants (`test/mutations/util-safe-git.mjs`,
-  RULES.md M16, 64 mutants), against `test/unit/safe-git.test.mjs`, which `npm run test:security` now runs too.
+  RULES.md M16, 66 mutants), against `test/unit/safe-git.test.mjs`, which `npm run test:security` now runs too.
 
 ## [0.4.1] - 2026-10-23
 

@@ -124,22 +124,24 @@ export default {
       why: "a symbolic link to a file needs a privilege on Windows: its test builds one elsewhere only",
     },
     // The folders of the PATH a program may come from.
+    mutant("a node_modules/.bin trusted", "if (own.some(isNpmBin)) return false;", ""),
     mutant(
-      "a node_modules/.bin trusted",
-      'if (fold(path.basename(abs)) === ".bin" && fold(path.basename(path.dirname(abs))) === "node_modules")',
-      "if (false)",
-    ),
-    mutant(
-      "the case of node_modules/.bin kept on Windows",
+      "the case of a folder's name kept on Windows",
       "const fold = (name) => (win ? name.toLowerCase() : name);",
       "const fold = (name) => name;",
     ),
     mutant(
       "a folder inside the application trusted",
-      "!exclude.some((root) => isWithin(abs, root))",
-      '!exclude.some((root) => path.relative(root, abs) === "")',
+      "roots.some((root) => isWithin(abs, root))",
+      'roots.some((root) => path.relative(root, abs) === "")',
     ),
-    mutant("the current folder trusted", 'return path.relative(here, abs) !== "" && !exclude', "return !exclude"),
+    mutant("the current folder trusted", "here.includes(abs) || roots", "roots"),
+    mutant("the exclusions compared as written", "return [fold(abs), fold(realPath(abs))];", "return [fold(abs)];"),
+    mutant(
+      "a folder not there yet compared as written",
+      "return parent === abs ? abs : path.join(realPath(parent), path.basename(abs));",
+      "return abs;",
+    ),
     mutant(
       "a relative folder of the PATH trusted",
       "if (!folder || !path.isAbsolute(folder)) return false;",

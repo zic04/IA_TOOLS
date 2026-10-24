@@ -125,7 +125,9 @@ as untrusted input:
   application's, and its parent folders', first on the `PATH` when the kit runs as an npm script of a documentation
   project inside it): a `git.exe` or a `node_modules/.bin/git` placed in the application cannot replace the real
   one. The program started gets that `PATH`, without those folders: what git starts in turn (`git-lfs`, a credential
-  helper) is looked up there too;
+  helper) is looked up there too. The folders are compared by their real paths as well (links and junctions
+  followed, in any case on Windows), so a `PATH` folder reached through a link, macOS's `/var` included, is still
+  left out;
 - `hooks install` writes only into a hooks folder inside the repository or its git folder (for a worktree, the main
   repository's), links followed: a `core.hooksPath` that leads out of them, a hook that is a link out of them or
   leading nowhere, or a hook that is a hard link, is refused;

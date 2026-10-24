@@ -6,6 +6,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { riskyGitConfig, resolveOnPath, gitEnv, spawnHardened } from "../../engine/util/safe-git.mjs";
 import { runTool } from "../../engine/facts/tools.mjs";
@@ -42,6 +43,15 @@ function programs(root, name, folders) {
 }
 
 const PATH = (...folders) => ({ PATH: folders.join(path.delimiter) });
+
+/**
+ * A temporary folder by its real path: on macOS the temporary folder is /var/folders/…, a link to /private/var/…,
+ * and the current folder is given by its real path.
+ */
+const realTempDir = (prefix) => fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), prefix));
+
+/** A link at `link` to the folder `target`: a junction on Windows (no privilege needed), a symbolic link elsewhere. */
+const linkFolder = (target, link) => fs.symlinkSync(target, link, "junction");
 
 describe("the Git LFS exception: exactly the values Git LFS writes (SEC-01)", () => {
   test("the values `git lfs install` writes, with or without --skip, are not risky", () => {
@@ -294,8 +304,9 @@ describe("resolveOnPath: never the application, the documentation project or a n
         path.join(found.appTools, exe("git")),
       );
       assert.equal(resolveOnPath("git", { env: PATH(found.aboveBin), exclude: [] }), null);
-      // Windows: the case of a folder's name does not matter (a git.exe, as Windows starts it, whatever the host).
-      const upper = path.join(root, "Node_Modules", ".BIN");
+      // Windows: the case of a folder's name does not matter (a git.exe, as Windows starts it, whatever the host). A
+      // folder of its own, so that its real path keeps that case (root/node_modules/.bin is the same folder there).
+      const upper = path.join(root, "other", "Node_Modules", ".BIN");
       fs.mkdirSync(upper, { recursive: true });
       fs.writeFileSync(path.join(upper, exe("git", "win32")), "");
       assert.equal(resolveOnPath("git", { env: { PATH: upper }, platform: "win32", exclude: [] }), null);
@@ -305,12 +316,16 @@ describe("resolveOnPath: never the application, the documentation project or a n
   });
 
   test("never the current folder nor a relative folder of the PATH (Windows looks there); a Windows folder between quotes is the folder", () => {
-    const root = tempDir("doc-kit-path-");
+    const root = realTempDir("doc-kit-path-");
     const before = process.cwd();
     try {
       const found = programs(root, "git", { here: ".", bin: "bin", trusted: "usr/bin" });
       process.chdir(root);
       assert.equal(resolveOnPath("git", { env: PATH(root) }), null, "the current folder");
+      // The same folder by the temporary folder's path as written (macOS: /var/folders/…, while the current folder is
+      // /private/var/folders/…).
+      const written = path.join(os.tmpdir(), path.basename(root));
+      assert.equal(resolveOnPath("git", { env: PATH(written) }), null, "the current folder by its path as written");
       assert.equal(resolveOnPath("git", { env: PATH(".") }), null, ".");
       assert.equal(resolveOnPath("git", { env: PATH("bin") }), null, "a folder named from the current one");
       assert.equal(resolveOnPath("git", { env: PATH(found.bin) }), path.join(found.bin, exe("git")), "absolute");
@@ -322,6 +337,58 @@ describe("resolveOnPath: never the application, the documentation project or a n
         path.join(found.trusted, exe("git", "win32")),
       );
       assert.equal(gitEnv(quoted, { platform: "win32" }).PATH, found.trusted);
+    } finally {
+      process.chdir(before);
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a folder reached through a link (a junction, macOS's /var) is the folder it leads to: never the application, the current folder or a node_modules/.bin", () => {
+    const root = realTempDir("doc-kit-path-");
+    const before = process.cwd();
+    try {
+      const app = path.join(root, "app");
+      const found = programs(root, "git", {
+        appBin: "app/bin",
+        npmBin: "app/node_modules/.bin",
+        here: "here",
+        trusted: "usr/bin",
+      });
+      const git = (folder) => path.join(folder, exe("git"));
+      // Links outside the application: to it, to its node_modules/.bin under another name, to the current folder, to
+      // a trusted folder.
+      const toApp = path.join(root, "to-app");
+      const toNpm = path.join(root, "tools");
+      const toHere = path.join(root, "to-here");
+      const toTrusted = path.join(root, "to-trusted");
+      linkFolder(app, toApp);
+      linkFolder(found.npmBin, toNpm);
+      linkFolder(found.here, toHere);
+      linkFolder(found.trusted, toTrusted);
+      const appBin = path.join(toApp, "bin");
+      assert.equal(resolveOnPath("git", { env: PATH(appBin), exclude: [app] }), null, "the application through a link");
+      assert.equal(
+        resolveOnPath("git", { env: PATH(found.appBin), exclude: [toApp] }),
+        null,
+        "the application left out through a link",
+      );
+      assert.equal(resolveOnPath("git", { env: PATH(toNpm), exclude: [] }), null, "a node_modules/.bin through a link");
+      // The minimal pairs: through a link, a folder left out of nothing is found, and a link to a trusted folder is.
+      assert.equal(resolveOnPath("git", { env: PATH(appBin), exclude: [] }), git(appBin), "nothing left out");
+      assert.equal(resolveOnPath("git", { env: PATH(toTrusted), exclude: [app] }), git(toTrusted), "a trusted folder");
+      // The current folder through a link; from elsewhere, the same link is found.
+      process.chdir(found.here);
+      assert.equal(resolveOnPath("git", { env: PATH(toHere) }), null, "the current folder through a link");
+      process.chdir(root);
+      assert.equal(resolveOnPath("git", { env: PATH(toHere) }), git(toHere), "the current folder elsewhere");
+      // The PATH a program is given: the same folders left out, and one not there yet through a link to the
+      // application (by the real path of its nearest folder that is).
+      const later = path.join(appBin, "later");
+      assert.equal(gitEnv(PATH(appBin, toNpm, later, toTrusted), { exclude: [app] }).PATH, toTrusted);
+      // Windows compares names in any case: the application written in another case is the application.
+      fs.writeFileSync(path.join(found.appBin, exe("git", "win32")), "");
+      const upper = path.join(root, "APP");
+      assert.equal(resolveOnPath("git", { env: { PATH: found.appBin }, platform: "win32", exclude: [upper] }), null);
     } finally {
       process.chdir(before);
       fs.rmSync(root, { recursive: true, force: true });

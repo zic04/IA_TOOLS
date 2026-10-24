@@ -263,17 +263,45 @@ export function isWithin(dir, root) {
 }
 
 /**
+ * The real path of `p`: links and junctions followed (macOS's /var is /private/var), Windows's short names made long;
+ * when `p` does not exist (yet), the real path of its nearest folder that does, followed by the rest.
+ * @param {string} p
+ * @returns {string}
+ */
+function realPath(p) {
+  const abs = path.resolve(p);
+  try {
+    return fs.realpathSync.native(abs);
+  } catch {
+    const parent = path.dirname(abs);
+    return parent === abs ? abs : path.join(realPath(parent), path.basename(abs));
+  }
+}
+
+/** Whether the folder `abs` is a `node_modules/.bin` (by its name, as given). */
+const isNpmBin = (abs) => path.basename(abs) === ".bin" && path.basename(path.dirname(abs)) === "node_modules";
+
+/**
  * The folders of the PATH a program may be started from (resolveOnPath, and the PATH the kit gives a program it
  * starts): absolute; never a `node_modules/.bin` (npm puts the application's own there, and its ancestors', when the
  * kit runs as an npm script of a documentation project inside it); never the current folder, nor one of `exclude`
- * (the folders read: the application, the documentation project) or a folder inside one.
+ * (the folders read: the application, the documentation project) or a folder inside one. Each folder is compared by
+ * its path as written and by its real path (realPath), in any case on Windows: a folder reached through a link
+ * (macOS's /var, a junction, a symbolic link) is the folder it leads to.
  * @param {NodeJS.ProcessEnv} env
  * @param {{ platform?: string, exclude?: string[] }} [o]
  */
 function trustedFolders(env, { platform = process.platform, exclude = [] } = {}) {
   const win = platform === "win32";
   const fold = (name) => (win ? name.toLowerCase() : name);
-  const here = path.resolve(".");
+  /** @param {string} p */
+  const forms = (p) => {
+    const abs = path.resolve(p);
+    return [fold(abs), fold(realPath(abs))];
+  };
+  // The folders left out, their real paths found once per call.
+  const here = forms(".");
+  const roots = exclude.flatMap(forms);
   return (
     String(env.PATH || env.Path || "")
       .split(win ? ";" : ":")
@@ -281,10 +309,9 @@ function trustedFolders(env, { platform = process.platform, exclude = [] } = {})
       .map((folder) => (win ? folder.replace(/^"(.*)"$/, "$1") : folder))
       .filter((folder) => {
         if (!folder || !path.isAbsolute(folder)) return false;
-        const abs = path.resolve(folder);
-        if (fold(path.basename(abs)) === ".bin" && fold(path.basename(path.dirname(abs))) === "node_modules")
-          return false;
-        return path.relative(here, abs) !== "" && !exclude.some((root) => isWithin(abs, root));
+        const own = forms(folder);
+        if (own.some(isNpmBin)) return false;
+        return !own.some((abs) => here.includes(abs) || roots.some((root) => isWithin(abs, root)));
       })
   );
 }
@@ -381,8 +408,9 @@ export function spawnHardened(bin, args, { cwd, env = process.env, exclude = [],
 
 /**
  * Absolute path of a bare command name found in a trusted folder of the PATH (trustedFolders: relative folders, the
- * current folder, a node_modules/.bin, and `exclude` with the folders inside them EXCLUDED — on Windows, the system
- * otherwise runs a `git.exe` placed in the folder read before the real one). null when not found.
+ * current folder, a node_modules/.bin, and `exclude` with the folders inside them EXCLUDED, by their real paths too
+ * — on Windows, the system otherwise runs a `git.exe` placed in the folder read before the real one). null when not
+ * found.
  * @param {string} bin
  * @param {{ env?: NodeJS.ProcessEnv, platform?: string, exclude?: string[] }} [o]
  */
