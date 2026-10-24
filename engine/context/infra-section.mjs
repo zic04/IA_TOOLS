@@ -68,7 +68,7 @@ export function infraPart({ items, t }) {
     );
     lines([...e.entries, ...e.runs, ...e.rows.filter((i) => i.kind === "image")], "  ", element);
     lines([...e.resources], "  ", ([provider, count]) =>
-      t("render.c4.deployment.resources", { provider: plain(provider), count }),
+      t("render.c4.deployment.resources", { provider: plain(provider), count, n: count }),
     );
   }
   if (model.environments.length > MAX_ENVS) out.push(`- ${more(model.environments.length - MAX_ENVS)}`);
@@ -96,5 +96,7 @@ function capped(out, t) {
   let k = 0;
   for (; k < out.length && size + out[k].length + 1 <= MAX_CHARS - LAST_LINE; k++) size += out[k].length + 1;
   if (k === out.length) return out.join("\n") + "\n";
-  return [...out.slice(0, k), t("cli.context.infra.cut", { count: out.length - k })].join("\n") + "\n";
+  return (
+    [...out.slice(0, k), t("cli.context.infra.cut", { count: out.length - k, n: out.length - k })].join("\n") + "\n"
+  );
 }

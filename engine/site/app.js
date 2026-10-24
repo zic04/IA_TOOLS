@@ -511,8 +511,8 @@
         product: D.meta.product,
         version: D.meta.version,
         date: D.meta.date,
-        pages: D.meta.stats.pages,
-        captures: D.meta.stats.captures,
+        pages: t("ui.footer.pages", { n: D.meta.stats.pages }),
+        captures: t("ui.page.annotatedScreens", { n: D.meta.stats.captures }),
       }),
     )}${D.meta.feedback ? ` · <a href="${esc(D.meta.feedback.url)}" rel="noopener" target="_blank">${esc(D.meta.feedback.label)}</a>` : ""}</div>`;
 

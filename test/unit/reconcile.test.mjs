@@ -384,7 +384,7 @@ describe("doc-kit inputs reconcile", () => {
     );
     assert.ok(!fs.existsSync(path.join(dir, ".doc-kit", "inputs", "reconcile.json")));
     const fr = await cli(["--lang", "fr", "inputs", "reconcile", "--project", project({ facts: false })]);
-    assert.match(fr.out, /^Le DAT et le code — 1 DAT lu\(s\) : DAT v2\.docx\n/);
+    assert.match(fr.out, /^Le DAT et le code — 1 DAT lu : DAT v2\.docx\n/);
     assert.match(fr.out, /dit par le DAT, sans trace dans le code \(2\) : PostgreSQL, RabbitMQ/);
   });
 });

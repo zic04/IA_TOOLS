@@ -11,17 +11,29 @@ on:
 permissions:
   contents: read
 
+# One run per workflow and ref: a new push to a pull request cancels the run it replaces; on master a run in
+# progress is never cancelled (the next one waits for it).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
+    # The branch ruleset requires these check names: keep the pattern. Node 24 (active LTS) adds three checks,
+    # "tests (<os>, Node 24)", that the ruleset can require too.
     name: tests (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
+    # A run takes 4 to 12 minutes; a blocked test stops here instead of after GitHub's 6 hours.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [20, 22]
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
@@ -40,8 +52,11 @@ jobs:
   security:
     name: security (rules, dependencies)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22

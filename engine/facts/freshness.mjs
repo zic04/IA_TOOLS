@@ -84,7 +84,7 @@ export function envelopeState(root, factsDir, name, { commit, generator, now, ma
   const generated = Date.parse(j.generated);
   if (maxAgeDays && Number.isFinite(generated)) {
     const days = Math.floor((now.getTime() - generated) / 86_400_000);
-    if (days > maxAgeDays) why.push({ key: "age", vars: { file, days, max: maxAgeDays } });
+    if (days > maxAgeDays) why.push({ key: "age", vars: { file, days, max: maxAgeDays, n: days } });
   }
   return { state: why.length ? "stale" : "fresh", why };
 }

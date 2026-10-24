@@ -74,10 +74,9 @@
   "cli.sync.check.failed.help": "lisez {work}/sync.md, corrigez ce qu'il liste, puis relancez {command} sync --mark",
   "cli.sync.check.ok": "la documentation suit l'application",
   "cli.sync.applied.file": "✔ {file}",
-  "cli.sync.applied.summary": {
-    "one": "✔ {proofs} preuve et {labels} libellé corrigés dans {pages} page",
-    "other": "✔ {proofs} preuves et {labels} libellés corrigés dans {pages} pages"
-  },
+  "cli.sync.applied.summary": "✔ {proofs} et {labels} corrigés dans {pages}",
+  "cli.sync.count.proofs": { "one": "{count} preuve", "other": "{count} preuves" },
+  "cli.sync.count.labels": { "one": "{count} libellé", "other": "{count} libellés" },
   "cli.sync.applied.none": "rien à appliquer",
   "cli.sync.md.title": "Suivi de l'application",
   "cli.sync.md.reviewTitle": "Pages à relire",

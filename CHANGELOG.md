@@ -50,6 +50,15 @@ entries between a project's `kit` range and the installed version.
 - `doc-kit constructor` (or `toString`, `__proto__`: names every JavaScript object inherits) stopped on an unexpected
   error (`module.run is not a function`), and `doc-kit help constructor` printed `cli.help.constructor`: both are an
   unknown command now.
+- **A count is shown in the plural form of its number**, in English and French: 62 messages wrote "Type at least
+  1 more pages", "zone(s)", "file(s)", "dependency(ies)", "1 pages" in the site's footer, or "1 manquantes" in
+  French. Each one is a plural `{ one, other }` chosen by `n` (0 and 1 are singular in French), and a sentence
+  with several counts gives each its own counted noun (`cli.doctor.count.*`, `render.modules.count.*`,
+  `ui.footer.pages`…), as the build summary already did. Two plurals never received their number, so one form
+  showed whatever the count: `cli.context.written` ("3 coupe" in French) and `cli.sync.applied.summary` ("3 preuve
+  et 5 libellé"). `test/unit/plurals.test.mjs` keeps it so: no plural in brackets, no text message that shows its
+  count before a plural noun, every plural written in a call gets its `n`. The skill's own scripts
+  (`skill/doc-kit/i18n/`) have no plural forms yet.
 
 ### Changed
 
@@ -79,6 +88,19 @@ entries between a project's `kit` range and the installed version.
   "Screenshots" (now "Read the application"). Each command's line names every option it declares (`init --target`,
   `--languages`, `--spaces`, `capture --compare`, `--stale`, `--trace`, `--verify`, `skill install --hooks`… were
   missing); a test keeps both true.
+- **The kit's repository and CI** (for its developers; `test/unit/repository.test.mjs` checks each point):
+  - `package.json` is `"private": true` until a publication is decided (a `files` list would then say what ships:
+    `npm pack` took 1,581 files, tests and studies included), and names its `repository`, `homepage`, `bugs`,
+    `keywords` and `author`. LICENSE names its copyright holder, Patrice COUEDEL, and so does the new AUTHORS file.
+  - A vulnerability, and a conduct report, go to GitHub's private vulnerability reporting (the repository's
+    **Security** tab, **Report a vulnerability**), answered within 7 days (SECURITY.md, CODE_OF_CONDUCT.md).
+  - The CI cancels a pull request's run when a new push replaces it, stops a job after 30 minutes, tests Node 24
+    beside 20 and 22 (three new checks, `tests (<os>, Node 24)`; the required check names are unchanged), and its
+    checkouts keep no token (`persist-credentials: false`), as do those of the examples in `ci/`. The examples
+    check out the kit's current release, `v0.4.1` instead of `v0.1.0`, moved at each release (RULES.md).
+  - RULES.fr.md has the rules RULES.md has (M17 was missing, and parts of S5 and M4); CONTRIBUTING.md
+    lists the six development dependencies and every check the CI requires, with its time. `cli/doc-kit.mjs` is
+    executable in git.
 
 ### Security
 
