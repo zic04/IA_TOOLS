@@ -20,9 +20,15 @@
 // (engine/core/xml.mjs). A manifest that cannot be read, a JSON one that is not valid JSON or an XML one that is
 // not well-formed is listed in `unreadable` ({ file, reason: "read"|"json"|"xml" }): its dependencies are unknown,
 // which is not the same as none (AUDIT.md M14). Nothing is executed, and these readers never touch the network.
-//   item: { name, version, ecosystem, direct, dev, manifest, spec?, via?, license?, licenseFrom?, local? } (local: not from a
-//   public registry, or not identifiable: a folder, git, a workspace member, a private registry — its name is never
-//   sent)
+//   item: { name, version, ecosystem, direct, dev, manifest, spec?, via?, license?, licenseFrom?, local? } (local: not
+//   from a public registry, or not identifiable: a folder, git, a workspace member, a private registry — its name is
+//   never sent)
+// `license` is a licence's name or SPDX expression, never its text (deps/licences.mjs), and `licenseFrom` says where
+// it was read: "lock" — the item's own entry in package-lock.json or composer.lock —, else "installed" — the item's
+// installed copy, read offline once every manifest is read (deps/installed.mjs): an npm item's
+// `node_modules/<name>/package.json`, from its manifest's folder up to the application's, a pip item's
+// `*.dist-info/METADATA` in a `.venv/` or `venv/` of the same folders; only a copy inside the application, of the
+// item's name and, when the item has an exact one, of its version. An item no source names a licence for has neither.
 // `direct` is read from the manifest itself when it says so (a manifest's own declarations; a lock file's own
 // "root" entries or marks: package-lock.json v2/v3 (its root and its workspace members), pnpm-lock.yaml (every
 // importer), uv.lock (the project's own packages), packages.lock.json, Gemfile.lock, go.mod's `// indirect`); a lock
@@ -52,6 +58,7 @@ import { GO_PATTERNS, GO_READERS } from "./deps/golang.mjs";
 import { RUBY_PATTERNS, RUBY_READERS } from "./deps/ruby.mjs";
 import { RUST_PATTERNS, RUST_READERS } from "./deps/rust.mjs";
 import { LICENCE_PATTERNS, safeLicence } from "./deps/licences.mjs";
+import { withInstalledLicences } from "./deps/installed.mjs";
 
 /** Manifests and lock files searched for, by file name (case-insensitive). */
 const MANIFEST_NAME =
@@ -152,11 +159,13 @@ export const dependencyReader = (name) =>
 
 /**
  * The `dependencies` source: every manifest and lock file found under `appDir` (recursively, at most
- * {@link MAX_DEPTH} folders deep), each read independently.
+ * {@link MAX_DEPTH} folders deep), each read independently; then, for an npm or pip item its lock gives no licence,
+ * the licence of its installed copy (deps/installed.mjs).
  * @param {string} appDir
  * @param {Array<{ file: string, reason: "read"|"json"|"xml" }>} [unreadable]  receives the manifests that could not
  *   be read
- * @returns {Array<{name,version,ecosystem,direct,dev,manifest,license?}>} sorted by manifest, then ecosystem, then name
+ * @returns {Array<{name,version,ecosystem,direct,dev,manifest,license?,licenseFrom?}>} sorted by manifest, then
+ *   ecosystem, then name
  */
 export function collectDependencies(appDir, unreadable = []) {
   const items = [];
@@ -170,8 +179,9 @@ export function collectDependencies(appDir, unreadable = []) {
     const reader = dependencyReader(rel.split("/").pop().toLowerCase());
     if (reader) for (const item of reader(path.join(appDir, rel), rel, unreadable)) push(item);
   }
-  return items.sort(
+  items.sort(
     (a, b) =>
       a.manifest.localeCompare(b.manifest) || a.ecosystem.localeCompare(b.ecosystem) || a.name.localeCompare(b.name),
   );
+  return withInstalledLicences(appDir, items);
 }

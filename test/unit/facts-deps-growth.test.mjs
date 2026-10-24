@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
+import { metadataFields } from "../../engine/facts/deps/installed.mjs";
 import { collectDependencies, dependencyReader } from "../../engine/facts/dependencies.mjs";
 import { privateRegistries } from "../../engine/facts/network.mjs";
 import { linearAt, assertLinear } from "../tools/growth.mjs";
@@ -351,5 +352,26 @@ describe("the readers of the manifests stay linear on what a crafted file holds 
       });
       assert.equal(at16.items[0].dev, unit.startsWith("group"), "the gems of the block are dev ones, or not");
     }
+  });
+});
+
+describe("a METADATA header is read in one pass (deps/installed.mjs)", () => {
+  test("one field folded over many lines: every line read once", () => {
+    const { n, found } = linearAt("a License folded over many lines", {
+      size: 20_000,
+      make: (k) => `Name: x\nLicense: MIT\n${"  and more\n".repeat(k)}\nbody`,
+      read: (text) => metadataFields(text),
+    });
+    assert.equal(found.license.split("\n").length, n + 1, "every folded line is part of the field");
+  });
+
+  test("many fields before the licence: each looked at once", () => {
+    const { n, found } = linearAt("many classifiers before the licence", {
+      size: 20_000,
+      make: (k) => `${"Classifier: Topic :: A\n".repeat(k)}License: MIT\n`,
+      read: (text) => metadataFields(text),
+    });
+    assert.equal(found.classifiers.length, n);
+    assert.equal(found.license, "MIT");
   });
 });

@@ -119,6 +119,20 @@ as untrusted input:
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
+- the installed copies of the packages, which `facts` reads for the licence a lock file does not give (an npm
+  package's `node_modules/<name>/package.json`, a Python distribution's `*.dist-info/METADATA` in a `.venv/` or
+  `venv/` folder), are untrusted data the application's installs wrote: read offline, never executed, imported or
+  written. A path there is resolved from the application's folder one part at a time, each link's target judged
+  before it is touched (as written): a link out of the application is never followed, 32 links at most (a loop); a
+  folder refused so stops the search, nothing further up stands in for it; a `.venv` that is a file is never
+  followed; a package's
+  name is only looked up among the entries of the folders listed, never used as a path. Everything is bounded:
+  10,000 entries a folder listed, 4 `python*` folders a virtual environment, 5,000 dist-info folders a site-packages,
+  a `package.json` of 1 MB, only a METADATA's header (64 KB read at most). A copy counts only when it is the item's
+  own (its name, its exact version), and what it says is kept only as a licence's name, one line of 100 characters
+  at most, nothing a secret detector finds. Limits: a hard link is a file of the application, read as such (pnpm
+  links its store's files so: the same bytes); and the kit does not guard against an application that changes its
+  own folders while `facts` reads them (a folder swapped for a link between the check and the read);
 - the `infra` source keeps what infrastructure files declare through one whitelist (names, types, an image and its
   tag, replicas, ports, whether it runs as root, has TLS, is open to all, the names of its variables), the project's
   adapters included: never an environment variable's value, a ConfigMap's or Secret's data, a parameter's default, a
