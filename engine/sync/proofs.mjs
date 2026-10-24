@@ -7,10 +7,12 @@ import { listFiles } from "../facts/common.mjs";
 
 /**
  * Same file family as `PROOF` of engine/audit/audit.mjs (tested for parity: every PROOF_REF match is a PROOF
- * match too), with capturing groups: 1 = file, 2 = from line, 3 = to line (optional, a range).
+ * match too), with capturing groups: 1 = file, 2 = from line, 3 = to line (optional, a range). Linear (RULES.md
+ * S5): the text up to the ":" is read once and its end checked behind (a lazy start before a file name would try
+ * every split of a long word), and the line number is never split before the rest of the span.
  */
 export const PROOF_REF =
-  /`([^`\n:]*?(?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile)):(\d+)(?:-(\d+))?[^`\n]*`/g;
+  /`([^`\n:]*)(?<=[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile):(\d+)(?:-(\d+))?(?!\d)[^`\n]*`/g;
 
 /**
  * Every `file:line` (or `file:line-line`) proof of a Markdown page. Ignored: a code span that is a URL (`://`),
@@ -48,8 +50,11 @@ export function extractProofs(markdown, { appDir } = /** @type {{ appDir?: strin
   return out.sort((a, b) => a.index - b.index);
 }
 
-/** A verified claim badge (en, fr), its text in group 1. */
-const PROOF_BADGE = /\[\[(?:verified|verifie)\s+([^\]\n]+?)\]\](?!\])/g;
+/**
+ * A verified claim badge (en, fr), its text in group 1: from its first character that is not a blank, 500 characters
+ * at most (badges never closed are not each read to the end of their line).
+ */
+const PROOF_BADGE = /\[\[(?:verified|verifie)\s+([^\s\]][^\]\n]{0,500}?)\]\](?!\])/g;
 /** A file:line(-line) inside a badge's text: 1 = file, 2 = from, 3 = to. Same file family as PROOF_REF. */
 const FILE_LINE = /((?:[\w@./-]*[\w-]\.[A-Za-z]\w{0,7}|Dockerfile|Makefile|Procfile|Jenkinsfile)):(\d+)(?:-(\d+))?/;
 

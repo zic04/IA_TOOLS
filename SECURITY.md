@@ -96,8 +96,18 @@ as untrusted input:
   `include`): the command warns, names the keys, and works without git (files are listed directly);
 - programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
   placed in the application cannot replace the real one on Windows;
-- every expression that scans the application's files is tested against catastrophic backtracking (a crafted file
-  cannot block `facts` or `check secrets`);
+- every expression and every loop that scans the application's files stays linear (a crafted file cannot block
+  `facts` or `check secrets`), and is tested for it: the ReDoS test runs each on adversarial inputs — the shapes
+  that once made one quadratic among them: an occurrence repeated, a construct left open, a long run — and
+  `test/unit/redos-registration.test.mjs` fails when a regular expression that `engine/facts`, `engine/check`,
+  `engine/sync` or the masking export is not registered there. A scanner finds the line of a match through one
+  index of its file, matches braces in one pass, reads a block up to the last of its closers only, and reads a
+  bounded window (the arguments of a redirect call over 1,000 characters, an algorithms list over 200, a type
+  annotation over 200, a class's bases over 500); `quality`, `env`, `db`, `agents` and `tests` read no source,
+  schema, instruction or test file over 512 KB (listed in `unreadable`; a coverage report or a configuration file
+  is read whole, by expressions that stay linear), `security` and `secrets` none over 2 MB. Limit: the patterns
+  that read the application's paths (a test file, an agent's instructions) grow with the square of a folder name
+  repeated in one path, which the file system bounds to a few thousand characters;
 - what `facts --source behaviours` keeps of the code is a name (a field, a parameter), a number, a word of a fixed
   list (asc, desc, a field's type, a library, a cron expression) or a short list of values, each through a whitelist
   and refused when it looks like a key, a token or a long number (a card, a phone): never a string as written, a

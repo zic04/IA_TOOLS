@@ -103,3 +103,17 @@ export function readCode(appDir, rel) {
     return { reason: "read" };
   }
 }
+
+/**
+ * The text of a file of the application (readCode), or null when it is not read: then listed in `unreadable`, as
+ * `doc-kit facts` reports it (its facts are unknown, not empty).
+ * @param {string} appDir
+ * @param {string} rel
+ * @param {Array<{ file: string, reason: string }>} unreadable
+ */
+export function readListed(appDir, rel, unreadable) {
+  const read = readCode(appDir, rel);
+  if ("text" in read) return read.text;
+  unreadable.push({ file: rel, reason: read.reason });
+  return null;
+}

@@ -24,12 +24,23 @@ export function jsSpecifiers(text) {
   return out;
 }
 
+/**
+ * The expressions of pySpecifiers (test/tools/redos-worker.mjs, RULES.md S5): the blanks of one line only, Python's
+ * (space, tab, form feed: `\s*` at each line start would read every blank line after it, and `^` also starts after
+ * a carriage return or U+2028); the module after its dots, starting with a letter or a digit (`(\.*)([\w.]*)` would
+ * split a run of dots every way); and a module there is (a dot or a name: two runs of blanks side by side would
+ * split a long one every way).
+ */
+export const IMPORT_PATTERNS = Object.freeze({
+  FROM: /^[ \t\f]*from[ \t\f]+(?=[.\w])(\.*)((?:\w[\w.]*)?)[ \t\f]+import\b/gm,
+  IMPORT: /^[ \t\f]*import[ \t\f]+([\w.]+)/gm,
+});
+
 /** `from .x import y` / `import a.b` specifiers of a Python source: { module, level } (level: number of leading dots). */
 export function pySpecifiers(text) {
   const out = [];
-  for (const m of text.matchAll(/^\s*from\s+(\.*)([\w.]*)\s+import\b/gm))
-    out.push({ module: m[2], level: m[1].length });
-  for (const m of text.matchAll(/^\s*import\s+([\w.]+)/gm)) out.push({ module: m[1], level: 0 });
+  for (const m of text.matchAll(IMPORT_PATTERNS.FROM)) out.push({ module: m[2], level: m[1].length });
+  for (const m of text.matchAll(IMPORT_PATTERNS.IMPORT)) out.push({ module: m[1], level: 0 });
   return out;
 }
 
