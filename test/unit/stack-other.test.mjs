@@ -32,7 +32,7 @@ describe("Django", () => {
     assert.deepEqual(rows(django, "django-app"), [
       "ANY / shop/urls.py:15 django none",
       "ANY /account/profile/ shop/urls.py:24 django user LoginRequiredMixin",
-      "ANY /admin/ shop/urls.py:14 django role admin.site",
+      "ANY /admin/ shop/urls.py:14 django role AdminSite",
       "ANY /api/customers/ shop/api.py:7 django role IsAuthenticated,IsAdminUser",
       "ANY /api/customers/{slug}/ shop/api.py:7 django role IsAuthenticated,IsAdminUser",
       "ANY /api/orders/ shop/api.py:6 django user IsAuthenticated",
@@ -117,7 +117,8 @@ describe("Python modules and imports (shared by Django and Flask)", () => {
 describe("Flask", () => {
   test("blueprints across files: a registration's prefix replaces the blueprint's own; nested blueprints; guards", () => {
     assert.deepEqual(rows(flask, "flask-app"), [
-      "GET /admin/users app/admin/routes.py:12 flask role roles_required,require_staff",
+      // The blueprint's hook denies (abort(403)) but its name is no whole guard's: before_request, never more.
+      "GET /admin/users app/admin/routes.py:14 flask role roles_required,before_request",
       "GET /api/reports/monthly app/api.py:14 flask user jwt_required",
       "POST /api/tokens app/api.py:9 flask none",
       "GET /health app/__init__.py:16 flask none",
@@ -160,8 +161,9 @@ describe("Go", () => {
       "PUT /products/:id internal/api/echo.go:12 echo role RequireAdmin",
       "DELETE /sessions internal/api/chi.go:24 chi unknown jwtauth.Verifier",
       "ANY /static/ cmd/server/main.go:12 net/http none",
-      "GET /v2/customers internal/api/gorilla.go:9 gorilla/mux user tokenMiddleware",
-      "POST /v2/customers internal/api/gorilla.go:9 gorilla/mux user tokenMiddleware",
+      // A token of any kind (a CSRF token, an API key): no user by its name (SECURITY.md).
+      "GET /v2/customers internal/api/gorilla.go:9 gorilla/mux unknown tokenMiddleware",
+      "POST /v2/customers internal/api/gorilla.go:9 gorilla/mux unknown tokenMiddleware",
     ]);
   });
 

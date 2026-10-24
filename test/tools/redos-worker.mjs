@@ -19,7 +19,6 @@ import {
   htmlText,
 } from "../../engine/check/secrets.mjs";
 import { PATTERNS as AGENT_FILES } from "../../engine/facts/agents.mjs";
-import { DEFAULT_ROLE_GUARD, DEFAULT_USER_GUARD } from "../../engine/facts/api.mjs";
 import { TEST_FILE } from "../../engine/facts/tests.mjs";
 import { QUALITY_PATTERNS, functionsOf } from "../../engine/facts/quality.mjs";
 import { IMPORT_PATTERNS, pySpecifiers } from "../../engine/facts/imports.mjs";
@@ -45,6 +44,10 @@ import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
 import { expressRoutes } from "../../adapters/stack/express.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
+import { classifyAuth, DEFAULT_ROLE_GUARD, DEFAULT_USER_GUARD } from "../../engine/facts/guards.mjs";
+import { djangoViews } from "../../adapters/stack/django.mjs";
+import { railsApi } from "../../adapters/stack/rails.mjs";
+import { flaskRoutes } from "../../adapters/stack/flask.mjs";
 import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
 import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { BUILT_IN_INFRA } from "../../engine/facts/infra.mjs";
@@ -62,7 +65,7 @@ import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
 import { pdfIndex } from "../../engine/inputs/pdf.mjs";
 import { htmlToText } from "../../engine/inputs/ingest.mjs";
 import { isSafeRepoUrl, nameOf, hasCredentials } from "../../engine/inputs/model.mjs";
-import { parseGitConfig } from "../../engine/util/safe-git.mjs";
+import { parseGitConfig, isLfsValue } from "../../engine/util/safe-git.mjs";
 import { JS_PATTERNS, jsBehaviours } from "../../engine/facts/behaviour-js.mjs";
 import { SQL_PATTERNS, sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
@@ -81,6 +84,7 @@ import {
   CRON,
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
+import { languageInConfig } from "../../engine/project/find.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
@@ -114,6 +118,8 @@ const PREFIXES = [
   "Rails.application.routes.draw do\n  namespace :a do\n    resources :",
   "urlpatterns = [\n  path('a/', views.a),\n  path('",
   '@bp.route("/a")\n@login_required\ndef a(): pass\n@bp.route("',
+  // A before_request hook's body, whose statements and calls Flask reads (adapters/stack/flask.mjs, mayDeny).
+  "@bp.before_request\ndef a():\n    ",
   "class A extends AbstractController {\n  #[Route('/a', methods: ['GET'])]\n  public function a() {}\n  #[Route('",
   'var g = app.MapGroup("/a").RequireAuthorization();\ng.MapGet("',
   '<Routes>\n  <Route path="a" element={<RequireAuth><A /></RequireAuth>}>\n    <Route path="',
@@ -430,6 +436,7 @@ const PATTERN_MODULES = [
   "../../engine/facts/stack-py.mjs",
   "../../engine/facts/stack-php.mjs",
   "../../engine/facts/stack-common.mjs",
+  "../../engine/facts/guards.mjs",
   "../../engine/facts/infra-common.mjs",
   "../../engine/facts/infra.mjs",
   "../../engine/core/yaml.mjs",
@@ -524,6 +531,33 @@ export const CHECKS = [
   ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
+  // The access of a route from its guards' names, which an adapter takes from the application (engine/facts/guards.mjs).
+  [
+    "api classifyAuth",
+    (s) => classifyAuth([s, `${s}()`, s.toUpperCase(), `a.${s}`, `(${s}) and !(${s}) or ${s}`, `${s} (body)`]),
+  ],
+  // What a reader keeps of a guard the text writes: DRF's permission classes (an expression of several), Rails's
+  // callbacks (a condition, a statement on several lines), Flask's decorator arguments (`@jwt_required (…)`).
+  [
+    "api django permission_classes",
+    (s) =>
+      djangoViews(`class A(APIView):\n    permission_classes = [${s}]\n@permission_classes([${s}])\ndef a(r): ...\n`)
+        .size,
+  ],
+  [
+    "api rails callbacks",
+    (s) =>
+      railsApi(
+        new Map([
+          ["config/routes.rb", "resources :a\n"],
+          ["app/controllers/a_controller.rb", `class AController\n  before_action :a, ${s}\n  before_action ${s}\n`],
+        ]),
+      ).length,
+  ],
+  [
+    "api flask decorators",
+    (s) => flaskRoutes(new Map([["a.py", `@app.get('/a')\n@jwt_required ${s}\ndef a(): ...\n`]])).length,
+  ],
   // The stack adapters (adapters/stack/) and the engine modules they share: each expression, then each reader.
   ...(await stackChecks()),
   // The paths of the application: what is a test, a generated file; which files an adapter reads; what tells a stack.
@@ -571,6 +605,8 @@ export const CHECKS = [
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
+  // The language of a doc.config.mjs, read as text without running it (engine/project/find.mjs): spaces around `[`.
+  ["project languageInConfig", (s) => [s, `language: ${s}`, `languages: ${s}[${s}`].map(languageInConfig).length],
   // As the build runs it: up to the last "</script>"; the input as it is, and with one closing tag after it.
   [
     "csp INLINE_SCRIPT",
@@ -713,6 +749,13 @@ export const CHECKS = [
   ["backlog wikiText", (s) => wikiText(s)],
   ["backlog csvFile", (s) => csvFile([[s, s]])],
   ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
+  [
+    "safe-git isLfsValue",
+    (s) =>
+      isLfsValue("filter.lfs.process", `git-lfs filter-process${s}`) ||
+      isLfsValue("filter.lfs.smudge", `git-lfs smudge${s} -- %f`) ||
+      isLfsValue("filter.lfs.clean", `git-lfs clean -- %f${s}`),
+  ],
   // The behaviour detectors: each expression alone, then each reader as a whole (its walks and small expressions).
   ...Object.entries({ ...JS_PATTERNS, ...SQL_PATTERNS, ...PY_PATTERNS, ...SCHEMA_PATTERNS }).map(([name, re]) => [
     `behaviours ${name}`,

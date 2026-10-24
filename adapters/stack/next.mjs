@@ -1,8 +1,10 @@
 // Stack adapter of Next.js (ARCHITECTURE.md §5): the route handlers of the App Router (`route.ts|js` under app/ or
 // src/app/: one item per exported method) and of `pages/api` (its `req.method` checks, else every method), with the
-// session calls and role checks of each handler; the screens of the App Router (`page.*`) and of the Pages Router.
+// session calls and role words of each handler (`auth (body)`: always "unknown"); the screens of the App Router
+// (`page.*`) and of the Pages Router.
 // Route groups and parallel slots add no segment; intercepting routes and private folders are not routes.
 import { textIndex, jsCommentRanges } from "../../engine/facts/behaviour-common.mjs";
+import { partialGuard } from "../../engine/facts/guards.mjs";
 
 const METHODS = "GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS";
 const EXPORT_FN = new RegExp(`export\\s{1,20}(?:async\\s{1,20})?function\\s{1,20}(${METHODS})\\s*\\(`, "g");
@@ -59,7 +61,10 @@ export function nextRouteHandlers(source) {
 /** HTTP methods exported by an App Router `route.ts|js` file. */
 export const nextRouteMethods = (source) => [...nextRouteHandlers(source).keys()];
 
-// Session calls and role checks looked for in a handler's body (ARCHITECTURE.md §6.13).
+// Session calls and role words looked for in a handler's body (ARCHITECTURE.md §6.13): a lookup gives an anonymous
+// caller nothing and refuses him nothing, and a role word may be a query of a table (`db.role.findMany()`), so each
+// is a partial guard, "unknown" whatever the patterns (`auth (body)`, engine/facts/guards.mjs) — never "user" nor
+// "role", whatever the handler returns.
 /** @type {Array<[string, RegExp]>} */
 const SESSION_CALLS = ["auth", "getServerSession", "getSession", "currentUser"].map((n) => [
   n,
@@ -68,9 +73,9 @@ const SESSION_CALLS = ["auth", "getServerSession", "getSession", "currentUser"].
 /** @type {Array<[string, RegExp]>} */
 const ROLE_TOKENS = ["role", "isAdmin"].map((n) => [n, new RegExp(`\\b${n}\\b`, "i")]);
 
-/** Guard names found in a piece of handler source (a session call, or a role check). */
+/** Guard names found in a piece of handler source (a session call, or a role word), each a partial guard. */
 function guardsIn(body) {
-  return [...SESSION_CALLS, ...ROLE_TOKENS].filter(([, re]) => re.test(body)).map(([n]) => n);
+  return [...SESSION_CALLS, ...ROLE_TOKENS].filter(([, re]) => re.test(body)).map(([n]) => partialGuard(n, "body"));
 }
 
 /**

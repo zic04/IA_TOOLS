@@ -707,6 +707,7 @@ describe("i18n keys of the capture engine, the adapters and the checks", () => {
     "engine/capture/actions.mjs",
     "engine/capture/capture.mjs",
     "engine/capture/session.mjs",
+    "engine/core/adapter-loader.mjs",
     "engine/capture/masking.mjs",
     "engine/check/coverage.mjs",
     "engine/check/images.mjs",

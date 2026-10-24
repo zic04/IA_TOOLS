@@ -22,10 +22,9 @@
 // Findings never print the value itself: only its first characters and its length.
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { sensitiveValues, GUID } from "../capture/masking.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../util/safe-git.mjs";
+import { spawnHardened } from "../util/safe-git.mjs";
 import { upToLast } from "../core/text.mjs";
 
 /** A placeholder, a variable name or a masked value: not a secret. */
@@ -341,22 +340,14 @@ export function isStorageState(text) {
  * Is a file tracked by git? (false when git is not available, refused, or the folder is not a repository)
  * @param {string} file
  * @param {{ exec?: import("../util/safe-git.mjs").Exec }} [o]   exec: the launcher of the context (`ctx.exec`),
- *   called as exec("git", args, { cwd }); without it, git is hardened and started here
+ *   called as exec("git", args, { cwd }); without it, the kit's own hardened launcher (`spawnHardened`)
  */
 export function trackedByGit(file, { exec } = {}) {
   const cwd = path.dirname(file);
   const args = ["ls-files", "--error-unmatch", "--", path.basename(file)];
   // null: git missing; a refused git answers status 128.
   if (exec) return exec("git", args, { cwd })?.status === 0;
-  if (riskyGitConfig(cwd).length) return false;
-  const bin = resolveOnPath("git", { exclude: [cwd] });
-  if (!bin) return false;
-  const r = spawnSync(bin, safeGitArgs(args), {
-    cwd,
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  return r.status === 0;
+  return spawnHardened("git", args, { cwd })?.status === 0;
 }
 
 /**

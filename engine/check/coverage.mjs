@@ -8,7 +8,7 @@
 // { available: false, reason }: its check is skipped, not failed.
 import fs from "node:fs";
 import path from "node:path";
-import { loadAdapter } from "../capture/session.mjs";
+import { loadAdapter } from "../core/adapter-loader.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
 import { globRegex } from "../core/glob.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";

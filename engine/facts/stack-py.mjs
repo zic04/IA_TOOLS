@@ -1,8 +1,9 @@
 // The readers of Python the stack adapters of Flask and Django share (adapters/stack/flask.mjs, django.mjs;
 // ARCHITECTURE.md §5, §6.9): the names a file imports from its modules, the file of a module among the sources, each
-// call of an expression with its arguments read once, a literal and its value, the quoted words of a list, and
-// whether a decorator may guard a view. Each adapter keeps what is its own: its routes, its blueprints or its urls
-// modules, its views. Bounded expressions only (RULES.md S5, test/tools/redos-worker.mjs).
+// call of an expression with its arguments read once, a literal and its value, the quoted words of a list, the
+// block of a statement by its indentation, and whether a decorator may guard a view. Each adapter keeps what is its
+// own: its routes, its blueprints or its urls modules, its views. Bounded expressions only (RULES.md S5,
+// test/tools/redos-worker.mjs).
 import { callSpan } from "./behaviour-common.mjs";
 
 /** The expressions of this module, by name (test/tools/redos-worker.mjs, RULES.md S5). */
@@ -50,6 +51,42 @@ export const pyGuard = (name) => !NOT_GUARDS.has(name.slice(name.lastIndexOf("."
  * @returns {string}
  */
 export const pyJoin = (module, name) => (module === "" || module.endsWith(".") ? module + name : `${module}.${name}`);
+
+/**
+ * The indentation of the line that holds `at`: its blanks before its first character, `at` at most.
+ * @param {string} text
+ * @param {number} at
+ * @returns {number}
+ */
+export function pyIndent(text, at) {
+  const start = text.lastIndexOf("\n", at - 1) + 1;
+  let i = start;
+  while (i < at && (text[i] === " " || text[i] === "\t")) i++;
+  return i - start;
+}
+
+/**
+ * Where the block of a statement indented by `indent` characters ends (a function's body, its header ending after
+ * `from`): at the first line indented as much or less, a blank or a comment line aside, `max` characters after `from`
+ * at most. A walk, each character once (engine/facts/behaviour-schemas.mjs's `classBody` reads a top-level class
+ * line by line instead).
+ * @param {string} text
+ * @param {number} from
+ * @param {number} indent
+ * @param {number} max
+ * @returns {number}
+ */
+export function pyBlockEnd(text, from, indent, max) {
+  const stop = Math.min(text.length, from + max);
+  let end = text.indexOf("\n", from);
+  while (end !== -1 && end < stop) {
+    let i = end + 1;
+    while (i < stop && (text[i] === " " || text[i] === "\t")) i++;
+    if (i < stop && !"\r\n#".includes(text[i]) && i - end - 1 <= indent) return end;
+    end = text.indexOf("\n", i);
+  }
+  return stop;
+}
 
 /**
  * The value of a literal an expression matched — LITERAL, or an adapter's own with the same two groups (Flask's

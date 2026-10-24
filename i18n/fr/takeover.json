@@ -53,6 +53,7 @@
     "other": "{source} : {n} éléments → {file}"
   },
   "cli.git.unsafeConfig": "git n'est pas lancé dans {folder} : sa configuration désigne un programme que git pourrait exécuter ({keys})",
+  "cli.git.unsafeConfigTools": "les outils externes ne sont pas lancés dans {folder} : la configuration de son dépôt désigne un programme que git pourrait exécuter, et un outil peut y lancer git ({keys})",
   "cli.git.unsafeConfig.help": "lisez ces clés dans le .git/config du dépôt et retirez-les si vous n'en êtes pas sûr, puis relancez la commande ; en attendant, le kit fonctionne sans git (les fichiers sont listés directement)",
   "cli.pack.noToc": "pas de sommaire : {file}",
   "cli.pack.noToc.help": "lancez {command} init, ou vérifiez paths.content",
