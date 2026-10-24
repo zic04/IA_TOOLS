@@ -402,3 +402,39 @@ describe("majorsBehind: the latest major minus the current one, never negative, 
       assert.equal(kept.latest, latest === "canary" ? null : (latest ?? null));
     });
 });
+
+describe("the order of the sources, end to end: the lock, then the installed copy, then the registry", () => {
+  test("a licence found offline for a package is never replaced by its registry's; one request a package", async () => {
+    const lock = packageLockV3(
+      { react: "^17.0.0", next: "^15.0.0", lodash: "^4.0.0" },
+      {
+        "node_modules/react": npmEntry("react", { version: "17.0.2" }),
+        "node_modules/next": npmEntry("next", { version: "15.0.0" }),
+        "node_modules/lodash": npmEntry("lodash", { version: "4.17.21", license: "MIT" }),
+      },
+    );
+    const r = await network(
+      {
+        "package.json": packageJson({ react: "^17.0.0", next: "^15.0.0", lodash: "^4.0.0" }),
+        "package-lock.json": lock,
+        // react's installed copy names its licence; next's is not installed; lodash's lock names it.
+        "node_modules/react/package.json": { name: "react", version: "17.0.2", license: "MIT" },
+      },
+      { answer: () => ok(npmDoc("19.1.0", "Apache-2.0")) },
+    );
+    const licenceOf = (manifest, name) => {
+      const item = r.out.find((i) => i.manifest === manifest && i.name === name);
+      return [item.license ?? null, item.licenseFrom ?? null];
+    };
+    for (const manifest of ["package.json", "package-lock.json"]) {
+      assert.deepEqual(licenceOf(manifest, "react"), ["MIT", "installed"], `${manifest}: its installed copy's`);
+      assert.deepEqual(licenceOf(manifest, "next"), ["Apache-2.0", "registry"], `${manifest}: nothing offline`);
+    }
+    assert.deepEqual(licenceOf("package-lock.json", "lodash"), ["MIT", "lock"]);
+    // The package has an offline licence (its lock's): its registry's is given to none of its items, so that one
+    // package never shows two licences in the same facts file.
+    assert.deepEqual(licenceOf("package.json", "lodash"), [null, null]);
+    assert.deepEqual(r.sent, ["npm lodash", "npm next", "npm react"]);
+    assert.equal(r.urls.length, 3, "one request a package, however many manifests name it");
+  });
+});

@@ -73,8 +73,8 @@ Chaque source écrit `facts/<source>.json` dans le projet de documentation, **ja
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
 alimente. `--network` demande au registre de chaque dépendance directe, une requête par paquet, sa dernière version :
 chaque élément reçoit `exists`, `latest` et `majorsBehind` (combien de versions majeures de retard sur la dernière ;
-`null` quand la version utilisée ou la réponse ne le dit pas, comme pour un paquet jamais demandé) et, quand aucun
-fichier de verrouillage n'a donné sa licence, celle que déclare la dernière version (`licenseFrom: "registry"` : ce
+`null` quand la version utilisée ou la réponse ne le dit pas, comme pour un paquet jamais demandé) et, quand ni son
+fichier de verrouillage ni sa copie installée n'ont donné sa licence, celle que déclare la dernière version (`licenseFrom: "registry"` : ce
 n'est pas forcément celle de la version installée) ; la réponse du registre n'est gardée que si elle se lit comme une
 version et un nom de licence. Il n'envoie que le nom d'une dépendance, jamais sa version, et seulement si un fichier
 de verrouillage prouve que le registre public l'a servie (`package-lock.json`, `yarn.lock` de Yarn 1,
