@@ -79,11 +79,13 @@ instance from a secret of the CI. Without the list, the test is skipped.
 
 1. Write `cli/commands/<name>.mjs`. It exports `options` (Node's `util.parseArgs` format) and
    `run({ ctx, values, positionals })`, which returns an exit code (0 OK, 1 a check failed, 2 usage or
-   configuration, 3 environment). The dispatcher finds it by itself. An option name used by another command must
-   have the same type there.
+   configuration, 3 environment). Add its name to its group in `GROUPS` of `cli/registry.mjs`: the dispatcher
+   imports a command's module only when it runs. An option name used by another command must have the same type
+   there.
 2. Raise errors as `KitError(code, key, vars)`; print with `ctx.print`, `ctx.error`, `ctx.t`; support `--json` when
    the command has a result.
-3. Add its texts (`cli.<name>.*`), in English and French, and its line in `cli.usage`.
+3. Add its texts (`cli.<name>.*`), in English and French, and its line of `--help`, `cli.usage.command.<name>`,
+   which names every option it declares.
 4. Test it in `test/unit/` (and `test/e2e/` if it opens a browser).
 5. Document it: ARCHITECTURE.md §4, the CLI reference pages of `docs/en` and `docs/fr` (the coverage check of the
    documentation fails until every command and option is cited), `CHANGELOG.md`.
@@ -92,7 +94,8 @@ instance from a secret of the CI. Without the list, the test is skipped.
 
 1. Write `adapters/coverage/<name>.mjs` or `adapters/auth/<name>.mjs`: a default export with `name`, `options` (each
    option a small schema, `required: true` when mandatory) and `inventory()` or `session()` (ARCHITECTURE.md §5).
-2. Register it in `BUILT_IN` of `engine/capture/session.mjs`.
+2. Register it in `standard/adapters.json`: `loadAdapter` (`engine/core/adapter-loader.mjs`) finds the kit's own
+   adapters there.
 3. Test it in `test/unit/adapters.test.mjs`, without any real application.
 4. Document its options in the reference page of adapters, in both languages.
 

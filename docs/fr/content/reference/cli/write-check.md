@@ -122,7 +122,7 @@ pages de reprise (`access-ownership`, `api-surface`, `runbook`, `data-model`, `d
 |---|---|
 | `--source <nom>` | Répétable : seulement ces sources (par défaut : toutes les sources) |
 | `--network` | `dependencies` : vérifie aussi si chaque paquet direct existe dans son registre ; `quality` : combien de versions majeures de retard (le nom seul, rien d'autre : seulement un nom qu'un fichier de verrouillage prouve public, jamais le nom d'un paquet privé) ; `--tools` : permet à `osv-scanner` de télécharger sa base |
-| `--tools` | Lance aussi `gitleaks`, `osv-scanner` (hors ligne), `syft` et `knip` quand ils sont sur le PATH, chacun dans `facts/tool-<nom>.json` (état `ok`, `findings`, `failed` ou `missing` ; seule une liste blanche de champs est gardée) ; un outil absent est signalé, jamais une erreur |
+| `--tools` | Lance aussi `gitleaks`, `osv-scanner` (hors ligne), `syft` et `knip` quand ils sont sur le PATH (jamais dans l'application, le projet de documentation ni un `node_modules/.bin`), chacun dans `facts/tool-<nom>.json` (état `ok`, `findings`, `failed` ou `missing` ; seule une liste blanche de champs est gardée) ; un outil absent est signalé, jamais une erreur |
 
 Le même code, lancé sur le même commit de l'application, écrit le même fichier (son horodatage `generated` mis à
 part) : `doc-kit facts` peut être committé sans risque avec les pages qu'il alimente. Voir [Exemple · Surface d'API](#/examples/api-surface)

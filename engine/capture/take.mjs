@@ -6,10 +6,9 @@
 // `rc` is the run's context (capture.mjs, prepareRun): options, paths, guard state, encoder and pages.
 import fs from "node:fs";
 import path from "node:path";
-import { KitError, EXIT } from "../project/errors.mjs";
+import { KitError, EXIT, firstLine } from "../project/errors.mjs";
 import {
   CaptureError,
-  firstLine,
   zoneBox,
   frameClip,
   measureZone,

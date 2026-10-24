@@ -21,6 +21,7 @@ import { KIT_ROOT } from "../../engine/project/find.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { slash } from "../../engine/dev/environment.mjs";
 import { shownPath } from "../common.mjs";
+import { SKILL_NAME } from "../registry.mjs";
 
 export const options = {
   target: { type: "string" },
@@ -63,7 +64,6 @@ export function installHooks({ settingsFile, skillFolder }) {
   return { file: settingsFile, added: !already };
 }
 
-export const SKILL_NAME = "doc-kit";
 export const FINGERPRINT = ".doc-kit-skill.json";
 export const SKILL_SOURCE = path.join(KIT_ROOT, "skill", SKILL_NAME);
 const AGENTS_SUBDIR = "agents";

@@ -98,8 +98,8 @@ A marked page's footer shows "Checked against version {version} on {date}" once 
 |---|---|---|---|
 | `review` | object · `{}` | `doc-kit probe` and the `auth`/`guards` of the `api` facts source | |
 | `review.guards` | object · `{}` | The role and user guard patterns, side by side | `{ role: ["is_admin"] }` |
-| `review.guards.role` | list of regular expressions (as strings) · `[]` | Replaces the built-in role-guard pattern (`admin\|role\|permission\|scope\|owner\|super\|staff`) when not empty | `["is_admin"]` |
-| `review.guards.user` | list of regular expressions (as strings) · `[]` | Replaces the built-in user-guard pattern (`current_user\|authenticated\|login_required\|require_auth\|session\|token`) when not empty | `["require_login"]` |
+| `review.guards.role` | list of regular expressions (as strings) · `[]` | Replaces the built-in role guards (a word of the name: `admin`, `role`, `permission`, `scope`, `owner`, `superuser`, `staff`…) when not empty | `["is_admin"]` |
+| `review.guards.user` | list of regular expressions (as strings) · `[]` | Replaces the built-in user guards (whole names: `get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`, `Authorize`…; never a `session` or a `token` alone) when not empty. A guard that lets anonymous callers in (`…OrReadOnly`, an optional user), a negation and a partial guard (`auth (body)`, `authenticate_user! (if)`) never count | `["check_member"]` |
 | `review.params` | object · `{}` | Path parameter name → example value, so `doc-kit probe` can fill a route like `/groups/{group_id}`; a route with a parameter not given here is skipped | `{ "group_id": "g1" }` |
 | `review.semgrep` | path or `null` · `null` | A local semgrep rules folder, relative to the project; without it, `doc-kit facts --tools` never runs semgrep (never `--config auto`, which downloads rules) | `"security/semgrep-rules"` |
 

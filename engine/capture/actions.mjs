@@ -1,6 +1,7 @@
 // Targets → Playwright locators, measured boxes, and the actions played before a capture.
 // Syntax: header of engine/capture/plans.mjs. Errors carry an i18n key (cli.capture.error.*) and variables.
-import { selectors } from "playwright";
+// Playwright is imported when a browser is about to be used (registerSelectors), never with this module: a command
+// that only reads plans or zones does not pay for it.
 import { TIMINGS } from "./timings.mjs";
 
 /** Error of one capture, translated by the CLI (key `cli.capture.error.<key>`). */
@@ -12,33 +13,33 @@ export class CaptureError extends Error {
   }
 }
 
-/** First line of an error message (Playwright messages are long). */
-export const firstLine = (e) => String(e?.message ?? e).split("\n")[0];
-
 // Custom selector engine for the `framed` option: the closest ancestor (or the element itself) that matches a
 // CSS selector, or, with an empty selector, that has a border on its four sides. Registered once per process.
 const FRAME_ENGINE = "doc-kit-frame";
 let registered;
 export function registerSelectors() {
-  registered ??= selectors
-    .register(FRAME_ENGINE, () => ({
-      query(root, selector) {
-        const bordered = (el) => {
-          const s = getComputedStyle(el);
-          return ["Top", "Right", "Bottom", "Left"].every(
-            (k) => parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none",
-          );
-        };
-        for (let el = root; el && el.nodeType === 1; el = el.parentElement)
-          if (selector ? el.matches(selector) : bordered(el)) return el;
-        return null;
-      },
-      queryAll(root, selector) {
-        const el = this.query(root, selector);
-        return el ? [el] : [];
-      },
-    }))
+  registered ??= import("playwright")
+    .then(({ selectors }) =>
+      selectors.register(FRAME_ENGINE, () => ({
+        query(root, selector) {
+          const bordered = (el) => {
+            const s = getComputedStyle(el);
+            return ["Top", "Right", "Bottom", "Left"].every(
+              (k) => parseFloat(s[`border${k}Width`]) > 0 && s[`border${k}Style`] !== "none",
+            );
+          };
+          for (let el = root; el && el.nodeType === 1; el = el.parentElement)
+            if (selector ? el.matches(selector) : bordered(el)) return el;
+          return null;
+        },
+        queryAll(root, selector) {
+          const el = this.query(root, selector);
+          return el ? [el] : [];
+        },
+      })),
+    )
     .catch((e) => {
+      // an import that fails is not "already registered": it is thrown
       if (!/already registered/i.test(e.message)) throw e;
     });
   return registered;

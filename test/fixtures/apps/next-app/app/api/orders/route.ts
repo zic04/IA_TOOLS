@@ -1,6 +1,6 @@
 // Fixture: a Next.js App Router route handler, for the `api` facts source and the `api` option of
-// adapters/coverage/next-app-router.mjs. GET has no guard (auth "none"); POST checks the session's role
-// (ARCHITECTURE.md §6.13: a "role" guard, checked first, even next to the "user"-matching session call).
+// adapters/coverage/next-app-router.mjs. GET has no guard (auth "none"); POST looks the session up and reads its
+// role in its body (ARCHITECTURE.md §6.13: a lookup and a role word in a body are partial guards, "unknown").
 import { databaseUrl } from "../../../lib/db";
 
 async function getServerSession() {

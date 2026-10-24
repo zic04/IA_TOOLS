@@ -33,6 +33,7 @@ describe("hooks", () => {
       const exec = (bin, args) => {
         if (bin !== "git") return null;
         if (args.join(" ") === "rev-parse --show-toplevel") return { status: 0, stdout: repo + "\n" };
+        if (args.join(" ") === "rev-parse --git-common-dir") return { status: 0, stdout: ".git\n" };
         if (args.join(" ") === "rev-parse --git-path hooks") return { status: 0, stdout: ".git/hooks\n" };
         return { status: 1, stdout: "" };
       };
@@ -71,6 +72,77 @@ describe("hooks", () => {
       assert.equal(await runCli(["hooks", "install", "--project", docs, "--app", repo], elsewhere), 2);
     } finally {
       fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("SEC-09: a hooks folder git names outside the repository (core.hooksPath, a link) is refused → 3; inside it, or in the common git folder of a worktree, it is used", async () => {
+    const root = tempDir("doc-kit-hooks-");
+    try {
+      const repo = path.join(root, "repo");
+      const docs = path.join(repo, "docs", "manual");
+      demoCopy(docs);
+      fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
+      const outside = path.join(root, "outside");
+      fs.mkdirSync(outside);
+      const main = path.join(root, "main", ".git");
+      fs.mkdirSync(main, { recursive: true });
+      // A link to a folder: a junction on Windows (no privilege needed), a symbolic link elsewhere.
+      const link = (target, at) => fs.symlinkSync(target, at, process.platform === "win32" ? "junction" : "dir");
+      link(outside, path.join(repo, "linked"));
+      /** A run of `hooks install` where git names `hooks` (and `common`, the common git folder); its exit code and stderr. */
+      const install = async (hooks, { common = ".git", lang = [] } = {}) => {
+        let err = "";
+        const exec = (bin, args) => {
+          const asked = args.join(" ");
+          if (asked === "rev-parse --show-toplevel") return { status: 0, stdout: `${repo}\n` };
+          if (asked === "rev-parse --git-common-dir") return { status: 0, stdout: `${common}\n` };
+          if (asked === "rev-parse --git-path hooks") return { status: 0, stdout: `${hooks}\n` };
+          return { status: 1, stdout: "" };
+        };
+        const io = { stdout: { write() {} }, stderr: { write: (s) => (err += s) }, env: {}, exec };
+        const code = await runCli(["hooks", "install", "--project", docs, "--app", repo, ...lang], io);
+        return { code, err };
+      };
+      const written = (dir) => HOOKS.filter((hook) => fs.existsSync(path.join(dir, hook)));
+
+      const away = await install(outside);
+      assert.equal(away.code, 3);
+      assert.match(away.err, /the hooks folder .*outside.* is outside the repository/);
+      assert.match(away.err, /core\.hooksPath/);
+      assert.match(
+        (await install(outside, { lang: ["--lang", "fr"] })).err,
+        /le dossier des hooks .* est hors du dépôt/,
+      );
+      assert.equal((await install("../outside")).code, 3, "a relative path that climbs out");
+      assert.equal((await install("linked")).code, 3, "a folder of the repository that is a link to outside");
+      assert.equal((await install("linked/hooks")).code, 3, "a folder under such a link, not created yet");
+      assert.deepEqual(written(outside), [], "nothing written outside");
+
+      // A hook that is itself a link to outside (a folder here, so that any system can make it): refused too.
+      fs.mkdirSync(path.join(repo, ".git", "hooks"), { recursive: true });
+      link(outside, path.join(repo, ".git", "hooks", "post-merge"));
+      assert.equal((await install(".git/hooks")).code, 3, "a hook that is a link to outside");
+      fs.rmSync(path.join(repo, ".git", "hooks", "post-merge"), { recursive: true, force: true });
+      // A hook that is a link leading nowhere: a write would create its target, wherever that is.
+      link(path.join(outside, "missing"), path.join(repo, ".git", "hooks", "post-checkout"));
+      assert.equal((await install(".git/hooks")).code, 3, "a hook that is a link leading nowhere");
+      assert.ok(!fs.existsSync(path.join(outside, "missing")));
+      fs.rmSync(path.join(repo, ".git", "hooks", "post-checkout"), { recursive: true, force: true });
+      // A hook that is a hard link to a file outside: a write there changes that file too.
+      fs.writeFileSync(path.join(outside, "profile"), "#!/bin/sh\n");
+      fs.linkSync(path.join(outside, "profile"), path.join(repo, ".git", "hooks", "post-merge"));
+      assert.equal((await install(".git/hooks")).code, 3, "a hook that is a hard link");
+      assert.equal(fs.readFileSync(path.join(outside, "profile"), "utf8"), "#!/bin/sh\n");
+      fs.rmSync(path.join(repo, ".git", "hooks", "post-merge"));
+
+      // The minimal pairs: inside the repository (husky's .husky), or the hooks of a worktree in its common git folder.
+      assert.equal((await install(".husky")).code, 0);
+      assert.deepEqual(written(path.join(repo, ".husky")), HOOKS);
+      assert.equal((await install(path.join(main, "hooks"), { common: main })).code, 0);
+      assert.deepEqual(written(path.join(main, "hooks")), HOOKS);
+      assert.equal((await install(path.join(main, "hooks"))).code, 3, "the same folder when it is not the common one");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 });

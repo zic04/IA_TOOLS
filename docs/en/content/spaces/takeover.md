@@ -66,7 +66,9 @@ private index, a workspace, local or privately hosted package), read from the ap
 folder down to each manifest, and your own npm, yarn, bun, pip, uv and Poetry configuration (when your installs go
 through a company registry or mirror the lock files do not name — npm's `replace-registry-host`, Poetry's PyPI
 mirror plugin —, declare it there, or in a variable, before `--network`);
-`--tools` runs whichever of `gitleaks`, `osv-scanner`, `syft` and `knip` are on the `PATH`, each into its own
+`--tools` runs whichever of `gitleaks`, `osv-scanner`, `syft` and `knip` are on the `PATH` — never one of the
+application, of the documentation project or of a `node_modules/.bin`: a `knip` installed only in the application's
+`devDependencies` is not run, install it outside —, each into its own
 `facts/tool-<name>.json` with a status (`ok`, `findings`, `failed`, `missing`) and only the fields that matter
 (rule, file, line, package, version…), never a secret or a line of code. `osv-scanner` runs offline: its database
 is downloaded only with `--network`. Without `app.dir` configured, `doc-kit facts` refuses to run.

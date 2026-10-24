@@ -73,6 +73,15 @@ reads text only, never images. **Review every image** before delivering a site.
 
 - `doc.config.mjs`, capture plans, setup scripts and local adapters are JavaScript modules run with your rights.
   Only run doc-kit on projects you trust.
+- `doc-kit --version`, `doc-kit --help` and `doc-kit <command> --help` run nothing of the folder they are typed in,
+  nor of its parents: for them, `doc.config.mjs` is never imported; the language of the messages is read in the
+  file's text (a literal `language`, or the first item of `languages`; a regular file only, and 1 MB read at most, whatever size it reports). Every
+  other command that loads the project runs its `doc.config.mjs`, and so does `doc-kit` without a command: the
+  guided mode loads the project like a command to tell the next step, even without a terminal
+  (`test/unit/cli-startup.test.mjs`, with a configuration that leaves a file behind when it runs). Limit: this holds
+  for the doc-kit you installed. `npx doc-kit` typed in a cloned application runs the kit its `node_modules` holds,
+  which is the folder's code; and on Windows, `cmd.exe` runs a `doc-kit.cmd` of the current folder before the one
+  on the `PATH`.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.
@@ -89,13 +98,48 @@ reads text only, never images. **Review every image** before delivering a site.
 A takeover reads an application written by someone else, often with its `.git/` folder. The kit treats that folder
 as untrusted input:
 
-- git is only run with hardened options (no file system monitor, no pager, no external diff, no textconv), and a
-  git reference read from `sync.json` or `--since` is refused unless it is a plain reference (never an option);
+- git is only run with hardened options (no file system monitor, no pager, no external diff, no textconv, no git
+  started in a submodule: a diff never looks into a submodule's working tree nor shows its inner diff, nothing
+  recurses into one — a submodule has a configuration of its own, which the kit does not read), and a git reference
+  read from `sync.json` or `--since` is refused unless it is a plain reference (never an option);
+- git runs with a cleaned environment: no variable of git's own (`GIT_*`, in any case) reaches it — none can move
+  the repository read (`GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`,
+  `GIT_ALTERNATE_OBJECT_DIRECTORIES`), add to or replace the configuration read (`GIT_CONFIG_COUNT` and
+  `GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n`, `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM`) or
+  name a program (`GIT_EXEC_PATH`, `GIT_EXTERNAL_DIFF`…) — but how `inputs fetch` connects (`GIT_SSH_COMMAND`,
+  `GIT_SSH`, `GIT_ASKPASS`, the certificate authorities `GIT_SSL_CAINFO` and `GIT_SSL_CAPATH`); it never asks for a
+  password (`GIT_TERMINAL_PROMPT=0`), and never fetches the objects a partial clone lacks (`GIT_NO_LAZY_FETCH=1`:
+  the fetch would start the transport the repository names). Your `HOME` and your global configuration (its
+  credential helper) still apply. The external tools get the same environment, for any git they start;
 - git is **not run at all** in a repository whose configuration names a program it could start (`core.fsmonitor`,
-  `diff.external`, a `textconv` driver, a `clean`/`smudge`/`process` filter other than Git LFS, an
-  `include`): the command warns, names the keys, and works without git (files are listed directly);
-- programs (git, gitleaks, osv-scanner…) are looked up on the `PATH` only, never in the folder read: a `git.exe`
-  placed in the application cannot replace the real one on Windows;
+  `diff.external`, a `textconv` driver, a `clean`/`smudge`/`process` filter, an `include`, the program that checks
+  a signature — `gpg.program`, `gpg.<format>.program`: `git log` and `git show` check signatures when
+  `log.showSignature` says so —, and what Git LFS runs or writes to when its filters run: an extension
+  `lfs.extension.<name>.clean`/`smudge`, a custom transfer agent `lfs.customtransfer.<name>.path`, `lfs.storage`):
+  the command warns, names the keys, and works without git (files are listed directly). Nor is any external tool run
+  there (`facts --tools`: `failed`, reason `refused`): a tool may start git in the repository itself (semgrep lists
+  the files with `git ls-files`). The one exception is Git LFS's own filters, for exactly the values it writes,
+  each for its own key and as the whole value (`git-lfs clean -- %f`, `git-lfs smudge -- %f`,
+  `git-lfs filter-process`, the last two also with `--skip`): anything before or after (`;`, `&&`, `|`, a backtick,
+  `$(`, a newline, one more word, a blank other than a space or a tab) makes it a program named. These filters stay
+  on, so that a file stored in Git LFS is compared as its pointer, never reported changed for its content; they
+  start `git-lfs` from the `PATH` below. The configuration is read as git reads it — a line separator (U+2028,
+  U+2029) in a value or a subsection included — from every git folder git may use: walking up from the folder, a
+  `.git` folder, the one a `.git` file names (its path as git reads it, line ends only taken off; so is a worktree's
+  `commondir`), a folder that is itself a git folder (a bare repository); the walk goes past a `.git` git would not
+  take for one (no HEAD naming a branch or a commit, no objects, no refs, a HEAD that is a link), as git does, and
+  stops at the first git surely uses;
+- programs (git, gitleaks, osv-scanner, syft, knip, semgrep) are looked up on the `PATH` only, never in the folder
+  read, the application, the documentation project, a folder inside them, or a `node_modules/.bin` (npm puts the
+  application's, and its parent folders', first on the `PATH` when the kit runs as an npm script of a documentation
+  project inside it): a `git.exe` or a `node_modules/.bin/git` placed in the application cannot replace the real
+  one. The program started gets that `PATH`, without those folders: what git starts in turn (`git-lfs`, a credential
+  helper) is looked up there too. The folders are compared by their real paths as well (links and junctions
+  followed, in any case on Windows), so a `PATH` folder reached through a link, macOS's `/var` included, is still
+  left out;
+- `hooks install` writes only into a hooks folder inside the repository or its git folder (for a worktree, the main
+  repository's), links followed: a `core.hooksPath` that leads out of them, a hook that is a link out of them or
+  leading nowhere, or a hook that is a hard link, is refused;
 - every expression and every loop that scans the application's files stays linear (a crafted file cannot block
   `facts` or `check secrets`), and is tested for it: the ReDoS test runs each on adversarial inputs — the shapes
   that once made one quadratic among them: an occurrence repeated, a construct left open, a long run — and
@@ -126,6 +170,47 @@ as untrusted input:
   hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
   parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+- the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
+  a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
+  `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
+  another word — a database session (`get_session`), a CSRF check (`VerifyCsrfToken`), a session or a token alone
+  (`getSession`, `tokenMiddleware`) names no user; a guard that lets anonymous callers in (`IsAuthenticatedOrReadOnly`,
+  `@jwt_required(optional=True)`, `IS_AUTHENTICATED_ANONYMOUSLY`) is neither, whatever `review.guards` says, nor is
+  a negation (`!hasRole('BANNED')`, `(!hasRole(…))`, `not(has_role(…))`, DRF's `~IsAdminUser`,
+  `hasRole('ADMIN') == false`, `!= true`, `and!hasRole(…)`) nor a guard under express-unless's condition
+  (`requireAdmin.unless(…)`); a role word counts in the called name only, never in a module's or an object's name
+  before it (`admin_crud.get_db`, `permissions.none`) nor in a loader's (`loadRoles`); an expression is as weak as
+  its weakest alternative (`or`, `||`, `|` between blanks, whatever its parentheses or line breaks:
+  `hasRole('ADMIN') or(permitAll())`, DRF's `[IsAdminUser | AllowAny]`), and an alternative as strong as the
+  strongest of the parts it requires all of, read outside parentheses only (`and`, `&&`, `&`:
+  `isAuthenticated() and !hasRole('BANNED')` is `user`, `not (isAuthenticated() and hasRole('ADMIN'))` is
+  `unknown`); a name the kit does not know is `unknown`, never `user`; `optional=` anything but `False`, or `True`
+  first, in a decorator's arguments outside comments lets anonymous callers in (`@jwt_required (optional=True)`
+  too). A guard found where it checks some requests only, or none the kit reads, is `unknown` whatever its name and
+  `review.guards`: a session lookup or a role word in a Next.js handler's body (`auth (body)`: a lookup refuses an
+  anonymous caller nothing, whatever the handler returns), a Rails callback under `if:` or `unless:`
+  (`authenticate_user! (if)`), and a Rails callback declared again replaces the one of the same name (a parent's
+  `before_action :authenticate_user!` redeclared with `unless:` or `only: :destroy`). A `Depends(…)` in a comment or
+  a string is no guard, nor an `APIRouter(…)` or an `include_router(…)` in a comment or a docstring, and DRF's
+  module `permissions` names no role (`permissions.AllowAny` is read `AllowAny`). A Flask `before_request` hook never makes a route
+  `user` or `role`, whatever its name, its body or `review.guards`: when it may deny a request — a guard decorator
+  under it, or in its body, outside strings and comments, `abort(`, `raise`, `redirect(`, a `return` of a value
+  other than `None`, or a call of a guard by its whole name (a built-in user guard, or instead, when
+  `review.guards.user` is set, a name it matches, as it replaces them; or a name `review.guards.role` matches: the
+  built-in role words never count in a hook) — it gives the routes it applies to the guard `before_request`, always
+  `unknown`; a hook that may deny nothing (it logs, loads `g.user`, does `pass` or `return None`) gives none.
+  Telling whether a hook may deny can be wrong either way, which the promise allows: `unknown` is never more, and
+  `none` for a hook that guards through a helper the kit does not read is less. The global rules of a framework are
+  not read (DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's `SecurityFilterChain`, ASP.NET's `FallbackPolicy`,
+  `FastAPI(dependencies=…)`): a route they alone protect looks unguarded (`none`) — so a route may look less
+  protected than it is, never more, except in these known cases, where the names do not tell and a route may look
+  more protected than it is:
+  - a per-request override that loosens a class rule: DRF's `get_permissions()` returning `[AllowAny()]` under a
+    class `permission_classes = [IsAdminUser]` (`role`);
+  - Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")` under a class `@Secured("ROLE_ADMIN")`
+    (`role`);
+  - rare argument forms, such as Flask's `@jwt_required(**{"optional": True})` or
+    `@jwt_required(optional=False or True)` (`user`);
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
@@ -184,8 +269,16 @@ as untrusted input:
   so in any folder you open that holds such a project: keep it to the projects you trust.
 
 Limits: `facts --tools` runs third-party tools on the folder. **knip loads the application's configuration files
-(JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. Read a
-`.git/config` handed over with an application before running anything on it.
+(JavaScript) to read them**: run `--tools` only on an application you trust, or in a throwaway container. A knip
+installed only in the application (its `node_modules/.bin`) is not run: install it outside the application. Read a
+`.git/config` handed over with an application before running anything on it. The cleaned environment of git is a
+defence in depth, not a sandbox: an environment the application controls (a `direnv` `.envrc` you allowed, a shared
+CI runner) can still change what the kit itself runs (its `PATH`, `NODE_OPTIONS`); a `GIT_CONFIG_GLOBAL` of
+your own is not read (git then reads `~/.gitconfig`); and a git too old to know `GIT_NO_LAZY_FETCH` ignores it.
+Reading every configuration git may use can refuse git where git would not have read the one named (a parent
+repository above a `.git` the kit cannot be sure of): the warning names the keys. On Windows a program is started
+as a `.exe` or a `.com` only, never through a shell: a tool installed as a `.cmd` (a global npm package) is not
+found.
 
 ### The sources: shared repositories and documents (`inputs`)
 
