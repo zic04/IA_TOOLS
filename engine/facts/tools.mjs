@@ -184,13 +184,17 @@ function maxSeverityOf(groups, id) {
 function osvVersion(appDir, exec) {
   const r = exec("osv-scanner", ["--version"], { cwd: appDir });
   if (r === null) return { missing: true, major: null };
+  if (r.refused) return { missing: false, major: null, refused: true };
   const m = r.status === 0 ? /(\d+)\.\d+/.exec(r.stdout || "") : null;
   return { missing: false, major: m ? Number(m[1]) : null };
 }
 
 /**
- * @typedef {{ tool: string, status: "ok"|"findings"|"failed"|"missing", reason?: "exit"|"interrupted"|"output"|"version",
- *   code?: number, items: Array<object>, truncated?: boolean }} ToolResult
+ * @typedef {{ tool: string, status: "ok"|"findings"|"failed"|"missing",
+ *   reason?: "exit"|"interrupted"|"output"|"version"|"refused", code?: number, items: Array<object>,
+ *   truncated?: boolean }} ToolResult
+ * reason "refused": not run, the configuration of the application's repository names a program (a tool may start
+ * git there itself: engine/util/safe-git.mjs `spawnHardened`).
  */
 
 /**
@@ -207,14 +211,15 @@ function statusOf(name, exitCode, items) {
  * Runs one tool and normalises its report.
  * @param {string} name
  * @param {string} appDir
- * @param {(bin: string, args: string[], options?: object) => ({status: number, stdout: string, stderr: string}|null)} exec
+ * @param {(bin: string, args: string[], options?: object) =>
+ *   ({status: number, stdout: string, stderr: string, refused?: string[]}|null)} exec
  * @param {{ semgrepConfig?: string, download?: boolean }} [options]
  *   semgrepConfig: the local rules folder, for `name === "semgrep"`; download: osv-scanner may download its offline
  *   database (--network)
  * @returns {ToolResult}
  */
 export function runTool(name, appDir, exec, options = {}) {
-  /** @type {(reason: "exit"|"interrupted"|"output"|"version", code?: number) => ToolResult} */
+  /** @type {(reason: "exit"|"interrupted"|"output"|"version"|"refused", code?: number) => ToolResult} */
   const failed = (reason, code) => ({
     tool: name,
     status: "failed",
@@ -226,11 +231,13 @@ export function runTool(name, appDir, exec, options = {}) {
   if (name === "osv-scanner") {
     const version = osvVersion(appDir, exec);
     if (version.missing) return { tool: name, status: "missing", items: [] };
+    if (version.refused) return failed("refused");
     if (version.major === null) return failed("version");
     args = ARGS[name](appDir, { major: version.major, download: !!options.download });
   }
   const r = exec(name, args, { cwd: appDir });
   if (r === null) return { tool: name, status: "missing", items: [] };
+  if (r.refused) return failed("refused");
   if (r.status === null || r.status === undefined) return failed("interrupted"); // a signal, a buffer overflow
   if (!EXITS[name].ok.includes(r.status)) return failed("exit", r.status);
   const data = parseJson(r.stdout || "");

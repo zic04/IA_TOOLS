@@ -62,7 +62,7 @@ import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
 import { pdfIndex } from "../../engine/inputs/pdf.mjs";
 import { htmlToText } from "../../engine/inputs/ingest.mjs";
 import { isSafeRepoUrl, nameOf, hasCredentials } from "../../engine/inputs/model.mjs";
-import { parseGitConfig } from "../../engine/util/safe-git.mjs";
+import { parseGitConfig, isLfsValue } from "../../engine/util/safe-git.mjs";
 import { JS_PATTERNS, jsBehaviours } from "../../engine/facts/behaviour-js.mjs";
 import { SQL_PATTERNS, sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
@@ -714,6 +714,13 @@ export const CHECKS = [
   ["backlog wikiText", (s) => wikiText(s)],
   ["backlog csvFile", (s) => csvFile([[s, s]])],
   ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
+  [
+    "safe-git isLfsValue",
+    (s) =>
+      isLfsValue("filter.lfs.process", `git-lfs filter-process${s}`) ||
+      isLfsValue("filter.lfs.smudge", `git-lfs smudge${s} -- %f`) ||
+      isLfsValue("filter.lfs.clean", `git-lfs clean -- %f${s}`),
+  ],
   // The behaviour detectors: each expression alone, then each reader as a whole (its walks and small expressions).
   ...Object.entries({ ...JS_PATTERNS, ...SQL_PATTERNS, ...PY_PATTERNS, ...SCHEMA_PATTERNS }).map(([name, re]) => [
     `behaviours ${name}`,

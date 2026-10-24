@@ -1,7 +1,7 @@
 // What a unit or snapshot test must never do (RULES.md M4): start the real git of the machine, or load Playwright and
 // launch a browser. They go through the context seams (`exec`, `commit`, `launch`, `chromium`); a real browser
-// belongs to test/e2e/. Nor may the engine start a process itself outside its two git helpers with an `exec` seam
-// (ENGINE_RULES). test/unit/seams.test.mjs scans the sources with these rules.
+// belongs to test/e2e/. Nor may the engine start a process itself outside its launcher (engine/util/safe-git.mjs)
+// and its git helpers with an `exec` seam (ENGINE_RULES). test/unit/seams.test.mjs scans the sources with these rules.
 
 /** The rules: a name and the expression a line of a test source must not match. */
 export const RULES = [
@@ -9,7 +9,7 @@ export const RULES = [
     name: "a real git process",
     re: /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync)\s*\(\s*["'`]git(?:\.exe)?["'`]/,
   },
-  { name: "the real process launcher (defaultExec)", re: /\bdefaultExec\s*\(/ },
+  { name: "the real process launcher (defaultExec, spawnHardened)", re: /\b(?:defaultExec|spawnHardened)\s*\(/ },
   {
     name: "Playwright imported",
     // A statement, not a sample text inside a string: `import … from "playwright"`, `const x = await import("playwright")`.
@@ -33,14 +33,19 @@ export const ENGINE_RULES = [
 ];
 
 /**
+ * The one launcher of the engine: `spawnHardened`, git and the external tools hardened (RULES.md S2, S4), the default
+ * `exec` of the CLI context and of the engine's git helpers. Its seam is its `spawn` option (safe-git.test.mjs).
+ */
+export const ENGINE_LAUNCHER = "engine/util/safe-git.mjs";
+
+/**
  * The files of engine/ that start a process themselves, and why. Each git helper there takes an `exec` and calls it
- * when it is given (`exec("git", …)`, checked by seams.test.mjs): its own hardened spawnSync is only the default.
+ * when it is given (`exec("git", …)`, checked by seams.test.mjs): the launcher is only the default.
  */
 export const ENGINE_ALLOWED = {
-  // git(), isIgnored(), isTracked(): spawnSync of git when no `exec` is given; openBrowser(): the machine's browser.
+  // openBrowser(): the machine's browser. git(), isIgnored(), isTracked() call the launcher when no `exec` is given.
   "engine/dev/environment.mjs": ENGINE_RULES.map((r) => r.name),
-  // trackedByGit(): spawnSync of git when no `exec` is given.
-  "engine/check/secrets.mjs": ENGINE_RULES.map((r) => r.name),
+  [ENGINE_LAUNCHER]: ENGINE_RULES.map((r) => r.name),
 };
 
 /**
@@ -66,7 +71,10 @@ export const ALLOWED = {
   // riskyGitConfig / defaultExec on a repository whose configuration names a program: the real launcher must refuse
   // git there (status 128, `refused`) without starting any process. The call is the thing under test. The engine's
   // own fallbacks (git, isTracked, trackedByGit without an exec) are checked there the same way, no rule needed.
-  "test/unit/security.test.mjs": ["the real process launcher (defaultExec)"],
+  "test/unit/security.test.mjs": ["the real process launcher (defaultExec, spawnHardened)"],
+  // The launcher itself, rule by rule: every call that could start a program gives a fake `spawn`; the others find no
+  // binary (null) or are refused, before any process.
+  "test/unit/safe-git.test.mjs": ["the real process launcher (defaultExec, spawnHardened)"],
   // The samples of the positive control, written as text to be matched.
   "test/unit/seams.test.mjs": RULES.map((r) => r.name),
 };

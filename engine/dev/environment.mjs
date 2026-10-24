@@ -3,7 +3,6 @@
 // Nothing here writes; nothing here throws for an expected situation (each helper returns a status).
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { KIT_ROOT, CONFIG_FILE } from "../project/find.mjs";
@@ -11,7 +10,7 @@ import { prepareConfig } from "../project/load.mjs";
 import { readEnv } from "../project/env.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { BRAND } from "../brand.mjs";
-import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../util/safe-git.mjs";
+import { spawnHardened } from "../util/safe-git.mjs";
 
 /** A folder for a message: relative to the current folder when shorter, quoted when it contains spaces. */
 export function shownFolder(folder) {
@@ -179,29 +178,17 @@ export function captureCount(root, config) {
 
 /** @typedef {import("../util/safe-git.mjs").Exec} Exec */
 
-/** git started here, hardened (engine/util/safe-git.mjs): a runner of `cwd`, or null when git is refused or missing. */
-function hardenedGit(cwd) {
-  if (riskyGitConfig(cwd).length) return null;
-  const bin = resolveOnPath("git", { exclude: [cwd] });
-  if (!bin) return null;
-  return (args) => {
-    const r = spawnSync(bin, ["-C", cwd, ...safeGitArgs(args)], { encoding: "utf8", windowsHide: true });
-    return r.error ? null : { status: r.status, stdout: r.stdout || "" };
-  };
-}
-
 /**
  * Runs a read-only git command in `cwd`. Returns null when git is missing, refused (a configuration that names a
  * program) or the folder is not in a repository; otherwise { status, stdout } (stdout trimmed).
  * @param {string} cwd
  * @param {string[]} args
  * @param {{ exec?: Exec }} [o]   exec: the launcher of the context (`ctx.exec`), called as exec("git", args, { cwd });
- *   without it, git is hardened and started here
+ *   without it, the kit's own hardened launcher (engine/util/safe-git.mjs `spawnHardened`)
  * @returns {{ status: number|null, stdout: string }|null}
  */
 export function git(cwd, args, { exec } = {}) {
-  const run = exec ? (a) => exec("git", a, { cwd }) : hardenedGit(cwd);
-  if (!run) return null;
+  const run = exec ? (a) => exec("git", a, { cwd }) : (a) => spawnHardened("git", a, { cwd });
   // A refused git answers status 128: not a repository, as far as the kit knows.
   const inside = run(["rev-parse", "--is-inside-work-tree"]);
   if (!inside || inside.status !== 0 || String(inside.stdout).trim() !== "true") return null;
