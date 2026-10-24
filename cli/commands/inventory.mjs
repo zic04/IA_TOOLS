@@ -17,6 +17,7 @@ import { reasonText } from "./check.mjs";
 import { featuresFileOf } from "../../engine/core/features.mjs";
 import { factsItems } from "../../engine/facts/common.mjs";
 import { candidateKinds } from "../../engine/sync/feature-files.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 
 export const options = {
   features: { type: "boolean" },
@@ -181,18 +182,19 @@ export async function run({ ctx, values, positionals }) {
     ctx.print(JSON.stringify(res, null, 2));
     return EXIT.OK;
   }
+  const { count } = numbers(ctx.i18n);
   for (const a of res.adapters) {
     if (!a.available) {
       ctx.print(`⚠ ${ctx.t("cli.check.coverage.skipped", { adapter: a.adapter, reason: reasonText(ctx, a) })}`);
       continue;
     }
     for (const f of a.families) {
-      ctx.print(
-        `\n${ctx.t("cli.inventory.family", { adapter: a.adapter, name: f.name, n: f.total, covered: f.covered })}`,
-      );
+      const covered = count("cli.inventory.count.cited", f.covered);
+      ctx.print(`\n${ctx.t("cli.inventory.family", { adapter: a.adapter, name: f.name, n: f.total, covered })}`);
       for (const it of f.items) ctx.print(`  ${it.covered ? "✔" : "·"} ${it.id}${it.label ? ` — ${it.label}` : ""}`);
     }
   }
-  ctx.print(`\n${ctx.t("cli.inventory.summary", { n: res.total, covered: res.covered })}`);
+  const covered = count("cli.inventory.count.citedHere", res.covered);
+  ctx.print(`\n${ctx.t("cli.inventory.summary", { n: res.total, covered })}`);
   return EXIT.OK;
 }

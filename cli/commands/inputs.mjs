@@ -121,12 +121,14 @@ function printReading(ctx, config, stack) {
   if (!stack) return ctx.print(`  → ${ctx.t("cli.inputs.next.stack")}`);
   const { summary = {}, stacks = [] } = stack;
   if (summary.lines)
-    ctx.print(`  ${ctx.t("cli.inputs.reading.share", { share: summary.share, lines: summary.lines })}`);
+    ctx.print(
+      `  ${ctx.t("cli.inputs.reading.share", { share: summary.share, lines: summary.lines, n: summary.lines })}`,
+    );
   for (const i of stack.items)
     ctx.print(
       i.read
-        ? `  ${ctx.paint.ok("✔")} ${ctx.t("cli.inputs.reading.read", { language: i.language, lines: i.lines, by: i.by.join(", ") })}`
-        : `  ${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reading.unread", { language: i.language, lines: i.lines })}`,
+        ? `  ${ctx.paint.ok("✔")} ${ctx.t("cli.inputs.reading.read", { language: i.language, lines: i.lines, n: i.lines, by: i.by.join(", ") })}`
+        : `  ${ctx.paint.warn("⚠")} ${ctx.t("cli.inputs.reading.unread", { language: i.language, lines: i.lines, n: i.lines })}`,
     );
   const found = stacks.filter((x) => x.family === "stack");
   if (found.length)

@@ -74,10 +74,9 @@
   "cli.sync.check.failed.help": "read {work}/sync.md, fix what it lists, then run {command} sync --mark again",
   "cli.sync.check.ok": "the documentation follows the application",
   "cli.sync.applied.file": "✔ {file}",
-  "cli.sync.applied.summary": {
-    "one": "✔ {proofs} proof and {labels} label fixed in {pages} page",
-    "other": "✔ {proofs} proofs and {labels} labels fixed in {pages} pages"
-  },
+  "cli.sync.applied.summary": "✔ {proofs} and {labels} fixed in {pages}",
+  "cli.sync.count.proofs": { "one": "{count} proof", "other": "{count} proofs" },
+  "cli.sync.count.labels": { "one": "{count} label", "other": "{count} labels" },
   "cli.sync.applied.none": "nothing to apply",
   "cli.sync.md.title": "Following the application",
   "cli.sync.md.reviewTitle": "Pages to review",

@@ -206,7 +206,7 @@ describe("the deployment view (engine/build/c4-deployment.mjs)", () => {
       html,
       /<td>Production<\/td><td>orders\/api<\/td><td>kubernetes · container<\/td><td>image ghcr\.io\/acme\/orders:1\.4\.2 · ports 8080 · runs as root<\/td><td><code>k8s\/a\.yaml:20<\/code>/,
     );
-    assert.match(html, /aws: 2 cloud resource\(s\)/);
+    assert.match(html, /aws: 2 cloud resources/);
     assert.doesNotMatch(html, /<script>/);
     assert.match(html, /&lt;script>/);
     const frHtml = renderDeployment(deploymentModel(ITEMS), { t: fr, esc });

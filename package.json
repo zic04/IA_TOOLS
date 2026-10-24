@@ -1,8 +1,29 @@
 {
   "name": "doc-kit",
   "version": "0.4.1",
+  "private": true,
   "description": "Product documentation as one self-contained HTML file: extended Markdown, annotated screenshots, guided tours, search, light and dark themes.",
+  "keywords": [
+    "documentation",
+    "user-manual",
+    "single-file",
+    "static-site",
+    "annotated-screenshots",
+    "playwright",
+    "markdown",
+    "takeover",
+    "cli"
+  ],
+  "homepage": "https://github.com/zic04/IA_TOOLS#readme",
+  "bugs": {
+    "url": "https://github.com/zic04/IA_TOOLS/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zic04/IA_TOOLS.git"
+  },
   "license": "MIT",
+  "author": "Patrice COUEDEL",
   "type": "module",
   "bin": {
     "doc-kit": "cli/doc-kit.mjs"
