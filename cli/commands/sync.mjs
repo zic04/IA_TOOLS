@@ -19,7 +19,7 @@ import { readToc } from "../../engine/audit/audit.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
-import { WORK_DIR } from "./audit.mjs";
+import { WORK_DIR } from "../registry.mjs";
 
 export const options = {
   since: { type: "string" },

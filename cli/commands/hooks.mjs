@@ -9,7 +9,7 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { shownPath } from "../common.mjs";
-import { WORK_DIR } from "./audit.mjs";
+import { WORK_DIR } from "../registry.mjs";
 
 export const options = {
   app: { type: "string" },

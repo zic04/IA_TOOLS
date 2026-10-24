@@ -34,6 +34,8 @@ entries between a project's `kit` range and the installed version.
   name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
   (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its two git
   helpers).
+- `--lang=fr` (and `--lang=en`) chose nothing: only `--lang fr` was read, so the messages stayed in the project's
+  language, `DOC_KIT_LANG` or English. Both forms now work, `--help` included.
 
 ### Changed
 
@@ -51,6 +53,26 @@ entries between a project's `kit` range and the installed version.
     run before, 0 now.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
+- **The CLI starts in about a sixth of the time** (ARCHITECTURE.md §4): `doc-kit --version` took 1.3 s, now 0.2 s
+  (Node alone: 0.08 s). The dispatcher imports only the module of the command that runs (`cli/registry.mjs`), not
+  all 30, and Playwright is imported where a browser is launched, no longer at the start of every command that
+  reaches the capture engine (`build`, `audit`, `sync`…); the hook `hooks install` writes, which runs `facts` then `sync` after each
+  `git pull`, saves it twice. The adapter
+  loader moved from the capture engine to `engine/core/adapter-loader.mjs`: the coverage check, the facts and `sync`
+  no longer import the capture engine.
+- **`doc-kit --help` lists every command**, in groups generated from the registry: `backlog`, `context`, `probe`,
+  `sync` and `translate` were missing, and `inventory`, `facts`, `inputs` and `bricks` were filed under
+  "Screenshots" (now "Read the application"). Each command's line names every option it declares (`init --target`,
+  `--languages`, `--spaces`, `capture --compare`, `--stale`, `--trace`, `--verify`, `skill install --hooks`… were
+  missing); a test keeps both true.
+
+### Security
+
+- **`doc-kit --version` and `--help` ran the `doc.config.mjs` of the folder they were typed in**, or of a parent, to
+  find the language of the messages: typed in a cloned application that ships a documentation project, they ran
+  its code. The dispatcher no longer imports `doc.config.mjs` at all: the language is read in its text (a literal
+  `language`, or the first item of `languages`), and only a command that loads the project runs its configuration
+  (SECURITY.md, `test/unit/cli-startup.test.mjs`).
 
 ## [0.4.1] - 2026-10-23
 

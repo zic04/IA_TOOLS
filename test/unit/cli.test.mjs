@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { runCli, COMMANDS } from "../../cli/doc-kit.mjs";
+import { runCli } from "../../cli/doc-kit.mjs";
+import { COMMANDS } from "../../cli/registry.mjs";
 import { createContext, builtSite } from "../../cli/common.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 

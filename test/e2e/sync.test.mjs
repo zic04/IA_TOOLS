@@ -15,7 +15,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { connect, loadAdapter } from "../../engine/capture/session.mjs";
+import { connect } from "../../engine/capture/session.mjs";
+import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { webpSize } from "../../engine/capture/webp.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir } from "../tools/helpers.mjs";
 

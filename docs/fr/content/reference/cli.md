@@ -4,15 +4,18 @@
 doc-kit [<commande>] [options]
 ```
 
-Sans commande, `doc-kit` lance le [mode guidé](#/start/guided-mode). `doc-kit --help` liste les commandes,
-`doc-kit --help --lang fr` les liste en français, et `doc-kit --version` affiche la version du kit.
+Sans commande, `doc-kit` lance le [mode guidé](#/start/guided-mode). `doc-kit --help` liste toutes les commandes,
+groupe par groupe, chacune avec les options qu'elle déclare ; `doc-kit --help --lang fr` les liste en français, et
+`doc-kit --version` affiche la version du kit.
 `doc-kit <commande> --help`, ou `doc-kit help <commande>`, affiche l'usage d'une commande et chacune de ses options,
 dans la langue des messages : `doc-kit init --help` montre `--lang` et `--capture` parmi les autres.
 
 1. **Le projet** est le dossier donné par `--project`, sinon le dossier le plus proche qui contient un
    `doc.config.mjs`, en remontant depuis le dossier courant.
-2. **Les messages** sont dans la langue du projet dès la première ligne, `doctor` compris ; `--lang` la change le
-   temps d'une exécution. `init`, qui crée un projet ailleurs, parle `--lang`, `DOC_KIT_LANG` ou l'anglais.
+2. **Les messages** sont dans la langue du projet dès la première ligne, `doctor` compris ; `--lang fr` (ou
+   `--lang=fr`) la change le temps d'une exécution. Cette langue est lue dans le texte de `doc.config.mjs`, sans
+   jamais l'exécuter : `doc-kit --version` et `doc-kit --help` n'exécutent rien du dossier où on les tape. `init`,
+   qui crée un projet ailleurs, parle `--lang`, `DOC_KIT_LANG` ou l'anglais.
 3. **Chaque erreur** dit ce qui ne va pas (`✖`), puis ce qu'il faut faire (`→`).
 4. **Le code de sortie** dit à un script ce qui s'est passé, de la même façon pour toutes les commandes.
 
@@ -31,7 +34,7 @@ dans la langue des messages : `doc-kit init --help` montre `--lang` et `--captur
 | `--project <dossier>` | Le projet de documentation à traiter, au lieu de chercher `doc.config.mjs` |
 | `--json` | Affiche le résultat en JSON sur la sortie standard (pour les commandes qui ont un résultat) |
 | `--verbose` | Affiche aussi la correction de chaque avertissement, et la pile d'une erreur interne |
-| `--lang en\|fr` | Langue des messages pour cette exécution |
+| `--lang en\|fr` | Langue des messages pour cette exécution (`--lang fr` ou `--lang=fr`) |
 | `--help`, `-h` | La liste des commandes ; après une commande (ou `doc-kit help <commande>`), son usage et ses options |
 | `--profile` | Affiche le temps de chaque étape de l'exécution, de la plus longue à la plus courte |
 | `--version`, `-v` | La version du kit |
@@ -105,11 +108,12 @@ l'application n'est exécuté.
 
 ## Ajouter une commande
 
-Une commande est un fichier `cli/commands/<nom>.mjs` du kit, trouvé par le répartiteur au démarrage. Il exporte
-`options`, au format de `util.parseArgs` de Node, et `run({ ctx, values, positionals })`, qui renvoie un code de
-sortie. Les options de toutes les commandes sont réunies dans un seul analyseur : un nom d'option utilisé par deux
-commandes doit avoir le même type dans les deux. Ses messages vont dans `i18n/en.json` et `i18n/fr.json` (ou dans un
-fragment de `i18n/<langue>/`), sous `cli.*`.
+Une commande est un fichier `cli/commands/<nom>.mjs` du kit, nommé dans son groupe de `GROUPS` dans
+`cli/registry.mjs` (l'ordre de `--help`) et importé seulement quand elle s'exécute. Il exporte `options`, au format
+de `util.parseArgs` de Node, et `run({ ctx, values, positionals })`, qui renvoie un code de sortie. Un nom d'option
+utilisé par deux commandes doit avoir le même type dans les deux. Ses messages vont dans `i18n/en.json` et
+`i18n/fr.json` (ou dans un fragment de `i18n/<langue>/`), sous `cli.*`, dont sa ligne de `--help`
+(`cli.usage.command.<nom>`, qui nomme chaque option).
 
 ## Pièges et écarts constatés
 

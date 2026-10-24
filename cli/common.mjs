@@ -6,13 +6,10 @@ import path from "node:path";
 import readline from "node:readline";
 import { spawnSync } from "node:child_process";
 import { createI18n, LANGUAGES } from "../engine/i18n.mjs";
-import { pathToFileURL } from "node:url";
 import { loadProject, readSchema } from "../engine/project/load.mjs";
-import { findProject } from "../engine/project/find.mjs";
+import { findProject, languageInConfig } from "../engine/project/find.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
-import { build } from "../engine/build/build.mjs";
 import { spaceOutput } from "../engine/build/spaces.mjs";
-import { watchedPaths } from "../engine/dev/server.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
 import { chromiumStatus } from "../engine/dev/environment.mjs";
@@ -170,19 +167,19 @@ export function createContext(
     },
     /**
      * Messages in the project's language from the start of a command, unless --lang is given: the project (from
-     * --project, or found from the current folder upwards) is located and only the `language` of its
-     * doc.config.mjs is read. Nothing is reported here: without a project, or with a configuration that cannot
-     * be imported or an invalid language, the language stays as it is and the command reports the problem.
-     * @returns {Promise<string>} the message language
+     * --project, or found from the current folder upwards) is located and the `language` of its doc.config.mjs is
+     * read in its text, never by running it (SECURITY.md: `--version` and `--help` run nothing of the folder); a
+     * command that loads the project then speaks the language the configuration gives (loadProject). Nothing is
+     * reported here: without a project, with a file that cannot be read, a computed or an invalid language, the
+     * language stays as it is and the command reports the problem.
+     * @returns {string} the message language
      */
-    async useProjectLanguage({ from } = /** @type {{ from?: string }} */ ({})) {
+    useProjectLanguage() {
       if (globals.lang) return ctx.language;
       try {
-        const { configFile } = findProject({ project: globals.project, from });
-        // Same URL as loadProject: the module is evaluated once.
-        const raw = (await import(pathToFileURL(configFile).href)).default;
-        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return ctx.language;
-        const language = raw.language === undefined ? readSchema("config").properties.language.default : raw.language;
+        const { configFile } = findProject({ project: globals.project });
+        const found = languageInConfig(fs.readFileSync(configFile, "utf8"));
+        const language = found === undefined ? readSchema("config").properties.language.default : found;
         if (LANGUAGES.includes(language)) ctx.setLanguage(language);
       } catch {
         // reported by the command itself
@@ -297,11 +294,15 @@ export async function builtSite(
   const exists = fs.existsSync(output);
   if (!exists && requireExisting)
     throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });
+  // The dev server's watch list and the build engine are imported here, when a site is needed: every command starts
+  // without them (ARCHITECTURE.md §4).
   if (exists) {
+    const { watchedPaths } = await import("../engine/dev/server.mjs");
     const { folders, files } = watchedPaths(config);
     const sources = newestMtime(project.root, { folders: [...folders, config.paths.facts], files });
     if (sources <= fs.statSync(output).mtimeMs) return { file: output, release() {} };
   }
+  const { build } = await import("../engine/build/build.mjs");
   const built = build({ project, config, options: { draft: true, ...(space ? { space } : {}) } });
   const r = space ? { ...built, html: built.html && built.sites[0] ? built.sites[0].html : null } : built;
   if (!r.html) {

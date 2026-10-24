@@ -4,7 +4,7 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { loadAdapter } from "../../engine/capture/session.mjs";
+import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { adapterTools, runCoverage } from "../../engine/check/coverage.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
