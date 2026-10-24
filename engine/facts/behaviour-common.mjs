@@ -392,12 +392,12 @@ export function jsCommentRanges(text) {
 /**
  * The `#` comments of a Python text, by a linear walk that skips strings (triple-quoted ones included: they may
  * hold SQL, read as code) — and, with `docstrings`, its triple-quoted strings too (a route quoted as an example in
- * a docstring is no route).
+ * a docstring is no route); with `strings`, every string (a guard named in a log message is no call of it).
  * @param {string} text
- * @param {{ docstrings?: boolean }} [options]
+ * @param {{ docstrings?: boolean, strings?: boolean }} [options]
  * @returns {Array<[number, number]>}
  */
-export function pyCommentRanges(text, { docstrings = false } = {}) {
+export function pyCommentRanges(text, { docstrings = false, strings = false } = {}) {
   const out = /** @type {Array<[number, number]>} */ ([]);
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
@@ -407,12 +407,16 @@ export function pyCommentRanges(text, { docstrings = false } = {}) {
       i = end === -1 ? text.length : end;
     } else if (ch === '"' || ch === "'") {
       const triple = text.startsWith(ch.repeat(3), i);
+      const start = i;
       if (triple) {
         const end = text.indexOf(ch.repeat(3), i + 3);
         const stop = end === -1 ? text.length : end + 3;
-        if (docstrings) out.push([i, stop]);
+        if (docstrings || strings) out.push([i, stop]);
         i = stop - 1;
-      } else for (i++; i < text.length && text[i] !== ch && text[i] !== "\n"; i++) if (text[i] === "\\") i++;
+      } else {
+        for (i++; i < text.length && text[i] !== ch && text[i] !== "\n"; i++) if (text[i] === "\\") i++;
+        if (strings) out.push([start, i + 1]);
+      }
     }
   }
   return out;

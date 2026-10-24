@@ -34,6 +34,17 @@ entries between a project's `kit` range and the installed version.
   name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
   (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its launcher
   and its git helpers).
+- FastAPI: the dependencies of a route's decorator (`@router.get("/x", dependencies=[Depends(require_admin)])`)
+  and `Security(…)` are guards; such an admin route came out with no guard (`"none"`). A `Depends(…)` in a comment
+  or a string (`# dependencies=[…]`, `description="… Depends(require_admin)"`), of a decorator, a signature, an
+  `APIRouter(…)` or an `include_router(…)`, is none.
+- Flask: `@jwt_required(optional=True)` (and any route decorator with `optional=` anything but `False`, or `True`
+  first, on one line or several, after blanks too, `@jwt_required (optional=True)`, outside comments) is kept as
+  `jwt_required(optional=True)`, which lets anonymous callers in: no longer `"user"`. `optional = False` requires a
+  user.
+- The docs say which global access rules are not read (DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's
+  `SecurityFilterChain`, ASP.NET's `FallbackPolicy`, `FastAPI(dependencies=…)`): a route they alone protect is
+  `"none"`.
 - `--lang=fr` (and `--lang=en`) chose nothing: only `--lang fr` was read, so the messages stayed in the project's
   language, `DOC_KIT_LANG` or English. Both forms now work, `--help` included.
 - `doc-kit constructor` (or `toString`, `__proto__`: names every JavaScript object inherits) stopped on an unexpected
@@ -81,6 +92,62 @@ entries between a project's `kit` range and the installed version.
 
 ### Security
 
+- **A public route is no longer reported as protected** (`facts --source api`, `screens`; SECURITY.md,
+  ARCHITECTURE.md §6.13). The built-in user guards matched `session`, `token` and `authenticated` anywhere in a
+  name: `Depends(get_session)` (the database session of FastAPI's tutorial), Laravel's `VerifyCsrfToken` and DRF's
+  `IsAuthenticatedOrReadOnly` (anonymous reads) made a route `auth: "user"`. A user guard is now known by its whole
+  name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`, `Authorize`…; on the last segment
+  of a dotted name), a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`; `scoped_session` is no
+  scope), and a guard that lets anonymous callers in (`…OrReadOnly`, `jwt_required(optional=True)`,
+  `IS_AUTHENTICATED_ANONYMOUSLY`) is neither, whatever `review.guards` says: such a route is `"unknown"`, never
+  `"user"`, nor is a negation (`!hasRole('BANNED')`). An expression is as weak as its weakest alternative:
+  `hasRole('ADMIN') or permitAll()` is `"unknown"`.
+  Names that only held a session or a token are now `"unknown"` (`requireSession`, `getSession`, `getToken`,
+  `tokenMiddleware`); `get_current_active_user`, `verify_jwt_in_request` and `require_login` are user guards, and so
+  remain Spring's `isFullyAuthenticated()` and `Secured(IS_AUTHENTICATED_FULLY)`, Symfony's
+  `IS_AUTHENTICATED_FULLY` and `IS_AUTHENTICATED_REMEMBERED`, NestJS's `AuthenticatedGuard` and Express's
+  `authenticateToken`. `review.guards` is unchanged (regular expressions). The classification is
+  engine/facts/guards.mjs, in the ReDoS harness.
+- Expressions: a negation in parentheses or called (`(!hasRole('BANNED'))`, `not(has_role("banned"))`), an
+  alternative after `or(` or on the next line (`hasRole('ADMIN') or(permitAll())`) and
+  `isAuthenticated() and !hasRole('BANNED')` came out `"role"`. An alternative is now as strong as the strongest of
+  the parts it requires all of (`and`, `&&`, `&`), read outside parentheses only, each negation none:
+  `isAuthenticated() and !hasRole('BANNED')` is `"user"`, the others `"unknown"`.
+- Flask: a `before_request` hook no longer makes a route `"user"` or `"role"` (a hook that did nothing but was
+  named `require_admin` made a public route `"role"`), nor guards it when it may deny nothing: a logging, timing or
+  loading hook (`g.user = …`, `pass`, `return None`) gives no guard. A hook that may deny a request (a guard
+  decorator under it, now read; `abort(`, `raise`, `redirect(`, a `return` of a value, or a call of a guard by its
+  whole name in its body, outside strings and comments) gives its routes the guard `before_request`, always
+  `"unknown"` whatever its name, its body or `review.guards`. The adapters' `api` hook is given the project's
+  `review.guards` patterns (`api({ sources, guards })`).
+- Next.js: a session lookup (`auth()`, `getServerSession()`) or a role word (`role`, `isAdmin`) in a route
+  handler's body made it `"user"` or `"role"`, whatever it returned (`const session = await auth(); return
+  Response.json(session)`, `db.role.findMany()`). Each is now the partial guard `auth (body)`, `role (body)`,
+  always `"unknown"`, whatever `review.guards` says.
+- Django REST framework: `permission_classes = [IsAuthenticated | ReadOnly]` came out `"user"` and
+  `[IsAdminUser | AllowAny]` `"role"`: the alternative was lost. An entry of several classes (`|`, `&`, `~`,
+  Python's `or`, `and`, `not`) is now one guard written with DRF's operators (`IsAuthenticated | ReadOnly`), as weak
+  as its weakest alternative, and a negation (`~IsAdminUser`) is none. `permissions.AllowAny` came out `"role"` (the
+  module's name): a class is now read by its own name (`AllowAny`).
+- Rails: `before_action :authenticate_user!, unless: :public_listing?` made every action `"user"`. A callback
+  under `if:` or `unless:` (or a skip under one) now gives the partial guard `authenticate_user! (if)`,
+  `"unknown"`, and a callback is read to the end of its statement: an `only:` or an `unless:` on the next line is no
+  longer missed (the other actions came out guarded). A callback declared again replaces the one of the same name,
+  as in Rails: a parent's `before_action :authenticate_user!` redeclared in a child with `unless:` or
+  `only: :destroy` left the other actions `"user"`.
+- FastAPI: an `APIRouter(…)` or an `include_router(…)` in a comment or a docstring
+  (`# router = APIRouter(dependencies=[Depends(get_current_user)])` after the real one) gave its guards to the
+  file's routes: it is now none.
+- A role word counts in the called name only: `Depends(admin_crud.get_db)`, Flask's `@admin_bp.paginate()` and
+  Express's `permissions.none` came out `"role"` (the module's or the object's name). A loader (`loadRoles`) names no
+  role, express-unless's `requireAdmin.unless(…)` guards some paths only (`"unknown"`), and a negation written after
+  the check (`hasRole('ADMIN') == false`, `!= true`, `permitAll() and!hasRole('BANNED')`) is none. Django's admin
+  site is the guard `AdminSite` (was `admin.site`, whose module names no role).
+- The promise is now written as it holds: a route may look less protected than it is, never more, except in known
+  cases the names do not tell — a per-request override that loosens a class rule (DRF's `get_permissions()`
+  returning `[AllowAny()]` under `[IsAdminUser]`), Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")`
+  under a class `@Secured("ROLE_ADMIN")`, and rare argument forms (Flask's `**{"optional": True}`,
+  `optional=False or True`) (SECURITY.md).
 - **The Git LFS exception accepts only the values Git LFS writes**, each for its own key and as the whole value
   (`git-lfs clean -- %f`, `git-lfs smudge -- %f`, `git-lfs filter-process`, the last two also with `--skip`). A
   value that merely started like one was taken for Git LFS, so a repository's configuration could have a read-only

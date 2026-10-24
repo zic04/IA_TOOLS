@@ -170,6 +170,47 @@ as untrusted input:
   hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
   parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+- the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
+  a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
+  `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
+  another word — a database session (`get_session`), a CSRF check (`VerifyCsrfToken`), a session or a token alone
+  (`getSession`, `tokenMiddleware`) names no user; a guard that lets anonymous callers in (`IsAuthenticatedOrReadOnly`,
+  `@jwt_required(optional=True)`, `IS_AUTHENTICATED_ANONYMOUSLY`) is neither, whatever `review.guards` says, nor is
+  a negation (`!hasRole('BANNED')`, `(!hasRole(…))`, `not(has_role(…))`, DRF's `~IsAdminUser`,
+  `hasRole('ADMIN') == false`, `!= true`, `and!hasRole(…)`) nor a guard under express-unless's condition
+  (`requireAdmin.unless(…)`); a role word counts in the called name only, never in a module's or an object's name
+  before it (`admin_crud.get_db`, `permissions.none`) nor in a loader's (`loadRoles`); an expression is as weak as
+  its weakest alternative (`or`, `||`, `|` between blanks, whatever its parentheses or line breaks:
+  `hasRole('ADMIN') or(permitAll())`, DRF's `[IsAdminUser | AllowAny]`), and an alternative as strong as the
+  strongest of the parts it requires all of, read outside parentheses only (`and`, `&&`, `&`:
+  `isAuthenticated() and !hasRole('BANNED')` is `user`, `not (isAuthenticated() and hasRole('ADMIN'))` is
+  `unknown`); a name the kit does not know is `unknown`, never `user`; `optional=` anything but `False`, or `True`
+  first, in a decorator's arguments outside comments lets anonymous callers in (`@jwt_required (optional=True)`
+  too). A guard found where it checks some requests only, or none the kit reads, is `unknown` whatever its name and
+  `review.guards`: a session lookup or a role word in a Next.js handler's body (`auth (body)`: a lookup refuses an
+  anonymous caller nothing, whatever the handler returns), a Rails callback under `if:` or `unless:`
+  (`authenticate_user! (if)`), and a Rails callback declared again replaces the one of the same name (a parent's
+  `before_action :authenticate_user!` redeclared with `unless:` or `only: :destroy`). A `Depends(…)` in a comment or
+  a string is no guard, nor an `APIRouter(…)` or an `include_router(…)` in a comment or a docstring, and DRF's
+  module `permissions` names no role (`permissions.AllowAny` is read `AllowAny`). A Flask `before_request` hook never makes a route
+  `user` or `role`, whatever its name, its body or `review.guards`: when it may deny a request — a guard decorator
+  under it, or in its body, outside strings and comments, `abort(`, `raise`, `redirect(`, a `return` of a value
+  other than `None`, or a call of a guard by its whole name (a built-in user guard, or instead, when
+  `review.guards.user` is set, a name it matches, as it replaces them; or a name `review.guards.role` matches: the
+  built-in role words never count in a hook) — it gives the routes it applies to the guard `before_request`, always
+  `unknown`; a hook that may deny nothing (it logs, loads `g.user`, does `pass` or `return None`) gives none.
+  Telling whether a hook may deny can be wrong either way, which the promise allows: `unknown` is never more, and
+  `none` for a hook that guards through a helper the kit does not read is less. The global rules of a framework are
+  not read (DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's `SecurityFilterChain`, ASP.NET's `FallbackPolicy`,
+  `FastAPI(dependencies=…)`): a route they alone protect looks unguarded (`none`) — so a route may look less
+  protected than it is, never more, except in these known cases, where the names do not tell and a route may look
+  more protected than it is:
+  - a per-request override that loosens a class rule: DRF's `get_permissions()` returning `[AllowAny()]` under a
+    class `permission_classes = [IsAdminUser]` (`role`);
+  - Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")` under a class `@Secured("ROLE_ADMIN")`
+    (`role`);
+  - rare argument forms, such as Flask's `@jwt_required(**{"optional": True})` or
+    `@jwt_required(optional=False or True)` (`user`);
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
