@@ -19,8 +19,11 @@ liste exactement ce que chaque contrôle ci-dessous défend.
 
 1. **Les faits** (dossier dans Variables, écrits par `doc-kit facts` ; l'orchestrateur les a produits avant ce
    brief — si une source dont tu as besoin manque, ou est plus ancienne que le commit actuel de l'application,
-   dis-le dans ton rapport plutôt que d'en inventer une) : `api.json`, `dependencies.json` (`--network` ajoute
-   `exists`), `agents.json`, `tests.json`, `db.json`, `secrets.json`, `env.json`.
+   dis-le dans ton rapport plutôt que d'en inventer une) : `api.json`, `dependencies.json` (la `license` de chaque
+   élément dit d'où elle vient, `licenseFrom` : `lock`, `installed`, ou `registry` — celle de la dernière version,
+   avec `--network` ; `--network` ajoute `exists`, `latest` et `majorsBehind` à chaque dépendance directe qu'il
+   peut envoyer, `null` pour celles qu'il retient), `agents.json`, `tests.json`, `db.json`, `secrets.json`,
+   `env.json`.
 2. Pour les types qui le permettent (`api-surface`, `dependencies`, `agent-instructions`), l'orchestrateur a pu
    déjà lancer `doc-kit new <id> --prefill` : un tableau pré-rempli à partir des faits, avec un marqueur
    `<!-- doc-kit:prefill -->` au-dessus. Complète les colonnes de jugement (Authentification, Rôle, Isolation des

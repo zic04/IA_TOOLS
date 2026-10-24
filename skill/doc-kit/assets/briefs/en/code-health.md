@@ -18,8 +18,10 @@ lists exactly what each check below is defending against.
 
 1. **The facts** (folder in Variables, written by `doc-kit facts`; the orchestrator ran it before this brief — if
    a source you need is missing, or older than the application's current commit, say so in your report instead
-   of inventing one): `api.json`, `dependencies.json` (`--network` adds `exists`), `agents.json`, `tests.json`,
-   `db.json`, `secrets.json`, `env.json`.
+   of inventing one): `api.json`, `dependencies.json` (each item's `license` says where it comes from,
+   `licenseFrom`: `lock`, `installed`, or `registry` — the latest version's, with `--network`; `--network` adds
+   `exists`, `latest` and `majorsBehind` to each direct dependency it may send, `null` for one it keeps back),
+   `agents.json`, `tests.json`, `db.json`, `secrets.json`, `env.json`.
 2. For the types that support it (`api-surface`, `dependencies`, `agent-instructions`), the orchestrator may
    already have run `doc-kit new <id> --prefill`: a table pre-filled from the facts, with a
    `<!-- doc-kit:prefill -->` marker above it. Complete the judgment columns (Authentication, Role, Tenant
