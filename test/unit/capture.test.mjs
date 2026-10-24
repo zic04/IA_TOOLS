@@ -743,6 +743,7 @@ describe("i18n keys of the capture engine, the adapters and the checks", () => {
         "cloudKey",
         "assignment",
         "signedUrl",
+        "entropy",
       ].map((k) => `cli.check.secrets.kind.${k}`),
       ...["sessionOutside", "sessionTracked"].map((k) => `cli.check.secrets.${k}`),
     ];

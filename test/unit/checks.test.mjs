@@ -464,6 +464,45 @@ describe("check secrets", () => {
     }
   });
 
+  test("a random-looking value is reported in English and French, its value never printed", async () => {
+    const dir = await project();
+    try {
+      // A value of no known shape under a name that says nothing (fictional, built at run time).
+      const value = ["Zq8vN3kT", "6wP1xR4m", "Y7bLc2Hd", "9sF0gJ5e"].join("");
+      fs.appendFileSync(
+        path.join(dir, "content/use/orders.md"),
+        `\n\`\`\`\nORDERS_SERVICE_CREDENTIAL=${value}\n\`\`\`\n`,
+      );
+      const en = await cli(["check", "secrets", "--project", dir]);
+      assert.equal(en.code, 1);
+      assert.match(en.err, /✖ content\/use\/orders\.md:\d+: random-looking value \(high entropy\) \(Zq8v… \(32\)\)/);
+      const fr = await cli(["check", "secrets", "--project", dir, "--lang", "fr"]);
+      assert.match(
+        fr.err,
+        /✖ content\/use\/orders\.md:\d+\s?: valeur d'apparence aléatoire \(forte entropie\) \(Zq8v… \(32\)\)/,
+      );
+      assert.doesNotMatch(en.err + en.out + fr.err + fr.out, new RegExp(value.slice(4)));
+    } finally {
+      rm(dir);
+    }
+  });
+
+  test("a session file of megabytes outside the session folder is reported, told by its head; a large JSON file is not one", async () => {
+    const dir = await project();
+    try {
+      const large = "x".repeat(6 * 1024 * 1024);
+      const origins = [{ origin: "https://app.example.org", localStorage: [{ name: "cache", value: large }] }];
+      write(dir, "exports/old-session.json", JSON.stringify({ cookies: [], origins }));
+      write(dir, "exports/catalogue.json", JSON.stringify({ title: "Catalogue", cookies: [large], origins: [] }));
+      const r = await cli(["check", "secrets", "--project", dir]);
+      assert.equal(r.code, 1);
+      assert.match(r.err, /✖ session file outside the session folder: exports\/old-session\.json\n/);
+      assert.doesNotMatch(r.err, /catalogue\.json/);
+    } finally {
+      rm(dir);
+    }
+  });
+
   test("only actual secret values: a PEM header, placeholders and variable names are documentation", () => {
     const list = detectors(DEMO, { env: [], exclude: null, guid: true, patterns: [] });
     const kinds = (t) => scanText(t, list).map((f) => f.kind);

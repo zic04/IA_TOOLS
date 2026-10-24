@@ -1,7 +1,7 @@
 // `secrets` source (ARCHITECTURE.md §6.9): the generic value detectors of `engine/check/secrets.mjs` (private
-// keys, JWTs, connection strings, credentials in a URL, cloud keys, assignments, signed URLs), run over the
-// application's own files. Never the value, never a line number: one item per file where a kind of secret was
-// found (a file matched twice by the same rule is still one item).
+// keys, JWTs, connection strings, credentials in a URL, cloud keys, assignments, signed URLs, random-looking values
+// under any name: `entropy`), run over the application's own files. Never the value, never a line number: one item
+// per file where a kind of secret was found (a file matched twice by the same rule is still one item).
 //   item: { file, rule }
 import fs from "node:fs";
 import path from "node:path";

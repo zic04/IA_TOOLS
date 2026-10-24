@@ -221,6 +221,26 @@ entries between a project's `kit` range and the installed version.
   as whole readers too, and the harness builds the crafted shapes
   (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
   the former forms against the new ones on random input).
+- **`check secrets` finds the common formats it missed**, and so do the filters of `pack`, `backlog export` and
+  `inputs ingest`, and the `secrets` facts (SECURITY.md, "The secret detectors have limits"):
+  - an assignment to a compound name: `SECRET_KEY=`, `DB_PASSWORD=`, `GITHUB_TOKEN=`, `aws_secret_access_key =`
+    (the AWS secret key), `dbPassword:`, `"client-secret":`; the exact word was required (`KEYBOARD` and
+    `TOKENIZER` are still not secrets' names, and the key of anything else needs a value that looks generated);
+  - GitHub fine-grained tokens, GitLab, npm, Google OAuth client secrets, Slack app tokens and incoming webhooks;
+  - a PEM key escaped on one line in a JSON file (a service account's `private_key`), PGP private key blocks,
+    PuTTY keys;
+  - a URL signature in any case (`Sig=`), and `X-Amz-Signature=`, `X-Goog-Signature=`;
+  - last, a random-looking value under any name, assigned or quoted (`entropy`, "random-looking value"): 20
+    characters or more, an entropy threshold by length and a measure of how often the kind of character changes,
+    never for a hash, a nonce, an identifier or a placeholder. Calibrated on random tokens (about 9 in 10 found from
+    20 characters, 97 in 100 from 32) and on a corpus of harmless values and the kit's documentation (none found),
+    `test/unit/secret-detectors.test.mjs`.
+  - `change-me` and `replace-me` are placeholders; a number is not a secret's value.
+- **`export` leaves out more secret files**: Terraform state (`*.tfstate`, `*.tfstate.backup`), PuTTY keys
+  (`*.ppk`), VPN profiles (`*.ovpn`), encrypted files (`*.gpg`), `credentials` and `credentials.json`, the settings
+  of an environment (`appsettings.*.json`); the sources of a feature too (`SECRET_FILE`). A browser session is
+  recognised whatever its size, by its first 64 KB: one over 2 MB (local storage) was copied. `check secrets`
+  reports such a session outside the session folder: one over 5 MB was not read.
 
 ## [0.4.1] - 2026-10-23
 

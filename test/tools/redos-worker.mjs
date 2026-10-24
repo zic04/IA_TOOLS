@@ -14,6 +14,7 @@ import {
   HTML_ATTRIBUTE,
   PLACEHOLDER,
   SECRET_FILE,
+  SESSION_HEAD,
   scanText,
   isUrlTemplate,
   htmlText,
@@ -153,13 +154,23 @@ const PREFIXES = [
   "@@x\t",
   "-----BEGIN PRIVATE KEY-----\n",
   "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n",
+  "-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: x\n\n",
+  // A key on one line, its line ends escaped (a JSON key file); the private lines of a PuTTY key.
+  "-----BEGIN PRIVATE " + "KEY-----\\n",
+  "Private-Lines: 1\n",
+  "github_pat_",
+  "hooks.slack.com/services/T0a1b2/B0a1b2/",
   "eyJ",
   "eyJabcdefgh.eyJ",
   "Password=",
   "https://u:",
   "?sig=",
+  "&Sig=",
   "secret = ",
   "api_key: ",
+  // A compound name; a quoted value (the entropy fallback).
+  "DB_PASSWORD=",
+  'x = "',
   "verify=",
   "app.get(",
   "@app.get(",
@@ -328,6 +339,11 @@ const SCANNER_SHAPES = [
   ["", "[[verified a"],
   ["", "a:\r"],
   ["", "<script "],
+  // Keys on one line never ended, and quoted random values one after the other (the secret detectors).
+  ["", "-----BEGIN PRIVATE " + "KEY-----\\nA"],
+  ["", "Private-Lines: 1\nA1"],
+  ["", '"Zq8vN3kT6wP1xR4mY7bL'],
+  ["", "A_KEY=Zq8vN3kT6wP1xR4mY7bL "],
 ];
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */
 const CLOSER_TEXT = { prismaModel: "\n}", createTable: ");" };
@@ -800,7 +816,11 @@ export const CHECKS = [
     (s) => htmlText(s).length + htmlText(`<p>${s}</p><script>${s}`).length + htmlText(`${s}</script></style>>`).length,
   ],
   ["check secrets PLACEHOLDER", (s) => PLACEHOLDER.test(s)],
-  ["check secrets SECRET_FILE", (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`)],
+  [
+    "check secrets SECRET_FILE",
+    (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`) || SECRET_FILE.test(`appsettings.${s}`),
+  ],
+  ["check secrets SESSION_HEAD", (s) => SESSION_HEAD.test(s) || SESSION_HEAD.test(`{"cookies"${s}`)],
   // The paths of the application: an agent's instructions, a test file (a long name in a folder they look for).
   ...AGENT_FILES.map((re, i) => [`agents file ${i}`, (s) => re.test(s) || re.test(`.claude/${s}`)]),
   ["tests TEST_FILE", (s) => TEST_FILE.test(s) || TEST_FILE.test(`tests/${s}`)],

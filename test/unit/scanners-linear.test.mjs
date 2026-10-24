@@ -235,13 +235,22 @@ describe("check secrets finds what its former form found (engine/check/secrets.m
       while (b < text.length && !stop.test(text[b])) b++;
       return text.slice(a, b);
     };
-    /** What scanText gives `ignore`, in order, with the former token. */
-    const calls = (text) =>
-      GENERIC.flatMap((d) =>
-        [...text.matchAll(new RegExp(d.re.source, d.re.flags))]
-          .filter((m) => !d.accept || d.accept(m))
-          .map((m) => [(m.groups?.v ?? m[0]).trim(), tokenAround(text, m.index, m.index + m[0].length)]),
-      );
+    /**
+     * What scanText gives `ignore`, in order, with the former token: the fallback (entropy) last, on the lines where
+     * no other detector reported (one `ignored` did not set aside).
+     */
+    const calls = (text, ignored = () => false) => {
+      const lineOf = (m) => lineAt(text, m.index);
+      const pairOf = (m) => [(m.groups?.v ?? m[0]).trim(), tokenAround(text, m.index, m.index + m[0].length)];
+      const accepted = (d) =>
+        [...text.matchAll(new RegExp(d.re.source, d.re.flags))].filter((m) => !d.accept || d.accept(m));
+      const named = GENERIC.filter((d) => !d.fallback).flatMap(accepted);
+      const reported = new Set(named.filter((m) => !ignored(...pairOf(m))).map(lineOf));
+      const fallback = GENERIC.filter((d) => d.fallback)
+        .flatMap(accepted)
+        .filter((m) => !reported.has(lineOf(m)));
+      return [...named, ...fallback].map(pairOf);
+    };
     const tokens = [
       "eyJabcdefgh",
       ".",
@@ -254,6 +263,9 @@ describe("check secrets finds what its former form found (engine/check/secrets.m
       "AKIA" + "ABCDEFGHIJKLMNOP",
       "/",
       "x",
+      // A random-looking value (the entropy fallback), and new lines between the matches.
+      "k=" + ["Zq8vN3kT", "6wP1xR4m", "Y7bLc2Hd"].join(""),
+      "\n",
     ];
     const list = texts(0x5e03c0e5, tokens);
     same(
@@ -267,11 +279,16 @@ describe("check secrets finds what its former form found (engine/check/secrets.m
       calls,
     );
     // The built-in rules on those tokens: a match is left out as before, its URL template decided once per token.
+    const builtIn = (value, token) => isLocalAddress(value) || TEMPLATE.test(token);
     same(
       "scanText findings",
       list,
       (text) => scanText(text, GENERIC).length,
-      (text) => calls(text).filter(([value, token]) => !isLocalAddress(value) && !TEMPLATE.test(token)).length,
+      (text) => calls(text, builtIn).filter(([value, token]) => !builtIn(value, token)).length,
+    );
+    assert.ok(
+      list.some((text) => scanText(text, GENERIC).some((f) => f.kind === "entropy")),
+      "the fallback is among them",
     );
   });
 

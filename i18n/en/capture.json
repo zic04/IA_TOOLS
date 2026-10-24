@@ -163,6 +163,7 @@
   "cli.check.secrets.kind.cloudKey": "access key or token",
   "cli.check.secrets.kind.assignment": "value of a key, token or password",
   "cli.check.secrets.kind.signedUrl": "signature of a signed URL",
+  "cli.check.secrets.kind.entropy": "random-looking value (high entropy)",
   "cli.check.secrets.sessionOutside": "session file outside the session folder: {file}",
   "cli.check.secrets.sessionOutside.help": "delete it: a session gives access to the application ({command} connect keeps it in {dir})",
   "cli.check.secrets.sessionTracked": "the session file is tracked by git: {file}",

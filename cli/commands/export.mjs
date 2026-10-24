@@ -1,7 +1,7 @@
 // export <target> [--with-dist] [--zip]
 // Self-contained copy of the documentation project, rebuildable without the kit's repository:
 //   - the project's files (without node_modules/, .doc-kit/ — session! —, .git/ at any depth, dist/ unless --with-dist,
-//     .env files, keys and credentials, any browser session file, package-lock.json); --with-dist also takes the exports per space, wherever they are written;
+//     .env files, keys and credentials (SECRET_FILE), any browser session file whatever its size, package-lock.json); --with-dist also takes the exports per space, wherever they are written;
 //   - the engine vendored in vendor/doc-kit/ (engine, cli, adapters, i18n, schemas, templates, standard; no tests,
 //     examples, skill, docs, ci), and package.json pointing to it ("file:./vendor/doc-kit");
 //   - EXPORT.json (kit version, date, source) and a "standalone copy" section in README.md;
@@ -19,10 +19,9 @@ import { BRAND } from "../../engine/brand.mjs";
 import { loadProjectFriendly, git, slash, kitPackage } from "../../engine/dev/environment.mjs";
 import { zipFolder } from "../../engine/dev/zip.mjs";
 import { sessionFile } from "../../engine/capture/session.mjs";
-import { isStorageState } from "../../engine/check/secrets.mjs";
 import { shownPath } from "../common.mjs";
 import { closingBrace } from "../../engine/util/js-scan.mjs";
-import { SECRET_FILE } from "../../engine/check/secrets.mjs";
+import { SECRET_FILE, isSessionFile } from "../../engine/check/secrets.mjs";
 
 export { closingBrace };
 
@@ -37,14 +36,6 @@ const VENDORED_FOLDERS = ["engine", "cli", "adapters", "i18n", "schemas", "templ
 const VENDORED_FILES = ["package.json", "LICENSE", "README.md", "README.fr.md", "CHANGELOG.md", "ARCHITECTURE.md"];
 const SKIPPED_FOLDERS = new Set(["node_modules", ".doc-kit", ".git"]);
 
-/** Text of a small file (a browser session is a few hundred kilobytes at most); "" when it is larger or unreadable. */
-function readSmall(file) {
-  try {
-    return fs.statSync(file).size <= 2 * 1024 * 1024 ? fs.readFileSync(file, "utf8") : "";
-  } catch {
-    return "";
-  }
-}
 const README_START = "<!-- doc-kit:export -->";
 const README_END = "<!-- /doc-kit:export -->";
 
@@ -168,7 +159,7 @@ export function exportProject({
     if (
       SECRET_FILE.test(d.name) ||
       path.join(root, rel) === session ||
-      (d.name.endsWith(".json") && isStorageState(readSmall(path.join(root, rel))))
+      (d.name.endsWith(".json") && isSessionFile(path.join(root, rel)))
     ) {
       skipped.push(slash(rel));
       return false;

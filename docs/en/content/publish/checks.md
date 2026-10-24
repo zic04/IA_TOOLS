@@ -104,11 +104,16 @@ the built site** (pages, section introductions, home page, glossary) for:
 
 - the values of the `masking.env` files whose key looks sensitive, the GUIDs (except `00000000-0000-0000-0000-000000000000`)
   and the `masking.patterns`;
-- actual secret values: a private key block with its key material, a JWT, the password of a connection string or of a
-  URL, a cloud access key, the value of a key, token or password assignment, the signature of a signed URL.
+- actual secret values: a private key with its key material (a PEM block, one escaped in a JSON file, a PGP block, a
+  PuTTY key), a JWT, the password of a connection string or of a URL, a cloud or service token (AWS, GitHub, GitLab,
+  npm, Slack, Google, Stripe…), the value assigned to a secret's name (`SECRET_KEY`, `DB_PASSWORD`, `GITHUB_TOKEN`,
+  `dbPassword`…), the signature of a signed URL;
+- last, a random-looking value under any other name, assigned or quoted (20 characters or more, mixing lower case,
+  upper case and digits as a generated token does): "random-looking value (high entropy)".
 
 A mere mention is not a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `example`, `exemple`,
-`motdepasse`, a variable name in capitals) is ignored. A finding shows where it is and only the first characters and
+`motdepasse`, `change-me`, a variable name in capitals) is ignored, and so are a hash, a nonce or an identifier for
+the random-looking values. The detectors and their limits are described in SECURITY.md. A finding shows where it is and only the first characters and
 the length of the value. The check also reports a session file found outside `.doc-kit/`, and a session file tracked
 by git.
 
