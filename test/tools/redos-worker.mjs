@@ -24,6 +24,7 @@ import { DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { tomlEntries, tomlLeaves, dottedParts, tableDependencies, configLines } from "../../engine/facts/deps/read.mjs";
 import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
 import { packageKey } from "../../engine/core/packages.mjs";
+import { VERSION_PATTERNS, majorsBehind } from "../../engine/core/versions.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
@@ -526,6 +527,9 @@ export const CHECKS = [
   ],
   // A package's key (engine/core/packages.mjs): PEP 503's runs of separators.
   ["packages packageKey", (s) => packageKey("pip", s)],
+  // A version's major (engine/core/versions.mjs): a manifest's version or range, a registry's latest version.
+  ...Object.entries(VERSION_PATTERNS).map(([name, re]) => [`versions ${name}`, (s) => re.exec(s)]),
+  ["versions majorsBehind", (s) => majorsBehind({ version: null, spec: `^${s}` }, s)],
   // The TOML of the Python manifests and locks (deps/read.mjs): one pass, its arrays over many lines included.
   ["dependencies tomlEntries", (s) => tomlEntries(s).length],
   ["dependencies tomlEntries (an array left open)", (s) => tomlEntries(`deps = [\n${s}`).length],

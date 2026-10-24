@@ -74,9 +74,13 @@ export async function run({ ctx, values }) {
   const commit = ctx.commit(appDir);
   const app = relPath(project.root, appDir);
 
-  // What is private, read once before any request (AUDIT.md S13): never sent to a public registry.
+  // What is private, read once before any request (AUDIT.md S13): never sent to a public registry. `answers`: what the
+  // registries answered, by package, shared by the sources of the run (one request a package between them).
   const network = values.network
-    ? { registries: privateRegistries(appDir, { items: collectDependencies(appDir), env: ctx.env }) }
+    ? {
+        registries: privateRegistries(appDir, { items: collectDependencies(appDir), env: ctx.env }),
+        answers: new Map(),
+      }
     : null;
 
   // The stack adapters of the run: the kit's but the disabled ones, then the project's own (config.stacks).

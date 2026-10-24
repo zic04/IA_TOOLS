@@ -39,7 +39,7 @@
 // `operator` (the first comparison found, e.g. "==", ">=", "~=", or null) and `spec` (the constraint as written,
 // e.g. ">=2.0,<3.0", or null).
 import path from "node:path";
-import { GENERIC } from "../check/secrets.mjs";
+import { looksSecret } from "../check/secrets.mjs";
 import { listFiles, SKIP_DIRS } from "./common.mjs";
 import { NPM_PATTERNS, NPM_READERS } from "./deps/npm.mjs";
 import { YARN_READERS } from "./deps/yarn.mjs";
@@ -76,13 +76,7 @@ export function withoutCredentials(text) {
   if (typeof text !== "string") return text;
   if (text.length > 500) return null;
   const bare = text.replace(URL_CREDENTIALS, "$1");
-  return GENERIC.some((d) => {
-    d.re.lastIndex = 0;
-    for (const m of bare.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
-    return false;
-  })
-    ? null
-    : bare;
+  return looksSecret(bare) ? null : bare;
 }
 
 /** Whether a version or a constraint is an address, or is not kept as written (a credential, a secret). */

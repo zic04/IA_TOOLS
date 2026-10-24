@@ -266,8 +266,15 @@ as you share the documentation.
 The kit talks to nothing but the application you capture and, with `doc-kit inputs fetch`, the repositories you declared (through git, above): no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
 port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
-the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest
-version) **only when a lock file proves the public registry served the package**: a `package-lock.json` or Yarn 1
+the application's direct dependencies to the npm and PyPI registries — one request a package for the whole run, for
+the document of its latest version: that it exists, that version, and the licence it declares — and nothing else
+(never a version, never a file's content); their answer is untrusted, and kept through allowlists only: the latest
+version as a release reads (a digit first, 64 characters at most, no blank, no address, nothing a secret detector
+finds), the licence as a licence's name (`safeLicence`), a body whose told size is over 8 MiB never read, the whole
+answer within the timeout; anything else is no value. Limit: the size is checked only when the registry tells it
+(`Content-Length`, the compressed size of a compressed body); a body that tells none is bounded by the 5-second
+timeout alone. It sends these names **only when a lock file proves the public
+registry served the package**: a `package-lock.json` or Yarn 1
 `yarn.lock` entry resolved to that package's own tarball on npm's registry (an alias resolved to another package's
 proves nothing, and another entry of the same lock resolved to another package's tarball, or written without `resolved` (a
 copy bundled inside another package's tarball apart), drops the proof, whatever the order of the lock's keys; a

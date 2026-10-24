@@ -1,7 +1,8 @@
 // The network gateway (engine/facts/network.mjs, ARCHITECTURE.md §6.9, AUDIT.md S13): the decision that keeps a name
 // back (isPrivatePackage: "private" or "unproven"), the client that refuses whatever its caller did, one request a
-// package, the answers of `exists` and `latest`, the URL of each registry, and the timeout. A fake `fetch` records every
-// request; the clock is never read (the timeout is played with node:test's mock timers).
+// package, the answers of `describe`, the URL of each registry, and the timeout. A fake `fetch` records every request;
+// the clock is never read (the timeout is played with node:test's mock timers). What is kept of an answer (the latest
+// version, the licence, majorsBehind): facts-network-describe.test.mjs.
 import { test, describe, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -322,11 +323,10 @@ describe("the client refuses whatever its caller did", () => {
     ["a name no lock proves", next, { proven: new Set() }, "unproven"],
   ];
   for (const [label, item, over, why] of REFUSED)
-    test(`${label}: exists and latest throw, nothing is sent (${why})`, async () => {
+    test(`${label}: describe throws, nothing is sent (${why})`, async () => {
       const { urls, fetch } = spyFetch(() => ({ ...OK, json: async () => ({ version: "2.0.0" }) }));
       const client = createRegistryClient({ fetch, registries: registriesFor([item], over) });
-      await assert.rejects(client.exists(item), /private package reached the network gateway/);
-      await assert.rejects(client.latest(item), /private package reached the network gateway/);
+      await assert.rejects(client.describe(item), /private package reached the network gateway/);
       assert.deepEqual(urls, []);
     });
 
@@ -336,9 +336,8 @@ describe("the client refuses whatever its caller did", () => {
       fetch,
       registries: registriesFor([next], { npmScopes: new Set(["@corp"]) }),
     });
-    assert.equal(await client.exists(next), true);
-    assert.equal(await client.latest(next), "2.0.0");
-    assert.deepEqual(urls, [registryUrl("npm", "next"), `${registryUrl("npm", "next")}/latest`]);
+    assert.deepEqual(await client.describe(next), { exists: true, latest: "2.0.0", license: null });
+    assert.deepEqual(urls, [registryUrl("npm", "next")], "one request");
   });
 });
 
@@ -424,13 +423,13 @@ describe("one request a package", () => {
         { name: "left-pad", version: "1.0.0", ecosystem: "npm", direct: true, manifest: "package.json" },
       ];
       const { summary } = await collectQuality(dir, { fetch, dependencies });
-      assert.deepEqual(urls, [`${registryUrl("npm", "react")}/latest`], "the unproven one is never asked");
+      assert.deepEqual(urls, [registryUrl("npm", "react")], "the unproven one is never asked");
       assert.equal(summary.outdated, 1);
     });
   });
 
   describe("two npm names that differ only in case are two packages (JSONStream, jsonstream)", () => {
-    const answer = (url) => (url.endsWith("/JSONStream") ? OK : { ok: false, status: 404 });
+    const answer = (url) => (url === registryUrl("npm", "JSONStream") ? OK : { ok: false, status: 404 });
     const deps = { JSONStream: "^1.3.5", jsonstream: "^0.0.1" };
     const LOCKS = [
       [
@@ -500,17 +499,14 @@ describe("one request a package", () => {
           },
         ];
         const { summary } = await collectQuality(dir, { fetch, dependencies });
-        assert.deepEqual(urls.sort(), [
-          `${registryUrl("npm", "JSONStream")}/latest`,
-          `${registryUrl("npm", "jsonstream")}/latest`,
-        ]);
+        assert.deepEqual(urls.sort(), [registryUrl("npm", "JSONStream"), registryUrl("npm", "jsonstream")]);
         assert.equal(summary.outdated, 1, "JSONStream 1 → 3 is behind, jsonstream 1 → 1 is not");
       });
     });
   });
 });
 
-describe("the answers of exists and latest", () => {
+describe("the answers of describe", () => {
   const registries = (items) => registriesFor(items);
 
   test("exists: true, false (404), null (no usable answer) — direct dependencies only", async () => {
@@ -539,9 +535,11 @@ describe("the answers of exists and latest", () => {
     assert.deepEqual(urls.sort(), ["next", "left-pad-pro", "acme-internal"].map((n) => registryUrl("npm", n)).sort());
   });
 
-  const EXISTS_ROWS = [
-    ["a 200 answer", () => OK, true],
-    ["a 404 answer", () => ({ ok: false, status: 404 }), false],
+  // A 200 says the package exists, whatever its body: what the body does not give as a release is null.
+  const EXISTS = { exists: true, latest: null, license: null };
+  const ROWS = [
+    ["a 200 answer with no body", () => OK, EXISTS],
+    ["a 404 answer", () => ({ ok: false, status: 404, json: async () => ({ version: "9.9.9" }) }), { exists: false }],
     ["a 500 answer", () => ({ ok: false, status: 500 }), null],
     ["a 403 answer", () => ({ ok: false, status: 403 }), null],
     [
@@ -551,62 +549,36 @@ describe("the answers of exists and latest", () => {
       },
       null,
     ],
-  ];
-  for (const [label, answer, expected] of EXISTS_ROWS)
-    test(`exists, ${label}: ${expected}`, async () => {
-      const item = { name: "next", ecosystem: "npm", version: "15.0.0" };
-      const client = createRegistryClient({ fetch: spyFetch(answer).fetch, registries: registriesFor([item]) });
-      assert.equal(await client.exists(item), expected);
-    });
-
-  const LATEST_ROWS = [
     [
       "npm: the version of the answer",
-      { name: "next", ecosystem: "npm" },
-      { ok: true, status: 200, json: async () => ({ version: "15.1.0" }) },
-      "15.1.0",
+      () => ({ ...OK, json: async () => ({ version: "15.1.0" }) }),
+      { ...EXISTS, latest: "15.1.0" },
     ],
     [
       "pip: info.version of the answer",
-      { name: "flask", ecosystem: "pip" },
-      { ok: true, status: 200, json: async () => ({ info: { version: "3.1.0" } }) },
-      "3.1.0",
+      () => ({ ...OK, json: async () => ({ info: { version: "3.1.0" } }) }),
+      { ...EXISTS, latest: "3.1.0" },
+      "pip",
     ],
-    [
-      "a 404",
-      { name: "next", ecosystem: "npm" },
-      { ok: false, status: 404, json: async () => ({ version: "9.9.9" }) },
-      null,
-    ],
-    [
-      "an answer without a version",
-      { name: "next", ecosystem: "npm" },
-      { ok: true, status: 200, json: async () => ({}) },
-      null,
-    ],
-    [
-      "a pip answer without info",
-      { name: "flask", ecosystem: "pip" },
-      { ok: true, status: 200, json: async () => ({}) },
-      null,
-    ],
+    ["an answer without a version", () => ({ ...OK, json: async () => ({}) }), EXISTS],
+    ["a pip answer without info", () => ({ ...OK, json: async () => ({}) }), EXISTS, "pip"],
+    ["a pip answer that is null", () => ({ ...OK, json: async () => null }), EXISTS, "pip"],
     [
       "a body that is not JSON",
-      { name: "next", ecosystem: "npm" },
-      {
-        ok: true,
-        status: 200,
+      () => ({
+        ...OK,
         json: async () => {
           throw new SyntaxError("x");
         },
-      },
-      null,
+      }),
+      EXISTS,
     ],
   ];
-  for (const [label, item, response, expected] of LATEST_ROWS)
-    test(`latest, ${label}: ${expected}`, async () => {
-      const client = createRegistryClient({ fetch: spyFetch(() => response).fetch, registries: registriesFor([item]) });
-      assert.equal(await client.latest(item), expected);
+  for (const [label, answer, expected, ecosystem = "npm"] of ROWS)
+    test(`describe, ${label}: ${JSON.stringify(expected)}`, async () => {
+      const item = { name: ecosystem === "npm" ? "next" : "flask", ecosystem, version: "1.0.0" };
+      const client = createRegistryClient({ fetch: spyFetch(answer).fetch, registries: registriesFor([item]) });
+      assert.deepEqual(await client.describe(item), expected);
     });
 
   test("a package kept back is annotated and its `exists` is null; the others keep their answer", async () => {
@@ -630,34 +602,28 @@ describe("the answers of exists and latest", () => {
   });
 });
 
-describe("the URL of each registry", () => {
+describe("the URL of each registry: its latest version's document, one request", () => {
   const ROWS = [
-    ["npm", "next", "https://registry.npmjs.org/next", "https://registry.npmjs.org/next/latest"],
-    [
-      "npm",
-      "@types/node",
-      "https://registry.npmjs.org/%40types%2Fnode",
-      "https://registry.npmjs.org/%40types%2Fnode/latest",
-    ],
-    ["pip", "fastapi", "https://pypi.org/pypi/fastapi/json", "https://pypi.org/pypi/fastapi/json"],
-    ["pip", "my_lib", "https://pypi.org/pypi/my_lib/json", "https://pypi.org/pypi/my_lib/json"],
+    ["npm", "next", "https://registry.npmjs.org/next/latest"],
+    ["npm", "@types/node", "https://registry.npmjs.org/%40types%2Fnode/latest"],
+    ["pip", "fastapi", "https://pypi.org/pypi/fastapi/json"],
+    ["pip", "my_lib", "https://pypi.org/pypi/my_lib/json"],
   ];
-  for (const [ecosystem, name, exists, latest] of ROWS)
-    test(`${ecosystem} ${name}: ${exists}`, async () => {
+  for (const [ecosystem, name, url] of ROWS)
+    test(`${ecosystem} ${name}: ${url}`, async () => {
       const item = { name, ecosystem, version: "1.0.0" };
       const { urls, fetch } = spyFetch(() => ({ ...OK, json: async () => ({ version: "1", info: { version: "1" } }) }));
       const client = createRegistryClient({ fetch, registries: registriesFor([item]) });
-      await client.exists(item);
-      await client.latest(item);
-      assert.deepEqual(urls, [exists, latest]);
-      assert.equal(exists.split("/latest")[0], registryUrl(ecosystem, name), "the shared tool builds the same URL");
+      assert.deepEqual(await client.describe(item), { exists: true, latest: "1", license: null });
+      assert.deepEqual(urls, [url]);
+      assert.equal(url, registryUrl(ecosystem, name), "the shared tool builds the same URL");
     });
 
   test("a request carries only the name: one argument, a signal, no version and no header", async () => {
     const calls = [];
     const fetch = async (...args) => (calls.push(args), OK);
     const item = { name: "next", ecosystem: "npm", version: "15.0.0", spec: "^15" };
-    await createRegistryClient({ fetch, registries: registriesFor([item]) }).exists(item);
+    await createRegistryClient({ fetch, registries: registriesFor([item]) }).describe(item);
     assert.equal(calls.length, 1);
     assert.deepEqual(Object.keys(calls[0][1]), ["signal"]);
     assert.ok(!calls[0][0].includes("15"), calls[0][0]);
@@ -687,15 +653,14 @@ describe("the timeout covers the whole answer (played with mock timers, the cloc
   const item = { name: "next", ecosystem: "npm", version: "15.0.0" };
   const make = (fetch, timeoutMs) => createRegistryClient({ fetch, registries: registriesFor([item]), timeoutMs });
 
-  for (const [label, body, call] of [
-    ["exists, a registry that never answers", false, (c) => c.exists(item)],
-    ["latest, a registry that never answers", false, (c) => c.latest(item)],
-    ["latest, a registry that trickles its body", true, (c) => c.latest(item)],
+  for (const [label, body] of [
+    ["a registry that never answers", false],
+    ["a registry that trickles its body", true],
   ])
     test(`${label}: aborted at the timeout, the answer is null`, { timeout: 10_000 }, async () => {
       mock.timers.enable({ apis: ["setTimeout"] });
       const state = hanging({ body });
-      const pending = call(make(state.fetch, 10_000));
+      const pending = make(state.fetch, 10_000).describe(item);
       assert.equal(state.calls, 1);
       mock.timers.tick(9_999);
       await Promise.resolve();
@@ -708,7 +673,7 @@ describe("the timeout covers the whole answer (played with mock timers, the cloc
   test("the default timeout is 5 seconds", { timeout: 10_000 }, async () => {
     mock.timers.enable({ apis: ["setTimeout"] });
     const state = hanging();
-    const pending = createRegistryClient({ fetch: state.fetch, registries: registriesFor([item]) }).exists(item);
+    const pending = createRegistryClient({ fetch: state.fetch, registries: registriesFor([item]) }).describe(item);
     mock.timers.tick(4_999);
     assert.equal(state.aborted, false);
     mock.timers.tick(1);
@@ -738,7 +703,7 @@ describe("the timeout covers the whole answer (played with mock timers, the cloc
     mock.timers.enable({ apis: ["setTimeout"] });
     let signal;
     const fetch = async (url, options) => ((signal = options.signal), OK);
-    assert.equal(await make(fetch, 10_000).exists(item), true);
+    assert.deepEqual(await make(fetch, 10_000).describe(item), { exists: true, latest: null, license: null });
     mock.timers.tick(10_000);
     assert.equal(signal.aborted, false);
   });

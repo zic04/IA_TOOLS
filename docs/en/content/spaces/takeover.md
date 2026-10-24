@@ -58,8 +58,12 @@ local or demo instance: see [Security and maintainability reviews](#/spaces/revi
 
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
-`--network` only sends a dependency's name to its registry, to check it exists and how far behind it is, when a lock
-file proves the public registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`)
+`--network` asks the registry of each direct dependency, one request a package, for its latest version: each item
+gets `exists`, `latest` and `majorsBehind` (how many majors behind the latest; `null` when the version in use or the
+answer does not tell, as for a package never asked), and, when no lock file gave its licence, the one the latest
+version declares (`licenseFrom: "registry"`: it may not be the installed version's); what the registry answers is kept
+only when it reads as a version and a licence name. It only sends a dependency's name, never its version, and only
+when a lock file proves the public registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`)
 — a name known only from a manifest, `pnpm-lock.yaml`, a Yarn berry lock or a `Pipfile.lock` is never sent — and
 never the name of a private package (one of the application's own packages, a scope with its own registry, a
 private index, a workspace, local or privately hosted package), read from the application, its lock files, every

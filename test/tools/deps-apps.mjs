@@ -35,10 +35,13 @@ export async function withApp(files, fn) {
   }
 }
 
-/** The `ecosystem name` of a URL the gateway requested (npm's encoded name decoded, PyPI's JSON URL). */
+/**
+ * The `ecosystem name` of a URL the gateway requested (npm's latest version's document, its encoded name decoded;
+ * PyPI's JSON URL); any other URL is `? <url>`.
+ */
 export function sentName(url) {
-  const npm = "https://registry.npmjs.org/";
-  if (url.startsWith(npm)) return `npm ${decodeURIComponent(url.slice(npm.length))}`;
+  const npm = /^https:\/\/registry\.npmjs\.org\/([^/]+)\/latest$/.exec(url);
+  if (npm) return `npm ${decodeURIComponent(npm[1])}`;
   const pip = /^https:\/\/pypi\.org\/pypi\/([^/]+)\/json$/.exec(url);
   return pip ? `pip ${pip[1]}` : `? ${url}`;
 }
@@ -49,11 +52,15 @@ export function sentName(url) {
  * items read; `unreadable`, the files that could not be read; `urls`, the requests as made.
  * `proof`: "locks" (as it is: only what a lock proves) or "all" (every item marked proven: what keeps a name back is
  * then the second net alone). `env`: the person's variables (none by default); `home`: files written in a home folder
- * given as HOME and USERPROFILE.
+ * given as HOME and USERPROFILE. `answer(url)`: what the spy registry answers (by default a 200 with no body).
  * @param {Record<string, unknown>} files
- * @param {{ proof?: "locks"|"all", env?: Record<string, string>, home?: Record<string, unknown> }} [options]
+ * @param {{ proof?: "locks"|"all", env?: Record<string, string>, home?: Record<string, unknown>,
+ *   answer?: (url: string) => unknown }} [options]
  */
-export async function network(files, { proof = "locks", env = {}, home } = {}) {
+export async function network(
+  files,
+  { proof = "locks", env = {}, home, answer = () => ({ ok: true, status: 200 }) } = {},
+) {
   const homeDir = home ? app(home) : null;
   try {
     return await withApp(files, async (dir) => {
@@ -62,7 +69,7 @@ export async function network(files, { proof = "locks", env = {}, home } = {}) {
       const judged = proof === "all" ? items.map((i) => ({ ...i, public: true })) : items;
       const fullEnv = homeDir ? { HOME: homeDir, USERPROFILE: homeDir, ...env } : env;
       const urls = [];
-      const out = await checkExistence(judged, async (url) => (urls.push(url), { ok: true, status: 200 }), {
+      const out = await checkExistence(judged, async (url) => (urls.push(url), answer(url)), {
         registries: privateRegistries(dir, { items: judged, env: fullEnv }),
       });
       const kept = {};

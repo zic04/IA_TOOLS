@@ -1,5 +1,7 @@
-// `--network` (ARCHITECTURE.md §6.9): checks that each DIRECT dependency exists in its public registry. Only the
-// package name is sent (never the version, never any file content); 8 requests at a time, 5 s each. `fetchImpl`
+// `--network` (ARCHITECTURE.md §6.9): asks the public registry of each DIRECT dependency for its latest version's
+// document — one request a package — and keeps whether it exists, that version, how many majors behind it is, and its
+// licence when no offline source gave one. Only the package name is sent (never the version, never any file
+// content); the answer is untrusted, kept through allowlists; 8 requests at a time, 5 s each. `fetchImpl`
 // is the test seam of the CLI context (`ctx.fetch`, defaulting to the global `fetch`): the tests never reach the
 // network.
 // A name is sent ONLY when a lock file proves its public registry served the package: an item its lock reader marks
@@ -24,7 +26,10 @@
 import path from "node:path";
 import { listFiles } from "./common.mjs";
 import { packageKey, packageId } from "../core/packages.mjs";
+import { majorsBehind } from "../core/versions.mjs";
 import { uvSourceNames } from "./deps/python.mjs";
+import { npmLicence, pythonLicence } from "./deps/licences.mjs";
+import { looksSecret } from "../check/secrets.mjs";
 import {
   readIf,
   emptyRegistries,
@@ -42,29 +47,48 @@ import {
 // caller did: a name the filter missed upstream is a defect, never a request. The one exception is an external tool:
 // with --tools --network, osv-scanner downloads its own vulnerability database (public files, no name sent).
 
-/** Where a package is looked up: existence, and its latest published version. */
+/**
+ * Where a package is looked up — the document of its latest published version, one request — and what is read from
+ * it: that version, and the licence that version declares (deps/licences.mjs: a licence's name, or nothing).
+ */
 const REGISTRY = {
   npm: {
-    exists: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}`,
-    latest: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}/latest`,
-    version: (data) => data.version,
+    url: (name) => `https://registry.npmjs.org/${encodeURIComponent(name)}/latest`,
+    version: (doc) => doc?.version,
+    license: (doc) => npmLicence(doc),
   },
   pip: {
-    exists: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
-    latest: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
-    version: (data) => data.info?.version,
+    url: (name) => `https://pypi.org/pypi/${encodeURIComponent(name)}/json`,
+    version: (doc) => doc?.info?.version,
+    license: (doc) =>
+      pythonLicence({
+        expression: doc?.info?.license_expression,
+        license: doc?.info?.license,
+        classifiers: doc?.info?.classifiers,
+      }),
   },
 };
 
 /**
- * A GET whose answer is read by `read`, within one timeout that covers the body too (a registry that trickles its
- * answer cannot hold a worker): what `read` returns, or null (no answer, a timeout, a network or parsing error).
+ * The largest answer read, when its size is told (Content-Length): npm's document of a version is a few kilobytes,
+ * PyPI's JSON of a project with thousands of releases a few megabytes.
+ */
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
+
+/**
+ * A GET whose answer is read by `read`, within one timeout that covers the body too: the request is aborted then, and
+ * whatever has not answered yet is no answer (a registry that trickles its body, a body that never settles whatever
+ * the signal, cannot hold a worker). What `read` returns, or null (no answer, a timeout, a network error).
  */
 async function get(url, fetchImpl, timeoutMs, read) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timer;
+  const expired = new Promise((_, reject) => {
+    timer = setTimeout(() => (controller.abort(), reject(new Error("timeout"))), timeoutMs);
+  });
+  const answer = (async () => read(await fetchImpl(url, { signal: controller.signal })))();
   try {
-    return await read(await fetchImpl(url, { signal: controller.signal }));
+    return await Promise.race([answer, expired]);
   } catch {
     return null;
   } finally {
@@ -73,32 +97,68 @@ async function get(url, fetchImpl, timeoutMs, read) {
 }
 
 /**
- * The client of the public registries, for one run. A private item (isPrivatePackage) throws: callers filter them
- * out first, so reaching the gateway with one is a defect of the kit, and nothing is sent.
- * @param {{ fetch: (url: string, options?: object) => Promise<any>, registries: ReturnType<typeof privateRegistries>,
- *   timeoutMs?: number }} p
+ * The JSON of an answer, or null: a body over MAX_BODY_BYTES (when its size is told: never read, its stream
+ * cancelled), or not JSON.
  */
-export function createRegistryClient({ fetch: fetchImpl, registries, timeoutMs = 5000 }) {
+async function jsonOf(res) {
+  if (Number(res.headers?.get?.("content-length")) > MAX_BODY_BYTES) {
+    res.body?.cancel?.()?.catch?.(() => {});
+    return null;
+  }
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A version as a registry gives it, kept only when it reads as a release (NETWORK_PATTERNS.version: a digit first, 64
+ * characters at most, no blank, no address) and holds nothing a secret detector of the kit finds; else null.
+ * @param {unknown} value
+ */
+function safeVersion(value) {
+  return typeof value === "string" && NETWORK_PATTERNS.version.test(value) && !looksSecret(value) ? value : null;
+}
+
+/** @typedef {{ exists: true, latest: string|null, license: string|null }|{ exists: false }|null} RegistryAnswer */
+
+/**
+ * The client of the public registries, for one run. A private item (isPrivatePackage) throws: callers filter them
+ * out first, so reaching the gateway with one is a defect of the kit, and nothing is sent. `answers`: the answers of
+ * the run, by package (packageId) — one Map shared by every source of a `facts --network` run (cli/commands/facts.mjs),
+ * so that `dependencies` and `quality` ask a registry once a package between them; a client's own otherwise.
+ * @param {{ fetch: (url: string, options?: object) => Promise<any>, registries: ReturnType<typeof privateRegistries>,
+ *   timeoutMs?: number, answers?: Map<string, Promise<RegistryAnswer>> }} p
+ */
+export function createRegistryClient({ fetch: fetchImpl, registries, timeoutMs = 5000, answers = new Map() }) {
   const guard = (item) => {
     if (isPrivatePackage(item, registries)) throw new Error("defect: a private package reached the network gateway");
     return REGISTRY[item.ecosystem];
   };
   return {
-    /** Does the package exist: true, false (404), or null (no usable answer). */
-    async exists(item) {
+    /**
+     * The package as its registry describes it, from ONE GET on its latest version's document (the name alone in
+     * the URL): `{ exists: true, latest, license }` (a 200; `latest` and `license` null when the answer does not give
+     * them as a release and a licence's name), `{ exists: false }` (a 404), or null (no usable answer, a timeout).
+     * The answer is untrusted: only what passes safeVersion and safeLicence is kept. Asked once a package in `answers`
+     * (the guard still judges every call).
+     * @returns {Promise<RegistryAnswer>}
+     */
+    async describe(item) {
       const registry = guard(item);
       if (!registry) return null;
-      return get(registry.exists(item.name), fetchImpl, timeoutMs, (res) =>
-        res.ok ? true : res.status === 404 ? false : null,
-      );
-    },
-    /** Its latest published version, or null (404, timeout, malformed answer). */
-    async latest(item) {
-      const registry = guard(item);
-      if (!registry) return null;
-      return get(registry.latest(item.name), fetchImpl, timeoutMs, async (res) =>
-        res.ok ? (registry.version(await res.json()) ?? null) : null,
-      );
+      const id = packageId(item);
+      if (!answers.has(id))
+        answers.set(
+          id,
+          get(registry.url(item.name), fetchImpl, timeoutMs, async (res) => {
+            if (!res.ok) return res.status === 404 ? { exists: false } : null;
+            const doc = await jsonOf(res);
+            return { exists: true, latest: safeVersion(registry.version(doc)), license: registry.license(doc) };
+          }),
+        );
+      return answers.get(id);
     },
   };
 }
@@ -121,6 +181,10 @@ export const NETWORK_PATTERNS = Object.freeze({
   // other (`café`, `_corp`, `corp-`) a lock cannot have from there — a forged proof, never sent.
   npmName: /^(?:@[a-z0-9~-][a-z0-9._~-]*\/)?[a-z0-9~-][a-z0-9._~-]*$/i,
   pipName: /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i,
+  // The latest version a registry's answer gives, kept only as a release reads (semver: "15.1.0", "2.0.0-rc.1+b5";
+  // PEP 440: "2.0.0rc1", "1!2.0", "1.0.post1"): a digit first, then letters, digits, ".", "+", "!", "-", 64
+  // characters in all. A blank, an address ("://"), a quote or a longer text is no version.
+  version: /^\d[0-9A-Za-z.+!-]{0,63}$/,
 });
 
 /** The longest name npm's registry holds. */
@@ -278,34 +342,62 @@ export function isPrivatePackage(item, registries) {
 }
 
 /**
- * Adds `exists` to every DIRECT dependency item (never to a transitive one): true, false, or null.
+ * An item sent, with its registry's answer (createRegistryClient's `describe`): `exists`, `latest` and `majorsBehind`
+ * (engine/core/versions.mjs), null when the answer does not tell; the registry's licence only for a package no
+ * offline source gave one, on any of its items (`licenseFrom: "registry"`: the licence the latest version declares).
+ * @param {object} item
+ * @param {RegistryAnswer|undefined} answer
+ * @param {boolean} licensed   an offline source (a lock, an installed copy) gave the package a licence
+ */
+function described(item, answer, licensed) {
+  const latest = answer?.exists ? answer.latest : null;
+  const out = { ...item, exists: answer ? answer.exists : null, latest, majorsBehind: majorsBehind(item, latest) };
+  if (!licensed && answer?.exists && answer.license) {
+    out.license = answer.license;
+    out.licenseFrom = "registry";
+  }
+  return out;
+}
+
+/**
+ * Adds to every DIRECT dependency item (never to a transitive one) what its public registry says: `exists` (true,
+ * false, or null), `latest` (its latest published version, or null), `majorsBehind` (how many majors behind it, or
+ * null) and, when no item of the package has a licence, the registry's (`licenseFrom: "registry"`). An item kept back
+ * (`private`, `unproven`) is never sent: `exists`, `latest` and `majorsBehind` are null, as for an answer that tells
+ * nothing.
  * @param {Array<object>} items          dependencies items (engine/facts/dependencies.mjs)
  * @param {(url: string, options?: object) => Promise<Response>} fetchImpl
- * @param {{ concurrency?: number, timeoutMs?: number, registries?: ReturnType<typeof privateRegistries> }} [options]
+ * @param {{ concurrency?: number, timeoutMs?: number, registries?: ReturnType<typeof privateRegistries>,
+ *   answers?: Map<string, Promise<RegistryAnswer>> }} [options]
  *   registries: what is declared private (privateRegistries); a private item is never sent
+ *   answers: the run's answers, shared with the other sources (createRegistryClient)
  * @returns {Promise<Array<object>>} new items; a non-direct item is returned unchanged
  */
 export async function checkExistence(
   items,
   fetchImpl,
-  { concurrency = 8, timeoutMs = 5000, registries = emptyRegistries() } = {},
+  { concurrency = 8, timeoutMs = 5000, registries = emptyRegistries(), answers } = {},
 ) {
   const isPrivate = (i) => isPrivatePackage(i, registries);
   // One request a package, however many manifests name it (a package.json and its lock file, a pyproject.toml and
-  // its poetry.lock): the answer is shared.
-  const keyOfItem = packageId;
-  const direct = [...new Map(items.filter((i) => i.direct && !isPrivate(i)).map((i) => [keyOfItem(i), i])).values()];
-  const client = createRegistryClient({ fetch: fetchImpl, registries, timeoutMs });
+  // its poetry.lock): the gateway asks once a package (its `answers`), every item gets the shared answer.
+  const direct = items.filter((i) => i.direct && !isPrivate(i));
+  // The packages an offline source gave a licence, on any of their items (a lock's, an installed copy's): the
+  // registry's, the latest version's, is never written beside it.
+  const licensed = new Set(items.filter((i) => i.license).map(packageId));
+  const client = createRegistryClient({ fetch: fetchImpl, registries, timeoutMs, answers });
   const results = new Map();
   const queue = [...direct];
   async function worker() {
-    for (let item = queue.shift(); item; item = queue.shift()) results.set(keyOfItem(item), await client.exists(item));
+    for (let item = queue.shift(); item; item = queue.shift())
+      results.set(packageId(item), await client.describe(item));
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, direct.length) }, worker));
+  const unknown = { exists: null, latest: null, majorsBehind: null };
   return items.map((i) => {
     if (!i.direct) return i;
     const why = privacyOf(i, registries);
-    if (why === null) return { ...i, exists: results.get(keyOfItem(i)) };
-    return why === "private" ? { ...i, private: true, exists: null } : { ...i, unproven: true, exists: null };
+    if (why === null) return described(i, results.get(packageId(i)), licensed.has(packageId(i)));
+    return why === "private" ? { ...i, private: true, ...unknown } : { ...i, unproven: true, ...unknown };
   });
 }

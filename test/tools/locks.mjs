@@ -28,9 +28,12 @@ export const CH = Object.freeze({
 export const tarball = (name, { host = HOST.npm, version = "1.0.0" } = {}) =>
   `${host}/${name}/-/${name.split("/").pop()}-${version}.tgz`;
 
-/** The URL `--network` requests for a package: npm's (its name encoded as npm's registry wants it), PyPI's. */
+/**
+ * The URL `--network` requests for a package, its latest version's document: npm's (its name encoded as npm's
+ * registry wants it), PyPI's.
+ */
 export const registryUrl = (ecosystem, name) =>
-  ecosystem === "npm" ? `${HOST.npm}/${encodeURIComponent(name)}` : `https://pypi.org/pypi/${name}/json`;
+  ecosystem === "npm" ? `${HOST.npm}/${encodeURIComponent(name)}/latest` : `https://pypi.org/pypi/${name}/json`;
 
 /** A package.json: its dependencies and devDependencies, as `{ name: range }`. */
 export const packageJson = (dependencies = {}, devDependencies = {}, rest = {}) => ({

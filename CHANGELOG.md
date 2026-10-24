@@ -14,6 +14,16 @@ entries between a project's `kit` range and the installed version.
   labels of its annotated screens' zones (`images/fr/zones/`, the screenshots shared). `doc-kit build --project
   examples/demo-docs` gives one file with a language switch; `--lang fr` the French file alone. The French snapshot
   is now a strict build.
+- **`facts --network`: the latest version, how far behind, and the registry's licence** (ARCHITECTURE.md §6.9):
+  each direct dependency sent now gets `latest` (its latest published version) and `majorsBehind` (how many majors
+  behind, never negative, `null` when the version in use is a lower bound alone or unknown) beside `exists`, and,
+  when no offline source gave the package a licence, the licence its latest version declares (`license`,
+  `licenseFrom: "registry"`). One request a package for the whole run, on its latest version's document
+  (`registry.npmjs.org/<name>/latest`, `pypi.org/pypi/<name>/json`): `dependencies` and `quality` share the answers,
+  where npm was asked twice before; still the name alone. The answer is kept through allowlists (a version as a
+  release reads, 64 characters at most, a licence's name); a body whose told size is over 8 MiB is never read. A
+  package kept back (`private`, `unproven`) gets `latest: null` and `majorsBehind: null`. `quality`'s outdated count
+  shares the rule (`engine/core/versions.mjs`).
 
 ### Fixed
 
