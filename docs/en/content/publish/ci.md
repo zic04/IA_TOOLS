@@ -27,9 +27,9 @@ at that path, relative to `docs/manual`. With the application in `app/` and the 
 the path is `file:../../../doc-kit`.
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
   with: { path: app, persist-credentials: false }
-- uses: actions/checkout@v4
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
   with: { repository: <owner>/doc-kit, ref: v0.4.1, path: doc-kit, persist-credentials: false }
 ```
 

@@ -58,7 +58,10 @@ entries between a project's `kit` range and the installed version.
   showed whatever the count: `cli.context.written` ("3 coupe" in French) and `cli.sync.applied.summary` ("3 preuve
   et 5 libellé"). `test/unit/plurals.test.mjs` keeps it so: no plural in brackets, no text message that shows its
   count before a plural noun, every plural written in a call gets its `n`. The skill's own scripts
-  (`skill/doc-kit/i18n/`) have no plural forms yet.
+  (`skill/doc-kit/i18n/`) have no plural forms yet. **For a project that overrides these texts** (`texts` in
+  `doc.config.mjs`): the count placeholders (`{pages}`, `{warnings}`, `{files}`…) now hold their noun too ("12
+  pages", not "12"); an override written for 0.4.1 that adds the noun itself shows it twice, so remove the noun
+  from the override.
 
 ### Changed
 

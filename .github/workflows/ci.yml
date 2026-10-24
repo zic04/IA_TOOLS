@@ -11,10 +11,10 @@ on:
 permissions:
   contents: read
 
-# One run per workflow and ref: a new push to a pull request cancels the run it replaces; on master a run in
-# progress is never cancelled (the next one waits for it).
+# One run per workflow and pull request: a new push cancels the run it replaces. A push to master gets a group of
+# its own (its run id), so no master run is ever cancelled, a pending one neither.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

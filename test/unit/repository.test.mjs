@@ -97,14 +97,20 @@ describe("RULES.md and RULES.fr.md", () => {
 /** The check names the branch ruleset requires: renaming a job or its matrix pattern blocks every pull request. */
 const REQUIRED_CHECKS = ["tests (${{ matrix.os }}, Node ${{ matrix.node }})", "security (rules, dependencies)"];
 
-/** What a workflow misses: per-ref concurrency cancelling pull request runs, a timeout on each job. */
+/** The concurrency of the CI, as written: a group a pull request (its ref), a run id for any other run. */
+const CONCURRENCY_GROUP =
+  "${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}";
+const CANCEL_PULL_REQUESTS = "${{ github.event_name == 'pull_request' }}";
+
+/** What a workflow misses: concurrency cancelling pull request runs only, a timeout on each job. */
 function workflowProblems(source) {
   const doc = readYaml(source)[0];
   const problems = [];
   const group = text(at(doc, "concurrency", "group")) ?? "";
-  if (!/github\.workflow/.test(group) || !/github\.ref/.test(group)) problems.push("concurrency: one group per ref");
-  if (!/pull_request/.test(text(at(doc, "concurrency", "cancel-in-progress")) ?? ""))
-    problems.push("concurrency: cancel-in-progress on pull requests");
+  // Exactly these: one group a pull request, a group of its own for every other run (never cancelled).
+  if (group !== CONCURRENCY_GROUP) problems.push("concurrency: one group a pull request, one a master run");
+  if ((text(at(doc, "concurrency", "cancel-in-progress")) ?? "") !== CANCEL_PULL_REQUESTS)
+    problems.push("concurrency: cancel-in-progress on pull requests only");
   for (const job of entries(field(doc, "jobs")?.value))
     if (!/^\d+$/.test(text(at(job.value, "timeout-minutes")) ?? "")) problems.push(`${job.key}: timeout-minutes`);
   return problems;
@@ -146,8 +152,8 @@ describe("the CI", () => {
   test("the checkers flag what they forbid (positive controls)", () => {
     const good = [
       "concurrency:",
-      "  group: ${{ github.workflow }}-${{ github.ref }}",
-      "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+      `  group: ${CONCURRENCY_GROUP}`,
+      `  cancel-in-progress: ${CANCEL_PULL_REQUESTS}`,
       "jobs:",
       "  test:",
       "    timeout-minutes: 30",
@@ -161,9 +167,18 @@ describe("the CI", () => {
     assert.deepEqual(checkoutsWithToken(good), []);
     assert.deepEqual(workflowProblems(good.replace("    timeout-minutes: 30\n", "")), ["test: timeout-minutes"]);
     assert.equal(workflowProblems(good.replace(/concurrency:\n.*\n.*\n/, "")).length, 2);
-    assert.deepEqual(workflowProblems(good.replace("${{ github.event_name == 'pull_request' }}", "true")), [
-      "concurrency: cancel-in-progress on pull requests",
-    ]);
+    // Cancelling everything, or the inverted condition (master runs cancelled, never a pull request's), or a group
+    // a master run shares with the next push (a pending run cancelled): each one is flagged.
+    for (const cancel of ["true", "${{ github.event_name != 'pull_request' }}", `${CANCEL_PULL_REQUESTS} || true`])
+      assert.deepEqual(
+        workflowProblems(good.replace(`cancel-in-progress: ${CANCEL_PULL_REQUESTS}`, `cancel-in-progress: ${cancel}`)),
+        ["concurrency: cancel-in-progress on pull requests only"],
+        cancel,
+      );
+    assert.deepEqual(
+      workflowProblems(good.replace(`group: ${CONCURRENCY_GROUP}`, "group: ${{ github.workflow }}-${{ github.ref }}")),
+      ["concurrency: one group a pull request, one a master run"],
+    );
     assert.deepEqual(checkoutsWithToken(good.replace("false", "true")), [8]);
     assert.deepEqual(
       checkoutsWithToken(good.replace("        with:\n          persist-credentials: false\n", "")),
