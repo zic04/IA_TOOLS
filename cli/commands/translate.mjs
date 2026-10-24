@@ -86,7 +86,13 @@ async function runStatus({ ctx, values, config, root, toc }) {
   }
   for (const r of results) {
     ctx.print(ctx.t("cli.translate.status.title", { lang: r.id }));
-    ctx.print(`  ${ctx.t("cli.translate.status.counts", r.counts)}`);
+    const { count } = numbers(ctx.i18n);
+    const counts = {
+      ...r.counts,
+      unmarked: count("cli.translate.count.unmarked", r.counts.unmarked),
+      missing: count("cli.translate.count.missing", r.counts.missing),
+    };
+    ctx.print(`  ${ctx.t("cli.translate.status.counts", counts)}`);
     for (const f of r.files.filter((x) => x.state !== "current"))
       ctx.print(
         `  ${ctx.t("cli.translate.status.file", { file: f.file, state: ctx.t(`cli.translate.status.state.${f.state}`) })}`,

@@ -8,7 +8,7 @@
 // Every file goes through the secret detectors of `check secrets` (engine/check/secrets.mjs): a line where one fires
 // is replaced by a notice, and reported.
 import { systemModel } from "../build/c4.mjs";
-import { healthRisks, hotspots } from "../build/developer.mjs";
+import { counted, healthRisks, hotspots } from "../build/developer.mjs";
 
 /** The writers' guidance (`<!-- guidance: … -->`, `<!-- consigne : … -->`) and any other HTML comment. */
 const COMMENT = /<!--[\s\S]*?-->\n?/g;
@@ -141,7 +141,11 @@ const AGENT_SECTIONS = [
     ({ facts, t }) => {
       const s = facts.tests?.summary;
       return s
-        ? t("render.agents.testsLine", { files: s.files ?? 0, tests: s.tests ?? 0, coverage: s.coverage ?? "—" })
+        ? t("render.agents.testsLine", {
+            files: counted(t, "render.agents.count.testFiles", s.files ?? 0),
+            tests: counted(t, "render.agents.count.tests", s.tests ?? 0),
+            coverage: s.coverage ?? "—",
+          })
         : "";
     },
   ],
@@ -174,7 +178,7 @@ const AGENT_SECTIONS = [
             const owner = h.owner ? `${h.owner} (${h.ownerShare} %)` : "—";
             return pair(
               code(h.file),
-              t("render.agents.hotspotLine", { commits: h.commits, complexity: h.complexity, owner }),
+              t("render.agents.hotspotLine", { commits: h.commits, complexity: h.complexity, owner, n: h.commits }),
             );
           }),
       ),

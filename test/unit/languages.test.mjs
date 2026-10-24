@@ -765,7 +765,7 @@ describe("CLI translate", () => {
     try {
       const r = await cli(["translate", "--fix-anchors", "--project", dir]);
       assert.equal(r.code, 0);
-      assert.match(r.out, /\[fr\] use\/orders\.md: 1 link\(s\) rewritten/);
+      assert.match(r.out, /\[fr\] use\/orders\.md: 1 link rewritten/);
       const second = await cli(["translate", "--fix-anchors", "--project", dir]);
       assert.match(second.out, /no link needed rewriting/);
     } finally {

@@ -97,7 +97,12 @@ export const DEPTH_ACTIONS = {
         items: open.map((f) => ({
           id: f.page,
           key: "rubrics",
-          vars: { feature: f.id, left: f.rubrics.total - f.rubrics.answered, total: f.rubrics.total },
+          vars: {
+            feature: f.id,
+            left: f.rubrics.total - f.rubrics.answered,
+            total: f.rubrics.total,
+            n: f.rubrics.total - f.rubrics.answered,
+          },
         })),
       },
     ];
