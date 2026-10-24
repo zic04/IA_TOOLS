@@ -78,6 +78,10 @@ entries between a project's `kit` range and the installed version.
   - `parseEnv` (masking), `pySpecifiers` (imports): no run of blanks read two ways, no blank line (nor carriage
     return, nor U+2028, where a multiline `^` also starts) read again from each line start. A `from` without a
     module (not Python) is no longer read as an empty one.
+  - `infra`: the YAML reader makes its lines one at a time and cuts each from the text when it reads it (it held an
+    object and a string for every line of the file until the end), and the Compose adapter builds no item past the
+    source's 5,000: on a Compose file of many volumes, the collector's work no longer grows faster than the file
+    (Node 22).
   - A verified badge's text is 500 characters at most. The build's Content Security Policy looks for the inline
     scripts of a page up to its last `</script>` only.
 - **`quality`, `env`, `db`, `agents` and `tests` read no source, schema, instruction or test file over 512 KB**, as

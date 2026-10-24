@@ -22,29 +22,32 @@ const ESCAPE = /\\(["\\/nt])/g;
 export const YAML_PATTERNS = Object.freeze({ BLOCK_HEADER, ESCAPE });
 
 /**
- * The lines of a text that hold YAML: their indentation, their text without its comment, their 1-based number;
- * blank and comment lines are left out, a document marker (`---`, `...`) is kept as such.
- * @param {string[]} rawLines   the text split at its newlines
+ * The next line of the text that holds YAML, from raw line `p.next` on: its indentation, its text without its
+ * comment, its 1-based number; blank and comment lines are left out, a document marker (`---`, `...`) is kept as
+ * such. Undefined past the last one.
+ * @param {ReturnType<typeof parser>} p
  */
-function linesOf(rawLines) {
-  const out = [];
-  let n = 0;
-  for (const raw of rawLines) {
-    n++;
-    const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+function nextLine(p) {
+  const { text } = p;
+  while (p.next < p.count) {
+    // The line's bounds in the text (its "\r" left out), its text cut once, after its indentation.
+    const k = p.next++;
+    const start = k === 0 ? 0 : p.ends[k - 1] + 1;
+    let end = k < p.ends.length ? p.ends[k] : text.length;
+    if (end > start && text[end - 1] === "\r") end--;
     let indent = 0;
-    while (indent < line.length && (line[indent] === " " || line[indent] === "\t")) indent++;
-    const content = withoutComment(line.slice(indent)).trimEnd();
+    while (start + indent < end && (text[start + indent] === " " || text[start + indent] === "\t")) indent++;
+    const content = withoutComment(text.slice(start + indent, end)).trimEnd();
     if (!content) continue;
     const marker = indent === 0 && (content === "---" || content.startsWith("--- ") || content === "...");
-    out.push({
+    return {
       indent,
       content: marker && content.startsWith("--- ") ? content.slice(4) : content,
-      line: n,
+      line: p.next,
       marker,
-    });
+    };
   }
-  return out;
+  return undefined;
 }
 
 /** A line's text without its comment: a `#` at its start or after a blank, outside quotes. Linear. */
@@ -195,20 +198,49 @@ function bracketDelta(s) {
 function flowText(p, first, indent) {
   let out = first;
   let open = bracketDelta(first);
-  for (let k = 0; k < 64 && open > 0 && out.length < LIMITS.flow && p.at < p.lines.length; k++) {
-    const l = p.lines[p.at];
+  for (let k = 0; k < 64 && open > 0 && out.length < LIMITS.flow && current(p); k++) {
+    const l = current(p);
     if (l.marker || l.indent <= indent) break;
     const piece = l.content.trim();
     out += " " + piece;
     open += bracketDelta(piece);
-    p.at++;
+    advance(p);
   }
   return out;
 }
 
-/** The parser's state over the lines of a text: the next line, the nodes made, the raw lines (for block scalars). */
-function parser(lines, raw) {
-  return { lines, raw, at: 0, nodes: 0 };
+/**
+ * The parser's state over the lines of a text: where each raw line ends (for block scalars too), the YAML lines
+ * taken (`at`), the nodes made. Its lines are made one at a time, as they are reached (`current`): the parser only
+ * ever reads the one it is on, and a raw line is cut from the text when it is read, so a long text never holds an
+ * object for each of its lines while it is read (RULES.md S5: the collector's work stays in proportion to the text).
+ * @param {string} text
+ */
+function parser(text) {
+  let count = 0;
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) count++;
+  const ends = new Int32Array(count);
+  for (let i = text.indexOf("\n"), k = 0; i !== -1; i = text.indexOf("\n", i + 1)) ends[k++] = i;
+  return { text, ends, count: count + 1, next: 0, line: undefined, read: false, at: 0, nodes: 0 };
+}
+
+/** Raw line `k` of the text (0-based), as `text.split("\n")[k]`. */
+const rawLine = (p, k) => p.text.slice(k === 0 ? 0 : p.ends[k - 1] + 1, k < p.ends.length ? p.ends[k] : p.text.length);
+
+/** The line the parser is on, or undefined past the last one. */
+function current(p) {
+  if (!p.read) {
+    p.line = nextLine(p);
+    p.read = true;
+  }
+  return p.line;
+}
+
+/** The parser takes the line it is on and goes to the next one. */
+function advance(p) {
+  current(p);
+  p.read = false;
+  p.at++;
 }
 
 /** The indentation of a raw line (blanks and tabs), its length when the line is blank. */
@@ -228,8 +260,9 @@ function blockScalar(p, indent, line) {
   let size = 0;
   let margin = -1;
   let k = line; // the raw lines are 0-based: the one after the header
-  for (; k < p.raw.length; k++) {
-    const raw = p.raw[k].endsWith("\r") ? p.raw[k].slice(0, -1) : p.raw[k];
+  for (; k < p.count; k++) {
+    const whole = rawLine(p, k);
+    const raw = whole.endsWith("\r") ? whole.slice(0, -1) : whole;
     const ind = indentOf(raw);
     if (ind < raw.length && ind <= indent) break;
     if (margin === -1 && ind < raw.length) margin = ind;
@@ -240,7 +273,7 @@ function blockScalar(p, indent, line) {
     }
   }
   while (parts.length && parts[parts.length - 1] === "") parts.pop();
-  while (p.at < p.lines.length && p.lines[p.at].line <= k) p.at++;
+  while (current(p) && current(p).line <= k) advance(p);
   return { type: "scalar", line, value: parts.join("\n").slice(0, LIMITS.block), block: true };
 }
 
@@ -251,12 +284,15 @@ function blockScalar(p, indent, line) {
  */
 function valueAfter(p, rest, indent, line, depth, ofItem = false) {
   const r = rest.trim();
-  const { s: bare, tag } = properties(r);
+  // Only a value that starts with a tag or an anchor is taken apart: no object made for each value of a long text.
+  let bare = r;
+  let tag;
+  if (r[0] === "!" || r[0] === "&") ({ s: bare, tag } = properties(r));
   // A tag before a block scalar, a flow collection or a value on the lines below stays on what is read (`!Sub |`).
   const tagged = (n) => (tag && n ? Object.assign(n, { tag }) : n);
   if (BLOCK_HEADER.test(bare)) return tagged(blockScalar(p, indent, line));
   if (bare === "") {
-    const next = p.lines[p.at];
+    const next = current(p);
     if (next && !next.marker && (next.indent > indent || (!ofItem && next.indent === indent && isItem(next.content))))
       return tagged(node(p, next.indent, depth + 1));
     return null;
@@ -264,11 +300,11 @@ function valueAfter(p, rest, indent, line, depth, ofItem = false) {
   if (bare[0] === "[" || bare[0] === "{") return tagged(flowOf(flowText(p, bare, indent), line, p, depth));
   // A plain scalar may go on over the next, more indented lines: they are its text, not entries.
   const parts = [r];
-  while (p.at < p.lines.length && p.lines[p.at].indent > indent && !p.lines[p.at].marker && parts.length < 64) {
-    const next = p.lines[p.at];
+  while (current(p) && current(p).indent > indent && !current(p).marker && parts.length < 64) {
+    const next = current(p);
     if (keyEnd(next.content) !== -1 || isItem(next.content)) break;
     parts.push(next.content.trim());
-    p.at++;
+    advance(p);
   }
   return scalarOf(parts.join(" "), line);
 }
@@ -278,26 +314,26 @@ const isItem = (s) => s === "-" || s.startsWith("- ");
 
 /** The node that starts at the current line, at `indent`: a sequence, a mapping or a scalar. */
 function node(p, indent, depth) {
-  const first = p.lines[p.at];
+  const first = current(p);
   if (!first || depth > LIMITS.depth || p.nodes >= LIMITS.nodes) {
-    while (p.at < p.lines.length && p.lines[p.at].indent >= indent && !p.lines[p.at].marker) p.at++;
+    while (current(p) && current(p).indent >= indent && !current(p).marker) advance(p);
     return null;
   }
   p.nodes++;
   if (isItem(first.content)) return sequence(p, first.indent, depth);
   if (keyEnd(first.content) !== -1) return mapping(p, first.indent, first.content, first.line, depth);
-  p.at++;
+  advance(p);
   return valueAfter(p, first.content, first.indent, first.line, depth);
 }
 
 /** A block sequence at `indent`: its items, each "- " followed by a scalar, a flow collection, an entry or nothing. */
 function sequence(p, indent, depth) {
-  const seq = { type: "seq", line: p.lines[p.at].line, items: [] };
-  while (p.at < p.lines.length) {
-    const l = p.lines[p.at];
+  const seq = { type: "seq", line: current(p).line, items: [] };
+  while (current(p)) {
+    const l = current(p);
     if (l.marker || l.indent !== indent || !isItem(l.content) || p.nodes >= LIMITS.nodes) break;
     p.nodes++;
-    p.at++;
+    advance(p);
     const rest = l.content === "-" ? "" : l.content.slice(2);
     const offset = l.content.length - rest.trimStart().length;
     if (keyEnd(rest.trimStart()) !== -1)
@@ -315,9 +351,9 @@ function mapping(p, indent, head, line, depth) {
   const map = { type: "map", line, entries: [] };
   let text = head;
   let at = line;
-  let taken = p.lines[p.at]?.content === head && p.lines[p.at]?.line === line;
+  let taken = current(p)?.content === head && current(p)?.line === line;
   for (;;) {
-    if (taken) p.at++;
+    if (taken) advance(p);
     const k = keyEnd(text);
     if (k === -1 || p.nodes >= LIMITS.nodes) break;
     p.nodes++;
@@ -326,7 +362,7 @@ function mapping(p, indent, head, line, depth) {
       line: at,
       value: valueAfter(p, text.slice(k + 1), indent, at, depth),
     });
-    const l = p.lines[p.at];
+    const l = current(p);
     if (!l || l.marker || l.indent !== indent || isItem(l.content) || keyEnd(l.content) === -1) break;
     text = l.content;
     at = l.line;
@@ -341,20 +377,20 @@ function mapping(p, indent, head, line, depth) {
  * @returns {Array<any>}
  */
 export function readYaml(text) {
-  const raw = text.split("\n");
-  const p = parser(linesOf(raw), raw);
+  const p = parser(text);
   const docs = [];
   // Past LIMITS.nodes, the rest of the text is not read.
-  while (p.at < p.lines.length && p.nodes < LIMITS.nodes) {
-    if (p.lines[p.at].marker) {
-      const l = p.lines[p.at++];
+  while (current(p) && p.nodes < LIMITS.nodes) {
+    if (current(p).marker) {
+      const l = current(p);
+      advance(p);
       if (l.content !== "---" && l.content !== "..." && l.content) docs.push(scalarOf(l.content, l.line));
       continue;
     }
     const before = p.at;
-    docs.push(node(p, p.lines[p.at].indent, 0));
+    docs.push(node(p, current(p).indent, 0));
     // What could not be read (a line less indented than its document, a template's text): skipped, one line.
-    if (p.at === before) p.at++;
+    if (p.at === before) advance(p);
   }
   return docs;
 }
