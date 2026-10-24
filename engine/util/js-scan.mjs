@@ -95,10 +95,13 @@ export function skipToken(text, i) {
   return i;
 }
 
-/** Index of the "}" that closes the "{" at `open`, strings, template literals and comments skipped; -1 when none. */
-export function closingBrace(text, open) {
+/**
+ * Index of the "}" that closes the "{" at `open`, strings, template literals and comments skipped; -1 when none
+ * before `limit`.
+ */
+export function closingBrace(text, open, limit = text.length) {
   let depth = 0;
-  for (let i = open; i < text.length;) {
+  for (let i = open; i < Math.min(limit, text.length);) {
     const end = skipToken(text, i);
     if (end > i) {
       i = end;
@@ -109,6 +112,29 @@ export function closingBrace(text, open) {
     i++;
   }
   return -1;
+}
+
+/**
+ * The "}" that closes each "{" of a source that is code (not in a string, a template literal's text or a comment),
+ * found in one pass — what closingBrace gives for each of them (-1: never closed). A "{" in a token has none: its
+ * closingBrace reads the token as code.
+ * @returns {Map<number, number>}
+ */
+export function closingBraces(text) {
+  const close = new Map();
+  const open = [];
+  for (let i = 0; i < text.length;) {
+    const end = skipToken(text, i);
+    if (end > i) {
+      i = end;
+      continue;
+    }
+    if (text[i] === "{") open.push(i);
+    else if (text[i] === "}" && open.length) close.set(open.pop(), i);
+    i++;
+  }
+  for (const i of open) close.set(i, -1);
+  return close;
 }
 
 /** Depth of braces at each index of a source (the depth before a "{" or "}" at that index), tokens skipped. */

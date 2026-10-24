@@ -19,11 +19,21 @@ doc-kit facts --source api --source security
 ```
 
 - `api` rapporte maintenant aussi `auth` et `guards` pour chaque route : `"none"` (aucune garde trouvée),
-  `"user"` (une garde qui ressemble à un contrôle de session), `"role"` (une garde qui ressemble à un contrôle de
-  rôle ou de permission, vérifiée en premier), ou `"unknown"` (une garde est présente, mais ne correspond à
-  aucun des deux motifs — à regarder de plus près). `review.guards.role` et `review.guards.user`
-  ([Configuration](#/reference/configuration)) remplacent les motifs intégrés quand le nommage propre à un
-  projet ne leur correspond pas.
+  `"user"` (une garde d'utilisateur connecté, reconnue à son nom entier : `get_current_user`, `login_required`,
+  `IsAuthenticated`, `auth:sanctum`, `Authorize`…), `"role"` (une garde dont un des mots nomme un rôle, une
+  permission ou une portée : `require_admin`, `hasRole('ADMIN')` ; vérifiée en premier), ou `"unknown"` (une
+  garde est présente, mais le kit ne sait pas ce qu'elle contrôle — à regarder de plus près). Un nom n'est jamais
+  lu comme une partie d'un autre mot : une session de base de données (`get_session`), un contrôle CSRF
+  (`VerifyCsrfToken`) ou un jeton seul ne disent aucun utilisateur, et une garde qui laisse passer les appelants
+  anonymes (`IsAuthenticatedOrReadOnly`, un utilisateur facultatif) n'est ni d'utilisateur ni de rôle.
+  `review.guards.role` et `review.guards.user` ([Configuration](#/reference/configuration)) remplacent les gardes
+  intégrées quand le nommage propre à un projet ne leur correspond pas.
+- Les règles globales d'un framework ne sont pas lues : `DEFAULT_PERMISSION_CLASSES` de DRF, `SecurityFilterChain`
+  de Spring, `FallbackPolicy` d'ASP.NET, `FastAPI(dependencies=…)`. Une route qu'elles seules protègent sort
+  `"none"` : une route peut paraître moins protégée qu'elle ne l'est, jamais plus, sauf dans quelques cas connus que
+  les noms ne disent pas (une surcharge par requête comme le `get_permissions()` de DRF, un `@Secured` de méthode qui
+  assouplit celui de sa classe, des formes d'arguments rares : [Les adaptateurs](#/reference/adapters)) — vérifiez
+  ces réglages avant de lire `"none"` comme publique.
 - `security` lance onze heuristiques déterministes sur les fichiers de l'application — jamais une valeur,
   seulement où un motif a été trouvé : `rule`, `file`, `line`, `severity`, `owasp`. `xss.dangerouslySetInnerHTML`,
   `code.eval`, `sql.concat`, `tls.disabled`, `cors.wildcardCredentials`, `debug.enabled`, `jwt.noVerify`,

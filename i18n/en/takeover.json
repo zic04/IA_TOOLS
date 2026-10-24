@@ -63,6 +63,7 @@
     "other": "{source}: {n} items → {file}"
   },
   "cli.git.unsafeConfig": "git not run in {folder}: its configuration names a program that git could run ({keys})",
+  "cli.git.unsafeConfigTools": "the external tools not run in {folder}: its repository's configuration names a program that git could run, and a tool may start git there ({keys})",
   "cli.git.unsafeConfig.help": "read and remove these keys from the repository's .git/config if you do not trust them, then run the command again; the kit works without git meanwhile (files are listed directly)",
   "cli.pack.noToc": "no table of contents: {file}",
   "cli.pack.noToc.help": "run {command} init, or check paths.content",

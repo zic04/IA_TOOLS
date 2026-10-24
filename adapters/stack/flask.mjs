@@ -5,11 +5,13 @@
 // blueprint it is registered on (nested blueprints). A blueprint is named through the imports of the file that uses
 // it (`from .orders import bp as orders_bp`), else by the one file that declares it. The guards are the decorators
 // between the route decorator and its function (`@login_required`, `@roles_required("admin")`, `@jwt_required()`) —
-// one above the route decorator does not guard the route in Flask — and the `before_request` functions of its
-// blueprint or of the application. A decorator in a comment or a docstring is no route.
+// one above the route decorator does not guard the route in Flask; `optional=True` in its arguments is kept — and
+// `before_request`, always "unknown", for each before_request hook of its blueprint or of the application that may
+// deny a request (mayDeny); a hook that logs or loads the user is none. A decorator in a comment or a docstring is no
+// route.
 // The readers of Python it shares with the Django adapter (the imports of a file, the file of a module) are
 // engine/facts/stack-py.mjs.
-import { textIndex, pyCommentRanges } from "../../engine/facts/behaviour-common.mjs";
+import { textIndex, pyCommentRanges, callSpan } from "../../engine/facts/behaviour-common.mjs";
 import {
   STACK_PY_PATTERNS,
   pyImports,
@@ -17,9 +19,12 @@ import {
   pyGuard,
   pyJoin,
   pyCalls,
+  pyIndent,
+  pyBlockEnd,
   literalOf,
 } from "../../engine/facts/stack-py.mjs";
 import { MAX_ITEMS, withGuards } from "../../engine/facts/stack-common.mjs";
+import { HOOK_GUARD, wholeNameGuard } from "../../engine/facts/guards.mjs";
 
 const { LITERAL, QUOTED_WORD } = STACK_PY_PATTERNS;
 const ROUTE = /@(\w{1,64})\.(route|get|post|put|patch|delete)\(/g;
@@ -31,9 +36,19 @@ const URL_PREFIX = /\burl_prefix\s{0,20}=\s{0,20}[rRuU]?(?:"([^"\n]{0,500})"|'([
 const REGISTERED = /^\s{0,200}([A-Za-z_]\w{0,63}(?:\.[A-Za-z_]\w{0,63}){0,3})/;
 /** A decorator, on its own line. */
 const DECORATOR = /^[ \t]{0,200}@([A-Za-z_][\w.]{0,120})/gm;
-const BEFORE_REQUEST =
-  /^[ \t]{0,200}@(\w{1,64})\.before_request\b[^\n]{0,200}\n[ \t]{0,200}def[ \t]{1,20}(\w{1,120})/gm;
-const DEF = /\bdef\s{1,20}\w{1,120}\s{0,20}\(/g;
+/** A before_request hook, by the object it is registered on; its function is the next `def`. */
+const BEFORE_REQUEST = /^[ \t]{0,200}@(\w{1,64})\.before_request\b/gm;
+/** A function, by its name; its "(" ends the match. */
+const DEF = /\bdef\s{1,20}(\w{1,120})\s{0,20}\(/g;
+/** A call in a hook's body: its dotted name (`verify_jwt_in_request()`, `g.user = get_current_user()`). */
+const CALL = /\b([A-Za-z_][\w.]{0,120})[ \t]{0,20}\(/g;
+/** What may deny a request in a hook's body: `abort(`, `raise`, `redirect(`, a `return` of a value other than None. */
+const MAY_DENY = /\babort[ \t]{0,20}\(|\braise\b|\bredirect[ \t]{0,20}\(|\breturn[ \t]{1,20}(?!None\b)[^\s#]/g;
+/**
+ * A call's arguments that let anonymous callers in: `optional=` anything but False (Flask-JWT-Extended's and
+ * Flask-HTTPAuth's `optional=True`, a constant), or `True` first (`verify_jwt_in_request(True)`).
+ */
+const OPTIONAL = /\boptional\s{0,20}=(?!\s{0,20}False\b)|^\s{0,20}True\b/;
 /** A route decorator among a function's decorators: never one of its guards. */
 const ROUTE_DECORATOR = /\.(?:route|get|post|put|patch|delete)$/;
 /** At most this many prefixes for one blueprint (one per registration). */
@@ -52,11 +67,64 @@ export const FLASK_PATTERNS = Object.freeze({
   DECORATOR,
   BEFORE_REQUEST,
   DEF,
+  CALL,
+  MAY_DENY,
+  OPTIONAL,
   ROUTE_DECORATOR,
 });
 
-/** What one file declares: its blueprints, the blueprints it registers, its routes, its before_request functions. */
-function readFile(text) {
+/** A piece of Python without its `#` comments (its strings kept). */
+function uncommented(code) {
+  let out = "";
+  let at = 0;
+  for (const [from, to] of pyCommentRanges(code)) {
+    out += code.slice(at, from);
+    at = to;
+  }
+  return out + code.slice(at);
+}
+
+/**
+ * A call's name, with `(optional=True)` when its arguments (`open`: its "("), outside their comments, let anonymous
+ * callers in.
+ */
+const called = (text, open, name) =>
+  OPTIONAL.test(uncommented(callSpan(text, open, DEF_GAP, "py").args)) ? `${name}(optional=True)` : name;
+
+/**
+ * Whether a before_request hook may deny a request, its function DEF_GAP characters away at most: a guard decorator
+ * under the hook (`@login_required`), or, in its body outside its strings and comments, `abort(`, `raise`,
+ * `redirect(`, a `return` of a value other than None, or a call of a guard by its whole name (a built-in user guard,
+ * `verify_jwt_in_request()`, or instead a name `review.guards.user` matches, as it replaces them; a name
+ * `review.guards.role` matches, never a built-in role word: engine/facts/guards.mjs). Such a hook gives HOOK_GUARD to the
+ * routes it applies to, which is "unknown" whatever its name, its body or the patterns: which requests it lets
+ * through is not read. A hook that may deny nothing (it logs, loads `g.user`, does `pass`) gives none.
+ * @param {{ text: string, defs: number[], defMatches: RegExpMatchArray[], decorators: RegExpMatchArray[] }} file
+ * @param {RegExpMatchArray} m   the hook's decorator
+ * @param {import("../../engine/facts/guards.mjs").GuardPatterns} patterns
+ */
+function mayDeny(file, m, patterns) {
+  const { text, defs, defMatches } = file;
+  const after = m.index + m[0].length;
+  const def = defMatches[lowerBound(defs, after)];
+  if (!def || def.index - after > DEF_GAP) return false;
+  if (guardsAfter(text, after, defs, file.decorators).length) return true;
+  const from = callSpan(text, def.index + def[0].length - 1, DEF_GAP, "py").end;
+  const body = text.slice(from, pyBlockEnd(text, from, pyIndent(text, def.index), DEF_GAP));
+  const index = textIndex(body, pyCommentRanges(body, { strings: true }));
+  const outside = (x) => !index.inComment(x.index);
+  return (
+    [...body.matchAll(MAY_DENY)].some(outside) ||
+    [...body.matchAll(CALL)].some((c) => outside(c) && wholeNameGuard(c[1], patterns))
+  );
+}
+
+/**
+ * What one file declares: its blueprints, the blueprints it registers, its routes, its before_request hooks.
+ * @param {string} text
+ * @param {import("../../engine/facts/guards.mjs").GuardPatterns} patterns
+ */
+function readFile(text, patterns) {
   const index = textIndex(text, pyCommentRanges(text, { docstrings: true }));
   const blueprints = new Map();
   for (const { m, args } of pyCalls(BLUEPRINT, text, index)) blueprints.set(m[1], literalOf(URL_PREFIX.exec(args)));
@@ -65,8 +133,8 @@ function readFile(text) {
     const what = REGISTERED.exec(args)?.[1];
     if (what) registrations.push({ on: m[1], what, prefix: literalOf(URL_PREFIX.exec(args)) });
   }
-  const before = [...text.matchAll(BEFORE_REQUEST)].filter((m) => !index.inComment(m.index));
-  const defs = [...text.matchAll(DEF)].filter((m) => !index.inComment(m.index)).map((m) => m.index);
+  const defMatches = [...text.matchAll(DEF)].filter((m) => !index.inComment(m.index));
+  const defs = defMatches.map((m) => m.index);
   const decorators = [...text.matchAll(DECORATOR)].filter((m) => !index.inComment(m.index));
   const routes = [];
   for (const { m, args, end } of pyCalls(ROUTE, text, index)) {
@@ -76,9 +144,17 @@ function readFile(text) {
       ...new Set([...(METHODS.exec(args)?.[1] ?? "").matchAll(QUOTED_WORD)].map((q) => q[1].toUpperCase())),
     ];
     const methods = m[2] !== "route" ? [m[2].toUpperCase()] : named.length ? named : ["GET"];
-    routes.push({ obj: m[1], path, methods, line: index.lineOf(m.index), guards: guardsAfter(end, defs, decorators) });
+    const guards = guardsAfter(text, end, defs, decorators);
+    routes.push({ obj: m[1], path, methods, line: index.lineOf(m.index), guards });
   }
-  return { blueprints, registrations, routes, before: before.map((m) => ({ on: m[1], name: m[2] })) };
+  // 64 hooks of a file at most are read, each body DEF_GAP characters at most: a bounded cost per file.
+  const file = { text, defs, defMatches, decorators };
+  const hooks = [...text.matchAll(BEFORE_REQUEST)]
+    .filter((m) => !index.inComment(m.index))
+    .slice(0, 64)
+    .filter((m) => mayDeny(file, m, patterns))
+    .map((m) => ({ on: m[1], guards: [HOOK_GUARD] }));
+  return { blueprints, registrations, routes, before: hooks };
 }
 
 /** The first index of a sorted list of numbers that is at least `n` (binary search). */
@@ -93,15 +169,23 @@ function lowerBound(sorted, n, key = (x) => x) {
   return lo;
 }
 
-/** The guard decorators between a route decorator's call (ending at `after`) and its function, DEF_GAP away at most. */
-function guardsAfter(after, defs, decorators) {
+/**
+ * The guard decorators between a route decorator's call (ending at `after`) and its function, DEF_GAP away at most;
+ * one whose arguments let anonymous callers in (`@jwt_required(optional=True)`, `@jwt_required (optional=True)`, on
+ * one line or several) keeps them.
+ */
+function guardsAfter(text, after, defs, decorators) {
   const def = defs[lowerBound(defs, after)];
   if (def === undefined || def - after > DEF_GAP) return [];
   const out = [];
   for (let k = lowerBound(decorators, after, (d) => d.index); k < decorators.length; k++) {
     const d = decorators[k];
     if (d.index >= def) break;
-    if (!ROUTE_DECORATOR.test(d[1]) && pyGuard(d[1])) out.push(d[1]);
+    if (ROUTE_DECORATOR.test(d[1]) || !pyGuard(d[1])) continue;
+    // Blanks between a decorator's name and its "(" are Python's: the walk stops before the function, DEF_GAP away.
+    let open = d.index + d[0].length;
+    while (open < def && (text[open] === " " || text[open] === "\t")) open++;
+    out.push(text[open] === "(" ? called(text, open, d[1]) : d[1]);
   }
   return withGuards([], out);
 }
@@ -182,11 +266,13 @@ function routeItems(items, r, prefixes) {
 
 /**
  * The Flask routes of a set of Python files (file → text): { method, route, file, line, guards }, sorted by route,
- * method and file.
+ * method and file. A before_request hook guards by the project's patterns (`review.guards`; the built-in ones by
+ * default).
  * @param {Map<string, string>} sources
+ * @param {import("../../engine/facts/guards.mjs").GuardPatterns} [patterns]
  */
-export function flaskRoutes(sources) {
-  const files = new Map([...sources].map(([file, text]) => [file, readFile(text)]));
+export function flaskRoutes(sources, patterns = {}) {
+  const files = new Map([...sources].map(([file, text]) => [file, readFile(text, patterns)]));
   const blueprintOf = blueprintResolver(sources, files);
   const mounts = new Map();
   const before = new Map();
@@ -195,7 +281,7 @@ export function flaskRoutes(sources) {
       const key = blueprintOf(file, r.what);
       if (key) add(mounts, key, { parent: blueprintOf(file, r.on), prefix: r.prefix });
     }
-    for (const b of f.before.slice(0, 64)) add(before, blueprintOf(file, b.on) ?? "app", b.name);
+    for (const b of f.before) for (const g of b.guards) add(before, blueprintOf(file, b.on) ?? "app", g);
   }
   const prefixesOf = prefixer(files, mounts);
   const items = [];
@@ -216,5 +302,5 @@ export default {
   name: "flask",
   files: /\.py$/,
   marker: /@\w{1,64}\.(?:route|get|post|put|patch|delete|before_request)\b|Blueprint\(|register_blueprint\(/,
-  api: ({ sources }) => flaskRoutes(sources),
+  api: ({ sources, guards }) => flaskRoutes(sources, guards),
 };

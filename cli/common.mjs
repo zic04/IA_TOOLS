@@ -4,18 +4,45 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { spawnSync } from "node:child_process";
 import { createI18n, LANGUAGES } from "../engine/i18n.mjs";
-import { pathToFileURL } from "node:url";
 import { loadProject, readSchema } from "../engine/project/load.mjs";
-import { findProject } from "../engine/project/find.mjs";
+import { findProject, languageInConfig } from "../engine/project/find.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
-import { build } from "../engine/build/build.mjs";
 import { spaceOutput } from "../engine/build/spaces.mjs";
-import { watchedPaths } from "../engine/dev/server.mjs";
 import { BRAND } from "../engine/brand.mjs";
-import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../engine/util/safe-git.mjs";
+import { spawnHardened } from "../engine/util/safe-git.mjs";
 import { chromiumStatus } from "../engine/dev/environment.mjs";
+
+/** The largest doc.config.mjs whose text is read for the language of the first messages (useProjectLanguage). */
+const CONFIG_TEXT_LIMIT = 1024 * 1024;
+
+/**
+ * The language a doc.config.mjs declares, read in its text, never by running it (languageInConfig); the schema's
+ * default when it names none. A regular file only (opening a pipe would wait), and never more than CONFIG_TEXT_LIMIT
+ * bytes read, whatever size it reports (a /proc file reports 0): a device, a pipe or an endless file never holds up
+ * the first message. @returns {string|null} null: not read, or computed
+ */
+function configLanguage(configFile) {
+  const stat = fs.statSync(configFile);
+  if (!stat.isFile() || stat.size > CONFIG_TEXT_LIMIT) return null;
+  // A few bytes past the limit, and a multiple of 8: a /proc file such as pagemap refuses any other read size.
+  const buffer = Buffer.alloc(CONFIG_TEXT_LIMIT + 8);
+  let length = 0;
+  const fd = fs.openSync(configFile, "r");
+  try {
+    // Until the end of the file, or past the limit: then it is too long, whatever its size said.
+    for (;;) {
+      const n = fs.readSync(fd, buffer, length, buffer.length - length, null);
+      length += n;
+      if (n === 0 || length === buffer.length) break;
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (length > CONFIG_TEXT_LIMIT) return null;
+  const found = languageInConfig(buffer.toString("utf8", 0, length));
+  return found === undefined ? readSchema("config").properties.language.default : found;
+}
 
 /** ANSI colours, applied only when `enabled` (a terminal, without NO_COLOR). */
 function createPaint(enabled) {
@@ -31,31 +58,25 @@ function createPaint(enabled) {
 }
 
 /**
- * Default `exec` of a context: a real child process, synchronous, never through a shell. `null` when the binary is
- * not found (ENOENT). The binary is looked up on the PATH only, never in the folder read (SECURITY.md); a git
- * command is hardened (safeGitArgs) and refused, with status 128 and `refused`, when the repository's
- * configuration names a program that git could run (riskyGitConfig).
+ * Default `exec` of a context: a real child process, synchronous, never through a shell (engine/util/safe-git.mjs
+ * `spawnHardened`). `null` when the binary is not found. The binary is looked up on the PATH only, never in the
+ * folder read, in `untrusted` (the documentation project and the application of the project loaded) or a
+ * node_modules/.bin (SECURITY.md); a git command is hardened (safeGitArgs, gitEnv) and refused, with status 128 and
+ * `refused`, when the repository's configuration names a program that git could run (riskyGitConfig).
+ * @param {string} bin
+ * @param {string[]} [args]
+ * @param {object} [options]   given to the process (cwd, env, timeout…)
+ * @param {{ untrusted?: string[], spawn?: Function }} [o]   spawn: the test seam of spawnHardened
  */
-export function defaultExec(bin, args = [], options = {}) {
-  const cwd = options.cwd || process.cwd();
-  if (bin === "git") {
-    const risky = riskyGitConfig(cwd);
-    if (risky.length) return { status: 128, stdout: "", stderr: "", refused: risky };
-    args = safeGitArgs(args);
-  }
-  const file = resolveOnPath(bin, { exclude: [cwd] });
-  if (!file) return null;
-  const r = spawnSync(file, args, {
-    encoding: "utf8",
-    windowsHide: true,
-    maxBuffer: 32 * 1024 * 1024,
-    ...options,
-    shell: false,
-  });
-  return /** @type {NodeJS.ErrnoException|undefined} */ (r.error)?.code === "ENOENT"
-    ? null
-    : { status: r.status, stdout: r.stdout || "", stderr: r.stderr || "" };
+export function defaultExec(bin, args = [], options = {}, { untrusted = [], spawn } = {}) {
+  return spawnHardened(bin, args, { ...options, exclude: untrusted, ...(spawn ? { spawn } : {}) });
 }
+
+/** The folders of the project loaded that no program is started from: the documentation project, the application. */
+const untrustedFolders = (ctx) =>
+  ctx.project
+    ? [ctx.project.root, ...(ctx.config?.app?.dir ? [path.resolve(ctx.project.root, ctx.config.app.dir)] : [])]
+    : [];
 
 /**
  * Execution context of a command.
@@ -83,7 +104,7 @@ export function createContext(
     steps,
     launch,
     fetch: fetchImpl = fetch,
-    exec = defaultExec,
+    exec,
     commit,
     codegen,
     chromium,
@@ -91,6 +112,9 @@ export function createContext(
 ) {
   const colour = (stream) => !!stream?.isTTY && !env.NO_COLOR && env.TERM !== "dumb";
   const warnedGit = new Set();
+  // Without a seam, the real launcher, told the folders of the project loaded (none before it is).
+  const launcher =
+    exec ?? ((bin, args, options) => defaultExec(bin, args, options, { untrusted: untrustedFolders(ctx) }));
   const ctx = {
     globals,
     env,
@@ -104,15 +128,18 @@ export function createContext(
     /** Test seam of `doctor` (AUDIT.md M7): () => { ok, path, command } for the Chromium of Playwright. */
     chromium: chromium ?? (() => chromiumStatus()),
     fetch: fetchImpl,
-    /** `exec`, with a warning (once per repository) when git is refused because of a risky configuration. */
+    /**
+     * `exec`, with a warning (once per repository, for git, then for the external tools) when a program is refused
+     * because of a risky configuration.
+     */
     exec: (bin, args, options) => {
-      const r = exec(bin, args, options);
-      if (r?.refused && !warnedGit.has(options?.cwd)) {
-        warnedGit.add(options?.cwd);
+      const r = launcher(bin, args, options);
+      const key = bin === "git" ? "cli.git.unsafeConfig" : "cli.git.unsafeConfigTools";
+      const once = `${key}\n${options?.cwd}`;
+      if (r?.refused && !warnedGit.has(once)) {
+        warnedGit.add(once);
         const vars = { folder: options?.cwd || ".", keys: r.refused.join("; ") };
-        stderr.write(
-          `⚠ ${ctx.t ? ctx.t("cli.git.unsafeConfig", vars) : `git refused in ${vars.folder}: ${vars.keys}`}\n`,
-        );
+        stderr.write(`⚠ ${ctx.t ? ctx.t(key, vars) : `${bin} refused in ${vars.folder}: ${vars.keys}`}\n`);
         if (ctx.t) stderr.write(`  → ${ctx.t("cli.git.unsafeConfig.help", vars)}\n`);
       }
       return r;
@@ -170,19 +197,17 @@ export function createContext(
     },
     /**
      * Messages in the project's language from the start of a command, unless --lang is given: the project (from
-     * --project, or found from the current folder upwards) is located and only the `language` of its
-     * doc.config.mjs is read. Nothing is reported here: without a project, or with a configuration that cannot
-     * be imported or an invalid language, the language stays as it is and the command reports the problem.
-     * @returns {Promise<string>} the message language
+     * --project, or found from the current folder upwards) is located and the `language` of its doc.config.mjs is
+     * read in its text, never by running it (SECURITY.md: `--version` and `--help` run nothing of the folder); a
+     * command that loads the project then speaks the language the configuration gives (loadProject). Nothing is
+     * reported here: without a project, with a file that cannot be read, is not a regular file or is over 1 MB, a
+     * computed or an invalid language, the language stays as it is and the command reports the problem.
+     * @returns {string} the message language
      */
-    async useProjectLanguage({ from } = /** @type {{ from?: string }} */ ({})) {
+    useProjectLanguage() {
       if (globals.lang) return ctx.language;
       try {
-        const { configFile } = findProject({ project: globals.project, from });
-        // Same URL as loadProject: the module is evaluated once.
-        const raw = (await import(pathToFileURL(configFile).href)).default;
-        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return ctx.language;
-        const language = raw.language === undefined ? readSchema("config").properties.language.default : raw.language;
+        const language = configLanguage(findProject({ project: globals.project }).configFile);
         if (LANGUAGES.includes(language)) ctx.setLanguage(language);
       } catch {
         // reported by the command itself
@@ -297,11 +322,15 @@ export async function builtSite(
   const exists = fs.existsSync(output);
   if (!exists && requireExisting)
     throw new KitError(EXIT.CHECK, "site.missing", { file: path.relative(process.cwd(), output) });
+  // The dev server's watch list and the build engine are imported here, when a site is needed: every command starts
+  // without them (ARCHITECTURE.md §4).
   if (exists) {
+    const { watchedPaths } = await import("../engine/dev/server.mjs");
     const { folders, files } = watchedPaths(config);
     const sources = newestMtime(project.root, { folders: [...folders, config.paths.facts], files });
     if (sources <= fs.statSync(output).mtimeMs) return { file: output, release() {} };
   }
+  const { build } = await import("../engine/build/build.mjs");
   const built = build({ project, config, options: { draft: true, ...(space ? { space } : {}) } });
   const r = space ? { ...built, html: built.html && built.sites[0] ? built.sites[0].html : null } : built;
   if (!r.html) {

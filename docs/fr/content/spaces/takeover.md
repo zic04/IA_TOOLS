@@ -95,7 +95,9 @@ verrouillage, chaque dossier jusqu'à chaque manifeste, et votre propre configur
 Poetry (quand vos installations passent par un registre ou un miroir d'entreprise que les fichiers de verrouillage
 ne nomment pas — `replace-registry-host` de npm, le plugin de miroir PyPI de Poetry —, déclarez-le là, ou dans une
 variable, avant `--network`) ;
-`--tools` lance ceux de `gitleaks`, `osv-scanner`, `syft` et `knip` qui sont sur le `PATH`, chacun dans son propre
+`--tools` lance ceux de `gitleaks`, `osv-scanner`, `syft` et `knip` qui sont sur le `PATH` — jamais un de
+l'application, du projet de documentation ni d'un `node_modules/.bin` : un `knip` installé seulement dans les
+`devDependencies` de l'application n'est pas lancé, installez-le en dehors —, chacun dans son propre
 `facts/tool-<nom>.json` avec un état (`ok`, `findings`, `failed`, `missing`) et seulement les champs utiles (règle,
 fichier, ligne, paquet, version…), jamais un secret ni une ligne de code. `osv-scanner` fonctionne hors ligne : sa
 base n'est téléchargée qu'avec `--network`. Sans `app.dir` configuré, `doc-kit facts` refuse de s'exécuter.

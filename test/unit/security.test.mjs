@@ -98,9 +98,15 @@ describe("source rules (RULES.md § Security)", () => {
 
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {
     assert.deepEqual(offending(/spawn(Sync)?\(\s*["']git["']/), []);
-    // Each module that spawns a process itself, and calls git, hardens the arguments.
-    for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text)))
-      assert.match(text, /safeGitArgs\(/, f);
+    // One launcher (spawnHardened): no other file looks git up on the PATH or hardens its arguments itself, so no
+    // other file can start git without the configuration check, the hardened arguments and the cleaned environment.
+    assert.deepEqual(
+      offending(/resolveOnPath\(\s*["']git["']|\bsafeGitArgs\(|\bgitEnv\(/, (f) => f === "engine/util/safe-git.mjs"),
+      [],
+    );
+    const launcher = files.find(({ f }) => f === "engine/util/safe-git.mjs").text;
+    for (const step of ["riskyGitConfig(dir)", "safeGitArgs(args)", "gitEnv(env, untrusted)", "shell: false"])
+      assert.ok(launcher.includes(step), `spawnHardened: ${step}`);
   });
 
   test("git writes only in engine/inputs/repos.mjs (RULES.md S2): clone, fetch and checkout of the sources, hardened", () => {
@@ -203,12 +209,18 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
 });
 
 describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
-  test("safeGitArgs: no file system monitor, no pager; diff, show and log without external diff or textconv", () => {
+  test("safeGitArgs: no file system monitor, no pager, no git in a submodule; diff, show and log without external diff or textconv", () => {
     assert.deepEqual(safeGitArgs(["ls-files"]), [
       "-c",
       "core.fsmonitor=false",
       "-c",
       "core.pager=cat",
+      "-c",
+      "diff.ignoreSubmodules=dirty",
+      "-c",
+      "diff.submodule=short",
+      "-c",
+      "submodule.recurse=false",
       "--no-pager",
       "ls-files",
     ]);
@@ -250,7 +262,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
         found.map((l) => l.split(" = ")[0]),
         ["core.fsmonitor", "diff.x.textconv", "filter.y.clean", "diff.external", "include.path"],
       );
-      // The CLI's process launcher refuses git there, without starting any process.
+      // The CLI's process launcher refuses git there, without starting any process (safe-git.test.mjs: its spawn).
       const r = defaultExec("git", ["ls-files"], { cwd: path.join(dir2, "app") });
       assert.equal(r.status, 128);
       assert.equal(r.refused.length, 5);

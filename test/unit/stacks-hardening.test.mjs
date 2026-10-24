@@ -373,7 +373,7 @@ describe("thirteen stacks, one route per declaration", () => {
     }
   });
 
-  test("the user guards of 0.5: an Express `auth` middleware and Next's auth() are user; requireAuth, currentUser are not", () => {
+  test("the user guards of 0.5: an Express `auth` middleware is user; Next's auth() in a body, requireAuth, currentUser are not", () => {
     const app = tree("doc-kit-harden-guards-", {
       "package.json": JSON.stringify({ dependencies: { express: "4.0.0", next: "15.0.0" } }),
       "server.js": 'app.get("/a", auth, h);\napp.get("/b", requireAuth, h);\n',
@@ -383,7 +383,8 @@ describe("thirteen stacks, one route per declaration", () => {
     try {
       assert.deepEqual(
         collectApi(app).map((r) => `${r.route} ${r.auth}`),
-        ["/a user", "/api/c user", "/api/d unknown", "/b unknown"],
+        // auth() in a handler's body is a lookup, which refuses an anonymous caller nothing: unknown (SECURITY.md).
+        ["/a user", "/api/c unknown", "/api/d unknown", "/b unknown"],
       );
     } finally {
       fs.rmSync(app, { recursive: true, force: true });

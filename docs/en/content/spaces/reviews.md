@@ -17,11 +17,20 @@ Both are optional: ask for them at scoping, the same way as any other takeover p
 doc-kit facts --source api --source security
 ```
 
-- `api` now also reports `auth` and `guards` for every route: `"none"` (no guard found), `"user"` (a guard that
-  looks like a session check), `"role"` (a guard that looks like a role or permission check, checked first), or
-  `"unknown"` (a guard is there, but matches neither pattern — worth a human look). `review.guards.role` and
-  `review.guards.user` ([Configuration](#/reference/configuration)) replace the built-in patterns when a project's
+- `api` now also reports `auth` and `guards` for every route: `"none"` (no guard found), `"user"` (a guard of a
+  signed-in user, known by its whole name: `get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
+  `Authorize`…), `"role"` (a guard one of whose words names a role, a permission or a scope: `require_admin`,
+  `hasRole('ADMIN')`; checked first), or `"unknown"` (a guard is there, but the kit cannot tell what it checks —
+  worth a human look). A name is never read as a part of another word: a database session (`get_session`), a CSRF
+  check (`VerifyCsrfToken`) or a token alone is no user, and a guard that lets anonymous callers in
+  (`IsAuthenticatedOrReadOnly`, an optional user) is neither user nor role. `review.guards.role` and
+  `review.guards.user` ([Configuration](#/reference/configuration)) replace the built-in guards when a project's
   own naming does not match them.
+- The global rules of a framework are not read: DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's `SecurityFilterChain`,
+  ASP.NET's `FallbackPolicy`, `FastAPI(dependencies=…)`. A route they alone protect is reported `"none"`: a route
+  may look less protected than it is, never more, except in a few known cases the names do not tell (a per-request
+  override such as DRF's `get_permissions()`, a method-level `@Secured` that loosens its class's, rare argument
+  forms: [Adapters](#/reference/adapters)) — check those settings before reading `"none"` as public.
 - `security` runs eleven deterministic heuristics over the application's files — never a value, only where a
   pattern was found: `rule`, `file`, `line`, `severity`, `owasp`. `xss.dangerouslySetInnerHTML`, `code.eval`,
   `sql.concat`, `tls.disabled`, `cors.wildcardCredentials`, `debug.enabled`, `jwt.noVerify`, `secret.default`,

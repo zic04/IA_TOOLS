@@ -1,8 +1,8 @@
 # Fixture: an APIRouter with its own prefix, included by main.py with an extra prefix: the final route composes
 # both ("/api" + "/orders"). Each handler also exercises a different `auth` classification of the `api` facts
 # source (ARCHITECTURE.md §6.13): list_orders has no guard (auth "none"), get_order depends on the current user
-# (auth "user", DEFAULT_USER_GUARD matches "current_user"), create_order depends on an admin check (auth "role",
-# DEFAULT_ROLE_GUARD matches "admin").
+# (auth "user": get_current_user is a user guard by its whole name), create_order depends on an admin check (auth
+# "role": its word "admin"; engine/facts/guards.mjs).
 import os
 from fastapi import APIRouter, Depends
 

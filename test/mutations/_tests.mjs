@@ -1,5 +1,6 @@
-// The test files that guard the dependency readers and the network gateway: what a mutant of their engine files is
-// run against (test/tools/mutate.mjs). The growth tests (they measure time) only for a mutant that names them.
+// The test files that guard the dependency readers and the network gateway, and those of the hardened git: what a
+// mutant of their engine files is run against (test/tools/mutate.mjs). The growth tests (they measure time) only for a
+// mutant that names them.
 export const DEPENDENCY_TESTS = Object.freeze([
   "test/unit/facts-deps-text.test.mjs",
   "test/unit/facts-deps-common.test.mjs",
@@ -24,3 +25,9 @@ export const DEPENDENCY_TESTS = Object.freeze([
 
 /** The growth tests, added to a mutant that makes a reader slower than linear. */
 export const GROWTH_TESTS = Object.freeze(["test/unit/facts-deps-growth.test.mjs"]);
+
+/**
+ * The test files that guard the hardened git and the launcher of the external tools (engine/util/safe-git.mjs): rule
+ * by rule, with no timing in them (RULES.md M17), so that each mutant runs in seconds.
+ */
+export const GIT_TESTS = Object.freeze(["test/unit/safe-git.test.mjs"]);

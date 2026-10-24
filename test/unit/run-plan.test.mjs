@@ -132,8 +132,13 @@ test("every npm script that runs tests goes through test/run.mjs: npm run test:s
   const tests = Object.entries(scripts).filter(([name]) => name === "test" || name.startsWith("test:"));
   assert.ok(tests.some(([name]) => name === "test:security"));
   for (const [name, command] of tests) assert.match(command, /^node test\/run\.mjs /, name);
-  // One file of test/ is a plan of its own: the runner takes it as it takes a folder.
-  const security = /^node test\/run\.mjs (\S+)$/.exec(scripts["test:security"])?.[1];
-  assert.ok(security && fs.existsSync(path.join(root, "test", security)), "the file test:security names exists");
-  assert.match(fs.readFileSync(path.join(root, "test", security), "utf8"), /redos-worker/);
+  // Files of test/ are a plan of their own: the runner takes each as it takes a folder.
+  const security = scripts["test:security"].replace(/^node test\/run\.mjs /, "").split(" ");
+  assert.ok(security.length > 0 && security.every((f) => f.endsWith(".test.mjs")), scripts["test:security"]);
+  for (const file of security) assert.ok(fs.existsSync(path.join(root, "test", file)), `${file} exists`);
+  const read = (file) => fs.readFileSync(path.join(root, "test", file), "utf8");
+  assert.ok(
+    security.some((file) => /redos-worker/.test(read(file))),
+    "one of them runs the ReDoS harness",
+  );
 });

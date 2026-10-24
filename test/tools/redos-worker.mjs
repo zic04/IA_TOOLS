@@ -9,8 +9,23 @@
 import { parentPort } from "node:worker_threads";
 import fs from "node:fs";
 import vm from "node:vm";
-import { GENERIC, HTML_ATTRIBUTE } from "../../engine/check/secrets.mjs";
-import { INLINE_SCRIPT } from "../../engine/build/csp.mjs";
+import {
+  GENERIC,
+  HTML_ATTRIBUTE,
+  PLACEHOLDER,
+  SECRET_FILE,
+  scanText,
+  isUrlTemplate,
+  htmlText,
+} from "../../engine/check/secrets.mjs";
+import { PATTERNS as AGENT_FILES } from "../../engine/facts/agents.mjs";
+import { TEST_FILE } from "../../engine/facts/tests.mjs";
+import { QUALITY_PATTERNS, functionsOf } from "../../engine/facts/quality.mjs";
+import { IMPORT_PATTERNS, pySpecifiers } from "../../engine/facts/imports.mjs";
+import { apiPathsIn } from "../../engine/sync/api-links.mjs";
+import { PROOF_REF, extractProofs } from "../../engine/sync/proofs.mjs";
+import { parseEnv } from "../../engine/capture/masking.mjs";
+import { INLINE_SCRIPT, SCRIPT_END } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import {
   DECLARATION_PATTERNS,
@@ -31,14 +46,19 @@ import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
 import { nextRouteHandlers, nextHandlerGuards } from "../../adapters/stack/next.mjs";
 import { expressRoutes } from "../../adapters/stack/express.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
+import { classifyAuth, DEFAULT_ROLE_GUARD, DEFAULT_USER_GUARD } from "../../engine/facts/guards.mjs";
+import { djangoViews } from "../../adapters/stack/django.mjs";
+import { railsApi } from "../../adapters/stack/rails.mjs";
+import { flaskRoutes } from "../../adapters/stack/flask.mjs";
 import { CODE_PATTERNS } from "../../engine/facts/code-files.mjs";
 import { BUILT_IN_STACKS } from "../../engine/facts/stacks.mjs";
 import { BUILT_IN_INFRA } from "../../engine/facts/infra.mjs";
 import { readYaml } from "../../engine/core/yaml.mjs";
 import { jsonTree, withoutJsonComments } from "../../engine/core/json-tree.mjs";
 import { loadAdapters, detectedBy } from "../../engine/core/adapters.mjs";
-import { pydanticEnvNames } from "../../engine/facts/env.mjs";
-import { DB_PATTERNS } from "../../engine/facts/db.mjs";
+import { pydanticEnvNames, ENV_READ_PATTERNS } from "../../engine/facts/env.mjs";
+import { DB_PATTERNS, DB_CLOSERS } from "../../engine/facts/db.mjs";
+import { upToLast } from "../../engine/core/text.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
@@ -47,7 +67,7 @@ import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
 import { pdfIndex } from "../../engine/inputs/pdf.mjs";
 import { htmlToText } from "../../engine/inputs/ingest.mjs";
 import { isSafeRepoUrl, nameOf, hasCredentials } from "../../engine/inputs/model.mjs";
-import { parseGitConfig } from "../../engine/util/safe-git.mjs";
+import { parseGitConfig, isLfsValue } from "../../engine/util/safe-git.mjs";
 import { JS_PATTERNS, jsBehaviours } from "../../engine/facts/behaviour-js.mjs";
 import { SQL_PATTERNS, sqlBehaviours } from "../../engine/facts/behaviour-sql.mjs";
 import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
@@ -63,8 +83,10 @@ import {
   jsCommentRanges,
   pyCommentRanges,
   htmlCommentRanges,
+  CRON,
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
+import { languageInConfig } from "../../engine/project/find.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
@@ -98,6 +120,8 @@ const PREFIXES = [
   "Rails.application.routes.draw do\n  namespace :a do\n    resources :",
   "urlpatterns = [\n  path('a/', views.a),\n  path('",
   '@bp.route("/a")\n@login_required\ndef a(): pass\n@bp.route("',
+  // A before_request hook's body, whose statements and calls Flask reads (adapters/stack/flask.mjs, mayDeny).
+  "@bp.before_request\ndef a():\n    ",
   "class A extends AbstractController {\n  #[Route('/a', methods: ['GET'])]\n  public function a() {}\n  #[Route('",
   'var g = app.MapGroup("/a").RequireAuthorization();\ng.MapGet("',
   '<Routes>\n  <Route path="a" element={<RequireAuth><A /></RequireAuth>}>\n    <Route path="',
@@ -263,10 +287,58 @@ const STACK_SHAPES = [
   ...ASPNET_SHAPES,
   ...PY_UNITS.map((u) => ["", u]),
 ];
+/**
+ * The shapes that once made a scanner of the application's files super-linear (test/unit/scanners-growth.test.mjs):
+ * an occurrence repeated, a construct left open, a long run after a keyword — built longer, as the others, and given
+ * to every check.
+ */
+const SCANNER_SHAPES = [
+  ["", 'app.use(cors({ origin: "*", credentials: true }));\n'],
+  ["", "el.innerHTML = x;\n"],
+  ["", "res.redirect("],
+  ["", "q = `select ${x}`; db.query(q);\n"],
+  ["", "algorithms: ["],
+  ["post('", "login"],
+  ["", "eyJabcdefgh."],
+  ["", "a://"],
+  ["", "<script>"],
+  ["", "<style>"],
+  ["", "<a "],
+  ["", '"/a/${'],
+  ['"/a', "/"],
+  ["`", "a"],
+  ["`a.ts:", "1"],
+  ["A=x", " "],
+  ["from ", "."],
+  ["from", " "],
+  ["function", " "],
+  ["a():", " "],
+  ["", "a(): "],
+  ["", "function a() {}\n"],
+  ["", "function a() {\n"],
+  ["", "function a() { if (x) {}\n"],
+  // Line starts the multiline expressions see after a carriage return or U+2028; openings never closed of the db,
+  // env and security readers; a badge never closed.
+  ["", "\r"],
+  ["", "\u2028"],
+  ["", "${"],
+  ["", "const {"],
+  ["", "model A {"],
+  ["", "CREATE TABLE t ("],
+  ["class A(Base):\n", "\n"],
+  ["", "class A("],
+  ["", "[[verified a"],
+  ["", "a:\r"],
+  ["", "<script "],
+];
+/** The text of each closer of DB_CLOSERS, put after an input by the db checks. */
+const CLOSER_TEXT = { prismaModel: "\n}", createTable: ");" };
 const KNOWN = new Set(PREFIXES.flatMap((p) => UNITS.map((u) => JSON.stringify([p, u]))));
 const SHAPES = [
   ...PREFIXES.flatMap((p) => UNITS.map((u) => [p, u])),
-  ...STACK_SHAPES.filter((shape) => !KNOWN.has(JSON.stringify(shape)) && KNOWN.add(JSON.stringify(shape))),
+  ...[...STACK_SHAPES, ...SCANNER_SHAPES].filter(
+    (shape) => !KNOWN.has(JSON.stringify(shape)) && KNOWN.add(JSON.stringify(shape)),
+  ),
 ];
 const INPUTS = SHAPES.map(([p, u]) => built(p, u, N));
 /**
@@ -357,34 +429,49 @@ const STACK_FILES = [
 ];
 
 /**
+ * The engine modules whose every `*_PATTERNS` export is checked, whatever its name (stackChecks). Plain paths, each
+ * quoted: test/unit/redos-registration.test.mjs reads them as the modules measured for their *_PATTERNS.
+ */
+const PATTERN_MODULES = [
+  "../../engine/facts/stack-js.mjs",
+  "../../engine/facts/stack-c.mjs",
+  "../../engine/facts/stack-py.mjs",
+  "../../engine/facts/stack-php.mjs",
+  "../../engine/facts/stack-common.mjs",
+  "../../engine/facts/guards.mjs",
+  "../../engine/facts/infra-common.mjs",
+  "../../engine/facts/infra.mjs",
+  "../../engine/core/yaml.mjs",
+  // The ticket references of a backlog, as written in toc.json and in the pages (engine/core/refs.mjs).
+  "../../engine/core/refs.mjs",
+];
+
+/** A check of each expression of a map of them, named `label` and its key (a sticky or global one reset first). */
+const patternChecks = (label, patterns) =>
+  Object.entries(patterns).map(([n, re]) => [
+    `${label} ${n}`,
+    (s) => {
+      re.lastIndex = 0;
+      return re.global ? [...s.matchAll(re)].length : re.exec(s);
+    },
+  ]);
+
+/**
  * The checks of the stack adapters, whatever their number: every expression of each adapter's and each shared
- * module's `*_PATTERNS` export (a sticky or global one reset first), then each reader of each adapter — api and
- * screens on the files of STACK_FILES it reads, behaviours on the first of them.
+ * module's `*_PATTERNS` export (patternChecks), then each reader of each adapter — api and screens on the files of
+ * STACK_FILES it reads, behaviours on the first of them.
  */
 async function stackChecks() {
   const checks = [];
   const modules = [
     ...BUILT_IN_STACKS.map((a) => [a.name, `../../adapters/stack/${a.name}.mjs`]),
-    ...["js", "c", "py", "php", "common"].map((x) => [`stack-${x}`, `../../engine/facts/stack-${x}.mjs`]),
-    ["infra-common", "../../engine/facts/infra-common.mjs"],
     ...BUILT_IN_INFRA.map((a) => [`infra ${a.name}`, `../../adapters/infra/${a.name}.mjs`]),
-    ["infra", "../../engine/facts/infra.mjs"],
-    ["yaml", "../../engine/core/yaml.mjs"],
-    // The ticket references of a backlog, as written in toc.json and in the pages (engine/core/refs.mjs).
-    ["refs", "../../engine/core/refs.mjs"],
+    ...PATTERN_MODULES.map((file) => [/([^/]+)\.mjs$/.exec(file)[1], file]),
   ];
   for (const [name, file] of modules) {
     const mod = await import(file);
     for (const [key, patterns] of Object.entries(mod))
-      if (key.endsWith("_PATTERNS"))
-        for (const [n, re] of Object.entries(patterns))
-          checks.push([
-            `stack ${name} ${n}`,
-            (s) => {
-              re.lastIndex = 0;
-              return re.global ? [...s.matchAll(re)].length : re.exec(s);
-            },
-          ]);
+      if (key.endsWith("_PATTERNS")) checks.push(...patternChecks(`stack ${name}`, patterns));
   }
   for (const adapter of BUILT_IN_STACKS) {
     const files = STACK_FILES.filter((f) => f.search(adapter.files) !== -1);
@@ -437,10 +524,42 @@ export const CHECKS = [
     },
   ]),
   ...RULES.map((r) => [`OWASP heuristic ${r.rule}`, (s) => r.find(s)]),
+  // A default secret's value is read whole: the text as one quoted value.
+  ...RULES.filter((r) => r.rule === "secret.default").map((r) => [
+    `OWASP heuristic ${r.rule} (a quoted value)`,
+    (s) => r.find(`password = "${s}"`),
+  ]),
   ["api nextRouteHandlers", (s) => nextRouteHandlers(s)],
   ["api nextHandlerGuards", (s) => nextHandlerGuards(s)],
   ["api expressRoutes", (s) => expressRoutes(s, "x.js")],
   ["api fastapiRoutes", (s) => fastapiRoutes(new Map([["x.py", s]]))],
+  // The access of a route from its guards' names, which an adapter takes from the application (engine/facts/guards.mjs).
+  [
+    "api classifyAuth",
+    (s) => classifyAuth([s, `${s}()`, s.toUpperCase(), `a.${s}`, `(${s}) and !(${s}) or ${s}`, `${s} (body)`]),
+  ],
+  // What a reader keeps of a guard the text writes: DRF's permission classes (an expression of several), Rails's
+  // callbacks (a condition, a statement on several lines), Flask's decorator arguments (`@jwt_required (…)`).
+  [
+    "api django permission_classes",
+    (s) =>
+      djangoViews(`class A(APIView):\n    permission_classes = [${s}]\n@permission_classes([${s}])\ndef a(r): ...\n`)
+        .size,
+  ],
+  [
+    "api rails callbacks",
+    (s) =>
+      railsApi(
+        new Map([
+          ["config/routes.rb", "resources :a\n"],
+          ["app/controllers/a_controller.rb", `class AController\n  before_action :a, ${s}\n  before_action ${s}\n`],
+        ]),
+      ).length,
+  ],
+  [
+    "api flask decorators",
+    (s) => flaskRoutes(new Map([["a.py", `@app.get('/a')\n@jwt_required ${s}\ndef a(): ...\n`]])).length,
+  ],
   // The stack adapters (adapters/stack/) and the engine modules they share: each expression, then each reader.
   ...(await stackChecks()),
   // The paths of the application: what is a test, a generated file; which files an adapter reads; what tells a stack.
@@ -471,18 +590,31 @@ export const CHECKS = [
   ],
   ["env pydanticEnvNames", (s) => pydanticEnvNames(s)],
   ...ENV_PATTERNS.map((re, i) => [`c4 environment variable ${i}`, (s) => re.test(s)]),
+  // Each on the text its reader gives it: up to the last of its closers, when it has one (DB_CLOSERS) — the input as
+  // it is, and with one closer after it (openings repeated, then a closer: the shape a cut leaves whole).
   ...Object.entries(DB_PATTERNS).map(([name, re]) => [
     `db ${name}`,
     (s) => {
-      if (re.global) for (const m of s.matchAll(re)) void m;
-      else re.exec(s);
+      const texts = DB_CLOSERS[name] ? [s, s + CLOSER_TEXT[name]].map((t) => upToLast(t, DB_CLOSERS[name])) : [s];
+      for (const text of texts)
+        if (re.global) for (const m of text.matchAll(re)) void m;
+        else re.exec(text);
     },
   ]),
+  ...patternChecks("db closer", DB_CLOSERS),
+  ...patternChecks("env", ENV_READ_PATTERNS),
   ["history parseNumstat", (s) => parseNumstat(s)],
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
-  ["csp INLINE_SCRIPT", (s) => [...s.matchAll(INLINE_SCRIPT)].length],
+  // The language of a doc.config.mjs, read as text without running it (engine/project/find.mjs): spaces around `[`.
+  ["project languageInConfig", (s) => [s, `language: ${s}`, `languages: ${s}[${s}`].map(languageInConfig).length],
+  // As the build runs it: up to the last "</script>"; the input as it is, and with one closing tag after it.
+  [
+    "csp INLINE_SCRIPT",
+    (s) => [s, `${s}</script>`].reduce((n, t) => n + [...upToLast(t, SCRIPT_END).matchAll(INLINE_SCRIPT)].length, 0),
+  ],
+  ["csp SCRIPT_END", (s) => [...s.matchAll(SCRIPT_END)].length],
   ...Object.entries(NETWORK_PATTERNS).map(([name, re]) => [
     `network ${name}`,
     (s) => (re.global ? [...s.matchAll(re)].length : re.test(s)),
@@ -628,6 +760,13 @@ export const CHECKS = [
   ["backlog wikiText", (s) => wikiText(s)],
   ["backlog csvFile", (s) => csvFile([[s, s]])],
   ["safe-git parseGitConfig", (s) => parseGitConfig(`[core] ${s}\n[a "${s}"]\n${s}`)],
+  [
+    "safe-git isLfsValue",
+    (s) =>
+      isLfsValue("filter.lfs.process", `git-lfs filter-process${s}`) ||
+      isLfsValue("filter.lfs.smudge", `git-lfs smudge${s} -- %f`) ||
+      isLfsValue("filter.lfs.clean", `git-lfs clean -- %f${s}`),
+  ],
   // The behaviour detectors: each expression alone, then each reader as a whole (its walks and small expressions).
   ...Object.entries({ ...JS_PATTERNS, ...SQL_PATTERNS, ...PY_PATTERNS, ...SCHEMA_PATTERNS }).map(([name, re]) => [
     `behaviours ${name}`,
@@ -665,6 +804,34 @@ export const CHECKS = [
         0,
       ),
   ],
+  // check secrets as a whole: the detectors with the token of each match and its URL template; the text of a page
+  // of the built site; what is a placeholder, what is a secret file.
+  ["check secrets scanText", (s) => scanText(s, GENERIC).length],
+  ["check secrets isUrlTemplate", (s) => isUrlTemplate(s) || isUrlTemplate(`https://${s}`)],
+  [
+    "check secrets htmlText",
+    (s) => htmlText(s).length + htmlText(`<p>${s}</p><script>${s}`).length + htmlText(`${s}</script></style>>`).length,
+  ],
+  ["check secrets PLACEHOLDER", (s) => PLACEHOLDER.test(s)],
+  ["check secrets SECRET_FILE", (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`)],
+  // The paths of the application: an agent's instructions, a test file (a long name in a folder they look for).
+  ...AGENT_FILES.map((re, i) => [`agents file ${i}`, (s) => re.test(s) || re.test(`.claude/${s}`)]),
+  ["tests TEST_FILE", (s) => TEST_FILE.test(s) || TEST_FILE.test(`tests/${s}`)],
+  // The guards found at a handler, classified by the built-in patterns; a cron expression kept by a hint.
+  ["api DEFAULT_ROLE_GUARD", (s) => DEFAULT_ROLE_GUARD.test(s)],
+  ["api DEFAULT_USER_GUARD", (s) => DEFAULT_USER_GUARD.test(s) || DEFAULT_USER_GUARD.test(`auth:${s}`)],
+  ["behaviours CRON", (s) => CRON.test(s)],
+  // The functions of the quality source (each expression, then the reader: bodies, lines, branches); the local
+  // imports of Python; the API paths of a screen; the proofs of a page; the .env files of the masking.
+  ...patternChecks("quality", QUALITY_PATTERNS),
+  ["quality functionsOf js", (s) => functionsOf("x.js", s).length],
+  ["quality functionsOf py", (s) => functionsOf("x.py", `def a():\n${s}\n  def b():\n${s}`).length],
+  ...patternChecks("imports", IMPORT_PATTERNS),
+  ["imports pySpecifiers", (s) => pySpecifiers(s).length + pySpecifiers(`from ${s}`).length],
+  ["sync apiPathsIn", (s) => apiPathsIn(s).length + apiPathsIn(`"/a/${s}`).length],
+  ...patternChecks("sync", { PROOF_REF }),
+  ["sync extractProofs", (s) => extractProofs(s).length + extractProofs(`\`${s}:1\` [[verified ${s}`).length],
+  ["masking parseEnv", (s) => parseEnv(s).length + parseEnv(`A=${s}`).length],
 ];
 
 const timed = (fn, input) => {
