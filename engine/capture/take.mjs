@@ -20,16 +20,20 @@ import {
 } from "./actions.mjs";
 import { maskPage } from "./masking.mjs";
 import { compareImages, beforeAfterSheet, compareOutcome } from "./compare.mjs";
-import { forbiddenMatch, shownPath, applicationKey } from "./plans.mjs";
+import { forbiddenMatch, shownPath, shownUrl, applicationKey } from "./plans.mjs";
 import { waitForStable } from "./stable.mjs";
 import { TIMINGS } from "./timings.mjs";
 import { isSignInUrl } from "./session.mjs";
 
-/** Raised when the application sends the browser to a sign-in page during the run. */
+/**
+ * Raised when the application sends the browser to a sign-in page during the run. `url` is that page as the kit
+ * shows it (shownUrl): printed and written in --json, it never holds the query or the path parameters (S7).
+ */
 export class SessionExpired extends Error {
   constructor(url) {
-    super(`session expired: ${url}`);
-    this.url = url;
+    const shown = shownUrl(url);
+    super(`session expired: ${shown}`);
+    this.url = shown;
   }
 }
 
@@ -376,7 +380,7 @@ async function waitForChallenge(page, timeout = TIMINGS.challenge) {
       return;
     }
   }
-  throw new CaptureError("challenge", { url: page.url() });
+  throw new CaptureError("challenge", { url: shownUrl(page.url()) });
 }
 
 /** Draws the measured zones over the page and screenshots the clip (control image, never published). */

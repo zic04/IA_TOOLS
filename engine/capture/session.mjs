@@ -18,6 +18,7 @@ import { adaptersOf } from "../core/adapters.mjs";
 import { launchBrowser } from "../project/browser.mjs";
 import { firstLine } from "./actions.mjs";
 import { TIMINGS } from "./timings.mjs";
+import { isLoopbackUrl } from "./plans.mjs";
 
 /** The kit's adapters of each family that is loaded by name (standard/adapters.json). */
 const BUILT_IN = Object.freeze(
@@ -60,17 +61,8 @@ const COMMON_AUTH_OPTIONS = Object.freeze({
 
 const CONFIG = "doc.config.mjs";
 
-/** A loopback host: localhost, *.localhost, 127.x, [::1] (ARCHITECTURE.md §6.13). */
-export function isLoopbackUrl(url) {
-  let u;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  const host = u.hostname.replace(/^\[|\]$/g, "").toLowerCase();
-  return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "::1";
-}
+// A loopback host (ARCHITECTURE.md §6.13): one definition, next to the application's addresses (plans.mjs).
+export { isLoopbackUrl };
 
 /**
  * Is this URL a sign-in page? True when it leaves the application's origin (identity provider) or when its path

@@ -12,11 +12,19 @@
 //   - with capture.forbidden declared, a page of a local application still reaches its API on another local port;
 //   - a page at the end of a chain that rewrites its own address (history.replaceState: a sign-in callback that drops
 //     its ?code=, a router) is captured, and the run's session check opens such a start page too;
-//   - a redirect to a loopback alias of the application (localhost for 127.0.0.1, same port) is the application:
-//     its forbidden routes are refused there; a start page that lands on another origin stops the run;
-//   - a path parameter of a refused route (;jsessionid=…) is never printed nor written in the --json output;
-//   - the guard's bounds (a hop that never answers, a chain past its deadline, an answer too large to hold), with
-//     small bounds given to the guard itself on a real Chromium page.
+//   - a redirect to a loopback alias of the application (localhost for 127.0.0.1, same port; 0.0.0.0 and
+//     [::ffff:127.0.0.1], which Node.js reaches) is the application: its forbidden routes are refused there; a start
+//     page that lands on another origin stops the run;
+//   - a path parameter of a refused route (;jsessionid=…) is never printed nor written in the --json output, nor the
+//     query or the path parameters of a sign-in page (an expired session, before or during the run, or none);
+//   - the speculation rules of a page (prefetch, prerender, document rules, inserted by a script, in a shadow root,
+//     from a Speculation-Rules header), which Chromium would fetch from its own process, never reach a forbidden
+//     route, nor any other;
+//   - a sandboxed iframe whose address is redirected shows the end of its chain; a forbidden end is still refused;
+//   - an end of a chain whose address Chromium writes otherwise than Node.js (/end|x, /end%7Cx) is asked once, and
+//     its own answer read (a 401);
+//   - the guard's bounds (a hop that never answers, a chain past its deadline, an answer too large to hold, the
+//     answers held for all pages), with small bounds given to the guard itself on a real Chromium page.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -25,6 +33,7 @@ import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { requestGuard } from "../../engine/capture/guard.mjs";
 import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
+import { afterRedirects } from "../../engine/capture/take.mjs";
 import { launchBrowser } from "../../engine/project/browser.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
@@ -56,6 +65,30 @@ const page = (res, body, headers = {}) => {
   res.writeHead(200, { "content-type": "text/html; charset=utf-8", ...headers });
   res.end(`<!doctype html><html><body><main>${body}</main></body></html>`);
 };
+
+/** Speculation rules that prefetch and prerender a forbidden route, marked with how the page gave them. */
+const rules = (via) =>
+  JSON.stringify({
+    prefetch: [{ source: "list", urls: [`/orders/7/approval?via=${via}-prefetch`] }],
+    prerender: [{ source: "list", urls: [`/orders/8/approval?via=${via}-prerender`] }],
+  });
+/** A page with speculation rules in its HTML, document rules, rules a script inserts and rules in shadow roots. */
+const SPECULATION = `<h1>Speculation</h1><a href="/orders/9/approval?via=document">order 9</a>
+<script type="speculationrules">${rules("parser")}</script>
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/orders/*"},"eagerness":"immediate"}],
+"prerender":[{"where":{"href_matches":"/orders/*"},"eagerness":"immediate"}]}</script>
+<script>
+  const s = document.createElement("script");
+  s.type = "speculationrules";
+  s.textContent = ${JSON.stringify(rules("script"))};
+  document.head.append(s);
+  const root = document.body.appendChild(document.createElement("div")).attachShadow({ mode: "closed" });
+  const t = document.createElement("script");
+  t.type = "speculationrules";
+  t.textContent = ${JSON.stringify(rules("shadow"))};
+  root.append(t);
+</script>
+<div><template shadowrootmode="open"><script type="speculationrules">${rules("declared")}</script></template></div>`;
 
 /** How long the application takes to answer each hop of /drip/<n> (a redirect to /drip/<n + 1>). */
 const DRIP_MS = 300;
@@ -97,6 +130,39 @@ before(async () => {
       return page(res, `<h1>Landing</h1><script>history.replaceState(null, "", "/landing")</script>`);
     if (p === "/leak") return redirect(res, `/orders/7/approval;jsessionid=${SECRET}`);
     if (p === "/alias") return redirect(res, `${servers.app.url.replace("127.0.0.1", "localhost")}/orders/7/approval`);
+    // Loopback aliases Chromium refuses but Node.js (the guard's fetch) reaches.
+    if (p === "/alias0") return redirect(res, `${servers.app.url.replace("127.0.0.1", "0.0.0.0")}/orders/7/approval`);
+    if (p === "/alias6")
+      return redirect(res, `${servers.app.url.replace("127.0.0.1", "[::ffff:127.0.0.1]")}/orders/7/approval`);
+    // A sign-in page whose address holds secrets: a session id, a state, a code.
+    if (p === "/expire") return redirect(res, `/login;jsessionid=JS${SECRET}?state=ST${SECRET}&code=CODE${SECRET}`);
+    if (p.startsWith("/login")) return page(res, "<h1>Sign in</h1>");
+    // Speculation rules, in every way a page can give them.
+    if (p === "/spec") return page(res, SPECULATION, { "speculation-rules": '"/spec-rules.json"' });
+    if (p === "/spec-rules.json") {
+      res.writeHead(200, { "content-type": "application/speculationrules+json" });
+      return res.end(rules("header"));
+    }
+    // Sandboxed iframes (no script runs in them) whose address is redirected: to a page, to a forbidden route.
+    if (p === "/framed")
+      return page(
+        res,
+        `<h1>Framed</h1><iframe sandbox src="/frame-redir"></iframe><iframe sandbox src="/frame-forbidden"></iframe>`,
+      );
+    if (p === "/frame-redir") return redirect(res, "/frame-end");
+    if (p === "/frame-end") return page(res, "<h1>Frame end</h1>");
+    if (p === "/frame-forbidden") return redirect(res, "/orders/9/approval");
+    // An end that Node.js writes /end|x and Chromium /end%7Cx; one that answers 401.
+    if (p === "/pipe") return redirect(res, "/end|x");
+    if (p === "/end|x" || p === "/end%7Cx") return page(res, "<h1>Pipe end</h1>");
+    if (p === "/pipe401") return redirect(res, "/den|y");
+    if (p === "/den|y" || p === "/den%7Cy") {
+      res.writeHead(401, { "content-type": "text/html; charset=utf-8" });
+      return res.end("<!doctype html><h1>Denied</h1>");
+    }
+    // An end of almost 1 MB: held for a page that cannot run the guard's script.
+    if (p === "/held") return redirect(res, "/held-end");
+    if (p === "/held-end") return page(res, `<h1>Held</h1><!--${"x".repeat(900 * 1024)}-->`);
     if (p === "/moved") return redirect(res, `${servers.idp.url}/elsewhere`);
     // A slow server and a huge answer: the guard's bounds.
     if (p === "/hang") return; // never answers (its socket is closed after the tests)
@@ -164,6 +230,11 @@ function project(folder, auth) {
       { id: "home", route: "/home", zones: [{ text: "Home page" }] },
       { id: "leak", route: "/leak" },
       { id: "alias", route: "/alias" },
+      { id: "alias0", route: "/alias0" },
+      { id: "alias6", route: "/alias6" },
+      { id: "spec", route: "/spec", delay: 1500, zones: [{ text: "Speculation" }] },
+      { id: "pipe", route: "/pipe", zones: [{ text: "Pipe end" }] },
+      { id: "expire", route: "/expire" },
     ];`,
   );
 }
@@ -360,6 +431,147 @@ describe("the guard's bounds, on a real Chromium page and real servers (a slow o
       await page.waitForURL(`${servers.app.url}/home`);
       assert.equal(await page.textContent("h1"), "Home page");
       assert.equal(stops.length, 3);
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+describe("capture: the loopback aliases Node.js reaches, and a sign-in page's secrets", () => {
+  test("a redirect to 0.0.0.0 or to [::ffff:127.0.0.1] is the application: its forbidden route is never requested", async () => {
+    for (const id of ["alias0", "alias6"]) {
+      const r = await capture(id);
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.deepEqual(seen.app, ["GET /", `GET /${id}`], "the application never receives the forbidden route");
+      assert.match(r.err, /✖ forbidden route: 1 request refused — GET \/orders\/7\/approval\n/);
+    }
+  });
+
+  test("the sign-in page of an expired session, or of none, is shown by its origin and path: never its session id, state or code", async () => {
+    const folders = [];
+    const login = `${servers.app.url}/login`;
+    try {
+      // A project of its own for each case (a configuration is imported once per file).
+      const signIn = (start, { session = true } = {}) => {
+        const folder = tempDir("doc-kit-e2e-redirects-sign-in-");
+        folders.push(folder);
+        project(folder, { adapter: "manual", loginPattern: "^/login", start });
+        if (!session) return folder;
+        fs.mkdirSync(path.join(folder, ".doc-kit"));
+        const cookie = { name: "sid", value: "APP", domain: "127.0.0.1", path: "/", expires: -1, httpOnly: false };
+        const state = { cookies: [{ ...cookie, secure: false, sameSite: "Lax" }], origins: [] };
+        fs.writeFileSync(path.join(folder, ".doc-kit", "session.json"), JSON.stringify(state));
+        return folder;
+      };
+      const run = async (folder, id, message, extra = []) => {
+        for (const args of [extra, [...extra, "--json"]]) {
+          const r = await capture(id, { folder, args });
+          assert.equal(r.code, 3, r.out + r.err);
+          assert.ok(!(r.out + r.err).includes(SECRET), r.out + r.err);
+          if (!args.includes("--json")) assert.ok(r.err.includes(message), r.err);
+          else if (id !== "home") assert.equal(JSON.parse(r.out).expired.url, login);
+        }
+      };
+      // Before the run: the session check lands on the sign-in page.
+      await run(signIn("/expire"), "home", `✖ the session has expired (sign-in page: ${login})`);
+      // During the run: a capture lands on the sign-in page.
+      const during = `✖ the session expired during the run, at “expire” (sign-in page: ${login})`;
+      await run(signIn("/"), "expire", during);
+      // Without a session.
+      const none = `✖ “expire”: the application asks to sign in (${login})`;
+      await run(signIn("/", { session: false }), "expire", none, ["--no-session"]);
+    } finally {
+      for (const folder of folders) fs.rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("capture: speculation rules, which Chromium fetches from its own process (SECURITY.md)", () => {
+  test("prefetch and prerender, in the HTML, as document rules, inserted by a script, in shadow roots or in a header: never received", async () => {
+    const r = await capture("spec");
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.match(r.out, /✔ spec \(1 zone, \d+ KB, [\d.]+ s\)\n/);
+    assert.deepEqual(seen.app, ["GET /", "GET /spec"], "no prefetch, no prerender, not even the header's rules");
+  });
+});
+
+describe("capture: frames and addresses the guard answers itself", () => {
+  /** A real Chromium context guarded with capture.forbidden; `seen` counted from zero. */
+  async function guarded(browser, { contextOptions = {}, limits } = {}) {
+    const context = await browser.newContext(contextOptions);
+    const result = { blocked: [], refused: [], prefetched: [] };
+    const stops = [];
+    const guard = requestGuard({
+      appOrigin: servers.app.url,
+      forbidden: forbiddenMatchers([FORBIDDEN]),
+      readOnly: false,
+      result,
+      onStop: (key, vars) => stops.push([key, vars]),
+      ...(limits ? { limits } : {}),
+    });
+    await context.route("**/*", guard);
+    for (const list of Object.values(seen)) list.length = 0;
+    return { context, guard, result, stops };
+  }
+
+  test("a sandboxed iframe whose address is redirected shows the end of its chain; a forbidden end is still refused", async () => {
+    const browser = await launchBrowser({ headless: true });
+    try {
+      const { context, guard, result } = await guarded(browser);
+      const page = await context.newPage();
+      await page.goto(`${servers.app.url}/framed`);
+      const frames = page.frames().filter((f) => f.parentFrame());
+      assert.equal(frames.length, 2);
+      assert.equal(await frames[0].textContent("h1"), "Frame end", "the end of its chain, not a blank page");
+      assert.deepEqual(
+        [...seen.app].sort(),
+        ["GET /frame-end", "GET /frame-forbidden", "GET /frame-redir", "GET /framed"],
+        "each hop once, never the forbidden route",
+      );
+      assert.deepEqual(result.prefetched, ["GET /orders/9/approval"], "refused, the capture going on");
+      assert.deepEqual([guard.landing(frames[0]), guard.held()], [undefined, 0], "nothing held for an iframe");
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("the answers held for pages that cannot run the guard's script are capped together, and freed when a page closes", async () => {
+    const browser = await launchBrowser({ headless: true });
+    try {
+      // Without JavaScript, the guard's page cannot send its frame on: what is held for it stays held.
+      const { context, guard, stops } = await guarded(browser, {
+        contextOptions: { javaScriptEnabled: false },
+        limits: { hop: 5000, chain: 10_000, bytes: 2 ** 20, held: 1.2 * 2 ** 20 },
+      });
+      const first = await context.newPage();
+      await first.goto(`${servers.app.url}/held`);
+      assert.ok(guard.held() > 900 * 1024, String(guard.held()));
+      const second = await context.newPage();
+      await assert.rejects(second.goto(`${servers.app.url}/held`), /net::ERR_FAILED/);
+      assert.deepEqual(stops, [["heldTooLarge", { route: "/held", mb: 1 }]]);
+      await first.close();
+      assert.equal(guard.held(), 0, "freed with its page");
+      const third = await context.newPage();
+      await third.goto(`${servers.app.url}/held`);
+      assert.ok(guard.held() > 900 * 1024);
+      assert.equal(stops.length, 1);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("an end that Chromium writes otherwise than Node.js (/end|x, /end%7Cx) is asked once, and its own answer is read", async () => {
+    const r = await capture("pipe");
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.deepEqual(seen.app, ["GET /", "GET /pipe", "GET /end|x"], "the end asked once");
+    const browser = await launchBrowser({ headless: true });
+    try {
+      const { context, guard } = await guarded(browser);
+      const page = await context.newPage();
+      const response = await page.goto(`${servers.app.url}/pipe401`);
+      const end = await afterRedirects(page, guard, response, { timeout: 10_000 });
+      assert.equal(end.status(), 401, "the end's answer, never the guard's page");
+      assert.deepEqual(seen.app, ["GET /pipe401", "GET /den|y"]);
     } finally {
       await browser.close();
     }

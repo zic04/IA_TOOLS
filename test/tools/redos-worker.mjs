@@ -39,7 +39,15 @@ import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
-import { forbiddenMatch, forbiddenMatchers, shownPath, applicationKey } from "../../engine/capture/plans.mjs";
+import {
+  forbiddenMatch,
+  forbiddenMatchers,
+  shownPath,
+  shownUrl,
+  applicationKey,
+  isLoopbackUrl,
+} from "../../engine/capture/plans.mjs";
+import { addressForm } from "../../engine/capture/guard.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
@@ -492,6 +500,10 @@ export const CHECKS = [
   ],
   ["capture shownPath", (s) => shownPath(`/${s};${s}/${s};`)],
   ["capture applicationKey", (s) => applicationKey(`http://${s}/`)],
+  // A sign-in page as it is reported, the loopback names, one form of an address (an untrusted Location header).
+  ["capture shownUrl", (s) => shownUrl(`http://a.test/${s};${s}?${s}#${s}`)],
+  ["capture isLoopbackUrl", (s) => isLoopbackUrl(`http://[::ffff:${s}]/`) || isLoopbackUrl(`http://${s}./`)],
+  ["capture addressForm", (s) => addressForm(`http://a.test/${s}%7c|${s}%zz?${s}`)],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
   ["csp INLINE_SCRIPT", (s) => [...s.matchAll(INLINE_SCRIPT)].length],
   ...Object.entries(NETWORK_PATTERNS).map(([name, re]) => [

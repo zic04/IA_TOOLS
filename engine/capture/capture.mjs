@@ -9,7 +9,8 @@
 // replaced and a before/after sheet is written next to the comparison copy in `compareDir`.
 //
 // Safety:
-//   guard       read-only, capture.forbidden and redirects: guard.mjs, installed on every browser context;
+//   guard       read-only, capture.forbidden, redirects and speculation rules: guard.mjs, installed on every
+//               browser context (and, with forbidden routes, its init script on every page);
 //   service workers   blocked whenever a guard is active, so that every request goes through it;
 //   session     checked before the first capture; a redirect to a sign-in page during the run stops it.
 import fs from "node:fs";
@@ -22,7 +23,8 @@ import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
 import { trackNetwork } from "./stable.mjs";
 import { checkSession, sessionStorageOf, browserLaunch } from "./session.mjs";
-import { requestGuard, localNetworkGrant } from "./guard.mjs";
+import { requestGuard, localNetworkGrant, blockSpeculationRules } from "./guard.mjs";
+import { shownUrl } from "./plans.mjs";
 import { takeOne, afterRedirects, SessionExpired, storageValues, zoneFile } from "./take.mjs";
 import { TIMINGS } from "./timings.mjs";
 
@@ -182,7 +184,8 @@ async function checkRunSession(rc, w, entries) {
   const page = await rc.pageFor(w, entries[0]?.context || "desktop");
   const settle = (p, r) => afterRedirects(p, w.guard, r, { timeout: TIMINGS.start });
   const s = await checkSession(page, { url: rc.appUrl, auth: rc.auth, settle });
-  if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: page.url() });
+  // The sign-in page by its origin and path only: its query may hold a state or a code (S7).
+  if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: shownUrl(page.url()) });
   rc.result.who = s.who || null;
 }
 
@@ -238,6 +241,8 @@ async function pageFor(rc, browser, w, name) {
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
   if (guarded) await context.route("**/*", w.guard);
+  // Speculation rules would be fetched by Chromium itself, unseen by the guard: removed from every page.
+  if (rc.forbidden.length) await context.addInitScript(blockSpeculationRules);
   const grant = localNetworkGrant(rc.appUrl, rc.forbidden);
   // A browser that does not know the permission: the calls stay refused (`doctor`, SECURITY.md).
   if (grant) await context.grantPermissions(...grant).catch(() => {});

@@ -97,20 +97,31 @@ Service workers are blocked while the kit captures, so that no request escapes t
 A browser follows a redirect without asking the kit again. With `capture.forbidden`, the kit therefore follows the
 redirects of every navigation itself, one hop at a time and across origins, a sign-in round trip through the identity
 provider included: a hop that comes back to a forbidden route of the application is refused before it is requested,
-and the capture stops. The browser only receives the end of the chain, so the server is never asked twice for a hop.
-A chain has bounds: 20 s for a hop, 25 s for the whole chain, 32 MB for the page at its end; past them the capture
-stops and says why.
+and the capture stops. The browser only receives the end of the chain, so the server is never asked twice for a hop;
+an iframe receives that end directly (a sandboxed iframe could not run the page that sends a frame on). A chain has
+bounds: 20 s for a hop, 25 s for the whole chain, 32 MB for the page at its end and 64 MB for all the pages held at
+once; past them the capture stops and says why.
 
-The application is every address of its own: `https` when its server upgrades `http`, a trailing dot, and
-`localhost`, `127.0.0.1` and `[::1]` for one another (same port). With `auth: none`, a start page that opens
+The application is every address of its own: `https` when its server upgrades `http`, a trailing dot, and every
+name of the loopback interface for one another (same port): `localhost` and `*.localhost`, `127.x`, `0.0.0.0`,
+`[::1]`, `[::]` and `[::ffff:127.0.0.1]`. With `auth: none`, a start page that opens
 anywhere else (`www.`, another port) stops the run: set `app.url` to the address the application answers on.
 
 A forbidden pattern is tested on the path as a server reads it: percent-decoded (once and twice), its backslashes
 read as slashes, without its path parameters (`;jsessionid=…`), with its `.` and `..` segments resolved, with
-doubled slashes collapsed and without a trailing slash. The letter case is kept: on a server that ignores it, write
+doubled slashes collapsed, with each segment's trailing dots and spaces dropped (`approval.`, `approval%20`: IIS
+ignores them) and without a trailing slash. The letter case is kept: on a server that ignores it, write
 the pattern for every case (`[Aa]pprove`); on a server that matches a suffix (`/approval.json` for `/approval`),
-write it too (`^/orders/\d+/approval(\.\w+)?$`). A refused route is shown without its path parameters, so a session
-id in the URL is never printed.
+write it too (`^/orders/\d+/approval(\.\w+)?$`). A refused route is shown without its path parameters, and a
+sign-in page by its origin and path only, so a session id, a sign-in state or a code in the URL is never printed.
+
+### Speculation rules
+
+A page can ask the browser to prefetch or prerender other pages: `<script type="speculationrules">`, or a
+`Speculation-Rules` header (frameworks and CDNs add them). Chromium fetches those pages from its own process, out of
+the kit's reach. With `capture.forbidden`, the kit therefore removes these rules from every page before the browser
+reads them. Not covered: rules in a shadow root that the HTML declares closed, and, with Google Chrome
+(`browser: "chrome"`), a `<link rel="prerender">` (SECURITY.md lists them).
 
 With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
 is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during

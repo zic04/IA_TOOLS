@@ -303,9 +303,11 @@ describe("capture", () => {
     fs.writeFileSync(stale, JSON.stringify(state));
     const r = await cli(["capture", "orders-list", "--project", dir], { DOC_KIT_SESSION: stale });
     assert.equal(r.code, 3);
+    // The sign-in page by its origin and path only: its query (here ?next=…, elsewhere a state or a code) is never
+    // printed (RULES.md S7, shownUrl).
     assert.match(
       r.err,
-      /^✖ the session has expired \(sign-in page: http:\/\/127\.0\.0\.1:\d+\/login\?next=%2Forders\)\n {2}→ run doc-kit connect, then capture again\n$/,
+      /^✖ the session has expired \(sign-in page: http:\/\/127\.0\.0\.1:\d+\/login\)\n {2}→ run doc-kit connect, then capture again\n$/,
     );
   });
 

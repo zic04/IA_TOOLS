@@ -31,7 +31,7 @@ Creates the documentation project of the application in `app-dir` (default: the 
 - **Questions** (without `--yes`): name, language, URL, where the screenshots are taken, sign-in method (only with
   screenshots), who the documentation is for. Without a terminal and without `--yes`, it stops with exit code 2.
 - **Where the screenshots are taken**: "1) local or demo application, 2) production, read-only, 3) no screenshots".
-  Choice 1 writes `capture.target: "local"` for a `localhost` or `127.x` URL, `"demo"` otherwise. Choice 2 asks the
+  Choice 1 writes `capture.target: "local"` for a loopback URL (`localhost`, `127.x`…), `"demo"` otherwise. Choice 2 asks the
   **production URL** (never the local one detected from the dev script), then prints three safety reminders:
   read-only blocks the browser's writes, **not** a write made by the server while it renders a page (list such routes
   in `capture.forbidden`); the session file is a secret; the screenshots show real data, which is the owner's written
@@ -112,7 +112,7 @@ and on one API route, then every `GET` route of `facts/api.json`, once per ident
 |---|---|
 | `--as <role>` | Repeatable: also checks as this role |
 
-Refused (exit code 2) unless the application URL is a loopback address (`localhost`, `127.x`, `[::1]`) or
+Refused (exit code 2) unless the application URL is a loopback address (`localhost`, `127.x`, `0.0.0.0`, `[::1]`…) or
 `capture.target` is `"demo"`; `"production"` is always refused, and no option overrides either rule. Unreachable
 instance: exit code 3. Otherwise informative: exit code 0 whatever it finds. At most 4 requests a second, and a
 response body is never stored. [Security and maintainability reviews](#/spaces/reviews) explains the findings and

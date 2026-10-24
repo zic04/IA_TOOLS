@@ -1,19 +1,19 @@
 // Mutants of engine/capture/plans.mjs: the forms of a path a server reads as the same route (pathForms), the path
-// as it is reported (shownPath) and the addresses of the application (applicationKey), each taken out, which the
-// tests of capture.forbidden must catch (RULES.md M16, S6).
+// and the address as they are reported (shownPath, shownUrl) and the addresses of the application (applicationKey,
+// isLoopbackUrl), each taken out, which the tests of capture.forbidden must catch (RULES.md M16, S6, S7).
 export default {
   target: "engine/capture/plans.mjs",
-  tests: ["test/unit/capture.test.mjs"],
+  tests: ["test/unit/capture.test.mjs", "test/unit/reviews.test.mjs"],
   mutants: [
     {
       name: "the percent-decoded form not tested",
-      find: "    for (const decoded of [raw, once, decodeEscapes(once)])",
-      replace: "    for (const decoded of [raw])",
+      find: "    return [x, once, decodeEscapes(once)];",
+      replace: "    return [x];",
     },
     {
       name: "a path decoded once only",
-      find: "    for (const decoded of [raw, once, decodeEscapes(once)])",
-      replace: "    for (const decoded of [raw, once])",
+      find: "    return [x, once, decodeEscapes(once)];",
+      replace: "    return [x, once];",
     },
     {
       name: "one malformed escape turns off all decoding",
@@ -40,28 +40,28 @@ export default {
     },
     {
       name: "a backslash not a slash",
-      find: '      for (const f of [decoded, decoded.replace(/\\\\/g, "/")])',
-      replace: "      for (const f of [decoded])",
+      find: '  forms = expand(forms, (x) => [x, x.replace(/\\\\/g, "/")]);',
+      replace: "  void 0;",
     },
     {
       name: "path parameters dropped only after decoding",
-      find: "  for (const raw of [p, withoutParameters(p)]) {",
-      replace: "  for (const raw of [p]) {",
+      find: "  let forms = new Set([p, withoutParameters(p)]);",
+      replace: "  let forms = new Set([p]);",
     },
     {
       name: "path parameters kept after decoding (%3B)",
-      find: "        for (const g of [f, withoutParameters(f)]) {",
-      replace: "        for (const g of [f]) {",
+      find: "  forms = expand(forms, (x) => [x, withoutParameters(x)]);",
+      replace: "  void 0;",
     },
     {
       name: "slashes not collapsed",
-      find: '          const collapsed = g.replace(/\\/{2,}/g, "/");',
-      replace: "          const collapsed = g;",
+      find: '    const collapsed = x.replace(/\\/{2,}/g, "/");',
+      replace: "    const collapsed = x;",
     },
     {
       name: "dot segments kept",
-      find: "          for (const h of [g, collapsed, withoutDotSegments(g), withoutDotSegments(collapsed)]) {",
-      replace: "          for (const h of [g, collapsed]) {",
+      find: "    return [x, collapsed, withoutDotSegments(x), withoutDotSegments(collapsed)];",
+      replace: "    return [x, collapsed];",
     },
     {
       name: "a dot dot segment climbs above the root",
@@ -75,7 +75,23 @@ export default {
     },
     {
       name: "a trailing slash kept",
-      find: '            if (h.length > 1) forms.add(h.replace(/\\/$/, ""));\n',
+      find: '  forms = expand(forms, (x) => (x.length > 1 ? [x, x.replace(/\\/$/, "")] : [x]));\n',
+      replace: "",
+    },
+    // A segment's trailing dots and spaces (IIS).
+    {
+      name: "a segment's trailing dots and spaces kept",
+      find: "  forms = expand(forms, (x) => [x, withoutTrailingDots(x)]);",
+      replace: "  void 0;",
+    },
+    {
+      name: "a segment's trailing spaces kept",
+      find: '  while (end > 0 && (s[end - 1] === "." || s[end - 1] === " ")) end--;',
+      replace: '  while (end > 0 && s[end - 1] === ".") end--;',
+    },
+    {
+      name: "a dot segment trimmed like a name (/approval/.. read as /approval/)",
+      find: '  if (s === "." || s === "..") return s;\n',
       replace: "",
     },
     // A path as it is reported (S7).
@@ -84,26 +100,56 @@ export default {
       find: "export const shownPath = (pathname) => withoutParameters(pathname);",
       replace: "export const shownPath = (pathname) => pathname;",
     },
-    // The addresses of the application.
+    {
+      name: "an address shown with its query and parameters",
+      find: "  if (u.host) return `${u.protocol}//${u.host}${shownPath(u.pathname)}`;",
+      replace: "  if (u.host) return u.href;",
+    },
+    // The addresses of the application, and the one loopback definition.
+    {
+      name: "0.0.0.0 not the loopback interface",
+      find: '    host === "0.0.0.0" ||\n',
+      replace: "",
+    },
+    {
+      name: "[::] not the loopback interface",
+      find: '    host === "::" ||\n',
+      replace: "",
+    },
+    {
+      name: "an IPv4-mapped loopback address ([::ffff:127.0.0.1]) not the loopback interface",
+      find: '    host === "::" ||\n    /^::ffff:(?:7f[0-9a-f]{2}:[0-9a-f]{1,4}|0:0)$/.test(host)\n',
+      replace: '    host === "::"\n',
+    },
+    {
+      name: "a *.localhost name not the loopback interface",
+      find: '    host.endsWith(".localhost") ||\n',
+      replace: "",
+    },
+    {
+      name: "a loopback name with a trailing dot not the loopback interface",
+      find: '    .replace(/^\\[|\\]$/g, "")\n    .replace(/\\.$/, "")\n',
+      replace: '    .replace(/^\\[|\\]$/g, "")\n',
+    },
     {
       name: "an application upgraded to https another application",
-      find: '  return `${LOOPBACK.test(host) ? "loopback" : host}:${u.port}`;',
-      replace: '  return `${u.protocol}${LOOPBACK.test(host) ? "loopback" : host}:${u.port}`;',
+      find: '  return `${isLoopbackUrl(u) ? "loopback" : host}:${u.port}`;',
+      replace: '  return `${u.protocol}${isLoopbackUrl(u) ? "loopback" : host}:${u.port}`;',
     },
     {
       name: "loopback names told apart",
-      find: '  return `${LOOPBACK.test(host) ? "loopback" : host}:${u.port}`;',
+      find: '  return `${isLoopbackUrl(u) ? "loopback" : host}:${u.port}`;',
       replace: "  return `${host}:${u.port}`;",
     },
     {
       name: "the port not part of the application",
-      find: '  return `${LOOPBACK.test(host) ? "loopback" : host}:${u.port}`;',
-      replace: '  return `${LOOPBACK.test(host) ? "loopback" : host}`;',
+      find: '  return `${isLoopbackUrl(u) ? "loopback" : host}:${u.port}`;',
+      replace: '  return `${isLoopbackUrl(u) ? "loopback" : host}`;',
     },
     {
       name: "a trailing dot another application",
-      find: '  const host = u.hostname.replace(/\\.$/, "");',
-      replace: "  const host = u.hostname;",
+      find: '  const host = u.hostname.replace(/\\.$/, "");\n  return',
+      replace: "  const host = u.hostname;\n  return",
     },
     {
       name: "an address off the web read as an application",

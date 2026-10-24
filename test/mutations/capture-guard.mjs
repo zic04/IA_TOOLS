@@ -1,7 +1,8 @@
 // Mutants of engine/capture/guard.mjs: the rules of the capture guard taken out (requestGuard, redirectChain,
-// hopHeaders, localNetworkGrant), which its tests must catch (RULES.md M16, S6). The guard's work in a real browser
-// (the page that opens the end of a chain, the local addresses of a loopback application, its bounds on a slow and
-// a huge server) is test/e2e/capture-redirects.test.mjs.
+// hopHeaders, addressForm, blockSpeculationRules, localNetworkGrant), which its tests must catch (RULES.md M16, S6).
+// The guard's work in a real browser (the page that opens the end of a chain, a sandboxed iframe, the local
+// addresses of a loopback application, speculation rules, its bounds on a slow and a huge server, the answers held
+// for all pages) is test/e2e/capture-redirects.test.mjs.
 export default {
   target: "engine/capture/guard.mjs",
   tests: ["test/unit/capture.test.mjs"],
@@ -119,13 +120,38 @@ export default {
     },
     {
       name: "no cap on the answer held for a frame",
-      find: "  else if ((await chain.response.body()).length > limits.bytes) {",
-      replace: "  else if (false) {",
+      find: "    bytes > limits.bytes\n",
+      replace: "    false\n",
     },
     {
       name: "an answer of the cap's size refused",
-      find: "  else if ((await chain.response.body()).length > limits.bytes) {",
-      replace: "  else if ((await chain.response.body()).length >= limits.bytes) {",
+      find: "    bytes > limits.bytes\n",
+      replace: "    bytes >= limits.bytes\n",
+    },
+    {
+      name: "no cap on the answers held for all frames",
+      find: "      : state.held + bytes > limits.held\n",
+      replace: "      : false\n",
+    },
+    {
+      name: "answers held up to the total cap exactly refused",
+      find: "      : state.held + bytes > limits.held\n",
+      replace: "      : state.held + bytes >= limits.held\n",
+    },
+    {
+      name: "an answer still counted once its frame has opened it",
+      find: "    open: (p) => {\n      release();\n",
+      replace: "    open: (p) => {\n",
+    },
+    {
+      name: "an answer still counted once dropped",
+      find: "    drop: () => {\n      release();\n",
+      replace: "    drop: () => {\n",
+    },
+    {
+      name: "a page's closing frees nothing held for it",
+      find: '    page.once("close", () => forget(state, frame));',
+      replace: "    void page;",
     },
     // Each answer freed.
     {
@@ -151,13 +177,29 @@ export default {
     // What the browser gets.
     {
       name: "no redirect, and the guard's page all the same",
-      find: "  if (withoutHash(chain.url.href) === key) return answer(route, chain.response);\n",
+      find: "  if (addressForm(chain.url.href) === key || frame?.parentFrame()) return answer(route, chain.response);\n",
       replace: "",
     },
     {
+      name: "an iframe given the guard's page (a sandboxed one stays blank, its answer held for ever)",
+      find: "  if (addressForm(chain.url.href) === key || frame?.parentFrame()) return",
+      replace: "  if (addressForm(chain.url.href) === key) return",
+    },
+    {
       name: "the end of the chain asked again",
-      find: "  if (held && !held.opened && withoutHash(held.url) === key) {",
+      find: "  if (held && !held.opened && addressForm(held.url) === key) {",
       replace: "  if (false) {",
+    },
+    // One written form of an address (Node.js keeps /end|x, Chromium writes /end%7Cx).
+    {
+      name: "an address compared as written",
+      find: "    c.length === 3 ? c.toUpperCase() : escaped(c),",
+      replace: "    c.length === 3 ? c.toUpperCase() : c,",
+    },
+    {
+      name: "an escape compared in its own case",
+      find: "    c.length === 3 ? c.toUpperCase() : escaped(c),",
+      replace: "    c.length === 3 ? c : escaped(c),",
     },
     {
       name: "a held answer given twice",
@@ -171,8 +213,54 @@ export default {
     },
     {
       name: "a frame's landing kept after it goes elsewhere",
-      find: "  if (frame) forget(landings, frame);",
+      find: "  if (frame) forget(state, frame);",
       replace: "",
+    },
+    // Speculation rules, which Chromium fetches from its own process.
+    {
+      name: "the Speculation-Rules header kept",
+      find: '  delete headers["speculation-rules"];\n',
+      replace: "",
+    },
+    {
+      name: "a rules script inserted left in the page",
+      find: "        if (isRules(n)) n.remove();\n",
+      replace: "        if (isRules(n)) void 0;\n",
+    },
+    {
+      name: "the rules scripts inside an inserted element left",
+      find: "        else sweep(n);\n",
+      replace: "",
+    },
+    {
+      name: "a rules script retyped in place left",
+      find: "      if (isRules(r.target)) r.target.remove();\n",
+      replace: "",
+    },
+    {
+      name: "what a root already holds not swept",
+      find: "    sweep(root);\n  };",
+      replace: "  };",
+    },
+    {
+      name: "a shadow root attached by a script not watched",
+      find: "      const root = Reflect.apply(target, self, args);\n      watch(root);\n",
+      replace: "      const root = Reflect.apply(target, self, args);\n",
+    },
+    {
+      name: "an open shadow root that comes with its host not watched",
+      find: "        if (n.shadowRoot) watch(n.shadowRoot);\n",
+      replace: "",
+    },
+    {
+      name: "a rules script's type read as written",
+      find: 'String(n.type).trim().toLowerCase() === "speculationrules"',
+      replace: 'n.type === "speculationrules"',
+    },
+    {
+      name: "a script retyped not observed",
+      find: 'attributes: true, attributeFilter: ["type"] }',
+      replace: "}",
     },
     // The headers of a hop.
     {

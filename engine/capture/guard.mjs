@@ -8,9 +8,13 @@
 //               any sub-resource) is aborted silently and counted: aborting it is what prevents the render. Only a
 //               navigation of a top-level frame (the plan's route, a click on a link, a pop-up) stops the capture;
 //   redirects   with capture.forbidden, every GET navigation is fetched here hop by hop, within bounds (one hop,
-//               the whole chain, the answer held): the browser never follows a redirect itself.
-import { forbiddenMatch, shownPath, applicationKey } from "./plans.mjs";
-import { isLoopbackUrl } from "./session.mjs";
+//               the whole chain, the answer held for a frame and all of them): the browser never follows a
+//               redirect itself;
+//   speculation with capture.forbidden, no speculation rule reaches the browser: Chromium fetches their prefetches
+//               and prerenders from its own process, where no route sees them. The documents the guard serves lose
+//               their Speculation-Rules header, and `blockSpeculationRules` (an init script of every page) removes
+//               each <script type="speculationrules"> before the browser reads it.
+import { forbiddenMatch, shownPath, applicationKey, isLoopbackUrl } from "./plans.mjs";
 import { TIMINGS } from "./timings.mjs";
 
 const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
@@ -39,6 +43,21 @@ export function forbiddenRequestKind(request) {
 /** A URL without its fragment: what a request asks the server for. */
 const withoutHash = (href) => href.split("#")[0];
 
+/** An escape of one ASCII character, in capitals. */
+const escaped = (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`;
+
+/**
+ * An address in one written form, without its fragment, so that the same address written by Node.js (the guard,
+ * which reads a Location header) and by Chromium (the browser, which opens it) compares equal: every character
+ * outside the unreserved and delimiter ones escaped (Chromium writes `/end|x` as `/end%7Cx`, Node.js keeps it),
+ * every escape in capitals. An address is ASCII once read by `new URL`.
+ * @param {string} href
+ */
+export const addressForm = (href) =>
+  withoutHash(href).replace(/%[0-9A-Fa-f]{2}|[^\w\-.~!$&()*+,;=:@/?%]/g, (c) =>
+    c.length === 3 ? c.toUpperCase() : escaped(c),
+  );
+
 /**
  * The page a navigation is answered with when the guard has followed its redirects itself: it sends the browser on
  * to the end of the chain, a new navigation that the guard sees, where a redirect would be followed unseen.
@@ -62,32 +81,51 @@ const dispose = (response) => response.dispose().catch(() => {});
 const MAX_REDIRECTS = 10;
 
 /**
- * The bounds of a chain the guard follows (SECURITY.md): one hop and the whole chain (timings.mjs), and the largest
- * answer it holds for a frame, in bytes (a larger one is refused).
+ * The bounds of a chain the guard follows (SECURITY.md): one hop and the whole chain (timings.mjs), the largest
+ * answer it holds for a frame and the most it holds for all its frames at once, in bytes (past them, refused).
  */
-const LIMITS = Object.freeze({ hop: TIMINGS.redirectHop, chain: TIMINGS.redirectChain, bytes: 32 * 1024 * 1024 });
+const LIMITS = Object.freeze({
+  hop: TIMINGS.redirectHop,
+  chain: TIMINGS.redirectChain,
+  bytes: 32 * 1024 * 1024,
+  held: 64 * 1024 * 1024,
+});
+
+/** Megabytes, as the messages say them. */
+const megabytes = (bytes) => Math.round(bytes / 2 ** 20);
 
 /**
- * @typedef {{ url: string, response: import("playwright").APIResponse, opened: boolean, committed: Promise<unknown>,
- *   open: (committed: Promise<unknown>) => void, drop: () => void }} Landing  the end of a redirect chain the guard
- *   followed for a frame, its answer, whether the frame has opened it yet, and `committed`: settled once the frame
- *   has committed that answer (rejected when the frame goes elsewhere first)
- * @typedef {((route: import("playwright").Route) => Promise<void>) & { landing: (frame: object) => Landing|undefined }}
- *   Guard
+ * @typedef {{ url: string, response: import("playwright").APIResponse, bytes: number, opened: boolean,
+ *   committed: Promise<unknown>, open: (committed: Promise<unknown>) => void, drop: () => void }} Landing  the end of
+ *   a redirect chain the guard followed for a top-level frame, its answer and its size, whether the frame has opened
+ *   it yet, and `committed`: settled once the frame has committed that answer (rejected when the frame goes
+ *   elsewhere, or its page closes, first)
+ * @typedef {((route: import("playwright").Route) => Promise<void>) & { landing: (frame: object) => Landing|undefined,
+ *   held: () => number }} Guard   `held`: the bytes held for all frames at the moment
  */
 
-/** The end of a chain held for a frame (a Landing). */
-function newLanding(url, response) {
+/**
+ * The end of a chain held for a frame (a Landing), counted in `state.held` until the frame opens it or it is
+ * dropped.
+ */
+function newLanding(state, url, response, bytes) {
   let settle;
   const committed = new Promise((resolve, reject) => (settle = { resolve, reject }));
   committed.catch(() => {}); // awaited only after a goto (afterRedirects, take.mjs)
+  state.held += bytes;
+  const release = () => (state.held -= bytes);
   return {
     url,
     response,
+    bytes,
     opened: false,
     committed,
-    open: (p) => settle.resolve(p),
+    open: (p) => {
+      release();
+      settle.resolve(p);
+    },
     drop: () => {
+      release();
       settle.reject(new Error("the frame went elsewhere before the end of its redirects"));
       dispose(response);
     },
@@ -104,15 +142,19 @@ const nextCommit = (frame) =>
  *     a navigation is listed in `result.refused` and reported through `onNavigation(path)` (the capture stops),
  *     anything else is listed in `result.prefetched` (the capture goes on);
  *   - with forbidden routes, a GET navigation (any origin) is fetched here hop by hop (`redirectChain`, within
- *     `limits`); the browser only gets the end of its chain: the answer itself, or a page that sends the frame on to
- *     the end, whose answer is held for that frame's next navigation (`landing(frame)`, for `afterRedirects`,
- *     take.mjs); a chain too slow, or an answer too large to hold, is reported through `onStop(key, vars)`;
+ *     `limits`); the browser only gets the end of its chain, without its Speculation-Rules header: the answer itself
+ *     (always, in an iframe: a sandboxed one could not run a script), or, in a top-level frame, a page that sends
+ *     the frame on to the end, whose answer is held for that frame's next navigation (`landing(frame)`, for
+ *     `afterRedirects`, take.mjs) and freed once opened, when the frame goes elsewhere or when its page closes; a
+ *     chain too slow, or an answer too large to hold (`limits.bytes`, `limits.held` for all frames), is reported
+ *     through `onStop(key, vars)`;
  *   - with `readOnly`, any other method than GET/HEAD/OPTIONS is aborted and listed in `result.blocked`.
  * A path is reported without its path parameters (`shownPath`).
  * @param {{ appOrigin: string, forbidden: Array<{pattern, re}>, readOnly: boolean,
  *   result: { blocked: string[], refused: string[], prefetched: string[] }, onNavigation?: (path: string) => void,
- *   onStop?: (key: string, vars: object) => void, limits?: { hop: number, chain: number, bytes: number },
- *   now?: () => number }} p   `limits` and `now` (the clock): test seams
+ *   onStop?: (key: string, vars: object) => void,
+ *   limits?: { hop: number, chain: number, bytes: number, held: number }, now?: () => number }} p
+ *   `limits` and `now` (the clock): test seams
  * @returns {Guard}
  */
 export function requestGuard({
@@ -131,7 +173,8 @@ export function requestGuard({
   const shown = (u) => (onApp(u) ? "" : u.host) + shownPath(u.pathname);
   /** @type {WeakMap<object, Landing>} */
   const landings = new WeakMap();
-  const followed = { landings, onApp, forbidden, limits, now };
+  // `held`: the bytes held for all frames; `watched`: the pages whose closing drops what is held for them.
+  const followed = { landings, onApp, forbidden, limits, now, held: 0, watched: new WeakSet() };
   const guard = async (route) => {
     const req = route.request();
     let u;
@@ -169,39 +212,77 @@ export function requestGuard({
     }
     return route.fallback();
   };
-  return Object.assign(guard, { landing: (frame) => landings.get(frame) });
+  return Object.assign(guard, { landing: (frame) => landings.get(frame), held: () => followed.held });
 }
 
 /** Drops what was held for a frame (it goes elsewhere): an answer it has not opened is freed, its wait fails. */
-function forget(landings, frame) {
+function forget({ landings }, frame) {
   const held = landings.get(frame);
   landings.delete(frame);
   if (held && !held.opened) held.drop();
 }
 
-/** An answer the browser gets as is, freed once it has it. */
+/**
+ * The headers of a document the guard hands to the browser: its own, without `Speculation-Rules`, whose prefetches
+ * and prerenders Chromium would fetch from its own process, unseen by the guard (blockSpeculationRules).
+ */
+function documentHeaders(response) {
+  const headers = { ...response.headers() };
+  delete headers["speculation-rules"];
+  return headers;
+}
+
+/** An answer the browser gets as is (its headers: `documentHeaders`), freed once it has it. */
 async function answer(route, response) {
   try {
-    await route.fulfill({ response });
+    await route.fulfill({ response, headers: documentHeaders(response) });
   } finally {
     await dispose(response);
   }
 }
 
 /**
+ * Holds `chain` for a top-level frame (its page's closing drops it).
+ * @returns {Promise<{ key: string, vars: object }|null>}  null, or why it is refused
+ */
+async function hold(state, frame, chain) {
+  const { limits } = state;
+  const bytes = (await chain.response.body()).length;
+  const refused =
+    bytes > limits.bytes
+      ? { key: "landingTooLarge", vars: { mb: megabytes(limits.bytes) } }
+      : state.held + bytes > limits.held
+        ? { key: "heldTooLarge", vars: { mb: megabytes(limits.held) } }
+        : null;
+  if (refused) {
+    await dispose(chain.response);
+    return refused;
+  }
+  state.landings.set(frame, newLanding(state, chain.url.href, chain.response, bytes));
+  const page = frame.page();
+  if (!state.watched.has(page)) {
+    state.watched.add(page);
+    page.once("close", () => forget(state, frame));
+  }
+  return null;
+}
+
+/**
  * A navigation of a frame (requestGuard): the end of the chain the guard's page sent this frame to (its answer, once),
  * or the chain followed here. Another frame, or one not known yet (a pop-up being created), asks the server again.
+ * An iframe gets the end of its chain directly: a sandboxed one could not run the guard's page.
  */
-async function navigate({ landings, onApp, forbidden, limits, now }, route, u, { refuse, stop }) {
-  const key = withoutHash(u.href);
+async function navigate(state, route, u, { refuse, stop }) {
+  const { landings, onApp, forbidden, limits, now } = state;
+  const key = addressForm(u.href);
   const frame = frameOf(route.request());
   const held = frame && landings.get(frame);
-  if (held && !held.opened && withoutHash(held.url) === key) {
+  if (held && !held.opened && addressForm(held.url) === key) {
     held.opened = true;
     held.open(nextCommit(frame));
     return answer(route, held.response);
   }
-  if (frame) forget(landings, frame);
+  if (frame) forget(state, frame);
   const started = now();
   let chain;
   try {
@@ -212,12 +293,12 @@ async function navigate({ landings, onApp, forbidden, limits, now }, route, u, {
   if (chain.forbidden) return refuse(chain.forbidden);
   if (chain.late) return stop("redirectTimeout", { seconds: Math.ceil((now() - started) / 1000) }, "timedout");
   if (!chain.url) return route.abort("failed");
-  if (withoutHash(chain.url.href) === key) return answer(route, chain.response);
+  if (addressForm(chain.url.href) === key || frame?.parentFrame()) return answer(route, chain.response);
   if (!frame) await dispose(chain.response);
-  else if ((await chain.response.body()).length > limits.bytes) {
-    await dispose(chain.response);
-    return stop("landingTooLarge", { mb: Math.round(limits.bytes / 2 ** 20) }, "failed");
-  } else landings.set(frame, newLanding(chain.url.href, chain.response));
+  else {
+    const refused = await hold(state, frame, chain);
+    if (refused) return stop(refused.key, refused.vars, "failed");
+  }
   return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: landingPage(chain.url.href) });
 }
 
@@ -295,4 +376,48 @@ function hopHeaders(request, url) {
 export function localNetworkGrant(appUrl, forbidden) {
   if (!forbidden.length || !isLoopbackUrl(appUrl)) return null;
   return [["local-network-access"], { origin: new URL(appUrl).origin }];
+}
+
+/**
+ * The page's half of the guard against speculation rules (SECURITY.md): an init script of every page of a run with
+ * forbidden routes (capture.mjs), run in each document before its own scripts. Chromium fetches the prefetches and
+ * prerenders of a `<script type="speculationrules">` from its own process, where no route of the guard sees them;
+ * neither a launch flag nor a Content-Security-Policy that lets the page's inline scripts run turns them off. So each
+ * such script is removed before the browser reads it: a mutation observer of the document, and of every shadow root
+ * the page attaches (`attachShadow`) or declares open, sees a script the parser inserts before it is run (the parser
+ * runs the microtasks first), and one a script inserts or retypes before its rules are sent. Self-contained: it is
+ * serialised into the page.
+ * @param {any} [scope]   the page's global object (a test seam)
+ */
+export function blockSpeculationRules(scope = globalThis) {
+  const isRules = (n) =>
+    n?.nodeType === 1 && n.localName === "script" && String(n.type).trim().toLowerCase() === "speculationrules";
+  const sweep = (root) => {
+    for (const s of root.querySelectorAll("script")) if (isRules(s)) s.remove();
+  };
+  const observer = new scope.MutationObserver((records) => {
+    for (const r of records) {
+      if (isRules(r.target)) r.target.remove();
+      for (const n of r.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (isRules(n)) n.remove();
+        else sweep(n);
+        if (n.shadowRoot) watch(n.shadowRoot);
+      }
+    }
+  });
+  const watch = (root) => {
+    observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["type"] });
+    sweep(root);
+  };
+  watch(scope.document);
+  const proto = scope.Element.prototype;
+  // A proxy keeps the method's name, length and native look (a bot challenge may check them).
+  proto.attachShadow = new Proxy(proto.attachShadow, {
+    apply(target, self, args) {
+      const root = Reflect.apply(target, self, args);
+      watch(root);
+      return root;
+    },
+  });
 }

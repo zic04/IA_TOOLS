@@ -46,13 +46,18 @@ redirects, whatever the origins its chain goes through (a sign-in round trip thr
 back on the application is tested before it is requested, and a forbidden one never is (the navigation is refused,
 and the capture stops; a chain of more than 10 redirects is refused the same way, a redirect off the web is aborted).
 The application is every address of its own: its host and port whatever the scheme (an `http` application its server
-upgrades to `https`), without a trailing dot, and every loopback name (`localhost`, `127.x`, `[::1]`) as one host.
+upgrades to `https`), without a trailing dot, and every name of the loopback interface (`localhost` and `*.localhost`,
+`127.x`, `0.0.0.0`, `[::1]`, `[::]`, `[::ffff:127.x]`) as one host: the guard fetches a hop from Node.js, which
+reaches `0.0.0.0` and `[::ffff:127.0.0.1]` where Chromium refuses them.
 With `capture.forbidden` and no sign-in (`auth: none`), a start page that lands anywhere else stops the run (exit
 code 2): the guard would not cover its pages. A chain has bounds: 20 s for a hop, 25 s for the whole chain (below the
-30 s a start page gets), and 32 MB for the answer held for a frame; past them the navigation is aborted and the
-capture says why. Each answer the guard fetched is freed once used.
-The browser never gets a redirect, only the end of the chain: a page that sends the frame on to the end, whose answer,
-already fetched, is held for that frame's next navigation. The server is never asked again for a hop of the chain,
+30 s a start page gets), 32 MB for the answer held for a frame and 64 MB for all the answers held at once; past them
+the navigation is aborted and the capture says why. Each answer the guard fetched is freed once used, and one held
+for a frame also when the frame goes elsewhere or its page closes.
+The browser never gets a redirect, only the end of the chain: in a top-level frame, a page that sends the frame on to
+the end, whose answer, already fetched, is held for that frame's next navigation (recognised whatever the way
+Node.js and Chromium write its address: `/end|x`, `/end%7Cx`); in an iframe, the end itself, since a sandboxed
+iframe could not run that page's script. The server is never asked again for a hop of the chain,
 so a server that would answer a second request otherwise is not replayed; only when the end opens in another frame,
 or in a pop-up the kit could not tell yet, is the end asked again — and tested again. A hop sends the cookies the
 browser holds for its own address, never those of the first request, and another origin gets only the referrer's
@@ -60,9 +65,21 @@ origin. A forbidden pattern is tested on the path as written, percent-decoded on
 that decodes before the server does) with each run of escapes decoded on its own (a malformed one, `%zz`, is left as
 written and leaves the others decoded), its backslashes read as slashes, without its path parameters (`;jsessionid=…`,
 dropped before decoding as Tomcat does, and after), with its `.` and `..` segments resolved, with doubled slashes
-collapsed and without a trailing slash. A refused, aborted or blocked request is reported by its path without its
-path parameters and without its query string: a session id the application puts in its URLs is never printed, nor
-written in `--json`. This does not cover:
+collapsed, with each segment's trailing dots and spaces dropped (`approval.`, `approval%20`, `approval%2e`: IIS
+ignores them) and without a trailing slash. A refused, aborted or blocked request is reported by its path without
+its path parameters and without its query string, and a sign-in page (an expired session, a sign-in asked for) or a
+bot challenge by its origin and that path only: a session id, a sign-in state or a code the application puts in its
+URLs is never printed, nor written in `--json`.
+
+**Speculation rules.** Chromium fetches the prefetches and prerenders a page asks for in speculation rules
+(`<script type="speculationrules">`, a `Speculation-Rules` header) from its own process, where the guard never sees
+them. No Chromium launch flag turns them off, and a `Content-Security-Policy` cannot refuse them without refusing
+the page's own inline scripts (`'unsafe-inline'` allows both). With `capture.forbidden`, the documents the guard
+serves lose their `Speculation-Rules` header, and a script the kit runs in every page before the page's own removes
+each `<script type="speculationrules">` before the browser reads it: inserted by the parser or by a script, retyped,
+in the document or in a shadow root the page attaches by script or declares open.
+
+None of this covers:
 
 - **writes made by the server while it renders a page** requested with a `GET` (a record created when a detail page
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
@@ -72,13 +89,23 @@ written in `--json`. This does not cover:
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);
 - a route on another host or port than the application's (an API on another subdomain, `www.`, `https` on another
-  port): `capture.forbidden` only covers the application's host and port. With sign-in, a page on another origin is
+  port, a name that resolves to the loopback interface through DNS such as `localtest.me`): `capture.forbidden` only
+  covers the application's host and port. With sign-in, a page on another origin is
   read as a sign-in page (the capture stops as for an expired session);
 - a server that matches a route by its suffix (Spring MVC's suffix pattern matching, off by default since Spring 5.3:
   `/approval.json` for `/approval`), or that decodes a path more than twice: write the pattern for it
-  (`^/orders/\d+/approval(\.\w+)?$`);
+  (`^/orders/\d+/approval(\.\w+)?$`); and a path in a non-standard encoding, IIS's `%u0061` or an overlong UTF-8
+  sequence (`%C1%A1` for `a`), which the kit does not decode: current servers reject them;
 - the size of an answer while it is fetched: Playwright reads a whole answer into memory before the kit can measure
-  it; the 32 MB cap bounds what is held for a frame, not what one request reads;
+  it; the 32 MB and 64 MB caps bound what is held for the frames, not what one request reads;
+- speculation rules in a shadow root that the HTML declares closed (`<template shadowrootmode="closed">`), in a
+  document the guard does not serve (a navigation sent with another method than `GET`, with
+  `capture.readOnly: false`), or put by a page that works around the kit on purpose; and, with Google Chrome
+  (`browser: "chrome"`), a `<link rel="prerender">`, which Chrome fetches itself (Playwright's Chromium ignores it):
+  such a prefetch is never seen, so neither refused nor counted;
+- an iframe whose address is redirected keeps its first address (its relative links resolve from it), and a pop-up
+  that a sandboxed iframe opens, then redirected, stays blank: it inherits the sandbox and cannot run the guard's
+  page;
 - the redirects of a request that is not a navigation (a `fetch`, an image) or of a navigation sent with another
   method than `GET` (a form posted with `capture.readOnly: false`): the browser follows them unseen. The first address
   of such a request is tested, not the places the server sends it to;
@@ -88,7 +115,7 @@ written in `--json`. This does not cover:
 
 **Local addresses.** A page the kit answers itself comes, for Chromium, from no address: its calls to a local address
 (the API of a local application on another port) are refused (Local Network Access). The kit allows them again, for
-the application's origin only, when the application is on a loopback address (`localhost`, `127.x`, `[::1]`). On any
+the application's origin only, when the application is on a loopback address (`localhost`, `127.x`, `[::1]`…). On any
 other address (a LAN address, a name), `doctor` warns when the application's env files (`masking.env`) name a local
 address on another origin, except on a production target: use `localhost` or `127.0.0.1` in `app.url`, or capture
 that instance without `capture.forbidden`.

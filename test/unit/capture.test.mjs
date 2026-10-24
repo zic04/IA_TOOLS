@@ -14,12 +14,19 @@ import {
   forbiddenMatch,
   routePath,
   shownPath,
+  shownUrl,
   applicationKey,
 } from "../../engine/capture/plans.mjs";
 import { measureZone, routeWithView, describeTarget, actionKind } from "../../engine/capture/actions.mjs";
 import { storageValues, summarizeRequests, zoneFile } from "../../engine/capture/capture.mjs";
-import { forbiddenRequestKind, requestGuard, localNetworkGrant } from "../../engine/capture/guard.mjs";
-import { afterRedirects } from "../../engine/capture/take.mjs";
+import {
+  forbiddenRequestKind,
+  requestGuard,
+  localNetworkGrant,
+  addressForm,
+  blockSpeculationRules,
+} from "../../engine/capture/guard.mjs";
+import { afterRedirects, SessionExpired } from "../../engine/capture/take.mjs";
 import { TIMINGS } from "../../engine/capture/timings.mjs";
 import { compareOutcome } from "../../engine/capture/compare.mjs";
 import { parseEnv, sensitiveValues, maskSource, maskText, DOTS } from "../../engine/capture/masking.mjs";
@@ -330,8 +337,10 @@ describe("plan entries", () => {
    * tells what it did with it. Every request the guard sends is in `requested` (always without following redirects),
    * with the headers it set in `sent` (none: the request's own, as the browser built them), and the timeout it gave
    * in `timeouts`. The request carries a cookie and a referrer, like a navigation of a signed-in page. A page of the
-   * site may take `ms` on the fake clock (a hop past its timeout fails as Playwright's do) and weigh `bytes`; each
-   * answer freed by the guard is in `disposed`, each wait for a frame's next commit in `commits`.
+   * site may take `ms` on the fake clock (a hop past its timeout fails as Playwright's do), weigh `bytes` and carry
+   * `headers`; each answer freed by the guard is in `disposed`, each wait for a frame's next commit in `commits`.
+   * What the browser gets is `{ response: status, headers }` (an answer the guard fetched) or `{ status, body }` (its
+   * own page). `newPage()` gives another page and its top-level frame; `close(page)` closes one.
    */
   function fakeSite(site, { forbidden = forbiddenMatchers(["^/orders/\\d+/approval$"]), appOrigin, limits } = {}) {
     const result = { blocked: [], refused: [], prefetched: [] };
@@ -343,14 +352,31 @@ describe("plan entries", () => {
     const disposed = [];
     const commits = [];
     let clock = 0;
-    const page = {
+    const closing = new Map();
+    const pageOf = (frames) => ({
       waitForEvent: async (event, { predicate, timeout }) => {
         commits.push([event, timeout]);
-        return predicate(top) ? top : null;
+        return frames.find(predicate) ?? null;
       },
+      once: (event, handler) => {
+        assert.equal(event, "close");
+        assert.ok(!closing.has(frames), "one handler per page");
+        closing.set(frames, handler);
+      },
+    });
+    const newPage = () => {
+      const frames = [];
+      const page = pageOf(frames);
+      const frameIn = (parent) => {
+        const frame = { parentFrame: () => parent, page: () => page };
+        frames.push(frame);
+        return frame;
+      };
+      return { page, frames, frameIn, top: frameIn(null) };
     };
-    const frameIn = (parent) => ({ parentFrame: () => parent, page: () => page });
-    const top = frameIn(null);
+    const first = newPage();
+    const { top, frameIn } = first;
+    const close = ({ frames }) => closing.get(frames)?.();
     const guard = requestGuard({
       appOrigin: appOrigin || "http://app.test",
       forbidden,
@@ -372,12 +398,13 @@ describe("plan entries", () => {
       clock += r.ms || 0;
       return {
         status: () => r.status,
-        headers: () => (r.location ? { location: r.location } : {}),
+        headers: () => ({ ...(r.location ? { location: r.location } : {}), ...(r.headers || {}) }),
         body: async () => Buffer.alloc(r.bytes || 0),
         dispose: async () => disposed.push(target),
       };
     };
     const signedIn = { accept: "text/html", cookie: "sid=APP", referer: "http://app.test/orders?page=2" };
+    const seenHeaders = [];
     const run = async (url, { frame = top, method = "GET", headers = signedIn } = {}) => {
       let outcome;
       const request = {
@@ -394,14 +421,32 @@ describe("plan entries", () => {
           sent.push([target || url, headers]);
           return answer((target || url).split("#")[0], timeout); // a fragment is never sent
         },
-        fulfill: async ({ response, status, body }) =>
-          (outcome = response ? { response: response.status() } : { status, body }),
+        fulfill: async ({ response, status, body, headers }) => {
+          if (response) seenHeaders.push(headers);
+          outcome = response ? { response: response.status() } : { status, body };
+        },
         abort: async (r) => (outcome = `abort:${r}`),
         fallback: async () => (outcome = "fallback"),
       });
       return outcome;
     };
-    return { run, guard, top, frameIn, result, navigations, stops, requested, sent, timeouts, disposed, commits };
+    return {
+      run,
+      guard,
+      top,
+      frameIn,
+      newPage,
+      close,
+      result,
+      navigations,
+      stops,
+      requested,
+      sent,
+      timeouts,
+      disposed,
+      commits,
+      seenHeaders,
+    };
   }
 
   test("a server redirect to a forbidden route is refused before the browser follows it (SECURITY.md)", async () => {
@@ -508,14 +553,16 @@ describe("plan entries", () => {
     assert.deepEqual(await s.run("http://app.test/home"), { response: 200 });
     assert.deepEqual(s.requested, [...hops, "http://app.test/home", "http://app.test/home"]);
     assert.equal(s.guard.landing(s.top), undefined);
-    // Another frame (an iframe) has its own landing.
+    // An iframe gets the end of its chain directly, never the guard's page: a sandboxed one could not run its
+    // script (it would stay blank, and the answer held for it would never be opened).
     const inner = s.frameIn(s.top);
-    assert.equal((await s.run("http://app.test/signin", { frame: inner })).status, 200);
-    assert.deepEqual([s.guard.landing(inner).url, s.guard.landing(s.top)], ["http://app.test/home#top", undefined]);
-    // A frame that goes elsewhere before opening the end of its chain: the answer held for it is dropped.
-    assert.deepEqual(await s.run("http://app.test/elsewhere", { frame: inner }), { response: 404 });
-    assert.deepEqual(await s.run("http://app.test/home", { frame: inner }), { response: 200 });
-    assert.equal(s.requested.filter((u) => u === "http://app.test/home").length, 4);
+    assert.deepEqual(await s.run("http://app.test/signin", { frame: inner }), { response: 200 });
+    assert.deepEqual([s.guard.landing(inner), s.guard.held()], [undefined, 0]);
+    // A top-level frame that goes elsewhere before opening the end of its chain: the answer held for it is dropped.
+    assert.equal((await s.run("http://app.test/signin")).status, 200);
+    assert.deepEqual(await s.run("http://app.test/elsewhere"), { response: 404 });
+    assert.deepEqual(await s.run("http://app.test/home"), { response: 200 });
+    assert.equal(s.requested.filter((u) => u === "http://app.test/home").length, 5);
   });
 
   test("the answer held for a frame is only that frame's: another frame, or a pop-up being created, asks the server", async () => {
@@ -578,7 +625,7 @@ describe("plan entries", () => {
   });
 
   test("a hop gets the hop timeout at most, and the whole chain its deadline: a slow chain is stopped and said, never followed further", async () => {
-    const limits = { hop: 100, chain: 250, bytes: 1000 };
+    const limits = { hop: 100, chain: 250, bytes: 1000, held: 5000 };
     const secret = ["SESSION", "SECRET", "42"].join("-");
     const s = fakeSite(
       {
@@ -617,7 +664,7 @@ describe("plan entries", () => {
   });
 
   test("the answer held for a frame is capped: past the cap the navigation is refused and said; the end itself is not held", async () => {
-    const limits = { hop: 100, chain: 250, bytes: 1000 };
+    const limits = { hop: 100, chain: 250, bytes: 1000, held: 5000 };
     const s = fakeSite(
       {
         "http://app.test/big": { status: 302, location: "/huge" },
@@ -638,6 +685,229 @@ describe("plan entries", () => {
     assert.equal(s.stops.length, 1);
   });
 
+  test("the answers held for all frames are capped together; one is no longer counted once opened, nor once its page closes", async () => {
+    const limits = { hop: 100, chain: 250, bytes: 1000, held: 1500 };
+    const s = fakeSite(
+      {
+        "http://app.test/a": { status: 302, location: "/end" },
+        "http://app.test/end": { status: 200, bytes: 800 },
+        "http://app.test/b": { status: 302, location: "/fits" },
+        "http://app.test/fits": { status: 200, bytes: 700 },
+      },
+      { limits },
+    );
+    const second = s.newPage();
+    const third = s.newPage();
+    assert.equal((await s.run("http://app.test/a")).status, 200);
+    assert.equal(s.guard.held(), 800);
+    // Another page (a pop-up) whose end would bring the total over the cap: refused, and said; nothing held for it.
+    assert.equal(await s.run("http://app.test/a", { frame: second.top }), "abort:failed");
+    assert.deepEqual(s.stops, [["heldTooLarge", { route: "/a", mb: 0 }]]);
+    assert.deepEqual([s.guard.landing(second.top), s.guard.held()], [undefined, 800]);
+    assert.equal(s.disposed.at(-1), "http://app.test/end", "the refused end is freed");
+    // Up to the cap exactly: held.
+    assert.equal((await s.run("http://app.test/b", { frame: third.top })).status, 200);
+    assert.equal(s.guard.held(), 1500);
+    // The first page opens its end: no longer counted, the other page's end fits.
+    assert.deepEqual(await s.run("http://app.test/end"), { response: 200 });
+    assert.equal(s.guard.held(), 700);
+    assert.equal((await s.run("http://app.test/a", { frame: second.top })).status, 200);
+    assert.equal(s.guard.held(), 1500);
+    // A page that closes before opening its end: what was held for it is freed, its wait fails.
+    const held = s.guard.landing(second.top);
+    const freed = s.disposed.length;
+    s.close(second);
+    assert.deepEqual([s.guard.landing(second.top), s.guard.held()], [undefined, 700]);
+    await assert.rejects(held.committed, /went elsewhere/);
+    assert.deepEqual(s.disposed.slice(freed), ["http://app.test/end"]);
+    // A page that has opened its end: closing it frees nothing twice.
+    assert.deepEqual(await s.run("http://app.test/fits", { frame: third.top }), { response: 200 });
+    assert.equal(s.guard.held(), 0);
+    const opened = s.disposed.length;
+    s.close(third);
+    assert.deepEqual([s.disposed.length, s.guard.held()], [opened, 0]);
+    // Playwright's own bounds, without a test seam: 32 MB for one end, 64 MB for all.
+    const real = fakeSite({
+      "http://app.test/x": { status: 302, location: "/y" },
+      "http://app.test/y": { status: 200, bytes: 32 * 2 ** 20 },
+    });
+    const pages = [real.newPage(), real.newPage(), real.newPage()];
+    for (const p of pages.slice(0, 2))
+      assert.equal((await real.run("http://app.test/x", { frame: p.top })).status, 200);
+    assert.equal(await real.run("http://app.test/x", { frame: pages[2].top }), "abort:failed");
+    assert.deepEqual(real.stops, [["heldTooLarge", { route: "/x", mb: 64 }]]);
+  });
+
+  test("a document the browser gets from the guard has no Speculation-Rules header: Chromium would fetch the pages of its rules unseen", async () => {
+    const headers = { "speculation-rules": '"/rules.json"', "content-type": "text/html" };
+    const s = fakeSite({
+      "http://app.test/home": { status: 200, headers },
+      "http://app.test/a": { status: 302, location: "/home" },
+    });
+    assert.deepEqual(await s.run("http://app.test/home"), { response: 200 }, "the answer itself");
+    assert.equal((await s.run("http://app.test/a")).status, 200);
+    assert.deepEqual(await s.run("http://app.test/home"), { response: 200 }, "the answer held for the frame");
+    assert.deepEqual(await s.run("http://app.test/a", { frame: s.frameIn(s.top) }), { response: 200 }, "an iframe");
+    assert.deepEqual(s.seenHeaders, Array(3).fill({ "content-type": "text/html" }));
+  });
+
+  test("the end of a chain is one address in Node.js's form and in Chromium's: opened with the answer held, never asked again (addressForm)", async () => {
+    const s = fakeSite({
+      "http://app.test/pipe": { status: 302, location: "/end|x?q=a|b" },
+      "http://app.test/end|x?q=a|b": { status: 401 },
+    });
+    const first = await s.run("http://app.test/pipe");
+    assert.match(first.body, /location\.replace\("http:\/\/app\.test\/end\|x\?q=a\|b"\)/);
+    // Chromium opens it as /end%7Cx?q=a%7Cb: the answer held (a 401, which afterRedirects reads), never asked again.
+    assert.deepEqual(await s.run("http://app.test/end%7Cx?q=a%7Cb"), { response: 401 });
+    assert.deepEqual(s.requested, ["http://app.test/pipe", "http://app.test/end|x?q=a|b"]);
+    assert.equal(s.guard.landing(s.top).response.status(), 401);
+    assert.deepEqual(
+      [
+        "http://a.test/x|y%7cz",
+        "http://a.test/x%7Cy%7Cz#f|g",
+        "http://a.test/a^b{c}`d'e\"f",
+        "http://a.test/%2f/x;p=1?y=%2F&z=/:@!$()*+,",
+        "http://a.test/100%",
+      ].map(addressForm),
+      [
+        "http://a.test/x%7Cy%7Cz",
+        "http://a.test/x%7Cy%7Cz",
+        "http://a.test/a%5Eb%7Bc%7D%60d%27e%22f",
+        "http://a.test/%2F/x;p=1?y=%2F&z=/:@!$()*+,",
+        "http://a.test/100%",
+      ],
+    );
+    // An escaped delimiter is another address than the delimiter itself.
+    assert.notEqual(addressForm("http://a.test/a%2Fb"), addressForm("http://a.test/a/b"));
+  });
+
+  test("an address is shown by its origin and path only: never its query, fragment, credentials or path parameters (shownUrl, S7)", () => {
+    const secret = ["SESSION", "SECRET", "42"].join("-");
+    assert.deepEqual(
+      [
+        `http://127.0.0.1:3000/login;jsessionid=${secret}?state=${secret}&code=${secret}#${secret}`,
+        `https://robin:${secret}@idp.test/authorize?x=${secret}`,
+        "about:blank",
+        `data:text/html,${secret}`,
+        "chrome-error://chromewebdata/",
+        "not a url",
+      ].map((u) => shownUrl(u)),
+      [
+        "http://127.0.0.1:3000/login",
+        "https://idp.test/authorize",
+        "about:blank",
+        "data:",
+        "chrome-error://chromewebdata/",
+        "",
+      ],
+    );
+    // The sign-in page of an expired session, printed and written in --json (SessionExpired.url).
+    const expired = new SessionExpired(`http://app.test/login;jsessionid=${secret}?code=${secret}`);
+    assert.equal(expired.url, "http://app.test/login");
+    assert.ok(!expired.message.includes(secret), expired.message);
+  });
+
+  test("the page's half against speculation rules: each rules script removed, in the document and in every shadow root (blockSpeculationRules)", () => {
+    const removed = [];
+    const observers = [];
+    const descendants = (n) => n.children.flatMap((c) => [c, ...descendants(c)]);
+    const node = (name, { localName = "div", type = "", children = [], shadowRoot = null } = {}) => ({
+      name,
+      nodeType: 1,
+      localName,
+      type,
+      children,
+      shadowRoot,
+      remove: () => removed.push(name),
+      querySelectorAll: (selector) => {
+        assert.equal(selector, "script");
+        return descendants({ children }).filter((c) => c.localName === "script");
+      },
+    });
+    const script = (name, type) => node(name, { localName: "script", type });
+    const text = { nodeType: 3 };
+    class Element {}
+    Element.prototype.attachShadow = function attachShadow(init) {
+      assert.equal(init.mode, "closed");
+      return node(`shadow of ${this.name}`, {
+        children: [script(`in the shadow of ${this.name}`, "speculationrules")],
+      });
+    };
+    const document = node("document", {
+      children: [script("parsed before", "speculationrules"), script("application", "module")],
+    });
+    const scope = {
+      document,
+      Element,
+      MutationObserver: class {
+        constructor(callback) {
+          this.callback = callback;
+          this.roots = [];
+          observers.push(this);
+        }
+        observe(root, options) {
+          assert.deepEqual(options, { childList: true, subtree: true, attributes: true, attributeFilter: ["type"] });
+          this.roots.push(root.name);
+        }
+      },
+    };
+    blockSpeculationRules(scope);
+    // The document observed, and what it already holds swept.
+    assert.equal(observers.length, 1);
+    assert.deepEqual([observers[0].roots, removed], [["document"], ["parsed before"]]);
+    const notify = (...records) => observers[0].callback(records);
+    // Inserted by the parser or a script, inside an inserted element, retyped in place: removed; the others kept.
+    notify(
+      { target: document, addedNodes: [script("parsed", "speculationrules"), text] },
+      { target: document, addedNodes: [script("upper case", "SpeculationRules"), script("data", "application/json")] },
+      {
+        target: document,
+        addedNodes: [
+          node("panel", { children: [node("inner", { children: [script("nested", "speculationrules")] })] }),
+        ],
+      },
+      { target: script("retyped", "speculationrules"), addedNodes: [text] },
+      { target: script("classic", "text/javascript"), addedNodes: [text] },
+    );
+    assert.deepEqual(removed.slice(1), ["parsed", "upper case", "nested", "retyped"]);
+    // A shadow root the page attaches, even closed: observed and swept; the method keeps its name and length.
+    const root = scope.Element.prototype.attachShadow.call(node("host"), { mode: "closed" });
+    assert.equal(root.name, "shadow of host");
+    assert.deepEqual([observers[0].roots, removed.at(-1)], [["document", "shadow of host"], "in the shadow of host"]);
+    assert.deepEqual(
+      [scope.Element.prototype.attachShadow.name, scope.Element.prototype.attachShadow.length],
+      ["attachShadow", 1],
+    );
+    // An open shadow root that came with its host (declared in the HTML): observed and swept.
+    const declared = node("declared", { children: [script("declared rules", "speculationrules")] });
+    notify({ target: document, addedNodes: [node("card", { shadowRoot: declared })] });
+    assert.deepEqual([observers[0].roots.at(-1), removed.at(-1)], ["declared", "declared rules"]);
+  });
+
+  test("forbidden routes: a segment's trailing dots and spaces dropped, as IIS does, each with its minimal pair", () => {
+    const m = forbiddenMatchers(["^/orders/\\d+/approval$"]);
+    // [a form IIS reads as the forbidden route, the closest form it does not]
+    const pairs = [
+      ["/orders/7/approval.", "/orders/7/approval.x"],
+      ["/orders/7/approval%20", "/orders/7/approval%20x"],
+      ["/orders/7/approval%2e", "/orders/7/approval%2ex"],
+      ["/orders/7/approval%252E", "/orders/7/approval%252Ex"],
+      ["/orders/7/approval.%20.", "/orders/7/approval.%20.s"],
+      ["/orders/7./approval", "/orders/7.x/approval"],
+      ["/orders/7%20/approval/", "/orders/7%20x/approval/"],
+      ["/orders/7/approval./", "/orders/7/approval.x/"],
+      ["/orders/7/approval.;jsessionid=1", "/orders/7/approval.x;jsessionid=1"],
+    ];
+    for (const [hit, miss] of pairs) {
+      assert.equal(forbiddenMatch(hit, m), "^/orders/\\d+/approval$", hit);
+      assert.equal(forbiddenMatch(miss, m), null, miss);
+    }
+    // A dot segment is never a name whose dots are dropped: "/orders/7/approval/.." is "/orders/7/".
+    assert.equal(forbiddenMatch("/orders/7/approval/..", m), null);
+    assert.equal(forbiddenMatch("/orders/7/approval/%2e%2e", m), null);
+  });
+
   test("an address of the application in another form is the application: scheme upgrade, trailing dot, a loopback alias", async () => {
     const site = { "http://app.test/up": { status: 302, location: "https://app.test/orders/7/approval" } };
     const s = fakeSite(site);
@@ -649,11 +919,25 @@ describe("plan entries", () => {
     // Another port, another host: another application.
     for (const url of ["https://app.test:8443/orders/7/approval", "http://www.app.test/orders/7/approval"])
       assert.deepEqual(await s.run(url), { response: 404 }, url);
+    // A loopback application: every name of the loopback interface is the application. The guard fetches a hop from
+    // Node.js, which reaches 0.0.0.0 and [::ffff:127.0.0.1] where Chromium refuses them.
     const local = fakeSite({}, { appOrigin: "http://127.0.0.1:3000" });
-    for (const url of ["http://localhost:3000/orders/7/approval", "http://[::1]:3000/orders/7/approval"])
-      assert.equal(await local.run(url), "abort:blockedbyclient", url);
-    assert.deepEqual(await local.run("http://localhost:3001/orders/7/approval"), { response: 404 });
-    // The key itself.
+    const aliases = [
+      "localhost",
+      "[::1]",
+      "0.0.0.0",
+      "[::ffff:127.0.0.1]",
+      "[::]",
+      "127.0.0.2",
+      "localhost.",
+      "a.localhost",
+    ];
+    for (const host of aliases)
+      assert.equal(await local.run(`http://${host}:3000/orders/7/approval`), "abort:blockedbyclient", host);
+    for (const host of ["localhost:3001", "[::ffff:10.0.0.1]:3000", "0.0.0.1:3000", "128.0.0.1:3000"])
+      assert.deepEqual(await local.run(`http://${host}/orders/7/approval`), { response: 404 }, host);
+    // The key itself. Any *.localhost name is the loopback interface too (RFC 6761: Chromium resolves it there
+    // itself), so the same server as 127.0.0.1 on that port: one loopback definition with isLoopbackUrl (M6).
     assert.deepEqual(
       [
         "http://App.Test/x",
@@ -663,6 +947,12 @@ describe("plan entries", () => {
         "http://[::1]:3000",
         "http://localhost:3000",
         "http://app.localhost:3000",
+        "http://0.0.0.0:3000",
+        "http://[::]:3000",
+        "http://[::ffff:127.0.0.1]:3000",
+        "http://[::ffff:0.0.0.0]:3000",
+        "http://localhost.:3000",
+        "http://[::ffff:10.0.0.1]:3000",
         "http://app.test:8080",
         "data:text/plain,x",
         "not a url",
@@ -674,7 +964,13 @@ describe("plan entries", () => {
         "loopback:3000",
         "loopback:3000",
         "loopback:3000",
-        "app.localhost:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "loopback:3000",
+        "[::ffff:a00:1]:3000",
         "app.test:8080",
         null,
         null,
@@ -1197,7 +1493,9 @@ describe("i18n keys of the capture engine, the adapters and the checks", () => {
       ...uses(source, /ctx\.error\("([\w.]+)"/g).map((k) => `cli.${k}`),
       ...uses(source, /key: "(check\.[\w.]+)"/g).map((k) => `cli.${k}`),
       ...uses(source, /key: "(\w+)", vars: \{ (?:found|kinds)/g).map((k) => `cli.validate.${k}`),
-      ...["generic", "forbiddenHit"].map((k) => `cli.capture.error.${k}`),
+      ...["generic", "forbiddenHit", "redirectTimeout", "landingTooLarge", "heldTooLarge"].map(
+        (k) => `cli.capture.error.${k}`,
+      ),
       ...["changed", "unchanged"].map((k) => `cli.capture.compare.${k}`),
       ...["notFound", "blockNotFound", "error", "unknown"].map((k) => `cli.adapter.reason.${k}`),
       ...[

@@ -60,7 +60,8 @@ entries between a project's `kit` range and the installed version.
   back to a forbidden route, which the server then received. With `capture.forbidden`, the kit now fetches every `GET`
   navigation hop by hop, whatever its origins, tests each hop back on the application before it is requested, and
   hands the browser only the end of the chain (a page that sends the frame on, whose answer is held for that
-  frame's next navigation): the browser never follows a redirect itself, so a forbidden route cannot be requested on
+  frame's next navigation; in an iframe, the end itself, since a sandboxed iframe could not run that page and stayed
+  blank): the browser never follows a redirect itself, so a forbidden route cannot be requested on
   the way, and the server is never asked twice for a hop — one that answers its second request otherwise is no
   longer replayed. A hop sends the cookies the browser holds for its own address, never those of the first request
   (they went to the identity provider), and only the referrer's origin to another origin. These requests are sent by
@@ -72,21 +73,36 @@ entries between a project's `kit` range and the installed version.
   (RULES.md M16, S6).
 - **A redirect chain the guard follows has bounds** (RULES.md M7): 20 s for a hop (`TIMINGS.redirectHop`), 25 s for
   the whole chain (`TIMINGS.redirectChain`, below the 30 s of a start page, so the guard gives up first and says why:
-  `cli.capture.error.redirectTimeout`), and 32 MB for the answer held for a frame
-  (`cli.capture.error.landingTooLarge`). Each answer the guard fetched is freed once used (Playwright kept every body
-  until the browser context closed).
+  `cli.capture.error.redirectTimeout`), 32 MB for the answer held for a frame (`cli.capture.error.landingTooLarge`)
+  and 64 MB for all the answers held at once (`cli.capture.error.heldTooLarge`, en and fr). Each answer the guard
+  fetched is freed once used, a held one also when its frame goes elsewhere or its page closes (Playwright kept every
+  body until the browser context closed).
+- **The end of a chain is recognised in Chromium's form of its address**: Node.js keeps `/end|x` where Chromium
+  writes `/end%7Cx`, so the end was asked twice and the guard's own page read as its answer (a 401 there went
+  unseen). Both are compared in one written form (`addressForm`).
 - **Every address of the application is the application for `capture.forbidden`**: its host and port whatever the
   scheme (an `http` `app.url` its server upgrades to `https` no longer turns the protection off), without a trailing
-  dot, and `localhost`, `127.x` and `[::1]` as one host (`applicationKey`). With `auth: none`, a start page that
+  dot, and every name of the loopback interface as one host (`applicationKey`): `localhost` and `*.localhost`,
+  `127.x`, `[::1]`, and `0.0.0.0`, `[::]` and `[::ffff:127.0.0.1]`, which Node.js (the guard's requests) reaches
+  where Chromium refuses them — a redirect there reached a forbidden route. One loopback definition
+  (`isLoopbackUrl`, RULES.md M6), which `probe`, `doctor` and `init` now share. With `auth: none`, a start page that
   lands anywhere else stops the run (`capture.offApplication`, exit code 2, en and fr).
 - **`capture.forbidden` reads a path as a server does**: also without its path parameters (`/approval;jsessionid=…`,
   `/orders;v=1/7`), dropped before decoding as Tomcat does and after, with each run of escapes decoded on its own (one
   malformed escape, `%zz`, no longer turns all decoding off), decoded twice (`%252e`), with its `.` and `..` segments
-  resolved (`/orders/7/x/../approval`, `%2e%2e`) and its backslashes read as slashes (`%5C`, IIS). Mutants
-  `test/mutations/capture-paths.mjs`.
+  resolved (`/orders/7/x/../approval`, `%2e%2e`), its backslashes read as slashes (`%5C`, IIS) and each segment's
+  trailing dots and spaces dropped (`approval.`, `approval%20`, `approval%2e`, IIS). `%u0061` and overlong UTF-8
+  are written as limits. Mutants `test/mutations/capture-paths.mjs`.
 - **A path parameter is never printed** (RULES.md S7): a refused, aborted or blocked request, and a forbidden route
   shown, are reported by their path without `;jsessionid=…` and without a query string, in the messages and in
-  `--json` (`shownPath`).
+  `--json` (`shownPath`); a sign-in page (an expired session, before or during the run, a sign-in asked for) and a
+  bot challenge by their origin and that path only (`shownUrl`): their state, code and session id were printed.
+- **Speculation rules no longer reach a forbidden route** (SECURITY.md): Chromium fetches the prefetches and
+  prerenders of `<script type="speculationrules">` and of a `Speculation-Rules` header from its own process, which
+  no route of the guard sees, and no launch flag or Content-Security-Policy turns them off. With
+  `capture.forbidden`, the documents the guard serves lose that header, and an init script of every page removes
+  each rules script before the browser reads it (in the document and its shadow roots). What stays out of reach (a
+  shadow root declared closed, `<link rel="prerender">` with Google Chrome) is written in SECURITY.md.
 - **A local application keeps its local API with `capture.forbidden`**: a page the guard answers itself has no
   address for Chromium, which refused its calls to another local port (Local Network Access). The kit allows them
   again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns

@@ -108,6 +108,7 @@
   "cli.capture.error.forbiddenHit": "la page a demandé une route interdite ({path}) : capture arrêtée",
   "cli.capture.error.redirectTimeout": "pas de réponse pour {route} en {seconds} s, ses redirections comprises : capture arrêtée",
   "cli.capture.error.landingTooLarge": "la page au bout des redirections de {route} dépasse {mb} Mo : capture arrêtée",
+  "cli.capture.error.heldTooLarge": "les pages gardées au bout des redirections dépasseraient {mb} Mo en tout, à {route} : capture arrêtée",
   "cli.capture.error.blockSelector": "la cible { block } demande capture.selectors.block dans doc.config.mjs",
   "cli.capture.error.target": "cible invalide : {target}",
   "cli.capture.error.unionHere": "{ union } n'est permis que dans une zone",
