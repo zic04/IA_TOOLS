@@ -75,8 +75,9 @@ entries between a project's `kit` range and the installed version.
   the whole chain (`TIMINGS.redirectChain`, below the 30 s of a start page, so the guard gives up first and says why:
   `cli.capture.error.redirectTimeout`), 32 MB for the answer held for a frame (`cli.capture.error.landingTooLarge`)
   and 64 MB for all the answers held at once (`cli.capture.error.heldTooLarge`, en and fr). Each answer the guard
-  fetched is freed once used, a held one also when its frame goes elsewhere or its page closes (Playwright kept every
-  body until the browser context closed).
+  fetched is freed once used, a held one also when its frame goes elsewhere (another of its chains that ends after
+  it included: a long run no longer stops on a false `heldTooLarge`) or its page closes (Playwright kept every body
+  until the browser context closed).
 - **The end of a chain is recognised in Chromium's form of its address**: Node.js keeps `/end|x` where Chromium
   writes `/end%7Cx`, so the end was asked twice and the guard's own page read as its answer (a 401 there went
   unseen). Both are compared in one written form (`addressForm`).
@@ -96,13 +97,22 @@ entries between a project's `kit` range and the installed version.
 - **A path parameter is never printed** (RULES.md S7): a refused, aborted or blocked request, and a forbidden route
   shown, are reported by their path without `;jsessionid=…` and without a query string, in the messages and in
   `--json` (`shownPath`); a sign-in page (an expired session, before or during the run, a sign-in asked for) and a
-  bot challenge by their origin and that path only (`shownUrl`): their state, code and session id were printed.
+  bot challenge by their origin and that path only (`shownUrl`): their state, code and session id were printed. A
+  start page off the application that has no origin (`about:blank?…`, `data:`) is shown as `shownUrl` shows it
+  (`capture.offApplication`), no longer whole.
 - **Speculation rules no longer reach a forbidden route** (SECURITY.md): Chromium fetches the prefetches and
   prerenders of `<script type="speculationrules">` and of a `Speculation-Rules` header from its own process, which
   no route of the guard sees, and no launch flag or Content-Security-Policy turns them off. With
   `capture.forbidden`, the documents the guard serves lose that header, and an init script of every page removes
-  each rules script before the browser reads it (in the document and its shadow roots). What stays out of reach (a
-  shadow root declared closed, `<link rel="prerender">` with Google Chrome) is written in SECURITY.md.
+  each rules script before the browser reads it (in the document and its shadow roots, at any depth: a declared root
+  inside another; a root declared on a host already seen is found once the document is parsed, or after a script
+  attaches a shadow root). What stays out of reach (a shadow root declared closed, the rules the parser puts in a
+  root declared on a host already seen, `<link rel="prerender">` with Google Chrome) is written in SECURITY.md.
+- **A WebSocket no longer opens a forbidden route** (SECURITY.md): no route of the guard sees a WebSocket's
+  handshake, a `GET` its server answers. With `capture.forbidden`, the kit routes the WebSockets of every page
+  through Playwright (`routeWebSocket`): one to a forbidden path of the application is closed before it opens, as a
+  connection that failed, and listed with the prefetches aborted; any other connects. A worker's, and a
+  `WebSocketStream`, stay out of reach (SECURITY.md).
 - **A local application keeps its local API with `capture.forbidden`**: a page the guard answers itself has no
   address for Chromium, which refused its calls to another local port (Local Network Access). The kit allows them
   again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns

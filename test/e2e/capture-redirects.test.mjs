@@ -18,8 +18,10 @@
 //   - a path parameter of a refused route (;jsessionid=…) is never printed nor written in the --json output, nor the
 //     query or the path parameters of a sign-in page (an expired session, before or during the run, or none);
 //   - the speculation rules of a page (prefetch, prerender, document rules, inserted by a script, in a shadow root,
-//     from a Speculation-Rules header), which Chromium would fetch from its own process, never reach a forbidden
-//     route, nor any other;
+//     in declared roots inside declared roots, in a declared root whose host came first, from a Speculation-Rules
+//     header), which Chromium would fetch from its own process, never reach a forbidden route, nor any other;
+//   - a WebSocket to a forbidden route never reaches the server (its handshake is a GET no route sees); another
+//     connects;
 //   - a sandboxed iframe whose address is redirected shows the end of its chain; a forbidden end is still refused;
 //   - an end of a chain whose address Chromium writes otherwise than Node.js (/end|x, /end%7Cx) is asked once, and
 //     its own answer read (a 401);
@@ -27,21 +29,27 @@
 //     answers held for all pages), with small bounds given to the guard itself on a real Chromium page.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { requestGuard } from "../../engine/capture/guard.mjs";
+import { requestGuard, blockSpeculationRules } from "../../engine/capture/guard.mjs";
 import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
 import { afterRedirects } from "../../engine/capture/take.mjs";
 import { launchBrowser } from "../../engine/project/browser.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
 const FORBIDDEN = "^/orders/\\d+/approval$";
-/** Requests each server received ("GET /path"), in order, and the cookies the identity provider received. */
-const seen = { app: [], idp: [], api: [] };
+/**
+ * Requests each server received ("GET /path"), in order, the WebSocket handshakes the application received, and the
+ * cookies the identity provider received.
+ */
+const seen = { app: [], idp: [], api: [], sockets: [] };
 const idpCookies = [];
 const servers = {};
+/** The sockets the application upgraded: no longer its HTTP connections, so closed after the tests one by one. */
+const upgraded = new Set();
 let dir;
 /** A session id that the application puts in its URLs (Tomcat's URL rewriting): never printed. */
 const SECRET = ["SESSION", "SECRET", "42"].join("-");
@@ -72,7 +80,12 @@ const rules = (via) =>
     prefetch: [{ source: "list", urls: [`/orders/7/approval?via=${via}-prefetch`] }],
     prerender: [{ source: "list", urls: [`/orders/8/approval?via=${via}-prerender`] }],
   });
-/** A page with speculation rules in its HTML, document rules, rules a script inserts and rules in shadow roots. */
+/** A declared open shadow root holding `inner`. */
+const declared = (inner) => `<template shadowrootmode="open">${inner}</template>`;
+/**
+ * A page with speculation rules in its HTML, document rules, rules a script inserts and rules in shadow roots: one a
+ * script attaches, one declared, and declared roots inside declared roots, two and three levels down.
+ */
 const SPECULATION = `<h1>Speculation</h1><a href="/orders/9/approval?via=document">order 9</a>
 <script type="speculationrules">${rules("parser")}</script>
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/orders/*"},"eagerness":"immediate"}],
@@ -88,7 +101,31 @@ const SPECULATION = `<h1>Speculation</h1><a href="/orders/9/approval?via=documen
   t.textContent = ${JSON.stringify(rules("shadow"))};
   root.append(t);
 </script>
-<div><template shadowrootmode="open"><script type="speculationrules">${rules("declared")}</script></template></div>`;
+<div><template shadowrootmode="open"><script type="speculationrules">${rules("declared")}</script></template></div>
+<my-a>${declared(`<my-b>${declared(`<script type="speculationrules">${rules("nested")}</script>`)}</my-b>`)}</my-a>
+<my-c>${declared(`<my-d>${declared(`<my-e>${declared(`<script type="speculationrules">${rules("deep")}</script>`)}</my-e>`)}</my-d>`)}</my-c>`;
+/**
+ * A declared root whose host the guard has seen before its <template shadowrootmode> (a script comes first): rules a
+ * script puts in it once the page has loaded.
+ */
+const LATE_ROOT = `<h1>Late root</h1><div id="late"><script>0</script>${declared("<p>its root</p>")}</div>
+<script>
+  addEventListener("load", () => {
+    const s = document.createElement("script");
+    s.type = "speculationrules";
+    s.textContent = ${JSON.stringify(rules("late"))};
+    document.getElementById("late").shadowRoot.append(s);
+  });
+</script>`;
+/** WebSockets: one to a forbidden route, one to another route, whose first message the page shows. */
+const SOCKETS = `<h1>Sockets</h1><p id="live">pending</p><p id="refused">pending</p>
+<script>
+  const live = new WebSocket("ws://" + location.host + "/live");
+  live.onmessage = (e) => (document.getElementById("live").textContent = "live " + e.data);
+  const refused = new WebSocket("ws://" + location.host + "/orders/101/approval");
+  refused.onopen = () => (document.getElementById("refused").textContent = "opened");
+  refused.onclose = (e) => (document.getElementById("refused").textContent = "refused " + e.code);
+</script>`;
 
 /** How long the application takes to answer each hop of /drip/<n> (a redirect to /drip/<n + 1>). */
 const DRIP_MS = 300;
@@ -139,6 +176,8 @@ before(async () => {
     if (p.startsWith("/login")) return page(res, "<h1>Sign in</h1>");
     // Speculation rules, in every way a page can give them.
     if (p === "/spec") return page(res, SPECULATION, { "speculation-rules": '"/spec-rules.json"' });
+    if (p === "/spec-late") return page(res, LATE_ROOT);
+    if (p === "/sockets") return page(res, SOCKETS);
     if (p === "/spec-rules.json") {
       res.writeHead(200, { "content-type": "application/speculationrules+json" });
       return res.end(rules("header"));
@@ -201,6 +240,21 @@ before(async () => {
     res.writeHead(200, { "content-type": "text/plain", "access-control-allow-origin": "*" });
     res.end("pong");
   });
+  // WebSocket handshakes: /live is accepted and says hello (RFC 6455: its accept key, one text frame), any other is
+  // closed.
+  servers.app.server.on("upgrade", (req, socket) => {
+    seen.sockets.push(`GET ${req.url}`);
+    upgraded.add(socket);
+    socket.on("error", () => {});
+    if (req.url !== "/live") return socket.destroy();
+    const accept = crypto
+      .createHash("sha1")
+      .update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest("base64");
+    const head = ["HTTP/1.1 101 Switching Protocols", "Upgrade: websocket", "Connection: Upgrade"];
+    socket.write([...head, `Sec-WebSocket-Accept: ${accept}`, "", ""].join("\r\n"));
+    socket.write(Buffer.from([0x81, 5, ...Buffer.from("hello")]));
+  });
   dir = tempDir("doc-kit-e2e-redirects-");
   project(dir, { adapter: "none" });
 });
@@ -233,6 +287,8 @@ function project(folder, auth) {
       { id: "alias0", route: "/alias0" },
       { id: "alias6", route: "/alias6" },
       { id: "spec", route: "/spec", delay: 1500, zones: [{ text: "Speculation" }] },
+      { id: "spec-late", route: "/spec-late", delay: 1500, zones: [{ text: "Late root" }] },
+      { id: "sockets", route: "/sockets", zones: [{ text: "live hello" }, { text: "refused 1006" }] },
       { id: "pipe", route: "/pipe", zones: [{ text: "Pipe end" }] },
       { id: "expire", route: "/expire" },
     ];`,
@@ -240,6 +296,7 @@ function project(folder, auth) {
 }
 
 after(async () => {
+  for (const socket of upgraded) socket.destroy();
   for (const s of Object.values(servers)) {
     s.server.closeAllConnections(); // /hang never answered
     await new Promise((r) => s.server.close(r));
@@ -487,11 +544,45 @@ describe("capture: the loopback aliases Node.js reaches, and a sign-in page's se
 });
 
 describe("capture: speculation rules, which Chromium fetches from its own process (SECURITY.md)", () => {
-  test("prefetch and prerender, in the HTML, as document rules, inserted by a script, in shadow roots or in a header: never received", async () => {
+  test("prefetch and prerender, in the HTML, as document rules, inserted by a script, in shadow roots (declared roots inside declared roots, two and three levels down) or in a header: never received", async () => {
     const r = await capture("spec");
     assert.equal(r.code, 0, r.out + r.err);
     assert.match(r.out, /✔ spec \(1 zone, \d+ KB, [\d.]+ s\)\n/);
     assert.deepEqual(seen.app, ["GET /", "GET /spec"], "no prefetch, no prerender, not even the header's rules");
+  });
+
+  test("a declared root whose host came before its template (a script first): the rules a script puts there once the page has loaded are never received", async () => {
+    const r = await capture("spec-late");
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.match(r.out, /✔ spec-late \(1 zone, \d+ KB, [\d.]+ s\)\n/);
+    assert.deepEqual(seen.app, ["GET /", "GET /spec-late"], "no prefetch, no prerender");
+  });
+
+  test("the page's attachShadow keeps its name and length, and reads as native code (a bot challenge may check them)", async () => {
+    const browser = await launchBrowser({ headless: true });
+    try {
+      const context = await browser.newContext();
+      await context.addInitScript(blockSpeculationRules);
+      const page = await context.newPage();
+      await page.goto(`${servers.app.url}/home`);
+      const look = await page.evaluate(() => {
+        const f = Element.prototype.attachShadow;
+        return [f.name, f.length, Function.prototype.toString.call(f)];
+      });
+      assert.deepEqual(look, ["attachShadow", 1, "function () { [native code] }"]);
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+describe("capture: WebSockets, whose handshake no route of the guard sees (SECURITY.md)", () => {
+  test("a WebSocket to a forbidden route is never opened, the capture going on; one to another route connects", async () => {
+    const r = await capture("sockets");
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.match(r.out, /✔ sockets \(2 zones, \d+ KB, [\d.]+ s\)\n/);
+    assert.deepEqual(seen.sockets, ["GET /live"], "the server never receives the forbidden handshake");
+    assert.match(r.out + r.err, /1 prefetch request to forbidden routes aborted — GET \/orders\/101\/approval\n/);
   });
 });
 

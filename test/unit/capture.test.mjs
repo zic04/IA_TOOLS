@@ -26,7 +26,7 @@ import {
   addressForm,
   blockSpeculationRules,
 } from "../../engine/capture/guard.mjs";
-import { afterRedirects, SessionExpired } from "../../engine/capture/take.mjs";
+import { afterRedirects, SessionExpired, originOf } from "../../engine/capture/take.mjs";
 import { TIMINGS } from "../../engine/capture/timings.mjs";
 import { compareOutcome } from "../../engine/capture/compare.mjs";
 import { parseEnv, sensitiveValues, maskSource, maskText, DOTS } from "../../engine/capture/masking.mjs";
@@ -419,6 +419,7 @@ describe("plan entries", () => {
         fetch: async ({ url: target, maxRedirects, headers, timeout } = {}) => {
           assert.equal(maxRedirects, 0, "the guard never lets a request follow a redirect");
           sent.push([target || url, headers]);
+          await site[(target || url).split("#")[0]]?.gate; // a server that answers when the test says so
           return answer((target || url).split("#")[0], timeout); // a fragment is never sent
         },
         fulfill: async ({ response, status, body, headers }) => {
@@ -738,6 +739,33 @@ describe("plan entries", () => {
     assert.deepEqual(real.stops, [["heldTooLarge", { route: "/x", mb: 64 }]]);
   });
 
+  test("a frame's chain that ends after the frame's next navigation started: held in place of the end held before, nothing left held once the page closes, round after round", async () => {
+    const site = {
+      "http://app.test/slow": { status: 302, location: "/end-a" },
+      "http://app.test/end-a": { status: 200, bytes: 500 },
+      "http://app.test/b": { status: 302, location: "/end-b" },
+      "http://app.test/end-b": { status: 200, bytes: 300 },
+    };
+    const s = fakeSite(site);
+    for (let round = 1; round <= 3; round++) {
+      const page = s.newPage();
+      let answer;
+      site["http://app.test/slow"].gate = new Promise((resolve) => (answer = resolve));
+      // The page opens /slow, whose server is slow, then /b before /slow answers: /b's end is held first.
+      const slow = s.run("http://app.test/slow", { frame: page.top });
+      assert.equal((await s.run("http://app.test/b", { frame: page.top })).status, 200);
+      assert.equal(s.guard.held(), 300, `round ${round}`);
+      // /slow answers at last: its end is held for the frame, /b's (never opened now) dropped and freed.
+      const freed = s.disposed.length;
+      answer();
+      assert.equal((await slow).status, 200);
+      assert.equal(s.guard.held(), 500, `round ${round}: only the frame's last end held`);
+      assert.deepEqual(s.disposed.slice(freed), ["http://app.test/slow", "http://app.test/end-b"], "the hop, /b's end");
+      s.close(page);
+      assert.deepEqual([s.guard.landing(page.top), s.guard.held()], [undefined, 0], `round ${round}`);
+    }
+  });
+
   test("a document the browser gets from the guard has no Speculation-Rules header: Chromium would fetch the pages of its rules unseen", async () => {
     const headers = { "speculation-rules": '"/rules.json"', "content-type": "text/html" };
     const s = fakeSite({
@@ -808,35 +836,106 @@ describe("plan entries", () => {
     assert.ok(!expired.message.includes(secret), expired.message);
   });
 
-  test("the page's half against speculation rules: each rules script removed, in the document and in every shadow root (blockSpeculationRules)", () => {
+  test("the start page off the application is shown by its origin; one without an origin as shownUrl shows it, never its query (originOf, S7)", () => {
+    const secret = ["SESSION", "SECRET", "42"].join("-");
+    assert.deepEqual(
+      [
+        `http://idp.test:8080/authorize;jsessionid=${secret}?code=${secret}#${secret}`,
+        `about:blank?code=${secret}#${secret}`,
+        `data:text/html,${secret}`,
+        `file:///C:/app/index.html?code=${secret}`,
+        `blob:http://app.test/${secret}`,
+        "not a url",
+      ].map((u) => originOf(u)),
+      ["http://idp.test:8080", "about:blank", "data:", "file:", "http://app.test", ""],
+    );
+  });
+
+  test("a WebSocket to a forbidden route of the application is refused before it opens and listed, never its path parameters; any other is left to connect (socketGuard)", async () => {
+    const secret = ["SESSION", "SECRET", "42"].join("-");
+    const result = { blocked: [], refused: [], prefetched: [] };
+    const forbidden = forbiddenMatchers(["^/orders/\\d+/approval$"]);
+    const { sockets } = requestGuard({ appOrigin: "http://127.0.0.1:3000", forbidden, readOnly: true, result });
+    const matches = (url) => sockets.matches(new URL(url));
+    // Every address of the application (wss as https, a loopback alias), every form of the path.
+    for (const url of [
+      "ws://127.0.0.1:3000/orders/7/approval",
+      "wss://127.0.0.1:3000/orders/7/approval",
+      "ws://localhost:3000/orders/7/approval?x=1",
+      `ws://127.0.0.1:3000/orders/7/approval;jsessionid=${secret}`,
+      "ws://127.0.0.1:3000/orders/7/approval%2e",
+    ])
+      assert.equal(matches(url), true, url);
+    // Another route, another port, another host: left to connect.
+    for (const url of [
+      "ws://127.0.0.1:3000/live",
+      "ws://127.0.0.1:3000/orders/7/approval/x",
+      "ws://127.0.0.1:4000/orders/7/approval",
+      "wss://socket.example/orders/7/approval",
+    ])
+      assert.equal(matches(url), false, url);
+    // Refused: closed as a failed connection, never connected; listed by its path only.
+    const closed = [];
+    await sockets.refuse(
+      /** @type {any} */ ({
+        url: () => `ws://127.0.0.1:3000/orders/7/approval;jsessionid=${secret}?token=${secret}`,
+        close: async (options) => closed.push(options),
+        connectToServer: () => assert.fail("a refused socket never reaches its server"),
+      }),
+    );
+    assert.deepEqual(closed, [{ code: 1006 }]);
+    assert.deepEqual(result.prefetched, ["GET /orders/7/approval"]);
+    assert.deepEqual([result.refused, result.blocked], [[], []], "the capture goes on");
+    // Without forbidden routes, no socket is refused.
+    const none = requestGuard({ appOrigin: "http://127.0.0.1:3000", forbidden: [], readOnly: true, result });
+    assert.equal(none.sockets.matches(new URL("ws://127.0.0.1:3000/orders/7/approval")), false);
+  });
+
+  /**
+   * A page as blockSpeculationRules sees it (its global object): a document (its children made by `build`), elements
+   * and shadow roots, each a light tree that querySelectorAll walks as a browser does (never into a shadow root), a
+   * node removed from its parent; one mutation observer, whose records the test hands over (notify); the microtasks
+   * run, and DOMContentLoaded fired, when the test says.
+   */
+  function fakePage(build = () => []) {
     const removed = [];
     const observers = [];
+    const microtasks = [];
+    const loaded = [];
     const descendants = (n) => n.children.flatMap((c) => [c, ...descendants(c)]);
-    const node = (name, { localName = "div", type = "", children = [], shadowRoot = null } = {}) => ({
-      name,
-      nodeType: 1,
-      localName,
-      type,
-      children,
-      shadowRoot,
-      remove: () => removed.push(name),
-      querySelectorAll: (selector) => {
-        assert.equal(selector, "script");
-        return descendants({ children }).filter((c) => c.localName === "script");
-      },
-    });
-    const script = (name, type) => node(name, { localName: "script", type });
-    const text = { nodeType: 3 };
+    const node = (name, { localName = "div", type = "", children = [], shadowRoot = null, nodeType = 1 } = {}) => {
+      const n = {
+        name,
+        nodeType,
+        localName,
+        type,
+        children,
+        shadowRoot,
+        parent: null,
+        remove: () => {
+          removed.push(name);
+          n.parent?.children.splice(n.parent.children.indexOf(n), 1);
+          n.parent = null;
+        },
+        querySelectorAll: (selector) => descendants(n).filter((c) => selector === "*" || c.localName === selector),
+      };
+      for (const c of children) c.parent = n;
+      return n;
+    };
+    const script = (name, type = "speculationrules") => node(name, { localName: "script", type });
+    const shadow = (name, children) => node(name, { nodeType: 11, localName: undefined, children });
+    const append = (parent, child) => {
+      parent.children.push(child);
+      child.parent = parent;
+      return child;
+    };
     class Element {}
     Element.prototype.attachShadow = function attachShadow(init) {
-      assert.equal(init.mode, "closed");
-      return node(`shadow of ${this.name}`, {
-        children: [script(`in the shadow of ${this.name}`, "speculationrules")],
-      });
+      const root = shadow(`shadow of ${this.name}`, [script(`in the shadow of ${this.name}`)]);
+      if (init.mode === "open") this.shadowRoot = root;
+      return root;
     };
-    const document = node("document", {
-      children: [script("parsed before", "speculationrules"), script("application", "module")],
-    });
+    const document = node("document", { nodeType: 9, localName: undefined, children: build({ script }) });
     const scope = {
       document,
       Element,
@@ -851,38 +950,116 @@ describe("plan entries", () => {
           this.roots.push(root.name);
         }
       },
+      queueMicrotask: (task) => microtasks.push(task),
+      addEventListener: (type, listener, capture) => {
+        assert.deepEqual([type, capture], ["DOMContentLoaded", true], "before the page's own listeners");
+        loaded.push(listener);
+      },
     };
     blockSpeculationRules(scope);
+    const [observer] = observers;
+    return {
+      scope,
+      document,
+      node,
+      script,
+      shadow,
+      append,
+      removed,
+      observers,
+      microtasks,
+      loaded,
+      roots: () => new Set(observer.roots),
+      notify: (...records) => observer.callback(records),
+      runMicrotasks: () => microtasks.splice(0).forEach((task) => task()),
+    };
+  }
+
+  test("the page's half against speculation rules: each rules script removed, in the document and in every shadow root (blockSpeculationRules)", () => {
     // The document observed, and what it already holds swept.
-    assert.equal(observers.length, 1);
-    assert.deepEqual([observers[0].roots, removed], [["document"], ["parsed before"]]);
-    const notify = (...records) => observers[0].callback(records);
+    const before = fakePage(({ script }) => [script("parsed before"), script("application", "module")]);
+    assert.equal(before.observers.length, 1);
+    assert.deepEqual([[...before.roots()], before.removed], [["document"], ["parsed before"]]);
+    const p = fakePage();
+    const { node, script, removed, notify, document } = p;
+    const text = { nodeType: 3 };
     // Inserted by the parser or a script, inside an inserted element, retyped in place: removed; the others kept.
     notify(
-      { target: document, addedNodes: [script("parsed", "speculationrules"), text] },
+      { target: document, addedNodes: [script("parsed"), text] },
       { target: document, addedNodes: [script("upper case", "SpeculationRules"), script("data", "application/json")] },
       {
         target: document,
-        addedNodes: [
-          node("panel", { children: [node("inner", { children: [script("nested", "speculationrules")] })] }),
-        ],
+        addedNodes: [node("panel", { children: [node("inner", { children: [script("nested")] })] })],
       },
-      { target: script("retyped", "speculationrules"), addedNodes: [text] },
+      { target: script("retyped"), addedNodes: [text] },
       { target: script("classic", "text/javascript"), addedNodes: [text] },
     );
-    assert.deepEqual(removed.slice(1), ["parsed", "upper case", "nested", "retyped"]);
+    assert.deepEqual(removed, ["parsed", "upper case", "nested", "retyped"]);
     // A shadow root the page attaches, even closed: observed and swept; the method keeps its name and length.
-    const root = scope.Element.prototype.attachShadow.call(node("host"), { mode: "closed" });
+    const root = p.scope.Element.prototype.attachShadow.call(node("host"), { mode: "closed" });
     assert.equal(root.name, "shadow of host");
-    assert.deepEqual([observers[0].roots, removed.at(-1)], [["document", "shadow of host"], "in the shadow of host"]);
+    assert.ok(p.roots().has("shadow of host"));
+    assert.equal(removed.at(-1), "in the shadow of host");
     assert.deepEqual(
-      [scope.Element.prototype.attachShadow.name, scope.Element.prototype.attachShadow.length],
+      [p.scope.Element.prototype.attachShadow.name, p.scope.Element.prototype.attachShadow.length],
       ["attachShadow", 1],
     );
     // An open shadow root that came with its host (declared in the HTML): observed and swept.
-    const declared = node("declared", { children: [script("declared rules", "speculationrules")] });
+    const declared = p.shadow("declared", [script("declared rules")]);
     notify({ target: document, addedNodes: [node("card", { shadowRoot: declared })] });
-    assert.deepEqual([observers[0].roots.at(-1), removed.at(-1)], ["declared", "declared rules"]);
+    assert.ok(p.roots().has("declared"));
+    assert.equal(removed.at(-1), "declared rules");
+  });
+
+  test("speculation rules in a shadow root at any depth: a declared root inside another, a host below the inserted element; a root declared on a host already seen, found once the document is parsed or after a script attaches a shadow root (blockSpeculationRules)", () => {
+    const p = fakePage();
+    const { node, script, shadow, append, removed, notify, document } = p;
+    const host = (name, root, children = []) => node(name, { shadowRoot: root, children });
+    // Declared roots inside declared roots, two and three levels down: each one observed, its rules removed.
+    const two = host("my-a", shadow("a", [host("my-b", shadow("b", [script("two levels")]))]));
+    const three = host(
+      "my-c",
+      shadow("c", [host("my-d", shadow("d", [host("my-e", shadow("e", [script("three levels")]))]))]),
+    );
+    notify({ target: document, addedNodes: [two] }, { target: document, addedNodes: [three] });
+    assert.deepEqual(removed, ["two levels", "three levels"]);
+    for (const r of ["a", "b", "c", "d", "e"]) assert.ok(p.roots().has(r), r);
+    // A host below the inserted element (a tree built aside, then inserted at once).
+    const below = host("host", shadow("below", [script("below the inserted element")]));
+    notify({ target: document, addedNodes: [node("panel", { children: [node("wrap", { children: [below] })] })] });
+    assert.equal(removed.at(-1), "below the inserted element");
+    assert.ok(p.roots().has("below"));
+    // A host the observer saw before the parser declared its root (a script before its <template shadowrootmode>):
+    // no record comes; the document swept again once parsed finds it.
+    const late = append(document, node("late host"));
+    notify({ target: document, addedNodes: [late] });
+    late.shadowRoot = shadow("late root", [script("declared late")]);
+    assert.equal(removed.at(-1), "below the inserted element", "no record, nothing seen yet");
+    assert.equal(p.loaded.length, 1);
+    p.loaded[0]();
+    assert.equal(removed.at(-1), "declared late");
+    assert.ok(p.roots().has("late root"));
+    // After a script attaches shadow roots: the document swept again, once for all those before a microtask checkpoint.
+    const later = append(document, node("later host"));
+    later.shadowRoot = shadow("later root", [script("declared later")]);
+    const attach = () => p.scope.Element.prototype.attachShadow.call(node("x"), { mode: "closed" });
+    attach();
+    attach();
+    assert.equal(p.microtasks.length, 1);
+    assert.equal(removed.at(-1), "in the shadow of x");
+    p.runMicrotasks();
+    assert.equal(removed.at(-1), "declared later");
+    // And again after the next one.
+    const last = append(document, node("last host"));
+    last.shadowRoot = shadow("last root", [script("declared last")]);
+    attach();
+    assert.equal(p.microtasks.length, 1);
+    p.runMicrotasks();
+    assert.equal(removed.at(-1), "declared last");
+    // What the sweeps removed is gone from the page: swept again, nothing is removed twice.
+    const count = removed.length;
+    p.loaded[0]();
+    assert.equal(removed.length, count);
   });
 
   test("forbidden routes: a segment's trailing dots and spaces dropped, as IIS does, each with its minimal pair", () => {

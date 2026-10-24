@@ -9,8 +9,9 @@
 // replaced and a before/after sheet is written next to the comparison copy in `compareDir`.
 //
 // Safety:
-//   guard       read-only, capture.forbidden, redirects and speculation rules: guard.mjs, installed on every
-//               browser context (and, with forbidden routes, its init script on every page);
+//   guard       read-only, capture.forbidden, redirects, speculation rules and WebSockets: guard.mjs, installed
+//               on every browser context (and, with forbidden routes, its init script on every page and its
+//               WebSocket route);
 //   service workers   blocked whenever a guard is active, so that every request goes through it;
 //   session     checked before the first capture; a redirect to a sign-in page during the run stops it.
 import fs from "node:fs";
@@ -241,8 +242,12 @@ async function pageFor(rc, browser, w, name) {
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
   if (guarded) await context.route("**/*", w.guard);
-  // Speculation rules would be fetched by Chromium itself, unseen by the guard: removed from every page.
-  if (rc.forbidden.length) await context.addInitScript(blockSpeculationRules);
+  if (rc.forbidden.length) {
+    // Speculation rules would be fetched by Chromium itself, unseen by the guard: removed from every page.
+    await context.addInitScript(blockSpeculationRules);
+    // A WebSocket's handshake is never routed: one to a forbidden route is refused here.
+    await context.routeWebSocket(w.guard.sockets.matches, w.guard.sockets.refuse);
+  }
   const grant = localNetworkGrant(rc.appUrl, rc.forbidden);
   // A browser that does not know the permission: the calls stay refused (`doctor`, SECURITY.md).
   if (grant) await context.grantPermissions(...grant).catch(() => {});

@@ -53,7 +53,8 @@ With `capture.forbidden` and no sign-in (`auth: none`), a start page that lands 
 code 2): the guard would not cover its pages. A chain has bounds: 20 s for a hop, 25 s for the whole chain (below the
 30 s a start page gets), 32 MB for the answer held for a frame and 64 MB for all the answers held at once; past them
 the navigation is aborted and the capture says why. Each answer the guard fetched is freed once used, and one held
-for a frame also when the frame goes elsewhere or its page closes.
+for a frame also when the frame goes elsewhere (another of its chains that ends after it included) or its page
+closes.
 The browser never gets a redirect, only the end of the chain: in a top-level frame, a page that sends the frame on to
 the end, whose answer, already fetched, is held for that frame's next navigation (recognised whatever the way
 Node.js and Chromium write its address: `/end|x`, `/end%7Cx`); in an iframe, the end itself, since a sandboxed
@@ -77,7 +78,15 @@ them. No Chromium launch flag turns them off, and a `Content-Security-Policy` ca
 the page's own inline scripts (`'unsafe-inline'` allows both). With `capture.forbidden`, the documents the guard
 serves lose their `Speculation-Rules` header, and a script the kit runs in every page before the page's own removes
 each `<script type="speculationrules">` before the browser reads it: inserted by the parser or by a script, retyped,
-in the document or in a shadow root the page attaches by script or declares open.
+in the document or in a shadow root the page attaches by script or declares open, at any depth (a declared root
+inside another). A root the HTML declares in a host the kit has already seen is found by the next sweep of the whole
+document: once it is parsed, and after a script attaches a shadow root.
+
+**WebSockets.** No route of the guard sees a WebSocket's handshake, a `GET` its server answers. With
+`capture.forbidden`, the kit routes the WebSockets of every page through Playwright (`routeWebSocket`): one to a
+forbidden path of the application (`ws:` read as `http:`, `wss:` as `https:`, every form of the path) is closed
+before it opens, as a connection that failed (code 1006), and listed with the prefetches aborted; the capture goes
+on. Any other connects, its messages relayed by Playwright.
 
 None of this covers:
 
@@ -85,6 +94,9 @@ None of this covers:
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
   list such routes in `capture.forbidden`, which the kit never opens;
 - `GET` requests that change state, WebSocket messages, and calls the server makes to other services;
+- a WebSocket opened by a worker (`Worker`, `SharedWorker`) or with `WebSocketStream`: Playwright's routing only
+  replaces the `WebSocket` of each page and frame, so their handshake reaches the server unseen, neither refused nor
+  counted;
 - `capture.readOnly: false`, which turns the protection off (the CLI warns on every run);
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);
@@ -98,6 +110,11 @@ None of this covers:
   sequence (`%C1%A1` for `a`), which the kit does not decode: current servers reject them;
 - the size of an answer while it is fetched: Playwright reads a whole answer into memory before the kit can measure
   it; the 32 MB and 64 MB caps bound what is held for the frames, not what one request reads;
+- the speculation rules the parser puts in an open shadow root it declares in a host the kit has already seen (a
+  script, or content long enough for the parser to pause, before the `<template shadowrootmode>` in its host): no
+  mutation reports such a root, which the kit finds only once the document is parsed or a script attaches a shadow
+  root. Chromium may fetch their pages before then, all the more when the document waits for a slow script after
+  them; rules a script puts there later are removed;
 - speculation rules in a shadow root that the HTML declares closed (`<template shadowrootmode="closed">`), in a
   document the guard does not serve (a navigation sent with another method than `GET`, with
   `capture.readOnly: false`), or put by a page that works around the kit on purpose; and, with Google Chrome

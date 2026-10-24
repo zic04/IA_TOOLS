@@ -14,6 +14,8 @@
 //               and prerenders from its own process, where no route sees them. The documents the guard serves lose
 //               their Speculation-Rules header, and `blockSpeculationRules` (an init script of every page) removes
 //               each <script type="speculationrules"> before the browser reads it.
+//   sockets     with capture.forbidden, a WebSocket to a forbidden route is refused before it opens (`socketGuard`:
+//               no route sees its handshake).
 import { forbiddenMatch, shownPath, applicationKey, isLoopbackUrl } from "./plans.mjs";
 import { TIMINGS } from "./timings.mjs";
 
@@ -101,7 +103,9 @@ const megabytes = (bytes) => Math.round(bytes / 2 ** 20);
  *   it yet, and `committed`: settled once the frame has committed that answer (rejected when the frame goes
  *   elsewhere, or its page closes, first)
  * @typedef {((route: import("playwright").Route) => Promise<void>) & { landing: (frame: object) => Landing|undefined,
- *   held: () => number }} Guard   `held`: the bytes held for all frames at the moment
+ *   held: () => number, sockets: { matches: (url: URL) => boolean,
+ *   refuse: (ws: import("playwright").WebSocketRoute) => Promise<void> } }} Guard   `held`: the bytes held for all
+ *   frames at the moment; `sockets`: the WebSockets refused (socketGuard)
  */
 
 /**
@@ -212,7 +216,38 @@ export function requestGuard({
     }
     return route.fallback();
   };
-  return Object.assign(guard, { landing: (frame) => landings.get(frame), held: () => followed.held });
+  return Object.assign(guard, {
+    landing: (frame) => landings.get(frame),
+    held: () => followed.held,
+    sockets: socketGuard({ onApp, forbidden, result }),
+  });
+}
+
+/**
+ * The guard's half for WebSockets (capture.mjs: `context.routeWebSocket(sockets.matches, sockets.refuse)`): no route
+ * of the guard sees a WebSocket's handshake, a GET the server answers. A socket to a forbidden path of the
+ * application (ws read as http, wss as https) is closed before it opens, as a failed connection is (1006),
+ * and listed in `result.prefetched` (the capture goes on); Playwright connects any other to its server.
+ */
+function socketGuard({ onApp, forbidden, result }) {
+  /** @param {URL} url */
+  const asHttp = (url) => {
+    const u = new URL(url.href);
+    u.protocol = u.protocol === "wss:" ? "https:" : "http:";
+    return u;
+  };
+  return {
+    /** @param {URL} url */
+    matches: (url) => {
+      const u = asHttp(url);
+      return forbidden.length > 0 && onApp(u) && forbiddenMatch(u.pathname, forbidden) !== null;
+    },
+    /** @param {import("playwright").WebSocketRoute} ws */
+    refuse: async (ws) => {
+      result.prefetched.push(`GET ${shownPath(new URL(ws.url()).pathname)}`);
+      await ws.close({ code: 1006 });
+    },
+  };
 }
 
 /** Drops what was held for a frame (it goes elsewhere): an answer it has not opened is freed, its wait fails. */
@@ -242,12 +277,15 @@ async function answer(route, response) {
 }
 
 /**
- * Holds `chain` for a top-level frame (its page's closing drops it).
+ * Holds `chain` for a top-level frame (its page's closing drops it). What was held for the frame before is dropped:
+ * when two of its navigations overlap (one starts before the other's chain has ended), the frame never opens the
+ * other's end.
  * @returns {Promise<{ key: string, vars: object }|null>}  null, or why it is refused
  */
 async function hold(state, frame, chain) {
   const { limits } = state;
   const bytes = (await chain.response.body()).length;
+  forget(state, frame);
   const refused =
     bytes > limits.bytes
       ? { key: "landingTooLarge", vars: { mb: megabytes(limits.bytes) } }
@@ -384,39 +422,62 @@ export function localNetworkGrant(appUrl, forbidden) {
  * prerenders of a `<script type="speculationrules">` from its own process, where no route of the guard sees them;
  * neither a launch flag nor a Content-Security-Policy that lets the page's inline scripts run turns them off. So each
  * such script is removed before the browser reads it: a mutation observer of the document, and of every shadow root
- * the page attaches (`attachShadow`) or declares open, sees a script the parser inserts before it is run (the parser
- * runs the microtasks first), and one a script inserts or retypes before its rules are sent. Self-contained: it is
- * serialised into the page.
+ * the page attaches (`attachShadow`) or declares open, at any depth (a declared root inside another), sees a script
+ * the parser inserts before it is run (the parser runs the microtasks first), and one a script inserts or retypes
+ * before its rules are sent. A root the parser declares on a host already seen (a script before its
+ * `<template shadowrootmode>`) brings no mutation record: it is found by the next sweep of the whole document, once
+ * the document is parsed (DOMContentLoaded) or after a script attaches a shadow root (SECURITY.md: its rules may have
+ * been read by then). Self-contained: it is serialised into the page.
  * @param {any} [scope]   the page's global object (a test seam)
  */
 export function blockSpeculationRules(scope = globalThis) {
   const isRules = (n) =>
     n?.nodeType === 1 && n.localName === "script" && String(n.type).trim().toLowerCase() === "speculationrules";
+  const later = scope.queueMicrotask.bind(scope);
+  // `root` (a document, a shadow root, an element) and every element it holds: each rules script removed, and each
+  // open shadow root met watched, so swept in turn: the roots a declared root holds are reached too.
   const sweep = (root) => {
-    for (const s of root.querySelectorAll("script")) if (isRules(s)) s.remove();
+    if (isRules(root)) {
+      root.remove();
+      return;
+    }
+    if (root.shadowRoot) watch(root.shadowRoot);
+    for (const el of root.querySelectorAll("*")) {
+      if (isRules(el)) el.remove();
+      else if (el.shadowRoot) watch(el.shadowRoot);
+    }
   };
   const observer = new scope.MutationObserver((records) => {
     for (const r of records) {
       if (isRules(r.target)) r.target.remove();
-      for (const n of r.addedNodes) {
-        if (n.nodeType !== 1) continue;
-        if (isRules(n)) n.remove();
-        else sweep(n);
-        if (n.shadowRoot) watch(n.shadowRoot);
-      }
+      for (const n of r.addedNodes) if (n.nodeType === 1) sweep(n);
     }
   });
   const watch = (root) => {
     observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["type"] });
     sweep(root);
   };
+  // The whole document swept again, for the roots declared on a host already seen: once it is parsed, and after a
+  // script attaches a shadow root (one sweep for all those attached before the next microtask checkpoint).
+  let again = false;
+  const sweepAgain = () => {
+    if (again) return;
+    again = true;
+    later(() => {
+      again = false;
+      sweep(scope.document);
+    });
+  };
   watch(scope.document);
+  scope.addEventListener("DOMContentLoaded", () => sweep(scope.document), true);
   const proto = scope.Element.prototype;
-  // A proxy keeps the method's name, length and native look (a bot challenge may check them).
+  // A proxy keeps the method's name and length, and reads as native code, though without its name
+  // (`function () { [native code] }`): a bot challenge may check them.
   proto.attachShadow = new Proxy(proto.attachShadow, {
     apply(target, self, args) {
       const root = Reflect.apply(target, self, args);
       watch(root);
+      sweepAgain();
       return root;
     },
   });

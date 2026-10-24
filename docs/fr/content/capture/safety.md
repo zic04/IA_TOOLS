@@ -127,8 +127,13 @@ Une page peut demander au navigateur de précharger ou de pré-afficher d'autres
 `<script type="speculationrules">`, ou un en-tête `Speculation-Rules` (des frameworks et des CDN en ajoutent).
 Chromium récupère ces pages depuis son propre processus, hors de portée du kit. Avec `capture.forbidden`, le kit
 retire donc ces règles de chaque page avant que le navigateur les lise. Non couverts : des règles dans une racine
-fantôme que le HTML déclare fermée et, avec Google Chrome (`browser: "chrome"`), un `<link rel="prerender">`
-(SECURITY.md les liste).
+fantôme que le HTML déclare fermée, celles que l'analyseur place dans une racine fantôme qu'il déclare dans un hôte
+que le kit a déjà vu (un script avant le `<template shadowrootmode>` dans son hôte) et, avec Google Chrome
+(`browser: "chrome"`), un `<link rel="prerender">` (SECURITY.md les liste).
+
+L'ouverture d'un WebSocket échappe elle aussi aux routes du kit : avec `capture.forbidden`, le kit refuse un
+WebSocket vers une route interdite avant qu'il s'ouvre. Celui qu'ouvre un worker, ou un `WebSocketStream`, n'est pas
+couvert (SECURITY.md).
 
 Avec `capture.forbidden`, les pages d'une application locale atteignent toujours son API sur un autre port local
 quand `app.url` est sur `localhost` ou `127.0.0.1`. Sur une autre adresse (une adresse du réseau local, un nom

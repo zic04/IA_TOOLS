@@ -120,8 +120,12 @@ sign-in page by its origin and path only, so a session id, a sign-in state or a 
 A page can ask the browser to prefetch or prerender other pages: `<script type="speculationrules">`, or a
 `Speculation-Rules` header (frameworks and CDNs add them). Chromium fetches those pages from its own process, out of
 the kit's reach. With `capture.forbidden`, the kit therefore removes these rules from every page before the browser
-reads them. Not covered: rules in a shadow root that the HTML declares closed, and, with Google Chrome
-(`browser: "chrome"`), a `<link rel="prerender">` (SECURITY.md lists them).
+reads them. Not covered: rules in a shadow root that the HTML declares closed, those the parser puts in a shadow
+root it declares in a host the kit has already seen (a script before the `<template shadowrootmode>` in its host),
+and, with Google Chrome (`browser: "chrome"`), a `<link rel="prerender">` (SECURITY.md lists them).
+
+A WebSocket's handshake escapes the kit's routes too: with `capture.forbidden`, the kit refuses a WebSocket to a
+forbidden route before it opens. One that a worker opens, or a `WebSocketStream`, is not covered (SECURITY.md).
 
 With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
 is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during

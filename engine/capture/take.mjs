@@ -206,14 +206,18 @@ async function openRoute(rc, page, entry, { name, current, stop, guard }) {
 /** Is the page on the application, at one of its addresses (applicationKey, plans.mjs)? */
 const onApplication = (page, appOrigin) => applicationKey(page.url()) === applicationKey(appOrigin);
 
-/** The origin of an address, as shown (no path, no query), or the address itself when it has none. */
-function originOf(url) {
+/**
+ * The origin of an address, as shown (no path, no query); an address without one (about:, data:, file:) as
+ * `shownUrl` shows it: never its query, fragment or path parameters (S7).
+ */
+export function originOf(url) {
+  let origin = "null";
   try {
-    const { origin } = new URL(url);
-    return origin === "null" ? url : origin;
+    origin = new URL(url).origin;
   } catch {
-    return url;
+    // unreadable: shown as shownUrl shows it
   }
+  return origin === "null" ? shownUrl(url) : origin;
 }
 
 /** Waits for the page, plays the entry's actions, waits again, then checks it is still allowed and signed in. */

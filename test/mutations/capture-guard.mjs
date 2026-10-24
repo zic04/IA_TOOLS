@@ -1,8 +1,9 @@
 // Mutants of engine/capture/guard.mjs: the rules of the capture guard taken out (requestGuard, redirectChain,
-// hopHeaders, addressForm, blockSpeculationRules, localNetworkGrant), which its tests must catch (RULES.md M16, S6).
+// hopHeaders, addressForm, hold, socketGuard, blockSpeculationRules, localNetworkGrant), which its tests must catch
+// (RULES.md M16, S6).
 // The guard's work in a real browser (the page that opens the end of a chain, a sandboxed iframe, the local
-// addresses of a loopback application, speculation rules, its bounds on a slow and a huge server, the answers held
-// for all pages) is test/e2e/capture-redirects.test.mjs.
+// addresses of a loopback application, speculation rules, WebSockets, its bounds on a slow and a huge server, the
+// answers held for all pages) is test/e2e/capture-redirects.test.mjs.
 export default {
   target: "engine/capture/guard.mjs",
   tests: ["test/unit/capture.test.mjs"],
@@ -149,6 +150,11 @@ export default {
       replace: "    drop: () => {\n",
     },
     {
+      name: "an end held for a frame in place of another, the other still counted (a chain that ended after the frame's next navigation started)",
+      find: "  const bytes = (await chain.response.body()).length;\n  forget(state, frame);\n",
+      replace: "  const bytes = (await chain.response.body()).length;\n",
+    },
+    {
       name: "a page's closing frees nothing held for it",
       find: '    page.once("close", () => forget(state, frame));',
       replace: "    void page;",
@@ -224,13 +230,13 @@ export default {
     },
     {
       name: "a rules script inserted left in the page",
-      find: "        if (isRules(n)) n.remove();\n",
-      replace: "        if (isRules(n)) void 0;\n",
+      find: "    if (isRules(root)) {\n      root.remove();\n      return;\n    }\n",
+      replace: "    if (isRules(root)) {\n      return;\n    }\n",
     },
     {
       name: "the rules scripts inside an inserted element left",
-      find: "        else sweep(n);\n",
-      replace: "",
+      find: "      if (isRules(el)) el.remove();\n",
+      replace: "      if (isRules(el)) void 0;\n",
     },
     {
       name: "a rules script retyped in place left",
@@ -249,7 +255,32 @@ export default {
     },
     {
       name: "an open shadow root that comes with its host not watched",
-      find: "        if (n.shadowRoot) watch(n.shadowRoot);\n",
+      find: "    if (root.shadowRoot) watch(root.shadowRoot);\n",
+      replace: "",
+    },
+    {
+      name: "the shadow roots inside a root or below an inserted element not reached (the recursion removed)",
+      find: "      else if (el.shadowRoot) watch(el.shadowRoot);\n",
+      replace: "",
+    },
+    {
+      name: "the document not swept again once parsed (a root declared on a host already seen)",
+      find: '  scope.addEventListener("DOMContentLoaded", () => sweep(scope.document), true);\n',
+      replace: "",
+    },
+    {
+      name: "the document swept again once parsed only if the page's own listeners let it",
+      find: '  scope.addEventListener("DOMContentLoaded", () => sweep(scope.document), true);',
+      replace: '  scope.addEventListener("DOMContentLoaded", () => sweep(scope.document));',
+    },
+    {
+      name: "the document not swept again after a script attaches a shadow root",
+      find: "      watch(root);\n      sweepAgain();\n",
+      replace: "      watch(root);\n",
+    },
+    {
+      name: "the document swept again after the first shadow root a script attaches only",
+      find: "      again = false;\n",
       replace: "",
     },
     {
@@ -261,6 +292,37 @@ export default {
       name: "a script retyped not observed",
       find: 'attributes: true, attributeFilter: ["type"] }',
       replace: "}",
+    },
+    // WebSockets, whose handshake no route sees.
+    {
+      name: "a WebSocket to a forbidden route left to connect",
+      find: "      return forbidden.length > 0 && onApp(u) && forbiddenMatch(u.pathname, forbidden) !== null;",
+      replace: "      return false;",
+    },
+    {
+      name: "a WebSocket on another origin tested against capture.forbidden",
+      find: "      return forbidden.length > 0 && onApp(u) && forbiddenMatch(u.pathname, forbidden) !== null;",
+      replace: "      return forbidden.length > 0 && forbiddenMatch(u.pathname, forbidden) !== null;",
+    },
+    {
+      name: "a WebSocket's address read in its own scheme (never the application's)",
+      find: '    u.protocol = u.protocol === "wss:" ? "https:" : "http:";\n',
+      replace: "",
+    },
+    {
+      name: "a refused WebSocket not listed",
+      find: "      result.prefetched.push(`GET ${shownPath(new URL(ws.url()).pathname)}`);\n",
+      replace: "",
+    },
+    {
+      name: "a refused WebSocket listed with its path parameters",
+      find: "`GET ${shownPath(new URL(ws.url()).pathname)}`",
+      replace: "`GET ${new URL(ws.url()).pathname}`",
+    },
+    {
+      name: "a refused WebSocket left to open",
+      find: "      await ws.close({ code: 1006 });\n",
+      replace: "",
     },
     // The headers of a hop.
     {
