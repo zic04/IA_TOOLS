@@ -52,6 +52,14 @@ entries between a project's `kit` range and the installed version.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
 
+### Security
+
+- **A dependency's licence is kept only as a licence's name** (`engine/facts/deps/licences.mjs`, AUDIT.md S8): a
+  package-lock.json entry's `license` was stored as written — an object, a licence's whole text, or a token-shaped
+  string a secret detector finds. It now goes through an allowlist: one line, 100 characters at most, the characters
+  of a licence name or an SPDX expression, nothing a secret detector finds; anything else is no licence. composer.lock
+  goes through the same one, and both say where the licence comes from (`licenseFrom: "lock"`).
+
 ## [0.4.1] - 2026-10-23
 
 ### Added
