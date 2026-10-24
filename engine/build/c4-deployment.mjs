@@ -29,7 +29,7 @@ function columnLines(e, limit, t) {
     ...e.runs.map((i) => ({ cls: "run", text: nodeText(i) })),
     ...[...e.resources].map(([provider, count]) => ({
       cls: "resource",
-      text: t("render.c4.deployment.resources", { provider, count }),
+      text: t("render.c4.deployment.resources", { provider, count, n: count }),
     })),
   ];
   if (lines.length <= limit) return lines;

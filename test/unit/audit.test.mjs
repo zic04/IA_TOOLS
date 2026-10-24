@@ -299,7 +299,7 @@ describe("a complete typed site", () => {
         assert.deepEqual(action(r, "tooLong").items[0], {
           id: "use/orders/detail",
           key: "words",
-          vars: { words: 2015, max: 2000 },
+          vars: { words: 2015, max: 2000, n: 2015 },
         });
       },
     ));

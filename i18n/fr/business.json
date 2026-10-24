@@ -26,7 +26,7 @@
   "cli.inventory.features.summary": { "one": "{n} fonctionnalité candidate.", "other": "{n} fonctionnalités candidates." },
   "cli.inventory.features.written": "{file} existe déjà",
   "cli.inventory.features.written.help": "utilisez --force pour garder ses identifiants et ajouter les nouvelles candidates",
-  "cli.inventory.features.wrote": "{file} écrit ({n} fonctionnalités)",
+  "cli.inventory.features.wrote": { "one": "{file} écrit ({n} fonctionnalité)", "other": "{file} écrit ({n} fonctionnalités)" },
   "render.business.allowed": "Autorisé",
   "render.business.col.citedBy": "Citée par",
   "render.business.col.definedIn": "Définie dans",

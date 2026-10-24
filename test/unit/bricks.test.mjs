@@ -445,7 +445,7 @@ describe("doc-kit bricks (CLI)", () => {
     const r = await cli(["bricks", "facts.tools", "--project", dir]);
     assert.equal(r.code, 0, r.err);
     assert.match(r.out, /facts\.tools — .+: never produced/);
-    assert.match(r.out, /requires the option\(s\): --tools/);
+    assert.match(r.out, /requires the option: --tools/);
     assert.match(r.out, /step: doc-kit facts --tools/);
     const json = JSON.parse((await cli(["bricks", "facts.api", "--project", dir, "--json"])).out);
     assert.equal(json.id, "facts.api");

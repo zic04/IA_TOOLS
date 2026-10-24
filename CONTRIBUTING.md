@@ -9,32 +9,53 @@ open a public issue: see [SECURITY.md](SECURITY.md).
 ## Development setup
 
 ```bash
-git clone <repository URL> doc-kit
+git clone https://github.com/zic04/IA_TOOLS.git doc-kit
 cd doc-kit
 npm ci
 npx playwright install chromium        # --with-deps on a Linux machine without a desktop
 node cli/doc-kit.mjs doctor
 ```
 
-Node.js 20 or later. The kit has two runtime dependencies (`marked`, `playwright`) and no development dependency:
-tests use `node:test`, validation is home-made. Keep it that way; a new dependency needs a strong reason, discussed
-in an issue first.
+Node.js 20 or later (the CI tests 20, 22 and 24). The kit has two runtime dependencies (`marked`, `playwright`)
+and six development dependencies, all pinned to an exact version, that only check the code and never ship in a
+documentation site:
 
-## Tests
+| Development dependency | What for |
+|---|---|
+| `prettier` | The formatting of the JavaScript (`npm run format`, `format:check`; RULES.md M11) |
+| `eslint`, `@eslint/js`, `globals` | The lint (`npm run lint`; RULES.md M12) |
+| `typescript`, `@types/node` | The types read from the JSDoc, nothing compiled (`npm run typecheck`; RULES.md M13) |
+
+Tests use `node:test`, validation is home-made. Keep it that way; a new dependency, runtime or development, needs a
+strong reason, discussed in an issue first.
+
+## Tests and checks
+
+The CI (`.github/workflows/ci.yml`) runs these on every push and pull request; the branch ruleset requires them, so
+a pull request is merged only when they pass. Run them before you push. The times are those of the CI's machines;
+a laptop is often slower.
+
+| Command | What it runs | In the CI | Time |
+|---|---|---|---|
+| `npm run format:check` | Prettier on the kit's JavaScript (`npm run format` fixes it) | `security (rules, dependencies)` | about 10 s |
+| `npm run lint` | ESLint: no error, no more warnings than its ceiling | `security (rules, dependencies)` | about 10 s |
+| `npm run typecheck` | TypeScript on the JSDoc | `security (rules, dependencies)` | about 10 s |
+| `npm run test:security` | The security rules (RULES.md) and the hardened git | `security (rules, dependencies)` | about 1½ min |
+| `npm test` | Unit and snapshot tests (`test/unit`, `test/snapshot`), the security rules included | `tests (<os>, Node <version>)` | 2 min on Linux, up to 5½ min on Windows |
+| `npm run test:e2e` | End-to-end tests in a headless Chromium: the site, accessibility, the dev server, captures of the demo app (started on a free port) | `tests (<os>, Node <version>)` | 1½ to 2 min |
+
+The `tests` checks run on Linux, Windows and macOS, each with Node 20, 22 and 24; the `security` check also runs
+`npm audit --omit=dev --audit-level=high`. Two more commands, outside the CI:
 
 | Command | What it runs | Time |
 |---|---|---|
-| `npm test` | Unit and snapshot tests (`test/unit`, `test/snapshot`) | seconds |
-| `npm run test:unit` | Unit tests only | seconds |
-| `npm run test:snapshot` | The demo project built in English and French, compared with `test/snapshot/__snapshots__/` | seconds |
-| `npm run test:e2e` | End-to-end tests in a headless Chromium: the site, accessibility, the dev server, captures of the demo app (started on a free port) | about a minute |
+| `npm run test:unit`, `npm run test:snapshot` | One half of `npm test` | less than `npm test` |
+| `npm run mutate` | The mutants of `test/mutations/` against their tests (RULES.md M16): before a pull request that touches `engine/facts/deps/`, `declarations.mjs`, `network.mjs` or `engine/util/safe-git.mjs` | several minutes |
 
 - After an **intended** change of the generated site, update the snapshots: `UPDATE=1 npm run test:snapshot`, and
   explain the change in the pull request.
 - Tests never open a visible window, never touch a real application, never use a real secret and never run a git
   command that changes anything.
-- Run both `npm test` and `npm run test:e2e` before a pull request; the CI examples of `ci/` run them on Linux,
-  Windows and macOS.
 
 ## The contract comes first
 
@@ -141,7 +162,7 @@ The screenshots of the README files (`docs/assets/`) come from `doc-kit view` of
 ## Pull requests
 
 - One topic per pull request, with its tests and its documentation in both languages.
-- `npm test` and `npm run test:e2e` green; the documentation projects build in strict mode.
+- Every check of [Tests and checks](#tests-and-checks) green; the documentation projects build in strict mode.
 - An entry in `CHANGELOG.md` under `[Unreleased]` ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/)).
 - Plain, short sentences in the documentation: what it does, how it really works, what can go wrong.
 

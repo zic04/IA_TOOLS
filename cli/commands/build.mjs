@@ -75,10 +75,10 @@ export async function run({ ctx, values }) {
   // One summary line per OTHER declared language, after the files (ARCHITECTURE.md §6.12): current/stale/missing,
   // read from disk whether or not that language was actually rendered (always true without --lang; with --lang,
   // true only of the requested one, but the counts themselves are disk-based either way).
-  for (const l of r.languages.filter((x) => !x.source))
-    lines.push(
-      ctx.t("cli.build.languages.summary", { lang: l.id, current: l.current, stale: l.stale, missing: l.missing }),
-    );
+  for (const l of r.languages.filter((x) => !x.source)) {
+    const missing = numbers(ctx.i18n).count("cli.translate.count.missing", l.missing);
+    lines.push(ctx.t("cli.build.languages.summary", { lang: l.id, current: l.current, stale: l.stale, missing }));
+  }
   if (r.warnings.length && lines.length)
     lines[lines.length - 1] += numbers(ctx.i18n).count("cli.build.warnings", r.warnings.length);
   for (const line of lines) ctx.print(line);

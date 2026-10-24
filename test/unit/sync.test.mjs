@@ -1230,7 +1230,7 @@ describe("CLI `sync`", () => {
       );
       const r = await cli(["sync", "--apply", "--auto-intact", "--project", fx.root], { exec, commit: () => "c0ffee" });
       assert.equal(r.code, 0, r.err);
-      assert.match(r.out, /page\(s\) probably intact marked without an agent: .*use\/orders/);
+      assert.match(r.out, /2 pages probably intact marked without an agent: .*use\/orders/);
       const after = JSON.parse(
         (await cli(["sync", "--json", "--project", fx.root], { exec, commit: () => "c0ffee" })).out,
       );

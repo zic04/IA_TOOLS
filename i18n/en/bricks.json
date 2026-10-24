@@ -21,7 +21,7 @@
     "one": "{id} — preset of {n} brick",
     "other": "{id} — preset of {n} bricks"
   },
-  "cli.bricks.show.requires": "requires the option(s): {options}",
+  "cli.bricks.show.requires": { "one": "requires the option: {options}", "other": "requires the options: {options}" },
   "cli.bricks.show.title": "{id} — {title}: {state}",
   "cli.bricks.state.disabled": "disabled",
   "cli.bricks.state.fresh": "up to date",
@@ -31,7 +31,7 @@
   "cli.bricks.title": "Bricks of the project",
   "cli.bricks.unknown": "unknown brick or preset: “{id}”",
   "cli.bricks.unknown.help": "the closest is “{closest}”; list them with {command} bricks",
-  "cli.bricks.why.age": "{file} is {days} days old (at most {max})",
+  "cli.bricks.why.age": { "one": "{file} is {days} day old (at most {max})", "other": "{file} is {days} days old (at most {max})" },
   "cli.bricks.why.changed": "{file} changed since it was converted",
   "cli.bricks.why.commit": "{file} was read at commit {was}; the application is at {now}",
   "cli.bricks.why.disabled": "left out by bricks in doc.config.mjs",

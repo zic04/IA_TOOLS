@@ -197,7 +197,13 @@ export async function run({ ctx, values, positionals }) {
     written.push({ page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length, cut });
     if (!ctx.json)
       ctx.print(
-        ctx.t("cli.context.written", { page: pageId, file: `.doc-kit/context/${file}`, tokens, cuts: cut.length }),
+        ctx.t("cli.context.written", {
+          page: pageId,
+          file: `.doc-kit/context/${file}`,
+          tokens,
+          cuts: cut.length,
+          n: cut.length,
+        }),
       );
   }
   if (ctx.json) ctx.print(JSON.stringify(written, null, 2));
@@ -262,6 +268,7 @@ async function runTranslate({ ctx, positionals, config, root, toc, lang, budget 
           file: `.doc-kit/context/${file}`,
           tokens,
           cuts: cut.length,
+          n: cut.length,
         }),
       );
   }

@@ -26,7 +26,7 @@
   "cli.inventory.features.summary": { "one": "{n} candidate feature.", "other": "{n} candidate features." },
   "cli.inventory.features.written": "{file} already exists",
   "cli.inventory.features.written.help": "use --force to keep its ids and append the new candidates",
-  "cli.inventory.features.wrote": "{file} written ({n} features)",
+  "cli.inventory.features.wrote": { "one": "{file} written ({n} feature)", "other": "{file} written ({n} features)" },
   "render.business.allowed": "Allowed",
   "render.business.col.citedBy": "Cited by",
   "render.business.col.definedIn": "Defined in",

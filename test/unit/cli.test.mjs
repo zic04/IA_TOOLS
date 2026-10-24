@@ -166,7 +166,7 @@ describe("build", () => {
       ]);
       assert.match(
         fr.out,
-        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma\nfr : 16 à jour · 0 en retard · 0 manquantes · 4 avertissements\n$/,
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma\nfr : 16 à jour · 0 en retard · 0 manquante · 4 avertissements\n$/,
       );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);
