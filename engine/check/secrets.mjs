@@ -165,6 +165,18 @@ export const GENERIC = Object.freeze([
   { kind: "signedUrl", re: /[?&]sig=(?<v>[A-Za-z0-9%+/=]{20,})/g },
 ]);
 
+/**
+ * Whether a value detector of GENERIC finds something in a short text from an untrusted source (a version, a
+ * licence, a hint read in the code): the one test of the readers that keep such a text only when it holds no secret.
+ * @param {string} text
+ */
+export const looksSecret = (text) =>
+  GENERIC.some((d) => {
+    d.re.lastIndex = 0;
+    for (const m of text.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
+    return false;
+  });
+
 /** First characters and length of a value, never the value itself. */
 export function redact(value) {
   const v = String(value);

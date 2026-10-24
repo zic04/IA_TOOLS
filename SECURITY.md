@@ -212,8 +212,22 @@ as untrusted input:
   - rare argument forms, such as Flask's `@jwt_required(**{"optional": True})` or
     `@jwt_required(optional=False or True)` (`user`);
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
-  the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
+  the public names of npm and PyPI that you list may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
+- the installed copies of the packages, which `facts` reads for the licence a lock file does not give (an npm
+  package's `node_modules/<name>/package.json`, a Python distribution's `*.dist-info/METADATA` in a `.venv/` or
+  `venv/` folder), are untrusted data the application's installs wrote: read offline, never executed, imported or
+  written. A path there is resolved from the application's folder one part at a time, each link's target judged
+  before it is touched (as written): a link out of the application is never followed, 32 links at most (a loop); a
+  folder refused so stops the search, nothing further up stands in for it; a `.venv` that is a file is never
+  followed; a package's
+  name is only looked up among the entries of the folders listed, never used as a path. Everything is bounded:
+  10,000 entries a folder listed, 4 `python*` folders a virtual environment, 5,000 dist-info folders a site-packages,
+  a `package.json` of 1 MB, only a METADATA's header (64 KB read at most). A copy counts only when it is the item's
+  own (its name, its exact version), and what it says is kept only as a licence's name, one line of 100 characters
+  at most, nothing a secret detector finds. Limits: a hard link is a file of the application, read as such (pnpm
+  links its store's files so: the same bytes); and the kit does not guard against an application that changes its
+  own folders while `facts` reads them (a folder swapped for a link between the check and the read);
 - the `infra` source keeps what infrastructure files declare through one whitelist (names, types, an image and its
   tag, replicas, ports, whether it runs as root, has TLS, is open to all, the names of its variables), the project's
   adapters included: never an environment variable's value, a ConfigMap's or Secret's data, a parameter's default, a
@@ -368,9 +382,28 @@ as you share the documentation.
 
 The kit talks to nothing but the application you capture and, with `doc-kit inputs fetch`, the repositories you declared (through git, above): no telemetry, no update check. `doc-kit dev` listens on
 `127.0.0.1` only, and answers only requests whose `Host` is itself (`localhost`, `127.0.0.1` or `[::1]` with its
-port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) sends the names of
-the application's direct dependencies to the npm and PyPI registries (to check that each exists, and its latest
-version) **only when a lock file proves the public registry served the package**: a `package-lock.json` or Yarn 1
+port): a web page cannot read the draft site through DNS rebinding. `facts --network` (opt-in) **sends nothing
+unless you list it**: only the packages that `facts.network.allow` of your `doc.config.mjs` names, one entry a package
+(`"npm:react"` compared exactly, `"pip:fastapi"` as PEP 503 normalises it, no wildcard), are ever sent; the list is
+empty by default, and then nothing is sent. The gate is the network gateway's own (`isPrivatePackage`,
+`createRegistryClient`), so every request is held by it (`dependencies` and `quality`), and it judges each item before
+the answers already received in the run are looked at. The list is the first net; behind it stand the lock files'
+proof and the second net (the declarations, below): a listed name either of them keeps back is never sent. To
+build the list without guessing, the command prints how many direct packages it kept back as unlisted, and
+`--json` gives them as `network.candidates` — only names the proof and the second net would let through, never a
+private or unproven one —, to review with whoever owns the application before listing any. The list is
+configuration, and configuration is code (above): whoever can edit `doc.config.mjs` — the application's own
+authors, when the documentation project lives in their repository — decides what is sent; read a change to the
+list as you read a change to the code. For a listed name, `--network` asks the npm and PyPI registries — one request
+a package for the whole run, for the document of its latest version: that it exists, that version, and the licence it
+declares — and sends nothing else
+(never a version, never a file's content); their answer is untrusted, and kept through allowlists only: the latest
+version as a release reads (a digit first, 64 characters at most, no blank, no address, nothing a secret detector
+finds), the licence as a licence's name (`safeLicence`), a body whose told size is over 8 MiB never read, the whole
+answer within the timeout; anything else is no value. Limit: the size is checked only when the registry tells it
+(`Content-Length`, the compressed size of a compressed body); a body that tells none is bounded by the 5-second
+timeout alone. The proof, behind the list: it sends a listed name **only when a lock file proves the public
+registry served the package**: a `package-lock.json` or Yarn 1
 `yarn.lock` entry resolved to that package's own tarball on npm's registry (an alias resolved to another package's
 proves nothing, and another entry of the same lock resolved to another package's tarball, or written without `resolved` (a
 copy bundled inside another package's tarball apart), drops the proof, whatever the order of the lock's keys; a
@@ -398,8 +431,8 @@ one that is not valid UTF-8 is unreadable (Poetry and uv read none). A name know
 from a `Pipfile.lock` (it names PyPI even for a package Pipenv's mirror, `PIPENV_PYPI_MIRROR`, served), is never sent, wherever its registry is declared (a
 CI file, a Dockerfile, a monorepo's root, the first team's `~/.npmrc`): `unproven`. Nor is a name its public
 registry cannot hold, whatever a lock says of it (npm: URL-safe, neither `.` nor `_` first, 214 characters at most;
-pip: PEP 508's — `café`, `_corp`, `corp-`). On top of that proof, a second
-net keeps back the private ones: the application's own packages (its workspaces), an npm scope that has its own
+pip: PEP 508's — `café`, `_corp`, `corp-`). On top of that proof, the second net keeps back the
+private ones, listed or not: the application's own packages (its workspaces), an npm scope that has its own
 registry, every npm package when a registry replaces the default one, every pip package when a private index is declared, every npm package when a `package.json` cannot be read as JSON (a
 merge left unresolved: its own name and the places its ranges name cannot be told), any package taken from a folder (a spec that starts with `.` or a drive included, as npm reads it), an
 archive, a workspace, a git repository, a URL, any protocol but `npm:`, or a private registry, an npm alias
@@ -438,14 +471,14 @@ configuration (every home folder, `NPM_CONFIG_USERCONFIG`, `PIP_CONFIG_FILE`, `U
 repositories and its PyPI mirror plugin's table, `find-links` in your `pip.conf`) and in the npm, yarn, bun, pip,
 uv and Poetry variables (their `FIND_LINKS`, `PIPENV_PYPI_MIRROR`, `POETRY_PYPI_MIRROR_URL` and Yarn 1's
 `YARN_REGISTRY` too). A yarn or bun file that names scopes in a
-form the kit does not follow makes every npm package private. **What these readers promise** (the second net, behind the lock files'
-proof): each reads the forms its tool documents as the tool reads them (line breaks, comments, quotes and escapes, a requirements file's
+form the kit does not follow makes every npm package private. **What these readers promise** (the second net, behind the list and the
+lock files' proof): each reads the forms its tool documents as the tool reads them (line breaks, comments, quotes and escapes, a requirements file's
 joined lines), and fails closed on what it does not follow — a whole family of forms at once where it can (any
 quote or escape in a requirements line's options, any key escaped or quoted strangely, any TOML it cannot read to
 its end). A declaration written on purpose to look like something else, by the application's own authors, may
 still escape a reader: the protection is against the accidental leak of an ordinary configuration. Not read: the global npm and pip configurations of the machine, PDM's and Rye's own configurations, Hatch's
 environments, a uv workspace root above the application folder. What the proof cannot tell: a private package published on npm's or PyPI's public registry itself is proven by
-its lock like any other, and its name sent to the registry that already hosts it. A lock written without
+its lock like any other, and its name, once listed, sent to the registry that already hosts it. A lock written without
 `resolved` (npm's `omit-lockfile-registry-resolved`) proves nothing: nothing of it is sent. Nor can a lock tell
 an install that went elsewhere than the registry it names: a lock whose URLs a team rewrites to the public
 registry while npm (`replace-registry-host`) or Yarn sends the installs to its own registry, or a `poetry.lock`
@@ -454,7 +487,7 @@ registry declared elsewhere than the kit reads (a CI variable, another computer)
 a tarball URL shaped as npm's own (`https://registry.npmjs.org/<name>/-/…`): npm writes that URL in the lock, and
 npm itself reads the lock so. The second net keeps them back only when that registry or mirror is declared where the
 kit reads (the application's files, your configuration, your variables), not when it is set on the installing
-machines alone: declare it before `--network`. Nor can the kit tell a link (v1) or a location (v3) that comes back
+machines alone: declare it before `--network`, and never list such a package. Nor can the kit tell a link (v1) or a location (v3) that comes back
 into the application folder under another name than the folder has where the kit reads it (a renamed clone): it is
 read as an outside folder.
 `facts --tools` runs `osv-scanner` **offline only**: its database is downloaded (public files, no package name sent)

@@ -11,6 +11,7 @@ import { satisfies, isValidRange } from "./semver.mjs";
 import { KitError, EXIT } from "./errors.mjs";
 import { checkOverrides } from "../theme/tokens.mjs";
 import { LANGUAGES } from "../i18n.mjs";
+import { ALLOW_ECOSYSTEMS, readAllowEntry } from "./network-allow.mjs";
 
 const schemas = new Map();
 
@@ -20,6 +21,13 @@ export function readSchema(name) {
     schemas.set(name, JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "schemas", `${name}.schema.json`), "utf8")));
   return schemas.get(name);
 }
+
+/** The validation key of each fault of a `facts.network.allow` entry (readAllowEntry). */
+const ALLOW_ERRORS = Object.freeze({
+  ecosystem: "networkAllowEcosystem",
+  name: "networkAllowName",
+  wildcard: "networkAllowWildcard",
+});
 
 /** Checks that the schema cannot express. `raw`: the object doc.config.mjs exported, before defaults (§6.12). */
 function extraChecks(config, raw) {
@@ -44,6 +52,16 @@ function extraChecks(config, raw) {
   if (typeof config.spaces.output === "string" && !config.spaces.output.includes("{space}"))
     errors.push({ path: "spaces.output", key: "spaceOutput", vars: { placeholder: "{space}" } });
   errors.push(...checkLanguages(config, raw));
+  // The only packages `facts --network` may send (ARCHITECTURE.md §3, §6.9): "npm:<name>" or "pip:<name>", no wildcard.
+  config.facts.network.allow.forEach((entry, i) => {
+    const { error } = readAllowEntry(entry);
+    if (error)
+      errors.push({
+        path: `facts.network.allow[${i}]`,
+        key: ALLOW_ERRORS[error],
+        vars: { got: entry, known: ALLOW_ECOSYSTEMS.join(", ") },
+      });
+  });
   return errors;
 }
 

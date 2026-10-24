@@ -5,7 +5,7 @@
 // field, a parameter), a number, a word of a fixed list (asc, desc, email, a library) or a short list of values, each
 // checked against a whitelist: never a string as written in the code, never a value for a field whose name says it is
 // secret, never what looks like a key, a token or a long number (a card, a phone).
-import { looksRandom, GENERIC } from "../check/secrets.mjs";
+import { looksRandom, looksSecret } from "../check/secrets.mjs";
 
 /** At most this many signals per file (engine/facts/behaviours.mjs caps the whole). */
 const MAX_PER_FILE = 300;
@@ -48,19 +48,11 @@ const WORDS = {
   ]),
 };
 
-/** A secret detector of the kit (an AWS key, a token of a known service…) finds something in the text. */
-const detected = (s) =>
-  GENERIC.some((d) => {
-    d.re.lastIndex = 0;
-    for (const m of s.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
-    return false;
-  });
-
 /**
  * Looks like a key or a token (10 characters or more, letters and digits mixed; or what a secret detector of the kit
  * finds), or holds a long number (a card, a phone).
  */
-const unsafe = (s) => (s.length >= 10 && looksRandom(s)) || (s.match(/\d/g) || []).length >= 9 || detected(s);
+const unsafe = (s) => (s.length >= 10 && looksRandom(s)) || (s.match(/\d/g) || []).length >= 9 || looksSecret(s);
 
 /** Whether a field's name says its value is a secret (its value, its values and its default are never kept). */
 const secretName = (field) => {
@@ -171,7 +163,7 @@ export const routeWithoutSecrets = (route) =>
   route
     .split("/")
     .map((seg) =>
-      seg.length >= 10 && (detected(seg) || (seg.length >= 20 && !isParameter(seg) && !readable(seg))) ? "…" : seg,
+      seg.length >= 10 && (looksSecret(seg) || (seg.length >= 20 && !isParameter(seg) && !readable(seg))) ? "…" : seg,
     )
     .join("/");
 
@@ -186,7 +178,7 @@ export const safeField = (s) => (typeof s === "string" && FIELD.test(s) && !unsa
 const safeRoute = (r) =>
   typeof r === "string" &&
   ROUTE.test(r) &&
-  !detected(r) &&
+  !looksSecret(r) &&
   r.split(/[ /]/).every((segment) => !unsafe(segment.replace(/^[{:[]/, "").replace(/[}\]]$/, "")));
 
 /**

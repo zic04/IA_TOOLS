@@ -171,6 +171,10 @@ Before any agent runs: `doc-kit init`, `doc-kit inputs fetch` and `doc-kit input
 named sources (`doc-kit inputs` shows their state), then `doc-kit facts [--network] [--tools]` reads the application's code and
 writes `facts/*.json` (dependencies, stack, env, api, screens, db, infra, behaviours, agents, secrets, security, quality, tests, modules, history — ARCHITECTURE.md §6.9), committed with
 the project. No LLM call, no judgment: a fact is a fact, not yet a finding. `doctor` must be green first.
+`--network` sends only the packages `facts.network.allow` lists in `doc.config.mjs` (nothing by default): run
+`doc-kit facts --network --json` once, show the user its `network.candidates` (never a private or unproven name),
+and list in `facts.network.allow` only those they agree to send — never a name of your own choosing, and never
+before that review; then run `--network` again.
 
 ### 2 · Inventory by the reviewer
 One `doc-kit-reviewer` agent (read-only, "very thorough"), brief `inventory`, reads `.doc-kit/inventory.json`
@@ -286,7 +290,8 @@ Checklist `{{KIT_PATH}}/standard/delivery.md`. Maintenance: see the cycle below.
 ## The update cycle (after an application release)
 
 ```
-doc-kit facts [--network]          refresh the deterministic facts (zero tokens)
+doc-kit facts [--network]          refresh the deterministic facts (zero tokens); new unlisted candidates
+                                    (network.candidates) are reviewed with the user before any is listed
 doc-kit sync                       report: proofs moved/broken, labels changed, pages to review by priority,
                                     stale captures, new/removed coverage, never-marked pages
 doc-kit sync --apply [--labels] --auto-intact

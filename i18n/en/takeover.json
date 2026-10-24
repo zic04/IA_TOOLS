@@ -27,6 +27,18 @@
   "cli.stacks.outside": "{kind} adapter “{name}”: not a file of the documentation project",
   "cli.stacks.outside.help": "a project's {kind} adapter lives in the documentation project ({key}.adapters: [\"local:adapters/x.mjs\"]); nothing of the application is ever run",
   "cli.facts.noApp.help": "set app.dir in doc.config.mjs to the application root (an existing folder)",
+  "cli.facts.network.unlisted": {
+    "one": "--network: {n} direct package not sent: facts.network.allow does not list it",
+    "other": "--network: {n} direct packages not sent: facts.network.allow does not list them"
+  },
+  "cli.facts.network.howToList": "review the candidates with whoever owns the application ({command} facts --network --json: network.candidates, where no private or unproven name ever appears), then list in doc.config.mjs only those you agree to send: facts: { network: { allow: [\"{example}\"] } }",
+  "cli.facts.network.nothingListed": "--network: no package name was sent: facts.network.allow lists no package, and no direct package is a candidate (proven public by a lock file, and declared private nowhere)",
+  "cli.validate.networkAllowEcosystem": "“{got}”: an entry starts with its ecosystem ({known})",
+  "cli.validate.networkAllowEcosystem.help": "write \"npm:<name>\" or \"pip:<name>\", e.g. \"npm:react\", \"pip:fastapi\"",
+  "cli.validate.networkAllowName": "“{got}”: no package name, or a name holding a blank",
+  "cli.validate.networkAllowName.help": "write the package's name after its ecosystem, as its registry spells it: \"npm:@types/node\", \"pip:fastapi\"",
+  "cli.validate.networkAllowWildcard": "“{got}”: a wildcard lists no package",
+  "cli.validate.networkAllowWildcard.help": "list each package by its own name: only the names listed are ever sent ({command} facts --network --json gives the candidates)",
   "cli.facts.tool.failed": "⚠ {tool}: failed ({reason}); its facts are unknown, not empty",
   "cli.facts.tool.findings": {
     "one": "{tool}: ran, {n} finding",

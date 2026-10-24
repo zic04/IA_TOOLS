@@ -6,7 +6,7 @@ Example: "A few dozen direct packages; one imported package does not exist in it
 
 ## Direct dependencies
 
-<!-- guidance: built from `::facts{source="dependencies"}`; `--network` adds `exists` (a registry lookup, name only). -->
+<!-- guidance: built from `::facts{source="dependencies"}`; `--network` adds `exists` (a registry lookup, name only, for the packages `facts.network.allow` lists; an unlisted one is `unlisted: true`). -->
 
 ::facts{source="dependencies" columns="name,version,ecosystem,direct,license"}
 
