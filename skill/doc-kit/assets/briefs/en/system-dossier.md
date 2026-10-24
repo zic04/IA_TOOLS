@@ -13,14 +13,14 @@ titles.
 
 ## Read first
 
-1. Your pages' context files (path pattern in Variables, written by `doc-kit context <page>` when the
+1. Your pages' context files (path pattern in Variables, written by `{{KIT_CLI}} context <page>` when the
    orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
    rows — the reading you need for the application, besides what is listed below.
-2. For `data-model`, the orchestrator may already have run `doc-kit new <id> --prefill`: a "Tables" table
+2. For `data-model`, the orchestrator may already have run `{{KIT_CLI}} new <id> --prefill`: a "Tables" table
    pre-filled from `facts/db.json` (`new --prefill` leaves no marker: the rows are plain). Complete it (what each
    table holds, personal data, legal basis); never remove a prefilled row without checking it in the code first.
 3. **The facts** (folder in Variables): `db.json` (tables, columns, row-level security) for `data-model`;
-   `tool-knip.json`, when `doc-kit facts --tools` produced it (unused files and exports) for `code-map`'s
+   `tool-knip.json`, when `{{KIT_CLI}} facts --tools` produced it (unused files and exports) for `code-map`'s
    "Duplicated or dead code" — when it is absent, find duplication by reading, never guess at a percentage;
    `infra.json` (what the infrastructure files declare: environments, deploying pipelines, workloads, images,
    entry points, cloud resources, scheduled jobs; names and settings with `file:line`, never a value) for
@@ -88,14 +88,14 @@ titles.
   code's current shape says so under "How it was reconstructed".
 - A gap found (no tested restore procedure, a table with personal data and no retention rule, a duplicated
   module) is a **candidate finding** in your report, after checking it is not already a numbered one.
-- Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …` (from the documentation
+- Once a page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …` (from the documentation
   folder), naming the application and facts files you used: this records the page as checked against the
   current application.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages.
-- `npx doc-kit check tables`: no table overflow.
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your pages.
+- `{{KIT_CLI}} check tables`: no table overflow.
 
 ## Final report (300 words at most, in the project's language)
 

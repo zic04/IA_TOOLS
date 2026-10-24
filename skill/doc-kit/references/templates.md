@@ -4,8 +4,8 @@ The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (ex
 standard/templates.json` (the first 13 types) and its fragments `{{KIT_PATH}}/standard/templates/business.json`
 (the business page types, Product space, `{{KIT_PATH}}/ARCHITECTURE.md` §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json`
 (the takeover dossier's types, `{{KIT_PATH}}/ARCHITECTURE.md` §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
-models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one
-down, and `--prefill` fills its main table from `doc-kit facts` for the types that support it (below).
+models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `{{KIT_CLI}} new <id> --template <type>` lays one
+down, and `--prefill` fills its main table from `{{KIT_CLI}} facts` for the types that support it (below).
 
 The template is declared in the toc (`template` field of the page). The build then checks that each required section
 is present: a `##` heading that **starts with** its label or an alias (case and accents ignored). A warning with
@@ -71,8 +71,8 @@ in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewher
 The dossier a team needs to take over an application, especially one written largely by AI assistants
 ("vibe-coded"): `references/pitfalls.md` lists exactly what each type is defending against. With spaces,
 `access-ownership` and `runbook` go to the Operate part of the Administer space, the others to the Develop space. Every claim is
-`file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `doc-kit facts` feeds these pages
-(one JSON file per source, `facts/<source>.json`); `doc-kit new <id> --prefill` fills the main table of
+`file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `{{KIT_CLI}} facts` feeds these pages
+(one JSON file per source, `facts/<source>.json`); `{{KIT_CLI}} new <id> --prefill` fills the main table of
 `api-surface`, `data-model`, `dependencies` and `agent-instructions` (also `variables` of the 13 original types)
 from the matching facts source.
 

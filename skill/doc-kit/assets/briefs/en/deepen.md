@@ -41,8 +41,8 @@ An agent that would exceed this budget stops and says so in its report, rather t
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for the sheet, and no `behaviour.missing` for the rubrics you added.
-- Then `npx doc-kit sync --mark <page id>` (the sheet follows its feature through its `feature` id).
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for the sheet, and no `behaviour.missing` for the rubrics you added.
+- Then `{{KIT_CLI}} sync --mark <page id>` (the sheet follows its feature through its `feature` id).
 
 ## Final report (80 words at most, in the project's language)
 

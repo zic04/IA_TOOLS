@@ -13,7 +13,7 @@ change ni ids ni titres. Tes pages, ton schéma et les autres chemins sont dans 
 ## Avant tout, lis
 
 1. Les fichiers de contexte de tes pages (format du chemin dans Variables, produits par
-   `doc-kit context <page>` quand l'orchestrateur l'a lancé avant ce brief) : les fichiers à lire avec leurs
+   `{{KIT_CLI}} context <page>` quand l'orchestrateur l'a lancé avant ce brief) : les fichiers à lire avec leurs
    extraits, les libellés exacts et les faits pertinents — la lecture dont tu as besoin pour l'application, en
    plus de ce qui suit.
 2. Le guide de rédaction, et les gabarits `troubleshooting` et `troubleshooting-area` (chemin dans Variables).
@@ -83,15 +83,15 @@ kit), ids de `<marker>` préfixés par un code propre à ton schéma, texte de 1
   pages, ni l'application. Aucune commande git, aucun accès à la production.
 - Défauts découverts : candidats dans ton rapport (constat, `fichier:ligne`, gravité proposée) ; s'il s'agit
   d'un constat existant, cite son numéro. Erreurs dans les pages existantes : signale-les, ne les corrige pas.
-- Une fois les contrôles d'une page passés, lance `npx doc-kit sync --mark <id de page> --sources …` (depuis le
+- Une fois les contrôles d'une page passés, lance `{{KIT_CLI}} sync --mark <id de page> --sources …` (depuis le
   dossier de la documentation), en citant les fichiers de l'application que tu as lus pour elle : cela
   enregistre la page comme vérifiée face à l'application actuelle.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour tes pages.
-- `npx doc-kit check tables` : aucun débordement sur tes pages.
-- Relecture du schéma en clair et en sombre (`npx doc-kit view "<id-parent>~le-schema" --theme dark
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour tes pages.
+- `{{KIT_CLI}} check tables` : aucun débordement sur tes pages.
+- Relecture du schéma en clair et en sombre (`{{KIT_CLI}} view "<id-parent>~le-schema" --theme dark
   --output …`) et d'une sous-page ; Read des images ; corrige ; supprime tes images.
 
 ## Rapport final (300 mots au plus, dans la langue du projet)

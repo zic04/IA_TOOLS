@@ -62,8 +62,8 @@ other file.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages.
-- `npx doc-kit check tables`: no table overflow.
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your pages.
+- `{{KIT_CLI}} check tables`: no table overflow.
 - The counters equal the number of entries in each series (count them again).
 
 ## Final report (350 words at most, in the project's language)

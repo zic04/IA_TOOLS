@@ -49,13 +49,13 @@ inverses.
 - Un manque, un risque ou une dette (les candidats constats du condensé, et ce que tu vois toi-même) va dans ton
   rapport comme candidat constat, jamais dans la page comme une fonctionnalité : la page des constats est le
   registre des risques.
-- Une fois les contrôles de la page passés, lance `npx doc-kit sync --mark <id de page> --sources …`, en citant les
+- Une fois les contrôles de la page passés, lance `{{KIT_CLI}} sync --mark <id de page> --sources …`, en citant les
   fichiers de l'application que citent tes preuves.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour ta page.
-- `npx doc-kit check tables` : aucun débordement de tableau.
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour ta page.
+- `{{KIT_CLI}} check tables` : aucun débordement de tableau.
 
 ## Rapport final (200 mots au plus, dans la langue du projet)
 

@@ -65,8 +65,8 @@ touche aucun autre fichier.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour tes pages.
-- `npx doc-kit check tables` : aucun débordement.
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour tes pages.
+- `{{KIT_CLI}} check tables` : aucun débordement.
 - Les compteurs égalent le nombre d'entrées de chaque série (recompte-les).
 
 ## Rapport final (350 mots au plus, dans la langue du projet)

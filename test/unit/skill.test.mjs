@@ -20,9 +20,17 @@ import {
   SKILL_SOURCE,
   FINGERPRINT,
   hookPath,
+  kitCli,
 } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
-import { AGENT_TYPES, baseVariables, flattenedPages, outputBySize } from "../../skill/doc-kit/scripts/common.mjs";
+import {
+  AGENT_TYPES,
+  baseVariables,
+  flattenedPages,
+  kitCommand,
+  kitPath as skillKitPath,
+  outputBySize,
+} from "../../skill/doc-kit/scripts/common.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -48,14 +56,18 @@ describe("skill install", () => {
       assert.match(r.out, new RegExp(`agent types installed in .*agents \\(${AGENT_NAMES.length} files\\)`));
       const dir = path.join(skills, "doc-kit");
       const skill = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
-      assert.doesNotMatch(skill, /\{\{KIT_PATH\}\}/);
+      assert.doesNotMatch(skill, /\{\{KIT_PATH\}\}|\{\{KIT_CLI\}\}/);
       assert.ok(skill.includes(`\`${kitPath}\``), "absolute kit path, forward slashes");
+      // The kit's CLI by that path, the one form the agents' guard lets through (never npx: SECURITY.md).
+      const kitLine = kitCli(kitPath);
+      assert.equal(kitLine, `node "${kitPath}/cli/doc-kit.mjs"`);
+      assert.ok(skill.includes(`\`${kitLine} <command>\``), "SKILL.md gives the kit by its path");
       // The references to the kit's contract resolve: its absolute path, to a file that exists.
       assert.ok(skill.includes(`\`${kitPath}/ARCHITECTURE.md\` §6.11`));
       assert.ok(fs.existsSync(path.join(KIT_ROOT, "ARCHITECTURE.md")));
       assert.doesNotMatch(fs.readFileSync(path.join(dir, "scripts", "common.mjs"), "utf8"), /\{\{KIT_PATH\}\}/);
       for (const f of fs.readdirSync(path.join(dir, "references")))
-        assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_PATH\}\}/, f);
+        assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_(PATH|CLI)\}\}/, f);
       // Brief templates keep their own placeholders.
       assert.match(fs.readFileSync(path.join(dir, "assets", "briefs", "en", "inventory.md"), "utf8"), /\{\{\w+\}\}/);
       // The skill folder itself never receives the agent definitions: they go next to the skills folder.
@@ -79,7 +91,11 @@ describe("skill install", () => {
       for (const name of AGENT_NAMES) {
         const installed = fs.readFileSync(path.join(agents, name), "utf8");
         const source = fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8");
-        assert.equal(installed, source.split("{{SKILL_PATH}}").join(skillPath), name);
+        assert.equal(
+          installed,
+          source.split("{{SKILL_PATH}}").join(skillPath).split("{{KIT_CLI}}").join(kitLine),
+          name,
+        );
         assert.doesNotMatch(installed, /\{\{\w+\}\}/, name);
         assert.match(
           installed,
@@ -87,7 +103,7 @@ describe("skill install", () => {
           name,
         );
         if (!/^tools: .*\bBash\b/m.test(installed)) continue;
-        const hook = /^ {10}command: 'node "(.+)"'$/m.exec(installed)?.[1];
+        const hook = /^ {10}command: 'node "(.+)" \|\| exit 2'$/m.exec(installed)?.[1];
         assert.equal(hook, `${skillPath}/scripts/bash-guard.mjs`, `${name}: its Bash hook is the installed guard`);
         assert.ok(fs.existsSync(hook), `${name}: the guard is installed where its hook says`);
       }
@@ -101,9 +117,15 @@ describe("skill install", () => {
       assert.equal(fs.readFileSync(path.join(agents, "someone-elses-agent.md"), "utf8"), "not doc-kit's");
       assert.deepEqual(fs.readdirSync(agents).sort(), [...AGENT_NAMES, "someone-elses-agent.md"].sort());
 
-      // The installed scripts find the kit through the replaced path.
+      // The installed scripts find the kit through the replaced path; the briefs they fill give the same command as
+      // the installed texts, and the installed guard lets it through.
       const common = await import(pathToFileURL(path.join(dir, "scripts", "common.mjs")).href);
       assert.equal(path.resolve(common.kitPath()), KIT_ROOT);
+      assert.equal(common.kitCommand(common.kitPath()), kitLine);
+      const guard = await import(pathToFileURL(path.join(dir, "scripts", "bash-guard.mjs")).href);
+      const opts = { skillDir: dir, kitDir: common.kitPath(), windows: process.platform === "win32" };
+      assert.deepEqual(guard.bashDecision(`${kitLine} build --draft`, opts), { allow: true });
+      assert.equal(/** @type {any} */ (guard.bashDecision("npx doc-kit build --draft", opts)).key, "npx");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -113,6 +135,23 @@ describe("skill install", () => {
     assert.equal(hookPath("/home/me/.claude/skills/doc-kit"), "/home/me/.claude/skills/doc-kit");
     assert.equal(hookPath("C:/Users/O'Brien/.claude/skills/doc-kit"), "C:/Users/O''Brien/.claude/skills/doc-kit");
     assert.equal(hookPath(String.raw`/a"b/$HOME/\x/` + "`id`"), String.raw`/a\"b/\$HOME/\\x/` + "\\`id\\`");
+  });
+
+  test("the kit's CLI, as the installer writes it and as the briefs get it, is one command, quoted for bash", () => {
+    for (const dir of ["/opt/doc-kit", "C:/Program Files/doc-kit", '/a"b/$HOME/x/`id`', "/o'brien/kit"]) {
+      assert.equal(kitCli(dir), kitCommand(dir), dir);
+      assert.ok(kitCli(dir).startsWith('node "') && kitCli(dir).endsWith('/cli/doc-kit.mjs"'), dir);
+    }
+    assert.equal(kitCli('/a"b/$HOME/x/`id`'), 'node "/a\\"b/\\$HOME/x/\\`id\\`/cli/doc-kit.mjs"');
+    // brief.mjs fills {{KIT_CLI}} with the kit the guard knows (never one a documentation project names).
+    const dir = tempDir("doc-kit-skill-cli-");
+    try {
+      const vars = baseVariables(dir, { product: { name: "Acme" } }, "en", {});
+      assert.equal(vars.KIT_CLI, kitCommand(skillKitPath()));
+      assert.equal(vars.KIT_CLI, kitCli(KIT_ROOT.split(path.sep).join("/")));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("a doc-kit folder not installed by the command is kept unless --force; unknown action → 2", async () => {

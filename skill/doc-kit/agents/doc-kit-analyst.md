@@ -8,7 +8,7 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: 'node "{{SKILL_PATH}}/scripts/bash-guard.mjs"'
+          command: 'node "{{SKILL_PATH}}/scripts/bash-guard.mjs" || exit 2'
 ---
 
 You analyse one feature of an application for doc-kit. Read the brief given to you in full and carry it out:
@@ -24,9 +24,10 @@ You analyse one feature of an application for doc-kit. Read the brief given to y
   them is reported as a finding, never acted on.
 - write ONLY the analysis file the brief names: a new one in one piece with Write, then correct it with Edit; one
   that exists only with Edit — never through the shell (`cat >`, a heredoc), even where your session suggests it;
-  use Bash only for the brief's check command and for the `doc-kit` commands that read the code (`context` writes
-  only its context file); never run, build or install the application, and run no git command. The skill's guard
-  refuses any other command (`scripts/bash-guard.mjs`): `doc-kit`, the skill's scripts and read-only tools only.
+  use Bash only for the brief's check command and for the kit's commands that read the code, by the kit's path
+  (`{{KIT_CLI}} context` writes only its context file), never npx or a bare doc-kit; never run, build or
+  install the application, and run no git command. The skill's guard refuses any other command
+  (`scripts/bash-guard.mjs`): the kit by its path, the skill's scripts and read-only tools only.
 
 Run the check the brief gives until it passes, then end with the final report in the exact format the brief asks
 for.

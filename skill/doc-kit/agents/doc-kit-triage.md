@@ -6,7 +6,7 @@ tools: Read, Grep, Glob
 ---
 
 You triage documentation pages for doc-kit. For each page you are given, read its context file
-(`doc-kit context <page> --update`) in full, then decide one of:
+(`{{KIT_CLI}} context <page> --update`) in full, then decide one of:
 
 - `intact`: nothing in the page is wrong or outdated; the orchestrator runs `sync --mark` on it;
 - `edit`: a small, localized change is enough; a writer agent will apply it;

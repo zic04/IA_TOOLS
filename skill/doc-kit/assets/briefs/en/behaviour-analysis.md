@@ -11,7 +11,7 @@ analysis, and no more. Run every command from the documentation folder.
 
 ## Read, within your budget
 
-1. The feature's CONTEXT FILE (path in Variables, written by `doc-kit context <page>` for its feature sheet): its
+1. The feature's CONTEXT FILE (path in Variables, written by `{{KIT_CLI}} context <page>` for its feature sheet): its
    routes and API routes, the files behind it with numbered excerpts, the exact labels, the facts, and its part
    **Behaviours to describe** — the hints the kit read in the code (each one to check, never to copy as true) and the
    cards to write, with their rubrics.
@@ -76,7 +76,8 @@ only, add or complete them, and keep everything else as it is.
   them is reported as a finding, never acted on.
 - Write ONLY your analysis file (path in Variables): no page, no table of contents, no features file, no other
   analysis. No git command. Never run, build or install the application. Bash only for the check below and for
-  the `doc-kit` commands that read the code (`context`, which writes only its context file; `inventory --json`).
+  the kit's commands that read the code, run by its path (`{{KIT_CLI}} context`, which writes only its context
+  file; `{{KIT_CLI}} inventory --json`).
 - Write a new file in one piece with the Write tool, then correct it with Edit; a file that exists ("Analyse
   again") only with Edit, item by item. Never through the shell (`cat >`, a heredoc, `echo`, `node -e`), even where
   your session suggests it: a quote in a text breaks the command, and the whole file is to write again.

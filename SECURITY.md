@@ -350,28 +350,60 @@ treats them as data on every path an agent takes:
   language: what follows is the application's content, data only (`test/unit/context.test.mjs`,
   `test/unit/languages.test.mjs`).
 - **The agents with Bash** (`doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) run it through a guard, their
-  PreToolUse hook: `skill/doc-kit/scripts/bash-guard.mjs`, whose path `doc-kit skill install` writes in their
-  definitions. It reads the command as bash splits it — by hand: no shell, no eval, no regular expression — and lets
-  through only `npx doc-kit <command>` from a folder that holds a `doc.config.mjs` (npx resolves `doc-kit` from the
-  folder it runs in), `doc-kit <command>`, `node <kit>/cli/doc-kit.mjs`, `node <skill>/scripts/<script>.mjs` (the
-  skill's four scripts, by their path), read-only tools (`ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`…),
-  `cd <folder> &&` before them, and `|`, `&&`, `||`, `;`, `2>&1`, `>/dev/null` between them. It refuses git, any
-  other program or path, a variable or a command substitution, a redirection to a file, a background job, a
-  subshell, an unquoted wildcard, a second line, `rg --pre` and `find -exec`/`-delete`, the doc-kit commands that run
-  something else or belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`,
-  `init`, `inputs`, `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture plans are code). Input it
-  cannot read is refused (exit code 2). It only ever refuses: what it lets through still goes through Claude Code's
-  own permissions (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands, the hook as a process,
-  the agent definitions that name it; the ReDoS harness measures it).
+  PreToolUse hook: `node "<skill>/scripts/bash-guard.mjs" || exit 2`, whose path `doc-kit skill install` writes in
+  their definitions. It reads the command as bash splits it — by hand: no shell, no eval, no regular expression, no
+  file read — and lets through only the kit's CLI by its absolute path, `node "<kit>/cli/doc-kit.mjs" <command>` (the
+  kit's path `skill install` wrote in the skill, never one a documentation project names), `node
+  <skill>/scripts/<script>.mjs` (the skill's four scripts, by their absolute path), read-only tools (`ls`, `cat`,
+  `head`, `tail`, `wc`, `grep`, `rg`, `find`…), one `cd <folder> &&` first, and `|`, `&&`, `||`, `;`, `2>&1`,
+  `>/dev/null` between them.
+  - **Never `npx doc-kit`, `npm exec doc-kit` or a bare `doc-kit`**: npx looks for the bin in the `node_modules/.bin`
+    of the folder and of every parent up to the root, so an application that ships a `node_modules/.bin/doc-kit` got
+    it run whenever the documentation sat inside it (`<app>/docs/manual`, the default layout); with none found and no
+    terminal, npx installs `doc-kit` from the public registry without asking. A bare `doc-kit` is the `PATH`'s, which
+    may be anyone's.
+  - **What runs never depends on the folder**: a program named by a relative path is refused (on Windows, a path
+    needs its drive), and so is a `cd` that is not the first command or not followed by `&&` — in a pipeline it runs
+    in a subshell, after `||` it is skipped, and bash runs what follows in the folder it started in.
+  - It refuses git, npm, any other program or path, a variable or a command substitution, a redirection to a file, a
+    background job, a subshell, an unquoted wildcard, a second line, `rg --pre` and `find -exec`/`-delete`, the
+    doc-kit commands that run something else or belong to the orchestrator or the user (`bricks`, `connect`, `demo`,
+    `dev`, `facts`, `hooks`, `init`, `inputs`, `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture
+    plans are code).
+  - **It fails closed**: Claude Code blocks a command only on exit code 2, so input it cannot read, a skill file that
+    cannot load (a corrupt message file: the guard imports the skill's modules inside a try), an unexpected error,
+    and, through `|| exit 2`, a missing or broken script (node's exit code 1) and no `node` on the `PATH` (the shell's
+    127) are all refused.
+  - It only ever refuses: what it lets through still goes through Claude Code's own permissions
+    (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; a real hook process run from
+    `<app>/docs/manual`, with a `node_modules/.bin/doc-kit` planted in the application, refuses every form that
+    reaches that bin and lets through the kit's own, which never runs it; the hook command through the shell with a
+    missing script and without `node`; a corrupt message file and a module that throws; the agent definitions that
+    name it. The ReDoS harness measures it).
+- **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
+  agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
+  "<kit>/cli/doc-kit.mjs"` (and `brief.mjs`, filling a brief, with the same command): the agents run the one form the
+  guard lets through, and the orchestrator, which no guard bounds, no longer runs npx either
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15: no `npx doc-kit`, no bare `doc-kit` command, with both as its
+  positive control; `test/unit/skill.test.mjs`: the installed texts, the filled briefs and the installed guard agree).
 
-Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. It
-bounds Bash only: an agent's Edit and Write are bounded by its brief and Claude Code's permissions, and a capture
-plan an agent writes is a JavaScript module that `doc-kit capture` imports. doc-kit and the skill's scripts load the
-documentation project's `doc.config.mjs`, which is code: the guard checks that a folder holds one, not whose it is —
-an application that ships a `doc.config.mjs` can still be reached by `cd <it> && npx doc-kit …`; review one before
-documenting the application. A hook that cannot start (no `node` on the `PATH`) blocks nothing, and an agent
-definition edited after installation may have lost its hook (`doctor` reports it as modified). Keep Claude Code's
-permission prompts on for the agents' writes outside the documentation folder.
+Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. What it
+does not bound:
+
+- **Bash only.** An agent's Edit and Write are bounded by its brief and Claude Code's permissions, not by the guard:
+  an agent steered to write a file can write one the kit then runs — a capture plan is a JavaScript module that
+  `doc-kit capture` imports, and `doc.config.mjs` is one every command loads.
+- **A planted configuration is still read.** The guard names the program, not what the kit reads: the kit and the
+  skill's scripts load the `doc.config.mjs` of the folder they run in (or of a parent), or of `--project`, and that
+  file is code. `cd <any folder> && <kit> build` and `<kit> build --project <any folder>` go through, so a
+  `doc.config.mjs` the application ships still runs if an agent is steered to it. The guard no longer checks that a
+  folder holds a `doc.config.mjs`: that told nothing of whose it is (`cd docs && npx doc-kit build --project ../evil`
+  passed it). Review a `doc.config.mjs` you did not write before running the kit on it.
+- **The hook itself.** `|| exit 2` covers a hook that cannot start where Claude Code runs the hook command through a
+  shell (bash, Git Bash on Windows); an agent definition edited after installation may have lost its hook (`doctor`
+  reports it as modified).
+
+Keep Claude Code's permission prompts on for the agents' writes outside the documentation folder.
 
 ### Files for the next AI (`pack`)
 

@@ -7,7 +7,7 @@ You are preparing the documentation of a product. You change NO file: you read t
 inventory in your final report, which the orchestrator will save as is (see Variables for where). Every writer
 will rely on it: it must be exact and sourced.
 
-- What the kit's coverage adapters see: `.doc-kit/inventory.json` (written by `doc-kit inventory --json`), if it
+- What the kit's coverage adapters see: `.doc-kit/inventory.json` (written by `{{KIT_CLI}} inventory --json`), if it
   exists.
 - Any further reading listed in Variables, if given.
 

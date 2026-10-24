@@ -13,7 +13,7 @@ other paths are in Variables.
 
 ## Read first
 
-- Your pages' context files (path pattern in Variables, written by `doc-kit context <page>` when the
+- Your pages' context files (path pattern in Variables, written by `{{KIT_CLI}} context <page>` when the
   orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
   — the reading you need for the application, besides what is listed below.
 - Optionally, when a step goes through a feature that has an analysis, that feature's Develop digest
@@ -91,16 +91,16 @@ relevant. If a reference journey is given (see Variables), take its diagram as a
   `file:line`, proposed severity), after checking they are not already an existing finding (otherwise quote its
   number).
 - Errors found in existing pages: do not fix them; report them (file, sentence, proof).
-- Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …` (from the documentation
+- Once a page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …` (from the documentation
   folder), naming the application files you read for it: this records the page as checked against the current
   application.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ about YOUR pages ("page not written yet" messages about other
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ about YOUR pages ("page not written yet" messages about other
   writers' pages are normal).
-- `npx doc-kit check tables`: no table overflow on your pages.
-- Review: `npx doc-kit view "<parent-id>~the-diagram" --theme light --height 1100 --output
+- `{{KIT_CLI}} check tables`: no table overflow on your pages.
+- Review: `{{KIT_CLI}} view "<parent-id>~the-diagram" --theme light --height 1100 --output
   .doc-kit/<your-code>-light.png` (your code is in Variables), the same with `--theme dark`, and one sub-page;
   Read the pictures; fix; then delete your pictures.
 

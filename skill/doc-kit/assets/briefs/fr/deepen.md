@@ -42,9 +42,9 @@ Un agent qui dépasserait ce budget s'arrête et le dit dans son rapport, plutô
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour la fiche, et aucun `behaviour.missing` pour les rubriques que tu
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour la fiche, et aucun `behaviour.missing` pour les rubriques que tu
   as ajoutées.
-- Puis `npx doc-kit sync --mark <id de page>` (la fiche suit sa fonctionnalité par son id `feature`).
+- Puis `{{KIT_CLI}} sync --mark <id de page>` (la fiche suit sa fonctionnalité par son id `feature`).
 
 ## Rapport final (80 mots au plus, dans la langue du projet)
 

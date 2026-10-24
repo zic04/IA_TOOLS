@@ -8,7 +8,7 @@ inventaire complet dans ton rapport final, que l'orchestrateur enregistrera tel 
 l'emplacement). Tous les rédacteurs s'en serviront : il doit être exact et sourcé.
 
 - Ce que voient les adaptateurs de couverture du kit : `.doc-kit/inventory.json` (produit par
-  `doc-kit inventory --json`), s'il existe.
+  `{{KIT_CLI}} inventory --json`), s'il existe.
 - Toute lecture complémentaire listée dans Variables, s'il y en a.
 
 ## Ce que tu rends, dans cet ordre (Markdown)

@@ -96,6 +96,18 @@ export function kitPath(docDir) {
   return "";
 }
 
+/**
+ * The command that runs the kit's CLI by its path, `node "<kit>/cli/doc-kit.mjs"` (the path escaped for bash's double
+ * quotes): what the briefs give the agents ({{KIT_CLI}}), what `skill install` writes in SKILL.md, the references and
+ * the agent definitions, and the only form the agents' guard lets through (scripts/bash-guard.mjs). Never `npx
+ * doc-kit`: npx runs the first doc-kit it finds in a node_modules/.bin up to the root, the application's when the
+ * documentation sits inside it. "" without a kit.
+ * @param {string} dir  the kit's folder
+ */
+export function kitCommand(dir) {
+  return dir ? `node "${slash(dir).replace(/["$`\\]/g, "\\$&")}/cli/doc-kit.mjs"` : "";
+}
+
 /** Documentation folder: --project, else the first folder that holds doc.config.mjs, walking up from the current one. */
 export function findProject(option) {
   if (option) {
@@ -315,6 +327,8 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     appDir,
     plansDir: slash(config.capture?.plans ?? "captures/plans"),
     kitPath: kitPath(docDir),
+    // The kit's CLI by the path the agents' guard knows (never one the documentation project names).
+    KIT_CLI: kitCommand(kitPath()),
     version: readVersion(docDir, config, appDir),
     date: today(),
     contentDir,

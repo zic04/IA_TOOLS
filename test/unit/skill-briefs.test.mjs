@@ -275,3 +275,71 @@ test("the skill's description stays under 1,024 characters (Agent Skills), and k
   ])
     assert.ok(description.includes(trigger), trigger);
 });
+
+// ─── The kit by its path (SECURITY.md) ────────────────────────────────────────────────────────────────────────────
+/** A package runner, which runs the first doc-kit of a node_modules/.bin up to the root (the application's, when the
+ * documentation sits inside it) and, with none, installs one from the registry. */
+const RUNNER = /\b(npx|pnpx|bunx|npm exec|npm x) +(--?[\w-]+ +)*doc-kit\b/;
+/**
+ * Where a text tells to run the kit other than by its path ({{KIT_CLI}}): a package runner, and a command, in a code
+ * span or a code block, that starts with the bare `doc-kit` (the PATH's, which may be the application's). A name such
+ * as `doc-kit-writer` or `doc-kit/behaviour-analysis@1`, and the prose's "doc-kit", are no command.
+ * @returns {string[]}
+ */
+function unsafeKitCommands(text) {
+  const found = [];
+  const bare = (code) => /^doc-kit( |$)/.test(code.trim());
+  const prose = text.replace(/^```[^\n]*\n([\s\S]*?)^```$/gm, (block, body) => {
+    for (const line of body.split("\n")) if (bare(line)) found.push(line);
+    return "";
+  });
+  for (const line of text.split("\n")) if (RUNNER.test(line)) found.push(line.trim());
+  for (const [span, code] of prose.matchAll(/`([^`]+)`/g)) if (bare(code)) found.push(span);
+  return found;
+}
+
+/** The skill's texts an agent or the orchestrator reads: SKILL.md, the references, the briefs, the agent definitions. */
+const skillTexts = () => [
+  "SKILL.md",
+  ...fs.readdirSync(path.join(SKILL_SOURCE, "references")).map((f) => `references/${f}`),
+  ...LANGS.flatMap((lang) => briefNames(lang).map((n) => `assets/briefs/${lang}/${n}.md`)),
+  ...AGENT_TYPES.map((type) => `agents/${type}.md`),
+];
+
+test("positive control: npx doc-kit, npm exec doc-kit and a bare doc-kit command are caught, the kit by its path is not", () => {
+  assert.deepEqual(
+    unsafeKitCommands(
+      "Run `npx doc-kit build`, `npx --yes doc-kit check`, then `doc-kit check tables`; `doc-kit` alone; " +
+        "`npm exec doc-kit -- sync`.\n```\ndoc-kit sync --check\n```\n",
+    ),
+    [
+      "doc-kit sync --check",
+      // The line of a package runner, whatever it runs doc-kit with; then the bare commands of the code spans.
+      "Run `npx doc-kit build`, `npx --yes doc-kit check`, then `doc-kit check tables`; `doc-kit` alone; " +
+        "`npm exec doc-kit -- sync`.",
+      "`doc-kit check tables`",
+      "`doc-kit`",
+    ],
+  );
+  assert.deepEqual(
+    unsafeKitCommands(
+      "`{{KIT_CLI}} build --draft`, `doc-kit-writer`, `doc-kit/behaviour-analysis@1`, `.doc-kit/context`; never npx or " +
+        "a bare doc-kit; the files doc-kit context writes; `npx playwright install chromium`.",
+    ),
+    [],
+  );
+});
+
+test("no skill text tells to run npx doc-kit or a bare doc-kit: the kit runs by its path, {{KIT_CLI}}", () => {
+  let commands = 0;
+  for (const rel of skillTexts()) {
+    const text = fs.readFileSync(path.join(SKILL_SOURCE, rel), "utf8");
+    assert.deepEqual(unsafeKitCommands(text), [], rel);
+    commands += text.split("{{KIT_CLI}}").length - 1;
+  }
+  assert.ok(commands >= 200, `the kit's commands are found (${commands})`);
+  // Every brief that runs a check names the kit by its path, in both languages alike (the placeholders test).
+  for (const name of briefNames("en"))
+    if (/build --draft/.test(read("en", name)))
+      assert.ok(read("en", name).includes("`{{KIT_CLI}} build --draft`"), name);
+});

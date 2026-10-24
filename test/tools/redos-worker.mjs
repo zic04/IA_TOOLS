@@ -783,7 +783,7 @@ export const CHECKS = [
   [
     "bash guard bashDecision",
     (s) =>
-      [s, `ls ${s} '${s}' "${s}" && cat ${s}`].filter((c) => bashDecision(c, { cwd: "/w", skillDir: "/s" }).allow)
+      [s, `ls ${s} '${s}' "${s}" && cat ${s}`].filter((c) => bashDecision(c, { skillDir: "/s", kitDir: "/k" }).allow)
         .length,
   ],
   // The texts of an ingested DAT (engine/inputs/reconcile.mjs).

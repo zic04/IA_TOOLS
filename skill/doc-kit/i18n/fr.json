@@ -201,8 +201,9 @@
   },
   "guard": {
     "refused": "garde de doc-kit : commande refusée — {reason}",
-    "allowed": "le Bash de cet agent ne lance que npx doc-kit <commande> … depuis le dossier de la documentation, node <le skill>/scripts/<script>.mjs, node <le kit>/cli/doc-kit.mjs, et des outils de lecture (ls, cat, head, tail, wc, grep, rg, find…) ; Read, Grep et Glob font le reste",
+    "allowed": "le Bash de cet agent ne lance que le kit par son chemin, {cli} <commande> … (d'abord cd <le dossier de la documentation> &&), node <le skill>/scripts/<script>.mjs par son chemin, et des outils de lecture (ls, cat, head, tail, wc, grep, rg, find…) ; Read, Grep et Glob font le reste",
     "input": "l'entrée du hook est illisible",
+    "noKit": "node <le kit>/cli/doc-kit.mjs",
     "empty": "une commande vide, ou un opérateur sans rien d'un côté",
     "newline": "plusieurs lignes : une seule commande par appel",
     "quote": "un guillemet non fermé, ou une barre oblique inverse à la fin",
@@ -213,13 +214,12 @@
     "glob": "un joker sans guillemets (*, ? ou [) : mettez-le entre guillemets, ou utilisez l'outil Glob",
     "command": "{name} n'est pas permis à cet agent",
     "option": "{name} {option} lance un programme ou écrit un fichier",
-    "cd": "cd prend un seul dossier, et n'est suivi que de && ou de rien",
-    "npx": "npx ne lance que doc-kit : npx doc-kit <commande> …",
-    "docFolder": "npx doc-kit ne se lance que depuis un dossier de documentation (qui porte doc.config.mjs), et {folder} n'en porte pas : faites d'abord cd vers le dossier de la documentation",
-    "docKitMissing": "nommez d'abord la commande de doc-kit : doc-kit <commande> [options] (seul, doc-kit lance le mode guidé)",
+    "cd": "cd vient en premier, prend un seul dossier, et est suivi de && : cd <dossier> && …",
+    "npx": "npx et npm exec lancent le premier doc-kit qu'ils trouvent dans un node_modules/.bin jusqu'à la racine — celui de l'application compris — ou en installent un depuis le registre : lancez le kit par son chemin, {cli} <commande> …",
+    "kitCli": "un doc-kit trouvé sur le PATH peut être un autre que le kit, celui de l'application compris : lancez le kit par son chemin, {cli} <commande> …",
+    "docKitMissing": "nommez d'abord la commande de doc-kit : {cli} <commande> [options] (seul, doc-kit lance le mode guidé)",
     "docKitCommand": "doc-kit {name} est lancé par l'orchestrateur ou par l'utilisateur, jamais par un agent",
-    "node": "node ne lance que les scripts du skill ({scripts}) et le cli/doc-kit.mjs du kit, par leur chemin",
-    "plans": "--plans chargerait des plans de capture, qui sont du code, depuis un autre dossier : la configuration nomme le dossier des plans",
-    "unexpected": "une erreur inattendue dans la garde : refusé, par prudence"
+    "node": "node ne lance que le CLI du kit, {cli}, et les scripts du skill ({scripts}), par leur chemin absolu",
+    "plans": "--plans chargerait des plans de capture, qui sont du code, depuis un autre dossier : la configuration nomme le dossier des plans"
   }
 }

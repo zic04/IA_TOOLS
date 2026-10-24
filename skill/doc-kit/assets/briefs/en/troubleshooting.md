@@ -12,7 +12,7 @@ change neither ids nor titles. Your pages, your diagram and other paths are in V
 
 ## Read first
 
-1. Your pages' context files (path pattern in Variables, written by `doc-kit context <page>` when the
+1. Your pages' context files (path pattern in Variables, written by `{{KIT_CLI}} context <page>` when the
    orchestrator ran it before this brief): the files to read with excerpts, exact labels and the relevant facts
    — the reading you need for the application, besides what is listed below.
 2. The writing guide, and the `troubleshooting` and `troubleshooting-area` templates (path in Variables).
@@ -77,15 +77,15 @@ prefixed with a code of your own diagram, text from 11 to 14 px.
   pages, nor the application. No git command, no access to production.
 - Defects found: candidates in your report (finding, `file:line`, proposed severity); if it is an existing
   finding, quote its number. Errors in existing pages: report them, do not fix them.
-- Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …` (from the documentation
+- Once a page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …` (from the documentation
   folder), naming the application files you read for it: this records the page as checked against the current
   application.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages.
-- `npx doc-kit check tables`: no table overflow on your pages.
-- Review the diagram in light and dark (`npx doc-kit view "<parent-id>~the-diagram" --theme dark --output …`)
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your pages.
+- `{{KIT_CLI}} check tables`: no table overflow on your pages.
+- Review the diagram in light and dark (`{{KIT_CLI}} view "<parent-id>~the-diagram" --theme dark --output …`)
   and one sub-page; Read the pictures; fix; delete your pictures.
 
 ## Final report (300 words at most, in the project's language)

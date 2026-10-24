@@ -51,7 +51,7 @@ d'attention et ses sous-pages (chemin dans Variables) : ne touche pas ces fichie
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun nouveau ✖ ni ⚠ ; `npx doc-kit check links` ; `npx doc-kit check tables`.
+- `{{KIT_CLI}} build --draft` : aucun nouveau ✖ ni ⚠ ; `{{KIT_CLI}} check links` ; `{{KIT_CLI}} check tables`.
 - Le fichier du glossaire reste un JSON valide (le build le lit).
 
 ## Rapport final (300 mots au plus, dans la langue du projet)

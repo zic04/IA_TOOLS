@@ -4,7 +4,7 @@ agent: doc-kit-triage
 # Brief — tri des pages à mettre à jour
 
 Pour chaque page que tu reçois, lis entièrement son FICHIER DE CONTEXTE (produit par
-`doc-kit context <page> --update`, format du chemin dans Variables) : c'est la seule lecture dont tu as besoin
+`{{KIT_CLI}} context <page> --update`, format du chemin dans Variables) : c'est la seule lecture dont tu as besoin
 pour décider. Il porte déjà le résumé de la page, ses sections obligatoires, les fichiers et extraits qui
 comptent, les libellés exacts, les faits pertinents, les termes de glossaire, et, avec `--update`, pourquoi la
 page a été signalée (le rapport de synchronisation), son diff, et les fiches avant/après de ses captures.
@@ -12,7 +12,7 @@ page a été signalée (le rapport de synchronisation), son diff, et les fiches 
 ## Décide, pour chaque page
 
 - `intact` : rien dans le fichier de contexte n'indique un vrai changement pour cette page ; l'orchestrateur
-  lance `doc-kit sync --mark` sur elle.
+  lance `{{KIT_CLI}} sync --mark` sur elle.
 - `edit` : le changement est petit et localisé (une preuve déplacée, un libellé renommé, un fait qui a
   changé) : un agent rédacteur peut corriger sans tout relire.
 - `rewrite` : le changement est structurel, ou touche la majeure partie de la page (une fonctionnalité

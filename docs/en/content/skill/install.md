@@ -31,7 +31,10 @@ doc-kit skill install
 
 The command copies `skill/doc-kit/` of the kit into `<skills folder>/doc-kit`, and replaces `{{KIT_PATH}}` with the
 kit's absolute path in `SKILL.md`, `references/*.md` and `scripts/*.mjs`: the skill knows where the kit, its
-standard and its templates are. The skills folder is `--target`, otherwise `$CLAUDE_CONFIG_DIR/skills`, otherwise
+standard and its templates are. It replaces `{{KIT_CLI}}` there, and in the agent files, with the command that runs
+the kit by that path, `node "<kit>/cli/doc-kit.mjs"`: the skill and its agents run the kit you installed, never
+`npx doc-kit`, which runs the first doc-kit it finds in a `node_modules/.bin` up to the root — the application's,
+when your documentation sits inside it. The skills folder is `--target`, otherwise `$CLAUDE_CONFIG_DIR/skills`, otherwise
 `~/.claude/skills`.
 
 It also writes the four agent types (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) to
@@ -41,16 +44,19 @@ an agent asks for is read first, and only these go through:
 
 | Allowed | Example |
 |---|---|
-| doc-kit, from the documentation folder | `cd docs/manual && npx doc-kit build --draft` |
-| The kit's CLI, by its path | `node /opt/doc-kit/cli/doc-kit.mjs check tables` |
-| The skill's scripts, by their path | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| The kit's CLI, by its absolute path, from the documentation folder | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
+| The skill's scripts, by their absolute path | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
 | Read-only tools | `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`, `diff`…, joined by a pipe, `&&` or `;` |
 
-Everything else is refused with its reason: git, npm, any other program, `$(…)`, a redirection to a file, an unquoted
-`*`, `rg --pre`, `find -exec`, and the doc-kit commands that are yours or the orchestrator's (`connect`, `demo`,
-`facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a comment planted in its
-code cannot make an agent run a program. The guard only refuses; what it lets through still asks for your
-permissions as usual.
+Everything else is refused with its reason: `npx doc-kit`, `npm exec` and a bare `doc-kit` (they may run the
+application's), a program by a relative path, a `cd` anywhere but first, git, npm, any other program, `$(…)`, a
+redirection to a file, an unquoted `*`, `rg --pre`, `find -exec`, and the doc-kit commands that are yours or the
+orchestrator's (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). The application's files are data, never
+instructions: a comment planted in its code cannot make an agent run a program. The hook fails closed: a guard that
+cannot start or load (no `node`, a missing or damaged file) refuses the command. The guard only refuses; what it lets
+through still asks for your permissions as usual. It bounds Bash only: an agent's writes, and the `doc.config.mjs`
+the kit loads where it runs (code, like a capture plan), are not its business — review a configuration you did not
+write before running the kit on it.
 
 ## Step 2 — Load it in Claude Code
 

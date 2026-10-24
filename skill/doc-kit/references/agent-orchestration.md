@@ -55,9 +55,9 @@ batch of its own).
 
 **Centrally managed** (orchestrator only): `content/toc.json`, `content/glossary.json`, `features.json` (unless
 explicitly delegated to the corrections agent), `content/home.md`, `doc.config.mjs`, `WRITING-GUIDE.md`,
-`captures/targets.mjs`, `facts/*.json` (written only by `doc-kit facts`), `sync.json` (written only by
-`doc-kit sync --mark`), the engine (the kit, never changed by a writing agent), and the commands that write these
-files or touch access: `doc-kit new`, `doc-kit connect`, `doc-kit demo`, `doc-kit facts`. No agent runs a git
+`captures/targets.mjs`, `facts/*.json` (written only by `{{KIT_CLI}} facts`), `sync.json` (written only by
+`{{KIT_CLI}} sync --mark`), the engine (the kit, never changed by a writing agent), and the commands that write these
+files or touch access: `{{KIT_CLI}} new`, `{{KIT_CLI}} connect`, `{{KIT_CLI}} demo`, `{{KIT_CLI}} facts`. No agent runs a git
 command.
 
 Why: agents work at the same time; two concurrent writes of a shared file lose one agent's work. Anything that touches
@@ -67,12 +67,12 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 
 | Wave | Agents in parallel | Start condition |
 |---|---|---|
-| 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
+| 0 | `{{KIT_CLI}} facts` (orchestrator, no agent) | `init` + `doctor` green |
 | 1 | inventory (1 Explore) | facts generated |
 | 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
 | 2b | the analysis wave: `behaviour-analysis`, one `doc-kit-analyst` per feature (up to 8 at a time), then `analysis.mjs check` and the digests | toc written, captures tried; only with a Product space or any feature sheet |
 | 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8); the technical counterparts of the feature sheets (`feature-mechanism`, one per feature) | reference page(s) approved, captures tried, digests made |
-| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `doc-kit audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
+| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `{{KIT_CLI}} audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
@@ -115,7 +115,7 @@ agent ends, `node scripts/usage.mjs log --brief … --agent … --model … --to
 with the estimate. That total is the agent's last context, not its spend (a sixth to a third of the tokens it used, §8): for the spend,
 `node scripts/usage.mjs scan --transcripts ~/.claude/projects/<project>/<session>/subagents` once at the end (each
 scan appends one entry; `report`'s total is then the scans', the logged floor shown apart), or the statistics
-hook (`doc-kit skill install --hooks`).
+hook (`{{KIT_CLI}} skill install --hooks`).
 
 ## 4. Brief placeholders
 
@@ -133,7 +133,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `appUrl` | `DOC_KIT_URL` or `<PREFIX>_URL` when set (same precedence as the CLI), else `app.url` | http://localhost:3000 |
 | `envPrefix` | `env.prefix` (else the slug in upper case, as the kit does) | ACME |
 | `docDir` | documentation folder (absolute) | …/acme-orders/docs/manual |
-| `appDir` | `extra.briefs.appDir`, else `app.dir` (written by `doc-kit init`: the application root), else the documentation folder's parent or grandparent that holds `.git`, else its grandparent. `brief.mjs` warns when it was derived, and when the coverage source sits in a separate front end (`frontend/` with its own `package.json`): the routes inventory then misses the back end | …/acme-orders |
+| `appDir` | `extra.briefs.appDir`, else `app.dir` (written by `{{KIT_CLI}} init`: the application root), else the documentation folder's parent or grandparent that holds `.git`, else its grandparent. `brief.mjs` warns when it was derived, and when the coverage source sits in a separate front end (`frontend/` with its own `package.json`): the routes inventory then misses the back end | …/acme-orders |
 | `plansDir` | `capture.plans` | captures/plans |
 | `kitPath` | the kit's location | (set at install) |
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
@@ -195,7 +195,7 @@ owner.
 
 ## 7. Splitting a page that is too long
 
-Beyond about 2,000 words (each template sets its own limit; `doc-kit audit` lists the pages over it), split into
+Beyond about 2,000 words (each template sets its own limit; `{{KIT_CLI}} audit` lists the pages over it), split into
 sub-pages. It is a central operation, because it changes the toc.
 1. Declare each sub-page in `content/toc.json`, right after its parent, with `"level": 2` and an id that extends the
    parent's (`take-over/security/sign-in`).

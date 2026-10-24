@@ -14,7 +14,7 @@ chemins sont dans Variables.
 ## Avant tout, lis
 
 - Les fichiers de contexte de tes pages (format du chemin dans Variables, produits par
-  `doc-kit context <page>` quand l'orchestrateur l'a lancé avant ce brief) : les fichiers à lire avec leurs
+  `{{KIT_CLI}} context <page>` quand l'orchestrateur l'a lancé avant ce brief) : les fichiers à lire avec leurs
   extraits, les libellés exacts et les faits pertinents — la lecture dont tu as besoin pour l'application, en
   plus de ce qui suit.
 - En option, quand une étape passe par une fonctionnalité qui a une analyse, le digest Développer de cette
@@ -94,16 +94,16 @@ schéma comme modèle.
   **candidats** (constat, `fichier:ligne`, gravité proposée), après avoir vérifié qu'ils ne sont pas déjà un
   constat existant (sinon, cite son numéro).
 - Erreurs trouvées dans les pages existantes : ne les corrige pas ; signale-les (fichier, phrase, preuve).
-- Une fois les contrôles d'une page passés, lance `npx doc-kit sync --mark <id de page> --sources …` (depuis le
+- Une fois les contrôles d'une page passés, lance `{{KIT_CLI}} sync --mark <id de page> --sources …` (depuis le
   dossier de la documentation), en citant les fichiers de l'application que tu as lus pour elle : cela
   enregistre la page comme vérifiée face à l'application actuelle.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ sur TES pages (les « page pas encore écrite » des autres
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ sur TES pages (les « page pas encore écrite » des autres
   rédacteurs sont normales).
-- `npx doc-kit check tables` : aucun débordement sur tes pages.
-- Relecture : `npx doc-kit view "<id-parent>~le-schema" --theme light --height 1100 --output
+- `{{KIT_CLI}} check tables` : aucun débordement sur tes pages.
+- Relecture : `{{KIT_CLI}} view "<id-parent>~le-schema" --theme light --height 1100 --output
   .doc-kit/<ton-code>-light.png` (ton code est dans Variables), puis avec `--theme dark`, et une sous-page ;
   Read des images ; corrige ; supprime ensuite tes images.
 

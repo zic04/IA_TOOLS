@@ -43,13 +43,13 @@ deduced one, `[[unknown]]` and the question for an unknown one. Names of code in
 - Nothing beyond the digest and the lines you re-read: no behaviour, default or check you have not seen.
 - A gap, a risk or a debt (the digest's candidate findings, and what you see yourself) goes in your report as a
   candidate finding, never in the page as a feature: the findings page is the risk register.
-- Once the page's checks pass, run `npx doc-kit sync --mark <page id> --sources …`, naming the application files
+- Once the page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …`, naming the application files
   your proofs cite.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your page.
-- `npx doc-kit check tables`: no table overflow.
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your page.
+- `{{KIT_CLI}} check tables`: no table overflow.
 
 ## Final report (200 words at most, in the project's language)
 

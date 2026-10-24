@@ -6,24 +6,24 @@ Read in full before any capture of a real application. These rules come from two
 ## 1. Before the campaign
 
 - **Ask where the screenshots are taken** (AskUserQuestion when available): local or demo application, production
-  read-only, or none. Production is declared in the configuration, `capture.target: "production"` (`doc-kit init
+  read-only, or none. Production is declared in the configuration, `capture.target: "production"` (`{{KIT_CLI}} init
   --target production --url <address>`): read-only is then mandatory (`readOnly: false` and `<PREFIX>_READONLY=0` are
-  refused), `doc-kit demo` is refused, and every `doc-kit capture` prints "PRODUCTION — read-only · N screenshots ·
+  refused), `{{KIT_CLI}} demo` is refused, and every `{{KIT_CLI}} capture` prints "PRODUCTION — read-only · N screenshots ·
   <url>" and asks (default No; `--yes` without a terminal, only for a batch the user approved).
 - **A written decision by the owner**: capture production, and with which data (real in clear, masked). Example of a
   decision: "every capture on production, without any change, real data in clear". Another: "customer table cells
   masked, users and groups screens in clear". Without a written decision: a demo, or nothing.
-- **An authorised person signs in themselves**: ask them whether to open the browser now; `doc-kit connect` opens a
+- **An authorised person signs in themselves**: ask them whether to open the browser now; `{{KIT_CLI}} connect` opens a
   visible browser; they go through SSO and MFA, then press Enter; the session is written in `.doc-kit/` (ignored by
   git). An agent never types credentials.
 - **The session never leaves `.doc-kit/`**: never copied, displayed, quoted in a report, or committed.
-  `doc-kit doctor` checks the `.gitignore` and the session's age.
+  `{{KIT_CLI}} doctor` checks the `.gitignore` and the session's age.
 - **Forbidden routes**: read the code of detail pages (see §3) and fill `capture.forbidden` before launching writers.
-  `doc-kit doctor` warns while a production target has none.
+  `{{KIT_CLI}} doctor` warns while a production target has none.
 
 ## 2. The read-only lock
 
-- With a session, or always with `capture.target: "production"`, `doc-kit capture` runs read-only: in the browser, every request other
+- With a session, or always with `capture.target: "production"`, `{{KIT_CLI}} capture` runs read-only: in the browser, every request other
   than `GET`, `HEAD` or `OPTIONS` is aborted and counted. The last line of the run gives the count of blocked write
   requests. Blocking presence pings or data-loading server actions is normal.
 - **No session, no lock** on a local or demo target: never capture a production that is not declared as such
@@ -80,16 +80,16 @@ Procedure, for any detail or administration page:
 ## 6. During the campaign
 
 - **Session expired** (redirect to the identity provider's sign-in page or `/login`, a 401): stop, say so in the
-  report; the person runs `doc-kit connect` again. `doc-kit capture` checks the session before starting and exits with
+  report; the person runs `{{KIT_CLI}} connect` again. `{{KIT_CLI}} capture` checks the session before starting and exits with
   code 3 when it has expired.
 - **Shared platform**: 3 to 8 captures per command, no needless loop, no burst of reloads.
 - Any surprise (unexpected write, sensitive data visible) stops the agent concerned until a decision is made.
 
 ## 7. After the campaign
 
-- `doc-kit connect --forget`: the session is deleted.
+- `{{KIT_CLI}} connect --forget`: the session is deleted.
 - The maintaining-the-docs page: date and version of the campaign, detail pages already opened, forbidden routes.
-- `doc-kit check secrets` on the site (values of the `.env`, GUIDs).
+- `{{KIT_CLI}} check secrets` on the site (values of the `.env`, GUIDs).
 
 ## 8. Portal screenshots and infrastructure code (phase 8)
 

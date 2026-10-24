@@ -3,7 +3,7 @@ agent: doc-kit-triage
 ---
 # Brief — triage of pages to update
 
-For each page you are given, read its CONTEXT FILE in full (written by `doc-kit context <page> --update`,
+For each page you are given, read its CONTEXT FILE in full (written by `{{KIT_CLI}} context <page> --update`,
 path pattern in Variables): it is the only reading you need to decide. It already carries the page's summary,
 required sections, the files and excerpts that matter, exact labels, relevant facts, glossary terms, and, with
 `--update`, why the page was flagged (the sync report), its diff, and the before/after sheets of its captures.
@@ -11,7 +11,7 @@ required sections, the files and excerpts that matter, exact labels, relevant fa
 ## Decide, for each page
 
 - `intact`: nothing in the context file points to a real change for this page; the orchestrator runs
-  `doc-kit sync --mark` on it.
+  `{{KIT_CLI}} sync --mark` on it.
 - `edit`: the change is small and localized (a moved proof, a renamed label, one fact that changed): a writer
   agent can patch it without rereading everything.
 - `rewrite`: the change is structural, or touches most of the page (a removed feature, a new permission

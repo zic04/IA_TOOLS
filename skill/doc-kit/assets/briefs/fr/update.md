@@ -8,7 +8,7 @@ Chaque lecture et chaque commande coûtent : respecte le budget d'étapes ci-des
 
 ## Méthode, par page (au plus 1 lecture, hors fichier de contexte et digest d'une fonctionnalité réanalysée)
 
-1. Lis entièrement le FICHIER DE CONTEXTE de la page (produit par `doc-kit context <page> --update`, chemin dans
+1. Lis entièrement le FICHIER DE CONTEXTE de la page (produit par `{{KIT_CLI}} context <page> --update`, chemin dans
    Variables) : le résumé de la page, ses sections obligatoires, les fichiers et extraits qui comptent, les
    libellés exacts, les faits pertinents, les termes de glossaire, pourquoi la page a été signalée (le rapport
    de synchronisation), son diff, et les fiches avant/après de ses captures. C'est la seule lecture dont tu as
@@ -28,7 +28,7 @@ Chaque lecture et chaque commande coûtent : respecte le budget d'étapes ci-des
    s'appliquent toujours) ; libellés exacts en gras, preuve `fichier:ligne` sur une ligne vue, déduit dit
    déduit, rien d'inventé.
 5. Une fois une page terminée et ses contrôles passés (voir « Contrôles »), lance
-   `doc-kit sync --mark <id de page> --sources …` (depuis le dossier de la documentation) pour l'enregistrer
+   `{{KIT_CLI}} sync --mark <id de page> --sources …` (depuis le dossier de la documentation) pour l'enregistrer
    comme vérifiée face à l'application actuelle.
 
 Un agent qui déborderait de ce budget s'arrête et le signale dans son rapport, plutôt que de continuer à
@@ -53,9 +53,9 @@ explorer.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun nouveau ✖ ni ⚠ pour tes pages.
-- `npx doc-kit check tables` : aucun débordement.
-- `npx doc-kit sync --check` : tes pages n'apparaissent plus hors de `unchanged`.
+- `{{KIT_CLI}} build --draft` : aucun nouveau ✖ ni ⚠ pour tes pages.
+- `{{KIT_CLI}} check tables` : aucun débordement.
+- `{{KIT_CLI}} sync --check` : tes pages n'apparaissent plus hors de `unchanged`.
 
 ## Rapport final (300 mots au plus, dans la langue du projet)
 

@@ -16,12 +16,12 @@ lists exactly what each check below is defending against.
 
 ## Your sources, in this order
 
-1. **The facts** (folder in Variables, written by `doc-kit facts`; the orchestrator ran it before this brief — if
+1. **The facts** (folder in Variables, written by `{{KIT_CLI}} facts`; the orchestrator ran it before this brief — if
    a source you need is missing, or older than the application's current commit, say so in your report instead
    of inventing one): `api.json`, `dependencies.json` (`--network` adds `exists`), `agents.json`, `tests.json`,
    `db.json`, `secrets.json`, `env.json`.
 2. For the types that support it (`api-surface`, `dependencies`, `agent-instructions`), the orchestrator may
-   already have run `doc-kit new <id> --prefill`: a table pre-filled from the facts, with a
+   already have run `{{KIT_CLI}} new <id> --prefill`: a table pre-filled from the facts, with a
    `<!-- doc-kit:prefill -->` marker above it. Complete the judgment columns (Authentication, Role, Tenant
    isolation, Status…); never remove a prefilled row without checking it in the code first.
 3. **The application code**, read-only: every file a fact or a prefilled row names, to confirm, contradict or
@@ -71,7 +71,7 @@ lists exactly what each check below is defending against.
   conclusion without direct confirmation is `[[deduced]]`.
 - Write ONLY your pages and, for `threat-model`, your diagram (paths in Variables). No fix to the application, no
   change outside your pages, no git command, and no tool that writes (`gitleaks`, `osv-scanner`… are read by
-  `doc-kit facts --tools`, run by the orchestrator, never by you).
+  `{{KIT_CLI}} facts --tools`, run by the orchestrator, never by you).
 - NEVER a secret value, even one visible in a fact file or the code: the name and "(masked)".
 - A gap or defect found is a **candidate finding** in your report (never written directly to the findings page):
   severity, the finding, its proof, and, when it is clear, a suggested Decision (fix, accept, transfer, avoid)
@@ -79,9 +79,9 @@ lists exactly what each check below is defending against.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages.
-- `npx doc-kit check tables`; `npx doc-kit check secrets`: no secret value left in a page.
-- Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …`, naming the facts files and the
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your pages.
+- `{{KIT_CLI}} check tables`; `{{KIT_CLI}} check secrets`: no secret value left in a page.
+- Once a page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …`, naming the facts files and the
   application files you read for it.
 
 ## Final report (350 words at most, in the project's language)

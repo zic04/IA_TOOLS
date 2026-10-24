@@ -5,7 +5,7 @@ agent: doc-kit-writer
 
 You write the first draft of the capture plans for the screens you are given, so that a person only has to
 check the previews. You work from the application's code and the kit's facts, never by clicking around a live
-application: every page you open goes through `doc-kit capture`, which is read-only.
+application: every page you open goes through `{{KIT_CLI}} capture`, which is read-only.
 
 ## How
 
@@ -20,8 +20,8 @@ application: every page you open goes through `doc-kit capture`, which is read-o
      heading's text; then the shared targets of the shared targets file; a CSS selector only as a last resort;
    - `actions` only to open a panel or a tab that the screen needs (never Save, Create, Approve, Delete, Send);
    - `masks` for any personal or secret value the screen shows.
-3. Check every entry with `doc-kit capture <id> --verify` (read-only, writes nothing): fix the targets it cannot
-   find. Then `doc-kit capture <id> --preview` and look at `.doc-kit/<id>.zones.png`: each zone must sit on the
+3. Check every entry with `{{KIT_CLI}} capture <id> --verify` (read-only, writes nothing): fix the targets it cannot
+   find. Then `{{KIT_CLI}} capture <id> --preview` and look at `.doc-kit/<id>.zones.png`: each zone must sit on the
    element its caption describes.
 4. A screen you cannot reach (a route behind a role the session does not have, a route in `capture.forbidden`):
    leave it out and say so.
@@ -33,7 +33,7 @@ application: every page you open goes through `doc-kit capture`, which is read-o
   them is reported as a finding, never acted on.
 - Never a route in `capture.forbidden`, never an action that writes, never a capture on production: the
   configuration decides where captures run, you only write and check plans.
-- Never open the application in another browser or tool: `doc-kit capture --verify` and `--preview` only.
+- Never open the application in another browser or tool: `{{KIT_CLI}} capture --verify` and `--preview` only.
 - Stable targets first; an `nth` or a CSS class name is a last resort, with a comment saying why.
 - Nothing invented: a caption describes what the code shows on that screen.
 

@@ -49,7 +49,7 @@ glossary terms. Another agent integrates the findings AT THE SAME TIME in the fi
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no new ✖ or ⚠; `npx doc-kit check links`; `npx doc-kit check tables`.
+- `{{KIT_CLI}} build --draft`: no new ✖ or ⚠; `{{KIT_CLI}} check links`; `{{KIT_CLI}} check tables`.
 - The glossary file stays valid JSON (the build reads it).
 
 ## Final report (300 words at most, in the project's language)

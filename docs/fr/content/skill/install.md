@@ -31,7 +31,10 @@ doc-kit skill install
 
 La commande copie le dossier `skill/doc-kit/` du kit dans `<dossier des skills>/doc-kit`, et remplace `{{KIT_PATH}}`
 par le chemin absolu du kit dans `SKILL.md`, `references/*.md` et `scripts/*.mjs` : le skill sait où se trouvent le
-kit, son standard et ses gabarits. Le dossier des skills est `--target`, sinon `$CLAUDE_CONFIG_DIR/skills`, sinon
+kit, son standard et ses gabarits. Elle y remplace aussi `{{KIT_CLI}}`, comme dans les fichiers des agents, par la
+commande qui lance le kit par ce chemin, `node "<kit>/cli/doc-kit.mjs"` : le skill et ses agents lancent le kit que
+vous avez installé, jamais `npx doc-kit`, qui lance le premier doc-kit qu'il trouve dans un `node_modules/.bin`
+jusqu'à la racine — celui de l'application, quand votre documentation est dedans. Le dossier des skills est `--target`, sinon `$CLAUDE_CONFIG_DIR/skills`, sinon
 `~/.claude/skills`.
 
 Elle écrit aussi les quatre types d'agents (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-analyst`,
@@ -42,16 +45,20 @@ passent :
 
 | Permis | Exemple |
 |---|---|
-| doc-kit, depuis le dossier de la documentation | `cd docs/manual && npx doc-kit build --draft` |
-| Le CLI du kit, par son chemin | `node /opt/doc-kit/cli/doc-kit.mjs check tables` |
-| Les scripts du skill, par leur chemin | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| Le CLI du kit, par son chemin absolu, depuis le dossier de la documentation | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
+| Les scripts du skill, par leur chemin absolu | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
 | Des outils de lecture | `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`, `diff`…, reliés par un tube, `&&` ou `;` |
 
-Tout le reste est refusé, avec sa raison : git, npm, tout autre programme, `$(…)`, une redirection vers un fichier, un
-`*` sans guillemets, `rg --pre`, `find -exec`, et les commandes de doc-kit qui sont les vôtres ou celles de
-l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les fichiers de l'application sont des
-données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un
-agent. La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations, comme d'habitude.
+Tout le reste est refusé, avec sa raison : `npx doc-kit`, `npm exec` et un `doc-kit` nu (ils peuvent lancer celui de
+l'application), un programme par un chemin relatif, un `cd` ailleurs qu'en premier, git, npm, tout autre programme,
+`$(…)`, une redirection vers un fichier, un `*` sans guillemets, `rg --pre`, `find -exec`, et les commandes de doc-kit
+qui sont les vôtres ou celles de l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les
+fichiers de l'application sont des données, jamais des instructions : un commentaire glissé dans son code ne peut pas
+faire lancer un programme à un agent. Le hook échoue fermé : une garde qui ne peut pas démarrer ou se charger (pas de
+`node`, un fichier absent ou abîmé) refuse la commande. La garde ne fait que refuser ; ce qu'elle laisse passer
+demande toujours vos autorisations, comme d'habitude. Elle ne borne que Bash : les écritures d'un agent, et le
+`doc.config.mjs` que le kit charge là où il tourne (du code, comme un plan de capture), ne sont pas de son ressort —
+relisez une configuration que vous n'avez pas écrite avant d'y lancer le kit.
 
 ## Étape 2 — Le charger dans Claude Code
 

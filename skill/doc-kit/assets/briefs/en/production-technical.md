@@ -10,7 +10,7 @@ and what is missing.
 
 ## Your sources, and only them
 
-- Your pages' context files (path pattern in Variables, written by `doc-kit context <page>` when the
+- Your pages' context files (path pattern in Variables, written by `{{KIT_CLI}} context <page>` when the
   orchestrator ran it before this brief), when the orchestrator prepared them: excerpts of the application
   code, exact labels and the relevant facts for each page, curated from the sources below — read them first.
 - The **portal screenshots** provided by the application owner (folder in Variables): list of resources,
@@ -73,15 +73,15 @@ unknown, to ask the infrastructure team.
   writing standard), prefixed `<marker>` ids, text from 11 to 14 px, reviewed in light and dark.
 - Production-only findings: **candidates of the P series** in your report (finding, proof: screenshot or
   `file:line`, proposed severity), after checking they are not already numbered.
-- Once a page's checks pass, run `npx doc-kit sync --mark <page id> --sources …` (from the documentation
+- Once a page's checks pass, run `{{KIT_CLI}} sync --mark <page id> --sources …` (from the documentation
   folder), naming the application files you read for it: this records the page as checked against the current
   application.
 
 ## Checks (from the documentation folder)
 
-- `npx doc-kit build --draft`: no ✖ or ⚠ for your pages; `npx doc-kit check tables`; `npx doc-kit check
+- `{{KIT_CLI}} build --draft`: no ✖ or ⚠ for your pages; `{{KIT_CLI}} check tables`; `{{KIT_CLI}} check
   secrets`.
-- Review the diagram in light and dark with `npx doc-kit view`; Read the pictures; delete them afterwards.
+- Review the diagram in light and dark with `{{KIT_CLI}} view`; Read the pictures; delete them afterwards.
 
 ## Final report (350 words at most, in the project's language)
 

@@ -1,27 +1,35 @@
 #!/usr/bin/env node
 // Claude Code hook (PreToolUse, matcher Bash) of the skill's agents that have Bash — doc-kit-writer, doc-kit-analyst,
-// doc-kit-reviewer: their definitions name it, and `doc-kit skill install` writes its path in them. The application's
-// files are data, never instructions (SECURITY.md); a text planted in them must not be able to make an agent run a
-// program. So the agent's Bash runs only:
-//   - `npx doc-kit <command> …` from a documentation folder (one that holds doc.config.mjs: npx resolves doc-kit from
-//     the folder it runs in, never from the application's), `doc-kit <command> …`, and `node <kit>/cli/doc-kit.mjs`;
-//     never a command the orchestrator or the user runs (DOC_KIT_REFUSED), never `--plans` (capture plans are code);
-//   - `node <this skill>/scripts/<script>.mjs …`, the skill's own scripts (SKILL_SCRIPTS), by their path;
+// doc-kit-reviewer: their definitions name it, `node "<skill>/scripts/bash-guard.mjs" || exit 2`, and `doc-kit skill
+// install` writes the skill's path in them. The application's files are data, never instructions (SECURITY.md); a text
+// planted in them must not be able to make an agent run a program. So the agent's Bash runs only:
+//   - the kit's CLI by its absolute path, `node "<kit>/cli/doc-kit.mjs" <command> …` (the path `skill install` writes
+//     in the skill, {{KIT_PATH}}): never `npx doc-kit`, `npm exec` or a bare `doc-kit`, which run the first doc-kit
+//     found in a node_modules/.bin up to the root — the application's, when the documentation sits inside it — or, with
+//     none, install one from the registry; never a command the orchestrator or the user runs (DOC_KIT_REFUSED), never
+//     `--plans` (capture plans are code);
+//   - `node <this skill>/scripts/<script>.mjs …`, the skill's own scripts (SKILL_SCRIPTS), by their absolute path;
 //   - read-only tools (READ_ONLY), without their options that run a program or write a file;
-//   - `cd <folder> &&` before them; `|`, `&&`, `||` and `;` between them; `2>&1` and `>/dev/null`.
+//   - `cd <folder> &&` first, before them (the folder the kit reads its doc.config.mjs from); `|`, `&&`, `||` and `;`
+//     between them; `2>&1` and `>/dev/null`.
+// What runs never depends on the folder the command runs in: a program is named by its absolute path, never a
+// relative one a `cd` that fails, or a `cd` in a pipeline, would resolve elsewhere.
 // Anything else is refused: an expansion ($, a backquote), a redirection to a file, a background job, a subshell, an
-// unquoted wildcard, a second line, git, a path to another program.
+// unquoted wildcard, a second line, git, npm, a path to another program.
 //
 // The decision (bashDecision) is pure: it reads the command as bash would split it, by hand — no shell, no eval, no
-// regular expression — and is told by its caller whether a folder holds doc.config.mjs. Nothing of the application is
-// read or run. The hook only ever refuses: what it lets through still goes through Claude Code's own permissions.
-// Input (stdin): { tool_name, tool_input: { command }, cwd }. Refusal: exit code 2, the reason on stderr (Claude Code
-// gives it to the agent), in DOC_KIT_LANG's language (English by default). Unreadable input is refused too.
-import fs from "node:fs";
+// regular expression — and reads no file. Nothing of the application is read or run. The hook only ever refuses: what
+// it lets through still goes through Claude Code's own permissions.
+// Input (stdin): { tool_name, tool_input: { command } }. Refusal: exit code 2, the reason on stderr (Claude Code
+// gives it to the agent), in DOC_KIT_LANG's language (English by default). Claude Code blocks a command only on exit
+// code 2, so the hook fails closed: unreadable input, a skill file that cannot load (a missing or corrupt message
+// file) and an unexpected error are refused with 2, and the agents' hook command ends with `|| exit 2` for what this
+// file cannot catch (no node, a missing or broken script: exit codes 127 and 1).
+// Only Node's own modules are imported here: the skill's (common.mjs, its message files) are imported by the hook,
+// inside a try.
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { SKILL_ROOT, kitPath, setMessageLanguage, t, useMessages } from "./common.mjs";
 
 /** The skill's scripts an agent runs (the others are modules or hooks). */
 export const SKILL_SCRIPTS = ["analysis.mjs", "brief.mjs", "consolidation.mjs", "usage.mjs"];
@@ -225,13 +233,22 @@ function windowsPath(p) {
   return s[0] === "/" && isLetter(s[1] ?? "") && (s.length === 2 || s[2] === "/") ? `${s[1]}:/${s.slice(3)}` : s;
 }
 
-/** `p` resolved from `base`, in a form two paths of the same file share (lower case on Windows). */
-function resolvePath(base, p, windows) {
-  if (!windows) return path.posix.resolve(base, p);
-  return path.win32.resolve(windowsPath(base), windowsPath(p)).split("\\").join("/").toLowerCase();
+/**
+ * An absolute path, in a form two paths of the same file share (lower case on Windows); "" for any other path: a
+ * relative one names a file of the folder the command runs in, which may be the application's, and on Windows a path
+ * needs its drive (Git Bash reads `/x` under its own folder, not under C:).
+ * @param {string} p
+ * @param {boolean} windows
+ */
+function absolutePath(p, windows) {
+  if (!windows) return p.startsWith("/") ? path.posix.resolve(p) : "";
+  const s = windowsPath(p);
+  if (!(isLetter(s[0] ?? "") && s[1] === ":" && s[2] === "/")) return "";
+  return path.win32.resolve(s).split("\\").join("/").toLowerCase();
 }
 
-/** `doc-kit …`: the command first, never one of DOC_KIT_REFUSED, never `--plans`; `--help`/`--version` alone are fine. */
+/** The kit's command line: the command first, never one of DOC_KIT_REFUSED, never `--plans`; `--help`/`--version`
+ * alone are fine. */
 function checkDocKit(args) {
   const [command] = args;
   if (command === undefined || (command.startsWith("-") && !args.every((a) => HELP.has(a))))
@@ -241,29 +258,33 @@ function checkDocKit(args) {
   if (args.some((a) => a === "--plans" || a.startsWith("--plans="))) throw new Refusal("plans");
 }
 
-/** `node <script> …`: the kit's CLI (then as `doc-kit …`) or one of the skill's scripts, by its path. */
-function checkNode(args, cwd, opts) {
+/** `node <script> …`: the kit's CLI (then checked as the kit's command line) or one of the skill's scripts, each by its
+ * absolute path. */
+function checkNode(args, opts) {
   const [script] = args;
-  const refused = new Refusal("node", { scripts: SKILL_SCRIPTS.join(", ") });
-  if (!script || script.startsWith("-")) throw refused;
-  const target = resolvePath(cwd, script, opts.windows);
-  if (opts.kitDir && target === resolvePath(opts.kitDir, "cli/doc-kit.mjs", opts.windows))
-    return checkDocKit(args.slice(1));
-  if (!SKILL_SCRIPTS.some((s) => target === resolvePath(opts.skillDir, `scripts/${s}`, opts.windows))) throw refused;
+  const target = script && !script.startsWith("-") ? absolutePath(script, opts.windows) : "";
+  const is = (dir, file) => Boolean(target && dir) && target === absolutePath(`${dir}/${file}`, opts.windows);
+  if (is(opts.kitDir, "cli/doc-kit.mjs")) return checkDocKit(args.slice(1));
+  if (!SKILL_SCRIPTS.some((s) => is(opts.skillDir, `scripts/${s}`)))
+    throw new Refusal("node", { scripts: SKILL_SCRIPTS.join(", ") });
 }
 
-/** One simple command; `state.cwd` follows a `cd`. */
-function checkSegment({ argv, op }, state, opts) {
+/** What runs a package by its name: it looks in every node_modules/.bin up to the root, the application's among them,
+ * and installs the package from the registry when none has it. */
+const RUNNERS = new Set(["npx", "pnpx", "bunx"]);
+const NPM_EXEC = new Set(["exec", "x"]);
+
+/**
+ * One simple command, the `index`-th of the line. A `cd` comes first and is followed by `&&`: after another command,
+ * in a pipeline (a subshell) or after `||` (skipped), it would not move what follows.
+ */
+function checkSegment({ argv, op }, index, opts) {
   const [name, ...args] = argv;
   if (name === "cd") {
-    if (args.length !== 1 || (op !== "&&" && op !== "")) throw new Refusal("cd");
-    state.cwd = resolvePath(state.cwd, args[0], opts.windows);
-  } else if (name === "npx") {
-    if (args[0] !== "doc-kit") throw new Refusal("npx");
-    if (!opts.isDocFolder(state.cwd)) throw new Refusal("docFolder", { folder: state.cwd });
-    checkDocKit(args.slice(1));
-  } else if (name === "doc-kit") checkDocKit(args);
-  else if (name === "node") checkNode(args, state.cwd, opts);
+    if (index !== 0 || args.length !== 1 || op !== "&&") throw new Refusal("cd");
+  } else if (RUNNERS.has(name) || (name === "npm" && NPM_EXEC.has(args[0]))) throw new Refusal("npx");
+  else if (name === "doc-kit") throw new Refusal("kitCli");
+  else if (name === "node") checkNode(args, opts);
   else if (Object.hasOwn(READ_ONLY, name)) {
     const option = args.find((a) => READ_ONLY[name](a));
     if (option !== undefined) throw new Refusal("option", { name, option });
@@ -271,17 +292,16 @@ function checkSegment({ argv, op }, state, opts) {
 }
 
 /**
- * Whether the guard lets a Bash command through. Pure: the folder test is given.
+ * Whether the guard lets a Bash command through. Pure: it reads no file, and the folder the command runs in plays no
+ * part (every program is named by its absolute path).
  * @param {string} command
- * @param {{ cwd: string, skillDir: string, kitDir?: string, home?: string, windows?: boolean,
- *   isDocFolder?: (dir: string) => boolean }} opts
+ * @param {{ skillDir: string, kitDir?: string, home?: string, windows?: boolean }} opts
  * @returns {{ allow: true } | { allow: false, key: string, vars: Record<string, string> }}
  */
 export function bashDecision(command, opts) {
-  const o = { kitDir: "", home: "", windows: false, isDocFolder: () => false, ...opts };
+  const o = { kitDir: "", home: "", windows: false, ...opts };
   try {
-    const state = { cwd: resolvePath(o.cwd, ".", o.windows) };
-    for (const segment of splitCommand(command, o.home)) checkSegment(segment, state, o);
+    splitCommand(command, o.home).forEach((segment, index) => checkSegment(segment, index, o));
     return { allow: true };
   } catch (e) {
     if (e instanceof Refusal) return { allow: false, key: e.key, vars: e.vars };
@@ -289,51 +309,91 @@ export function bashDecision(command, opts) {
   }
 }
 
+/** What the hook says when the skill's own files cannot help it: in both languages, without them. */
+const FAILED = {
+  load:
+    "✖ doc-kit guard: command refused — the guard could not load its files: reinstall the skill (doc-kit skill install)\n" +
+    "✖ garde de doc-kit : commande refusée — la garde n'a pas pu charger ses fichiers : réinstallez le skill (doc-kit skill install)\n",
+  crash:
+    "✖ doc-kit guard: command refused — an unexpected error in the guard: refused, to be safe\n" +
+    "✖ garde de doc-kit : commande refusée — une erreur inattendue dans la garde : refusé, par prudence\n",
+};
+
 /**
  * The hook: reads Claude Code's input, decides, and returns the exit code (0 let through, 2 refused, with the reason
- * written by `print`).
+ * written by `print`). Fails closed: input it cannot read, a skill module that cannot load (`load`, common.mjs and
+ * its message files) and an unexpected error all give 2.
  * @param {string} raw   the hook's input (JSON)
- * @param {{ env?: NodeJS.ProcessEnv, cwd?: string, print?: (s: string) => void }} [io]
+ * @param {{ env?: NodeJS.ProcessEnv, print?: (s: string) => void, load?: () => Promise<any> }} [io]
+ * @returns {Promise<number>}
  */
-export function guard(raw, { env = process.env, cwd = process.cwd(), print = (s) => process.stderr.write(s) } = {}) {
-  useMessages("guard");
-  setMessageLanguage("en"); // the default, whatever an earlier call chose
-  setMessageLanguage(env.DOC_KIT_LANG);
-  /** @type {{ allow: boolean, key?: string, vars?: Record<string, string> }} */
-  let decision = { allow: false, key: "input" };
+export async function guard(
+  raw,
+  { env = process.env, print = (s) => process.stderr.write(s), load = () => import("./common.mjs") } = {},
+) {
+  let common;
   try {
-    const input = JSON.parse(raw);
-    if (typeof input?.tool_name === "string" && input.tool_name !== "Bash") return 0;
-    const command = input?.tool_input?.command;
-    if (typeof command === "string")
-      decision = bashDecision(command, {
-        cwd: typeof input.cwd === "string" && input.cwd ? input.cwd : cwd,
-        skillDir: SKILL_ROOT,
-        kitDir: kitPath(),
-        home: env.HOME || env.USERPROFILE || os.homedir(),
-        windows: process.platform === "win32",
-        isDocFolder: (dir) => fs.existsSync(path.join(dir, "doc.config.mjs")),
-      });
+    common = await load();
   } catch {
-    decision = { allow: false, key: "input" };
+    print(FAILED.load);
+    return 2;
   }
+  try {
+    return decide(raw, env, print, common);
+  } catch {
+    print(FAILED.crash);
+    return 2;
+  }
+}
+
+/** Claude Code's input, read; null when it is not JSON. */
+function parsed(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** The decision on Claude Code's input, with the skill's messages and the kit's path (common.mjs). */
+function decide(raw, env, print, common) {
+  common.useMessages("guard");
+  common.setMessageLanguage("en"); // the default, whatever an earlier call chose
+  common.setMessageLanguage(env.DOC_KIT_LANG);
+  // The kit's path `skill install` wrote in common.mjs (or the source tree the skill sits in): never one a
+  // documentation project names.
+  const kitDir = common.kitPath();
+  const input = parsed(raw);
+  if (typeof input?.tool_name === "string" && input.tool_name !== "Bash") return 0;
+  const command = input?.tool_input?.command;
+  /** @type {{ allow: boolean, key?: string, vars?: Record<string, string> }} */
+  const decision =
+    typeof command === "string"
+      ? bashDecision(command, {
+          skillDir: common.SKILL_ROOT,
+          kitDir,
+          home: env.HOME || env.USERPROFILE || os.homedir(),
+          windows: process.platform === "win32",
+        })
+      : { allow: false, key: "input" };
   if (decision.allow) return 0;
-  print(`✖ ${t("refused", { reason: t(decision.key ?? "input", decision.vars) })}\n  → ${t("allowed")}\n`);
+  const vars = { cli: kitDir ? common.kitCommand(kitDir) : common.t("noKit"), ...decision.vars };
+  const reason = common.t(decision.key ?? "input", vars);
+  print(`✖ ${common.t("refused", { reason })}\n  → ${common.t("allowed", vars)}\n`);
   return 2;
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 if (isMain) {
+  const refuse = () => {
+    process.stderr.write(FAILED.crash);
+    process.exit(2);
+  };
+  process.on("uncaughtException", refuse);
+  process.on("unhandledRejection", refuse);
   let raw = "";
   process.stdin.setEncoding("utf8");
+  process.stdin.on("error", refuse);
   process.stdin.on("data", (c) => (raw += c));
-  process.stdin.on("end", () => {
-    let code = 2;
-    try {
-      code = guard(raw);
-    } catch {
-      process.stderr.write(`✖ ${t("refused", { reason: t("unexpected") })}\n`);
-    }
-    process.exit(code);
-  });
+  process.stdin.on("end", () => guard(raw).then((code) => process.exit(code), refuse));
 }

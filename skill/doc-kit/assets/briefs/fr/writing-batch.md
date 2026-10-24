@@ -13,7 +13,7 @@ voir Variables).
 
 ### Par page, au plus 3 lectures en plus du dossier de contexte
 
-1. Lis le fichier de contexte de la page (déjà préparé par l'orchestrateur avec `doc-kit context`, chemin dans
+1. Lis le fichier de contexte de la page (déjà préparé par l'orchestrateur avec `{{KIT_CLI}} context`, chemin dans
    Variables), puis le fichier de la page dans le dossier de contenu : c'est son gabarit, avec ses sections et
    ses consignes.{{#if reads}} En plus du dossier de contexte, l'orchestrateur te donne : {{reads}} (hors budget
    des 3 lectures ci-dessous).{{/if}} Quand une page documente une fonctionnalité qui a une analyse, son digest
@@ -31,13 +31,13 @@ voir Variables).
 
 ### Par lot, une fois toutes tes pages écrites
 
-5. UNE fois `npx doc-kit build --draft` et `npx doc-kit check tables`, puis UNE seule modification corrigeant les
+5. UNE fois `{{KIT_CLI}} build --draft` et `{{KIT_CLI}} check tables`, puis UNE seule modification corrigeant les
    avertissements qui concernent tes pages (jamais « une page métier cite une preuve technique » : laisse-la,
    signale-la).
 6. {{#if captureMode!=none}}Relecture visuelle : au moins une page de ton lot, au plus une image par page —
-   `npx doc-kit view <id-page> --output .doc-kit/<ton-code>-<nom>.png` ; Read l'image ; corrige si besoin ;
+   `{{KIT_CLI}} view <id-page> --output .doc-kit/<ton-code>-<nom>.png` ; Read l'image ; corrige si besoin ;
    supprime-la ensuite.{{/if}}
-7. Pour chaque page dont les contrôles passent : `npx doc-kit sync --mark <id de page> --sources …`, en citant
+7. Pour chaque page dont les contrôles passent : `{{KIT_CLI}} sync --mark <id de page> --sources …`, en citant
    les fichiers de l'application que tu as lus pour elle (les directs d'abord). Cela l'enregistre comme vérifiée
    face à l'application actuelle.
 
@@ -76,7 +76,7 @@ explorer.
 écrit les captures sur la production, sans aucune modification (voir Variables pour une éventuelle politique de
 données).
 
-- Commande, par petits lots de 3 à 8 captures : `npx doc-kit capture "<préfixe>-<motif>*" --preview`.
+- Commande, par petits lots de 3 à 8 captures : `{{KIT_CLI}} capture "<préfixe>-<motif>*" --preview`.
 - Le moteur BLOQUE dans le navigateur toute requête qui n'est pas GET, HEAD ou OPTIONS (la dernière ligne compte
   les requêtes d'écriture bloquées). Ce n'est pas une raison pour cliquer des boutons d'écriture : UNIQUEMENT de
   la navigation (pages, onglets, menus, ouverture d'une fenêtre ou d'un assistant puis Échap, survol). Jamais :
@@ -99,16 +99,16 @@ données).
 - La production est partagée : pas de boucles inutiles, pas de rafales de rechargements.
 {{#if productionNotes}}
 ⚠ CONSIGNE COMPLÉMENTAIRE : voir Variables.
-{{/if}}{{/if}}{{#if captureMode=demo}}**DÉMO PRÉPARÉE** (données fictives). L'orchestrateur a lancé `doc-kit demo` : ne le relance pas.
+{{/if}}{{/if}}{{#if captureMode=demo}}**DÉMO PRÉPARÉE** (données fictives). L'orchestrateur a lancé `{{KIT_CLI}} demo` : ne le relance pas.
 
-- Commande : `npx doc-kit capture "<préfixe>-<motif>*" --preview`.
+- Commande : `{{KIT_CLI}} capture "<préfixe>-<motif>*" --preview`.
 - Aucune modification de valeur pendant une capture : un éditeur qui enregistre tout seul écrirait en base.
   Seuls sont permis les clics de navigation, l'ouverture d'un bloc ou d'une fenêtre, et les boutons de test en
   lecture seule.
 - S'il manque une donnée à la démo, ne la crée pas à la main : demande-la dans ton rapport (elle sera ajoutée au
   script de préparation, `capture.setup`).
-{{/if}}{{#if captureMode=none}}{{#if screenshots=none}}**AUCUNE CAPTURE DU TOUT** (`capture.mode: "none"` dans `doc.config.mjs`) : ne lance jamais `doc-kit capture` ni
-`doc-kit connect`, n'écris jamais de `:::ecran`. Dans « L'écran », un tableau par panneau ou par fenêtre,
+{{/if}}{{#if captureMode=none}}{{#if screenshots=none}}**AUCUNE CAPTURE DU TOUT** (`capture.mode: "none"` dans `doc.config.mjs`) : ne lance jamais `{{KIT_CLI}} capture` ni
+`{{KIT_CLI}} connect`, n'écris jamais de `:::ecran`. Dans « L'écran », un tableau par panneau ou par fenêtre,
 `| Élément | Ce qu'il montre |`, une ligne par élément dans l'ordre de lecture (de haut en bas, puis de gauche à
 droite) : le libellé exact en gras, puis son rôle, ses valeurs, son défaut et son effet, en 1 à 3 phrases, lus dans le
 code (composants, fichiers de traduction).
@@ -134,7 +134,7 @@ sur elle.
   de schéma (classes de schéma `d-*` du site seulement, tableau dans le standard de rédaction du kit ; à
   vérifier en clair ET en sombre). Chemins : voir Variables. Ne modifie ni l'application, ni le sommaire, ni le
   glossaire, ni la configuration, ni le fichier des cibles, ni le kit, ni les fichiers des autres lots. N'utilise
-  pas `doc-kit new`, `connect` ni `demo`. Aucune commande git.
+  pas `{{KIT_CLI}} new`, `connect` ni `demo`. Aucune commande git.
 - Défauts de l'application découverts : ne touche pas aux points d'attention ; liste-les comme candidats dans
   ton rapport, après avoir vérifié qu'ils ne sont pas déjà un constat existant (la page des points d'attention
   est dans Variables ; sinon, cite son numéro).

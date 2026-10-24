@@ -12,7 +12,7 @@ Ta page est DÉJÀ déclarée dans le sommaire (voir Variables) : ne change ni s
 
 ## Tes sources, dans cet ordre
 
-1. **Les faits** (dossier dans Variables, écrits par `doc-kit facts --source quality` ; l'orchestrateur les a
+1. **Les faits** (dossier dans Variables, écrits par `{{KIT_CLI}} facts --source quality` ; l'orchestrateur les a
    produits avant ce brief — s'ils manquent, ou sont plus anciens que le commit actuel de l'application, dis-le
    dans ton rapport plutôt que d'inventer des chiffres) : le `summary` de `quality.json` (les quatre notes,
    l'outillage trouvé) et ses `items` (par fichier : `lines`, `functions`, `longest`, `complexity`, `duplicated`,
@@ -56,8 +56,8 @@ Ta page est DÉJÀ déclarée dans le sommaire (voir Variables) : ne change ni s
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour ta page.
-- Une fois les contrôles passés, lance `npx doc-kit sync --mark <id de page> --sources …`, en citant les fichiers
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour ta page.
+- Une fois les contrôles passés, lance `{{KIT_CLI}} sync --mark <id de page> --sources …`, en citant les fichiers
   de faits et les fichiers de l'application que tu as lus.
 
 ## Rapport final (300 mots au plus, dans la langue du projet)

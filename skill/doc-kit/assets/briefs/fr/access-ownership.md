@@ -12,7 +12,7 @@ Ta page est DÉJÀ déclarée dans le sommaire (voir Variables) : ne change ni s
 
 ## Tes sources
 
-- **Les faits** (dossier dans Variables, écrits par `doc-kit facts`) : `secrets.json` et `env.json` (chaque nom
+- **Les faits** (dossier dans Variables, écrits par `{{KIT_CLI}} facts`) : `secrets.json` et `env.json` (chaque nom
   de secret et de variable, jamais une valeur), `dependencies.json` (le SDK d'un fournisseur laisse deviner un
   compte : envoi d'e-mails, paiements, un modèle IA ou une base vectorielle), `agents.json` (un fichier
   d'instructions d'agent qui nomme un compte ou un outil).
@@ -64,9 +64,9 @@ réponse revienne.
 
 ## Contrôles (depuis le dossier de la documentation)
 
-- `npx doc-kit build --draft` : aucun ✖ ni ⚠ pour ta page.
-- `npx doc-kit check secrets` : aucune valeur de secret laissée sur la page.
-- Une fois les contrôles passés, lance `npx doc-kit sync --mark <id de page> --sources …`, en citant les fichiers
+- `{{KIT_CLI}} build --draft` : aucun ✖ ni ⚠ pour ta page.
+- `{{KIT_CLI}} check secrets` : aucune valeur de secret laissée sur la page.
+- Une fois les contrôles passés, lance `{{KIT_CLI}} sync --mark <id de page> --sources …`, en citant les fichiers
   de faits que tu as utilisés.
 
 ## Rapport final (300 mots au plus, dans la langue du projet)
