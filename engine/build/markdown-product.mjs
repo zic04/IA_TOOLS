@@ -103,7 +103,7 @@ function heading(s, anchor, html, title) {
   const ctx = s.context();
   ctx.slugs.add(anchor);
   ctx.toc.push({ id: anchor, title: plainText(title), level: 3 });
-  return `<h3 id="${esc(anchor)}">${html}<a class="ancre" href="#/${ctx.pageId}~${esc(anchor)}" aria-label="${esc(s.t("render.sectionLink"))}">#</a></h3>`;
+  return `<h3 id="${esc(anchor)}">${html}<a class="ancre" href="#/${esc(ctx.pageId)}~${esc(anchor)}" aria-label="${esc(s.t("render.sectionLink"))}">#</a></h3>`;
 }
 
 /** A free anchor for a card without an id: its title's slug, made unique in the page. */

@@ -16,6 +16,8 @@
   "cli.build.facts.column.help": "les colonnes sont les clés des éléments de facts/{source}.json",
   "cli.build.facts.missing": "[{page}] fichier de faits introuvable : {file}",
   "cli.build.facts.missing.help": "lancez d'abord {command} facts --source {source}, ou vérifiez paths.facts",
+  "cli.build.facts.source": "[{page}] source de faits refusée : « {source} »",
+  "cli.build.facts.source.help": "une source est le nom d'un fichier de faits : env, api, db… (minuscules, chiffres et tirets), jamais un chemin",
   "cli.facts.noApp": "aucune application à lire",
   "cli.stacks.name": "adaptateur de la famille {kind} {file} : « {name} » est le nom d'un adaptateur du kit",
   "cli.stacks.name.help": "donnez à l'adaptateur du projet un nom à lui (son \"name\"), ou désactivez celui du kit avec {key}.disabled",

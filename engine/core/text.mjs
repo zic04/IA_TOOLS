@@ -33,6 +33,13 @@ export function upToLast(text, close) {
   return text.slice(0, end);
 }
 
+/**
+ * Whether a directive's attribute that names a file of the project (`::facts{source}`, `::diagram{id}`) is a plain
+ * name: lower-case letters, digits and "-" — never a path that climbs or names a folder (the pages are written by
+ * agents from the application's code, which is untrusted).
+ */
+export const isPlainName = (s) => typeof s === "string" && /^[a-z0-9-]+$/.test(s);
+
 /** Attributes of a directive: `id="x" title="y"` → { id: "x", title: "y" }. */
 export const attrs = (s) =>
   Object.fromEntries([...String(s || "").matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));

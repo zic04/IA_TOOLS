@@ -27,6 +27,7 @@ import { KitError, EXIT } from "../project/errors.mjs";
 import { readableFiles, infraFiles, readCode } from "./code-files.mjs";
 import { collectDependencies } from "./dependencies.mjs";
 import { adaptersOf, detectedBy } from "../core/adapters.mjs";
+import { realPathOf } from "../core/confine.mjs";
 
 /**
  * @typedef {{ name: string, files: RegExp, marker?: RegExp, languages?: string[],
@@ -54,15 +55,6 @@ export const BUILT_IN_STACKS = Object.freeze([
   rails,
   rust,
 ]);
-
-/** The real path of a file or a folder (links, junctions and short names resolved), or null when there is none. */
-function realOrNull(p) {
-  try {
-    return fs.realpathSync.native(p);
-  } catch {
-    return null;
-  }
-}
 
 /** Whether a real path is a folder or inside it. */
 const within = (real, dir) => real === dir || real.startsWith(dir + path.sep);
@@ -97,11 +89,11 @@ export async function loadProjectAdapters({ kind, key, builtIn, root, config }) 
       throw new KitError(EXIT.USAGE, "stacks.unknown", { key, kind, name, known: known.join(", ") });
   const out = builtIn.filter((a) => !disabled.includes(/** @type {any} */ (a).name));
   const base = fs.realpathSync.native(path.resolve(root));
-  const app = config.app?.dir ? realOrNull(path.resolve(root, config.app.dir)) : null;
-  const inside = [app, realOrNull(path.join(root, ".doc-kit"))].filter((d) => d && d !== base && within(d, base));
+  const app = config.app?.dir ? realPathOf(path.resolve(root, config.app.dir)) : null;
+  const inside = [app, realPathOf(path.join(root, ".doc-kit"))].filter((d) => d && d !== base && within(d, base));
   for (const [i, spec] of (config[key]?.adapters || []).entries()) {
     const file = path.resolve(root, spec.slice("local:".length));
-    const real = realOrNull(file);
+    const real = realPathOf(file);
     if (!real) throw new KitError(EXIT.USAGE, "adapter.missing", { kind, name: spec, file });
     if (!within(real, base) || inside.some((d) => within(real, d)))
       throw new KitError(EXIT.USAGE, "stacks.outside", { key, kind, name: spec });

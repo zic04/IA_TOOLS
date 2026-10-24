@@ -93,6 +93,25 @@ entries between a project's `kit` range and the installed version.
   as whole readers too, and the harness builds the crafted shapes
   (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
   the former forms against the new ones on random input).
+- **The `secrets` and `security` sources never read through a link out of the application** (SECURITY.md): `git
+  ls-files` lists a committed link as a file, and both read it, following it — a link to a file of the operator
+  (`~/.aws/credentials`) was scanned, and its report told what kind of secret the machine held. A file is now read
+  only when its real path (links and junctions followed) is in the application, the confinement of a page's
+  `sources` (`engine/core/confine.mjs`, now the one helper of `sources`, `inputs reconcile` and the project's
+  adapters).
+- **A route segment that looks like a token is masked in the coverage ids** (RULES.md S7): the `fastapi`,
+  `next-app-router`, `openapi` and `react-router` adapters wrote it in clear in `check coverage` and the audit,
+  while `facts` writes "…".
+- **`::facts{source}` and `::diagram{id}` name a file by a plain name** (`a-z`, `0-9`, `-`): `source="../../x"` or
+  `id="../.."` read a file outside the project. Such an attribute is now a build error, `facts.source` or
+  `diagram.id`, and nothing is read.
+- **Page and section ids** (RULES.md S9): the toc schema accepted a `"` in an id, which reached the site's links
+  unescaped (an attribute could be added; the Content Security Policy only stops it from running). An id is now
+  lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` — the ids of `doc-kit new` — and one outside them
+  is refused by the build, the error naming it (rename it in `toc.json` and its page file); the site and the
+  anchors of headings and cards escape every id all the same.
+- **`inputs ingest` of an HTML page**: a tag written as text (`&lt;img onerror=…&gt;`) became a real tag of the
+  converted text once decoded. Every `<` that could open a tag is written `&lt;`, as for a Word file.
 
 ## [0.4.1] - 2026-10-23
 

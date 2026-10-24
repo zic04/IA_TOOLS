@@ -488,6 +488,16 @@ describe("documents: formats and the HTML reader", () => {
     assert.equal(htmlToText(html), "# Orders\n\nThe & list\n\n- One\n- Two\n\n## Sign-in\n\nSSO only");
     assert.doesNotThrow(() => htmlToText("<".repeat(2000) + "<script" + "a".repeat(2000)));
   });
+
+  // A tag written as text (&lt;img …&gt;) is text: decoded, it must not become a tag of the converted Markdown, which
+  // an agent may copy into a page. Inert as a Word document's text is (inertMarkup).
+  test("HTML: a tag written as text stays text, never markup of the converted Markdown", () => {
+    const text = htmlToText(
+      "<p>&lt;img src=x onerror=alert(1)&gt; &lt;/p&gt;&lt;script&gt;x&lt;/script&gt; &lt;!-- c --&gt; a &lt; b &amp;lt;i&amp;gt;</p>",
+    );
+    assert.doesNotMatch(text, /<[a-z/!?]/i, text);
+    assert.equal(text, "&lt;img src=x onerror=alert(1)> &lt;/p>&lt;script>x&lt;/script> &lt;!-- c --> a < b &lt;i&gt;");
+  });
 });
 
 describe("the readers stay bounded on hostile documents", () => {

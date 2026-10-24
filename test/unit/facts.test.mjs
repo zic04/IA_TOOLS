@@ -1161,4 +1161,36 @@ describe("coverage adapters: facts, fastapi, next-app-router (api)", () => {
     ]);
     assert.equal(withApi.families[1].name, "API");
   });
+
+  // RULES.md S7: a route segment that looks like a token (a webhook's secret path) is "…" in the coverage ids and
+  // their forms, as the `api` and `screens` facts write it — never in clear in a coverage report or the audit.
+  test("fastapi, next-app-router, openapi, react-router: a route segment that looks like a token is masked", async () => {
+    const token = "Zq8vN3kT6wP1" + "xR4mY7bLc2Hd9sF0"; // a random token of 28 characters, written in two parts
+    const dir = tempDir("doc-kit-coverage-masked-");
+    try {
+      const write = (file, text) => {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.writeFileSync(path.join(dir, file), text);
+      };
+      write(
+        "py/main.py",
+        `from fastapi import FastAPI\napp = FastAPI()\n\n@app.post("/hooks/${token}")\ndef hook():\n    return {}\n`,
+      );
+      write(`next/app/hooks/${token}/page.tsx`, "export default function Page() { return null; }\n");
+      write(`next/app/api/hooks/${token}/route.ts`, "export async function POST() { return Response.json({}); }\n");
+      write("openapi.json", JSON.stringify({ openapi: "3.0.0", paths: { [`/hooks/${token}`]: { post: {} } } }));
+      write("src/App.tsx", `<Route path="/hooks/${token}" element={<Hook />} />\n`);
+      const results = [
+        await inventory(dir, { adapter: "fastapi", app: "py" }),
+        await inventory(dir, { adapter: "next-app-router", app: "next/app", api: true, exclude: [] }),
+        await inventory(dir, { adapter: "openapi", file: "openapi.json" }),
+        await inventory(dir, { adapter: "react-router", file: "src/App.tsx", exclude: [] }),
+      ];
+      const ids = results.flatMap((r) => r.families.flatMap((f) => f.items.map((i) => i.id)));
+      assert.deepEqual(ids, ["POST /hooks/…", "/hooks/…", "POST /api/hooks/…", "POST /hooks/…", "/hooks/…"]);
+      assert.ok(!JSON.stringify(results).includes(token), "the token is in no id and no form of a route");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

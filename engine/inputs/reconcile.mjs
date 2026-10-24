@@ -9,6 +9,7 @@ import path from "node:path";
 import { KIT_ROOT } from "../project/find.mjs";
 import { validate } from "../project/validate.mjs";
 import { DOCS_DIR } from "./model.mjs";
+import { realInside, realPathOf } from "../core/confine.mjs";
 
 /** The mentions kept per technology and the traces per source: the rest is counted, not listed. */
 const MAX_MENTIONS = 20;
@@ -287,18 +288,6 @@ export function reconcile({ documents, facts, technologies, appHosts = [] }) {
 /** The facts sources the reconciliation reads (facts/<source>.json). */
 export const RECONCILE_FACTS = Object.freeze(["dependencies", "infra", "stack", "env"]);
 
-/** The real path of `target` (links followed) when it lies inside the real path of `base`; null otherwise. */
-function realInside(base, target) {
-  try {
-    const realBase = fs.realpathSync.native(base);
-    const real = fs.realpathSync.native(target);
-    const rel = path.relative(realBase, real);
-    return rel.startsWith("..") || path.isAbsolute(rel) ? null : real;
-  } catch {
-    return null;
-  }
-}
-
 /** A path the index may give for a converted text: `.doc-kit/inputs/docs/<name>.md`, one plain segment. */
 const isConversion = (output) => {
   const prefix = `${DOCS_DIR}/`;
@@ -324,7 +313,7 @@ function hostOf(url) {
  */
 export function reconcileProject({ root, config, inputs, index, technologies = loadTechnologies() }) {
   const documents = [];
-  const docsDir = realInside(root, path.join(root, ...DOCS_DIR.split("/")));
+  const docsDir = realInside(realPathOf(root), path.join(root, ...DOCS_DIR.split("/")));
   for (const d of index.documents) {
     // Only a converted text of the folder of the conversions, whatever the index says.
     if (d.kind !== "dat" || !isConversion(d.output)) continue;

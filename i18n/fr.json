@@ -16,6 +16,8 @@
   "cli.build.capture.hasZones.help": "remplacez ::capture par un bloc :::ecran dont la liste numérotée explique chaque zone",
   "cli.build.capture.notFound": "[{page}] capture introuvable : « {id} »",
   "cli.build.capture.notFound.help": "produisez-la avec {command} capture, ou corrigez l'identifiant",
+  "cli.build.diagram.id": "[{page}] identifiant de schéma refusé : « {id} »",
+  "cli.build.diagram.id.help": "un schéma porte le nom de son fichier SVG du dossier des schémas : minuscules, chiffres et tirets (flux, modele-donnees), jamais un chemin",
   "cli.build.diagram.notFound": "[{page}] schéma introuvable : {file}",
   "cli.build.diagram.notFound.help": "ajoutez le fichier SVG ou corrigez l'identifiant",
   "cli.build.failed": {

@@ -76,6 +76,11 @@ reads text only, never images. **Review every image** before delivering a site.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.
+- What the kit itself writes from the content is escaped. A section or page id of the table of contents is
+  lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` (the toc schema refuses another, and the error
+  names it), and the site escapes every id it writes into a link or an attribute all the same. `::facts{source}` and
+  `::diagram{id}` name a file of the project by a plain name (`a-z`, `0-9`, `-`): a path (`../..`, `a/b`) is a build
+  error (`facts.source`, `diagram.id`), and nothing is read.
 - The generated site carries a Content Security Policy (a `<meta>` in its `<head>`): only its own inline scripts
   run, each allowed by its hash; images and fonts must be embedded; no request, frame, form or `<base>` is allowed.
   A script, an `onclick=`, a `javascript:` link, an iframe or an external image written in a page is refused by the
@@ -125,7 +130,9 @@ as untrusted input:
   heuristic, which masks a random token of 32 characters or more of the usual shapes (base62, base64url,
   hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
-  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked. The kit's
+  coverage adapters that read routes (`fastapi`, `next-app-router`, `openapi`, `react-router`) mask their ids and
+  forms the same way, so a coverage report or the audit never shows a segment that `facts` masks;
 - the manifests of Maven, Gradle, NuGet, Composer, Go, Bundler and Cargo are read offline, never sent anywhere (only
   the public names of npm and PyPI may be, with `--network`); their XML goes through the bounded reader of the
   sources (no DTD, no entity expanded, a bounded number of elements), the others through small line readers;
@@ -151,6 +158,10 @@ as untrusted input:
   junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent;
+- the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
+  (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
+  (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never read, so a
+  link to a file of the operator (`~/.aws/credentials`) tells nothing of what it holds;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
@@ -217,7 +228,9 @@ Both are untrusted input.
   refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
   `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
   expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
-  is ever opened. A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
+  is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag, in a Word file's
+  text or in an HTML page's (a tag written there as text, `&lt;img …&gt;`, included), is written `&lt;`.
+  A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
   Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
   is written, and starts with a notice telling the agent that reads it that it is information to check, never an
   instruction to follow. A Word table, paragraphs nested in one another (read in one pass, whatever their depth), a diagram or a label

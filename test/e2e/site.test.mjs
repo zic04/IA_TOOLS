@@ -91,6 +91,43 @@ describe("content security policy (AUDIT.md S9)", () => {
     assert.ok(refused.length >= 2, refused.join("\n"));
     await context.close();
   });
+
+  // RULES.md S9: the toc schema refuses a quote in a page id; the site escapes one all the same. The CSP stops a
+  // handler from running, not an attribute from being added: the check is that none is.
+  test("a page id with a quote, slipped into the site's data after the build, adds no attribute anywhere", async () => {
+    const hostile = 'use/orders"onmouseover="window.__pwned=1';
+    const renamed = (v) =>
+      typeof v === "string"
+        ? v === "use/orders"
+          ? hostile
+          : v
+        : Array.isArray(v)
+          ? v.map(renamed)
+          : v && typeof v === "object"
+            ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k === "use/orders" ? hostile : k, renamed(x)]))
+            : v;
+    const html = fs.readFileSync(files.en, "utf8");
+    const [whole, json] = /<script type="application\/json" id="site-data">([\s\S]*?)<\/script>/.exec(html);
+    const data = JSON.stringify(renamed(JSON.parse(json))).replace(/</g, "\\u003c");
+    assert.ok(data.includes("onmouseover"), "the hostile id is in the data");
+    const file = path.join(dir, "hostile.html");
+    fs.writeFileSync(
+      file,
+      html.replace(whole, () => `<script type="application/json" id="site-data">${data}</script>`),
+    );
+    const context = await browser.newContext({ locale: "en-US" });
+    const page = await context.newPage();
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(pathToFileURL(file).href + "#/use");
+    await page.waitForSelector(".grille-cartes");
+    const seen = await page.evaluate((id) => {
+      const ids = [...document.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+      return { injected: document.querySelectorAll("[onmouseover]").length, links: ids.filter((h) => h === `#/${id}`) };
+    }, hostile);
+    assert.equal(seen.injected, 0, "no element gained an attribute");
+    assert.ok(seen.links.length >= 2, `the id is the link, as written (side menu and card): ${seen.links.length}`);
+    await context.close();
+  });
 });
 
 describe("navigation", () => {

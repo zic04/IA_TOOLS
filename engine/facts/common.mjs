@@ -4,6 +4,7 @@
 // context (cli/common.mjs), never executed by these pure functions.
 import fs from "node:fs";
 import path from "node:path";
+import { realInside, realPathOf } from "../core/confine.mjs";
 
 /** Folders never walked: dependencies, version control, build and cache output. */
 export const SKIP_DIRS = Object.freeze([
@@ -89,6 +90,29 @@ export function gitLsFiles(dir, exec) {
  */
 export const appFiles = (dir, { skip, exec } = /** @type {{ skip?: string[], exec?: any }} */ ({})) =>
   (exec ? gitLsFiles(dir, exec) : null) ?? listFiles(dir, { skip });
+
+/**
+ * A reader of the files of the application that `appFiles` lists: `(rel) => text`, or null when the file is not read
+ * — where it really is (links and junctions followed: realInside) is not inside the application, it is not a file, it
+ * is over `maxSize` bytes, or it cannot be read. `git ls-files` lists a committed link as a file, and a folder of the
+ * index may be a junction on disk: a link to a file of the operator (~/.aws/credentials) is never read (SECURITY.md).
+ * @param {string} appDir
+ * @param {{ maxSize: number, io?: any }} o   io: the file system (realpathSync.native, statSync, readFileSync)
+ * @returns {(rel: string) => string|null}
+ */
+export function confinedReader(appDir, { maxSize, io = fs }) {
+  const base = realPathOf(appDir, io);
+  return (rel) => {
+    const real = realInside(base, path.join(appDir, rel), io);
+    if (!real) return null;
+    try {
+      const stat = io.statSync(real);
+      return stat.isFile() && stat.size <= maxSize ? io.readFileSync(real, "utf8") : null;
+    } catch {
+      return null;
+    }
+  };
+}
 
 const itemsCache = new Map();
 
