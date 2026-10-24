@@ -4,7 +4,7 @@
 // sheet also depends on the code of its feature in features.json (engine/sync/feature-files.mjs).
 import fs from "node:fs";
 import path from "node:path";
-import { loadAdapter } from "../capture/session.mjs";
+import { loadAdapter } from "../core/adapter-loader.mjs";
 import { adapterTools } from "../check/coverage.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
 import { relPath, factsItems } from "../facts/common.mjs";

@@ -2,7 +2,7 @@
 // than `maxPerSecond` requests, never a response body stored. Security headers, cookies, CORS and version
 // disclosure on "/" and on one API route; the access control of every GET route of facts/api.json, against its
 // `auth` (ARCHITECTURE.md §6.9/§6.13: "none" | "user" | "role" | "unknown"), for anonymous and every `--as <role>`.
-import { LOGIN_PATTERN } from "../capture/session.mjs";
+import { LOGIN_PATTERN } from "../core/adapter-loader.mjs";
 import { forbiddenMatch } from "../capture/plans.mjs";
 
 const SECURITY_HEADERS = Object.freeze([

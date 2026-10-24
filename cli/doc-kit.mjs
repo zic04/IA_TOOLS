@@ -2,33 +2,23 @@
 // Command-line entry point: dispatches to cli/commands/<command>.mjs; without a command, the guided mode.
 // Global options: --project <dir>, --json, --verbose, --lang en|fr, --profile, --help, --version.
 // Exit codes: 0 OK · 1 failed check · 2 usage or configuration · 3 environment.
+// Start-up (ARCHITECTURE.md §4): only the module of the command that runs is imported (cli/registry.mjs);
+// --version and --help alone import none, and nothing of the project: its doc.config.mjs is never run for them.
 import { parseArgs } from "node:util";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createContext, printKitError, prompterOf, shownPath, absolutePath } from "./common.mjs";
+import { GROUPS, COMMANDS, WORK_DIR, SKILL_NAME, importCommand } from "./registry.mjs";
 import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { findProject } from "../engine/project/find.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environment.mjs";
-import { readSyncReference } from "../engine/sync/reference.mjs";
 import { readProjectVersion } from "../engine/project/version.mjs";
-import { languageCounts } from "../engine/build/languages.mjs";
 import { createTimer, usageFolder, appendUsage } from "../engine/stats/usage.mjs";
-import { syncPath } from "../engine/sync/reference.mjs";
-import { WORK_DIR } from "./commands/audit.mjs";
 import { readToc } from "../engine/project/toc.mjs";
-import { SKILL_NAME } from "./commands/skill.mjs";
 
-const FOLDER = path.dirname(fileURLToPath(import.meta.url));
-
-/** Commands delivered so far: every module present in cli/commands/ (one file per command). */
-export const COMMANDS = fs
-  .readdirSync(path.join(FOLDER, "commands"))
-  .filter((f) => f.endsWith(".mjs"))
-  .map((f) => f.slice(0, -4))
-  .sort();
 /** Commands announced but not delivered yet ({ name: "release" }); empty when every command exists. */
 const LATER = {};
 
@@ -49,23 +39,16 @@ const GLOBALS = {
  * @param {{ stdout?, stderr?, env? }} [io]
  */
 export async function runCli(argv, io = {}) {
-  const modules = Object.fromEntries(
-    await Promise.all(
-      COMMANDS.map(async (c) => [c, await import(pathToFileURL(path.join(FOLDER, "commands", `${c}.mjs`)).href)]),
-    ),
-  );
-  /** @type {import("node:util").ParseArgsOptionsConfig} */
-  const all = { ...GLOBALS };
-  for (const m of Object.values(modules)) Object.assign(all, m.options || {});
-
-  // Message language first (to report an invalid option in the right language).
-  const iLang = argv.indexOf("--lang");
-  const ctx = createContext({ lang: iLang >= 0 ? argv[iLang + 1] : undefined }, io);
+  // Message language first (to report an invalid option in the right language): `--lang fr` or `--lang=fr`, read
+  // with the global options alone, before any command is imported.
+  const early = parseArgs({ args: argv, options: GLOBALS, allowPositionals: true, strict: false });
+  const ctx = createContext({ lang: typeof early.values.lang === "string" ? early.values.lang : undefined }, io);
 
   let values;
   let positionals;
+  let module;
   try {
-    ({ values, positionals } = parseArgs({ args: argv, options: all, allowPositionals: true, strict: true }));
+    ({ values, positionals, module } = await readCommandLine(argv, early.positionals[0]));
   } catch (e) {
     ctx.error("option.invalid", { error: e.message });
     return EXIT.USAGE;
@@ -75,42 +58,43 @@ export async function runCli(argv, io = {}) {
     ctx.error("option.value", { option: "lang", value: values.lang, expected: "en | fr" });
     return EXIT.USAGE;
   }
-  // Every command speaks the project's language (config.language) unless --lang is given, from its first
-  // message, whether or not it loads the whole project (doctor checks it piece by piece). `init` creates a project
-  // somewhere else: it keeps --lang, DOC_KIT_LANG or English (its help too).
-  if ((positionals[0] === "help" ? positionals[1] : positionals[0]) !== "init") await ctx.useProjectLanguage();
   if (values.version) {
     ctx.print(ctx.t("cli.version", { name: BRAND.name, version: BRAND.version }));
     return EXIT.OK;
   }
   const [name, ...rest] = positionals;
+  // Every command speaks the project's language (config.language) unless --lang is given, from its first
+  // message, whether or not it loads the whole project (doctor checks it piece by piece): read in the text of
+  // doc.config.mjs, never by running it. `init` creates a project somewhere else: it keeps --lang, DOC_KIT_LANG
+  // or English (its help too).
+  if ((name === "help" ? rest[0] : name) !== "init") ctx.useProjectLanguage();
   // Help: `--help` or `help` alone → the commands; `<command> --help` or `help <command>` → that command.
   if (values.help || name === "help") {
     const topic = name === "help" ? rest[0] : name;
     if (!topic) {
-      ctx.print(ctx.t("cli.usage"));
+      ctx.print(usage(ctx));
       return EXIT.OK;
     }
-    if (!modules[topic]) {
+    if (!COMMANDS.includes(topic)) {
       ctx.error("command.unknown", { name: topic, available: COMMANDS.join(", ") });
       return EXIT.USAGE;
     }
     ctx.print(`${ctx.t(`cli.help.${topic}`, { work: WORK_DIR, skill: SKILL_NAME })}\n\n${ctx.t("cli.help.globals")}`);
     return EXIT.OK;
   }
-  if (!name) return runSafely(ctx, () => guided({ ctx, modules, values }));
-  if (!modules[name] && LATER[name]) {
+  if (!name) return runSafely(ctx, () => guided({ ctx, values }));
+  // Own names only: `constructor` or `toString` is an unknown command, never an inherited property.
+  if (!module && Object.hasOwn(LATER, name)) {
     ctx.error("command.notYet", { name, batch: LATER[name], available: COMMANDS.join(", ") });
     return EXIT.USAGE;
   }
-  const module = modules[name];
   if (!module) {
     ctx.error("command.unknown", { name, available: COMMANDS.join(", ") });
     return EXIT.USAGE;
   }
   // An option that belongs to another command is a usage error.
   for (const k of Object.keys(values))
-    if (!(k in GLOBALS) && !(k in (module.options || {}))) {
+    if (!Object.hasOwn(GLOBALS, k) && !Object.hasOwn(module.options || {}, k)) {
       ctx.error("option.invalid", { error: `--${k} (${name})` });
       return EXIT.USAGE;
     }
@@ -118,8 +102,41 @@ export async function runCli(argv, io = {}) {
   const end = ctx.timer.start(STEP_OF[name] || name);
   const code = await runSafely(ctx, () => module.run({ ctx, values, positionals: rest }));
   end({ exit: code });
-  recordUsage(ctx, name);
+  await recordUsage(ctx, name);
   return code;
+}
+
+/**
+ * Reads the command line with the global options and those of the command named first (`guess`): only that
+ * command's module is imported. When that reading fails, or finds another command (an option of another command
+ * written before the name), it is read again with the options of every command, all imported, so that an option of
+ * another command is refused by name, with the command typed (`--tour (build)`), as it always was.
+ * @param {string[]} args
+ * @param {string} [guess]   the first word of a lenient reading
+ * @returns {Promise<{ values: object, positionals: string[], module: object|null }>}
+ */
+async function readCommandLine(args, guess) {
+  const module = COMMANDS.includes(guess) ? await importCommand(guess) : null;
+  try {
+    const r = parseArgs({ args, options: { ...GLOBALS, ...module?.options }, allowPositionals: true, strict: true });
+    if (r.positionals[0] === guess) return { ...r, module };
+  } catch {
+    // read again below, with the options of every command
+  }
+  const modules = Object.fromEntries(await Promise.all(COMMANDS.map(async (c) => [c, await importCommand(c)])));
+  /** @type {import("node:util").ParseArgsOptionsConfig} */
+  const all = { ...GLOBALS };
+  for (const m of Object.values(modules)) Object.assign(all, m.options || {});
+  const r = parseArgs({ args, options: all, allowPositionals: true, strict: true });
+  return { ...r, module: COMMANDS.includes(r.positionals[0]) ? modules[r.positionals[0]] : null };
+}
+
+/** `doc-kit --help`: every command of the registry, group by group (cli/registry.mjs), so that none is left out. */
+function usage(ctx) {
+  const groups = Object.entries(GROUPS).map(([group, names]) =>
+    [ctx.t(`cli.usage.group.${group}`), ...names.map((n) => `  ${ctx.t(`cli.usage.command.${n}`)}`)].join("\n"),
+  );
+  return [ctx.t("cli.usage"), ...groups, ctx.t("cli.usage.end")].join("\n\n");
 }
 
 /**
@@ -152,7 +169,7 @@ const STEP_OF = Object.freeze({
  * Appends the run's spans to the project's usage/<version>.jsonl (when the project records statistics), and prints
  * them with --profile. Never fails the command: statistics are a by-product.
  */
-function recordUsage(ctx, name) {
+async function recordUsage(ctx, name) {
   const spans = ctx.timer.spans;
   if (ctx.globals.profile) printProfile(ctx, spans);
   if (!(name in STEP_OF) || !ctx.project?.root || !ctx.config) return;
@@ -160,6 +177,7 @@ function recordUsage(ctx, name) {
     const dir = usageFolder(ctx.project.root, ctx.env);
     if (!dir) return;
     const version = readProjectVersion(ctx.project.root, ctx.config.version);
+    const { syncPath } = await import("../engine/sync/reference.mjs");
     const phase =
       name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
     // The command's own span last in time, first in the file: easier to read.
@@ -236,6 +254,11 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   if (captureCount(root, config) === 0) return { step: "capture", folder: root, root, config };
   // What the documentation must follow since the last check (ARCHITECTURE.md §6.10): no git here, only the
   // documented version against the one sync.json last saw.
+  // Imported here, not with the CLI: the start-up of every command does without them.
+  const [{ readSyncReference }, { languageCounts }] = await Promise.all([
+    import("../engine/sync/reference.mjs"),
+    import("../engine/build/languages.mjs"),
+  ]);
   const { reference } = readSyncReference(root, config);
   if (reference && reference.app.version !== readProjectVersion(root, config.version))
     return { step: "sync", folder: root, root, config };
@@ -264,7 +287,7 @@ function safeToc(root, config) {
 const MENU = ["dev", "audit", "build", "doctor"];
 export const menuFor = (config) => [...MENU, ...(config?.languages ? ["translate"] : [])];
 
-async function guided({ ctx, modules, values }) {
+async function guided({ ctx, values }) {
   const s = await detectSituation({ project: values.project, env: ctx.env });
   if (s.config && !values.lang) ctx.setLanguage(s.config.language);
   const menu = menuFor(s.config);
@@ -338,11 +361,8 @@ ${ctx.t("cli.guided.next", { command: next })}`);
     const r = spawnSync("npm", ["install"], { cwd: s.root, stdio: "inherit", shell: process.platform === "win32" });
     return r.status === 0 ? EXIT.OK : EXIT.ENVIRONMENT;
   }
-  const module = modules[step];
-  if (!module) {
-    ctx.error("command.notYet", { name: step, batch: LATER[step] || "?", available: COMMANDS.join(", ") });
-    return EXIT.USAGE;
-  }
+  // Every step but install is a command of the registry.
+  const module = await importCommand(step);
   const globals = Object.fromEntries(Object.entries(values).filter(([k]) => k in GLOBALS));
   // A production capture was confirmed right after its banner: capture does not ask a second time.
   const confirmed = production && step === "capture" ? { yes: true } : {};

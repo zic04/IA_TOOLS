@@ -81,6 +81,7 @@ import {
   CRON,
 } from "../../engine/facts/behaviour-common.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
+import { languageInConfig } from "../../engine/project/find.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
@@ -571,6 +572,8 @@ export const CHECKS = [
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
+  // The language of a doc.config.mjs, read as text without running it (engine/project/find.mjs): spaces around `[`.
+  ["project languageInConfig", (s) => [s, `language: ${s}`, `languages: ${s}[${s}`].map(languageInConfig).length],
   // As the build runs it: up to the last "</script>"; the input as it is, and with one closing tag after it.
   [
     "csp INLINE_SCRIPT",
