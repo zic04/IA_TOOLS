@@ -82,14 +82,16 @@ function serviceItem({ key, line, value }, file, env) {
   };
 }
 
-/** The items of one Compose document: its services, then its volumes, networks, secrets and configs by name. */
-function documentItems(doc, file, env) {
-  const out = [];
-  for (const e of entries(at(doc, "services"))) if (e.key !== "<<") out.push(serviceItem(e, file, env));
+/**
+ * The items of one Compose document, one at a time: its services, then its volumes, networks, secrets and configs
+ * by name. The source keeps MAX_ITEMS of them: none is built past those (a file of thousands of entries would
+ * otherwise make, and hold, an item for each — RULES.md S5).
+ */
+function* documentItems(doc, file, env) {
+  for (const e of entries(at(doc, "services"))) if (e.key !== "<<") yield serviceItem(e, file, env);
   for (const [key, kind, type] of NAMED)
     for (const e of entries(at(doc, key)))
-      if (e.key !== "<<") out.push({ kind, provider: "docker", type, name: e.key, file, line: e.line, env });
-  return out;
+      if (e.key !== "<<") yield { kind, provider: "docker", type, name: e.key, file, line: e.line, env };
 }
 
 export default {

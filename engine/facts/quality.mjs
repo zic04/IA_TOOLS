@@ -7,12 +7,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { lineAt } from "./api.mjs";
+import { textIndex } from "./behaviour-common.mjs";
 import { listFiles } from "./common.mjs";
+import { readListed } from "./code-files.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
 import { createRegistryClient, isPrivatePackage, privateRegistries } from "./network.mjs";
 import { oncePerPackage } from "../core/packages.mjs";
-import { closingBrace } from "../util/js-scan.mjs";
+import { closingBrace, closingBraces } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
 const GENERATED = /\.min\.(js|css)$|\.generated\./i;
@@ -54,42 +55,64 @@ const CONTROL_KEYWORDS = new Set([
   "await",
 ]);
 
-/** Index of the "}" matching the "{" at `openIndex`; the last index when it is never closed. */
-function balancedBraces(text, openIndex) {
-  const close = closingBrace(text, openIndex);
-  return close < 0 ? text.length - 1 : close;
-}
-
 /** Branches + 1, over a slice of text (a function's body). */
 function complexityOf(body) {
   return 1 + (body.match(BRANCH_RE) || []).length;
 }
 
 /**
+ * The expressions of the functions of a file (test/tools/redos-worker.mjs, RULES.md S5): no two quantifiers that
+ * read the same characters side by side (`\s*\*?\s*\w*\s*` is `\s*(?:\*\s*)?(?:\w+\s*)?`, `:\s*[^{;]+` is
+ * `:[^{;]+`), a type annotation of 200 characters at most, and a method looked for from the start of a word only.
+ */
+export const QUALITY_PATTERNS = Object.freeze({
+  FUNCTION: /\bfunction\s*(?:\*\s*)?(?:\w+\s*)?\([^()]*\)\s*(?::[^{;]{1,200})?\{/g,
+  ARROW: /\b(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\([^()]*\)\s*(?::[^{;=]{1,200}?)?=>\s*\{/g,
+  METHOD: /\b(?:async\s+)?(?:static\s+)?(?:get\s+|set\s+)?(\w+)\s*\([^()]*\)\s*(?::[^{;]{1,200})?\{/g,
+  BRANCH: BRANCH_RE,
+  TODO: TODO_RE,
+});
+/** The scans of the bodies that are not code, all together, in times the text (jsFunctions). */
+const NOT_CODE_SCAN = 8;
+
+/**
  * JavaScript/TypeScript functions (ARCHITECTURE.md §6.13): named/anonymous `function`, arrow functions assigned
  * to a name (`const f = (…) => { … }`, block body only), and methods (`name(…) { … }`, control-flow keywords
  * excluded). Regex-based, not a parser: good enough for a maintainability heuristic, like the rest of the kit.
+ * Linear (RULES.md S5): the bodies that are code are matched in one pass (closingBraces), a body's branches are a
+ * difference of counts, never a scan of the body; a header in a comment or a string is matched as before
+ * (closingBrace reads it as code), those scans bounded together by NOT_CODE_SCAN times the text (past it, a body
+ * runs to the end of the file).
  */
 function jsFunctions(text) {
   const opens = new Set();
-  for (const m of text.matchAll(/\bfunction\s*\*?\s*\w*\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g))
-    opens.add(m.index + m[0].length - 1);
-  for (const m of text.matchAll(/\b(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\([^()]*\)\s*(?::\s*[^{;=]+?)?=>\s*\{/g))
-    opens.add(m.index + m[0].length - 1);
-  for (const m of text.matchAll(
-    /(?:async\s+)?(?:static\s+)?(?:get\s+|set\s+)?(\w+)\s*\([^()]*\)\s*(?::\s*[^{;]+)?\{/g,
-  )) {
-    if (CONTROL_KEYWORDS.has(m[1])) continue;
-    opens.add(m.index + m[0].length - 1);
-  }
-  return [...opens].map((openIdx) => {
-    const closeIdx = balancedBraces(text, openIdx);
-    return {
-      startLine: lineAt(text, openIdx),
-      endLine: lineAt(text, closeIdx),
-      complexity: complexityOf(text.slice(openIdx + 1, closeIdx)),
-    };
+  const { FUNCTION, ARROW, METHOD } = QUALITY_PATTERNS;
+  for (const re of [FUNCTION, ARROW, METHOD])
+    for (const m of text.matchAll(re)) if (!CONTROL_KEYWORDS.has(m[1])) opens.add(m.index + m[0].length - 1);
+  if (!opens.size) return [];
+  const { lineOf } = textIndex(text);
+  const code = closingBraces(text);
+  let budget = NOT_CODE_SCAN * text.length;
+  const closes = [...opens].map((open) => {
+    if (code.has(open)) return [open, code.get(open)];
+    const limit = Math.min(text.length, open + budget);
+    const close = closingBrace(text, open, limit);
+    budget -= (close < 0 ? limit : close) - open;
+    return [open, close];
   });
+  // before[i]: the branches that start before i. A branch never holds a brace, so those of a body are the ones that
+  // start in it; a body never closed ends before the last character (as the slice did): the last such body is
+  // counted on its own, the others are its count plus their branches before it.
+  const before = new Int32Array(text.length + 1);
+  for (const m of text.matchAll(BRANCH_RE)) before[m.index + 1]++;
+  for (let i = 1; i <= text.length; i++) before[i] += before[i - 1];
+  const tail = closes.reduce((last, [open, close]) => (close < 0 && open > last ? open : last), -1);
+  const tailBranches = tail < 0 ? 0 : complexityOf(text.slice(tail + 1, text.length - 1)) - 1;
+  return closes.map(([open, close]) => ({
+    startLine: lineOf(open),
+    endLine: lineOf(close < 0 ? text.length - 1 : close),
+    complexity: 1 + (close < 0 ? before[tail] - before[open + 1] + tailBranches : before[close] - before[open + 1]),
+  }));
 }
 
 /** Python functions (`def`), by indentation: a function's body ends at the next line no more indented than it. */
@@ -113,7 +136,7 @@ function pyFunctions(text) {
 }
 
 /** Functions of a file, by extension. */
-function functionsOf(file, text) {
+export function functionsOf(file, text) {
   return file.endsWith(".py") ? pyFunctions(text) : jsFunctions(text);
 }
 
@@ -277,18 +300,23 @@ export function rating(ratio, thresholds) {
  * @param {Array<{name,version,ecosystem,direct,spec?}>} [options.dependencies]   --network: already-collected `dependencies` items
  * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
  *   the application alone when absent (a private name is never sent)
- * @returns {Promise<{ items: Array<object>, summary: object }>}
+ * @returns {Promise<{ items: Array<object>, summary: object, unreadable: Array<{ file: string, reason: string }> }>}
+ *   unreadable: a file over 512 KB or that cannot be read (readCode): counted in `files`, not measured
  */
 export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries } = {}) {
   const allFiles = listFiles(appDir);
   const files = allFiles.filter((f) => CODE_EXT.test(f) && !TEST_FILE.test(f) && !GENERATED.test(f));
-  const read = files.map((file) => ({ file, text: fs.readFileSync(path.join(appDir, file), "utf8") }));
+  const unreadable = [];
+  const read = files
+    .map((file) => ({ file, text: readListed(appDir, file, unreadable) }))
+    .filter((r) => r.text !== null);
   const { byFile: duplicatedByFile, eligible } = findDuplication(read);
 
   const items = [];
   let totalFunctions = 0;
   let complexFunctions = 0;
-  let bigFiles = 0;
+  // A file over 512 KB is not read: it is a big one.
+  let bigFiles = unreadable.filter((u) => u.reason === "tooLarge").length;
   let totalDuplicated = 0;
   for (const { file, text } of read) {
     const lines = text.split("\n").length;
@@ -334,5 +362,5 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, r
     summary.outdated = await countOutdated(dependencies, fetchImpl, {
       registries: registries ?? privateRegistries(appDir, { items: dependencies }),
     });
-  return { items, summary };
+  return { items, summary, unreadable };
 }

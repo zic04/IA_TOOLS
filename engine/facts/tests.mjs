@@ -1,10 +1,12 @@
 // `tests` source (ARCHITECTURE.md §6.9): test files, a rough count of tests per file, and an existing coverage
 // report when one was committed. Never runs a test: only reads files already on disk.
 //   item: { file, tests }, plus summary: { files, tests, coverage? }, and `unreadable` ({ file, reason }) when a
-//   coverage report is there but cannot be read: the coverage is then unknown, not absent (AUDIT.md M14).
+//   coverage report is there but cannot be read (the coverage is then unknown, not absent: AUDIT.md M14), or a test
+//   file is over 512 KB or cannot be read (counted in `files`, its tests unknown).
 import fs from "node:fs";
 import path from "node:path";
 import { listFiles } from "./common.mjs";
+import { readListed } from "./code-files.mjs";
 
 // Exported: reused by `quality` (ARCHITECTURE.md §6.13) to exclude test files from its maintainability measures.
 export const TEST_FILE =
@@ -46,18 +48,21 @@ function readCoverage(appDir, unreadable) {
  */
 export function collectTests(appDir) {
   const items = [];
+  const unreadable = [];
   let total = 0;
-  for (const rel of listFiles(appDir).filter((f) => TEST_FILE.test(f))) {
-    const n = (fs.readFileSync(path.join(appDir, rel), "utf8").match(TEST_CALL) || []).length;
+  const files = listFiles(appDir).filter((f) => TEST_FILE.test(f));
+  for (const rel of files) {
+    const text = readListed(appDir, rel, unreadable);
+    if (text === null) continue;
+    const n = (text.match(TEST_CALL) || []).length;
     items.push({ file: rel, tests: n });
     total += n;
   }
   items.sort((a, b) => a.file.localeCompare(b.file));
-  const unreadable = [];
   const coverage = readCoverage(appDir, unreadable);
   return {
     items,
-    summary: { files: items.length, tests: total, ...(coverage === null ? {} : { coverage }) },
+    summary: { files: files.length, tests: total, ...(coverage === null ? {} : { coverage }) },
     unreadable,
   };
 }

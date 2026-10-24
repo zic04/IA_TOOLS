@@ -5,20 +5,24 @@
 // an external image is refused by the browser. In `dev` (doc-kit dev), the live-reload client gets its own hash and
 // may connect to the local server.
 import crypto from "node:crypto";
+import { upToLast } from "../core/text.mjs";
 
 /** The <meta> this module writes, for it to be replaced on a second pass (the dev server's). */
 const CSP_META = /<meta http-equiv="Content-Security-Policy" content="[^"]*">\n?/;
 /**
  * An inline script of the HTML (opening tag attributes, then its text). Linear: the attributes are one run of
- * characters other than ">", the text a lazy run up to the first "</script>" (RULES.md S5).
+ * characters other than ">", 2,000 at most (openings never closed are not each read up to the ">" of a closing
+ * tag), the text a lazy run up to the first "</script>" (RULES.md S5), searched only up to the last SCRIPT_END
+ * (upToLast), so that scripts never closed are not each read to the end of the page.
  */
-export const INLINE_SCRIPT = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi;
+export const INLINE_SCRIPT = /<script(\s[^>]{0,2000})?>([\s\S]*?)<\/script>/gi;
+export const SCRIPT_END = /<\/script>/gi;
 const NOT_RUN = /\btype\s*=\s*["']?(?!(?:text|application)\/(?:javascript|ecmascript)|module)[^"'\s>]/i;
 
 /** The policy for the inline scripts the HTML runs. */
 export function contentSecurityPolicy(html, { dev = false } = {}) {
   const hashes = [];
-  for (const [, attributes = "", text] of String(html).matchAll(INLINE_SCRIPT)) {
+  for (const [, attributes = "", text] of upToLast(String(html), SCRIPT_END).matchAll(INLINE_SCRIPT)) {
     if (NOT_RUN.test(attributes)) continue; // data: application/json, text/plain
     hashes.push(`'sha256-${crypto.createHash("sha256").update(text, "utf8").digest("base64")}'`);
   }
