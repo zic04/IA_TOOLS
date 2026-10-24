@@ -10,7 +10,10 @@ same change.
 **Enforced by:**
 - `test/unit/security.test.mjs` and `test/unit/safe-git.test.mjs`, run by `npm test` and on their own by
   `npm run test:security`;
-- `.github/workflows/ci.yml`: tests on Linux, Windows and macOS, the security rules, and `npm audit`;
+- `.github/workflows/ci.yml`: tests on Linux, Windows and macOS (Node 20, 22 and 24), the security rules, and
+  `npm audit`;
+- `test/unit/repository.test.mjs`: this file and its French version list the same rules; the package stays private;
+  the CI keeps its time limits and its checkouts keep no token;
 - the checklist of `.github/pull_request_template.md`;
 - the review instructions in `CLAUDE.md`, and the `kit-reviewer` agent (`.claude/agents/`).
 
@@ -60,4 +63,5 @@ same change.
 3. AUDIT.md: findings marked fixed in this version have their test; open ones are still listed.
 4. SECURITY.md matches the code (protections and limits).
 5. CHANGELOG: `[Unreleased]` moved under the new version, with a **Security** section when one applies.
-6. `package.json` version bumped, and the tag `vX.Y.Z` pushed.
+6. `package.json` version bumped, the kit's tag in the examples of `ci/` (`ref:`) moved to it, and the tag `vX.Y.Z`
+   pushed (`test/unit/repository.test.mjs` checks the examples).

@@ -21,7 +21,7 @@
     "one": "{id} — préréglage de {n} brique",
     "other": "{id} — préréglage de {n} briques"
   },
-  "cli.bricks.show.requires": "demande l'option ou les options : {options}",
+  "cli.bricks.show.requires": { "one": "demande l'option : {options}", "other": "demande les options : {options}" },
   "cli.bricks.show.title": "{id} — {title} : {state}",
   "cli.bricks.state.disabled": "désactivée",
   "cli.bricks.state.fresh": "à jour",
@@ -31,7 +31,7 @@
   "cli.bricks.title": "Briques du projet",
   "cli.bricks.unknown": "brique ou préréglage inconnu : « {id} »",
   "cli.bricks.unknown.help": "la plus proche est « {closest} » ; la liste : {command} bricks",
-  "cli.bricks.why.age": "{file} date de {days} jours (au plus {max})",
+  "cli.bricks.why.age": { "one": "{file} date de {days} jour (au plus {max})", "other": "{file} date de {days} jours (au plus {max})" },
   "cli.bricks.why.changed": "{file} a changé depuis sa conversion",
   "cli.bricks.why.commit": "{file} a été lu au commit {was} ; l'application est au commit {now}",
   "cli.bricks.why.disabled": "écartée par bricks dans doc.config.mjs",

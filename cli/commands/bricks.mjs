@@ -114,7 +114,9 @@ function show(ctx, s, id) {
   for (const w of d.why) ctx.print(`  ${w.text}`);
   if (d.needs.length) ctx.print(ctx.t("cli.bricks.show.needs", { ids: d.needs.join(", ") }));
   if (d.requires.length)
-    ctx.print(ctx.t("cli.bricks.show.requires", { options: d.requires.map((r) => `--${r}`).join(", ") }));
+    ctx.print(
+      ctx.t("cli.bricks.show.requires", { options: d.requires.map((r) => `--${r}`).join(", "), n: d.requires.length }),
+    );
   for (const step of d.steps)
     ctx.print(
       step.agent

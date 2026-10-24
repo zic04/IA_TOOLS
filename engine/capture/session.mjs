@@ -171,9 +171,9 @@ export async function connect({
     arm();
     let session = null;
     const open = () => context.pages().filter((p) => !p.isClosed());
+    const minutes = Math.round(timeout / 60_000);
     while (!session) {
-      if (Date.now() > deadline)
-        throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes: Math.round(timeout / 60_000) });
+      if (Date.now() > deadline) throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes, n: minutes });
       if (!browser.isConnected() || !open().length) throw new KitError(EXIT.ENVIRONMENT, "connect.closed");
       await Promise.race([pending, sleep(poll)]);
       if (failed && !auth.adapter.detects) throw new KitError(EXIT.USAGE, "connect.noTerminal");

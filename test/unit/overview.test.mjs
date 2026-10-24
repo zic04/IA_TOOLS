@@ -272,7 +272,10 @@ describe("the developer views: ::modules, ::hotspots, ::health (engine/build/dev
 
   test("::modules: the counts, each cycle, the files most depended on (limit), the orphans", () => {
     const html = renderModules(modules, { t, esc, limit: 2 });
-    assert.match(html, /render\.modules\.summary\(files=5,edges=6,cycles=1,orphans=1\)/);
+    // Each count a noun in the plural form of its number (render.modules.count.*).
+    const count = (key, n) => `render\\.modules\\.count\\.${key}\\(n=${n},count=${n}\\)`;
+    const summary = `files=${count("files", 5)},edges=${count("imports", 6)},cycles=${count("cycles", 1)}`;
+    assert.match(html, new RegExp(`render\\.modules\\.summary\\(${summary},orphans=${count("orphans", 1)}\\)`));
     assert.match(html, /<li><code>src\/a\.ts<\/code> ↔ <code>src\/b\.ts<\/code><\/li>/);
     const central = [...html.matchAll(/<tr><td><code>([^<]+)<\/code><\/td><td>(\d+)<\/td>/g)].map((m) => [m[1], m[2]]);
     assert.deepEqual(central, [

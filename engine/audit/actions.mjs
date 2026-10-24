@@ -265,7 +265,7 @@ const ACTIONS = {
           n: sorted.length,
           need: Math.max(0, sorted.length - Math.floor(THRESHOLDS.tooLong4 * x.written.length + 1e-9)),
         },
-        items: sorted.map((p) => ({ id: p.id, key: "words", vars: { words: p.words, max: p.maxWords } })),
+        items: sorted.map((p) => ({ id: p.id, key: "words", vars: { words: p.words, max: p.maxWords, n: p.words } })),
       },
     ];
   },

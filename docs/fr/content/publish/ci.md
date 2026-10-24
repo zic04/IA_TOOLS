@@ -27,10 +27,10 @@ chemin, relatif à `docs/manual`. Avec l'application dans `app/` et le kit dans 
 chemin est `file:../../../doc-kit`.
 
 ```yaml
-- uses: actions/checkout@v4
-  with: { path: app }
-- uses: actions/checkout@v4
-  with: { repository: <owner>/doc-kit, ref: v0.4.1, path: doc-kit }
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+  with: { path: app, persist-credentials: false }
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+  with: { repository: <owner>/doc-kit, ref: v0.4.1, path: doc-kit, persist-credentials: false }
 ```
 
 ## Étape 2 — Installer le kit, Chromium et le projet

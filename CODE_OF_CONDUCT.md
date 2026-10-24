@@ -60,8 +60,13 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported privately to the community leaders responsible for enforcement, through
-the private channels of the platform that hosts the repository.
-All complaints will be reviewed and investigated promptly and fairly.
+the repository's private reporting: on its **Security** tab, choose **Report a
+vulnerability**
+([github.com/zic04/IA_TOOLS/security/advisories/new](https://github.com/zic04/IA_TOOLS/security/advisories/new)),
+and say in the title that the report is about conduct. Only you and the
+maintainers see it. Please do not describe the incident in a public issue.
+All complaints will be reviewed and investigated promptly and fairly, with a
+first answer within 7 days.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

@@ -23,6 +23,7 @@ import { languageCounts } from "../../engine/build/languages.mjs";
 import { staleFacts } from "../../engine/facts/freshness.mjs";
 import { describeProblem } from "../common.mjs";
 import { BRAND } from "../../engine/brand.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 import {
   kitPackage,
   kitDependencies,
@@ -281,7 +282,7 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
         lang,
         current: c.current,
         stale: c.stale,
-        missing: c.missing,
+        missing: numbers(ctx.i18n).count("cli.translate.count.missing", c.missing),
       });
     }
   }
@@ -476,8 +477,12 @@ export async function run({ ctx, values }) {
     if (c.help) ctx.print(`  → ${c.help}`);
   }
   const n = (s) => r.checks.filter((c) => c.status === s).length;
-  ctx.print(
-    `\n${ctx.t(r.code ? "cli.doctor.summary.fail" : "cli.doctor.summary.ok", { ok: n("ok"), warnings: n("warn"), problems: n("fail") })}`,
-  );
+  const { count } = numbers(ctx.i18n);
+  const totals = {
+    ok: n("ok"),
+    warnings: count("cli.doctor.count.warnings", n("warn")),
+    problems: count("cli.doctor.count.problems", n("fail")),
+  };
+  ctx.print(`\n${ctx.t(r.code ? "cli.doctor.summary.fail" : "cli.doctor.summary.ok", totals)}`);
   return r.code;
 }

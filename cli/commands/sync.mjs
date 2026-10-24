@@ -20,6 +20,7 @@ import { loadPlans } from "../../engine/capture/plans.mjs";
 import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
 import { WORK_DIR } from "../registry.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 
 export const options = {
   since: { type: "string" },
@@ -144,14 +145,16 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     if (!ctx.json) {
       for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
       if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
-      else
+      else {
+        const { count } = numbers(ctx.i18n);
         ctx.print(
           ctx.t("cli.sync.applied.summary", {
-            proofs: applied.rewritten.proofs,
-            labels: applied.rewritten.labels,
-            pages: applied.changed.length,
+            proofs: count("cli.sync.count.proofs", applied.rewritten.proofs),
+            labels: count("cli.sync.count.labels", applied.rewritten.labels),
+            pages: count("cli.build.count.pages", applied.changed.length),
           }),
         );
+      }
     }
 
     const anyIssue = new Set([

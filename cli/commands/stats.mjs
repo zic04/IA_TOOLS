@@ -5,6 +5,7 @@
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { USAGE_DIR, usageFolder, readUsage, summarize, usageCsv, GROUPINGS } from "../../engine/stats/usage.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 
 export const options = {
   by: { type: "string" },
@@ -50,8 +51,11 @@ export async function run({ ctx, values }) {
     p.bold(
       ctx.t("cli.stats.total", {
         time: duration(report.total.ms),
-        runs: report.total.runs,
-        tokens: report.total.tokens.toLocaleString("en-US"),
+        runs: numbers(ctx.i18n).count("cli.stats.count.runs", report.total.runs),
+        tokens: ctx.t("cli.stats.count.tokens", {
+          n: report.total.tokens,
+          count: report.total.tokens.toLocaleString("en-US"),
+        }),
       }),
     ),
   );

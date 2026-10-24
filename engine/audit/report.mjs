@@ -271,9 +271,11 @@ export function renderMarkdown(result, i18n) {
     out.push(
       `- ${f.count("cli.audit.facts.files", result.facts.files)}, ${f.count("cli.audit.facts.stale", result.facts.stale)}`,
     );
-    out.push(
-      `- ${t("cli.audit.claims.line", { verified: result.claims.verified, deduced: result.claims.deduced, unknown: result.claims.unknown, percent: result.claims.ratio === null ? t("cli.audit.na") : f.percent(result.claims.ratio) })}`,
+    const claims = Object.fromEntries(
+      ["verified", "deduced", "unknown"].map((k) => [k, f.count(`cli.audit.count.${k}`, result.claims[k])]),
     );
+    const percent = result.claims.ratio === null ? t("cli.audit.na") : f.percent(result.claims.ratio);
+    out.push(`- ${t("cli.audit.claims.line", { ...claims, percent })}`);
     out.push("");
   }
 
