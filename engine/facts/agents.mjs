@@ -2,9 +2,8 @@
 // specification (AGENTS.md, CLAUDE.md…), their size, and any character invisible to a human reviewer hidden
 // inside them (a known prompt-injection trick).
 //   item: { file, lines, words, hidden: [{ line, codepoint }] }
-import fs from "node:fs";
-import path from "node:path";
 import { listFiles } from "./common.mjs";
+import { readListed } from "./code-files.mjs";
 
 /**
  * Files read as agent instructions, at any depth of the application (ARCHITECTURE.md §6.9): a monorepo often has
@@ -55,12 +54,15 @@ export function hiddenCharacters(text) {
 
 /**
  * The `agents` source: every instruction file, its size (lines, words) and the hidden characters it holds.
+ * @param {string} appDir
+ * @param {Array<{ file: string, reason: string }>} [unreadable]   receives the files not read (over 512 KB: readCode)
  * @returns {Array<{file,lines,words,hidden}>} sorted by file
  */
-export function collectAgents(appDir) {
+export function collectAgents(appDir, unreadable = []) {
   const items = [];
   for (const rel of listFiles(appDir).filter((f) => PATTERNS.some((re) => re.test(f)))) {
-    const text = fs.readFileSync(path.join(appDir, rel), "utf8");
+    const text = readListed(appDir, rel, unreadable);
+    if (text === null) continue;
     items.push({
       file: rel,
       lines: text.split(/\r?\n/).length,

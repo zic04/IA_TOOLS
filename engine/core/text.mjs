@@ -22,6 +22,17 @@ export function oneLine(s) {
   return out;
 }
 
+/**
+ * The text up to the end of the last match of `close` (a global expression), "" when none. A scan whose every match
+ * ends with a `close` (an element, a block) finds the same matches there, and an opening never closed is not read
+ * to the end of the text again from each one (RULES.md S5).
+ */
+export function upToLast(text, close) {
+  let end = 0;
+  for (const m of text.matchAll(close)) end = m.index + m[0].length;
+  return text.slice(0, end);
+}
+
 /** Attributes of a directive: `id="x" title="y"` → { id: "x", title: "y" }. */
 export const attrs = (s) =>
   Object.fromEntries([...String(s || "").matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));

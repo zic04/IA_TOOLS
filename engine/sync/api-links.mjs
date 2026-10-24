@@ -16,20 +16,37 @@ const isParam = (segment) => /^(\{.+\}|\[.+\]|:.+|\$\{.*\})$/.test(segment);
 export function apiPathsIn(text) {
   const out = new Set();
   const src = String(text);
+  let closes = null;
+  const closeOf = (open) => (closes ??= braceCloses(src)).get(open) ?? -1;
   for (const m of src.matchAll(/["'`]\//g)) {
-    const p = readPath(src, m.index + 1).replace(/\/+$/, "");
+    // The trailing slashes from the start of their run only: a long run is not read again from each slash.
+    const p = readPath(src, m.index + 1, closeOf).replace(/(?<!\/)\/+$/, "");
     if (p.split("/").filter(Boolean).length >= 2) out.add(p);
   }
   return [...out];
 }
 
 /**
- * The path that starts at `start` (a "/"), read character by character: path characters, and a `${…}` (braces
- * balanced, so a nested template such as `${f ? `?a=${x}` : ""}` is skipped whole) only when it forms a whole
- * segment, where it becomes ":param". Anything else ends the path: a query, a `${…}` glued to a segment
- * (`/list${query}` → `/list`), a quote, a space.
+ * The "}" that closes each "{" of a text, braces counted as they are, in one pass (RULES.md S5: a `${` never closed
+ * is not read to the end of the text again from each path). Not js-scan's closingBraces: it skips template
+ * literals whole, so the `${` of the very path read here would have no match; readPath always counted raw braces.
  */
-function readPath(src, start) {
+function braceCloses(src) {
+  const close = new Map();
+  const open = [];
+  for (let i = 0; i < src.length; i++)
+    if (src[i] === "{") open.push(i);
+    else if (src[i] === "}" && open.length) close.set(open.pop(), i);
+  return close;
+}
+
+/**
+ * The path that starts at `start` (a "/"), read character by character: path characters, and a `${…}` (braces
+ * balanced, so a nested template such as `${f ? `?a=${x}` : ""}` is skipped whole: `closeOf`, the "}" of a "{" or
+ * -1) only when it forms a whole segment, where it becomes ":param". Anything else ends the path: a query, a `${…}`
+ * glued to a segment (`/list${query}` → `/list`), a quote, a space.
+ */
+function readPath(src, start, closeOf) {
   let out = "";
   let i = start;
   while (i < src.length) {
@@ -38,13 +55,8 @@ function readPath(src, start) {
       out += c;
       i++;
     } else if (c === "$" && src[i + 1] === "{" && out.endsWith("/")) {
-      let depth = 0;
-      let j = i + 1;
-      for (; j < src.length; j++) {
-        if (src[j] === "{") depth++;
-        else if (src[j] === "}" && --depth === 0) break;
-      }
-      if (j >= src.length) break;
+      const j = closeOf(i + 1);
+      if (j < 0) break;
       out += ":param";
       i = j + 1;
     } else break;
