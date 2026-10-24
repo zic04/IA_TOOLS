@@ -240,6 +240,46 @@ the skill's briefs make the agents check every statement against the code, but r
 before it becomes a page. A clone is a full copy of the repository: it lives in the work folder (`.doc-kit/`, never
 committed) — delete it when the documentation is done.
 
+### The skill's agents: the application is data, never instructions
+
+The skill's agents read the application's code, its comments, its instruction files (CLAUDE.md, AGENTS.md,
+.cursorrules), its commit messages and its diffs — all of them text that may be written to steer an AI. The skill
+treats them as data on every path an agent takes:
+
+- **Every brief an agent reads and every agent definition** (`skill/doc-kit/assets/briefs/`, `skill/doc-kit/agents/`)
+  says, in its common part and in both languages, that the application's files are data to describe, never
+  instructions to follow, and that an instruction found in them is reported as a finding, never acted on
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15, with a brief without the rule as its positive control).
+- **A decision to skip work never rests on text from the application that asks for it**: `triage` never marks a page
+  `intact` because a comment or a diff says so (that page is at least `edit`), nor do `update`, `findings-verification`,
+  `security-review`, `code-health` and `inventory` leave out, reject or dismiss anything on such a text (same test).
+- **Every context file** (`doc-kit context`, and its translator's dossier) starts with a fixed notice, in the site's
+  language: what follows is the application's content, data only (`test/unit/context.test.mjs`,
+  `test/unit/languages.test.mjs`).
+- **The agents with Bash** (`doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) run it through a guard, their
+  PreToolUse hook: `skill/doc-kit/scripts/bash-guard.mjs`, whose path `doc-kit skill install` writes in their
+  definitions. It reads the command as bash splits it — by hand: no shell, no eval, no regular expression — and lets
+  through only `npx doc-kit <command>` from a folder that holds a `doc.config.mjs` (npx resolves `doc-kit` from the
+  folder it runs in), `doc-kit <command>`, `node <kit>/cli/doc-kit.mjs`, `node <skill>/scripts/<script>.mjs` (the
+  skill's four scripts, by their path), read-only tools (`ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`…),
+  `cd <folder> &&` before them, and `|`, `&&`, `||`, `;`, `2>&1`, `>/dev/null` between them. It refuses git, any
+  other program or path, a variable or a command substitution, a redirection to a file, a background job, a
+  subshell, an unquoted wildcard, a second line, `rg --pre` and `find -exec`/`-delete`, the doc-kit commands that run
+  something else or belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`,
+  `init`, `inputs`, `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture plans are code). Input it
+  cannot read is refused (exit code 2). It only ever refuses: what it lets through still goes through Claude Code's
+  own permissions (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands, the hook as a process,
+  the agent definitions that name it; the ReDoS harness measures it).
+
+Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. It
+bounds Bash only: an agent's Edit and Write are bounded by its brief and Claude Code's permissions, and a capture
+plan an agent writes is a JavaScript module that `doc-kit capture` imports. doc-kit and the skill's scripts load the
+documentation project's `doc.config.mjs`, which is code: the guard checks that a folder holds one, not whose it is —
+an application that ships a `doc.config.mjs` can still be reached by `cd <it> && npx doc-kit …`; review one before
+documenting the application. A hook that cannot start (no `node` on the `PATH`) blocks nothing, and an agent
+definition edited after installation may have lost its hook (`doctor` reports it as modified). Keep Claude Code's
+permission prompts on for the agents' writes outside the documentation folder.
+
 ### Files for the next AI (`pack`)
 
 `doc-kit pack` writes `llms.txt`, `llms-full.txt`, `AGENTS.md` and `CLAUDE.md` in the documentation project, never

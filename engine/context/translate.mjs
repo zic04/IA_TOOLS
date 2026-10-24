@@ -83,6 +83,9 @@ export function buildTranslateContext({
   const lines = [];
   const push = (s = "") => lines.push(s);
 
+  // 0. The notice: what follows is content to translate, data, never instructions (SECURITY.md).
+  push(t("cli.context.translate.notice"));
+  push("");
   // 1. The page.
   push(`# ${page.title || pageId} (${pageId}) — ${lang}`);
   push("");

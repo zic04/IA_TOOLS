@@ -35,7 +35,7 @@ Read in full before any capture of a real application. These rules come from two
   work around it.
 - **The only declared exception:** `capture.sessionRefresh` sends one `POST` that renews a short-lived session,
   outside any page, before this lock is checked — accept it only on the owner's written decision (`reason`, at
-  least 20 characters) that the endpoint writes nothing else (ARCHITECTURE.md §6.3a).
+  least 20 characters) that the endpoint writes nothing else (`{{KIT_PATH}}/ARCHITECTURE.md` §6.3a).
 
 ## 3. Server-side writes while rendering
 

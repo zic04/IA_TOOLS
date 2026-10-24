@@ -19,6 +19,7 @@ import {
   agentsFolder,
   SKILL_SOURCE,
   FINGERPRINT,
+  hookPath,
 } from "../../cli/commands/skill.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { AGENT_TYPES, baseVariables, flattenedPages, outputBySize } from "../../skill/doc-kit/scripts/common.mjs";
@@ -49,6 +50,9 @@ describe("skill install", () => {
       const skill = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
       assert.doesNotMatch(skill, /\{\{KIT_PATH\}\}/);
       assert.ok(skill.includes(`\`${kitPath}\``), "absolute kit path, forward slashes");
+      // The references to the kit's contract resolve: its absolute path, to a file that exists.
+      assert.ok(skill.includes(`\`${kitPath}/ARCHITECTURE.md\` §6.11`));
+      assert.ok(fs.existsSync(path.join(KIT_ROOT, "ARCHITECTURE.md")));
       assert.doesNotMatch(fs.readFileSync(path.join(dir, "scripts", "common.mjs"), "utf8"), /\{\{KIT_PATH\}\}/);
       for (const f of fs.readdirSync(path.join(dir, "references")))
         assert.doesNotMatch(fs.readFileSync(path.join(dir, "references", f), "utf8"), /\{\{KIT_PATH\}\}/, f);
@@ -61,21 +65,31 @@ describe("skill install", () => {
       assert.match(fp.source, /^[0-9a-f]{64}$/);
       assert.deepEqual(fp.agentNames, AGENT_NAMES);
       assert.match(fp.agentsSource, /^[0-9a-f]{64}$/);
-      assert.equal(fp.agentsInstalled, fp.agentsSource, "just installed: source and installed hashes match");
+      // The installed agents name the installed skill's guard: their hash is their own, not the source's.
+      assert.match(fp.agentsInstalled, /^[0-9a-f]{64}$/);
+      assert.notEqual(fp.agentsInstalled, fp.agentsSource, "{{SKILL_PATH}} replaced in the agents");
       assert.equal(fs.readFileSync(path.join(skills, "other-skill", "SKILL.md"), "utf8"), "---\nname: other\n---\n");
       assert.deepEqual(fs.readdirSync(skills).sort(), ["doc-kit", "other-skill"]);
 
-      // The agent types: copied as plain files (no {{KIT_PATH}}), next to the skills folder, nothing else there.
+      // The agent types: next to the skills folder, nothing else there, {{SKILL_PATH}} replaced with the installed
+      // skill's folder — where the guard their Bash hook runs lives (scripts/bash-guard.mjs, SECURITY.md).
       const agents = path.join(root, "agents");
       assert.deepEqual(fs.readdirSync(agents).sort(), AGENT_NAMES);
+      const skillPath = dir.split(path.sep).join("/");
       for (const name of AGENT_NAMES) {
         const installed = fs.readFileSync(path.join(agents, name), "utf8");
-        assert.equal(installed, fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8"), name);
+        const source = fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8");
+        assert.equal(installed, source.split("{{SKILL_PATH}}").join(skillPath), name);
+        assert.doesNotMatch(installed, /\{\{\w+\}\}/, name);
         assert.match(
           installed,
-          /^---\nname: doc-kit-\w+\ndescription: .+\nmodel: (haiku|sonnet|opus)\ntools: [\w, ]+\n---\n/,
+          /^---\nname: doc-kit-\w+\ndescription: .+\nmodel: (haiku|sonnet|opus)\ntools: [\w, ]+\n(hooks:\n( {2}.+\n)+)?---\n/,
           name,
         );
+        if (!/^tools: .*\bBash\b/m.test(installed)) continue;
+        const hook = /^ {10}command: 'node "(.+)"'$/m.exec(installed)?.[1];
+        assert.equal(hook, `${skillPath}/scripts/bash-guard.mjs`, `${name}: its Bash hook is the installed guard`);
+        assert.ok(fs.existsSync(hook), `${name}: the guard is installed where its hook says`);
       }
       assert.equal(agentsStatus({ target: skills }).state, "current");
 
@@ -93,6 +107,12 @@ describe("skill install", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  test("the guard's path in an agent's hook command survives the shell's double quotes and YAML's single quotes", () => {
+    assert.equal(hookPath("/home/me/.claude/skills/doc-kit"), "/home/me/.claude/skills/doc-kit");
+    assert.equal(hookPath("C:/Users/O'Brien/.claude/skills/doc-kit"), "C:/Users/O''Brien/.claude/skills/doc-kit");
+    assert.equal(hookPath(String.raw`/a"b/$HOME/\x/` + "`id`"), String.raw`/a\"b/\$HOME/\\x/` + "\\`id\\`");
   });
 
   test("a doc-kit folder not installed by the command is kept unless --force; unknown action → 2", async () => {

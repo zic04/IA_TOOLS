@@ -34,6 +34,24 @@ kit's absolute path in `SKILL.md`, `references/*.md` and `scripts/*.mjs`: the sk
 standard and its templates are. The skills folder is `--target`, otherwise `$CLAUDE_CONFIG_DIR/skills`, otherwise
 `~/.claude/skills`.
 
+It also writes the four agent types (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) to
+the agents folder next to the skills folder, with the installed skill's path in place of `{{SKILL_PATH}}`. The three
+that have Bash name the skill's **guard** as their PreToolUse hook (`scripts/bash-guard.mjs`): every Bash command such
+an agent asks for is read first, and only these go through:
+
+| Allowed | Example |
+|---|---|
+| doc-kit, from the documentation folder | `cd docs/manual && npx doc-kit build --draft` |
+| The kit's CLI, by its path | `node /opt/doc-kit/cli/doc-kit.mjs check tables` |
+| The skill's scripts, by their path | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| Read-only tools | `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`, `diff`…, joined by a pipe, `&&` or `;` |
+
+Everything else is refused with its reason: git, npm, any other program, `$(…)`, a redirection to a file, an unquoted
+`*`, `rg --pre`, `find -exec`, and the doc-kit commands that are yours or the orchestrator's (`connect`, `demo`,
+`facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a comment planted in its
+code cannot make an agent run a program. The guard only refuses; what it lets through still asks for your
+permissions as usual.
+
 ## Step 2 — Load it in Claude Code
 
 Start a new Claude Code session. The skill is picked up when you ask for documentation work: documenting an
@@ -77,6 +95,12 @@ document, end-to-end journeys, troubleshooting, findings, or updating an existin
 > [!NOTE] One kit per skill
 > The installed skill points to one kit folder. Moving the kit, or using another copy, needs a new install;
 > `doctor` reports it.
+
+> [!WARNING] The guard is not a sandbox
+> It bounds the agents' Bash only. What an agent writes is bounded by its brief and your permissions, and a capture
+> plan is a JavaScript module that `doc-kit capture` runs. It trusts any folder that holds a `doc.config.mjs` as a
+> documentation folder: review such a file if the application ships one. An agent definition edited by hand may have
+> lost its guard: `doctor` reports it as modified, and `doc-kit skill install` restores it.
 
 ## Required permissions
 

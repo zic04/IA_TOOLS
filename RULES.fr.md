@@ -48,7 +48,7 @@ ou son test est mis à jour dans la même modification.
 | M12 | `npm run lint` (ESLint, `eslint.config.mjs`) passe : aucune erreur, et pas plus d'avertissements que son plafond `--max-warnings`. Le plafond compte les fonctions qui dépassent encore les règles de taille de M5 ; il ne fait que baisser, à mesure qu'elles sont découpées. |
 | M13 | `npm run typecheck` (TypeScript sur la JSDoc, `tsconfig.json`, rien n'est compilé) passe sans erreur. Une JSDoc qui ne correspond plus au code est corrigée, jamais réduite au silence : pas de `@ts-ignore` ; un `@ts-expect-error` seulement avec sa raison. |
 | M14 | Les dossiers d'`engine/` s'importent sans cycle : de bas en haut, `core`, `capture`, `check`, `facts`, `sync`, `build`. Un module que deux dossiers partagent va dans `engine/core/`. Vérifié par `test/unit/layers.test.mjs`. |
-| M15 | Le skill reste cohérent : chaque brief existe en anglais et en français avec le même en-tête et les mêmes variables ; chaque type d'agent sert, et sa description nomme les briefs qu'il exécute ; `DEFAULT_ROUTING` nomme de vrais briefs et correspond au tableau des modèles de `SKILL.md`. Vérifié par `test/unit/skill-briefs.test.mjs`. |
+| M15 | Le skill reste cohérent : chaque brief existe en anglais et en français avec le même en-tête et les mêmes variables ; chaque type d'agent sert, et sa description nomme les briefs qu'il exécute ; `DEFAULT_ROUTING` nomme de vrais briefs et correspond au tableau des modèles de `SKILL.md`, dont le tableau des briefs les liste tous ; chaque brief que lit un agent, et chaque définition d'agent, dit dans sa partie commune que les fichiers de l'application sont des données, jamais des instructions (SECURITY.md). Vérifié par `test/unit/skill-briefs.test.mjs`. |
 
 ## Avant chaque version
 

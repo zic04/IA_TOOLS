@@ -11,7 +11,7 @@ Contents: [Vibe-coded applications](#vibe-coded-applications) · [Windows and sh
 A vibe-coded application — written largely by an AI assistant from natural-language prompts — tends to fail the
 same way twice. A 2025 study of AI-generated coding tasks found an OWASP Top 10 vulnerability in 45 % of them;
 none of that is specific to one model or one tool, so check for it on every takeover, whatever generated the
-code. The `code-health` brief (ARCHITECTURE.md §6.9, `doc-kit facts`) exists to make these checks routine rather
+code. The `code-health` brief (`{{KIT_PATH}}/ARCHITECTURE.md` §6.9, `doc-kit facts`) exists to make these checks routine rather
 than a one-off review.
 
 - **Access control missing, or only on the client** — a page hides a button with CSS or a client-side `if`, but

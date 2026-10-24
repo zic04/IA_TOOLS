@@ -15,7 +15,7 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 
 ## Structure
 
-- Four **spaces**, one per audience (ARCHITECTURE.md §6.1a): **Use** (`use`: how to do each task, screen by
+- Four **spaces**, one per audience (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a): **Use** (`use`: how to do each task, screen by
   screen — users, key users, support), **Product** (`product`: what each feature does, for whom, by which rule —
   product owners, business analysts, key users), **Administer** (`admin`: settings, access, operations, the
   technical architecture document — administrators, operators) and **Develop** (`develop`: how it is built and

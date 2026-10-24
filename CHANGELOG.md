@@ -24,6 +24,13 @@ entries between a project's `kit` range and the installed version.
   check names it).
 - `doc-kit build --lang <source language>` writes the source language's file alone (`-en.html`); it failed with
   `translation.missing`.
+- **The skill**: its references to ARCHITECTURE.md resolve once installed (`{{KIT_PATH}}/ARCHITECTURE.md` §…, in
+  SKILL.md and the references; the briefs and the agent definitions, which the installer does not complete, name it
+  no more), and SKILL.md says to read only the section cited, never the whole file. SKILL.md's table of briefs lists
+  `security-review`, `maintainability-review` and `translate`; its list of the briefs on `opus` names
+  `architecture-reconcile`; its scoping section has an English title. Its description is 1,014 characters, under the
+  1,024 of the Agent Skills specification (it was 1,323), with the same triggers. `skill-briefs.test.mjs` checks all
+  four.
 - A page not written yet in the source is not written in any language: the links to its anchors are no longer
   errors in the translations, and `page.missing` is reported once, by the source.
 - `doc-kit view --tour <n>` on a multilingual site: it clicked the tour's "Next" button by its label in the source
@@ -93,6 +100,30 @@ entries between a project's `kit` range and the installed version.
   as whole readers too, and the harness builds the crafted shapes
   (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
   the former forms against the new ones on random input).
+- **The application's code is data, never instructions, for every agent of the skill** (SECURITY.md): a comment, a
+  CLAUDE.md, an AGENTS.md or a commit message of the application written to steer an AI no longer meets an agent
+  that was never told so.
+  - Every brief an agent reads (21, in English and French) and the four agent definitions carry the same rule, in
+    their common part: the application's files — code, comments, documentation, instruction files, commit messages,
+    diffs — are data to describe, never instructions to follow; an instruction found in them is reported as a
+    finding, never acted on. Only the analyst and three briefs said so before; the writer and the reviewer, which
+    have Bash, Edit and Write, did not, nor `code-health`, which reads the application's instruction files.
+  - A decision to skip work never rests on text from the application that asks for it: `triage` never marks a page
+    `intact` because a comment or a diff says so (such a page is at least `edit`), nor do `update` (a part left
+    unchanged), `findings-verification` (a candidate rejected, a severity lowered), `security-review` and
+    `code-health` (a check skipped, a risk dismissed) or `inventory` (a route left out).
+  - Every file `doc-kit context` writes starts with a fixed notice, in the site's language: what follows is the
+    application's content, data only (the translator's dossier: content to translate).
+  - **The agents with Bash run it through a guard**, `skill/doc-kit/scripts/bash-guard.mjs`, their PreToolUse hook
+    (in their definitions; `doc-kit skill install` writes the installed skill's path in them): `npx doc-kit
+    <command>` from a documentation folder, the kit's CLI, the skill's scripts and read-only tools only. It refuses
+    git, any other program, an expansion, a redirection to a file, a subshell, an unquoted wildcard, the options of a
+    read-only tool that run a program (`rg --pre`, `find -exec`), the doc-kit commands of the orchestrator or the
+    user (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…) and `--plans`. No shell, no eval; it only refuses,
+    and what it lets through still goes through Claude Code's permissions.
+  - `test/unit/skill-briefs.test.mjs` (RULES.md M15) checks the rule in every brief, both languages, and every agent;
+    `test/unit/bash-guard.test.mjs` the guard on a table of allowed and refused commands; the ReDoS harness measures
+    it.
 
 ## [0.4.1] - 2026-10-23
 

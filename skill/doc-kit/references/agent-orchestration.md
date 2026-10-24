@@ -28,7 +28,7 @@ plans, plus a separate production plan with its own prefix.
 **With a Product space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
 entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
 `process` pages, usually their own small batch since they are not tied to one feature). The **analysis wave**
-comes before them: one `behaviour-analysis` analyst per feature of `features.json` (ARCHITECTURE.md §6.11a), so
+comes before them: one `behaviour-analysis` analyst per feature of `features.json` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11a), so
 that each `functional-spec` batch starts from the Product digests of its features. **For the takeover
 dossier** (the Develop space, and the Operate part of Administer): `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
 `tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
@@ -79,7 +79,7 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 | 7 | 2nd consolidation (2) | reports of wave 6 |
 | apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical`, `architecture-reconcile` (each its own agent) | facts generated (the first three), portal screenshots received (production-technical), or a DAT ingested and `inputs reconcile` run (architecture-reconcile); disjoint files, so each can join any wave |
 
-- Translations (ARCHITECTURE.md §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
+- Translations (`{{KIT_PATH}}/ARCHITECTURE.md` §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
   same target language (never mixed); each batch can join any wave once its pages are written.
 - Agents run in the background; you are notified when they finish, no need to poll. Paste each report into the
   consolidation file as soon as it arrives.
@@ -91,7 +91,7 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 **Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
 `brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
 inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief,
-`doc-kit-analyst` for `behaviour-analysis` (ARCHITECTURE.md §6.11, "Economy of the agents"; the new briefs
+`doc-kit-analyst` for `behaviour-analysis` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11, "Economy of the agents"; the new briefs
 `behaviour-analysis`, `feature-mechanism` and `deepen`: §6.11a). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
 prompt is **the brief's full text**, with its common part first and its variables last, followed by one line:
 
@@ -209,7 +209,7 @@ On site A, 37 sub-pages were created this way in one pass, with a script that mo
 ## 8. The cost of an agent, and the step budget
 
 **Model**: an agent's cost ≈ its number of round-trips × its context size. Cache reads dominate — each round-trip
-re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
+re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11) cuts what one
 read costs; it does not by itself cut how many reads an agent takes. **The step budget is the main lever**: how
 many extra reads an agent allows itself beyond the context file and the page's own template, how many times it
 runs a build, whether it reviews a screenshot mid-way.
@@ -228,7 +228,7 @@ per token, but there are far more of them per round-trip than any other kind.) T
 14 %; the step budget bought the rest. Conformance to the standard did not move: fewer steps did not mean fewer
 checks, only fewer *exploratory* ones. The sober method also cut words by 24 % and proofs by 19 % at equal
 conformance: conformance measures structure, not depth. The analysis of each feature and the depth loop
-(ARCHITECTURE.md §6.11a) are what bring the depth back.
+(`{{KIT_PATH}}/ARCHITECTURE.md` §6.11a) are what bring the depth back.
 
 **The analysis of a feature, measured** (pilot of 0.4.0, the demo, two features of size S at level `standard`, one
 analyst each on Sonnet; token-equivalent as above, the output estimated from what the agents wrote, ÷ 4, the
@@ -261,5 +261,5 @@ transcripts recording a partial output count for a response that calls a tool):
   now asks to check each of those facts. M and L sizes are still to measure, on a real project.
 
 **The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
-rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply
+rather than exploring further to resolve it itself. `writing-batch` and `update` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11) apply
 this: at most 3 extra reads per page for a writer, at most 1 for an updater.

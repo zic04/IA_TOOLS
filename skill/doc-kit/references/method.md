@@ -12,7 +12,7 @@ Contents: [Orders of magnitude](#orders-of-magnitude) · [0 Scoping](#0--scoping
 [7 Journeys](#7--end-to-end-journeys-and-troubleshooting) · [8 Takeover dossier](#8--takeover-dossier) · [9 Checks](#9--checks-and-review) · [10 Delivery](#10--delivery-and-maintenance) ·
 [The update cycle](#the-update-cycle)
 
-Sites A and B below predate spaces, `doc-kit facts` and `doc-kit sync` (ARCHITECTURE.md §6.1a, §6.9, §6.10):
+Sites A and B below predate spaces, `doc-kit facts` and `doc-kit sync` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a, §6.9, §6.10):
 their numbers, given by their four sections Use, Configure, Administer and Take over, stay a faithful lower bound
 for a site without spaces. Where this file describes the four spaces (Use, Product, Administer, Develop), the
 Product space's feature sheets, the takeover dossier or the update cycle, it gives the method, not a fabricated
@@ -42,11 +42,11 @@ Decisions to make with the owner, **before any code**:
 
 | Decision | Options | What depends on it |
 |---|---|---|
-| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
+| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a); which of phases 5 and 8 apply |
 | Audience | users, product owners, administrators and operators, technical successors | one space per audience, and its parts (`{{KIT_PATH}}/standard/structure.md`) |
 | Language | `en` or `fr` | `language` in `doc.config.mjs`, briefs `assets/briefs/<lang>/` |
 | Level of detail | `essential` (the required rubrics of each behaviour, the stories, the rules, the permissions) · `standard` (the default: also the fields, states, messages word for word, one acceptance criterion per story, the limits) · `detailed` (also every optional rubric, the variants, a criterion per behaviour) | the `level` of every `behaviour-analysis` brief: `extra: { briefs: { level: "standard" } }` in `doc.config.mjs`; the cost grows with it |
-| Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (ARCHITECTURE.md §6.11): the per-million-token price of each model in play |
+| Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11): the per-million-token price of each model in play |
 | Capture mode | prepared demo · read-only production · none | `capture.target` (`init --target`), phase 4, safety, `capture.setup` |
 | Visible data | real in clear · masked · fictitious | **written** decision of the owner; `masking.patterns` |
 | Routes never to open | pages that write when rendered, customer data exports | `capture.forbidden` |
@@ -97,7 +97,7 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   - `capture.forbidden`: route regular expressions never opened (filled after reading the detail pages' code).
 - `doc-kit doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
   starts until it has no ✖ (exit code 3 environment, 2 configuration, 1 project).
-- **Then, before any agent**: `doc-kit facts [--network] [--tools]` (ARCHITECTURE.md §6.9) reads the application's
+- **Then, before any agent**: `doc-kit facts [--network] [--tools]` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.9) reads the application's
   code and writes `facts/*.json` — `dependencies`, `env`, `api`, `db`, `agents`, `secrets`, `tests` — committed
   with the documentation project. It calls no LLM: a fact is what a pattern matched, not yet a judgment. This is
   the deterministic, zero-token half of phase 2 and the main input of phase 8's `code-health` and
@@ -121,7 +121,7 @@ keeps the same items.
   states.
 - One **`doc-kit-reviewer`** agent (read-only, "very thorough") with the `inventory` brief. It cannot write: save
   its report as is in `.doc-kit/inventory-<slug>.md`, which every later brief cites — except the batch writers of
-  phase 5, who read their pages' context files instead (never the whole inventory: ARCHITECTURE.md §6.11).
+  phase 5, who read their pages' context files instead (never the whole inventory: `{{KIT_PATH}}/ARCHITECTURE.md` §6.11).
 - Expected content:
   1. real navigation (menu, administration, top bar, floating elements), with its source files;
   2. every route by section, with permissions, hidden pages, orphans and redirects;
@@ -134,7 +134,7 @@ keeps the same items.
   screen inventory described the mock-up, not the application. Writers are warned from the brief on: "always check in
   the code".
 - **With a Product space**: `doc-kit inventory --features --write` groups the adapters' routes, API routes and
-  i18n keys into candidate features (by their first static segment, ARCHITECTURE.md §6.8), each a suggested
+  i18n keys into candidate features (by their first static segment, `{{KIT_PATH}}/ARCHITECTURE.md` §6.8), each a suggested
   `F-xx` id — a starting `features.json` for phase 3's plan and phase 5's `functional-spec` batches. The
   inventory report also gives each feature its size (S, M, L), its epic and the behaviours to document in depth:
   the sizes budget phase 4b.
@@ -147,7 +147,7 @@ keeps the same items.
    - a small script that writes the whole toc at once (for example a helper `P(id, title, menuTitle, summary, routes,
      permissions)` with permission abbreviations taken from the inventory legend).
    **With spaces**: declare `spaces: ["use", "product", "admin", "develop"]` (what `doc-kit init` writes; keep
-   only the spaces the project has readers for) and give each section a `space` (ARCHITECTURE.md §6.1a); a
+   only the spaces the project has readers for) and give each section a `space` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a); a
    page's own `space` overrides its section's, and `counterpart` joins the pages of one subject — a feature sheet, its
    screen, its technical page, its runbook — in a topic group (one page or a list; declared once, shown on each). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
    "Operations" }`.
@@ -190,13 +190,13 @@ before the writing: each feature is traced once in the code, and every space's w
 analysis. For each feature of `features.json`: `doc-kit context <its sheet>`, then one `doc-kit-analyst`
 (brief `behaviour-analysis`, estimated first, up to 8 at a time: the first alone, the others in the next message); then `analysis.mjs check`, `analysis.mjs
 findings` (candidates for the consolidation file) and `analysis.mjs digest <feature> --for product|develop|use|admin`.
-The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, ARCHITECTURE.md §6.11a.
+The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, `{{KIT_PATH}}/ARCHITECTURE.md` §6.11a.
 
 ## 5 · Writing in batches
 
 - **Before generating a brief**, for every page of the batch: `doc-kit context <page>` writes
   `.doc-kit/context/<page>.md` — dependencies, excerpts, exact labels, facts rows, glossary terms — the only
-  reading a writer needs for the application (ARCHITECTURE.md §6.11); never hand it the whole inventory or
+  reading a writer needs for the application (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11); never hand it the whole inventory or
   table of contents instead. For a type that supports it (`variables`, `api-surface`, `data-model`,
   `dependencies`, `agent-instructions`), also `doc-kit new <id> --prefill` before the brief runs: the page's main
   table arrives already filled from the facts.
@@ -230,7 +230,7 @@ After the writing wave: `doc-kit build --draft`, `doc-kit audit` (it writes `.do
 `analyse again` means `behaviour-analysis` with `focus`, then the digest again. At most two rounds per feature;
 `analysis.mjs questions` then writes `.doc-kit/open-questions.md` for the product owner. The loop ends when `depth`
 prints ✔ (nothing left to deepen or to analyse again); what stays open goes to `questions`. A new loop starts
-with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, ARCHITECTURE.md §6.11a.
+with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, `{{KIT_PATH}}/ARCHITECTURE.md` §6.11a.
 
 ## 6 · Consolidation
 
@@ -274,7 +274,7 @@ architecture document, resources, variables) go to the Operate part of the Admin
 
 Four disjoint agents, each able to start as soon as its own inputs are ready (none waits for another):
 
-- **`code-health`** (one `doc-kit-reviewer`, from `facts/*.json`, ARCHITECTURE.md §6.9): `api-surface`
+- **`code-health`** (one `doc-kit-reviewer`, from `facts/*.json`, `{{KIT_PATH}}/ARCHITECTURE.md` §6.9): `api-surface`
   (authentication and tenant isolation of every route, row-level security from `facts/db.json`), `dependencies`
   (packages that do not exist — `--network` checks each one against its public registry — licences, out of
   date), `agent-instructions` (every rule in `AGENTS.md`-like files, confirmed/obsolete/contradicted, hidden
@@ -341,7 +341,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 ## The update cycle
 
 What to run after an application release, so the documentation catches up without a full rewrite
-(ARCHITECTURE.md §6.10-6.11); none of it calls an LLM before the triage step.
+(`{{KIT_PATH}}/ARCHITECTURE.md` §6.10-6.11); none of it calls an LLM before the triage step.
 
 1. `doc-kit facts [--network]`: refresh the deterministic facts (zero tokens; skip sources that have not
    changed with `--source` if the application is large). `doc-kit bricks` shows which brick is stale (the inputs,
@@ -371,7 +371,7 @@ What to run after an application release, so the documentation catches up withou
 7. **Update** (`doc-kit-writer`, sonnet, brief `update`), one wave for the `edit` and `rewrite` pages: each
    changes only what its context file's flagged reasons require, then ends with `doc-kit sync --mark <page>
    --sources …`.
-7a. With `languages` declared (ARCHITECTURE.md §6.12): `doc-kit translate status` after step 2 already lists
+7a. With `languages` declared (`{{KIT_PATH}}/ARCHITECTURE.md` §6.12): `doc-kit translate status` after step 2 already lists
     what fell stale from the pages the cycle just touched (`sync`'s own report reminds of it too, category
     "translations"); batch the pages that need a translation the same way as phase 8b.
 8. `doc-kit check all`, then `doc-kit build` (strict); `doc-kit sync --check` gates CI (exit code 1 on anything

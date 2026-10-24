@@ -34,6 +34,25 @@ par le chemin absolu du kit dans `SKILL.md`, `references/*.md` et `scripts/*.mjs
 kit, son standard et ses gabarits. Le dossier des skills est `--target`, sinon `$CLAUDE_CONFIG_DIR/skills`, sinon
 `~/.claude/skills`.
 
+Elle écrit aussi les quatre types d'agents (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-analyst`,
+`doc-kit-reviewer`) dans le dossier des agents voisin du dossier des skills, avec le chemin du skill installé à la
+place de `{{SKILL_PATH}}`. Les trois qui ont Bash nomment la **garde** du skill comme hook PreToolUse
+(`scripts/bash-guard.mjs`) : chaque commande Bash qu'un tel agent demande est lue d'abord, et seules celles-ci
+passent :
+
+| Permis | Exemple |
+|---|---|
+| doc-kit, depuis le dossier de la documentation | `cd docs/manual && npx doc-kit build --draft` |
+| Le CLI du kit, par son chemin | `node /opt/doc-kit/cli/doc-kit.mjs check tables` |
+| Les scripts du skill, par leur chemin | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| Des outils de lecture | `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `rg`, `find`, `diff`…, reliés par un tube, `&&` ou `;` |
+
+Tout le reste est refusé, avec sa raison : git, npm, tout autre programme, `$(…)`, une redirection vers un fichier, un
+`*` sans guillemets, `rg --pre`, `find -exec`, et les commandes de doc-kit qui sont les vôtres ou celles de
+l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les fichiers de l'application sont des
+données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un
+agent. La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations, comme d'habitude.
+
 ## Étape 2 — Le charger dans Claude Code
 
 Ouvrez une nouvelle session Claude Code. Le skill se déclenche dès que vous demandez un travail de documentation :
@@ -78,6 +97,13 @@ annotées, un dossier d'architecture, des parcours de bout en bout, un diagnosti
 > [!NOTE] Un kit par skill
 > Le skill installé pointe vers un seul dossier de kit. Déplacer le kit, ou utiliser une autre copie, demande une
 > nouvelle installation ; `doctor` le signale.
+
+> [!ATTENTION] La garde n'est pas un bac à sable
+> Elle ne borne que le Bash des agents. Ce qu'un agent écrit est borné par son brief et vos autorisations, et un plan
+> de capture est un module JavaScript que `doc-kit capture` exécute. Elle tient pour dossier de documentation tout
+> dossier qui porte un `doc.config.mjs` : relisez un tel fichier si l'application en livre un. Une définition d'agent
+> modifiée à la main a pu perdre sa garde : `doctor` la signale comme modifiée, et `doc-kit skill install` la
+> rétablit.
 
 ## Droits requis
 

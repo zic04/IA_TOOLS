@@ -5,8 +5,10 @@
 // other file in that shared folder is touched):
 //   <skills folder> = --target, otherwise $CLAUDE_CONFIG_DIR/skills, otherwise ~/.claude/skills.
 // {{KIT_PATH}} is replaced with the kit's absolute path (forward slashes) in SKILL.md, references/*.md and
-// scripts/*.mjs. A fingerprint file (.doc-kit-skill.json, inside <skills folder>/doc-kit/) covers both the
-// skill and the agent files, and lets `doctor` report either copy as outdated or modified.
+// scripts/*.mjs; {{SKILL_PATH}}, with the installed skill's, in the agent files (the agents with Bash name the skill's
+// guard, scripts/bash-guard.mjs, as their PreToolUse hook: SECURITY.md). A fingerprint file (.doc-kit-skill.json,
+// inside <skills folder>/doc-kit/) covers both the skill and the agent files, and lets `doctor` report either copy as
+// outdated or modified.
 // Only the doc-kit folder is ever written or replaced; a doc-kit folder without fingerprint (not installed by
 // this command) is left alone unless --force. The agent files are always written or replaced (they have
 // no "foreign" concept: the shared agents folder is never owned exclusively by doc-kit).
@@ -66,8 +68,22 @@ export const FINGERPRINT = ".doc-kit-skill.json";
 export const SKILL_SOURCE = path.join(KIT_ROOT, "skill", SKILL_NAME);
 const AGENTS_SUBDIR = "agents";
 const PLACEHOLDER = "{{KIT_PATH}}";
+/** Replaced in the agent files: the installed skill's folder, where their guard lives. */
+const SKILL_PLACEHOLDER = "{{SKILL_PATH}}";
 /** Files where the placeholder is replaced. */
 const SUBSTITUTED = /^(SKILL\.md|references\/[^/]+\.md|scripts\/[^/]+\.mjs)$/;
+
+/**
+ * A path as it stands in an agent's hook command, `command: 'node "<path>/scripts/bash-guard.mjs"'`: escaped for the
+ * shell's double quotes (`"`, `$`, `` ` ``, `\`), then for YAML's single quotes (`'` doubled).
+ * @param {string} p
+ */
+export function hookPath(p) {
+  return p
+    .replace(/["$`\\]/g, "\\$&")
+    .split("'")
+    .join("''");
+}
 
 /**
  * Skills folder: --target, $CLAUDE_CONFIG_DIR/skills, ~/.claude/skills.
@@ -161,7 +177,11 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
   const agentNames = agentFileNames(source);
   const agentsDest = agentsFolder({ target: skills });
   fs.mkdirSync(agentsDest, { recursive: true });
-  for (const name of agentNames) fs.copyFileSync(path.join(source, AGENTS_SUBDIR, name), path.join(agentsDest, name));
+  const skillPath = hookPath(slash(path.resolve(folder)));
+  for (const name of agentNames) {
+    const text = fs.readFileSync(path.join(source, AGENTS_SUBDIR, name), "utf8");
+    fs.writeFileSync(path.join(agentsDest, name), text.split(SKILL_PLACEHOLDER).join(skillPath));
+  }
 
   const fingerprint = {
     kit: BRAND.version,
