@@ -3,11 +3,14 @@
 // the sync report after a `git pull` (post-merge) and a branch switch (post-checkout), in the background of the
 // developer's own git, never blocking it (zero tokens, no capture, no network).
 // The hooks folder comes from git itself (`git rev-parse --git-path hooks`: core.hooksPath and worktrees are
-// honoured). A hook that already exists is kept: the kit only adds, or removes, its own block between markers.
+// honoured), but the repository's configuration chooses it: one outside the repository and its common git folder,
+// links followed, is refused (SECURITY.md), as is a hook that is a link out of them or a hard link. A hook that
+// already exists is kept: the kit only adds, or removes, its own block between markers.
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { BRAND } from "../../engine/brand.mjs";
+import { isWithin } from "../../engine/util/safe-git.mjs";
 import { shownPath } from "../common.mjs";
 import { WORK_DIR } from "./audit.mjs";
 
@@ -40,6 +43,58 @@ export function withBlock(text, block) {
   return `${head}${block}\n`;
 }
 
+/**
+ * Where a write to `p` lands: its real path (links and junctions followed), through its nearest folder that exists
+ * when it does not exist yet; null for a link that leads nowhere (a write would create its target, wherever it is).
+ */
+function landing(p) {
+  const abs = path.resolve(p);
+  try {
+    return fs.realpathSync.native(abs);
+  } catch {
+    // not there yet, or a link that leads nowhere
+  }
+  try {
+    if (fs.lstatSync(abs).isSymbolicLink()) return null;
+  } catch {
+    // nothing there
+  }
+  const parent = path.dirname(abs);
+  if (parent === abs) return abs;
+  const up = landing(parent);
+  return up && path.join(up, path.basename(abs));
+}
+
+/**
+ * The hooks folder git names for the repository `top` (`git rev-parse --git-path hooks`, from core.hooksPath), when
+ * it and each hook land inside the repository or its common git folder (a worktree's hooks are the main
+ * repository's); otherwise KitError `hooks.unsafeFolder`: a repository's configuration never has the kit write an
+ * executable file elsewhere.
+ */
+function hooksFolder(ctx, top) {
+  const ask = (args) => {
+    const r = ctx.exec("git", ["rev-parse", ...args], { cwd: top });
+    if (!r || r.status !== 0) throw new KitError(EXIT.ENVIRONMENT, "hooks.noRepo", { folder: top });
+    return path.resolve(top, r.stdout.trim());
+  };
+  const common = ask(["--git-common-dir"]);
+  const hooksDir = ask(["--git-path", "hooks"]);
+  const roots = [top, common].map(landing).filter(Boolean);
+  const safe = (p) => {
+    const real = landing(p);
+    if (!real || !roots.some((root) => isWithin(real, root))) return false;
+    // A hard link writes where its other names are, wherever they are.
+    try {
+      return !fs.statSync(real).isFile() || fs.statSync(real).nlink === 1;
+    } catch {
+      return true; // not there yet
+    }
+  };
+  if (!safe(hooksDir) || HOOKS.some((hook) => !safe(path.join(hooksDir, hook))))
+    throw new KitError(EXIT.ENVIRONMENT, "hooks.unsafeFolder", { folder: hooksDir, repo: top });
+  return hooksDir;
+}
+
 export async function run({ ctx, values, positionals }) {
   const action = positionals[0];
   if (!["install", "uninstall", "status"].includes(action))
@@ -49,9 +104,7 @@ export async function run({ ctx, values, positionals }) {
   const r = ctx.exec("git", ["rev-parse", "--show-toplevel"], { cwd: appDir });
   if (!r || r.status !== 0) throw new KitError(EXIT.ENVIRONMENT, "hooks.noRepo", { folder: appDir });
   const top = r.stdout.trim();
-  const h = ctx.exec("git", ["rev-parse", "--git-path", "hooks"], { cwd: top });
-  if (!h || h.status !== 0) throw new KitError(EXIT.ENVIRONMENT, "hooks.noRepo", { folder: top });
-  const hooksDir = path.resolve(top, h.stdout.trim());
+  const hooksDir = hooksFolder(ctx, top);
   const docRel = path.relative(top, project.root) || ".";
   if (docRel.startsWith("..")) throw new KitError(EXIT.USAGE, "hooks.outside", { folder: project.root, repo: top });
   // The path is written into a shell script: only plain characters, never a quote, $ or backtick.
