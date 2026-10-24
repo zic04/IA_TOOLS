@@ -2,9 +2,11 @@
 // Reads the application code (config.app.dir) and writes one file per source, facts/<source>.json (paths.facts,
 // ARCHITECTURE.md §6.9), in the DOCUMENTATION project — never in the application. `--source` (repeatable) limits
 // the sources; `--network` adds, for `dependencies`, whether each direct package exists in its registry, and for
-// `quality`, direct dependencies behind their latest version (majors behind) — never for a private package (AUDIT.md
-// S13: what is private is read once by privateRegistries — the application's own packages, its lock files, every
-// folder down to each manifest, the user's own npm, yarn, bun, pip and uv configuration and variables);
+// `quality`, direct dependencies behind their latest version (majors behind) — only for a package the configuration
+// lists (facts.network.allow), and never for a private one (AUDIT.md S13: what is private is read once by
+// privateRegistries — the application's own packages, its lock files, every folder down to each manifest, the user's
+// own npm, yarn, bun, pip and uv configuration and variables); the direct packages kept back only because the list
+// does not name them are counted, and given with --json (`network.candidates`) for the user to review;
 // `--tools` also runs gitleaks, osv-scanner (offline; its database is downloaded only with --network), syft and knip
 // when they are on the PATH (facts/tool-<name>.json, normalised), and semgrep when a local rules folder is configured
 // (review.semgrep, ARCHITECTURE.md §6.13).
@@ -13,7 +15,7 @@ import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { factsFile, relPath } from "../../engine/facts/common.mjs";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
-import { privateRegistries } from "../../engine/facts/network.mjs";
+import { networkCandidates, privateRegistries } from "../../engine/facts/network.mjs";
 import { SOURCE_NAMES, collectSource } from "../../engine/facts/registry.mjs";
 import { loadStacks } from "../../engine/facts/stacks.mjs";
 import { loadInfra } from "../../engine/facts/infra.mjs";
@@ -55,6 +57,27 @@ function writeTools({ ctx, project, config, appDir, factsDir, generated, commit,
   return tools;
 }
 
+/**
+ * --network: what may be sent, read once before any request (AUDIT.md S13) — the packages the configuration lists
+ * (facts.network.allow), what the lock files prove public and what is private (privateRegistries) —, the registries'
+ * answers of the run, by package, shared by its sources (one request a package between them), and the candidates: the
+ * direct packages kept back only because the list does not name them (networkCandidates), for the user to review.
+ */
+function readNetwork(appDir, config, env) {
+  const items = collectDependencies(appDir);
+  const allow = config.facts?.network?.allow ?? [];
+  const registries = privateRegistries(appDir, { items, env, allow });
+  return { network: { registries, answers: new Map() }, allow, candidates: networkCandidates(items, registries) };
+}
+
+/** --network: how many direct packages the list kept back, and how to list them; or that nothing is listed at all. */
+function printUnlisted(ctx, { allow, candidates }) {
+  if (candidates.length) {
+    ctx.print(ctx.t("cli.facts.network.unlisted", { n: candidates.length }));
+    ctx.print(`  → ${ctx.t("cli.facts.network.howToList", { example: candidates[0] })}`);
+  } else if (!allow.length) ctx.print(ctx.t("cli.facts.network.nothingListed"));
+}
+
 export async function run({ ctx, values }) {
   const { project, config } = await ctx.loadProject();
   if (!config.app.dir) throw new KitError(EXIT.USAGE, "facts.noApp");
@@ -74,14 +97,9 @@ export async function run({ ctx, values }) {
   const commit = ctx.commit(appDir);
   const app = relPath(project.root, appDir);
 
-  // What is private, read once before any request (AUDIT.md S13): never sent to a public registry. `answers`: what the
-  // registries answered, by package, shared by the sources of the run (one request a package between them).
-  const network = values.network
-    ? {
-        registries: privateRegistries(appDir, { items: collectDependencies(appDir), env: ctx.env }),
-        answers: new Map(),
-      }
-    : null;
+  // What may be sent, read once before any request (AUDIT.md S13): only a listed name, never a private one.
+  const listing = values.network ? readNetwork(appDir, config, ctx.env) : null;
+  const network = listing?.network ?? null;
 
   // The stack adapters of the run: the kit's but the disabled ones, then the project's own (config.stacks).
   const stacks = await loadStacks(project.root, config);
@@ -109,6 +127,9 @@ export async function run({ ctx, values }) {
     ? writeTools({ ctx, project, config, appDir, factsDir, generated, commit, app, download: !!values.network })
     : undefined;
 
-  if (ctx.json) ctx.print(JSON.stringify({ app, commit, sources: written, ...(tools ? { tools } : {}) }, null, 2));
+  if (listing && !ctx.json) printUnlisted(ctx, listing);
+  const listed = listing ? { network: { candidates: listing.candidates } } : {};
+  if (ctx.json)
+    ctx.print(JSON.stringify({ app, commit, sources: written, ...(tools ? { tools } : {}), ...listed }, null, 2));
   return EXIT.OK;
 }

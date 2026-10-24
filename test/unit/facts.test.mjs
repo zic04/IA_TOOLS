@@ -56,12 +56,16 @@ async function cli(args, io = {}) {
   return { code, out, err };
 }
 
-/** A documentation project whose application is `appDir` (never written to). */
-function project(appDir) {
+/**
+ * A documentation project whose application is `appDir` (never written to); `allow`, the packages its configuration
+ * lists for `--network` (facts.network.allow), none by default.
+ */
+function project(appDir, allow) {
   const dir = tempDir("doc-kit-facts-");
+  const facts = allow ? `, facts: { network: { allow: ${JSON.stringify(allow)} } }` : "";
   fs.writeFileSync(
     path.join(dir, "doc.config.mjs"),
-    `export default { product: { name: "Acme Orders" }, app: { dir: ${JSON.stringify(appDir)} } };\n`,
+    `export default { product: { name: "Acme Orders" }, app: { dir: ${JSON.stringify(appDir)} }${facts} };\n`,
   );
   fs.mkdirSync(path.join(dir, "content"));
   fs.writeFileSync(path.join(dir, "content", "toc.json"), JSON.stringify({ title: "Acme Orders", sections: [] }));
@@ -807,8 +811,8 @@ describe("doc-kit facts (CLI)", () => {
   after(() => {
     for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
   });
-  function mk(appDir) {
-    const d = project(appDir);
+  function mk(appDir, allow) {
+    const d = project(appDir, allow);
     dirs.push(d);
     return d;
   }
@@ -903,7 +907,7 @@ describe("doc-kit facts (CLI)", () => {
   });
 
   test("--network: adds `exists` only with the option, for dependencies only", async () => {
-    const dir = mk(app("next-app"));
+    const dir = mk(app("next-app"), ["npm:next", "npm:left-pad-pro"]);
     const fetchImpl = async (url) => ({
       ok: !url.includes("left-pad-pro"),
       status: url.includes("left-pad-pro") ? 404 : 200,
@@ -975,7 +979,8 @@ describe("doc-kit facts (CLI)", () => {
     const corp = (n) => (n.startsWith("@corp/") ? "https://npm.corp.internal" : "https://registry.npmjs.org");
     fs.writeFileSync(path.join(appDir, "web", "package-lock.json"), npmLock(["@corp/design", "react"], corp));
     fs.writeFileSync(path.join(appDir, "web", "uv.lock"), uvLock(["urllib3", "flask"]));
-    const dir = mk(appDir);
+    // Every name listed, the private one too: the list never lets out a name the second net keeps back.
+    const dir = mk(appDir, ["npm:@corp/design", "npm:react", "pip:urllib3", "pip:flask"]);
     const urls = [];
     const calls = [];
     const r = await cli(
@@ -1015,7 +1020,7 @@ describe("doc-kit facts (CLI)", () => {
       JSON.stringify({ name: "web", dependencies: { react: "^17.0.0", next: "^15.0.0" } }),
     );
     fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["react", "next"]));
-    const dir = mk(appDir);
+    const dir = mk(appDir, ["npm:react", "npm:next"]);
     const urls = [];
     const fetch = async (url) => (
       urls.push(url),
@@ -1050,7 +1055,7 @@ describe("doc-kit facts (CLI)", () => {
     // A lock as a person whose ~/.npmrc names the corp registry gets: both from npm's public registry by mistake would
     // be no proof of privacy — the declaration in ~/.npmrc still keeps @corp/design back.
     fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["@corp/design", "react"]));
-    const dir = mk(appDir);
+    const dir = mk(appDir, ["npm:@corp/design", "npm:react"]);
     const urls = [];
     const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {
       env: { HOME: home },

@@ -105,6 +105,15 @@ A marked page's footer shows "Checked against version {version} on {date}" once 
 
 See [Security and maintainability reviews](#/spaces/reviews).
 
+## The facts
+
+| Key | Type · default | Role | Example |
+|---|---|---|---|
+| `facts` | object · `{}` | `doc-kit facts` | |
+| `facts.network.allow` | list · `[]` | The only packages `doc-kit facts --network` may send to their public registry, one entry a package: `"npm:<name>"`, compared exactly (`npm:React` is not `react`), or `"pip:<name>"`, compared as PEP 503 normalises it (`pip:My_Lib` is `my-lib`); no wildcard. Empty, nothing is sent. A listed name that no lock file proves public, or that a declaration makes private, is still never sent. `doc-kit facts --network --json` gives the candidates (`network.candidates`): review them before listing any | `["npm:react", "npm:@types/node", "pip:fastapi"]` |
+
+See [Taking over a vibe-coded application](#/spaces/takeover~reading-the-code-automatically-doc-kit-facts).
+
 ## Behaviour cards
 
 | Key | Type · default | Role | Example |

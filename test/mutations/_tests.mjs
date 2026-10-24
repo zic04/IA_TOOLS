@@ -16,6 +16,7 @@ export const DEPENDENCY_TESTS = Object.freeze([
   "test/unit/facts-network-second-net-python.test.mjs",
   "test/unit/facts-network-gateway.test.mjs",
   "test/unit/facts-network-describe.test.mjs",
+  "test/unit/facts-network-allow.test.mjs",
   "test/unit/facts.test.mjs",
   "test/unit/facts-deps-properties-npm.test.mjs",
   "test/unit/facts-deps-properties-python.test.mjs",

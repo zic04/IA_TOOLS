@@ -7,12 +7,13 @@
 //   unproven  a name no lock proves (a manifest alone, a lock that proves nothing): kept back, `unproven: true`;
 //   local     an item a manifest or a lock took from elsewhere than a public registry (`local: true`);
 //   private   a name the second net keeps back (a place, an own name, a declaration): `private: true`;
+//   listed    a name the configuration lists (`facts.network.allow`, "npm:react"); any other is `unlisted: true`;
 //   sent      the names `--network` asks a registry for, as "npm react" or "pip fastapi".
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
-import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
+import { checkExistence, networkCandidates, privateRegistries } from "../../engine/facts/network.mjs";
 import { tempDir } from "./helpers.mjs";
 
 /** Writes `files` (relative path → text, a Buffer written as its bytes, or JSON) under a new folder; its path. */
@@ -47,19 +48,33 @@ export function sentName(url) {
 }
 
 /**
+ * Every name of `items` as the configuration would list it (`facts.network.allow`): "npm:<name>", "pip:<name>" — the
+ * other ecosystems have no registry `--network` asks.
+ * @param {Array<{ name: string, ecosystem: string }>} items
+ */
+export const listEvery = (items) =>
+  items.filter((i) => i.ecosystem === "npm" || i.ecosystem === "pip").map((i) => `${i.ecosystem}:${i.name}`);
+
+/** Why a direct item was kept back: the strongest reason first, when manifests disagree. */
+const REASONS = ["private", "unproven", "unlisted"];
+
+/**
  * What `--network` does for an application made of `files`: `sent`, the names it asks a registry for (sorted);
- * `kept`, why each other direct name stays back ("private" before "unproven" when manifests disagree); `items`, the
- * items read; `unreadable`, the files that could not be read; `urls`, the requests as made.
+ * `kept`, why each other direct name stays back ("private" before "unproven" before "unlisted" when manifests
+ * disagree); `items`, the items read; `unreadable`, the files that could not be read; `urls`, the requests as made.
  * `proof`: "locks" (as it is: only what a lock proves) or "all" (every item marked proven: what keeps a name back is
- * then the second net alone). `env`: the person's variables (none by default); `home`: files written in a home folder
- * given as HOME and USERPROFILE. `answer(url)`: what the spy registry answers (by default a 200 with no body).
+ * then the second net alone). `allow`: the configuration's list (`facts.network.allow`), or "every" (the default: every
+ * name read is listed, so that what keeps a name back is the proof and the second net, the nets these tests are about;
+ * the list itself: facts-network-allow.test.mjs). `env`: the person's variables (none by default); `home`: files
+ * written in a home folder given as HOME and USERPROFILE. `answer(url)`: what the spy registry answers (by default a
+ * 200 with no body).
  * @param {Record<string, unknown>} files
- * @param {{ proof?: "locks"|"all", env?: Record<string, string>, home?: Record<string, unknown>,
- *   answer?: (url: string) => unknown }} [options]
+ * @param {{ proof?: "locks"|"all", allow?: "every"|string[], env?: Record<string, string>,
+ *   home?: Record<string, unknown>, answer?: (url: string) => unknown }} [options]
  */
 export async function network(
   files,
-  { proof = "locks", env = {}, home, answer = () => ({ ok: true, status: 200 }) } = {},
+  { proof = "locks", allow = "every", env = {}, home, answer = () => ({ ok: true, status: 200 }) } = {},
 ) {
   const homeDir = home ? app(home) : null;
   try {
@@ -68,17 +83,19 @@ export async function network(
       const items = collectDependencies(dir, unreadable);
       const judged = proof === "all" ? items.map((i) => ({ ...i, public: true })) : items;
       const fullEnv = homeDir ? { HOME: homeDir, USERPROFILE: homeDir, ...env } : env;
+      const listed = allow === "every" ? listEvery(items) : allow;
+      const registries = privateRegistries(dir, { items: judged, env: fullEnv, allow: listed });
       const urls = [];
-      const out = await checkExistence(judged, async (url) => (urls.push(url), answer(url)), {
-        registries: privateRegistries(dir, { items: judged, env: fullEnv }),
-      });
+      const out = await checkExistence(judged, async (url) => (urls.push(url), answer(url)), { registries });
       const kept = {};
       for (const item of out) {
-        if (!item.private && !item.unproven) continue;
+        const reason = REASONS.find((r) => item[r]);
+        if (!reason) continue;
         const key = `${item.ecosystem} ${item.name}`;
-        if (kept[key] !== "private") kept[key] = item.private ? "private" : "unproven";
+        if (!kept[key] || REASONS.indexOf(reason) < REASONS.indexOf(kept[key])) kept[key] = reason;
       }
-      return { sent: [...new Set(urls.map(sentName))].sort(), kept, items, out, unreadable, urls };
+      const candidates = networkCandidates(judged, registries);
+      return { sent: [...new Set(urls.map(sentName))].sort(), kept, items, out, unreadable, urls, candidates };
     });
   } finally {
     if (homeDir) fs.rmSync(homeDir, { recursive: true, force: true });

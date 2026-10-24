@@ -262,7 +262,8 @@ Sous Windows PowerShell, posez d'abord les variables : `$env:DELIVERIES_URL = "h
 
 Exemples fictifs des clés ajoutées par le standard des espaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 Aucune n'a de défaut qui change le comportement existant : un projet qui ne les règle pas continue de se
-construire exactement comme avant.
+construire exactement comme avant (sauf `facts --network`, qui n'envoie rien tant que `facts.network.allow` ne liste
+aucun paquet).
 
 ```js
 // content/toc.json déclare les espaces ; doc.config.mjs ne configure que leur export et l'outillage facts/sync.
@@ -279,6 +280,11 @@ export default defineConfig({
   // facts/<source>.json (doc-kit facts) et sync.json (doc-kit sync) vivent à la racine du projet par défaut ;
   // un projet plus ancien ou plus volumineux peut vouloir les ranger ailleurs.
   paths: { content: "content", images: "images", diagrams: "diagrams", facts: "facts", sync: "." },
+
+  // Les seuls paquets que `facts --network` peut envoyer à leur registre public, un par un, sans joker (défaut :
+  // aucun, donc rien n'est envoyé). Relisez d'abord les candidats : `doc-kit facts --network --json` les donne
+  // (network.candidates).
+  facts: { network: { allow: ["npm:next", "npm:react", "pip:fastapi"] } },
 
   // sync --apply --labels ne suit que les fichiers de messages désignés ici (défaut : l'option "messages"
   // propre aux adaptateurs de couverture next-app-router et i18n-registry, quand ils en ont une).
@@ -313,6 +319,7 @@ export default defineConfig({
 | `bricks.enabled` | Les briques du projet (`doc-kit bricks`) : ids ou préréglages (`facts`, `full`) | `null` : toutes les briques |
 | `bricks.disabled` | Briques ou préréglages écartés : ils ne sont jamais lancés | `[]` |
 | `paths.facts` | Dossier de `facts/<source>.json`, commité avec le projet | `"facts"` |
+| `facts.network.allow` | Les seuls paquets que `facts --network` peut envoyer : `"npm:<nom>"` (exact), `"pip:<nom>"` (PEP 503), sans joker ; un nom listé que les fichiers de verrouillage ne prouvent pas public, ou qu'une déclaration rend privé, n'est toujours jamais envoyé | `[]` : rien n'est envoyé |
 | `paths.sync` | Dossier de `sync.json`, commité avec le projet | la racine du projet (`"."`) |
 | `sync.labels` | Fichiers de messages que `sync --apply --labels` peut toucher | les `messages` propres aux adaptateurs de couverture |
 | `capture.compareThreshold` | `capture --compare` : ratio de pixels changés au-delà duquel l'image est remplacée (0 à 1) | `0.005` |

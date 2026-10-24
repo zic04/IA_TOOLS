@@ -67,7 +67,18 @@ without its installs (no `node_modules/`, no virtual environment) only has the l
 
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
-`--network` asks the registry of each direct dependency, one request a package, for its latest version: each item
+`--network` sends **only the packages you list** in `doc.config.mjs`, one by one, with no wildcard:
+
+```js
+facts: { network: { allow: ["npm:react", "npm:@types/node", "pip:fastapi"] } },
+```
+
+With nothing listed, nothing is sent: `doc-kit facts --network` says how many direct packages it kept back, and
+`doc-kit facts --network --json` gives them as `network.candidates` — only names a lock file proves public and that
+nothing declares private. Review them with whoever owns the application, then list the ones you agree to send. An
+item kept back by the list gets `unlisted: true`. A listed name is still judged as below: listing a private or
+unproven package never sends it. For a listed name, `--network` asks the registry of each direct dependency, one
+request a package, for its latest version: each item
 gets `exists`, `latest` and `majorsBehind` (how many majors behind the latest; `null` when the version in use or the
 answer does not tell, as for a package never asked), and, when neither its lock file nor its installed copy gave its licence, the one the latest
 version declares (`licenseFrom: "registry"`: it may not be the installed version's); what the registry answers is kept

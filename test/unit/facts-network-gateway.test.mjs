@@ -1,6 +1,6 @@
 // The network gateway (engine/facts/network.mjs, ARCHITECTURE.md §6.9, AUDIT.md S13): the decision that keeps a name
-// back (isPrivatePackage: "private" or "unproven"), the client that refuses whatever its caller did, one request a
-// package, the answers of `describe`, the URL of each registry, and the timeout. A fake `fetch` records every request;
+// back (isPrivatePackage: "private", "unproven" or "unlisted"; the list itself: facts-network-allow.test.mjs), the
+// client that refuses whatever its caller did, one request a package, the answers of `describe`, the URL of each registry, and the timeout. A fake `fetch` records every request;
 // the clock is never read (the timeout is played with node:test's mock timers). What is kept of an answer (the latest
 // version, the licence, majorsBehind): facts-network-describe.test.mjs.
 import { test, describe, afterEach, mock } from "node:test";
@@ -16,12 +16,20 @@ import { collectDependencies } from "../../engine/facts/dependencies.mjs";
 import { collectQuality } from "../../engine/facts/quality.mjs";
 import { packageId } from "../../engine/core/packages.mjs";
 import { CH, npmEntry, packageJson, packageLockV3, registryUrl, yarnBlock, yarnLock } from "../tools/locks.mjs";
-import { expectProofDropped, network, withApp } from "../tools/deps-apps.mjs";
+import { expectProofDropped, listEvery, network, withApp } from "../tools/deps-apps.mjs";
 
 const OK = { ok: true, status: 200 };
 
-/** The registries the second net reads: nothing declared, and `items` proven by a lock (unless `proven` says), then `over`. */
-const registriesFor = (items, over = {}) => ({ ...emptyRegistries(), proven: new Set(items.map(packageId)), ...over });
+/**
+ * The registries the second net reads: nothing declared, and `items` proven by a lock (unless `proven` says) and listed
+ * (facts.network.allow), then `over`.
+ */
+const registriesFor = (items, over = {}) => ({
+  ...emptyRegistries(),
+  proven: new Set(items.map(packageId)),
+  allowed: new Set(items.map(packageId)),
+  ...over,
+});
 
 /** A fake `fetch` answering `answer(url)` (OK by default) and recording every URL it is asked. */
 function spyFetch(answer = () => OK) {
@@ -29,11 +37,14 @@ function spyFetch(answer = () => OK) {
   return { urls, fetch: async (url) => (urls.push(url), answer(url)) };
 }
 
-/** Why the gateway keeps `item` back ("private", "unproven") or null when it asks for it; isPrivatePackage agrees. */
+/**
+ * Why the gateway keeps `item` back ("private", "unproven", "unlisted") or null when it asks for it; isPrivatePackage
+ * agrees.
+ */
 async function verdict(item, registries) {
   const { urls, fetch } = spyFetch();
   const [out] = await checkExistence([{ ...item, direct: true }], fetch, { registries });
-  const reason = out.private ? "private" : out.unproven ? "unproven" : null;
+  const reason = out.private ? "private" : out.unproven ? "unproven" : out.unlisted ? "unlisted" : null;
   assert.equal(isPrivatePackage(item, registries), reason !== null, "isPrivatePackage agrees with checkExistence");
   assert.equal(urls.length, reason === null ? 1 : 0, `requests: ${urls}`);
   assert.equal(out.exists, reason === null ? true : null);
@@ -61,6 +72,36 @@ describe("the decision: a name is sent only when a lock proves it and nothing de
       "the stronger reason is given",
     ],
     ["npm file: spec", npm("x", { spec: "file:../lib" }), {}, "private", "a folder"],
+    // The configuration's list (facts.network.allow): the reason given last, every other one before it.
+    [
+      "a proven name the configuration does not list is kept back as unlisted",
+      npm("x"),
+      { allowed: new Set() },
+      "unlisted",
+      "nothing listed, nothing sent",
+    ],
+    ["a missing proof beats a missing listing", npm("x"), { proven: false, allowed: new Set() }, "unproven", "first"],
+    [
+      "a place beats a missing listing",
+      npm("x", { spec: "file:../lib" }),
+      { allowed: new Set() },
+      "private",
+      "the stronger reason is given",
+    ],
+    [
+      "an npm name listed in another case is not listed",
+      npm("React"),
+      { allowed: new Set([packageId(npm("react"))]) },
+      "unlisted",
+      "npm compares names exactly",
+    ],
+    [
+      "a pip name listed in another spelling is listed",
+      pip("My_Lib"),
+      { allowed: new Set([packageId(pip("my-lib"))]) },
+      null,
+      "PEP 503: one package",
+    ],
     // A name the public registry cannot hold: whatever a lock says, it is a forged proof (npm: URL-safe, no "." or
     // "_" first, 214 characters at most; pip: PEP 508). The usual names are the controls.
     ["an npm name with a letter outside ASCII", npm(`caf${String.fromCharCode(0xe9)}`), {}, "private", "not URL-safe"],
@@ -224,7 +265,7 @@ describe("the decision: a name is sent only when a lock proves it and nothing de
       { name: "acme-billing", version: "1.0", ecosystem: "pip", direct: true },
     ].map((i) => ({ ...i, public: true }));
     await withApp(files, async (dir) => {
-      const registries = privateRegistries(dir, { items });
+      const registries = privateRegistries(dir, { items, allow: listEvery(items) });
       assert.deepEqual([...registries.npmScopes], ["@acme"]);
       assert.equal(registries.pipAll, true);
       const { urls, fetch } = spyFetch();
@@ -246,7 +287,7 @@ describe("the decision: a name is sent only when a lock proves it and nothing de
     test(label, async () => {
       const items = [{ name: "next", version: "15.0.0", ecosystem: "npm", direct: true, public: true }];
       await withApp({ ".npmrc": `registry=${registry}\n` }, async (dir) => {
-        const registries = privateRegistries(dir, { items });
+        const registries = privateRegistries(dir, { items, allow: listEvery(items) });
         assert.equal(registries.npmAll, privateOnes);
         const { urls, fetch } = spyFetch();
         const [out] = await checkExistence(items, fetch, { registries });
@@ -321,12 +362,13 @@ describe("the client refuses whatever its caller did", () => {
     ],
     ["an ecosystem the kit does not know", { name: "golang.org/x/net", ecosystem: "go" }, {}, "never sent"],
     ["a name no lock proves", next, { proven: new Set() }, "unproven"],
+    ["a name the configuration does not list", next, { allowed: new Set() }, "unlisted"],
   ];
   for (const [label, item, over, why] of REFUSED)
     test(`${label}: describe throws, nothing is sent (${why})`, async () => {
       const { urls, fetch } = spyFetch(() => ({ ...OK, json: async () => ({ version: "2.0.0" }) }));
       const client = createRegistryClient({ fetch, registries: registriesFor([item], over) });
-      await assert.rejects(client.describe(item), /private package reached the network gateway/);
+      await assert.rejects(client.describe(item), /package kept back reached the network gateway/);
       assert.deepEqual(urls, []);
     });
 
@@ -383,7 +425,9 @@ describe("one request a package", () => {
       const items = collectDependencies(dir).map((i) => ({ ...i, public: true }));
       assert.deepEqual(items.map((i) => i.name).sort(), ["FastAPI", "fastapi", "my-lib", "my_lib"]);
       const { urls, fetch } = spyFetch();
-      const out = await checkExistence(items, fetch, { registries: privateRegistries(dir, { items }) });
+      const out = await checkExistence(items, fetch, {
+        registries: privateRegistries(dir, { items, allow: listEvery(items) }),
+      });
       assert.equal(urls.length, 2, urls.join(", "));
       assert.equal(urls.filter((u) => /fastapi/i.test(u)).length, 1, urls.join(", "));
       assert.equal(urls.filter((u) => /my[-_.]lib/i.test(u)).length, 1, urls.join(", "));
@@ -401,7 +445,7 @@ describe("one request a package", () => {
       const { summary } = await collectQuality(dir, {
         fetch,
         dependencies,
-        registries: privateRegistries(dir, { items: dependencies }),
+        registries: privateRegistries(dir, { items: dependencies, allow: listEvery(dependencies) }),
       });
       assert.deepEqual(urls, [registryUrl("pip", "FastAPI")]);
       assert.equal(summary.outdated, 1, "0.110.0 → 1.2.0: one major behind, though the range says nothing of it");
@@ -422,7 +466,7 @@ describe("one request a package", () => {
         },
         { name: "left-pad", version: "1.0.0", ecosystem: "npm", direct: true, manifest: "package.json" },
       ];
-      const { summary } = await collectQuality(dir, { fetch, dependencies });
+      const { summary } = await collectQuality(dir, { fetch, dependencies, allow: listEvery(dependencies) });
       assert.deepEqual(urls, [registryUrl("npm", "react")], "the unproven one is never asked");
       assert.equal(summary.outdated, 1);
     });
@@ -465,7 +509,9 @@ describe("one request a package", () => {
         withApp(files, async (dir) => {
           const items = collectDependencies(dir);
           const { urls, fetch } = spyFetch(answer);
-          const out = await checkExistence(items, fetch, { registries: privateRegistries(dir, { items }) });
+          const out = await checkExistence(items, fetch, {
+            registries: privateRegistries(dir, { items, allow: listEvery(items) }),
+          });
           assert.deepEqual(urls.sort(), [registryUrl("npm", "JSONStream"), registryUrl("npm", "jsonstream")].sort());
           const direct = (name) => out.filter((i) => i.direct && i.name === name);
           assert.ok(direct("JSONStream").length >= 1 && direct("jsonstream").length >= 1, "both names are items");
@@ -498,7 +544,7 @@ describe("one request a package", () => {
             public: true,
           },
         ];
-        const { summary } = await collectQuality(dir, { fetch, dependencies });
+        const { summary } = await collectQuality(dir, { fetch, dependencies, allow: listEvery(dependencies) });
         assert.deepEqual(urls.sort(), [registryUrl("npm", "JSONStream"), registryUrl("npm", "jsonstream")]);
         assert.equal(summary.outdated, 1, "JSONStream 1 → 3 is behind, jsonstream 1 → 1 is not");
       });

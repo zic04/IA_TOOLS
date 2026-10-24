@@ -444,7 +444,9 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
       ok: true,
       json: async () => (url.includes("left-behind") ? { version: "4.0.0" } : { version: "3.0.0" }),
     });
-    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies });
+    // Every one listed in the configuration (facts.network.allow), the transitive one too.
+    const allow = dependencies.map((d) => `npm:${d.name}`);
+    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies, allow });
     assert.equal(summary.outdated, 1, "only left-behind (major 1 vs 4); the transitive one is never checked");
   });
 
@@ -464,7 +466,9 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
       sent.push(url);
       return { ok: true, json: async () => ({ version: "19.0.0" }) };
     };
-    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies });
+    // Every one listed too (facts.network.allow): the list never lets out a name the second net keeps back.
+    const allow = dependencies.map((d) => `npm:${d.name}`);
+    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies, allow });
     assert.deepEqual(sent, ["https://registry.npmjs.org/react/latest"]);
     assert.equal(summary.outdated, 1);
   });

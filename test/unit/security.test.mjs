@@ -17,6 +17,7 @@ import { git, isTracked } from "../../engine/dev/environment.mjs";
 import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath } from "../../engine/util/safe-git.mjs";
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
+import { checkExistence, createRegistryClient, privateRegistries } from "../../engine/facts/network.mjs";
 import { KIT_ROOT, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 import { MEASURABLE_MS } from "../tools/growth.mjs";
 
@@ -67,6 +68,32 @@ describe("source rules (RULES.md § Security)", () => {
       offending(HOSTS, (f) => f === "engine/facts/network.mjs"),
       [],
     );
+  });
+
+  test("facts --network sends nothing the configuration does not list (RULES.md S12, SECURITY.md › Network)", async () => {
+    // A package a lock proves public and nothing declares private: still never asked while unlisted, whoever asks
+    // (checkExistence, the client itself); asked once listed. The minimal pairs: facts-network-allow.test.mjs.
+    const dir = tempDir("doc-kit-security-allow-");
+    try {
+      const item = { name: "react", ecosystem: "npm", version: "18.3.1", direct: true, public: true };
+      const urls = [];
+      const fetch = async (url) => (
+        urls.push(url),
+        { ok: true, status: 200, json: async () => ({ version: "19.0.0" }) }
+      );
+      for (const allow of [undefined, [], ["npm:React"], ["npm:*"]]) {
+        const registries = privateRegistries(dir, { items: [item], allow });
+        const [out] = await checkExistence([item], fetch, { registries });
+        assert.equal(out.unlisted, true, JSON.stringify(allow));
+        await assert.rejects(createRegistryClient({ fetch, registries }).describe(item), /network gateway/);
+      }
+      assert.deepEqual(urls, [], "nothing sent");
+      const listed = privateRegistries(dir, { items: [item], allow: ["npm:react"] });
+      await checkExistence([item], fetch, { registries: listed });
+      assert.deepEqual(urls, ["https://registry.npmjs.org/react/latest"], "the control: listed, asked once");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {

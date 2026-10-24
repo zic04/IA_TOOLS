@@ -284,7 +284,9 @@ const HEALTH_CARDS = [
     lines: (f, t) => {
       const deps = f.dependencies?.items;
       if (!deps) return null;
-      const checked = deps.some((d) => "exists" in d);
+      // Checked: a direct package its registry answered for (--network). One kept back (unlisted, unproven,
+      // private: `exists: null`) or never asked is unknown, not "found".
+      const checked = deps.some((d) => d.direct && d.exists != null);
       // Packages, not items: a manifest and its lock file name a package twice.
       const packages = (list) => String(new Set(list.map(packageId)).size);
       return [

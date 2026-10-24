@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { collectDependencies } from "../../../engine/facts/dependencies.mjs";
 import { checkExistence, createRegistryClient, privateRegistries } from "../../../engine/facts/network.mjs";
-import { sentName } from "../deps-apps.mjs";
+import { listEvery, sentName } from "../deps-apps.mjs";
 import { tempDir } from "../helpers.mjs";
 import { caseSeed, hex, rng } from "./prng.mjs";
 import { GEN_VERSION } from "./model.mjs";
@@ -95,7 +95,8 @@ export function createSandbox(prefix = "doc-kit-fuzz-") {
 async function readApp(app) {
   const unreadable = [];
   const items = collectDependencies(app, unreadable);
-  const registries = privateRegistries(app, { items, env: {} });
+  // Every name read is listed (facts.network.allow): what keeps a name back is the proof and the second net alone.
+  const registries = privateRegistries(app, { items, env: {}, allow: listEvery(items) });
   const urls = [];
   const out = await checkExistence(items, async (url) => (urls.push(url), { ok: true, status: 200 }), { registries });
   // The gateway itself (I3): it accepts every item sent, and throws on every direct item kept back.
@@ -103,7 +104,7 @@ async function readApp(app) {
   const gateway = [];
   for (let k = 0; k < items.length; k++) {
     if (!items[k].direct) continue;
-    const kept = out[k].private || out[k].unproven;
+    const kept = out[k].private || out[k].unproven || out[k].unlisted;
     const threw = await client.describe(items[k]).then(
       () => false,
       () => true,

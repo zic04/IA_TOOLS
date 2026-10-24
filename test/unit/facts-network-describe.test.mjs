@@ -20,8 +20,12 @@ import {
 } from "../tools/locks.mjs";
 import { network } from "../tools/deps-apps.mjs";
 
-/** The registries the second net reads: nothing declared, every item given proven by a lock. */
-const registriesFor = (items) => ({ ...emptyRegistries(), proven: new Set(items.map(packageId)) });
+/** The registries the second net reads: nothing declared, every item given proven by a lock and listed. */
+const registriesFor = (items) => ({
+  ...emptyRegistries(),
+  proven: new Set(items.map(packageId)),
+  allowed: new Set(items.map(packageId)),
+});
 
 /** A registry's 200 answer: its JSON document `doc` (npm's version document, PyPI's project JSON). */
 const ok = (doc) => ({ ok: true, status: 200, json: async () => doc });
@@ -106,7 +110,7 @@ describe("describe: one request on the latest version's document, its version an
     assert.deepEqual(urls, [registryUrl("npm", "next")], "one request, concurrent calls and other items included");
     // The answer is there, the package now declared private: still refused, never answered.
     const declared = createRegistryClient({ fetch, registries: { ...registries, npmAll: true }, answers });
-    await assert.rejects(declared.describe(NPM), /private package reached the network gateway/);
+    await assert.rejects(declared.describe(NPM), /package kept back reached the network gateway/);
     // A client of its own asks again.
     await createRegistryClient({ fetch, registries }).describe(NPM);
     assert.equal(urls.length, 2);

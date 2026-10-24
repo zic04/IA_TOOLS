@@ -4,13 +4,19 @@
 // content); the answer is untrusted, kept through allowlists; 8 requests at a time, 5 s each. `fetchImpl`
 // is the test seam of the CLI context (`ctx.fetch`, defaulting to the global `fetch`): the tests never reach the
 // network.
-// A name is sent ONLY when a lock file proves its public registry served the package: an item its lock reader marks
-// `public: true` (a package-lock.json or yarn.lock v1 tarball of npm's registry, a poetry.lock entry with no other
-// source, a uv.lock entry from PyPI's registry) — the package's `registries.proven`. Any other is `unproven`, never
-// sent: a manifest, pnpm-lock.yaml and a yarn berry lock write no registry, a Pipfile.lock names PyPI even for what
-// Pipenv's mirror served, and a private registry may be declared where the kit never looks (a CI file, a monorepo's root).
-// On top of that proof, a PRIVATE package's name is never sent (AUDIT.md S13): it would tell the public registry what
-// the company builds. Every network request of the facts goes through `isPrivatePackage` first. Private when:
+// A name is sent ONLY when the user lists it (`facts.network.allow` of doc.config.mjs, "npm:<name>" / "pip:<name>",
+// engine/project/network-allow.mjs): with no list, nothing is sent. A listed name is compared as a package is (an npm
+// name exactly, a pip name as PEP 503 normalises it); an unlisted one is kept back (`unlisted`) whatever the proof and
+// the second net below say of it, and those two still judge a listed one: the list never lets out a name they keep.
+// The proof, behind the list: a name is sent ONLY when a lock file proves its public registry served the package: an
+// item its lock reader marks `public: true` (a package-lock.json or yarn.lock v1 tarball of npm's registry, a
+// poetry.lock entry with no other source, a uv.lock entry from PyPI's registry) — the package's `registries.proven`.
+// Any other is `unproven`, never sent: a manifest, pnpm-lock.yaml and a yarn berry lock write no registry, a
+// Pipfile.lock names PyPI even for what Pipenv's mirror served, and a private registry may be declared where the kit
+// never looks (a CI file, a monorepo's root).
+// The second net, on top of that proof: a PRIVATE package's name is never sent (AUDIT.md S13): it would tell the public
+// registry what the company builds. Every network request of the facts goes through `isPrivatePackage` first. Private
+// when:
 //   - its version is not a registry release (a folder, an archive, a workspace, a link, a git repository or a URL),
 //     it is an npm alias, or a lock file took it from a source that is not a public registry (`local: true`,
 //     engine/facts/deps/npm.mjs and engine/facts/deps/python.mjs);
@@ -26,6 +32,7 @@
 import path from "node:path";
 import { listFiles } from "./common.mjs";
 import { packageKey, packageId } from "../core/packages.mjs";
+import { readAllowEntry } from "../project/network-allow.mjs";
 import { majorsBehind } from "../core/versions.mjs";
 import { uvSourceNames } from "./deps/python.mjs";
 import { npmLicence, pythonLicence } from "./deps/licences.mjs";
@@ -43,8 +50,8 @@ import {
 // ─── The network gateway ────────────────────────────────────────────────────────────────────────────────────────
 // The ONLY place of the kit that builds the URL of a public registry or sends a request to one (RULES.md S12,
 // checked by test/unit/security.test.mjs; the dependency readers only RECOGNISE those hosts in lock files). Every
-// request the kit itself sends goes through `createRegistryClient`, which refuses a private package whatever the
-// caller did: a name the filter missed upstream is a defect, never a request. The one exception is an external tool:
+// request the kit itself sends goes through `createRegistryClient`, which refuses a package kept back (private,
+// unproven or unlisted) whatever the caller did: a name the filter missed upstream is a defect, never a request. The one exception is an external tool:
 // with --tools --network, osv-scanner downloads its own vulnerability database (public files, no name sent).
 
 /**
@@ -124,16 +131,18 @@ function safeVersion(value) {
 /** @typedef {{ exists: true, latest: string|null, license: string|null }|{ exists: false }|null} RegistryAnswer */
 
 /**
- * The client of the public registries, for one run. A private item (isPrivatePackage) throws: callers filter them
- * out first, so reaching the gateway with one is a defect of the kit, and nothing is sent. `answers`: the answers of
- * the run, by package (packageId) — one Map shared by every source of a `facts --network` run (cli/commands/facts.mjs),
- * so that `dependencies` and `quality` ask a registry once a package between them; a client's own otherwise.
+ * The client of the public registries, for one run. An item never to be sent (isPrivatePackage: private, unproven or
+ * unlisted) throws: callers filter them out first, so reaching the gateway with one is a defect of the kit, and
+ * nothing is sent — before the run's answers are looked at, so that an answer already there is never one for an item
+ * kept back. `answers`: the answers of the run, by package (packageId) — one Map shared by every source of a
+ * `facts --network` run (cli/commands/facts.mjs), so that `dependencies` and `quality` ask a registry once a package
+ * between them; a client's own otherwise.
  * @param {{ fetch: (url: string, options?: object) => Promise<any>, registries: ReturnType<typeof privateRegistries>,
  *   timeoutMs?: number, answers?: Map<string, Promise<RegistryAnswer>> }} p
  */
 export function createRegistryClient({ fetch: fetchImpl, registries, timeoutMs = 5000, answers = new Map() }) {
   const guard = (item) => {
-    if (isPrivatePackage(item, registries)) throw new Error("defect: a private package reached the network gateway");
+    if (isPrivatePackage(item, registries)) throw new Error("defect: a package kept back reached the network gateway");
     return REGISTRY[item.ecosystem];
   };
   return {
@@ -266,27 +275,44 @@ function privateNames(appDir, items, out) {
 }
 
 /**
- * What may and may not be sent (see the header): `{ proven, npmScopes, npmAll, pipAll, names }`. `proven`: the
- * packages (packageId) a lock file proves its public registry served — an item marked `public: true` by its reader
- * (deps/npm.mjs, deps/python.mjs, deps/python-locks.mjs) that names no place; only these are ever sent. The rest is the
- * second net: what is declared private. Conservative: one folder that replaces the npm registry makes every npm
+ * What may and may not be sent (see the header): `{ allowed, proven, npmScopes, npmAll, pipAll, names }`. `allowed`:
+ * the packages (packageId) the user lists (`allow`); nothing else is ever sent. `proven`: the packages (packageId) a
+ * lock file proves its public registry served — an item marked `public: true` by its reader (deps/npm.mjs,
+ * deps/python.mjs, deps/python-locks.mjs) that names no place; of the listed ones, only these are ever sent. The rest
+ * is the second net: what is declared private. Conservative: one folder that replaces the npm registry makes every npm
  * package private (a name is never sent on a doubt).
  * @param {string} appDir
  * @param {{ items?: Array<{ name?: string, ecosystem?: string, manifest?: string, local?: boolean, public?: boolean }>,
- *   env?: Record<string, string|undefined> }} [options]
+ *   env?: Record<string, string|undefined>, allow?: readonly unknown[] }} [options]
  *   items: the `dependencies` items — the folders of their manifests (and every folder above them, up to the root)
  *   are read, and a name a lock file took from a non-public source is private everywhere.
  *   env: the environment of the person running the kit (their npm, yarn, bun and pip variables, and HOME /
  *   USERPROFILE / APPDATA / XDG_CONFIG_HOME to find their own configuration). Without it, only the application is read.
+ *   allow: `facts.network.allow` of the configuration, "npm:<name>" / "pip:<name>"; without it, nothing is listed.
  */
-export function privateRegistries(appDir, { items = [], env } = {}) {
+export function privateRegistries(appDir, { items = [], env, allow } = {}) {
   const out = emptyRegistries();
   const root = path.resolve(appDir);
   for (const dir of foldersOf(root, items)) readFolder(dir, out, root);
   if (env) readUserDeclarations(env, out);
   out.names = privateNames(root, items, out);
   out.proven = new Set(items.filter((i) => i.public === true && !itemPlace(i)).map(proofId));
+  out.allowed = allowedIds(allow);
   return out;
+}
+
+/**
+ * The packages the user lists (`facts.network.allow`, engine/project/network-allow.mjs), by identity (packageId): an
+ * npm name exactly as listed, a pip name as PEP 503 normalises it. An entry the validation refuses lists nothing.
+ * @param {readonly unknown[]} [allow]
+ */
+function allowedIds(allow = []) {
+  const ids = new Set();
+  for (const entry of allow) {
+    const listed = readAllowEntry(entry);
+    if (!listed.error) ids.add(packageId(listed));
+  }
+  return ids;
 }
 
 /**
@@ -312,10 +338,13 @@ const proofId = packageId;
 
 /**
  * Why a dependency item is never sent, or null when it may be: "private" — its own fields name a place, or it is
- * declared private —, "unproven" — no lock file proves its public registry served the package (`registries.proven`).
+ * declared private —, "unproven" — no lock file proves its public registry served the package (`registries.proven`)
+ * —, "unlisted" — nothing else keeps it back, but the user does not list it (`registries.allowed`). That reason is
+ * given last, so that an unlisted item is exactly one the user may list (networkCandidates).
  * @param {{ name: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
- * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string> }} registries
- * @returns {"private"|"unproven"|null}
+ * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string>,
+ *   allowed?: Set<string> }} registries
+ * @returns {"private"|"unproven"|"unlisted"|null}
  */
 function privacyOf(item, registries) {
   if (itemPlace(item)) return "private";
@@ -328,17 +357,42 @@ function privacyOf(item, registries) {
     if (registries.pipAll || NETWORK_PATTERNS.pipDirect.test(String(item.spec || ""))) return "private";
   } else return "private"; // an ecosystem the kit does not know
   if (!registryName(item)) return "private";
-  return registries.proven?.has(proofId(item)) ? null : "unproven";
+  if (!registries.proven?.has(proofId(item))) return "unproven";
+  return registries.allowed?.has(packageId(item)) ? null : "unlisted";
 }
 
 /**
- * Is a dependency item never to be sent to a public service — private, or not proven public by a lock file? Every
- * network request of the facts checks it first (AUDIT.md S13).
+ * Is a dependency item never to be sent to a public service — private, not proven public by a lock file, or not
+ * listed by the user? Every network request of the facts checks it first (AUDIT.md S13).
  * @param {{ name: string, version?: string|null, ecosystem?: string, spec?: string|null, local?: boolean }} item
- * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string> }} registries
+ * @param {{ npmScopes: Set<string>, npmAll: boolean, pipAll: boolean, names?: Set<string>, proven?: Set<string>,
+ *   allowed?: Set<string> }} registries
  */
 export function isPrivatePackage(item, registries) {
   return privacyOf(item, registries) !== null;
+}
+
+/**
+ * The packages `--network` would send were they listed (`facts.network.allow`), for the user to review before listing
+ * any: each package with a direct item kept back as `unlisted` — the proof and the second net let it through — and no
+ * item kept back for another reason, in the syntax of the list ("npm:<name>" as written, "pip:<name>" as PEP 503
+ * normalises it), sorted. A private or unproven name is never one.
+ * @param {Array<{ name: string, ecosystem: string, direct?: boolean }>} items   dependencies items (dependencies.mjs)
+ * @param {ReturnType<typeof privateRegistries>} registries
+ * @returns {string[]}
+ */
+export function networkCandidates(items, registries) {
+  const unlisted = new Map();
+  const kept = new Set();
+  for (const i of items) {
+    const why = privacyOf(i, registries);
+    if (why === "unlisted" && i.direct) unlisted.set(packageId(i), `${i.ecosystem}:${packageKey(i.ecosystem, i.name)}`);
+    else if (why === "private" || why === "unproven") kept.add(packageId(i));
+  }
+  return [...unlisted]
+    .filter(([id]) => !kept.has(id))
+    .map(([, entry]) => entry)
+    .sort();
 }
 
 /**
@@ -363,13 +417,14 @@ function described(item, answer, licensed) {
  * Adds to every DIRECT dependency item (never to a transitive one) what its public registry says: `exists` (true,
  * false, or null), `latest` (its latest published version, or null), `majorsBehind` (how many majors behind it, or
  * null) and, when no item of the package has a licence, the registry's (`licenseFrom: "registry"`). An item kept back
- * (`private`, `unproven`) is never sent: `exists`, `latest` and `majorsBehind` are null, as for an answer that tells
- * nothing.
+ * (`private`, `unproven`, `unlisted`) is never sent: `exists`, `latest` and `majorsBehind` are null, as for an answer
+ * that tells nothing.
  * @param {Array<object>} items          dependencies items (engine/facts/dependencies.mjs)
  * @param {(url: string, options?: object) => Promise<Response>} fetchImpl
  * @param {{ concurrency?: number, timeoutMs?: number, registries?: ReturnType<typeof privateRegistries>,
  *   answers?: Map<string, Promise<RegistryAnswer>> }} [options]
- *   registries: what is declared private (privateRegistries); a private item is never sent
+ *   registries: what is listed and what is declared private (privateRegistries); only a listed, proven, public item
+ *   is ever sent
  *   answers: the run's answers, shared with the other sources (createRegistryClient)
  * @returns {Promise<Array<object>>} new items; a non-direct item is returned unchanged
  */
@@ -398,6 +453,7 @@ export async function checkExistence(
     if (!i.direct) return i;
     const why = privacyOf(i, registries);
     if (why === null) return described(i, results.get(packageId(i)), licensed.has(packageId(i)));
-    return why === "private" ? { ...i, private: true, ...unknown } : { ...i, unproven: true, ...unknown };
+    if (why === "private") return { ...i, private: true, ...unknown };
+    return why === "unproven" ? { ...i, unproven: true, ...unknown } : { ...i, unlisted: true, ...unknown };
   });
 }

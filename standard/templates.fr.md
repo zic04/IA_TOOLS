@@ -579,7 +579,7 @@ risque de chaîne d'approvisionnement).
 |---|---|---|
 | En bref | ✱ | Combien de dépendances directes, et si un paquet a été vérifié auprès du registre |
 | Dépendances directes | ✱ | D'après `facts/dependencies.json` ; écosystème, version, licence quand elle est connue |
-| Paquets qui n'existent pas | ✱ | Chaque dépendance que `doc-kit facts --network` n'a pas trouvée dans son registre — un constat `C` chacune |
+| Paquets qui n'existent pas | ✱ | Chaque dépendance que `doc-kit facts --network` n'a pas trouvée dans son registre (`exists: false`) — un constat `C` chacune ; celle qu'il a retenue (`unlisted`, `unproven`, `private` : `exists: null`) est inconnue, pas un constat |
 | Licences | | Les licences qui limitent la distribution ou exigent une attribution |
 | Obsolètes | | Les dépendances directes en retard de plusieurs versions majeures |
 | À vérifier | | Les dépendances dont le rôle dans le code n'était pas évident |

@@ -22,7 +22,7 @@ entries between a project's `kit` range and the installed version.
   (`registry.npmjs.org/<name>/latest`, `pypi.org/pypi/<name>/json`): `dependencies` and `quality` share the answers,
   where npm was asked twice before; still the name alone. The answer is kept through allowlists (a version as a
   release reads, 64 characters at most, a licence's name); a body whose told size is over 8 MiB is never read. A
-  package kept back (`private`, `unproven`) gets `latest: null` and `majorsBehind: null`. `quality`'s outdated count
+  package kept back (`private`, `unproven`, `unlisted`) gets `latest: null` and `majorsBehind: null`. `quality`'s outdated count
   shares the rule (`engine/core/versions.mjs`).
 - **Licences from the installed copies** (ARCHITECTURE.md §6.9): an npm or pip item of `facts --source
   dependencies` its lock gives no licence takes the one its installed copy names, `licenseFrom: "installed"` —
@@ -56,6 +56,21 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Changed (breaking): `facts --network` sends nothing until names are listed** (ARCHITECTURE.md §3, §6.9;
+  SECURITY.md, Network). A package's name now leaves the machine only when `facts.network.allow` of
+  `doc.config.mjs` lists it, one entry a package: `"npm:<name>"`, compared exactly, or `"pip:<name>"`, compared as
+  PEP 503 normalises it; no wildcard. The list is empty by default: a project that ran `--network` before sends
+  nothing until it lists its packages. The lock files' proof and the second net stay behind the list: a listed name
+  that no lock proves public, or that a declaration makes private, is still never sent. The gate is the network
+  gateway's, so `dependencies` and `quality` are both held by it, before the run's answers are looked at. A direct
+  item the list keeps back gets `unlisted: true` (`exists`, `latest`, `majorsBehind` `null`); `quality`'s
+  `outdated` is `null` when no direct package could be asked, and the `::health` view shows "—" rather than 0, as
+  it now does for "not found in the registry" when no package was answered for. To build the list
+  without guessing, `facts --network` prints how many direct packages it kept back and how to list them, and
+  `--json` gives them as `network.candidates` — only names the proof and the second net let through, in the list's
+  syntax — to review with whoever owns the application. Each entry is validated (exit code 2, in English and
+  French): an unknown ecosystem, an empty name, a wildcard, a list that is not an array of strings. The skill's
+  `code-health` brief and SKILL.md tell the orchestrator to review the candidates with the user before listing any.
 - **The kit's test suite** (for its developers; RULES.md M4, M17):
   - Time is measured only through `test/tools/growth.mjs` (`assertLinear`, `linearAt`, the ReDoS harness), in
     dedicated `*-growth.test.mjs` files run alone. Every millisecond budget and home-made growth loop is gone:

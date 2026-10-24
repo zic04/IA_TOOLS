@@ -222,11 +222,12 @@ function detectTooling(appDir, allFiles) {
 }
 
 // --network (ARCHITECTURE.md §6.13): direct dependencies behind their latest version (majors behind), asked to the
-// public registries through the network gateway (engine/facts/network.mjs): only the name of a public package is
-// sent, never a private one (AUDIT.md S13).
+// public registries through the network gateway (engine/facts/network.mjs): only the name of a package the user lists
+// (facts.network.allow) and a lock file proves public is sent, never a private one (AUDIT.md S13).
 
 /**
- * Direct, public dependencies at least one major behind their latest published version.
+ * Direct, listed, public dependencies at least one major behind their latest published version; null when no direct
+ * package may be sent (none listed, or every one kept back): unknown, not none.
  * @param {Array<{ name: string, ecosystem: string, version?: string|null, spec?: string, direct?: boolean }>} dependencies
  * @param {(url: string) => Promise<any>} fetchImpl
  * @param {{ registries: ReturnType<typeof privateRegistries>, concurrency?: number, answers?: Map<string, any> }} options
@@ -236,6 +237,7 @@ async function countOutdated(dependencies, fetchImpl, { registries, concurrency 
   const sendable = dependencies.filter((d) => d.direct && !isPrivatePackage(d, registries));
   // Once a package (PEP 503 for pip), the item with an exact version first: a lower bound alone names no major.
   const direct = oncePerPackage(sendable);
+  if (!direct.length) return null;
   const client = createRegistryClient({ fetch: fetchImpl, registries, answers });
   const queue = [...direct];
   let outdated = 0;
@@ -265,12 +267,14 @@ export function rating(ratio, thresholds) {
  * @param {object} [options]
  * @param {(url: string) => Promise<{ok,status}>} [options.fetch]   --network: outdated direct dependencies
  * @param {Array<{name,version,ecosystem,direct,spec?}>} [options.dependencies]   --network: already-collected `dependencies` items
- * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
- *   the application alone when absent (a private name is never sent)
+ * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is listed and what is declared
+ *   private; read from the application alone when absent (a private name, an unlisted one, is never sent)
+ * @param {readonly string[]} [options.allow]   --network, `registries` absent: the packages listed
+ *   (facts.network.allow)
  * @param {Map<string, any>} [options.answers]   --network: the run's answers, by package (engine/facts/network.mjs)
  * @returns {Promise<{ items: Array<object>, summary: object }>}
  */
-export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries, answers } = {}) {
+export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries, allow, answers } = {}) {
   const allFiles = listFiles(appDir);
   const files = allFiles.filter((f) => CODE_EXT.test(f) && !TEST_FILE.test(f) && !GENERATED.test(f));
   const read = files.map((file) => ({ file, text: fs.readFileSync(path.join(appDir, file), "utf8") }));
@@ -323,7 +327,7 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, r
   };
   if (fetchImpl && dependencies)
     summary.outdated = await countOutdated(dependencies, fetchImpl, {
-      registries: registries ?? privateRegistries(appDir, { items: dependencies }),
+      registries: registries ?? privateRegistries(appDir, { items: dependencies, allow }),
       answers,
     });
   return { items, summary };

@@ -68,7 +68,7 @@ rédige la page des écarts entre le DAT et la réalité.
 `doc-kit inputs` liste chaque source avec son état : un dossier **présent**, un dépôt **récupéré**, un document
 **converti, à jour**. `doc-kit bricks` montre les briques `inputs.repos` et `inputs.docs` : `bricks run --stale
 --network` récupère et convertit ce qui n'est plus à jour avant que les faits soient relus (`--network` permet
-aussi à `facts` d'interroger les registres publics de paquets, pour les seuls paquets publics : voir SECURITY.md).
+aussi à `facts` d'interroger les registres publics de paquets, pour les seuls paquets publics que liste `facts.network.allow` : voir SECURITY.md).
 
 ## Erreurs fréquentes et remèdes
 

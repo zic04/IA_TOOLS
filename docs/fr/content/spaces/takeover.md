@@ -71,8 +71,18 @@ ni environnement virtuel) n'a que les licences que donnent ses fichiers de verro
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
-alimente. `--network` demande au registre de chaque dépendance directe, une requête par paquet, sa dernière version :
-chaque élément reçoit `exists`, `latest` et `majorsBehind` (combien de versions majeures de retard sur la dernière ;
+alimente. `--network` n'envoie **que les paquets que vous listez** dans `doc.config.mjs`, un par un, sans joker :
+
+```js
+facts: { network: { allow: ["npm:react", "npm:@types/node", "pip:fastapi"] } },
+```
+
+Sans liste, rien n'est envoyé : `doc-kit facts --network` dit combien de paquets directs il a retenus, et
+`doc-kit facts --network --json` les donne dans `network.candidates` — seulement des noms qu'un fichier de
+verrouillage prouve publics et que rien ne déclare privés. Relisez-les avec le responsable de l'application, puis
+listez ceux que vous acceptez d'envoyer. Un élément que la liste retient reçoit `unlisted: true`. Un nom listé reste
+jugé comme ci-dessous : lister un paquet privé ou non prouvé ne l'envoie jamais. Pour un nom listé, `--network`
+demande au registre de chaque dépendance directe, une requête par paquet, sa dernière version : chaque élément reçoit `exists`, `latest` et `majorsBehind` (combien de versions majeures de retard sur la dernière ;
 `null` quand la version utilisée ou la réponse ne le dit pas, comme pour un paquet jamais demandé) et, quand ni son
 fichier de verrouillage ni sa copie installée n'ont donné sa licence, celle que déclare la dernière version (`licenseFrom: "registry"` : ce
 n'est pas forcément celle de la version installée) ; la réponse du registre n'est gardée que si elle se lit comme une

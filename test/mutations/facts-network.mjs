@@ -57,8 +57,8 @@ export default {
     },
     {
       name: "unproven marked private",
-      find: ": { ...i, unproven: true, ...unknown };",
-      replace: ": { ...i, private: true, ...unknown };",
+      find: "? { ...i, unproven: true, ...unknown }",
+      replace: "? { ...i, private: true, ...unknown }",
     },
     {
       name: "no range allowlist",
@@ -67,8 +67,58 @@ export default {
     },
     {
       name: "no proof needed",
-      find: '  return registries.proven?.has(proofId(item)) ? null : "unproven";',
+      find: '  if (!registries.proven?.has(proofId(item))) return "unproven";\n',
+      replace: "",
+    },
+    // The configuration's list (facts.network.allow): facts-network-allow.test.mjs.
+    {
+      name: "the list judged first (an unlisted private or unproven name given as unlisted: a candidate)",
+      find: 'function privacyOf(item, registries) {\n  if (itemPlace(item)) return "private";\n',
+      replace:
+        'function privacyOf(item, registries) {\n  if (!registries.allowed?.has(packageId(item))) return "unlisted";\n' +
+        '  if (itemPlace(item)) return "private";\n',
+    },
+    {
+      name: "the list removed (every proven, public name sent)",
+      find: '  return registries.allowed?.has(packageId(item)) ? null : "unlisted";',
       replace: "  return null;",
+    },
+    {
+      name: "the gate after the run's answers (an answer already there given for an unlisted package)",
+      find: "      const registry = guard(item);\n      if (!registry) return null;\n      const id = packageId(item);\n",
+      replace:
+        "      const id = packageId(item);\n      if (answers.has(id)) return answers.get(id);\n" +
+        "      const registry = guard(item);\n      if (!registry) return null;\n",
+    },
+    {
+      name: "a listed pip name not normalised (PEP 503)",
+      find: "    if (!listed.error) ids.add(packageId(listed));",
+      replace: "    if (!listed.error) ids.add(`${listed.ecosystem}\\0${listed.name}`);",
+    },
+    {
+      name: "a listed name compared in any case (npm's are exact)",
+      find: "    if (!listed.error) ids.add(packageId(listed));",
+      replace: "    if (!listed.error) ids.add(packageId({ ...listed, name: listed.name.toLowerCase() }));",
+    },
+    {
+      name: "an unlisted item not marked",
+      find: ": { ...i, unlisted: true, ...unknown };",
+      replace: ": { ...i, ...unknown };",
+    },
+    {
+      name: "the candidates include the private and unproven names",
+      find: '    if (why === "unlisted" && i.direct)',
+      replace: "    if (why !== null && i.direct)",
+    },
+    {
+      name: "the candidates include transitive packages",
+      find: '    if (why === "unlisted" && i.direct)',
+      replace: '    if (why === "unlisted")',
+    },
+    {
+      name: "a package another item keeps back still a candidate",
+      find: '    else if (why === "private" || why === "unproven") kept.add(packageId(i));\n',
+      replace: "",
     },
     {
       name: "the npm proof case-insensitive",
