@@ -20,7 +20,7 @@ import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
-import { loadAdapter } from "../../engine/capture/session.mjs";
+import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
 
 /** A package-lock.json (v3) as npm writes it: each name's tarball from the registry given (npm's public one by default). */

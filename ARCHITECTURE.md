@@ -31,19 +31,21 @@ doc-kit/
 ├─ CONTRIBUTING.md · CODE_OF_CONDUCT.md · SECURITY.md
 ├─ cli/doc-kit.mjs       dispatcher (node:util parseArgs) → cli/commands/<command>.mjs; no command = guided mode (§4.1)
 ├─ cli/common.mjs        shared helpers of the commands: context, messages, prompts
+├─ cli/registry.mjs      the commands without their modules: their groups in --help (GROUPS), importCommand (§4)
 ├─ engine/
 │  ├─ brand.mjs          product name, command name, site generator tag
 │  ├─ project/           find.mjs, load.mjs, validate.mjs, defaults.mjs, env.mjs, toc.mjs, semver.mjs, browser.mjs
 │  ├─ core/              shared by the folders below (no folder cycle, RULES.md M14): hash.mjs, text.mjs,
 │  │                     page-templates.mjs (required sections of §6.4), translations.mjs (translated files, §6.12),
 │  │                     behaviours.mjs (kinds of behaviour, cards and scenarios read, §6.8a), adapters.mjs and
-│  │                     adapters-matrix.mjs (what the kit reads: standard/adapters.json, §5), glob.mjs, xml.mjs (the
+│  │                     adapters-matrix.mjs (what the kit reads: standard/adapters.json, §5), adapter-loader.mjs
+│  │                     (loadAdapter: an adapter by name, its shape and options checked, §5), glob.mjs, xml.mjs (the
 │  │                     bounded XML reader of the sources and of the dependency manifests)
 │  ├─ build/             build.mjs (pure functions), markdown.mjs (extensions), markdown-product.mjs and behaviours.mjs
 │  │                     (rules, stories, behaviour cards, scenarios, §6.8a), fact-directives.mjs (the directives
 │  │                     drawn from the facts: ::facts, ::erd, ::changes, the developer views), search.mjs,
 │  │                     assemble.mjs, languages.mjs (§6.12), spaces.mjs (§6.1a)
-│  ├─ capture/           capture.mjs, targets.mjs, actions.mjs, masking.mjs, webp.mjs, plans.mjs, session.mjs (adapters)
+│  ├─ capture/           capture.mjs, targets.mjs, actions.mjs, masking.mjs, webp.mjs, plans.mjs, session.mjs (the session)
 │  ├─ check/             coverage.mjs, links.mjs, tables.mjs, images.mjs, secrets.mjs (detectors, and the filter
 │  │                     withoutSecrets of every file written for people or agents)
 │  ├─ facts/             one module per source of `doc-kit facts` (§6.9), listed by registry.mjs; stacks.mjs (the stack
@@ -236,13 +238,15 @@ export default defineConfig({
 
 ## 4. CLI
 
-`doc-kit <command> [options]`. Global options: `--project <dir>`, `--json`, `--verbose`, `--lang en|fr` (message language; by default, the project's language), `--help`, `--version`.
+`doc-kit <command> [options]`. Global options: `--project <dir>`, `--json`, `--verbose`, `--lang en|fr` (message language; by default, the project's language; `--lang fr` and `--lang=fr` alike), `--help`, `--version`.
 
 **`--lang` in a multilingual project** (§6.12). When `doc.config.mjs` declares `languages`, `--lang <l>` keeps its meaning (the messages) and **also** selects the documentation language of the commands that have one: `build` (a mono-language file), `capture` (the screenshots of that language), `view` and `open` (the site shown in that language), `translate` (the language reported, marked or fixed) and `context --translate` (the target language). On these commands, `<l>` must then be one of `languages`, else a usage error, `build.langUnknown` (`{ lang, known }`, exit code 2; `checkLanguageOption` in `engine/build/languages.mjs`). Without `languages`, `--lang` only chooses the messages, as before.
 
-**Help.** `doc-kit --help` (or `doc-kit help`) prints the list of the commands. `doc-kit <command> --help` and `doc-kit help <command>` print the usage of that command and every one of its options, in the message language, then the global options (`cli.help.<command>` and `cli.help.globals`); exit code 0, nothing runs. An unknown command after `help` is a usage error (exit code 2). `help` is not a command module: the dispatcher handles it.
+**Help.** `doc-kit --help` (or `doc-kit help`) prints every command, group by group (start, screenshots, reading the application, writing, quality, delivering and maintaining): the list is generated from the registry, `GROUPS` of `cli/registry.mjs`, one line per command (`cli.usage.command.<name>`) that names every option the command declares, so that none can be left out (test/unit/cli-startup.test.mjs checks that the registry names every module of `cli/commands/`, and every line every option). `doc-kit <command> --help` and `doc-kit help <command>` print the usage of that command and every one of its options, in the message language, then the global options (`cli.help.<command>` and `cli.help.globals`); exit code 0, nothing runs. An unknown command after `help` is a usage error (exit code 2). `help` is not a command module: the dispatcher handles it.
 
-**Message language.** Unless `--lang` is given, every command speaks the project's language (`language` of `doc.config.mjs`, English when it is absent) from its first message: before running the command, the dispatcher locates the project (`--project`, or from the current folder upwards) and reads only that key (`ctx.useProjectLanguage()` in `cli/common.mjs`), so that `doctor`, which checks the configuration piece by piece, and the errors raised before the project is loaded are translated too. A configuration that cannot be imported, or an invalid language, leaves the language as it is (`DOC_KIT_LANG`, else English); the command reports the problem. `init` creates a project elsewhere: the project around it does not choose its language. The guided mode does the same.
+**Start-up.** The dispatcher imports only the module of the command that runs (`importCommand`, a name of the registry only): alone, `--version` and `--help` import none; with a command named first, that command's; with an option written before the command's name, or an option of another command, all of them, so that the error names it; the guided mode, only the module of the step it runs, once the person confirms it; Playwright is imported where a browser is launched, never at start-up. Neither `--version` nor `--help` runs anything of the project: its `doc.config.mjs` is never imported for them (SECURITY.md). The guided mode loads the project like a command, to tell the next step, and so runs its `doc.config.mjs`.
+
+**Message language.** Unless `--lang` is given, every command speaks the project's language (`language` of `doc.config.mjs`, English when it is absent) from its first message: before running the command, the dispatcher locates the project (`--project`, or from the current folder upwards) and reads that key in the text of the file, without running it (`ctx.useProjectLanguage()` in `cli/common.mjs`, `languageInConfig` in `engine/project/find.mjs`: the first literal of `language`, else the first item of `languages`), so that `doctor`, which checks the configuration piece by piece, and the errors raised before the project is loaded are translated too. A file that cannot be read, is not a regular file or is over 1 MB (no more is ever read), a computed value or an invalid language leaves the language as it is (`DOC_KIT_LANG`, else English) until the command loads the project, which then speaks the language the configuration gives; the command reports the problem. `init` creates a project elsewhere: the project around it does not choose its language. The guided mode does the same.
 
 | Command | Main options | What it does |
 |---|---|---|
@@ -293,7 +297,7 @@ export default defineConfig({
 
 **Test seams.** `createContext(globals, io)` (`cli/common.mjs`) also accepts `steps` (the follow-up steps of `init`: `install`, `connect`, `capture`) and `launch` (the browser launcher given by `capture` and `connect` to the engine), so that the tests run these paths without npm and without a browser. Its `exec` (`(bin, args, options) => { status, stdout, stderr, refused? } | null`, by default `defaultExec`, which hardens git) is how a command starts git: `doctor`, `export`, `check secrets` and the audit's secrets measure pass it to the engine's git helpers (`git`, `isIgnored`, `isTracked`, `trackedByGit`), like `facts`, `sync` and `hooks`, so that a test gives a fake and never starts the machine's git.
 
-**Adding a command.** Create `cli/commands/<name>.mjs`. It exports `options`, in `node:util` `parseArgs` format, and `run({ ctx, values, positionals })`, which returns an exit code, and add its `cli.help.<name>` text (usage, then every option) in both languages. The dispatcher discovers commands from the files in that folder. The options of all commands are merged into a single parser, so an option name used by two commands must have the same type in both; an option that belongs to another command is a usage error. `LATER` (in `cli/doc-kit.mjs`) lists commands announced but not delivered yet; it is empty, every command exists.
+**Adding a command.** Create `cli/commands/<name>.mjs`. It exports `options`, in `node:util` `parseArgs` format, and `run({ ctx, values, positionals })`, which returns an exit code; add its name to its group in `GROUPS` of `cli/registry.mjs`, and, in both languages, its line of `--help` (`cli.usage.command.<name>`, every option) and its `cli.help.<name>` text (usage, then every option). The command line is read with the global options and those of the command named; when that reading fails, it is read again with the options of every command merged, so that an option that belongs to another command is a usage error that names the option and the command typed (`--tour (build)`): an option name used by two commands must have the same type in both. `LATER` (in `cli/doc-kit.mjs`) lists commands announced but not delivered yet; it is empty, every command exists.
 
 **Messages.** Every error has the form `✖ <what is wrong>`, followed by `  → <what to do>`. All messages come from `cli.*` i18n keys.
 
