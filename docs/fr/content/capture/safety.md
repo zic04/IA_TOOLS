@@ -95,6 +95,23 @@ Une navigation arrête sa capture, et le bilan la liste :
 
 Les service workers sont bloqués pendant les captures : aucune requête n'échappe au contrôle.
 
+### Les redirections et les formes d'un chemin
+
+Un navigateur suit une redirection sans redemander l'avis du kit. Avec `capture.forbidden`, le kit suit donc lui-même
+les redirections de chaque navigation, un saut à la fois et d'une origine à l'autre, y compris l'aller-retour de
+connexion par le fournisseur d'identité : un saut qui revient sur une route interdite de l'application est refusé
+avant d'être demandé, et la capture s'arrête. Le navigateur ne reçoit que la fin de la chaîne : le serveur n'est
+jamais redemandé pour un saut.
+
+Un motif interdit est testé sur le chemin tel qu'un serveur le lit : décodé, ses barres obliques inverses lues comme
+des barres obliques, sans ses paramètres de chemin (`;jsessionid=…`), ses segments `.` et `..` résolus, ses barres
+obliques doublées fusionnées et sans barre oblique finale. La casse est gardée : sur un serveur qui l'ignore, écrivez le motif pour chaque casse (`[Aa]pprove`).
+
+Avec `capture.forbidden`, les pages d'une application locale atteignent toujours son API sur un autre port local
+quand `app.url` est sur `localhost` ou `127.0.0.1`. Sur une autre adresse (une adresse du réseau local, un nom
+d'hôte), Chromium bloque ces appels pendant les captures, et `doc-kit doctor` le signale (sauf sur une cible de
+production) : utilisez `localhost` dans `app.url`.
+
 ## Avant d'ouvrir une page de détail
 
 :::etapes

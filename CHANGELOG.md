@@ -52,6 +52,30 @@ entries between a project's `kit` range and the installed version.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
 
+### Security
+
+- **A redirect through another origin no longer reaches a `capture.forbidden` route** (SECURITY.md › Read-only
+  captures have limits). The guard checked a navigation's redirects only until the first hop that left the
+  application, then let the browser follow the rest: a sign-in round trip through the identity provider could come
+  back to a forbidden route, which the server then received. With `capture.forbidden`, the kit now fetches every `GET`
+  navigation hop by hop, whatever its origins, tests each hop back on the application before it is requested, and
+  hands the browser only the end of the chain (a page that sends the frame on, whose answer is held for that
+  frame's next navigation): the browser never follows a redirect itself, so a forbidden route cannot be requested on
+  the way, and the server is never asked twice for a hop — one that answers its second request otherwise is no
+  longer replayed. A hop sends the cookies the browser holds for its own address, never those of the first request
+  (they went to the identity provider), and only the referrer's origin to another origin. These requests are sent by
+  Playwright from Node.js, without Chromium's own rules (`SameSite`, HSTS, system proxy): SECURITY.md lists it. `test/e2e/capture-redirects.test.mjs` (real servers
+  on three ports), mutants `test/mutations/capture-guard.mjs` (RULES.md M16, S6).
+- **`capture.forbidden` reads a path as a server does**: also without its path parameters (`/approval;jsessionid=…`,
+  `/orders;v=1/7`), with its `.` and `..` segments resolved (`/orders/7/x/../approval`, `%2e%2e`) and its
+  backslashes read as slashes (`%5C`, IIS). Mutants
+  `test/mutations/capture-paths.mjs`.
+- **A local application keeps its local API with `capture.forbidden`**: a page the guard answers itself has no
+  address for Chromium, which refused its calls to another local port (Local Network Access). The kit allows them
+  again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns
+  (except on production) when the application's env files name a local address on another origin
+  (`cli.doctor.localCalls`).
+
 ## [0.4.1] - 2026-10-23
 
 ### Added

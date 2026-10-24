@@ -83,7 +83,7 @@ export async function takeOne(rc, entry, w) {
   part("navigate");
   const current = (w.state = { forbidden: null });
   const stop = () => new CaptureError("forbiddenHit", { path: current.forbidden });
-  await openRoute(rc, page, entry, { name, current, stop });
+  await openRoute(rc, page, entry, { name, current, stop, guard: w.guard });
   await playEntry(rc, page, entry, { network, current, stop, part });
 
   part("mask");
@@ -119,6 +119,23 @@ function startSpans(rc, entry, w) {
   };
 }
 
+/**
+ * After a goto: when the guard followed the navigation's redirects itself (requestGuard, capture.mjs), the page is
+ * sent on to the end of the chain; waits until it has opened it, and gives the end's response rather than the
+ * guard's page. Otherwise, the response of the goto.
+ * @param {import("playwright").Page} page
+ * @param {{ landing: (frame: object) => { url: string, response: any }|undefined }} guard
+ * @param {any} response   what the goto answered
+ * @param {{ waitUntil?: "load"|"domcontentloaded", timeout: number }} options
+ */
+export async function afterRedirects(page, guard, response, options) {
+  const landing = guard.landing(page.mainFrame());
+  if (!landing) return response;
+  const end = landing.url.split("#")[0];
+  await page.waitForURL((u) => u.href.split("#")[0] === end, { waitUntil: "load", ...options });
+  return landing.response;
+}
+
 /** Has the application sent the browser to its sign-in page (or answered 401)? */
 function signedOut(rc, page, response, entry) {
   const { auth, appUrl } = rc;
@@ -130,13 +147,14 @@ function signedOut(rc, page, response, entry) {
 }
 
 /** Viewport, localStorage (the session's own, then capture.storage, then the entry's), then the entry's route. */
-async function openRoute(rc, page, entry, { name, current, stop }) {
+async function openRoute(rc, page, entry, { name, current, stop, guard }) {
   const { cap, appUrl, appOrigin, auth } = rc;
   await page.setViewportSize({ ...cap.viewports[name], ...(entry.viewport || {}) });
   const storage = { ...rc.baseline, ...storageValues({ ...cap.storage, ...(entry.storage || {}) }, rc.version) };
   if (!onOrigin(page, appOrigin)) {
     try {
-      await page.goto(appUrl + auth.options.start, { waitUntil: "domcontentloaded", timeout: TIMINGS.start });
+      const start = { waitUntil: /** @type {const} */ ("domcontentloaded"), timeout: TIMINGS.start };
+      await afterRedirects(page, guard, await page.goto(appUrl + auth.options.start, start), start);
     } catch (e) {
       if (current.forbidden) throw stop();
       throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url: appUrl, error: firstLine(e) }, { cause: e });
@@ -153,6 +171,7 @@ async function openRoute(rc, page, entry, { name, current, stop }) {
       waitUntil: "load",
       timeout: TIMINGS.page,
     });
+    response = await afterRedirects(page, guard, response, { timeout: TIMINGS.page });
   } catch (e) {
     if (current.forbidden) throw stop();
     throw new CaptureError("navigation", { route: entry.route, error: firstLine(e) });

@@ -243,9 +243,25 @@ export function forbiddenMatchers(patterns = []) {
   });
 }
 
+/** The "." and ".." segments of a path resolved as a server does (RFC 3986 §5.2.4), never above the root. */
+function withoutDotSegments(p) {
+  const segments = p.split("/");
+  const out = [];
+  segments.forEach((s, i) => {
+    const last = i === segments.length - 1;
+    if (s === "." || s === "..") {
+      if (s === ".." && out.length > 1) out.pop();
+      if (last) out.push("");
+    } else out.push(s);
+  });
+  return out.join("/") || "/";
+}
+
 /**
- * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %61…), with repeated
- * slashes collapsed and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
+ * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %2e, %61…), its
+ * backslashes read as slashes (IIS, ASP.NET), without its path parameters (`;jsessionid=…` at the end of a segment,
+ * read apart by Java servers), with repeated slashes collapsed, with its dot segments resolved and without a trailing
+ * slash. A forbidden pattern is tested on each (SECURITY.md).
  */
 function pathForms(p) {
   let decoded = p;
@@ -255,10 +271,14 @@ function pathForms(p) {
     // malformed escape: the path as written
   }
   const forms = new Set();
-  for (const f of [p, decoded]) {
-    const collapsed = f.replace(/\/{2,}/g, "/");
-    for (const g of [f, collapsed, collapsed.length > 1 ? collapsed.replace(/\/$/, "") : collapsed]) forms.add(g);
-  }
+  for (const f of [p, decoded, decoded.replace(/\\/g, "/")])
+    for (const g of [f, f.replace(/;[^/]*/g, "")]) {
+      const collapsed = g.replace(/\/{2,}/g, "/");
+      for (const h of [g, collapsed, withoutDotSegments(g), withoutDotSegments(collapsed)]) {
+        forms.add(h);
+        if (h.length > 1) forms.add(h.replace(/\/$/, ""));
+      }
+    }
   return [...forms];
 }
 

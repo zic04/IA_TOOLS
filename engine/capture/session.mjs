@@ -60,6 +60,18 @@ const COMMON_AUTH_OPTIONS = Object.freeze({
 
 const CONFIG = "doc.config.mjs";
 
+/** A loopback host: localhost, *.localhost, 127.x, [::1] (ARCHITECTURE.md §6.13). */
+export function isLoopbackUrl(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  const host = u.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "::1";
+}
+
 /**
  * Is this URL a sign-in page? True when it leaves the application's origin (identity provider) or when its path
  * and query match `pattern` (case-insensitive).
@@ -326,13 +338,18 @@ export async function refreshSession({ file, appUrl, refresh, launch = launchBro
 /**
  * Checks a session before a capture run: opens the start page (in a context that already loads the session),
  * then asks the adapter. A 401 answer or a sign-in page means the session has expired.
+ * @param {import("playwright").Page} page
+ * @param {{ url: string, auth: any, settle?: (page: import("playwright").Page, response: any) => Promise<any> }} o
+ *   settle: waits for the end of the redirects the capture guard followed itself, and gives its response
+ *   (afterRedirects, take.mjs)
  * @returns {Promise<object|null>} the adapter's answer, null when expired
  * @throws {KitError} exit code 3 when the application cannot be reached
  */
-export async function checkSession(page, { url, auth }) {
+export async function checkSession(page, { url, auth, settle = async (_page, response) => response }) {
   let response;
   try {
     response = await page.goto(url + auth.options.start, { waitUntil: "load", timeout: TIMINGS.start });
+    response = await settle(page, response);
   } catch (e) {
     throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url, error: firstLine(e) }, { cause: e });
   }

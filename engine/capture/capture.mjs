@@ -28,8 +28,9 @@ import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
 import { forbiddenMatch } from "./plans.mjs";
 import { trackNetwork } from "./stable.mjs";
-import { checkSession, sessionStorageOf, browserLaunch } from "./session.mjs";
-import { takeOne, SessionExpired, storageValues, zoneFile } from "./take.mjs";
+import { checkSession, sessionStorageOf, browserLaunch, isLoopbackUrl } from "./session.mjs";
+import { takeOne, afterRedirects, SessionExpired, storageValues, zoneFile } from "./take.mjs";
+import { TIMINGS } from "./timings.mjs";
 
 // Kept as exports of the capture module for the tests and commands that import them from here.
 export { storageValues, zoneFile };
@@ -73,18 +74,72 @@ export function forbiddenRequestKind(request) {
   return frame?.parentFrame() ? "prefetch" : "navigation";
 }
 
+/** A URL without its fragment: what a request asks the server for. */
+const withoutHash = (href) => href.split("#")[0];
+
+/**
+ * The page a navigation is answered with when the guard has followed its redirects itself: it sends the browser on
+ * to the end of the chain, a new navigation that the guard sees, where a redirect would be followed unseen.
+ */
+const landingPage = (href) =>
+  `<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(href).replace(/</g, "\\u003c")})</script>`;
+
+/** The frame of a request, or null (a pop-up being created). */
+function frameOf(request) {
+  try {
+    return request.frame();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @typedef {{ url: string, response: import("playwright").APIResponse, opened: boolean }} Landing  the end of a
+ *   redirect chain the guard followed for a frame, its answer, and whether the frame has opened it yet
+ * @typedef {((route: import("playwright").Route) => Promise<void>) & { landing: (frame: object) => Landing|undefined }}
+ *   Guard
+ */
+
 /**
  * Route handler of the safety guard (installed on every page of the browser context).
  *   - a request to a capture.forbidden path of the application is aborted: a navigation is listed in
  *     `result.refused` and reported through `onNavigation(path)` (the capture stops), anything else is listed in
  *     `result.prefetched` (the capture goes on);
+ *   - with forbidden routes, a GET navigation (any origin) is fetched here hop by hop (`redirectChain`); the browser
+ *     only gets the end of its chain: the answer itself, or a page that sends the frame on to the end, whose answer
+ *     is held for that frame's next navigation (`landing(frame)`, for `afterRedirects`, take.mjs);
  *   - with `readOnly`, any other method than GET/HEAD/OPTIONS is aborted and listed in `result.blocked`.
  * @param {{ appOrigin: string, forbidden: Array<{pattern, re}>, readOnly: boolean,
  *   result: { blocked: string[], refused: string[], prefetched: string[] }, onNavigation?: (path: string) => void }} p
- * @returns {(route: import("playwright").Route) => Promise<void>}
+ * @returns {Guard}
  */
 export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigation = () => {} }) {
-  return async (route) => {
+  /** @type {WeakMap<object, Landing>} */
+  const landings = new WeakMap();
+  // A navigation of a frame: the end of the chain the guard's page sent this frame to (its answer, once), or the
+  // chain followed here. Another frame, or one not known yet (a pop-up being created), asks the server again.
+  const navigate = async (route, u, refuse) => {
+    const key = withoutHash(u.href);
+    const frame = frameOf(route.request());
+    const sent = frame && landings.get(frame);
+    if (sent && !sent.opened && withoutHash(sent.url) === key) {
+      sent.opened = true;
+      return route.fulfill({ response: sent.response });
+    }
+    if (frame) landings.delete(frame);
+    let chain;
+    try {
+      chain = await redirectChain(route, u, { appOrigin, forbidden });
+    } catch {
+      return route.abort("failed");
+    }
+    if (chain.forbidden) return refuse(chain.forbidden);
+    if (!chain.url) return route.abort("failed");
+    if (withoutHash(chain.url.href) === key) return route.fulfill({ response: chain.response });
+    if (frame) landings.set(frame, { url: chain.url.href, response: chain.response, opened: false });
+    return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: landingPage(chain.url.href) });
+  };
+  const guard = async (route) => {
     const req = route.request();
     let u;
     try {
@@ -101,57 +156,76 @@ export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigat
       return route.abort("blockedbyclient");
     };
     if (forbidden.length && u.origin === appOrigin && forbiddenMatch(u.pathname, forbidden)) return refuse(u.pathname);
-    // A redirect is followed by the browser without calling this handler again: a navigation of the application
-    // is fetched here without following redirects, and the chain is checked before the browser sees it, so that
-    // a server redirect never leads to a forbidden route (SECURITY.md).
+    // The browser follows a redirect without calling this handler again, and a stateful server may answer the
+    // browser otherwise than the guard: with forbidden routes, the browser never gets a redirect (SECURITY.md).
     if (
       forbidden.length &&
-      u.origin === appOrigin &&
       req.isNavigationRequest() &&
-      SAFE_METHODS.includes(req.method())
-    ) {
-      let chain;
-      try {
-        chain = await redirectChain(route, u, { appOrigin, forbidden });
-      } catch {
-        return route.abort("failed");
-      }
-      if (chain.forbidden) return refuse(chain.forbidden);
-      return route.fulfill({ response: chain.response });
-    }
+      SAFE_METHODS.includes(req.method()) &&
+      /^https?:$/.test(u.protocol)
+    )
+      return navigate(route, u, refuse);
     if (readOnly && !SAFE_METHODS.includes(req.method())) {
       result.blocked.push(`${req.method()} ${u.origin === appOrigin ? u.pathname : u.host + u.pathname}`);
       return route.abort("blockedbyclient");
     }
     return route.fallback();
   };
+  return Object.assign(guard, { landing: (frame) => landings.get(frame) });
 }
 
-/** Longest redirect chain checked before a navigation; a longer one is refused like a forbidden route. */
+/** Longest redirect chain followed before a navigation; a longer one is refused like a forbidden route. */
 const MAX_REDIRECTS = 10;
 
 /**
- * Fetches a navigation without following redirects, then each hop of its redirect chain on the application's
- * origin, stopping before any forbidden route (never requested). A hop on another origin (an identity provider)
- * ends the check: capture.forbidden only covers the application.
- * @returns {Promise<{ response?: object, forbidden?: string }>} the first response, for the browser to follow; or
- *   the forbidden path the chain leads to
+ * Fetches a navigation, then each hop of its redirect chain, without following redirects, whatever their origin
+ * (an identity provider and back), each hop once; a hop on the application's origin is tested before it is
+ * requested, and a forbidden one never is.
+ * @returns {Promise<{ response?: import("playwright").APIResponse, url?: URL, forbidden?: string }>} the end of the
+ *   chain and its URL; or the forbidden path the chain leads to; or neither, for a redirect off the web (never
+ *   followed)
  */
 async function redirectChain(route, url, { appOrigin, forbidden }) {
-  const response = await route.fetch({ maxRedirects: 0 });
-  let current = response;
+  let response = await route.fetch({ maxRedirects: 0 });
   let at = url;
   for (let hop = 0; ; hop++) {
-    const status = current.status();
-    const location = status >= 300 && status < 400 ? current.headers().location : null;
-    if (!location) return { response };
+    const status = response.status();
+    const location = status >= 300 && status < 400 ? response.headers().location : null;
+    if (!location) return { response, url: at };
     const next = new URL(location, at);
-    if (next.origin !== appOrigin) return { response };
-    if (forbiddenMatch(next.pathname, forbidden)) return { forbidden: next.pathname };
+    if (!/^https?:$/.test(next.protocol)) return {};
+    // A browser keeps the fragment through a redirect whose location has none.
+    if (!next.hash && at.hash) next.hash = at.hash;
+    if (next.origin === appOrigin && forbiddenMatch(next.pathname, forbidden)) return { forbidden: next.pathname };
     if (hop >= MAX_REDIRECTS) return { forbidden: next.pathname };
-    current = await route.fetch({ url: next.href, maxRedirects: 0 });
+    response = await route.fetch({
+      url: withoutHash(next.href),
+      headers: hopHeaders(route.request(), next),
+      maxRedirects: 0,
+    });
     at = next;
   }
+}
+
+/**
+ * Headers of a hop after the first: the request's own, never its Cookie header (built for the first URL: the
+ * browser's cookies for the hop are added instead, those set on the way included) and, on another origin than the
+ * referrer's, only the referrer's origin (what a browser sends by default).
+ */
+function hopHeaders(request, url) {
+  const headers = { ...request.headers() };
+  delete headers.cookie;
+  if (headers.referer) {
+    let referrer = null;
+    try {
+      referrer = new URL(headers.referer);
+    } catch {
+      // unreadable: left out below
+    }
+    if (!referrer) delete headers.referer;
+    else if (referrer.origin !== url.origin) headers.referer = `${referrer.origin}/`;
+  }
+  return headers;
 }
 
 /**
@@ -277,18 +351,34 @@ export async function runCaptures({
     rc.encoder = await createWebpEncoder(browser);
     rc.pageFor = (w, name) => pageFor(rc, browser, w, name);
     const workers = Array.from({ length: concurrency }, () => newWorker(rc));
-    if (session) {
-      const page = await rc.pageFor(workers[0], entries[0]?.context || "desktop");
-      const s = await checkSession(page, { url: appUrl, auth });
-      if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: page.url() });
-      rc.result.who = s.who || null;
-    }
+    if (session) await checkRunSession(rc, workers[0], entries);
     await runWorkers(rc, workers, entries, onEvent);
     await rc.encoder.close();
   } finally {
     await browser.close().catch(() => {});
   }
   return rc.result;
+}
+
+/** The session, checked on a page of the first worker before the first capture (exit code 3 when it has expired). */
+async function checkRunSession(rc, w, entries) {
+  const page = await rc.pageFor(w, entries[0]?.context || "desktop");
+  const settle = (p, r) => afterRedirects(p, w.guard, r, { timeout: TIMINGS.start });
+  const s = await checkSession(page, { url: rc.appUrl, auth: rc.auth, settle });
+  if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: page.url() });
+  rc.result.who = s.who || null;
+}
+
+/**
+ * The permission a browser context needs so that the application's pages still reach a local address (its API on
+ * another port): a page the guard answers itself comes from no address, so Chromium refuses those calls (Local
+ * Network Access). Given back only with forbidden routes (the guard answers navigations), only to a loopback
+ * application, and only for its own origin (SECURITY.md).
+ * @returns {[string[], { origin: string }]|null}  the arguments of `context.grantPermissions`, or null
+ */
+export function localNetworkGrant(appUrl, forbidden) {
+  if (!forbidden.length || !isLoopbackUrl(appUrl)) return null;
+  return [["local-network-access"], { origin: new URL(appUrl).origin }];
 }
 
 /** A worker: its own pages (one per context name), guard state, open span and trace. */
@@ -342,6 +432,9 @@ async function pageFor(rc, browser, w, name) {
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
   if (guarded) await context.route("**/*", w.guard);
+  const grant = localNetworkGrant(rc.appUrl, rc.forbidden);
+  // A browser that does not know the permission: the calls stay refused (`doctor`, SECURITY.md).
+  if (grant) await context.grantPermissions(...grant).catch(() => {});
   if (cap.cookies.length)
     await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: rc.appUrl })));
   if (rc.trace) await context.tracing.start({ screenshots: true, snapshots: true });

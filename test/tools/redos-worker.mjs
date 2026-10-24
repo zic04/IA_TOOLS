@@ -39,6 +39,7 @@ import { pydanticEnvNames } from "../../engine/facts/env.mjs";
 import { DB_PATTERNS } from "../../engine/facts/db.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
+import { forbiddenMatch, forbiddenMatchers } from "../../engine/capture/plans.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
@@ -238,6 +239,8 @@ const UNITS = [
   "<<",
 ];
 const N = 3000;
+/** A capture.forbidden pattern as the configurations write them (the person's own expression, trusted). */
+const FORBIDDEN_MATCHERS = forbiddenMatchers(["^/orders/\\d+/approval$"]);
 
 /** A check of a scanner that may refuse its input (KitError): the refusal is caught, any other error is not. */
 const refusing = (fn) => (s) => {
@@ -479,6 +482,8 @@ export const CHECKS = [
   ["history parseNumstat", (s) => parseNumstat(s)],
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
+  // The forms of a path a server may read as a forbidden route (plans.mjs): a URL or a Location header, untrusted.
+  ["capture forbiddenMatch", (s) => forbiddenMatch(`/${s};${s}/./${s}/../${s}`, FORBIDDEN_MATCHERS)],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
   ["csp INLINE_SCRIPT", (s) => [...s.matchAll(INLINE_SCRIPT)].length],
   ...Object.entries(NETWORK_PATTERNS).map(([name, re]) => [

@@ -18,7 +18,6 @@ import {
 import { collectSecurity, RULES } from "../../engine/facts/security.mjs";
 import { collectQuality, rating } from "../../engine/facts/quality.mjs";
 import {
-  isLoopbackUrl,
   probeAllowed,
   cookieHeaderFromStorageState,
   routeParams,
@@ -30,7 +29,7 @@ import {
   runProbe,
   ProbeUnreachableError,
 } from "../../engine/review/probe.mjs";
-import { roleSessionFile, ROLE_PATTERN } from "../../engine/capture/session.mjs";
+import { roleSessionFile, ROLE_PATTERN, isLoopbackUrl } from "../../engine/capture/session.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
 

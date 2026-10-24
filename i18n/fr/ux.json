@@ -186,6 +186,8 @@
   "cli.doctor.target.production": { "one": "cible des captures : PRODUCTION, en lecture seule ({url}) ; {n} route interdite", "other": "cible des captures : PRODUCTION, en lecture seule ({url}) ; {n} routes interdites" },
   "cli.doctor.target.noForbidden": "cible des captures : PRODUCTION, en lecture seule ({url}) — aucune route interdite déclarée : vérifiez les pages qui écrivent à l'affichage",
   "cli.doctor.target.noForbidden.help": "lisez le code de chaque page de détail ; listez dans capture.forbidden les routes dont l'affichage écrit sur le serveur (standard/captures.fr.md)",
+  "cli.doctor.localCalls": "capture.forbidden avec {url}, qui n'est pas une adresse de bouclage : pendant les captures, Chromium bloque les appels des pages vers {list} (une adresse locale, une API sur un autre port)",
+  "cli.doctor.localCalls.help": "pointez app.url sur localhost ou 127.0.0.1 pour une instance locale (le kit laisse alors passer ces appels), ou capturez-la sans capture.forbidden (SECURITY.md › Read-only captures have limits)",
   "cli.doctor.gitignore.ok": "{work} et {dist} sont exclus de git",
   "cli.doctor.gitignore.none": "ni dépôt git ni .gitignore : rien ne protège la session ({work})",
   "cli.doctor.gitignore.none.help": "ajoutez un .gitignore avec {work}, {dist} et node_modules/",

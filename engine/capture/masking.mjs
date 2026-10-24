@@ -37,6 +37,20 @@ export function parseEnv(text) {
 }
 
 /**
+ * Entries of the masking.env files (relative to the project root; missing files are skipped), in file order.
+ * @returns {Array<{ key: string, value: string, line: number, file: string }>}
+ */
+export function envEntries(root, files = []) {
+  const out = [];
+  for (const f of files) {
+    const file = path.resolve(root, f);
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
+    for (const entry of parseEnv(fs.readFileSync(file, "utf8"))) out.push({ ...entry, file: f });
+  }
+  return out;
+}
+
+/**
  * Sensitive values of the masking.env files (relative to the project root; missing files are skipped).
  * @returns {Array<{ key: string, value: string, file: string }>}
  */
@@ -44,15 +58,11 @@ export function sensitiveValues(root, masking) {
   const exclude = masking.exclude ? new RegExp(masking.exclude, "i") : null;
   const seen = new Set();
   const out = [];
-  for (const f of masking.env || []) {
-    const file = path.resolve(root, f);
-    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
-    for (const { key, value } of parseEnv(fs.readFileSync(file, "utf8"))) {
-      if (!SENSITIVE_KEY.test(key) || value.length < MIN_LENGTH || (exclude && exclude.test(value)) || seen.has(value))
-        continue;
-      seen.add(value);
-      out.push({ key, value, file: f });
-    }
+  for (const { key, value, file } of envEntries(root, masking.env)) {
+    if (!SENSITIVE_KEY.test(key) || value.length < MIN_LENGTH || (exclude && exclude.test(value)) || seen.has(value))
+      continue;
+    seen.add(value);
+    out.push({ key, value, file });
   }
   return out;
 }

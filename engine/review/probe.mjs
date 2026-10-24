@@ -2,7 +2,7 @@
 // than `maxPerSecond` requests, never a response body stored. Security headers, cookies, CORS and version
 // disclosure on "/" and on one API route; the access control of every GET route of facts/api.json, against its
 // `auth` (ARCHITECTURE.md §6.9/§6.13: "none" | "user" | "role" | "unknown"), for anonymous and every `--as <role>`.
-import { LOGIN_PATTERN } from "../capture/session.mjs";
+import { LOGIN_PATTERN, isLoopbackUrl } from "../capture/session.mjs";
 import { forbiddenMatch } from "../capture/plans.mjs";
 
 const SECURITY_HEADERS = Object.freeze([
@@ -14,18 +14,6 @@ const SECURITY_HEADERS = Object.freeze([
   "permissions-policy",
 ]);
 const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
-
-/** A loopback host: localhost, *.localhost, 127.x, [::1] (ARCHITECTURE.md §6.13). */
-export function isLoopbackUrl(url) {
-  let u;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  const host = u.hostname.replace(/^\[|\]$/g, "").toLowerCase();
-  return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "::1";
-}
 
 /**
  * Is `probe` allowed on this configuration (ARCHITECTURE.md §6.13)? Refused with capture.target "production", or

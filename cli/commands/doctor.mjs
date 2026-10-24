@@ -6,8 +6,8 @@
 //                version.txt, VERSION or CHANGELOG.md of the application contradicts —, application folder,
 //                coverage sources, masking files, capture plans), .gitignore (.doc-kit/ and dist/), session
 //                (present, age, not tracked by git; neither the session nor the plans with capture.mode "none"),
-//                capture target (capture.target; ⚠ production without any capture.forbidden route), theme contrasts
-//                (WCAG)
+//                capture target (capture.target; ⚠ production without any capture.forbidden route; ⚠ capture.forbidden
+//                on an application off loopback whose env files name another local address), theme contrasts (WCAG)
 //   --network    the application URL answers
 // Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails,
 // 0 otherwise (warnings do not fail).
@@ -21,6 +21,9 @@ import { checkContrasts } from "../../engine/theme/contrast.mjs";
 import { readToc, TOC_FILE } from "../../engine/project/toc.mjs";
 import { languageCounts } from "../../engine/build/languages.mjs";
 import { staleFacts } from "../../engine/facts/freshness.mjs";
+import { isLoopbackUrl } from "../../engine/capture/session.mjs";
+import { envEntries } from "../../engine/capture/masking.mjs";
+import { isLocalAddress } from "../../engine/check/secrets.mjs";
 import { describeProblem } from "../common.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import {
@@ -101,6 +104,35 @@ function otherVersion(root, config, documented) {
     }
   }
   return null;
+}
+
+/**
+ * The local addresses on another origin (an API on another port) that the application's env files (masking.env)
+ * name, when capture.forbidden is declared and the application is not on a loopback address: the capture guard
+ * answers the pages itself, and Chromium then blocks their calls to a local address (SECURITY.md › Read-only
+ * captures). Empty otherwise, and on production (a local address in the env files is not the production's).
+ */
+function blockedLocalCalls(root, config) {
+  const { url } = config.app;
+  if (!url || !config.capture.forbidden.length || config.capture.target === "production" || isLoopbackUrl(url))
+    return [];
+  let origin;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return [];
+  }
+  const hosts = new Set();
+  for (const { value } of envEntries(root, config.masking.env)) {
+    let u;
+    try {
+      u = new URL(value);
+    } catch {
+      continue;
+    }
+    if (/^https?:$/.test(u.protocol) && u.origin !== origin && isLocalAddress(u.host)) hosts.add(u.host);
+  }
+  return [...hosts];
 }
 
 /**
@@ -374,6 +406,9 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
     if (target === "production" && !config.capture.forbidden.length)
       add("target", "warn", "project", "cli.doctor.target.noForbidden", vars);
     else add("target", "ok", "project", `cli.doctor.target.${target}`, vars);
+    const blocked = blockedLocalCalls(root, config);
+    if (blocked.length)
+      add("localCalls", "warn", "project", "cli.doctor.localCalls", { url: config.app.url, list: blocked.join(", ") });
   }
 
   // .gitignore: the work folder (session!) and the built site; git through the context's launcher (ctx.exec).

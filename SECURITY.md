@@ -41,10 +41,18 @@ this file gives access to the application with the rights of the person who sign
 ### Read-only captures have limits
 
 With a session, `doc-kit capture` aborts **in the browser** every request other than `GET`, `HEAD` and `OPTIONS`, and
-counts them. A navigation of the application is fetched without following redirects, and its redirect chain is
-checked hop by hop before the browser follows it: a server redirect to a `capture.forbidden` route is refused before
-that route is requested. A forbidden pattern is tested on the path as written, percent-decoded, with doubled
-slashes collapsed and without a trailing slash. This does not cover:
+counts them. With `capture.forbidden`, the kit fetches every `GET` navigation itself, hop by hop, without following
+redirects, whatever the origins its chain goes through (a sign-in round trip through the identity provider): each hop
+back on the application is tested before it is requested, and a forbidden one never is (the navigation is refused,
+and the capture stops; a chain of more than 10 redirects is refused the same way, a redirect off the web is aborted).
+The browser never gets a redirect, only the end of the chain: a page that sends the frame on to the end, whose answer,
+already fetched, is held for that frame's next navigation. The server is never asked again for a hop of the chain,
+so a server that would answer a second request otherwise is not replayed; only when the end opens in another frame,
+or in a pop-up the kit could not tell yet, is the end asked again — and tested again. A hop sends the cookies the
+browser holds for its own address, never those of the first request, and another origin gets only the referrer's
+origin. A forbidden pattern is tested on the path as written, percent-decoded, its backslashes read as slashes,
+without its path parameters (`;jsessionid=…`), with its `.` and `..` segments resolved, with doubled slashes
+collapsed and without a trailing slash. This does not cover:
 
 - **writes made by the server while it renders a page** requested with a `GET` (a record created when a detail page
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
@@ -54,7 +62,20 @@ slashes collapsed and without a trailing slash. This does not cover:
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);
 - a route on another origin than the application's (an API on another subdomain): `capture.forbidden` only covers
-  the application's origin.
+  the application's origin;
+- the redirects of a request that is not a navigation (a `fetch`, an image) or of a navigation sent with another
+  method than `GET` (a form posted with `capture.readOnly: false`): the browser follows them unseen. The first address
+  of such a request is tested, not the places the server sends it to;
+- what Chromium itself would add to a navigation the kit now sends from Node.js (Playwright's request client), for
+  every origin, third-party frames included: cookies are chosen by domain, path and `Secure` only, never by
+  `SameSite`; no HSTS upgrade, no system proxy or certificate store, no Local Network Access check.
+
+**Local addresses.** A page the kit answers itself comes, for Chromium, from no address: its calls to a local address
+(the API of a local application on another port) are refused (Local Network Access). The kit allows them again, for
+the application's origin only, when the application is on a loopback address (`localhost`, `127.x`, `[::1]`). On any
+other address (a LAN address, a name), `doctor` warns when the application's env files (`masking.env`) name a local
+address on another origin, except on a production target: use `localhost` or `127.0.0.1` in `app.url`, or capture
+that instance without `capture.forbidden`.
 
 On production, plans only navigate: no click on Save, Create, Approve, Delete, Send, Import or Sign out.
 

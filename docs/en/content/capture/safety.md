@@ -92,6 +92,21 @@ A navigation stops its capture, and the summary lists it:
 
 Service workers are blocked while the kit captures, so that no request escapes the check.
 
+### Redirects and the forms of a path
+
+A browser follows a redirect without asking the kit again. With `capture.forbidden`, the kit therefore follows the
+redirects of every navigation itself, one hop at a time and across origins, a sign-in round trip through the identity
+provider included: a hop that comes back to a forbidden route of the application is refused before it is requested,
+and the capture stops. The browser only receives the end of the chain, so the server is never asked twice for a hop.
+
+A forbidden pattern is tested on the path as a server reads it: percent-decoded, its backslashes read as slashes,
+without its path parameters (`;jsessionid=…`), with its `.` and `..` segments resolved, with doubled slashes
+collapsed and without a trailing slash. The letter case is kept: on a server that ignores it, write the pattern for every case (`[Aa]pprove`).
+
+With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
+is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during
+the captures, and `doc-kit doctor` warns about it (except on a production target): use `localhost` in `app.url`.
+
 ## Before opening a detail page
 
 :::steps
