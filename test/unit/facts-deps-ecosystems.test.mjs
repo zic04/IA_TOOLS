@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { manifestShapes, READER_NAMES } from "../tools/manifest-shapes.mjs";
 import { collectDependencies, dependencyReader, DEPENDENCY_PATTERNS } from "../../engine/facts/dependencies.mjs";
 import { createRegistryClient, isPrivatePackage } from "../../engine/facts/network.mjs";
 import { NPM_PATTERNS } from "../../engine/facts/deps/npm.mjs";
@@ -447,78 +448,17 @@ describe("linear on what a crafted manifest holds (RULES.md S5)", () => {
     for (const g of groups) assert.ok(Object.isFrozen(g) && Object.values(g).every((re) => re instanceof RegExp));
   });
 
-  test("every reader stays linear on 200,000 characters built to make it backtrack", () => {
-    const n = 200_000;
-    const shapes = [
-      " ".repeat(n),
-      '"'.repeat(n),
-      "'".repeat(n),
-      "[".repeat(n),
-      "{".repeat(n),
-      "=".repeat(n),
-      "#".repeat(n),
-      "/*".repeat(n / 2),
-      "\\".repeat(n),
-      "a".repeat(n) + " v" + "1".repeat(n),
-      "[dependencies]\n" + "a = {".repeat(n / 5),
-      "[dependencies]\na = { " + 'version = "1", '.repeat(n / 15) + "}",
-      "[" + "a".repeat(n),
-      "[target.'" + "a".repeat(n),
-      "[[package]]\n" + 'name = "'.repeat(n / 8),
-      "implementation(" + " ".repeat(n),
-      "implementation group: " + "'".repeat(n),
-      "implementation 'a:b:1'\n".repeat(n / 22),
-      "a:b:" + "1".repeat(n) + "=" + "test,".repeat(n / 5),
-      'gem "a", ' + ",".repeat(n),
-      'gem "a", group: [' + ":test, ".repeat(n / 7),
-      "group :test do\n".repeat(n / 15),
-      "end\n".repeat(n / 4),
-      "GEM\n  remote: x\n  specs:\n" + "    a (1)\n".repeat(n / 10),
-      "    a (" + "(".repeat(n),
-      "require (\n" + "a v1 // indirect\n".repeat(n / 17),
-      "replace a => " + ".".repeat(n),
-      "<project><dependencies>" +
-        "<dependency><groupId>g</groupId><artifactId>a</artifactId><version>${x}</version></dependency>".repeat(
-          n / 100,
-        ) +
-        "</dependencies></project>",
-      "<a>".repeat(n / 3),
-      "<Project><ItemGroup>" + '<PackageReference Include="x" Version="1" />'.repeat(n / 45) + "</ItemGroup></Project>",
-      '{"require":{' +
-        '"a/b":"1",'.repeat(n / 10) +
-        '"c/d":"1"},"repositories":[' +
-        '{"type":"path","url":"./a/b"},'.repeat(n / 30) +
-        "{}]}",
-      '{"dependencies":{"net8.0":{' + '"a":{"type":"Direct","resolved":"1"},'.repeat(n / 40) + '"b":{}}}}',
-    ];
-    const names = [
-      "pom.xml",
-      "build.gradle",
-      "build.gradle.kts",
-      "libs.versions.toml",
-      "gradle.lockfile",
-      "a.csproj",
-      "directory.packages.props",
-      "packages.config",
-      "packages.lock.json",
-      "composer.json",
-      "composer.lock",
-      "go.mod",
-      "gemfile",
-      "gemfile.lock",
-      "cargo.toml",
-      "cargo.lock",
-    ];
+  // The time it takes is measured in facts-deps-growth.test.mjs (4 and 16 times larger, through growth.mjs); this one
+  // has no clock, so that every mutant of test/mutations/ runs it: a rule taken out of a reader that makes it throw.
+  test("every reader of the dependencies source reads the crafted shapes without throwing", () => {
+    const shapes = manifestShapes(12_500);
+    assert.ok(shapes.length >= 30 && READER_NAMES.length === 16);
     withFolder({ manifest: "" }, (dir) => {
       const file = path.join(dir, "manifest");
-      for (const text of shapes) {
+      for (const [i, text] of shapes.entries()) {
         fs.writeFileSync(file, text);
-        for (const name of names) {
-          const start = Date.now();
-          assert.doesNotThrow(() => dependencyReader(name)(file, name, []));
-          const ms = Date.now() - start;
-          assert.ok(ms < 1000, `${name} on ${JSON.stringify(text.slice(0, 30))}…: ${ms} ms`);
-        }
+        for (const name of READER_NAMES)
+          assert.doesNotThrow(() => dependencyReader(name)(file, name, []), `${name} on shape ${i}`);
       }
     });
   });

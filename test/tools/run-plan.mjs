@@ -1,7 +1,7 @@
 // How test/run.mjs runs the test files. Timing checks (RULES.md S5: a scanner of untrusted text stays linear,
-// measured as the growth of its time) are skewed by the other files running at the same time, and now and then by
-// the machine itself: the files that measure time run after the others, one at a time, and one that fails is run
-// once more, alone. A scanner that really grows too fast fails both times; a noisy measure does not. Every other
+// measured as the growth of its time, through test/tools/growth.mjs) are skewed by the other files running at the
+// same time, and now and then by the machine itself: the files that measure time run after the others, one at a
+// time, and one that fails is run once more, alone. A scanner that really grows too fast fails both times; a noisy measure does not. Every other
 // failure counts at once. End-to-end files share one browser per file: they all run one at a time, without a
 // second run.
 import path from "node:path";
@@ -25,8 +25,20 @@ export function testFiles(args, { root, exists, list }) {
   });
 }
 
-/** A file that measures time: it reads the clock, or runs the ReDoS harness. */
-const TIMING = /performance\.now\(|redos-worker/;
+/**
+ * A path in quotes that ends with tools/growth.mjs (the growth measure, test/tools/growth.mjs) or tools/redos-worker.mjs
+ * (the ReDoS harness): a file that imports the one or starts the other measures time. A comment that merely names
+ * them does not, and a file that reads the clock without them is refused by test/unit/timing-files.test.mjs.
+ */
+const TIMING = /["'][^"'\n]*\/(?:growth|redos-worker)\.mjs["']/;
+
+/**
+ * Whether a test file measures time: it imports test/tools/growth.mjs, or runs the ReDoS harness.
+ * @param {string} text   the file's text
+ */
+export function isTimingFile(text) {
+  return TIMING.test(text);
+}
 
 /**
  * @param {object} p
@@ -39,7 +51,7 @@ const TIMING = /performance\.now\(|redos-worker/;
  */
 export function runPlan({ files, e2e, read, run, log }) {
   if (e2e) return run(files, ["--test-concurrency=1"]);
-  const timing = files.filter((f) => TIMING.test(read(f)));
+  const timing = files.filter((f) => isTimingFile(read(f)));
   const others = files.filter((f) => !timing.includes(f));
   let code = others.length ? run(others, []) : 0;
   for (const file of timing) {

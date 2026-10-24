@@ -66,6 +66,7 @@ import { KitError } from "../../engine/project/errors.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
+import { FRONT_UNITS, FRONT_SHAPES, SPRING_SHAPES, ASPNET_SHAPES, PY_UNITS } from "./stack-shapes.mjs";
 import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
 
 // Prefixes that start a match of the detectors, followed by long runs of characters that make a badly written
@@ -248,7 +249,23 @@ const refusing = (fn) => (s) => {
 };
 /** An input of the prefix and the unit, about `n` characters long. */
 const built = (p, u, n) => p + u.repeat(Math.ceil(n / u.length)) + "!";
-const SHAPES = PREFIXES.flatMap((p) => UNITS.map((u) => [p, u]));
+/**
+ * The shapes the tests of the stack adapters measure one reader on (test/tools/stack-shapes.mjs): the stacks tests no
+ * longer run each expression on them (stacks-growth.test.mjs), this harness does, on every *_PATTERNS of every adapter
+ * (stackChecks). Those the product above already holds are not repeated.
+ */
+const STACK_SHAPES = [
+  ...FRONT_UNITS.map((u) => ["", u]),
+  ...FRONT_SHAPES,
+  ...SPRING_SHAPES,
+  ...ASPNET_SHAPES,
+  ...PY_UNITS.map((u) => ["", u]),
+];
+const KNOWN = new Set(PREFIXES.flatMap((p) => UNITS.map((u) => JSON.stringify([p, u]))));
+const SHAPES = [
+  ...PREFIXES.flatMap((p) => UNITS.map((u) => [p, u])),
+  ...STACK_SHAPES.filter((shape) => !KNOWN.has(JSON.stringify(shape)) && KNOWN.add(JSON.stringify(shape))),
+];
 const INPUTS = SHAPES.map(([p, u]) => built(p, u, N));
 /**
  * An OpenAPI document made of a text: one route per 16 characters, none written as in the text (each is looked for
@@ -274,6 +291,8 @@ const openapiDoc = (s) => {
 // Inputs whose end makes a match fail late (a "!" lets a lazy group succeed early): the forms the review of the
 // behaviour readers measured (a pydantic line, an order key, nested calls, SQL in lower case, a sort).
 INPUTS.push(
+  // A run of "x", then many routes of a table, one per 200 characters (stacks-growth.test.mjs's last front-end input).
+  "x".repeat(N) + "\n" + "{ path: 'a', component: A }, ".repeat(Math.round(N / 200)),
   // A run of ":" then a "/": the shape that made a name-and-tag expression quadratic (an image reference).
   ":".repeat(N) + "/x",
   "class A(BaseModel):\n    a:" + " ".repeat(N) + "=" + "x".repeat(301),

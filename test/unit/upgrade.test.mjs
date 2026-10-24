@@ -1,6 +1,6 @@
 // upgrade: changelog between the project's range and the kit, migrations in dry run (diff) then applied,
 // `kit` bumped; the migration framework (virtual files, version order, unified diff).
-import { test, describe } from "node:test";
+import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -136,6 +136,9 @@ function demoCopyOnce() {
   once ??= demoCopy();
   return once;
 }
+after(() => {
+  if (once) fs.rmSync(once, { recursive: true, force: true });
+});
 
 describe("changelog", () => {
   test("entries between the project's range and the kit; missing CHANGELOG.md → null", () => {
@@ -321,7 +324,6 @@ export async function migrate() { throw new KitError(EXIT.CHECK, "new.noToc", { 
       assert.match(again.out, /le projet est à jour/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
-      if (once) fs.rmSync(once, { recursive: true, force: true });
     }
   });
 });

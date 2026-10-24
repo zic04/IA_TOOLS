@@ -1,128 +1,115 @@
-// refreshSession (ARCHITECTURE.md §6.3a): the only declared exception to the read-only lock. Against a real
-// local HTTP server (node:http, no browser): a renewed session is written back to the session file on 200 with a
-// Set-Cookie, left untouched on a non-2xx status, and reported as a failure (not thrown) when the server is down.
-// One real headless Chromium is shared for the whole file (closed in `after`), the way the e2e tests do: what we
-// are testing is the real Set-Cookie → storageState pipeline, which a fake browser could not exercise honestly.
-import { test, describe, before, after } from "node:test";
+// refreshSession (ARCHITECTURE.md §6.3a) through the launcher seam, no browser (RULES.md M4): the request it sends
+// (method, URL, JSON body, no redirect), the session file written back only on a 2xx answer, a failure reported and
+// not thrown, and the browser always closed. The real Set-Cookie → storageState pipeline, with a real Chromium, is
+// test/e2e/session-refresh.test.mjs.
+import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import http from "node:http";
 import path from "node:path";
-import { chromium } from "playwright";
 import { refreshSession } from "../../engine/capture/session.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
 const REASON = "verified in the handler: it only rotates the token, no other write";
+const APP = "http://127.0.0.1:4173";
 const dirs = [];
-const contexts = [];
-let browser;
-
-before(async () => {
-  browser = await chromium.launch({ headless: true });
-});
-
-after(async () => {
-  await Promise.all(contexts.map((c) => c.close().catch(() => {})));
-  await browser.close();
+after(() => {
   for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
 });
 
-/** refreshSession launches and closes its own browser; here it reuses the one shared browser of this file instead. */
-const launch = async () => ({
-  newContext: async (options) => {
-    const ctx = await browser.newContext(options);
-    contexts.push(ctx);
-    return ctx;
-  },
-  close: async () => {},
-});
-
-/** A session file Playwright can load (empty cookie jar): refreshSession's starting point. */
-function emptySessionFile() {
+/** A session file in its own temporary folder. */
+function sessionFile(text = JSON.stringify({ cookies: [], origins: [] })) {
   const dir = tempDir("doc-kit-session-refresh-");
   dirs.push(dir);
   const file = path.join(dir, "session.json");
-  fs.writeFileSync(file, JSON.stringify({ cookies: [], origins: [] }));
+  fs.writeFileSync(file, text);
   return file;
 }
 
-async function startServer(handler) {
-  const server = http.createServer(handler);
-  await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  return { server, url: `http://127.0.0.1:${server.address().port}` };
+/**
+ * A fake launcher: records the context options, the request and the closing; `answer` is the response (or the error
+ * to throw) of the one request; `state` is what the context would save.
+ */
+function fakeLauncher({ answer, state = { cookies: [{ name: "session", value: "renewed-token" }], origins: [] } }) {
+  const calls = { launch: [], context: [], fetch: [], closed: 0 };
+  const launch = async (options) => {
+    calls.launch.push(options);
+    return {
+      newContext: async (o) => {
+        calls.context.push(o);
+        return {
+          request: {
+            fetch: async (url, o2) => {
+              calls.fetch.push({ url, ...o2 });
+              if (answer instanceof Error) throw answer;
+              return { ok: () => answer >= 200 && answer < 300, status: () => answer };
+            },
+          },
+          storageState: async () => state,
+        };
+      },
+      close: async () => {
+        calls.closed++;
+      },
+    };
+  };
+  return { launch, calls };
 }
 
-describe("refreshSession (ARCHITECTURE.md §6.3a)", () => {
-  test("POST with a JSON body → 200 + Set-Cookie: the request is correct and the new cookie is written back to the session file", async () => {
-    let received = null;
-    const { server, url } = await startServer((req, res) => {
-      let body = "";
-      req.on("data", (c) => (body += c));
-      req.on("end", () => {
-        received = { method: req.method, path: req.url, contentType: req.headers["content-type"], body };
-        res.writeHead(200, { "Set-Cookie": "session=renewed-token; Path=/" }).end();
-      });
+describe("refreshSession through a fake launcher", () => {
+  test("200: one request, as asked, no redirect followed; the renewed state replaces the session file", async () => {
+    const file = sessionFile();
+    const { launch, calls } = fakeLauncher({ answer: 200 });
+    const r = await refreshSession({
+      file,
+      appUrl: APP,
+      refresh: { method: "POST", path: "/refresh", json: { grant: "refresh" }, reason: REASON },
+      launch,
     });
-    try {
-      const file = emptySessionFile();
-      const r = await refreshSession({
-        file,
-        appUrl: url,
-        refresh: { method: "POST", path: "/refresh", json: { grant: "refresh" }, reason: REASON },
-        launch,
-      });
-      assert.deepEqual(r, { ok: true, status: 200 });
-      assert.equal(received.method, "POST");
-      assert.equal(received.path, "/refresh");
-      assert.match(received.contentType, /application\/json/);
-      assert.deepEqual(JSON.parse(received.body), { grant: "refresh" });
-      const state = JSON.parse(fs.readFileSync(file, "utf8"));
-      assert.ok(
-        state.cookies.some((c) => c.name === "session" && c.value === "renewed-token"),
-        JSON.stringify(state.cookies),
-      );
-    } finally {
-      await new Promise((r) => server.close(r));
-    }
+    assert.deepEqual(r, { ok: true, status: 200 });
+    assert.equal(calls.fetch.length, 1, "exactly one request");
+    assert.equal(calls.fetch[0].url, `${APP}/refresh`);
+    assert.equal(calls.fetch[0].method, "POST");
+    assert.deepEqual(calls.fetch[0].data, { grant: "refresh" });
+    assert.equal(calls.fetch[0].maxRedirects, 0, "a redirect is never followed");
+    assert.equal(calls.fetch[0].failOnStatusCode, false);
+    assert.deepEqual(calls.context, [{ storageState: file }], "the context loads the session file");
+    assert.deepEqual(calls.launch, [{ headless: true }]);
+    assert.equal(calls.closed, 1);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).cookies, [{ name: "session", value: "renewed-token" }]);
   });
 
-  test("the default method is POST, without a json body", async () => {
-    let received = null;
-    const { server, url } = await startServer((req, res) => {
-      received = { method: req.method, path: req.url };
-      res.writeHead(200, { "Set-Cookie": "session=renewed-again; Path=/" }).end();
+  test("the default method is POST, and no body is sent without json", async () => {
+    const { launch, calls } = fakeLauncher({ answer: 204 });
+    const r = await refreshSession({
+      file: sessionFile(),
+      appUrl: APP,
+      refresh: { path: "/refresh", reason: REASON },
+      launch,
     });
-    try {
-      const file = emptySessionFile();
-      const r = await refreshSession({ file, appUrl: url, refresh: { path: "/refresh", reason: REASON }, launch });
-      assert.deepEqual(r, { ok: true, status: 200 });
-      assert.equal(received.method, "POST");
-      assert.equal(received.path, "/refresh");
-    } finally {
-      await new Promise((r) => server.close(r));
+    assert.deepEqual(r, { ok: true, status: 204 });
+    assert.equal(calls.fetch[0].method, "POST");
+    assert.ok(!("data" in calls.fetch[0]), "no body");
+  });
+
+  test("422 and a redirect answer: { ok: false, status }, the session file untouched, the browser closed", async () => {
+    for (const status of [422, 302]) {
+      const text = JSON.stringify({ cookies: [], origins: [], marker: status });
+      const file = sessionFile(text);
+      const { launch, calls } = fakeLauncher({ answer: status });
+      const r = await refreshSession({ file, appUrl: APP, refresh: { path: "/refresh", reason: REASON }, launch });
+      assert.deepEqual(r, { ok: false, status });
+      assert.equal(fs.readFileSync(file, "utf8"), text, `no write on ${status}`);
+      assert.equal(calls.closed, 1);
     }
   });
 
-  test("422 → { ok: false, status: 422 }, the session file is left untouched", async () => {
-    const { server, url } = await startServer((req, res) => res.writeHead(422).end());
-    try {
-      const file = emptySessionFile();
-      const before = fs.readFileSync(file, "utf8");
-      const r = await refreshSession({ file, appUrl: url, refresh: { path: "/refresh", reason: REASON }, launch });
-      assert.deepEqual(r, { ok: false, status: 422 });
-      assert.equal(fs.readFileSync(file, "utf8"), before, "no write on failure");
-    } finally {
-      await new Promise((r) => server.close(r));
-    }
-  });
-
-  test("server down → { ok: false, error }, nothing thrown", async () => {
-    const { server, url } = await startServer((req, res) => res.writeHead(200).end());
-    await new Promise((r) => server.close(r)); // closed before the call: nothing listens on `url` any more
-    const file = emptySessionFile();
-    const r = await refreshSession({ file, appUrl: url, refresh: { path: "/refresh", reason: REASON }, launch });
-    assert.equal(r.ok, false);
-    assert.equal(r.status, null);
-    assert.ok(r.error, "an error message is given");
+  test("a request that fails: { ok: false, status: null, error } (first line), nothing thrown, nothing written", async () => {
+    const text = JSON.stringify({ cookies: [], origins: [] });
+    const file = sessionFile(text);
+    const { launch, calls } = fakeLauncher({ answer: new Error("connect ECONNREFUSED\n  at somewhere") });
+    const r = await refreshSession({ file, appUrl: APP, refresh: { path: "/refresh", reason: REASON }, launch });
+    assert.deepEqual(r, { ok: false, status: null, error: "connect ECONNREFUSED" });
+    assert.equal(fs.readFileSync(file, "utf8"), text);
+    assert.equal(calls.closed, 1);
   });
 });

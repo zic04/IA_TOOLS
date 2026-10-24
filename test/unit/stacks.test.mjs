@@ -14,8 +14,18 @@ import { collectApi, collectScreens } from "../../engine/facts/api.mjs";
 import { collectStack } from "../../engine/facts/languages.mjs";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
 import { expressRoutes, EXPRESS_PATTERNS } from "../../adapters/stack/express.mjs";
-import { fastapiRoutes, FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
-import { nextRouteHandlers, NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
+import { FASTAPI_PATTERNS } from "../../adapters/stack/fastapi.mjs";
+import { NEXT_PATTERNS } from "../../adapters/stack/next.mjs";
+import { STACK_JS_PATTERNS } from "../../engine/facts/stack-js.mjs";
+import { ANGULAR_PATTERNS } from "../../adapters/stack/angular.mjs";
+import { ASPNET_PATTERNS } from "../../adapters/stack/aspnet.mjs";
+import { DJANGO_PATTERNS } from "../../adapters/stack/django.mjs";
+import { FLASK_PATTERNS } from "../../adapters/stack/flask.mjs";
+import { NESTJS_PATTERNS } from "../../adapters/stack/nestjs.mjs";
+import { RAILS_PATTERNS } from "../../adapters/stack/rails.mjs";
+import { REACT_ROUTER_PATTERNS } from "../../adapters/stack/react-router.mjs";
+import { SPRING_PATTERNS } from "../../adapters/stack/spring.mjs";
+import { VUE_ROUTER_PATTERNS } from "../../adapters/stack/vue-router.mjs";
 import { unreadPart } from "../../engine/context/unread-section.mjs";
 import factsAdapter from "../../adapters/coverage/facts.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
@@ -279,6 +289,7 @@ describe("the sources the stack adapters feed", () => {
   });
 
   test("screens: the App Router's pages and the Pages Router's, their API, shell and error pages left out; no claimed access", () => {
+    const guardedApp = tree("doc-kit-stacks-r-", { "r.ts": "x" });
     const app = tree("doc-kit-stacks-screens-", {
       "app/orders/[id]/page.tsx": "export default function P() {}\n",
       "app/(shop)/cart/page.tsx": "export default function P() {}\n",
@@ -301,11 +312,12 @@ describe("the sources the stack adapters feed", () => {
         files: /\.ts$/,
         screens: () => [{ route: "/admin", file: "r.ts", line: 3, guards: ["isAdmin"] }],
       };
-      assert.deepEqual(collectScreens(tree("doc-kit-stacks-r-", { "r.ts": "x" }), {}, [guarded]), [
+      assert.deepEqual(collectScreens(guardedApp, {}, [guarded]), [
         { route: "/admin", file: "r.ts", line: 3, framework: "router", auth: "role", guards: ["isAdmin"] },
       ]);
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
+      fs.rmSync(guardedApp, { recursive: true, force: true });
     }
   });
 
@@ -327,23 +339,6 @@ describe("the sources the stack adapters feed", () => {
       );
     } finally {
       fs.rmSync(app, { recursive: true, force: true });
-    }
-  });
-
-  test("a crafted file of 256 KB is read at once: 32,000 unclosed route calls, decorators, exports (0.3 took minutes)", () => {
-    const n = 32_000;
-    const cases = [
-      ["express, unclosed calls", () => expressRoutes("app.get(".repeat(n), "x.js")],
-      ["express, routes", () => expressRoutes('app.get("/a", h);\n'.repeat(n), "x.js")],
-      ["fastapi, decorators", () => fastapiRoutes(new Map([["x.py", '@router.get("/a")\n'.repeat(n)]]))],
-      ["fastapi, unclosed routers", () => fastapiRoutes(new Map([["x.py", "r = APIRouter(".repeat(n / 2)]]))],
-      ["next, exports", () => nextRouteHandlers("export function GET(".repeat(n / 2))],
-    ];
-    for (const [name, run] of cases) {
-      const start = performance.now();
-      run();
-      const ms = performance.now() - start;
-      assert.ok(ms < 1000, `${name}: ${ms.toFixed(0)} ms`);
     }
   });
 
@@ -449,6 +444,43 @@ describe("what is told of the code the kit does not read", () => {
       assert.match(await cli(["inputs"]), /→ doc-kit facts --source stack: measure what the kit reads of the code/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the expressions of the adapters reach the ReDoS harness (RULES.md S5)", () => {
+  // Their growth is measured by test/tools/redos-worker.mjs (stackChecks), which finds each adapter's expressions by
+  // the name of its `*_PATTERNS` export: a reader whose expressions are not exported that way is never measured.
+  test("every adapter exports its expressions as a *_PATTERNS object of regular expressions", async () => {
+    const reached = {
+      NEXT_PATTERNS,
+      EXPRESS_PATTERNS,
+      FASTAPI_PATTERNS,
+      STACK_JS_PATTERNS,
+      NESTJS_PATTERNS,
+      ANGULAR_PATTERNS,
+      VUE_ROUTER_PATTERNS,
+      REACT_ROUTER_PATTERNS,
+      SPRING_PATTERNS,
+      ASPNET_PATTERNS,
+      DJANGO_PATTERNS,
+      FLASK_PATTERNS,
+      RAILS_PATTERNS,
+    };
+    for (const [name, patterns] of Object.entries(reached)) {
+      assert.ok(Object.keys(patterns).length > 0, name);
+      assert.ok(
+        Object.values(patterns).every((re) => re instanceof RegExp),
+        name,
+      );
+    }
+    // Each built-in adapter that reads source text exports some: the harness cannot reach the ones that do not.
+    for (const adapter of BUILT_IN_STACKS) {
+      const mod = await import(`../../adapters/stack/${adapter.name}.mjs`);
+      assert.ok(
+        Object.keys(mod).some((key) => key.endsWith("_PATTERNS")),
+        `${adapter.name} exports no *_PATTERNS: its expressions escape the ReDoS harness`,
+      );
     }
   });
 });

@@ -5,7 +5,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { demoCopy, tempDir } from "../tools/helpers.mjs";
+import { demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 
 let claude;
 before(() => {
@@ -28,6 +28,7 @@ async function cli(args, env = {}, io = {}) {
     stderr: { write: (s) => (err += s) },
     env: { CLAUDE_CONFIG_DIR: claude, ...env },
     chromium: CHROMIUM_OK,
+    exec: noExec,
     ...io,
   });
   return { code, out, err };
@@ -237,6 +238,57 @@ describe("doctor", () => {
         r.out,
         /^✖ \.doc-kit\/ is not excluded from git: the session could be committed\n {2}→ add the line \.doc-kit\/ to \.gitignore$/m,
       );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("git through the context's launcher: check-ignore and ls-files answer the .gitignore and session checks; a refused git warns", async () => {
+    const dir = project();
+    try {
+      fs.mkdirSync(path.join(dir, ".doc-kit"));
+      fs.writeFileSync(
+        path.join(dir, ".doc-kit", "session.json"),
+        JSON.stringify({ cookies: [{ name: "sid", value: "x", expires: Date.now() / 1000 + 3600 }], origins: [] }),
+      );
+      const calls = [];
+      /** A repository whose git ignores everything or nothing, and tracks the session or not. */
+      const repository =
+        ({ ignored, tracked }) =>
+        (bin, args, options) => {
+          calls.push([bin, args, options]);
+          const status = (yes) => ({ status: yes ? 0 : 1, stdout: "", stderr: "" });
+          if (bin !== "git") return null;
+          if (args[1] === "--is-inside-work-tree") return { status: 0, stdout: "true\n", stderr: "" };
+          if (args[0] === "check-ignore") return status(ignored);
+          return args[0] === "ls-files" ? status(tracked) : null;
+        };
+      const r = await cli(["doctor", "--project", dir], {}, { exec: repository({ ignored: true, tracked: true }) });
+      assert.equal(r.code, 1, r.out);
+      assert.match(r.out, /^✔ \.doc-kit\/ and dist\/ are excluded from git$/m);
+      assert.match(r.out, /^✖ the session \.doc-kit\/session\.json is tracked by git: it contains sign-in cookies$/m);
+      assert.deepEqual(
+        calls.filter(([, args]) => args[0] !== "rev-parse"),
+        [
+          ["git", ["check-ignore", "-q", "--no-index", ".doc-kit/session.json"], { cwd: dir }],
+          ["git", ["check-ignore", "-q", "--no-index", "dist/site.html"], { cwd: dir }],
+          ["git", ["ls-files", "--error-unmatch", "--", path.join(".doc-kit", "session.json")], { cwd: dir }],
+        ],
+      );
+      // The minimal pair: the same project, git ignores nothing (the copy's .gitignore says otherwise) and the
+      // session is not tracked.
+      const no = await cli(["doctor", "--project", dir], {}, { exec: repository({ ignored: false, tracked: false }) });
+      assert.match(no.out, /^✖ \.doc-kit\/ is not excluded from git: the session could be committed$/m);
+      assert.doesNotMatch(no.out, /is tracked by git/);
+      // git refused (a configuration that names a program, SECURITY.md): the warning of the context, once per
+      // folder (the project's; app.dir has its own), and the copy's own .gitignore read instead.
+      const refused = { status: 128, stdout: "", stderr: "", refused: ["core.fsmonitor = evil"] };
+      const r2 = await cli(["doctor", "--project", dir], {}, { exec: (bin) => (bin === "git" ? refused : null) });
+      const warnings = r2.err.split("\n").filter((l) => l.startsWith(`⚠ git not run in ${dir}:`));
+      assert.deepEqual(warnings, [
+        `⚠ git not run in ${dir}: its configuration names a program that git could run (core.fsmonitor = evil)`,
+      ]);
+      assert.match(r2.out, /^✔ \.doc-kit\/ and dist\/ are excluded from git$/m);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

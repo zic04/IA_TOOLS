@@ -116,6 +116,8 @@ function copyTree(from, to, keep) {
 
 /**
  * Exports the project.
+ * `exec`: the launcher of the context (`ctx.exec`, engine/util/safe-git.mjs `Exec`), for the source's git HEAD in
+ * EXPORT.json; without it, git is hardened and started by engine/dev/environment.mjs.
  * @returns {{ target, files: number, vendored: number, skipped: string[], warnings: object[], version, zip?: object }}
  */
 export function exportProject({
@@ -126,6 +128,7 @@ export function exportProject({
   zip = false,
   now = new Date(),
   env = process.env,
+  exec,
 }) {
   const root = project.root;
   if (path.resolve(target) === path.resolve(root)) throw new KitError(EXIT.USAGE, "export.self", { folder: target });
@@ -231,7 +234,7 @@ export function exportProject({
   else fs.writeFileSync(configFile, frozen);
 
   // 5. EXPORT.json and the README section, in the project's language.
-  const commit = git(root, ["rev-parse", "HEAD"]);
+  const commit = git(root, ["rev-parse", "HEAD"], { exec });
   const info = {
     kit: { name: BRAND.packageName, version: BRAND.version },
     date: now.toISOString(),
@@ -273,6 +276,7 @@ export async function run({ ctx, values, positionals }) {
     withDist: !!values["with-dist"],
     zip: !!values.zip,
     env: ctx.env,
+    exec: ctx.exec,
   });
   if (ctx.json) {
     ctx.print(JSON.stringify(r, null, 2));

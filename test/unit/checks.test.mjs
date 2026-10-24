@@ -19,7 +19,7 @@ import {
   checkSecrets,
 } from "../../engine/check/secrets.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
-import { DEMO, demoCopy } from "../tools/helpers.mjs";
+import { DEMO, demoCopy, noExec } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
@@ -28,6 +28,7 @@ async function cli(args, env = {}) {
     stdout: { write: (s) => (out += s) },
     stderr: { write: (s) => (err += s) },
     env: { ...env },
+    exec: noExec,
   });
   return { code, out, err };
 }

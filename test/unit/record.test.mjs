@@ -57,11 +57,16 @@ describe("engine/capture/record.mjs", () => {
     const text = planModule(entry, skipped);
     assert.match(text, /^\/\/ Recorded with doc-kit record/);
     assert.match(text, /\/\/ {3}await page\.goto\('https:\/\/elsewhere\.test\/'\);/);
-    const file = path.join(demoCopy(), "p.mjs");
-    fs.writeFileSync(file, text);
-    const { CAPTURES } = await import(pathToFileURL(file).href);
-    assert.deepEqual(validateEntry(CAPTURES[0]), []);
-    assert.deepEqual(CAPTURES[0].actions, entry.actions);
+    const dir = demoCopy();
+    try {
+      const file = path.join(dir, "p.mjs");
+      fs.writeFileSync(file, text);
+      const { CAPTURES } = await import(pathToFileURL(file).href);
+      assert.deepEqual(validateEntry(CAPTURES[0]), []);
+      assert.deepEqual(CAPTURES[0].actions, entry.actions);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

@@ -5,13 +5,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runPlan, testFiles } from "../tools/run-plan.mjs";
+import { runPlan, testFiles, isTimingFile } from "../tools/run-plan.mjs";
 
-const CLOCK = "performance" + ".now()";
+// The paths are built by concatenation: written whole in this file, they would make run-plan.mjs take this very file
+// for one that measures time, and run it alone, after the others (a test below checks it does not).
+const GROWTH = "../tools/gro" + "wth.mjs";
+const WORKER = "../tools/redos-" + "worker.mjs";
 const TEXTS = {
   "a.test.mjs": "plain",
-  "timed.test.mjs": `const t = ${CLOCK};`,
-  "redos.test.mjs": 'import "../tools/redos-worker.mjs";',
+  "timed.test.mjs": `import { assertLinear } from "${GROWTH}";`,
+  "redos.test.mjs": `import "${WORKER}";`,
   "b.test.mjs": "plain",
 };
 /** The plan run with exit codes given per call (by the files of the call), what was run and logged. */
@@ -34,6 +37,30 @@ function plan(codes = {}, { e2e = false, files = Object.keys(TEXTS) } = {}) {
   });
   return { code, calls, logs };
 }
+
+test("this file does not measure time itself: it runs in the parallel batch, with the other functional tests", () => {
+  assert.equal(isTimingFile(fs.readFileSync(fileURLToPath(import.meta.url), "utf8")), false);
+});
+
+test("a file that measures time is one that imports the growth measure or runs the ReDoS harness, nothing else", () => {
+  const timing = [
+    `import { assertLinear } from "${GROWTH}";`,
+    `import {\n  assertLinear,\n  linearAt,\n} from '${GROWTH}';`,
+    `const { growthOf } = await import("${GROWTH}");`,
+    `const worker = new Worker(new URL("${WORKER}", import.meta.url));`,
+    `import "${WORKER}";`,
+  ];
+  for (const text of timing) assert.equal(isTimingFile(text), true, text);
+  const plain = [
+    "",
+    "// measures its time with test/tools/growth.mjs, in growth-measure.test.mjs", // a comment names it
+    'import { growth } from "../tools/my-growth-helper.mjs";', // another file
+    'import { x } from "../tools/mygrowth.mjs";', // another file, ending alike
+    "const t = performance" + ".now();", // a clock alone: not a measure (test/unit/timing-files.test.mjs refuses it)
+    'const note = "see growth.mjs";', // no folder
+  ];
+  for (const text of plain) assert.equal(isTimingFile(text), false, text);
+});
 
 test("the others together first, then each file that measures time alone, in their order", () => {
   const r = plan();

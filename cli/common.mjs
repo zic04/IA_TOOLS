@@ -65,8 +65,10 @@ export function defaultExec(bin, args = [], options = {}) {
  *   interactive: questions allowed (default: stdin and stdout are terminals); signal: stops long-running
  *   commands (dev) like Ctrl+C. Test seams (ARCHITECTURE.md §4): steps replaces the follow-up steps of `init`
  *   ({ install, connect, capture }); launch replaces the browser launcher of `capture` and `connect`; fetch
- *   replaces the network calls of `facts --network`; exec replaces the process launcher of `facts --tools`
- *   (bin, args, options) => { status, stdout, stderr } | null (null: the binary is not on the PATH); commit
+ *   replaces the network calls of `facts --network`; exec replaces the process launcher of every command that
+ *   starts git or an external tool (`facts --tools`, `sync`, `hooks`, `doctor`, `export`, `check secrets`, the
+ *   audit's secrets measure…) (bin, args, options) => { status, stdout, stderr, refused? } | null (null: the binary
+ *   is not on the PATH; refused: git not run, engine/util/safe-git.mjs `Exec`); commit
  *   replaces the read-only git HEAD lookup of `facts` (dir) => string | null.
  */
 export function createContext(

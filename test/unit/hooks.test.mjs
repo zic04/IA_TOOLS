@@ -27,7 +27,7 @@ describe("hooks", () => {
     const repo = tempDir("doc-kit-hooks-");
     try {
       const docs = path.join(repo, "docs", "manual");
-      fs.cpSync(demoCopy(), docs, { recursive: true });
+      demoCopy(docs);
       fs.mkdirSync(path.join(repo, ".git", "hooks"), { recursive: true });
       fs.writeFileSync(path.join(repo, ".git", "hooks", "post-merge"), "#!/bin/sh\necho mine\n");
       const exec = (bin, args) => {

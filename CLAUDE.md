@@ -50,4 +50,5 @@ the skill's own `doc-kit-*` agents (installed by `doc-kit skill install`).
   SKILL.md, references, agent definitions, docs).
 
 What a machine can check is a test rather than an agent: `test/unit/layers.test.mjs` (M1, M14),
-`test/unit/sizes.test.mjs` (M5), `test/unit/skill-briefs.test.mjs` (M15).
+`test/unit/seams.test.mjs` (M4), `test/unit/sizes.test.mjs` (M5), `test/unit/skill-briefs.test.mjs` (M15),
+`test/unit/timing-files.test.mjs` (M17).

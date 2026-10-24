@@ -18,12 +18,17 @@ import { reloadConfig } from "../../engine/dev/environment.mjs";
 import { exportProject } from "../../cli/commands/export.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { SPACES, buildDemo, buildSpaces, spacesCopy, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
+import { SPACES, buildDemo, buildSpaces, spacesCopy, demoCopy, tempDir, dataOf, noExec } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
   let err = "";
-  const code = await runCli(args, { stdout: { write: (s) => (out += s) }, stderr: { write: (s) => (err += s) }, env });
+  const code = await runCli(args, {
+    stdout: { write: (s) => (out += s) },
+    stderr: { write: (s) => (err += s) },
+    env,
+    exec: noExec,
+  });
   return { code, out, err };
 }
 const keys = (list) => list.map((p) => p.key);
@@ -460,7 +465,7 @@ describe("exports", () => {
       [["develop", dist("Acme-Orders-Documentation-develop.html")]],
     );
     assert.ok(r.html, "the full site is still computed");
-    const elsewhere = path.join(tempDir(), "it.html");
+    const elsewhere = path.resolve("elsewhere", "it.html"); // built in memory: nothing is written there
     r = await buildSpaces({ options: { space: "use", spaceOutput: elsewhere } });
     assert.equal(r.sites[0].output, elsewhere);
     r = await buildSpaces({ options: { output: path.join(SPACES, "out", "site.html") } });
@@ -653,7 +658,7 @@ describe("CLI", () => {
   test("export --with-dist: the exports per space too, even outside dist/", async () => {
     const root = tempDir("doc-kit-spaces-export-");
     const dir = path.join(root, "docs");
-    fs.cpSync(spacesCopy(), dir, { recursive: true });
+    spacesCopy(undefined, dir);
     const file = path.join(dir, "doc.config.mjs");
     fs.writeFileSync(
       file,
@@ -665,7 +670,7 @@ describe("CLI", () => {
       assert.equal((await cli(["build", "--project", dir])).code, 0);
       assert.ok(fs.existsSync(path.join(root, "exports", "acme-use.html")));
       const { project, config } = await loadProject({ project: dir, env: {} });
-      const r = exportProject({ project, config, target: path.join(root, "copy"), withDist: true });
+      const r = exportProject({ project, config, target: path.join(root, "copy"), withDist: true, exec: noExec });
       for (const f of ["dist/Acme-Orders-Documentation.html", "dist/acme-use.html", "dist/acme-develop.html"])
         assert.ok(fs.existsSync(path.join(r.target, f)), f);
     } finally {

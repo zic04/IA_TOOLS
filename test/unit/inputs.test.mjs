@@ -97,12 +97,9 @@ describe("inputs.json: the model", () => {
       "https://h/x?monkey=ENG&postcode=75001",
     ])
       assert.equal(hasCredentials(ok), false, ok);
-    let start = Date.now();
-    hasCredentials("a:/".repeat(200_000) + "@" + "?x=1&".repeat(100_000));
-    assert.ok(Date.now() - start < 1000, "linear on a hostile value");
-    start = Date.now();
-    hasCredentials("?" + "%=ab&".repeat(200_000));
-    assert.ok(Date.now() - start < 1000, "parameter names decoded in one pass");
+    // A hostile value is answered, not hung on (its growth: inputs-growth.test.mjs).
+    assert.equal(hasCredentials("a:/".repeat(2000) + "@" + "?x=1&".repeat(1000)), true);
+    assert.equal(hasCredentials("?" + "%=ab&".repeat(2000)), false);
   });
 
   test("secret parameters by the end of their normalised name; ordinary ones (key=ENG, code=FR) accepted", () => {
@@ -177,10 +174,8 @@ describe("inputs.json: the model", () => {
     assert.equal(nameOf("///"), "code");
     assert.equal(nameOf("-a--b-"), "a-b");
     assert.equal(nameOf("x".repeat(62) + "--y"), "x".repeat(62) + "-");
-    // Linear: 500,000 characters of "a-a-a…" (a string grown by += and read with endsWith was quadratic).
-    const start = performance.now();
+    // A long "a-a-a…" is cut (its growth: inputs-growth.test.mjs).
     assert.equal(nameOf("a-".repeat(250_000)), "a-".repeat(31) + "a");
-    assert.ok(performance.now() - start < 200);
   });
 
   test("add: each kind, the tool guessed from the address; a duplicate, an unsafe address, a bad branch refused", () => {
@@ -486,14 +481,12 @@ describe("documents: formats and the HTML reader", () => {
     );
   });
 
-  test("HTML: its text, headings kept, scripts, styles and comments dropped; linear on hostile input", () => {
+  test("HTML: its text, headings kept, scripts, styles and comments dropped", () => {
     const html =
       "<html><head><title>x</title><style>p{}</style></head><body><h1>Orders</h1><!-- note --><p>The &amp; list</p>" +
       "<script>alert(1)</script><ul><li>One</li><li>Two</li></ul><h2>Sign-in</h2><p>SSO&nbsp;only</p></body></html>";
     assert.equal(htmlToText(html), "# Orders\n\nThe & list\n\n- One\n- Two\n\n## Sign-in\n\nSSO only");
-    const start = Date.now();
-    htmlToText("<".repeat(200_000) + "<script" + "a".repeat(200_000));
-    assert.ok(Date.now() - start < 1000);
+    assert.doesNotThrow(() => htmlToText("<".repeat(2000) + "<script" + "a".repeat(2000)));
   });
 });
 
@@ -513,12 +506,10 @@ describe("the readers stay bounded on hostile documents", () => {
     );
     const file = path.join(parts, "bomb.docx");
     zipFolder(path.join(parts, "word"), file, "word");
-    const start = Date.now();
     assert.throws(
       () => docxToMarkdown(fs.readFileSync(file)),
       (e) => e.key === "inputs.refused" && e.vars.reason === "tooLarge",
     );
-    assert.ok(Date.now() - start < 2000);
   });
 
   test("paragraphs nested deep inside each other: linear, whatever their depth", () => {
@@ -535,26 +526,20 @@ describe("the readers stay bounded on hostile documents", () => {
     );
     const file = path.join(parts, "nested.docx");
     zipFolder(path.join(parts, "word"), file, "word");
-    const start = Date.now();
     const r = docxToMarkdown(fs.readFileSync(file));
-    assert.ok(Date.now() - start < 2000, `${Date.now() - start} ms`);
     assert.ok(r.markdown.startsWith("word0 word7919"));
   });
 
   test("Mermaid groups and draw.io labels: linear, whatever their size", () => {
     const group = (p) => Array.from({ length: 3000 }, (_, i) => `${p}${i}`).join(" & ");
-    let start = Date.now();
     const m = diagramToMarkdown(`graph TD\n${group("A")} --> ${group("B")}\n`, "mermaid");
-    assert.ok(Date.now() - start < 2000, "a group of 3000 × 3000 stops at the cap of links");
     assert.ok(m.links.length <= 5000);
     const label = "&lt;b&gt;x&lt;/b&gt;".repeat(100_000);
     const edges = Array.from({ length: 1000 }, (_, i) => `<mxCell id="e${i}" edge="1" source="a" target="b"/>`).join(
       "",
     );
     const drawio = `<mxfile><diagram><mxGraphModel><root><mxCell id="a" vertex="1" value="${label}"/><mxCell id="b" vertex="1" value="B"/>${edges}</root></mxGraphModel></diagram></mxfile>`;
-    start = Date.now();
     diagramToMarkdown(drawio, "drawio");
-    assert.ok(Date.now() - start < 2000, "each label read once, and cut");
   });
 });
 

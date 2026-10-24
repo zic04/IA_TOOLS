@@ -26,15 +26,27 @@ export async function buildDemo({ language, date = "2026-01-01", draft = false, 
   return build({ project: { root }, config, options: { date, draft, ...(language ? { lang: language } : {}) } });
 }
 
+/**
+ * The process launcher (`exec`) of a CLI run that must start nothing: every binary is absent (`null`), git included,
+ * as on a machine that has none. A unit test never runs the real git of the machine, nor depends on whether the kit
+ * sits in a repository (RULES.md M4); one that needs git answers gives its own fake `exec`.
+ */
+export const noExec = () => null;
+
 /** Temporary folder (to be removed by the caller). */
 export const tempDir = (prefix = "doc-kit-test-") => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
-/** Copy of the demo project in a temporary folder. */
-export function demoCopy() {
-  const dir = tempDir();
-  fs.cpSync(DEMO, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+/** Copies a fixture project without its build outputs, into `into` (a folder the caller owns and removes) or, without
+ * it, into a new temporary folder (to be removed by the caller). Never `cpSync(demoCopy(), …)`: the inner copy
+ * would be left behind; pass the destination as `into`. */
+function copyProject(from, prefix, into) {
+  const dir = into ?? tempDir(prefix);
+  fs.cpSync(from, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
   return dir;
 }
+
+/** Copy of the demo project in a temporary folder, or into `into`. */
+export const demoCopy = (into) => copyProject(DEMO, "doc-kit-test-", into);
 
 /** The test project with two spaces, use and develop (ARCHITECTURE.md §6.1a). */
 export const SPACES = path.join(KIT_ROOT, "test", "fixtures", "spaces");
@@ -62,9 +74,8 @@ export async function buildSpaces({
 }
 
 /** Copy of the spaces project in a temporary folder; `editToc(toc)` returns its new table of contents. */
-export function spacesCopy(editToc) {
-  const dir = tempDir("doc-kit-spaces-");
-  fs.cpSync(SPACES, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+export function spacesCopy(editToc, into) {
+  const dir = copyProject(SPACES, "doc-kit-spaces-", into);
   if (editToc) {
     const file = path.join(dir, "content", "toc.json");
     fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
@@ -97,9 +108,8 @@ export async function buildLanguages({
 
 /** Copy of the languages project in a temporary folder; `editToc(toc)` returns its new (source) table of
  * contents, `editTranslatedToc(toc)` its translated (fr) one. */
-export function languagesCopy({ editToc, editTranslatedToc } = {}) {
-  const dir = tempDir("doc-kit-languages-");
-  fs.cpSync(LANGUAGES, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+export function languagesCopy({ editToc, editTranslatedToc, into } = {}) {
+  const dir = copyProject(LANGUAGES, "doc-kit-languages-", into);
   if (editToc) {
     const file = path.join(dir, "content", "toc.json");
     fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
@@ -138,9 +148,8 @@ export async function buildBusiness({
 }
 
 /** Copy of the business project in a temporary folder; `editToc(toc)` returns its new table of contents. */
-export function businessCopy(editToc) {
-  const dir = tempDir("doc-kit-business-");
-  fs.cpSync(BUSINESS, dir, { recursive: true, filter: (src) => !/[\\/](dist|\.doc-kit)$/.test(src) });
+export function businessCopy(editToc, into) {
+  const dir = copyProject(BUSINESS, "doc-kit-business-", into);
   if (editToc) {
     const file = path.join(dir, "content", "toc.json");
     fs.writeFileSync(file, JSON.stringify(editToc(JSON.parse(fs.readFileSync(file, "utf8"))), null, 2));
