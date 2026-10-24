@@ -1007,6 +1007,37 @@ describe("doc-kit facts (CLI)", () => {
     assert.ok(calls.some((c) => c[0] === "osv-scanner" && c.includes("--download-offline-databases")));
   });
 
+  test("--network: dependencies and quality ask each package once between them; the items carry latest and majorsBehind", async () => {
+    const appDir = tempDir("doc-kit-facts-once-app-");
+    dirs.push(appDir);
+    fs.writeFileSync(
+      path.join(appDir, "package.json"),
+      JSON.stringify({ name: "web", dependencies: { react: "^17.0.0", next: "^15.0.0" } }),
+    );
+    fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["react", "next"]));
+    const dir = mk(appDir);
+    const urls = [];
+    const fetch = async (url) => (
+      urls.push(url),
+      { ok: true, status: 200, json: async () => ({ version: url.includes("/react/") ? "19.1.0" : "15.2.0" }) }
+    );
+    const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {
+      commit: () => null,
+      exec: () => null,
+      fetch,
+    });
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(
+      urls.sort(),
+      ["https://registry.npmjs.org/next/latest", "https://registry.npmjs.org/react/latest"],
+      "one request a package for the two sources",
+    );
+    const read = (source) => JSON.parse(fs.readFileSync(path.join(dir, "facts", `${source}.json`), "utf8"));
+    const react = read("dependencies").items.find((i) => i.name === "react" && i.manifest === "package.json");
+    assert.deepEqual([react.exists, react.latest, react.majorsBehind], [true, "19.1.0", 2]);
+    assert.equal(read("quality").summary.outdated, 2, "react and next, from the lock's 1.0.0: the shared answers");
+  });
+
   test("--network reads the person's own configuration (ctx.env): a scope declared only in ~/.npmrc is never sent", async () => {
     const appDir = tempDir("doc-kit-facts-userconf-app-");
     const home = tempDir("doc-kit-facts-userconf-home-");

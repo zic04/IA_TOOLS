@@ -5,7 +5,7 @@
 // only through `safeLicence` — one line, 100 characters at most, the characters of a licence name, nothing a secret
 // detector of the kit finds (AUDIT.md S8) — and anything else is no licence (`license` absent), never an error.
 // Classifying a licence (permissive, copyleft…) is the report's job (standard/licences.json), not the readers'.
-import { GENERIC } from "../../check/secrets.mjs";
+import { looksSecret } from "../../check/secrets.mjs";
 
 /**
  * The characters of a licence name or an SPDX expression, a letter, a digit or `(` first (an expression may open
@@ -30,13 +30,6 @@ export const LICENCE_PATTERNS = Object.freeze({
 const NONE = new Set(["", "unknown", "none", "n/a", "na", "null", "undefined"]);
 /** At most this many licences joined (a list of 1,000 names is no licence). */
 const MAX_PARTS = 8;
-
-const looksSecret = (text) =>
-  GENERIC.some((d) => {
-    d.re.lastIndex = 0;
-    for (const m of text.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
-    return false;
-  });
 
 /**
  * A licence as it is kept: the text trimmed, its runs of blanks one space; null when it is not a string, says none,

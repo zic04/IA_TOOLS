@@ -104,7 +104,7 @@ async function readApp(app) {
   for (let k = 0; k < items.length; k++) {
     if (!items[k].direct) continue;
     const kept = out[k].private || out[k].unproven;
-    const threw = await client.exists(items[k]).then(
+    const threw = await client.describe(items[k]).then(
       () => false,
       () => true,
     );

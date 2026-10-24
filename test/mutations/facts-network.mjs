@@ -57,8 +57,8 @@ export default {
     },
     {
       name: "unproven marked private",
-      find: ": { ...i, unproven: true, exists: null };",
-      replace: ": { ...i, private: true, exists: null };",
+      find: ": { ...i, unproven: true, ...unknown };",
+      replace: ": { ...i, private: true, ...unknown };",
     },
     {
       name: "no range allowlist",
@@ -89,6 +89,62 @@ export default {
       name: "an npm name of any length is sent",
       find: "item.name.length <= NPM_NAME_MAX && ",
       replace: "",
+    },
+    // What is kept of a registry's answer (describe, checkExistence): facts-network-describe.test.mjs.
+    {
+      name: "the version allowlist removed",
+      find: 'typeof value === "string" && NETWORK_PATTERNS.version.test(value) && !looksSecret(value)',
+      replace: 'typeof value === "string" && !looksSecret(value)',
+    },
+    {
+      name: "a version of any length",
+      find: "version: /^\\d[0-9A-Za-z.+!-]{0,63}$/,",
+      replace: "version: /^\\d[0-9A-Za-z.+!-]*$/,",
+    },
+    {
+      name: "a secret kept as a version",
+      find: "NETWORK_PATTERNS.version.test(value) && !looksSecret(value) ? value : null;",
+      replace: "NETWORK_PATTERNS.version.test(value) ? value : null;",
+    },
+    {
+      name: "npm's licence not filtered",
+      find: "    license: (doc) => npmLicence(doc),",
+      replace: "    license: (doc) => doc?.license ?? null,",
+    },
+    {
+      name: "PyPI's licence not filtered",
+      find: "    license: (doc) =>\n      pythonLicence({",
+      replace: "    license: (doc) =>\n      doc?.info?.license_expression ?? doc?.info?.license ?? pythonLicence({",
+    },
+    {
+      name: "the offline licence overwritten",
+      find: "  if (!licensed && answer?.exists && answer.license) {",
+      replace: "  if (answer?.exists && answer.license) {",
+    },
+    {
+      name: "the offline licence judged per item, not per package",
+      find: "licensed.has(packageId(i)));",
+      replace: "Boolean(i.license));",
+    },
+    {
+      name: "one request a package removed (the answers of the run not kept)",
+      find: "      if (!answers.has(id))\n",
+      replace: "      if (true)\n",
+    },
+    {
+      name: "transitive items described",
+      find: "const direct = items.filter((i) => i.direct && !isPrivate(i));",
+      replace: "const direct = items.filter((i) => !isPrivate(i));",
+    },
+    {
+      name: "a body of any size read",
+      find: '  if (Number(res.headers?.get?.("content-length")) > MAX_BODY_BYTES) {',
+      replace: "  if (false) {",
+    },
+    {
+      name: "a body that never settles holds the worker",
+      find: "    return await Promise.race([answer, expired]);",
+      replace: "    return await answer;",
     },
   ],
 };

@@ -61,8 +61,13 @@ maintenabilité](#/spaces/reviews).
 
 Chaque source écrit `facts/<source>.json` dans le projet de documentation, **jamais dans l'application** ; le même
 code lancé sur le même commit écrit le même fichier, donc il peut être committé sans risque avec les pages qu'il
-alimente. `--network` n'envoie le nom d'une dépendance à son registre, pour vérifier qu'elle existe et son retard,
-que si un fichier de verrouillage prouve que le registre public l'a servie (`package-lock.json`, `yarn.lock` de Yarn 1,
+alimente. `--network` demande au registre de chaque dépendance directe, une requête par paquet, sa dernière version :
+chaque élément reçoit `exists`, `latest` et `majorsBehind` (combien de versions majeures de retard sur la dernière ;
+`null` quand la version utilisée ou la réponse ne le dit pas, comme pour un paquet jamais demandé) et, quand aucun
+fichier de verrouillage n'a donné sa licence, celle que déclare la dernière version (`licenseFrom: "registry"` : ce
+n'est pas forcément celle de la version installée) ; la réponse du registre n'est gardée que si elle se lit comme une
+version et un nom de licence. Il n'envoie que le nom d'une dépendance, jamais sa version, et seulement si un fichier
+de verrouillage prouve que le registre public l'a servie (`package-lock.json`, `yarn.lock` de Yarn 1,
 `poetry.lock`, `uv.lock`) — un nom connu par un manifeste seul, `pnpm-lock.yaml`, un lock de Yarn berry ou
 un `Pipfile.lock` n'est jamais envoyé — et jamais le nom d'un paquet privé (un paquet de l'application elle-même, une portée à registre propre, un
 index privé, un paquet de workspace, local ou hébergé en privé), lu dans l'application, ses fichiers de

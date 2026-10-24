@@ -455,7 +455,7 @@ describe("every ecosystem together", () => {
     assert.ok(items.length > 50);
     for (const item of items) {
       assert.equal(isPrivatePackage(item, registries), true, `${item.ecosystem}:${item.name}`);
-      await assert.rejects(client.exists(item));
+      await assert.rejects(client.describe(item));
     }
     assert.equal(calls, 0);
   });

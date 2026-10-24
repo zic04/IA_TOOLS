@@ -118,7 +118,7 @@ default), in the documentation project — never in the application: `dependenci
 | Option | Effect |
 |---|---|
 | `--source <name>` | Repeatable: only these sources (default: every source) |
-| `--network` | `dependencies`: also looks up whether each direct package exists in its registry; `quality`: how many majors behind (the name only, nothing else: only a name a lock file proves public, never a private package's name); `--tools`: lets `osv-scanner` download its database |
+| `--network` | `dependencies`: also asks each direct package's registry for its latest version, one request a package: `exists`, `latest`, `majorsBehind` (how many majors behind), and the licence the latest version declares when no lock file gave one (`licenseFrom: "registry"`); `quality`: how many are majors behind (the name only, nothing else: only a name a lock file proves public, never a private package's name; the answer is kept only as a version and a licence name read, else `null`); `--tools`: lets `osv-scanner` download its database |
 | `--tools` | Also runs `gitleaks`, `osv-scanner` (offline), `syft` and `knip` when they are on the PATH, each into `facts/tool-<name>.json` (status `ok`, `findings`, `failed` or `missing`; only an allowlist of fields is kept); a missing tool is reported, never an error |
 
 The same code, run against the same commit of the application, writes the same file (its `generated` timestamp
