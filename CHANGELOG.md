@@ -123,6 +123,12 @@ entries between a project's `kit` range and the installed version.
     dedicated `*-growth.test.mjs` files run alone. Every millisecond budget and home-made growth loop is gone:
     80 clock readings in 20 files and 32 budgets in 17. `test/unit/timing-files.test.mjs` keeps them out, and
     `run-plan.mjs` finds a timing file by its import of `growth.mjs`.
+  - The growth test of a METADATA header's folded field measures the reader, no longer the garbage collector: the
+    field is one slice of the header (`deps/installed.mjs`; a string grown by each of its lines before, whose copies
+    by the collector about doubled the time per line past 80,000 lines: ×10.1 a step on a Windows runner), and it
+    is measured from 80,000 lines (20,000 before). The pipeline readers' playbook of many plays is measured from
+    2,500 plays (312 before): from 1,250 to 20,000 plays the time a character doubled on macOS Node 20 as the tree
+    read outgrew the young generation, which failed it twice there.
   - The stack expressions are measured once, by the ReDoS harness (`test/tools/stack-shapes.mjs`). `npm test` is
     about twice as fast (336 s → 185 s on the reference machine).
   - Temporary folders: `test/run.mjs` gives the tests a fresh temporary root and fails the run if anything is
