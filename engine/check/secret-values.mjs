@@ -330,9 +330,11 @@ const CODE_NAME = String.raw`[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*`;
 const QUOTED = String.raw`"[^"\r\n]*"|'[^'\r\n]*'`;
 /**
  * An argument of a call in code: a name in lower case (`user`, `userId`), members (`Keys.Db`) or a quoted text; never a
- * number nor a word in capitals alone (`BlueSky(7)`, `SummerFun(Beach)` are passwords).
+ * number nor a word in capitals alone (`BlueSky(7)`, `SummerFun(Beach)` are passwords). Its three forms start with
+ * different signs (lower case, `_` or `$`; a capital; a quote), so an argument is read one way only: members in lower
+ * case tried as two forms made 2^k tries for k arguments of a call never closed.
  */
-const ARGUMENT = String.raw`(?:[a-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+|${QUOTED})`;
+const ARGUMENT = String.raw`(?:[a-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|[A-Z][\w$]*(?:\.[A-Za-z_$][\w$]*)+|${QUOTED})`;
 /** An index by a quoted key (`["DbPassword"]`). */
 const QUOTED_INDEX = String.raw`\[\s*(?:${QUOTED})\s*\]`;
 /**

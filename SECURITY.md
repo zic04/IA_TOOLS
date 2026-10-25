@@ -237,8 +237,9 @@ for a mere mention:
   and a letter, on the name's line or the next (`password:` then `  Summer2024Winter99`); and `Password=` or `Pwd=`,
   written as a word, then a value of 6 characters or more up to a blank, a quote or a `;` (`password=postgres`,
   `--password=Summer2024Winter`, `password=$ecretPa55w0rd`). What they find is reported whatever the exceptions
-  below say, with only these, each decided on the whole value, never on a part of it, and never for a value holding
-  a number of two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
+  below say, with only these, each decided on the whole value, never on a part of it, and, but for `change-me` and
+  `replace-me`, which may end in a number (`replace-me-with-a-real-key-2024`), never for a value holding a number of
+  two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
   and `password=PROD_DB_PASS_2024,` are reported):
   - a shell's or Windows' variable: a sigil and a name in capitals whose words are joined by `_`, or that names a
     secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`, `$PGPASSWORD`; `$PRODPASS` is a password);

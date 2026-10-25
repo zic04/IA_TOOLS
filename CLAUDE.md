@@ -24,10 +24,11 @@ short:
 - `npm run format` (then `npm run format:check`): Prettier, on the kit's JavaScript. Run it before every commit.
 - `npm run lint`: ESLint (M12). Run it before every commit; never raise its `--max-warnings` ceiling.
 - `npm run typecheck`: TypeScript on the JSDoc (M13). Run it before every commit.
-- `npm run mutate` (M16): the mutants of `test/mutations/`, each a rule of the dependency readers, the capture guard, the secret
-  detectors or the git hardening taken out, run against their tests (minutes; `-- --only <file>` for one file). Run it before a pull
-  request that touches `engine/facts/deps/`, `declarations.mjs`, `network.mjs`, `engine/capture/guard.mjs`,
-  `engine/capture/plans.mjs`, `engine/check/secret-values.mjs` or `engine/util/safe-git.mjs`; none may survive. `npm test` checks they still apply.
+- `npm run mutate` (M16): the mutants of `test/mutations/`, each a rule of the dependency readers, the capture
+  guard, the secret detectors or the git hardening taken out, run against their tests (minutes; `-- --only <file>`
+  for one file). Run it before a pull request that touches `engine/facts/deps/`, `declarations.mjs`, `network.mjs`,
+  `engine/capture/guard.mjs`, `engine/capture/plans.mjs`, `engine/check/secret-values.mjs` or
+  `engine/util/safe-git.mjs`; none may survive. `npm test` checks they still apply.
 - `npm run test:security`: the security rules alone.
 - `npm run test:e2e`: end-to-end tests, which need Chromium (`npx playwright install chromium`).
 

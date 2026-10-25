@@ -358,8 +358,9 @@ entries between a project's `kit` range and the installed version.
   `host=db user=app password=… dbname=orders`, is one, as `Server=db;Password=…` is); its rule for a URL's password
   (`credentialsUrl`) keeps 0.4.1's placeholders only, and its `?sig=` is read whatever its value.
   `test/unit/secret-recall.test.mjs` checks it on a table of lines 0.4.1 reported. Left out on purpose, as they name
-  where a secret is and never the secret, each only as the whole value and never when it holds a number of two digits or
-  more (`password=$ECRET2024`, `password=PROD_DB_PASS_2024,` are reported): a shell's or Windows' variable, its words
+  where a secret is and never the secret, each only as the whole value and, but for the final number of `change-me` or
+  `replace-me`, never when it holds a number of two digits or more (`password=$ECRET2024`, `password=PROD_DB_PASS_2024,`
+  are reported): a shell's or Windows' variable, its words
   joined by `_` or naming a secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`; `password=$PRODPASS` is
   reported); in a line written as code (the `;`, `,` or `)` of code after it, or a blank before it and a name in lower
   case first), a member that names a secret's field (`Password = model.Password;`, `password = request.form.password`,

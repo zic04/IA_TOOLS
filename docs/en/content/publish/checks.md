@@ -114,13 +114,16 @@ the built site** (pages, section introductions, home page, glossary) for:
   upper case and digits as a generated token does; never a URL parameter whose name says nothing of a secret, such
   as `?list=` or `?fbclid=`): "random-looking value (high entropy)".
 
-What version 0.4.1 found is still found, but a reference in code and a placeholder, each as the whole value and never
-when it holds a number of two digits or more: a shell's or Windows' variable in capitals (`PASSWORD=$DB_PASSWORD`), a
-member, a call or an index in a line written as code (`Password = model.Password;`, `Password = GetPassword();`,
+What version 0.4.1 found is still found, but a reference in code and a placeholder, each as the whole value. A
+reference never holds a number of two digits or more; `change-me` and `replace-me` may end in one
+(`replace-me-with-a-real-key-2024`). Left out are a shell's or Windows' variable in capitals (`PASSWORD=$DB_PASSWORD`),
+a member, a call or an index in a line written as code (`Password = model.Password;`, `Password = GetPassword();`,
 `password = request.form.password`; not after a `password=` without a blank, as a properties file writes it),
 `change-me` and `replace-me`, and a mask before the `,` of code (`password=********,`). A password written exactly as
 such a reference in a line of code (`Password = Root.Secret;`) is left out too, as the line cannot tell it from a
-reference of the same shape: SECURITY.md lists these limits.
+reference of the same shape; so is one written with a blank and in lower case first in a properties, INI or YAML file
+(`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`), which reads as code: SECURITY.md lists
+these limits.
 
 A mere mention is not a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `example`, `exemple`, `motdepasse`,
 `change-me`, a variable name in capitals, a reference in code such as `process.env.…`, `$PASSWORD`,
