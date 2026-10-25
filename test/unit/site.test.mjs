@@ -193,10 +193,11 @@ describe("product neutrality", () => {
     () => {
       const forbidden = new RegExp(terms.join("|"), "i");
       const skip = new Set(["node_modules", ".git"]);
-      // The kit's own texts, and those of its fixtures whatever their language (infrastructure files, lock files and
-      // the package managers' configurations included).
+      // The kit's own texts, and those of its fixtures whatever their language (infrastructure files, lock files, the
+      // package managers' configurations, and the secret detectors' Java properties, environment files, shell scripts
+      // and NuGet.Config included).
       const TEXT =
-        /\.(mjs|js|cjs|ts|tsx|jsx|vue|json|css|html|md|svg|ya?ml|tf|tfvars|bicep|bicepparam|template|toml|py|php|java|kt|cs|go|rb|rs|xml|gradle|txt|nomad|lock|cfg|ini|conf)$|^(Dockerfile|Containerfile)(\.[\w.-]{1,40})?$|^\.(npmrc|yarnrc)$/;
+        /\.(mjs|js|cjs|ts|tsx|jsx|vue|json|css|html|md|svg|ya?ml|tf|tfvars|bicep|bicepparam|template|toml|py|php|java|kt|cs|go|rb|rs|xml|gradle|txt|nomad|lock|cfg|ini|conf|properties|env|sh|[Cc]onfig)$|^(Dockerfile|Containerfile)(\.[\w.-]{1,40})?$|^\.(npmrc|yarnrc)$/;
       const walk = (dir) =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
           if (skip.has(d.name)) return [];

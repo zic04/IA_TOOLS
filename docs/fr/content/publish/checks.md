@@ -108,14 +108,38 @@ et dans le **texte du site construit** (pages, introductions des sections, page 
 
 - les valeurs des fichiers de `masking.env` dont la clé semble sensible, les GUID (sauf
   `00000000-0000-0000-0000-000000000000`) et les `masking.patterns` ;
-- de vraies valeurs secrètes : un bloc de clé privée avec son contenu, un JWT, le mot de passe d'une chaîne de
-  connexion ou d'une URL, une clé d'accès cloud, la valeur affectée à une clé, un jeton ou un mot de passe, la
-  signature d'une URL signée.
+- de vraies valeurs secrètes : une clé privée avec son contenu (un bloc PEM, un bloc échappé dans un fichier JSON, un
+  bloc PGP, une clé PuTTY), un JWT, le mot de passe d'une chaîne de connexion ou d'une URL, un jeton de cloud ou de
+  service (AWS, GitHub, GitLab, npm, Slack, Google, Stripe, SendGrid, Hugging Face, DigitalOcean, Twilio…, les webhooks
+  Discord et Teams), la valeur affectée à un nom de secret (`SECRET_KEY`, `DB_PASSWORD`, `GITHUB_TOKEN`, `dbPassword`,
+  `PGPASSWORD`… : 8 caractères ou plus, signes compris, 16 pour des lettres seules, 6 après un `password=` ou un
+  `pwd=` seul ; aussi le texte d'un élément ou d'un réglage XML ainsi nommé, comme dans le `settings.xml` de Maven ou
+  un `NuGet.Config`), la signature d'une URL signée ;
+- en dernier, une valeur d'apparence aléatoire sous tout autre nom, affectée ou entre guillemets (20 caractères ou
+  plus, mêlant minuscules, majuscules et chiffres comme un jeton généré ; jamais un paramètre d'URL dont le nom ne dit
+  rien d'un secret, comme `?list=` ou `?fbclid=`) : « valeur d'apparence aléatoire (forte entropie) ».
+
+Ce que la version 0.4.1 trouvait est toujours trouvé, sauf une référence dans du code et un texte de remplacement,
+chacun comme valeur entière. Une référence ne contient jamais un nombre de deux chiffres ou plus ; `change-me` et
+`replace-me` peuvent finir par un nombre (`replace-me-with-a-real-key-2024`). Sont laissés de côté une variable du shell
+ou de Windows en capitales (`PASSWORD=$DB_PASSWORD`), un membre, un appel ou un index dans une ligne écrite comme du
+code (`Password = model.Password;`, `Password = GetPassword();`, `password = request.form.password` ; pas après un
+`password=` sans espace, comme l'écrit un fichier de propriétés), `change-me` et `replace-me`, et un masque avant la `,`
+du code (`password=********,`). Un mot de passe écrit exactement comme une telle référence dans une ligne de code
+(`Password = Root.Secret;`) est aussi laissé de côté, la ligne ne pouvant le distinguer d'une référence de même forme ;
+de même pour celui écrit avec un espace et en minuscule en tête dans un fichier de propriétés, INI ou YAML
+(`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`), qui se lit comme du code : SECURITY.md en
+donne les limites.
 
 Une simple mention n'est pas un secret : un texte de remplacement (`<password>`, `****`, `${SECRET}`, `example`,
-`exemple`, `motdepasse`, un nom de variable en capitales) est ignoré. Un constat indique où il se trouve, et seulement
-les premiers caractères et la longueur de la valeur. Le contrôle signale aussi un fichier de session trouvé hors de
-`.doc-kit/`, et un fichier de session suivi par git.
+`exemple`, `motdepasse`, `change-me`, un nom de variable en capitales, une référence dans du code comme `process.env.…`,
+`$PASSWORD`, `password = config.password` ou `password = getPassword()`, une valeur par défaut du shell comme
+`${DB_PASSWORD:-postgres}`) est ignoré, de même qu'un sélecteur CSS (`#password:-webkit-autofill`), le nom d'un secret
+Kubernetes dans des valeurs Helm (`existingSecret: db-credentials`), un code d'autorisation OAuth (`?code=`), et une
+empreinte, un nonce ou un identifiant pour les valeurs d'apparence aléatoire. Les détecteurs et leurs limites sont
+décrits dans SECURITY.md. Un constat indique où il se trouve, et seulement les premiers caractères et la longueur de la
+valeur. Le contrôle signale aussi un fichier de session trouvé hors de `.doc-kit/`, et un fichier de session suivi par
+git.
 
 Jamais signalés non plus, quel que soit le détecteur :
 

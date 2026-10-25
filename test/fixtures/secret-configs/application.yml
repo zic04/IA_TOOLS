@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/orders
+    username: orders
+    password: ${DB_PASSWORD}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+        provider:
+          acme:
+            token-uri: https://login.acme.io/oauth2/token
+jwt:
+  secret: ${JWT_SECRET:}
+  token-validity-seconds: 3600
+  secret-store: azure-keyvault
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+password:
+  encoder: bcrypt
+  min-length: 12

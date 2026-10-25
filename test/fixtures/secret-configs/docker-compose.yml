@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    secrets:
+      - db_password
+  cache:
+    image: redis:7
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_dev_pass}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pass}
+  api:
+    build: .
+    environment:
+      - DATABASE_URL=postgres://orders@db:5432/orders
+      - DB_PASSWORD=${DB_PASSWORD:?set it in .env}
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - JWT_SECRET=${JWT_SECRET}
+      - TOKEN_EXPIRY=3600
+      - SESSION_SECRET_ROTATION=enabled
+      - PASSWORD_MIN_LENGTH=12
+      - KEY_ALGORITHM=RS256
+      - API_KEY_HEADER=X-Api-Key
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven settings: the credentials come from the environment of the build. -->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+  <servers>
+    <server>
+      <id>acme-releases</id>
+      <username>${env.MAVEN_USERNAME}</username>
+      <password>${env.MAVEN_PASSWORD}</password>
+    </server>
+    <server>
+      <id>acme-snapshots</id>
+      <username>deployer</username>
+      <password>your-password</password>
+    </server>
+  </servers>
+  <profiles>
+    <profile>
+      <id>sonar</id>
+      <properties>
+        <sonar.token>${env.SONAR_TOKEN}</sonar.token>
+        <sonar.host.url>https://sonar.acme.io</sonar.host.url>
+      </properties>
+    </profile>
+  </profiles>
+</settings>

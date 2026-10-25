@@ -8,7 +8,7 @@
 - [ ] `npm run format:check` passes (M11); `npm run lint` passes and its warning ceiling did not go up (M12); `npm run typecheck` passes (M13); no folder cycle in `engine/` (M14)
 - [ ] No file over 600 lines, and no held file grew (M5, `test/unit/sizes.test.mjs`); the skill stays coherent: briefs in both languages, agents, routing (M15)
 - [ ] Each fix or feature has its test; a security fix has the test that would have caught it
-- [ ] A change of `engine/facts/deps/`, `declarations.mjs`, `network.mjs` or `engine/util/safe-git.mjs` has its mutants, and `npm run mutate` reports no survivor (M16); time is measured only in timing files (M17)
+- [ ] A change of `engine/facts/deps/`, `declarations.mjs`, `network.mjs`, `engine/capture/guard.mjs`, `engine/capture/plans.mjs`, `engine/check/secret-values.mjs` or `engine/util/safe-git.mjs` has its mutants, and `npm run mutate` reports no survivor (M16); time is measured only in timing files (M17)
 - [ ] No shell, `exec`, `eval` or `new Function`; git only through `engine/util/safe-git.mjs` (S1–S3)
 - [ ] Nothing from the application folder is executed; any new external tool is described in SECURITY.md (S4)
 - [ ] Any new regular expression that scans untrusted text is in `test/tools/redos-worker.mjs` (S5)

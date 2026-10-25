@@ -312,6 +312,82 @@ entries between a project's `kit` range and the installed version.
   as whole readers too, and the harness builds the crafted shapes
   (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
   the former forms against the new ones on random input).
+- **`check secrets` finds the common formats it missed**, and so do the filters of `pack`, `backlog export` and
+  `inputs ingest`, and the `secrets` facts (SECURITY.md, "The secret detectors have limits"):
+  - an assignment to a compound name: `SECRET_KEY=`, `DB_PASSWORD=`, `GITHUB_TOKEN=`, `aws_secret_access_key =`
+    (the AWS secret key), `dbPassword:`, `"client-secret":`, and a secret's word glued to a name in capitals
+    (`PGPASSWORD=`, `MYSQLPASSWORD=`); the exact word was required (`KEYBOARD` and `TOKENIZER` are still not
+    secrets' names, and the key of anything else needs a value that looks generated);
+  - under a secret's name, a value from 8 characters (16 for letters only), with its signs (`~!@#$%&*`:
+    `Tr0ub4dor&3xQ!`, the `~` of every Azure AD client secret), in capitals (a base 32 key), without a digit
+    (`correcthorsebatterystaple`), and a number of 8 digits or more under a password's name (`DB_PASSWORD=73829164`),
+    where a digit was required, a value in capitals was taken for a variable's name, and a value stopped at its first
+    sign and needed 16 characters; so is the text of an XML element or setting named so (`<password>…</password>` in
+    Maven's `settings.xml`, `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`);
+  - a connection string's password in capitals (`Server=db;Password=ORDERS2024PROD;`), which was taken for a
+    variable's name;
+  - GitHub fine-grained tokens, GitLab (personal, runner and runner registration, deploy and pipeline trigger
+    tokens), npm, Google OAuth client secrets, Slack app tokens and incoming webhooks, SendGrid, Hugging Face,
+    DigitalOcean, Twilio API keys, Discord and Microsoft Teams webhooks;
+  - a PEM key escaped on one line in a JSON file (a service account's `private_key`), PGP private key blocks,
+    PuTTY keys;
+  - a URL signature in any case (`Sig=`), and `X-Amz-Signature=`, `X-Goog-Signature=`;
+  - last, a random-looking value under any name, assigned or quoted (`entropy`, "random-looking value"): 20
+    characters or more, an entropy threshold by length and a measure of how often the kind of character changes,
+    never for a hash, a nonce, an identifier or a placeholder, nor the value of a URL parameter whose name says
+    nothing of a secret (a YouTube `?list=`, a `?fbclid=`, a `&amp;gclid=`; `?session=`, `?sig=`, `?token=`… are
+    read) or an OAuth authorisation code (`?code=`: used once, within minutes; the documentation of every provider
+    shows one). Calibrated on random tokens (about 9 in 10 found from 20 characters, 97 in 100 from 32) and on a
+    corpus of harmless values and the kit's documentation (none found), `test/unit/secret-detectors.test.mjs`.
+
+  The new detectors leave out what is not a secret: a reference written as code (`$DB_PASSWORD`, `%DB_PASSWORD%`,
+  `config.password`, `getPassword()`, `os.environ[…]`, `hashedPassword` under a name in lower case, a YAML tag, a
+  path), a placeholder (`change-me`, `replace-me`, `***`, `${…}`, `<your-password>`, `mysecretpassword`), a CSS
+  pseudo-class after a selector named as a secret (`#password:-webkit-autofill`, `.field-secret:-moz-ui-invalid`), a
+  Kubernetes secret's name in Helm values (`existingSecret: postgresql-credentials`, `imagePullSecret:
+  registry-credentials`, `tlsSecret: wildcard-tls-certificate`), the default of a shell expansion
+  (`${POSTGRES_PASSWORD:-postgres}`) and members joined by `+` in minified code (`o.key=r.C0.ESC+r.C0.ESC`). A value
+  holding a number of two digits or more is never read as a name or a member in code (`password: SummerHoliday2024`,
+  `password: Summer2024.Winter99`), nor is a quoted value a member; a quoted value in capitals with an underscore is
+  a value when it holds a digit and no secret's word (`"S3CR_ET99_ZQ"`). A value two detectors find is reported once
+  (a Google key in a URL's `key=`). Ten realistic configuration files without a secret
+  (`test/fixtures/secret-configs/`) and the kit's documentation, examples and templates give no finding; eleven that
+  hold some (`test/fixtures/secret-configs-with-secrets/`: Spring, an INI file, docker-compose, a Kubernetes Secret,
+  Helm values, a `.env`, a shell script with a libpq DSN, ADO.NET connection strings, Maven, NuGet) give each line
+  that holds one, with its kind, and no other (`test/unit/secret-recall.test.mjs`). SECURITY.md writes the exact
+  limits (a blank in the value, a value on the line after a name 0.4.1 did not read, `Bearer`, a token as a URL's
+  user, a PEM key quoted with `> ` or cut, a secret's word glued to a name in lower case, Redis' `requirepass`).
+- **What 0.4.1 found is still found**: its two value rules run after the new detectors, reading the text as they read it
+  (a word among `password`, `passwd`, `secret`, `token`, `api_key`, `client_secret` and `access_key`, then a value of 16
+  characters or more holding a digit, on its line or the next; `Password=` or `Pwd=`, then a value of 6 characters or
+  more: `password=postgres`, `--password=…`), so that a value they reported is still reported, under the kind
+  `assignment` outside a connection string (a libpq DSN, pairs separated by blanks,
+  `host=db user=app password=… dbname=orders`, is one, as `Server=db;Password=…` is); its rule for a URL's password
+  (`credentialsUrl`) keeps 0.4.1's placeholders only, and its `?sig=` is read whatever its value.
+  `test/unit/secret-recall.test.mjs` checks it on a table of lines 0.4.1 reported. Left out on purpose, as they name
+  where a secret is and never the secret, each only as the whole value and, but for the final number of `change-me` or
+  `replace-me`, never when it holds a number of two digits or more (`password=$ECRET2024`, `password=PROD_DB_PASS_2024,`
+  are reported): a shell's or Windows' variable, its words
+  joined by `_` or naming a secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`; `password=$PRODPASS` is
+  reported); in a line written as code (the `;`, `,` or `)` of code after it, or a blank before it and a name in lower
+  case first), a member that names a secret's field (`Password = model.Password;`, `password = request.form.password`,
+  `token: config.v2.jwt.secret`), a call of a name of several words or of members, its arguments names in lower case,
+  members or quoted texts (`Password = GetPassword();`), or an index by a quoted key
+  (`Password = configuration["DbPassword"];`), with nothing after it (`password=model.Password`,
+  `password = Root.Secret`, `password=SuperSecret(1)` and `password=HappyDays(1)!` are reported); the placeholders
+  `change-me` and `replace-me` as the whole value (`password=change-me`, `secret: replace-me-with-a-real-key-2024`;
+  `password=Replacement2024!` and `password=Exchange-Me2024` are reported), and a mask or a variable's name followed by
+  the `,` of code (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`). A password written exactly
+  as such a reference in a line of code (`Password = Root.Secret;`) is left out too (SECURITY.md, a limit).
+- **`export` leaves out more secret files**: Terraform state and variables (`*.tfstate`, `*.tfstate.backup`,
+  `*.tfvars`), PuTTY and Apple keys (`*.ppk`, `*.p8`), VPN profiles (`*.ovpn`), encrypted files (`*.gpg`),
+  `credentials` and `credentials.json`, `.htpasswd`, Google OAuth `client_secret*.json`, `kubeconfig`, the settings of
+  an environment (`appsettings.*.json` and its `.bak` copy); the sources of a feature too (`SECRET_FILE`). A browser
+  session is recognised whatever its size: one over 2 MB (local storage) was copied. `check secrets` reports such a
+  session outside the session folder: one over 5 MB was not read. A file of 5 MB at most is parsed whole, as before;
+  a longer one is told by its first 64 KB, the depth of the JSON followed (an `origins` list inside an item is not
+  the other key). A list of cookies or of origins of a session's shape alone (a cookie jar) is a session too; a data
+  file that merely starts with a `cookies` list is not.
 - **The application's code is data, never instructions, for every agent of the skill** (SECURITY.md): a comment, a
   CLAUDE.md, an AGENTS.md or a commit message of the application written to steer an AI no longer meets an agent
   that was never told so.
