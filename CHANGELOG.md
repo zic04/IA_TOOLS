@@ -52,9 +52,29 @@ entries between a project's `kit` range and the installed version.
   and in either Unicode form (`é` as one character or as `e` and an accent), only in bold, quotes, badges and a
   code span that is the label itself — never in a directive's attributes, a link's target or definition, an HTML
   tag or comment, a verified badge, a code block (fenced or indented) or the front matter; in a code block, a
-  comment, a tag over several lines or the front matter, a label is not counted as quoted either. Known limits: a label stuck to the text in a script written without spaces
-  (`保存をクリック`) is not seen, and finding a very long label costs up to the page's length times its own. A
-  scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`.
+  comment, a tag over several lines or the front matter, a label is not counted as quoted either. Known limits: a
+  label stuck to the text in a script written without spaces (`保存をクリック`) is not seen, and finding a very long
+  label costs up to the page's length times its own. A scenario test plays the real sequence on `examples/demo-app`
+  → `demo-app-v2`.
+- **One order of versions and one reading of ranges, npm's** (`engine/project/semver.mjs`), where four functions
+  gave four answers. The `kit` range of `doc.config.mjs` is read as npm reads one: `>1.2` is `>=1.3.0` (it was
+  `>1.2.0`), `>= 1.2.3` with a space is accepted (it was refused), hyphen ranges and `~>` are read. Pre-releases are
+  ordered as SemVer 2.0 says (`1.2.3-rc.1` after `1.2.2`; it came before), for the kit's versions, a backlog's
+  `since`, the statistics, the recorded changes (`::changes`, a pre-release before its release) and the versions of
+  the screenshots in the site's footer. A pre-release of the kit, which no range accepted (exit code 3 for every
+  project), is accepted by a range that names a pre-release of the same version, as npm does: `doc-kit upgrade
+  --apply` writes `^0.5.0-rc.1`, which the release accepts too. **Ranges that loaded and now fail or mean
+  another thing — check `kit` in `doc.config.mjs`:**
+  - a number written with a leading zero (`^0.04.0`, `^0.4.01`) is refused: `config.invalid`, exit code 2;
+  - `<*` and `>*` accept no version (they accepted every one): exit code 3;
+  - `<=1.2` admits 1.2.x and `<=1` admits 1.x (they stopped at 1.2.0 and 1.0.0);
+  - `>1.2` starts at 1.3.0 and `>1` at 2.0.0 (they admitted 1.2.1 and 1.0.1).
+- `doc-kit upgrade` runs the migrations, and shows the changes, newer than the **lowest** version the project's range
+  allows: `^0.4.0 || ^0.3.0` starts after 0.3.0 and `<1.0.0` after 0.0.0. It took the first number written, so
+  skipped the migrations from 0.3 to 0.4, and with `<1.0.0` every one. A pre-release of the kit runs its release's
+  migration, which it ships (a migration 0.5.0 counts from 0.5.0-0), and the release does not run it again.
+- The diff of `doc-kit upgrade` is a patch that applies: no empty line after a file's last line, and "\ No newline
+  at end of file" after a last line that has no line break.
 - **`doc-kit new` in a multilingual project** adds the same entry, at the same place, to every translated table of
   contents (`translations/<l>/toc.json`), its texts left to translate: a new page no longer stops every build with
   `translation.toc.structure`. A translated table of contents that is not valid JSON, or already out of step there

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EXIT } from "../../engine/project/errors.mjs";
 import { findProject, KIT_ROOT, CONFIG_FILE } from "../../engine/project/find.mjs";
-import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
+import { satisfies, isValidRange, compareVersions } from "../../engine/project/semver.mjs";
 import { LANGUAGES } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { importConfig } from "../../engine/dev/environment.mjs";
@@ -18,8 +18,7 @@ import {
   createVirtualFiles,
   unifiedDiff,
   setKitRange,
-  compareVersions,
-  rangeBase,
+  sinceRange,
 } from "../../engine/migrations/runner.mjs";
 
 export const options = {
@@ -43,12 +42,10 @@ export function readChangelog(kitRoot = KIT_ROOT) {
   return entries.map((e) => ({ ...e, body: e.body.join("\n").trim() }));
 }
 
-/** Changelog entries newer than the range's base and not newer than the kit, newest first. */
+/** Changelog entries newer than the lowest version the range allows and not newer than the kit, newest first. */
 export function changesBetween(entries, range, kitVersion) {
-  const base = rangeBase(range);
-  return entries
-    .filter((e) => (!base || compareVersions(e.version, base) > 0) && compareVersions(e.version, kitVersion) <= 0)
-    .sort((a, b) => compareVersions(b.version, a.version));
+  const since = sinceRange(range, kitVersion);
+  return entries.filter((e) => since(e.version)).sort((a, b) => compareVersions(b.version, a.version));
 }
 
 /**

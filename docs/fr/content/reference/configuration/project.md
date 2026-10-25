@@ -2,7 +2,7 @@
 
 | Clé | Type · défaut | Rôle | Exemple |
 |---|---|---|---|
-| `kit` | texte · `"*"` | Versions du kit acceptées par le projet (plage semver) ; hors de la plage, code de sortie 3 | `"^0.4.0"` |
+| `kit` | texte · `"*"` | Versions du kit acceptées par le projet, une plage lue comme npm la lit (`^`, `~`, `1.x`, `1.2 - 2`, `>= 1.2`, `\|\|`) ; hors de la plage, code de sortie 3. Une préversion du kit (`0.5.0-rc.1`) n'est acceptée que par une plage qui nomme une préversion de la même version (`^0.5.0-rc.1`, écrite par `doc-kit upgrade --apply`) | `"^0.4.0"` |
 | `product` | objet, obligatoire | Le produit documenté | `{ name: "Acme Orders" }` |
 | `product.name` | texte, obligatoire | Nom affiché dans le site, dans les messages et dans le fichier de sortie par défaut | `"Acme Orders"` |
 | `product.slug` | `[a-z0-9-]` · déduit du nom | Nom court : défaut de `theme.key` et de `env.prefix` | `"acme-orders"` |

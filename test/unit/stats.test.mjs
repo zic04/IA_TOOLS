@@ -10,10 +10,10 @@ import {
   readUsage,
   summarize,
   usageCsv,
-  compareVersions,
   usageFolder,
   usageFile,
 } from "../../engine/stats/usage.mjs";
+import { compareVersions } from "../../engine/project/semver.mjs";
 import { duration } from "../../cli/commands/stats.mjs";
 import { renderUsage, costOf, USAGE_VIEWS } from "../../engine/stats/render.mjs";
 import { transcriptUsage, recordAgent, projectFor } from "../../skill/doc-kit/scripts/usage-hook.mjs";
