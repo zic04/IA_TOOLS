@@ -269,7 +269,10 @@ as untrusted input:
   and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
   the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
   and a dependency of a page outside the application (a route's file reached through a link) is named in its
-  context, never excerpted. The coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
+  context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
+  when its report compares it: one through `../` or a link out of the application is never read, its first line
+  never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). The
+  coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
   `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private declarations of the
   dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a requirements file…,
   read by their fixed names) follow links, as they read the operator's own configuration on purpose; only flags,

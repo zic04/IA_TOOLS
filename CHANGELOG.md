@@ -297,7 +297,9 @@ entries between a project's `kit` range and the installed version.
 - **A proof is recorded only from a file of the application** (SECURITY.md): `sync --mark` read a proof cited
   through a junction or by `../` (`j/util.js:1`, `../outside/util.js:1`) and wrote its first line in `sync.json`. Such
   a proof is now neither read, recorded nor a dependency of the page, and the warning says why
-  (`sync.proofOutside`).
+  (`sync.proofOutside`). One an older `sync.json` recorded is not read again by the report (`sync`, `--check`):
+  the same warning, in `sync.md`, the output and `warnings` of `sync-report.json`, and its file, recorded as a
+  dependency, is reported gone.
 - **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
   wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
   52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a

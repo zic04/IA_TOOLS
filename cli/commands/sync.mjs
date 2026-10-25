@@ -245,6 +245,7 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     line("removed", report.removed.length);
     line("unchanged", report.unchanged.length);
     line("unmarked", report.unmarked.length);
+    for (const w of report.warnings || []) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t(`cli.${w.key}`, w.vars)}`);
     if (report.estimate)
       ctx.print(
         ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +

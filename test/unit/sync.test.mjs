@@ -1493,6 +1493,78 @@ describe("engine/sync: a proof outside the application is never read", () => {
       fx.release();
     }
   });
+
+  // An older sync.json (0.4.1) recorded such a proof, and hashed its file as a dependency of the page: the report
+  // reads neither again. The outside line moves after marking: read, it would come back as a moved proof.
+  test("sync and --check: a proof an older sync.json recorded through a junction or ../ is never read; the proof beside is", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "j");
+    const id = "take-over/orders-api";
+    const line = 'export const leaked = "of the operator";';
+    try {
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), line + "\n");
+      fs.symlinkSync(outside, junction, "junction");
+      const config = await syncConfig(fx.root);
+      const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
+      fs.appendFileSync(page, "\nSee `j/util.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+      const { reference } = await markPages({ root: fx.root, config, toc, all: true, ...at });
+      const refs = ["j/util.js:1", "../outside/util.js:1"];
+      for (const ref of refs) reference.proofs[ref] = { hash: hashText(line), text: line };
+      for (const f of ["j/util.js", "../outside/util.js"]) reference.pages[id].files[f] = hashText(line + "\n");
+      writeSyncReference(fx.root, config, reference);
+      // After marking: the outside line and the line of the proof beside both move one line down.
+      fs.writeFileSync(path.join(outside, "util.js"), "// moved\n" + line + "\n");
+      const orders = path.join(fx.appDir, "lib", "orders.ts");
+      fs.writeFileSync(orders, "// moved\n" + fs.readFileSync(orders, "utf8"));
+
+      const json = await cli(["sync", "--json", "--project", fx.root], { commit: () => "c0ffee" });
+      assert.equal(json.code, 0, json.err);
+      const report = JSON.parse(json.out);
+      assert.deepEqual(
+        report.proofs.moved.filter((m) => m.page === id).map((m) => [m.ref, m.newRef]),
+        [["lib/orders.ts:1", "lib/orders.ts:2"]],
+        "the proof beside is compared",
+      );
+      assert.deepEqual(
+        report.proofs.broken.filter((b) => b.page === id),
+        [],
+      );
+      for (const ref of refs)
+        assert.ok(
+          report.warnings.some((w) => w.key === "sync.proofOutside" && w.vars.ref === ref && w.vars.page === id),
+          `${ref}: its reason given`,
+        );
+      // Its file, recorded as a dependency, is never hashed again: gone, as a file outside is no dependency now.
+      const reasons = report.review.find((r) => r.page === id)?.reasons ?? [];
+      assert.deepEqual(
+        reasons.filter((r) => r.path.includes("util.js")).map((r) => [r.path, r.change]),
+        [
+          ["../outside/util.js", "deleted"],
+          ["j/util.js", "deleted"],
+        ],
+      );
+      const check = await cli(["sync", "--check", "--project", fx.root], { commit: () => "c0ffee" });
+      assert.equal(check.code, 1, "a moved proof and a page to review");
+      assert.match(check.out, /proof not recorded: \.\.\/outside\/util\.js:1 \(its file is outside the application/);
+      const written = ["sync.md", "sync-report.json"].map((f) =>
+        fs.readFileSync(path.join(fx.root, ".doc-kit", f), "utf8"),
+      );
+      assert.ok(!written.some((t) => t.includes("of the operator")), "no outside text in the report files");
+    } finally {
+      // The junction first, on its own: removing the folder must never walk into what it points to.
+      try {
+        fs.unlinkSync(junction);
+      } catch {
+        if (fs.existsSync(junction)) fs.rmdirSync(junction);
+      }
+      fx.release();
+    }
+  });
 });
 
 describe("a verified claim badge is a proof (sync and audit)", () => {

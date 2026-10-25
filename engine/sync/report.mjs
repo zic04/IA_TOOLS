@@ -5,7 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, classifyMissingFile, docFile } from "./dependencies.mjs";
-import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
+import { extractProofs, locateProof, proofFile, PROOF_REF } from "./proofs.mjs";
+import { realInside, realPathOf } from "../core/confine.mjs";
 import { flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
@@ -19,7 +20,6 @@ import { translatableFiles, translationState, readSources } from "../core/transl
  */
 export const DIRECT_VIAS = Object.freeze(["api", "declared", "sources", "feature"]);
 
-const safeRead = (p) => (p && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 /** A fresh (non-global) test of the PROOF_REF family, for one code span. */
 const isProofSpan = (span) => new RegExp(PROOF_REF.source).test(span);
 
@@ -33,9 +33,17 @@ function commonSegments(a, b) {
   return n;
 }
 
-/** Absolute path of a dependency file ("doc:<path>" for a facts file: docFile; else relative to app.dir), or null. */
+/**
+ * Absolute path of a dependency file ("doc:<path>" for a facts file: docFile; else relative to app.dir), or null. A
+ * file of the application only where it really is in it (realInside, links and junctions followed): one an older
+ * sync.json recorded outside it (`../`, a link) is never read, and is reported gone.
+ */
 const absOf = (root, appDir, factsDir, p) =>
-  p.startsWith("doc:") ? docFile(root, factsDir, p) : appDir ? path.join(appDir, p) : null;
+  p.startsWith("doc:")
+    ? docFile(root, factsDir, p)
+    : appDir
+      ? realInside(realPathOf(appDir), path.join(appDir, p))
+      : null;
 
 /** The tokens a page "names" (ARCHITECTURE.md §2.6, probablyIntact): cited label values, code span contents
  * and their identifiers (proofs excluded), its routes, and the texts of [[menu/perm/route]] badges. */
@@ -152,6 +160,7 @@ function allLabelValues(reference) {
  * @property {{ stale: any }} [facts]
  * @property {string[]} [truncated]
  * @property {boolean} [gitAvailable]
+ * @property {Array<{ key: string, vars: object }>} [warnings]
  */
 
 /**
@@ -223,6 +232,8 @@ export async function compareWithReference({
 
   const markedIds = since ? [...writtenIds] : Object.keys(reference?.pages || {});
   const truncated = [];
+  /** @type {Array<{ key: string, vars: object }>} */
+  const warnings = [];
 
   for (const id of markedIds) {
     if (!writtenIds.has(id)) continue;
@@ -259,18 +270,23 @@ export async function compareWithReference({
     for (const proof of pageProofs) {
       const recordedProof = refProofs[proof.ref];
       if (!recordedProof) continue;
-      const proofFile = proof.path || proof.file;
-      const currentAbs = appDir ? path.join(appDir, proofFile) : null;
-      const renamed =
-        appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === proofFile) : null;
-      const current =
-        currentAbs && fs.existsSync(currentAbs)
-          ? fs.readFileSync(currentAbs, "utf8")
-          : renamed
-            ? safeRead(path.join(appDir, renamed.path))
-            : null;
+      const cited = proof.path || proof.file;
+      // Read only in the application (proofFile, as markPages does): one an older sync.json recorded outside it
+      // (`../`, a link or a junction followed) is never read again, and is said so.
+      const where = appDir ? proofFile(appDir, proof) : null;
+      if (where === "outside") {
+        warnings.push({ key: "sync.proofOutside", vars: { page: id, ref: proof.ref } });
+        continue;
+      }
+      const renamed = appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === cited) : null;
+      const renamedReal = renamed ? proofFile(appDir, { file: renamed.path }) : null;
+      const current = where
+        ? fs.readFileSync(where, "utf8")
+        : renamedReal && renamedReal !== "outside"
+          ? fs.readFileSync(renamedReal, "utf8")
+          : null;
       const r = locateProof({ current, renamedTo: renamed?.path ?? null, recorded: recordedProof, proof });
-      if (r.status !== "intact") proofIssueFiles.add(proofFile);
+      if (r.status !== "intact") proofIssueFiles.add(cited);
       if (r.status === "moved") {
         hadProofIssue = true;
         const newRef = r.newTo !== r.newFrom ? `${r.newFile}:${r.newFrom}-${r.newTo}` : `${r.newFile}:${r.newFrom}`;
@@ -413,6 +429,8 @@ export async function compareWithReference({
     // and whether git could be used at all (without it, a deleted file is never detected as a rename).
     truncated,
     gitAvailable,
+    // Extra too: what the report could not check, each a message key of cli.<key> (sync.proofOutside).
+    warnings,
   };
 }
 
@@ -466,6 +484,7 @@ export function renderReport(report, t) {
   if (report.facts.stale.length)
     lines.push(`- ${t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") })}`);
   for (const page of report.truncated || []) lines.push(`- ${t("cli.sync.truncated", { page })}`);
+  for (const w of report.warnings || []) lines.push(`- ${t(`cli.${w.key}`, w.vars)}`);
   if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
     lines.push(`- ${t("cli.sync.noGit")}`);
   return lines.join("\n") + "\n";
