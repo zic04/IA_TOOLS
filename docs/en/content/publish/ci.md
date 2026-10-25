@@ -51,6 +51,10 @@ npx doc-kit check all      # coverage, links, tables, images, secrets
 npx doc-kit audit          # informative: exit 0, writes .doc-kit/audit.md
 ```
 
+The application is a clone: run the kit you checked out by its path rather than `npx doc-kit`
+(`node ../../../doc-kit/cli/doc-kit.mjs build`, or a global install), since `npx doc-kit` runs the copy the folder's
+`node_modules` holds, or a parent folder's, which may be one the application ships (see SECURITY.md).
+
 To require a maturity level, fail the job yourself:
 
 ```bash

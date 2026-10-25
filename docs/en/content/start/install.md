@@ -52,7 +52,10 @@ Choose one of the three ways. They run the same code.
 
 Each documentation project also declares the kit in its own `package.json`
 (`"doc-kit": "file:<relative path to the kit>"`, written by `doc-kit init`). After `npm install` in the project,
-`npx doc-kit <command>` runs the kit of the project, even without a global link.
+`npx doc-kit <command>` runs the kit of the project, even without a global link. In an application you cloned, run
+the kit you installed instead (its absolute path, `node <kit folder>/cli/doc-kit.mjs`, or a global link):
+`npx doc-kit` runs the copy the folder's `node_modules` holds, or a parent folder's, which may be the application's
+own (see SECURITY.md).
 
 ## Step 4 — Check the installation
 

@@ -18,9 +18,11 @@ import { runCli } from "../../cli/doc-kit.mjs";
 import { connect } from "../../engine/capture/session.mjs";
 import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { webpSize } from "../../engine/capture/webp.mjs";
+import { createI18n } from "../../engine/i18n.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir } from "../tools/helpers.mjs";
 
 const PLANS = path.join(KIT_ROOT, "examples", "demo-docs", "captures", "plans");
+const en = createI18n({ language: "en" }).t;
 let app;
 let appDir;
 let dir;
@@ -212,7 +214,10 @@ describe("context --update (ARCHITECTURE.md §6.11)", () => {
     const file = path.join(dir, ".doc-kit", "context", "use__orders.md");
     assert.equal(path.join(dir, entry.file), file);
     const text = fs.readFileSync(file, "utf8");
-    assert.match(text, /^# The orders list \(use\/orders\)/);
+    // Its notice first (the application's content, data only: test/unit/context.test.mjs), then the page's title.
+    const notice = `${en("cli.context.notice")}\n\n`;
+    assert.ok(text.startsWith(notice), "the context file starts with its notice");
+    assert.match(text.slice(notice.length), /^# The orders list \(use\/orders\)/);
     assert.match(text, /- Routes: \/orders/);
     assert.match(text, /### public\/orders\.html \(direct\)/);
     assert.match(text, /<h1>All Orders<\/h1>/, "the excerpt shows the application's current (modified) file");

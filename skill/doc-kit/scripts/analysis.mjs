@@ -30,7 +30,6 @@ import path from "node:path";
 import {
   ExitError,
   WORK_DIR,
-  appDirInfo,
   findProject,
   importKitModule,
   kitPath,
@@ -42,6 +41,7 @@ import {
   useMessages,
   warn,
 } from "./common.mjs";
+import { appDirInfo } from "./placeholders.mjs";
 import {
   FEATURE_ID,
   checkAnalysis,

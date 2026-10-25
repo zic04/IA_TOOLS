@@ -15,11 +15,11 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 
 ## Structure
 
-- Four **spaces**, one per audience (ARCHITECTURE.md §6.1a): **Use** (`use`: how to do each task, screen by
+- Four **spaces**, one per audience (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a): **Use** (`use`: how to do each task, screen by
   screen — users, key users, support), **Product** (`product`: what each feature does, for whom, by which rule —
   product owners, business analysts, key users), **Administer** (`admin`: settings, access, operations, the
   technical architecture document — administrators, operators) and **Develop** (`develop`: how it is built and
-  secured, what to fix first — developers, the takeover team, security). `doc-kit init` declares all four by default;
+  secured, what to fix first — developers, the takeover team, security). `{{KIT_CLI}} init` declares all four by default;
   `--spaces` keeps a subset, or none. A project keeps only those it has readers for.
 - Each space is split into **parts** (`sections` of `content/toc.json`): Use; Features, Process; Administer,
   Operate; Understand, Secure, Risks, Maintain. A French site's part ids: `utiliser`; `fonctionnalites`,
@@ -44,7 +44,7 @@ The full standard is in the kit, `{{KIT_PATH}}/standard/`, in English (`.md`) an
 
 ## Writing rules
 
-Nothing invented, `file:line` proof (or a `doc-kit facts` file, with `[[verified]]`/`[[deduced]]`/`[[unknown]]`);
+Nothing invented, `file:line` proof (or a `{{KIT_CLI}} facts` file, with `[[verified]]`/`[[deduced]]`/`[[unknown]]`);
 exact screen labels in bold; "inferred" says inferred; gaps in a NOTE callout, never fixed in the application;
 findings numbered by severity — C (critical), I (important), M (minor) — plus thematic series the findings page
 defines (for example P for production-only findings). **Business pages cite no code**: a `feature`,
@@ -68,7 +68,7 @@ avoid), Status and Due date.
 Not checked automatically, so reviewed by hand: each zone frames the right element; no secret or personal data in the
 images; readability in light and dark; every claim is true (its proof); session deleted.
 
-## Maturity levels (`doc-kit audit`)
+## Maturity levels (`{{KIT_CLI}} audit`)
 
 | Level | Criteria (each level also requires the levels below) |
 |---|---|
@@ -94,5 +94,5 @@ phases 6 to 8.
 
 ## Delivery
 
-Export done (`doc-kit export <target> --with-dist`), handover README, session deleted, checks green, nothing committed by
+Export done (`{{KIT_CLI}} export <target> --with-dist`), handover README, session deleted, checks green, nothing committed by
 an agent. Details: `{{KIT_PATH}}/standard/delivery.md`.
