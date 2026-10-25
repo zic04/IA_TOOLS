@@ -476,7 +476,7 @@
       return d;
     }
   };
-  const versionOrder = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true });
+  const versionOrder = EXT.compareVersions; // engine/site/lib/versions.js
   function screenshotsNote(p) {
     const parts = [];
     // Following the application (ARCHITECTURE.md §6.10): only present when sync.json marked this page.

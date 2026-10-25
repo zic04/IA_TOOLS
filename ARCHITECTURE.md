@@ -68,7 +68,7 @@ doc-kit/
 │  │                     doctor, init and the guided mode), zip.mjs (export --zip), skeleton.mjs (the skeleton
 │  │                     `init` writes, cut to the spaces chosen, §2.1)
 │  ├─ site/              template.html, app.js, style.css, icons.mjs, default-logo.svg, lib/ (the modules of app.js:
-│  │                     compare.js, board.js, search-core.js, topics.js; spliced in by site-script.mjs)
+│  │                     compare.js, board.js, search-core.js, topics.js, versions.js; spliced in by site-script.mjs)
 │  ├─ theme/             default-tokens.json, tokens.mjs, contrast.mjs
 │  ├─ i18n.mjs           dictionary loading and merging, t(key, vars), plurals
 │  └─ migrations/        runner.mjs, <version>.mjs (used by upgrade)

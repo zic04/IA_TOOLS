@@ -14,7 +14,7 @@
 //              scenarios: [{ title, steps: [{ step, keyword, text }] }] }   its text and acceptance criteria, as plain
 //              text (the backlog export, engine/backlog/)
 import { parseRef } from "../core/refs.mjs";
-import { compareVersions } from "../stats/usage.mjs";
+import { compareVersions } from "../project/semver.mjs";
 
 /**
  * @typedef {{ conformant: boolean, guidance: number }|null} SheetState   analysePage of the feature's sheet (null:
