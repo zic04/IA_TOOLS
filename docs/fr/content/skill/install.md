@@ -108,6 +108,12 @@ annotées, un dossier d'architecture, des parcours de bout en bout, un diagnosti
 > Le skill installé pointe vers un seul dossier de kit. Déplacer le kit, ou utiliser une autre copie, demande une
 > nouvelle installation ; `doctor` le signale.
 
+> [!ATTENTION] Sous Linux et macOS, un dossier des skills dont le chemin contient une barre oblique inverse
+> Là, une barre oblique inverse est un caractère du nom d'un dossier, et node ne charge aucun module placé sous un tel
+> dossier : la garde ne peut pas démarrer, `onFailure: block` refuse chaque commande, et les agents n'ont plus de Bash
+> du tout. Installez le skill dans un dossier qui n'en contient pas (`doc-kit skill install --target <dossier>`). Sous
+> Windows, une barre oblique inverse sépare les dossiers : rien n'y change.
+
 > [!ATTENTION] La garde n'est pas un bac à sable
 > Elle ne borne que le Bash des agents. Ce qu'un agent écrit est borné par son brief et vos autorisations, et un plan
 > de capture est un module JavaScript que `doc-kit capture` exécute. Elle tient pour dossier de documentation tout

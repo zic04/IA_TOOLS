@@ -494,7 +494,14 @@ treats them as data on every path an agent takes:
     Bash's own form, `/c/…` (and `~`, which is `/c/Users/…` there), is refused: Git Bash converts it to `C:/…` only
     when the word holds none of `'`, a backquote, `*`, `?`, `[`, `]`, `:`, `;`, `/~` or `@@`, and never under
     `MSYS_NO_PATHCONV`; otherwise node reads `/c/…` as `C:\c\…`, so `node "/c/<kit>/cli/x'/../doc-kit.mjs"` looked
-    like the kit to the guard and ran a file outside it.
+    like the kit to the guard and ran a file outside it. Two paths name one file when they differ by the case of ASCII
+    letters only, as NTFS reads them by default: the guard folds `A`–`Z`, character by character, never with
+    `toLowerCase()`, which folds letters NTFS keeps apart too (U+212A, the Kelvin sign, to `k`; U+212B, the Angstrom
+    sign, to `å`), so that a lookalike folder's script passed for the skill's. Any other difference of case is another
+    path, refused. A folder NTFS was told to read case by case (`fsutil file setCaseSensitiveInfo`; one WSL creates)
+    holds `CLI` beside `cli`, two folders the guard takes for one: under the kit's or the skill's folder, only what can
+    write there could make the second, and that can change the kit's or the skill's own files as well (an agent's
+    Write is not the guard's, below).
   - **The read-only tools take the options of an allowlist, tool by tool** (`READ_ONLY_SPECS`): an option not listed
     — a new one, an abbreviation getopt would accept, another spelling — is refused, so no option that runs a program
     or writes a file can slip through. A list of the dangerous ones did: `rg --hostname-bin=<program>
@@ -511,21 +518,29 @@ treats them as data on every path an agent takes:
     belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`, `init`, `inputs`,
     `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture plans are code).
   - **It fails closed**: Claude Code blocks a command on exit code 2, so input it cannot read, a skill file that cannot
-    load (a corrupt message file: the guard imports the skill's modules inside a try) and an unexpected error are
-    refused with 2; and, through `onFailure: block`, Claude Code counts as 2 what the guard cannot catch: a missing or
-    broken script (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout. Under a linked
-    folder too (a linked `~/.claude`, macOS's temporary folder under `/var`): node runs its script by its real path,
-    and the guard knows it is the hook by both paths with their links resolved (compared as given, it took itself for
-    an imported module and let every command through). On Linux and macOS, node loads no ES module from under a
-    folder whose name holds a backslash: there the guard cannot start (exit code 1), and `onFailure: block` refuses.
+    load (a corrupt message file, its decision's module missing or throwing: the hook imports nothing before it runs,
+    and loads the skill's modules inside a try), an answer of the decision other than 0, and an unexpected error are
+    refused with 2; and, through `onFailure: block`, Claude Code counts as 2 what the guard cannot catch: the hook's
+    own file missing or broken (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout. The
+    hook's file,
+    `scripts/bash-guard.mjs`, exports nothing and checks nothing of how node was started: however node is given it
+    (its path, through a linked folder — a linked `~/.claude`, macOS's temporary folder under `/var`, a junction —, a
+    file URL with a query, an import), it reads its input, decides and exits. The decision is
+    `scripts/bash-decision.mjs`'s, with the read-only tools' allowlists of `scripts/bash-options.mjs`, which the tests
+    import (a guard that checked whether it was the program node ran, wrong under a link or a URL, ended with 0 and
+    let every command through). On Linux and macOS, node loads no ES module from under a folder whose name holds a
+    backslash: there the guard cannot start (exit code 1), `onFailure: block` refuses, and the agents get no Bash.
   - It only ever refuses: what it lets through still goes through Claude Code's own permissions
     (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; a table, per read-only tool, of the
     options agents use and of the ones that run a program or write a file, through the decision and the real hook
-    process, and a property: an option not listed is always refused; the Windows path forms; a real hook process run
+    process, and a property: an option not listed is always refused; the Windows path forms, a lookalike folder
+    (U+212A) refused by the decision and by the real hook process, and a property: every character that lower-cases
+    onto a letter of the kit's or the skill's path, other than that letter's ASCII case, is refused; the hook's file
+    started through a file URL with a query and through an import, which still refuses; a real hook process run
     from `<app>/docs/manual`, with a `node_modules/.bin/doc-kit` planted in the application, refuses every form that
     reaches that bin and lets through the kit's own, which never runs it; the hook started as the exec form starts it,
     from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
-    and without `node`; a corrupt message file and a module that throws; the agent definitions that name it. The
+    and without `node`; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0; the agent definitions that name it. The
     ReDoS harness measures it).
 - **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
   agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
@@ -533,6 +548,11 @@ treats them as data on every path an agent takes:
   guard lets through, and the orchestrator, which no guard bounds, no longer runs npx either
   (`test/unit/skill-briefs.test.mjs`, RULES.md M15: no `npx doc-kit`, no bare `doc-kit` command, with both as its
   positive control; `test/unit/skill.test.mjs`: the installed texts, the filled briefs and the installed guard agree).
+  `{{scriptsDir}}`, the skill's scripts folder in the analysis brief's `node "{{scriptsDir}}/analysis.mjs" check …`,
+  is escaped for bash's double quotes as the kit's path in `{{KIT_CLI}}` is, and `skill install` replaces every
+  placeholder in one pass, so a folder whose name holds one keeps it (`test/unit/skill.test.mjs`: a skill folder with
+  a quote, `$` and a backquote gives a check the guard lets through and bash reads as the skill's script; a backslash,
+  on both machines' settings; skills and kit folders named after the placeholders).
 
 Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. What it
 does not bound:

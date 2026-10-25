@@ -104,6 +104,12 @@ document, end-to-end journeys, troubleshooting, findings, or updating an existin
 > The installed skill points to one kit folder. Moving the kit, or using another copy, needs a new install;
 > `doctor` reports it.
 
+> [!WARNING] On Linux and macOS, a skills folder whose path holds a backslash
+> There a backslash is a character of a folder's name, and node loads no module from under such a folder: the guard
+> cannot start, `onFailure: block` refuses every command, and the agents get no Bash at all. Install the skill under a
+> folder without one (`doc-kit skill install --target <folder>`). On Windows a backslash separates folders: nothing
+> changes there.
+
 > [!WARNING] The guard is not a sandbox
 > It bounds the agents' Bash only. What an agent writes is bounded by its brief and your permissions, and a capture
 > plan is a JavaScript module that `doc-kit capture` runs. It trusts any folder that holds a `doc.config.mjs` as a

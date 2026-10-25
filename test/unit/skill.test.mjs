@@ -25,12 +25,13 @@ import {
 import { prepareConfig } from "../../engine/project/load.mjs";
 import {
   AGENT_TYPES,
-  baseVariables,
   flattenedPages,
   kitCommand,
   kitPath as skillKitPath,
   outputBySize,
 } from "../../skill/doc-kit/scripts/common.mjs";
+import { baseVariables, scriptsDirFor } from "../../skill/doc-kit/scripts/placeholders.mjs";
+import { bashDecision } from "../../skill/doc-kit/scripts/bash-decision.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
@@ -108,6 +109,9 @@ describe("skill install", () => {
         const hook = quoted && JSON.parse(quoted);
         assert.equal(hook, `${skillPath}/scripts/bash-guard.mjs`, `${name}: its Bash hook is the installed guard`);
         assert.ok(fs.existsSync(hook), `${name}: the guard is installed where its hook says`);
+        // The hook's entry file, which exports nothing and always decides (never the decision's module, which an
+        // agent's hook would load and leave without a word: exit code 0).
+        assert.doesNotMatch(fs.readFileSync(hook, "utf8"), /^export\b/m, `${name}: its hook is the guard's entry file`);
       }
       assert.equal(agentsStatus({ target: skills }).state, "current");
 
@@ -124,7 +128,7 @@ describe("skill install", () => {
       const common = await import(pathToFileURL(path.join(dir, "scripts", "common.mjs")).href);
       assert.equal(path.resolve(common.kitPath()), KIT_ROOT);
       assert.equal(common.kitCommand(common.kitPath()), kitLine);
-      const guard = await import(pathToFileURL(path.join(dir, "scripts", "bash-guard.mjs")).href);
+      const guard = await import(pathToFileURL(path.join(dir, "scripts", "bash-decision.mjs")).href);
       const opts = { skillDir: dir, kitDir: common.kitPath(), windows: process.platform === "win32" };
       assert.deepEqual(guard.bashDecision(`${kitLine} build --draft`, opts), { allow: true });
       assert.equal(/** @type {any} */ (guard.bashDecision("npx doc-kit build --draft", opts)).key, "npx");
@@ -167,6 +171,76 @@ describe("skill install", () => {
       const common = await import(pathToFileURL(path.join(skills, "doc-kit", "scripts", "common.mjs")).href);
       assert.equal(common.kitPath(), kit, "the installed skill finds the kit, its path unchanged");
       assert.equal(common.kitCommand(common.kitPath()), kitCli(kit));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a skills or kit folder whose name holds a placeholder keeps it: the installer replaces them all in one pass", () => {
+    const root = tempDir("doc-kit-skill-token-");
+    try {
+      const kitRoot = path.join(root, "kit {{KIT_CLI}} {{SKILL_PATH}} {{KIT_PATH}}");
+      fs.mkdirSync(kitRoot, { recursive: true });
+      fs.writeFileSync(path.join(kitRoot, "ARCHITECTURE.md"), "# a kit\n");
+      const claude = path.join(root, "{{KIT_CLI}} {{SKILL_PATH}}");
+      const skills = path.join(claude, "skills");
+      installSkill({ skills, kitRoot });
+      const kit = kitRoot.split(path.sep).join("/");
+      const skillPath = path.join(skills, "doc-kit").split(path.sep).join("/");
+      for (const name of AGENT_NAMES) {
+        const source = fs.readFileSync(path.join(SKILL_SOURCE, "agents", name), "utf8");
+        const installed = fs.readFileSync(path.join(claude, "agents", name), "utf8");
+        // The guard under the skills folder, its name as it is: never the kit's command put in it.
+        const quoted = /^ {10}args: \[(".+")\]$/m.exec(installed)?.[1];
+        if (quoted) assert.equal(JSON.parse(quoted), `${skillPath}/scripts/bash-guard.mjs`, name);
+        if (source.includes("{{KIT_CLI}}")) assert.ok(installed.includes(kitCli(kit)), `${name}: the kit's command`);
+      }
+      // The positive control: the agents with Bash were read.
+      assert.ok(AGENT_NAMES.some((n) => fs.readFileSync(path.join(claude, "agents", n), "utf8").includes("args: [")));
+      const skill = fs.readFileSync(path.join(skills, "doc-kit", "SKILL.md"), "utf8");
+      assert.ok(skill.includes(`\`${kit}\``), "SKILL.md: the kit's path, its braces as they are");
+      assert.ok(skill.includes(`\`${kitCli(kit)} <command>\``), "SKILL.md: the kit's command");
+      const common = fs.readFileSync(path.join(skills, "doc-kit", "scripts", "common.mjs"), "utf8");
+      assert.ok(common.includes(`const INSTALLED_KIT = ${JSON.stringify(kit)};`), "common.mjs: the kit's path");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a skill folder with a quote, a $ and a backquote: the analysis brief's check command passes the guard and names the skill's script", async () => {
+    const root = tempDir("doc-kit-skill-quoted-");
+    try {
+      // On POSIX, no backslash: node loads no module from under such a folder (the guard's own test).
+      const name = process.platform === "win32" ? "sk $HOME `id` il" : 'sk "q" $HOME `id` il';
+      const skills = path.join(root, name, "skills");
+      installSkill({ skills });
+      const dir = path.join(skills, "doc-kit");
+      const placeholders = await import(pathToFileURL(path.join(dir, "scripts", "placeholders.mjs")).href);
+      const decision = await import(pathToFileURL(path.join(dir, "scripts", "bash-decision.mjs")).href);
+      const vars = placeholders.baseVariables(root, { product: { name: "Acme" } }, "en", {});
+      const template = fs.readFileSync(path.join(dir, "assets", "briefs", "en", "behaviour-analysis.md"), "utf8");
+      const line = placeholders
+        .fill(template, { ...vars, feature: "F-01" })
+        .text.split("\n")
+        .find((l) => l.includes('/analysis.mjs" check F-01'));
+      assert.ok(line, "the brief's check line");
+      const command = line.slice(line.indexOf('node "'), line.indexOf(" --project .") + " --project .".length);
+      const opts = { skillDir: dir, kitDir: "", windows: process.platform === "win32" };
+      assert.deepEqual(decision.bashDecision(command, opts), { allow: true }, command);
+      // As bash reads it (the sh of the PATH, as the guard's tests run it), the command's script is the installed
+      // skill's analysis.mjs.
+      const names = process.platform === "win32" ? ["sh.exe", "sh"] : ["sh"];
+      const SH = (process.env.PATH ?? "")
+        .split(path.delimiter)
+        .filter(Boolean)
+        .flatMap((d) => names.map((n) => path.join(d, n)))
+        .find((f) => fs.existsSync(f));
+      assert.ok(SH, "sh is on the PATH");
+      const sh = spawnSync(SH, ["-c", `printf '%s\\n' ${command.slice("node ".length)}`], { encoding: "utf8" });
+      const script = sh.stdout.split("\n")[0];
+      const expected = path.join(dir, "scripts", "analysis.mjs");
+      assert.equal(script, process.platform === "win32" ? expected.split(path.sep).join("/") : expected);
+      assert.ok(fs.existsSync(script), script);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -832,11 +906,42 @@ describe("the project's files, read by the skill's scripts: the current names on
       assert.equal(vars.guideFile, "WRITING-GUIDE.md");
       // The analyses (ARCHITECTURE.md §6.11a): the skill's scripts; the project's kinds of behaviour, when declared.
       assert.equal(vars.scriptsDir, path.join(SKILL_SOURCE, "scripts").split(path.sep).join("/"));
+      assert.equal(vars.scriptsDir, scriptsDirFor(path.join(SKILL_SOURCE)));
       assert.equal(vars.behavioursFile, "");
       const own = baseVariables(dir, { product: { name: "A" }, behaviours: { file: "kinds\\shop.json" } }, "en", {});
       assert.equal(own.behavioursFile, "kinds/shop.json");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("{{scriptsDir}} is written for bash's double quotes: a backslash separates folders on Windows only, a quote, $ and a backquote escaped", () => {
+    // On POSIX, a backslash is a character of a folder's name: kept, and escaped (bash reads `\\` back as `\`). Turned
+    // into a slash, as every machine's was, it named another folder (the positive control of the guard's own test).
+    assert.equal(
+      scriptsDirFor(String.raw`/home/a\b/skills/doc-kit`, { windows: false }),
+      String.raw`/home/a\\b/skills/doc-kit/scripts`,
+    );
+    // On Windows, a separator: forward slashes, the drive form the guard knows.
+    assert.equal(
+      scriptsDirFor(String.raw`C:\Users\a\b\skills\doc-kit`, { windows: true }),
+      "C:/Users/a/b/skills/doc-kit/scripts",
+    );
+    assert.equal(
+      scriptsDirFor('/home/a"b/$HOME/`id`/doc-kit', { windows: false }),
+      '/home/a\\"b/\\$HOME/\\`id\\`/doc-kit/scripts',
+    );
+    assert.equal(
+      scriptsDirFor(String.raw`C:\Users\$x\`y\doc-kit`, { windows: true }),
+      "C:/Users/\\$x/\\`y/doc-kit/scripts",
+    );
+    // The analysis brief's check, filled on either machine, is the skill's script to the guard.
+    for (const [root, windows] of /** @type {Array<[string, boolean]>} */ ([
+      [String.raw`/home/a\b/s"k $HOME/doc-kit`, false],
+      [String.raw`C:\Users\a b\$HOME\`id\doc-kit`, true],
+    ])) {
+      const command = `node "${scriptsDirFor(root, { windows })}/analysis.mjs" check F-01 --project .`;
+      assert.deepEqual(bashDecision(command, { skillDir: root, windows }), { allow: true }, command);
     }
   });
 });

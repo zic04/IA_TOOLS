@@ -348,13 +348,28 @@ entries between a project's `kit` range and the installed version.
     Claude Code's shell for hooks on Windows without Git Bash, it does not parse). This form needs Claude Code
     2.1.295 or later: an older one runs `node` alone and the guard never runs. `doctor` warns when the `claude` it
     finds on the `PATH` (through the kit's safe lookup) is older; with none found, it says nothing.
-  - **The guard under a linked folder is the guard**: node runs its script by its real path, links resolved, and the
-    guard compared it with the path it was given: under a link (a linked `~/.claude`, macOS's temporary folder under
-    `/var`, a junction on Windows) it took itself for an imported module, read nothing, ended with 0, and every
-    command went through. It compares both paths with their links resolved.
+  - **The hook always decides**: its file, `scripts/bash-guard.mjs`, exports nothing and checks nothing of how node
+    started it. Through a linked folder (a linked `~/.claude`, macOS's temporary folder under `/var`, a junction on
+    Windows), a file URL with a query or an import, it reads Claude Code's input, decides and exits; a guard that
+    asked whether it was the program node ran could answer no, end with 0 and let every command through. The decision
+    is `scripts/bash-decision.mjs`'s, with the read-only tools' allowlists in `scripts/bash-options.mjs`: the tests
+    import them, never the hook, which loads them inside a try: a module of the guard missing or broken refuses
+    with 2 by itself, as does any answer of the decision other than 0. The agents' hook still names
+    `bash-guard.mjs`, so a definition installed before starts the guard too. The briefs' placeholders and the filling
+    of a template move from the skill's `common.mjs` to `placeholders.mjs` (RULES.md M5: both were at 600 lines).
+  - **On Windows, two paths name one file up to the case of their ASCII letters only**: the guard compared them in
+    lower case, and `toLowerCase()` also folds letters NTFS keeps apart (U+212A, the Kelvin sign, to `k`; U+212B, the
+    Angstrom sign, to `å`), so a lookalike folder's script could pass for the skill's. It folds `A`–`Z` only; any
+    other difference of case is refused.
   - **A backslash separates folders on Windows only**: the kit's command the briefs give (`{{KIT_CLI}}`) and the
     guard's messages name turned a Linux or macOS folder's `\` into `/`, another path than the kit's, which the guard
     then refused; it is kept there, as `skill install` keeps it, and so is the skill's `{{scriptsDir}}`.
+  - **`{{scriptsDir}}` is written for bash's double quotes**, as the kit's path in `{{KIT_CLI}}` is: the analysis
+    brief's `node "{{scriptsDir}}/analysis.mjs" check …` named the skill's folder unescaped, which the guard refused
+    when it held `$` or a backquote, and bash read as another path when it held a quote.
+  - **`skill install` replaces every placeholder in one pass**: one value is never read again for another
+    placeholder, so a skills or kit folder whose name holds `{{KIT_CLI}}` keeps it, in the agents' hook and in
+    SKILL.md alike.
   - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
     `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
     (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one
@@ -377,9 +392,14 @@ entries between a project's `kit` range and the installed version.
     run a program or write a file (through the decision and the real hook process), a property (an option not listed
     is always refused), the Windows path forms, a real hook process with a planted `node_modules/.bin/doc-kit` in the
     application (never run), the hook started as the exec form starts it from a folder whose name holds quotes, `$`
-    and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash);
-    `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give the same
-    command, and that a kit path with a backquote and a `${` is found; the ReDoS harness measures the guard.
+    and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash), a
+    lookalike folder (U+212A) through the decision and the real hook process, a property over every character that
+    lower-cases onto a letter of the path, and the hook started through a file URL with a query and through an
+    import; `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give the
+    same command, that the agents' hook names the entry file, that a kit path with a backquote and a `${` is found,
+    that a skill folder with a quote, `$` and a backquote gives an analysis check the guard lets through and bash
+    reads as the skill's script (a backslash on both machines' settings), and that folders named after the
+    placeholders keep their names; the ReDoS harness measures the guard.
 - **A redirect through another origin no longer reaches a `capture.forbidden` route** (SECURITY.md › Read-only
   captures have limits). The guard checked a navigation's redirects only until the first hop that left the
   application, then let the browser follow the rest: a sign-in round trip through the identity provider could come

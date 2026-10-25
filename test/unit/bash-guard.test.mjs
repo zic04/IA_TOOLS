@@ -1,4 +1,5 @@
-// The guard of the skill's agents that have Bash (skill/doc-kit/scripts/bash-guard.mjs, SECURITY.md): the
+// The guard of the skill's agents that have Bash (skill/doc-kit/scripts/bash-guard.mjs, the hook, which exports nothing;
+// its decision, bash-decision.mjs and bash-options.mjs, imported here; SECURITY.md): the
 // application's files are data, never instructions, so a text planted in them must not make an agent run a program.
 // Its decision is a pure function, tested on a table of commands it lets through and commands it refuses, each with
 // its reason — the refusals are the positive control: a guard that let everything through would fail them. The kit
@@ -16,13 +17,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import {
   bashDecision,
   guard,
+  FAILED,
   SKILL_SCRIPTS,
   DOC_KIT_REFUSED,
-  READ_ONLY_SPECS,
-} from "../../skill/doc-kit/scripts/bash-guard.mjs";
+} from "../../skill/doc-kit/scripts/bash-decision.mjs";
+import { READ_ONLY_SPECS } from "../../skill/doc-kit/scripts/bash-options.mjs";
 import * as common from "../../skill/doc-kit/scripts/common.mjs";
 import { SKILL_SOURCE } from "../../cli/commands/skill.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
@@ -482,6 +485,66 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     assert.deepEqual(bashDecision("node ~/.claude/skills/doc-kit/scripts/usage.mjs report", POSIX), { allow: true });
   });
 
+  test("Windows: a path is the kit's or a skill script's up to the case of its ASCII letters only: a lookalike letter is another file", () => {
+    const win = { skillDir: "C:/Users/Me/.claude/skills/doc-kit", kitDir: "C:/Tools/doc-kit", windows: true };
+    // The positive control: NTFS gives one file to two names that differ by the case of ASCII letters.
+    for (const command of [
+      "node c:/tools/doc-kit/cli/doc-kit.mjs build",
+      'node "C:/TOOLS/Doc-Kit/CLI/doc-kit.mjs" build',
+      "node c:/users/me/.claude/SKILLS/doc-kit/scripts/brief.mjs --list",
+    ])
+      assert.deepEqual(bashDecision(command, win), { allow: true }, command);
+    // U+212A (the Kelvin sign) lower-cases to k, U+212B (the Angstrom sign) to å; NTFS keeps them apart from k and
+    // from Å: another folder, whose script node would run.
+    for (const command of [
+      'node "C:/Tools/doc-\u212Ait/cli/doc-kit.mjs" build',
+      'node "C:/Users/Me/.claude/s\u212Aills/doc-kit/scripts/brief.mjs"',
+      'node "C:/Tools/doc-kit/cli/doc-\u212Ait.mjs" build',
+      'node "C:/Users/Me/.claude/skills/doc-\u212Ait/scripts/brief.mjs" --list',
+    ])
+      assert.equal(/** @type {any} */ (bashDecision(command, win)).key, "node", command);
+  });
+
+  test("property, Windows: a letter that lower-cases onto an ASCII letter or onto a letter of the path, and is not that letter's ASCII case, is refused", () => {
+    // Every ASCII letter, and two that are not (Å, ö), in the kit's path and in the skill's.
+    const kitDir = "C:/Tools/abcdefghijklmnopqrstuvwxyz/Ångström/doc-kit";
+    const skillDir = "C:/Users/abcdefghijklmnopqrstuvwxyz/Ångström/skills/doc-kit";
+    const win = { skillDir, kitDir, windows: true };
+    const targets = [
+      [`${kitDir}/cli/doc-kit.mjs`, " build"],
+      [`${skillDir}/scripts/brief.mjs`, " --list"],
+    ];
+    const isAscii = (/** @type {string} */ c) => (c >= "a" && c <= "z") || (c >= "A" && c <= "Z");
+    const letters = new Set(
+      targets.flatMap(([file]) => [...file.toLowerCase()].filter((c) => c.toLowerCase() !== c.toUpperCase())),
+    );
+    let refused = 0;
+    let allowed = 0;
+    for (let cp = 0; cp <= 0x10ffff; cp++) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue;
+      const c = String.fromCodePoint(cp);
+      const lower = c.toLowerCase();
+      if (![...lower].some((l) => isAscii(l) || letters.has(l))) continue;
+      for (const [file, rest] of targets)
+        for (let i = 0; i < file.length; i++) {
+          // `c` in the place of a letter of the path it lower-cases onto.
+          if (file[i] === c || !lower.includes(file[i].toLowerCase())) continue;
+          const command = `node '${file.slice(0, i)}${c}${file.slice(i + 1)}'${rest}`;
+          const d = bashDecision(command, win);
+          if (isAscii(c) && isAscii(file[i])) {
+            allowed++;
+            assert.deepEqual(d, { allow: true }, `U+${cp.toString(16)} at ${i}: the same file on NTFS`);
+          } else {
+            refused++;
+            assert.equal(/** @type {any} */ (d).key, "node", `U+${cp.toString(16)} at ${i}: another file on NTFS`);
+          }
+        }
+    }
+    // The Kelvin sign on every k, the Angstrom sign and å on Å, Ö on ö, İ on every i, at least.
+    assert.ok(refused >= 10, `refused: ${refused}`);
+    assert.ok(allowed > 100, `allowed: ${allowed}`);
+  });
+
   test("without a kit folder, its CLI is no exception; a refused reason names what it refuses", () => {
     const noKit = { ...POSIX, kitDir: "" };
     assert.equal(/** @type {any} */ (bashDecision("node /opt/doc-kit/cli/doc-kit.mjs build", noKit)).key, "node");
@@ -695,6 +758,47 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("a process whose decision cannot load refuses with 2 by itself: its module missing, or one that throws", () => {
+    const root = tempDir("doc-kit-guard-decision-");
+    try {
+      const skill = path.join(root, "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      const script = path.join(skill, "scripts", "bash-guard.mjs");
+      const input = hookInput("ls -la", root);
+      assert.equal(runGuard(input, script).status, 0, "the positive control: the copy lets ls through");
+      for (const [file, broken] of [
+        ["bash-decision.mjs", null],
+        ["bash-options.mjs", 'throw new Error("boom");\n'],
+        ["bash-decision.mjs", "export const nothing = 1;\n"],
+      ]) {
+        const module = path.join(skill, "scripts", /** @type {string} */ (file));
+        const saved = fs.readFileSync(module, "utf8");
+        if (broken === null) fs.rmSync(module);
+        else fs.writeFileSync(module, broken);
+        const r = runGuard(input, script);
+        fs.writeFileSync(module, saved);
+        // Not node's 1, which only `onFailure: block` refuses: the hook's own 2, and why, in both languages.
+        assert.equal(r.status, 2, `${file}: ${r.stderr}`);
+        assert.match(
+          r.stderr,
+          /the guard could not load its files.*\n.*la garde n'a pas pu charger ses fichiers/,
+          file,
+        );
+      }
+      // A decision that answers anything but 0 refuses: only an explicit 0 lets the command through.
+      const decision = path.join(skill, "scripts", "bash-decision.mjs");
+      fs.writeFileSync(decision, "export const guard = async () => undefined;\n");
+      assert.equal(runGuard(input, script).status, 2, "a decision that returns nothing");
+      // The hook's own words for a decision that cannot load are the decision's: one text, in two files.
+      const entry = fs.readFileSync(GUARD, "utf8");
+      for (const text of Object.values(FAILED))
+        for (const line of text.split("\n").filter(Boolean)) assert.ok(entry.includes(line), line);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 /** The first `name` on the PATH (a test runs the hook command through the shell Claude Code runs it with). */
@@ -765,6 +869,55 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
         assert.equal(refused.status, 2, `${script}: ${refused.stderr}`);
         assert.match(refused.stderr, /command refused — git is not allowed/);
         assert.equal(exec(script, hookInput("ls -la", root)).status, 0, `${script}: ls goes through`);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("the hook's file exports nothing and always decides: however node is given it (a URL with a query, an import), it refuses", () => {
+    const source = fs.readFileSync(GUARD, "utf8");
+    assert.doesNotMatch(source, /^export\b/m, "the hook's file exports nothing: the tests import the decision's");
+    assert.ok(!source.includes("process.argv") && !source.includes("import.meta"), "no check of how it was started");
+    const url = pathToFileURL(GUARD).href;
+    const forms = [[GUARD], ["--input-type=module", "-e", `await import(${JSON.stringify(`${url}?x=1`)});`]];
+    if (process.allowedNodeEnvironmentFlags.has("--entry-url")) forms.push(["--entry-url", `${url}?x=1`]);
+    for (const args of forms) {
+      const r = spawnSync(process.execPath, ["--no-warnings", ...args], {
+        input: hookInput("git push", KIT_ROOT),
+        encoding: "utf8",
+        env: { ...process.env, DOC_KIT_LANG: "en" },
+      });
+      assert.equal(r.status, 2, `${args.join(" ")}: ${r.stderr}`);
+      assert.match(r.stderr, /command refused — git is not allowed/, args.join(" "));
+    }
+  });
+
+  test("a lookalike folder is another folder: the hook refuses the script under it, which node would run", () => {
+    const root = tempDir("doc-kit-guard-lookalike-");
+    try {
+      const skill = path.join(root, "skills", "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      const script = path.join(skill, "scripts", "bash-guard.mjs");
+      // U+212A, the Kelvin sign, in the place of the k of doc-kit: toLowerCase() makes it k, NTFS keeps it apart.
+      const kelvin = String.fromCharCode(0x212a);
+      const planted = path.join(root, "skills", `doc-${kelvin}it`, "scripts", "brief.mjs");
+      fs.mkdirSync(path.dirname(planted), { recursive: true });
+      fs.writeFileSync(planted, "process.exit(42);\n");
+      // The positive controls: on Windows, NTFS made another folder (the skill's own brief.mjs is untouched), whose
+      // file node runs; the skill's own script goes through.
+      const apart = fs.readdirSync(path.join(root, "skills")).length === 2;
+      if (process.platform === "win32") assert.ok(apart, "NTFS keeps the lookalike folder apart");
+      if (apart)
+        assert.notEqual(fs.readFileSync(path.join(skill, "scripts", "brief.mjs"), "utf8"), "process.exit(42);\n");
+      const own = exec(script, hookInput(`node "${slash(path.join(skill, "scripts", "brief.mjs"))}" --list`, root));
+      assert.equal(own.status, 0, own.stderr);
+      assert.equal(spawnSync(process.execPath, [planted]).status, 42, "node runs the file under the lookalike folder");
+      for (const command of [`node "${slash(planted)}" --list`, `node '${planted}' --list`]) {
+        const refused = exec(script, hookInput(command, root));
+        assert.equal(refused.status, 2, `${command}: ${refused.stderr}`);
+        assert.match(refused.stderr, /command refused — node runs only the kit's CLI/);
       }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

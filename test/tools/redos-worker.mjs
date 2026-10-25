@@ -99,7 +99,7 @@ import { KitError } from "../../engine/project/errors.mjs";
 import { languageInConfig } from "../../engine/project/find.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
-import { bashDecision } from "../../skill/doc-kit/scripts/bash-guard.mjs";
+import { bashDecision } from "../../skill/doc-kit/scripts/bash-decision.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
 import { FRONT_UNITS, FRONT_SHAPES, SPRING_SHAPES, ASPNET_SHAPES, PY_UNITS } from "./stack-shapes.mjs";
 import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
@@ -836,7 +836,7 @@ export const CHECKS = [
   ["analysis safeProofPath", (s) => safeProofPath(s)],
   // The model a Claude Code transcript names (skill/doc-kit/scripts/transcript-usage.mjs).
   ["transcript modelName", (s) => modelName(s)],
-  // A command an agent asks its Bash for, read as bash splits it by the guard of the skill's agents (bash-guard.mjs):
+  // A command an agent asks its Bash for, read as bash splits it by the guard of the skill's agents (bash-decision.mjs):
   // quotes, escapes and operators of any length, each word checked once.
   [
     "bash guard bashDecision",

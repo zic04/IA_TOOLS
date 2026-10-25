@@ -14,7 +14,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig, readVersion } from "./common.mjs";
+import { loadConfig } from "./common.mjs";
+import { readVersion } from "./placeholders.mjs";
 import { modelName, responseTally } from "./transcript-usage.mjs";
 
 /**

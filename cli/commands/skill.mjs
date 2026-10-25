@@ -9,7 +9,8 @@
 // the command that runs the kit's CLI by that path (`node "<kit>/cli/doc-kit.mjs"`, never npx: SECURITY.md), there and
 // in the agent files; {{SKILL_PATH}}, with the installed skill's path, in the agent files (the agents with Bash name
 // the skill's guard, scripts/bash-guard.mjs, as their PreToolUse hook, in Claude Code's exec form: hookPath,
-// SECURITY.md). A fingerprint file (.doc-kit-skill.json,
+// SECURITY.md). Every placeholder of a file is replaced in one pass: a value is never read again, so a folder whose
+// name holds a placeholder keeps it. A fingerprint file (.doc-kit-skill.json,
 // inside <skills folder>/doc-kit/) covers both the skill and the agent files, and lets `doctor` report either copy as
 // outdated or modified.
 // Only the doc-kit folder is ever written or replaced; a doc-kit folder without fingerprint (not installed by
@@ -97,17 +98,35 @@ export function hookPath(p) {
 }
 
 /**
- * A file of the skill with its placeholders replaced (`values`: [placeholder, value]). In the skill's scripts, only
- * where a placeholder stands as a JavaScript string, `"{{KIT_PATH}}"`, replaced whole by the value's JSON: a string
- * whatever the path holds (a quote, a backquote, `${`, a backslash); one in a comment stays as it is, so that no path
- * ever ends a comment. In the other files (text), everywhere.
+ * `text` with its placeholders replaced (`values`: [token, value], each token starting with `lead`), all of them in one
+ * pass from left to right: what a value holds is never read again, so a folder whose name holds a placeholder (a
+ * skills folder under `{{KIT_CLI}}`) stays as it is, never another value put in it.
+ * @param {string} text  @param {Array<[string, string]>} values  @param {string} lead
+ */
+function replaceOnce(text, values, lead) {
+  let out = "";
+  let from = 0;
+  for (let at = text.indexOf(lead, from); at >= 0; at = text.indexOf(lead, from)) {
+    const hit = values.find(([token]) => text.startsWith(token, at));
+    out += text.slice(from, at) + (hit ? hit[1] : text[at]);
+    from = at + (hit ? hit[0].length : 1);
+  }
+  return out + text.slice(from);
+}
+
+/**
+ * A file of the skill with its placeholders replaced (`values`: [placeholder, value]), in one pass (replaceOnce). In
+ * the skill's scripts, only where a placeholder stands as a JavaScript string, `"{{KIT_PATH}}"`, replaced whole by the
+ * value's JSON: a string whatever the path holds (a quote, a backquote, `${`, a backslash); one in a comment stays as
+ * it is, so that no path ever ends a comment. In the other files (text), everywhere.
  * @param {string} file  @param {string} text  @param {Array<[string, string]>} values
  */
 function substitute(file, text, values) {
-  const script = file.endsWith(".mjs");
-  for (const [token, value] of values)
-    text = script ? text.split(JSON.stringify(token)).join(JSON.stringify(value)) : text.split(token).join(value);
-  return text;
+  if (!file.endsWith(".mjs")) return replaceOnce(text, values, "{{");
+  const json = values.map(
+    ([token, value]) => /** @type {[string, string]} */ ([JSON.stringify(token), JSON.stringify(value)]),
+  );
+  return replaceOnce(text, json, '"{{');
 }
 
 /**
@@ -224,7 +243,10 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
     const text = fs.readFileSync(path.join(source, AGENTS_SUBDIR, name), "utf8");
     fs.writeFileSync(
       path.join(agentsDest, name),
-      text.split(SKILL_PLACEHOLDER).join(skillPath).split(CLI_PLACEHOLDER).join(cli),
+      substitute(name, text, [
+        [SKILL_PLACEHOLDER, skillPath],
+        [CLI_PLACEHOLDER, cli],
+      ]),
     );
   }
 
