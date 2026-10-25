@@ -32,6 +32,11 @@ names it and gives its options next to it.
   folders are skipped; `[id]`, `[...slug]` and `[[...slug]]` are kept.
 - **Routes** are covered as written, with `:id`, `{id}` or `[id]`, or by their static prefix (`/orders/` for
   `/orders/[id]`).
+- **A segment that looks like a key or a token is masked** (`…`) in the ids and the forms of `fastapi`,
+  `next-app-router`, `openapi`, `react-router` and `glob`, as `doc-kit facts` writes it: a webhook's secret path never
+  shows in `check coverage` or the audit. For `glob`, each segment of the file's path is judged, its name without its
+  extension (`OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept). Cite the masked route (`/hooks/…`):
+  `doc-kit sync` still finds its files.
 - **`exclude`** holds regular expressions, or exact ids.
 - **`glob`**: `match` is a template where `{path}` is the path relative to `base` without extension, `{name}` the
   file name without extension, `{dir}` its folder and `{file}` the file name.

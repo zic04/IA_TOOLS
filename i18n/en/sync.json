@@ -9,6 +9,7 @@
   "cli.sync.sourcesOnePage": "--sources only works with --mark naming exactly one page",
   "cli.sync.sourcesOnePage.help": "run {command} sync --mark <page> --sources <file[:lines]>",
   "cli.sync.proofUnresolved": "[{page}] proof not recorded: {ref} (the file does not exist, or the line is beyond its end)",
+  "cli.sync.proofOutside": "[{page}] proof not recorded: {ref} (its file is outside the application, through ../ or a link: never read)",
   "cli.sync.truncated": "[{page}] the closure of local imports was cut at 200 files: some dependencies may be missing",
   "cli.sync.noGit": "no git here: a deleted file is never detected as a rename",
   "cli.sync.sinceNoInventory": "--since never reports new or removed elements: the coverage adapters are not re-run at that commit",

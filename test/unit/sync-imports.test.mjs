@@ -118,6 +118,32 @@ describe("resolveJs", () => {
     }
   });
 
+  // A `paths` key is a prefix, at most one `*`, and a suffix, as TypeScript reads it: every other character literal,
+  // never a quantifier of a regular expression built from the key (RULES.md S5; the growth in imports-growth.test.mjs).
+  test("tsconfig paths key: one * at most, every other character literal; a key with two * matches nothing", () => {
+    const dir = withFiles({ "src/x.ts": "", "src/b.ts": "", "lib/x.ts": "" });
+    try {
+      const resolve = (key, spec) =>
+        resolveJs(spec, "app/page.tsx", dir, { baseUrl: ".", paths: { [key]: ["./src/*"] } });
+      // A minimal pair: one `*`, prefix and suffix around it; a second `*` (invalid for TypeScript): no match.
+      assert.equal(resolve("@*/x", "@b/x"), "src/b.ts");
+      assert.equal(resolve("@*a*/x", "@b/x"), null, "two *: an invalid key");
+      // `?`, `+`, `.` and the rest are characters of the key: `@a?/*` is not `@/*` with an optional `a`.
+      assert.equal(resolve("@a?/*", "@a?/x"), "src/x.ts");
+      assert.equal(resolve("@a?/*", "@/x"), null);
+      assert.equal(resolve("@a+/*", "@aa/x"), null);
+      assert.equal(resolve("@.x/*", "@ax/x"), null);
+      // A key without `*` is the whole specifier; the prefix and the suffix never overlap.
+      const exact = (key, spec) =>
+        resolveJs(spec, "app/page.tsx", dir, { baseUrl: ".", paths: { [key]: ["./lib/x"] } });
+      assert.equal(exact("@lib", "@lib"), "lib/x.ts");
+      assert.equal(exact("@lib", "@lib/y"), null);
+      assert.equal(resolve("@a*a", "@a"), null, "the prefix and the suffix share no character");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("ignored extensions (css, svg, json…) are never resolved; a bare package with no alias match is null", () => {
     const dir = withFiles({ "a/style.css": "" });
     try {

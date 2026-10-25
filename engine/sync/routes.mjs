@@ -1,11 +1,12 @@
 // Route → files, for the built-in coverage adapters, without modifying them (ARCHITECTURE.md §6.10, "Dependencies
 // of a page"). Every returned path is relative to the documentation project ("projRel": consistent with the
 // adapters' own options, e.g. `app: "../../app"`); the caller (engine/sync/dependencies.mjs) converts them to
-// paths relative to the application with its own `appRelOf`.
+// paths relative to the application with its own `appRelOf`. An adapter that masks a segment that looks like a token
+// ("…", RULES.md S7) is read masked the same way here, so the route a page cites, the masked one, finds its files.
 import { routeOf } from "../../adapters/coverage/next-app-router.mjs";
 import { fastapiRoutes } from "../../adapters/stack/fastapi.mjs";
 import { normalize } from "../check/coverage.mjs";
-import { routeWithoutSecrets } from "../facts/behaviour-common.mjs";
+import { routeWithoutSecrets, fileWithoutSecrets } from "../facts/behaviour-common.mjs";
 
 const PAGE_FILE = /(^|\/)page\.(tsx|ts|jsx|js|mdx)$/;
 const LAYOUT_EXTENSIONS = ["tsx", "ts", "jsx", "js"];
@@ -32,7 +33,12 @@ export function routeFiles({ spec, options, item, route, tools }) {
   if (item?.files) return item.files;
   switch (spec.adapter) {
     case "next-app-router": {
-      const pages = tools.walk(options.app).filter((f) => PAGE_FILE.test(f) && routeOf(f) === route);
+      // The adapter's id masks a segment that looks like a token (routeWithoutSecrets): compared masked.
+      const masked = (f) => {
+        const r = routeOf(f);
+        return r === null ? null : routeWithoutSecrets(r);
+      };
+      const pages = tools.walk(options.app).filter((f) => PAGE_FILE.test(f) && masked(f) === route);
       const out = new Set(pages.map((f) => `${options.app}/${f}`));
       for (const f of pages)
         for (const dir of foldersUpTo(f, options.app))
@@ -56,7 +62,7 @@ export function routeFiles({ spec, options, item, route, tools }) {
       if (!item.id.includes("…")) return [`${options.base}/${item.id}`];
       return tools
         .glob(options.pattern, options.base)
-        .filter((f) => routeWithoutSecrets(f) === item.id)
+        .filter((f) => fileWithoutSecrets(f) === item.id)
         .map((f) => `${options.base}/${f}`);
     default:
       return [];

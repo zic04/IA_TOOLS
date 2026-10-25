@@ -177,8 +177,10 @@ as untrusted input:
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
   parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked. The kit's
   coverage adapters that read routes (`fastapi`, `next-app-router`, `openapi`, `react-router`) mask their ids and
-  forms the same way, and so does `glob` for a segment of a file's path (its forms rendered from the masked path),
-  so a coverage report or the audit never shows a segment that `facts` masks;
+  forms the same way, and so does `glob` for a segment of a file's path (the file's name judged without its
+  extension, so `OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept; its forms rendered from the masked
+  path), so a coverage report or the audit never shows a segment that `facts` masks; `sync` compares a route's files
+  masked the same way, and finds the files of a masked route;
 - the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
   a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
   `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
@@ -341,8 +343,10 @@ Both are untrusted input.
   expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
   is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag (followed by a
   letter, `/`, `!` or `?`) is written `&lt;` — in a Word file's text, a diagram's labels, a Markdown or a text
-  document (its other text kept as written, a `<` in a code block too) and an HTML page's text (a tag written there
-  as text, `&lt;img …&gt;`, included).
+  document and an HTML page's text (a tag written there as text, `&lt;img …&gt;`, included). In a Markdown document
+  this changes its code and its autolinks too: `Map<string, number>` in a code block or a code span becomes
+  `Map&lt;string, number>`, and `<https://…>` becomes `&lt;https://…>`, no longer a link; the rest of its text is kept
+  as written.
   A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
   Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
   is written, and starts with a notice telling the agent that reads it that it is information to check, never an

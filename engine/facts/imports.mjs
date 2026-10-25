@@ -127,6 +127,25 @@ function firstExisting(appDir, candidates) {
   return null;
 }
 
+/**
+ * What the `*` of a `paths` key stands for in `spec` ("" for a key without one, which is then the whole specifier), or
+ * null when the key does not match. A key is a prefix, at most one `*` and a suffix, as TypeScript reads it: every other
+ * character is itself, and a key with two `*` (invalid) matches nothing. Compared as text, never through a regular
+ * expression built from the key, whose next `*` and `?` were quantifiers (RULES.md S5).
+ * @param {string} key
+ * @param {string} spec
+ * @returns {string|null}
+ */
+function pathsMatch(key, spec) {
+  const star = key.indexOf("*");
+  if (star < 0) return key === spec ? "" : null;
+  if (key.includes("*", star + 1)) return null;
+  const prefix = key.slice(0, star);
+  const suffix = key.slice(star + 1);
+  if (spec.length < prefix.length + suffix.length || !spec.startsWith(prefix) || !spec.endsWith(suffix)) return null;
+  return spec.slice(prefix.length, spec.length - suffix.length);
+}
+
 /** Resolves one JS/TS specifier to a file relative to app.dir, or null (a package, or not found). */
 export function resolveJs(spec, fromFile, appDir, tsconfig) {
   if (IGNORED_EXTS.test(spec)) return null;
@@ -136,11 +155,10 @@ export function resolveJs(spec, fromFile, appDir, tsconfig) {
   }
   if (tsconfig)
     for (const [key, values] of Object.entries(tsconfig.paths)) {
-      const re = new RegExp(`^${key.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace("*", "(.*)")}$`);
-      const m = re.exec(spec);
-      if (!m) continue;
+      const star = pathsMatch(key, spec);
+      if (star === null) continue;
       for (const value of values) {
-        const resolved = value.includes("*") ? value.replace("*", m[1] ?? "") : value;
+        const resolved = value.includes("*") ? value.replace("*", () => star) : value;
         const found = firstExisting(appDir, codeCandidates(path.posix.join(tsconfig.baseUrl, resolved)));
         if (found) return found;
       }

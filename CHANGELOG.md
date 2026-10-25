@@ -260,9 +260,19 @@ entries between a project's `kit` range and the installed version.
   `tsconfig.json` and every file of the closure (`sync`, the context, the `modules` facts) are now resolved and read
   only where they really are in the application, and the context never excerpts a dependency outside it (named,
   path only). The coverage report `facts --source tests` reads by its fixed name is confined the same way.
+- **A proof is recorded only from a file of the application** (SECURITY.md): `sync --mark` read a proof cited
+  through a junction or by `../` (`j/util.js:1`, `../outside/util.js:1`) and wrote its first line in `sync.json`. Such
+  a proof is now neither read, recorded nor a dependency of the page, and the warning says why
+  (`sync.proofOutside`).
+- **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
+  wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
+  52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a
+  key with two `*` (invalid for TypeScript) matches nothing.
 - **A route segment that looks like a token is masked in the coverage ids** (RULES.md S7): the `fastapi`,
   `next-app-router`, `openapi`, `react-router` and `glob` adapters (a segment of a file's path) wrote it in clear in
-  `check coverage` and the audit, while `facts` writes "…". `sync` still finds the file of a masked id.
+  `check coverage` and the audit, while `facts` writes "…". For `glob`, a file's name is judged without its
+  extension, so `OrderSummaryCard.tsx` is kept and two components never share one id. `sync` finds the files of a
+  masked route through each of them (`next-app-router` too).
 - **`::facts{source}` and `::diagram{id}` name a file by a plain name** (`a-z`, `0-9`, `-`): `source="../../x"` or
   `id="../.."` read a file outside the project. Such an attribute is now a build error, `facts.source` or
   `diagram.id`, and nothing is read; `sync` no longer reads nor hashes it as a dependency of the page
@@ -274,7 +284,8 @@ entries between a project's `kit` range and the installed version.
   anchors of headings and cards escape every id all the same.
 - **`inputs ingest` of an HTML page**: a tag written as text (`&lt;img onerror=…&gt;`) became a real tag of the
   converted text once decoded. Every `<` that could open a tag is written `&lt;`, as for a Word file; and so it is
-  in a Markdown or a text document, whose HTML reached the converted text as written (its other text is kept).
+  in a Markdown or a text document, whose HTML reached the converted text as written — there in its code and its
+  autolinks too (`Map&lt;string, number>`, `&lt;https://…>`, no longer a link); its other text is kept.
 
 ## [0.4.1] - 2026-10-23
 

@@ -35,6 +35,11 @@ configuration le nomme et donne ses options à côté.
   d'interception et les dossiers `_private` sont ignorés ; `[id]`, `[...slug]` et `[[...slug]]` sont conservés.
 - **Les routes** sont couvertes telles qu'elles sont écrites, avec `:id`, `{id}` ou `[id]`, ou par leur préfixe
   statique (`/orders/` pour `/orders/[id]`).
+- **Un segment qui ressemble à une clé ou à un jeton est masqué** (`…`) dans les ids et les formes de `fastapi`,
+  `next-app-router`, `openapi`, `react-router` et `glob`, comme `doc-kit facts` l'écrit : le chemin secret d'un webhook
+  n'apparaît jamais dans `check coverage` ni dans l'audit. Pour `glob`, chaque segment du chemin du fichier est jugé,
+  son nom sans son extension (`OrderSummaryCard.tsx` et `GetUserProfileByIdV2.tsx` sont conservés). Citez la route
+  masquée (`/hooks/…`) : `doc-kit sync` retrouve toujours ses fichiers.
 - **`exclude`** contient des expressions régulières, ou des ids exacts.
 - **`glob`** : `match` est un modèle où `{path}` est le chemin relatif à `base` sans extension, `{name}` le nom du
   fichier sans extension, `{dir}` son dossier et `{file}` le nom du fichier.

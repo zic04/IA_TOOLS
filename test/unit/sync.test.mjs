@@ -1442,6 +1442,59 @@ describe("engine/sync: a ::facts source that is no plain name is never read", ()
   });
 });
 
+// SECURITY.md, confinement: a proof is recorded (the hash of its lines and its first line's text, in sync.json) only
+// from a file that really is in the application, links and junctions followed. One cited through a junction to a folder
+// outside, or by `../`, is never read: not recorded, its reason given, no dependency of the page.
+describe("engine/sync: a proof outside the application is never read", () => {
+  test("markPages: a proof through a junction or ../ puts no outside text in sync.json; the proof beside is recorded", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "j");
+    try {
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
+      fs.symlinkSync(outside, junction, "junction");
+      const config = await syncConfig(fx.root);
+      const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
+      fs.appendFileSync(page, "\nSee `j/util.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+      const { reference, warnings } = await markPages({
+        root: fx.root,
+        config,
+        toc,
+        pages: ["take-over/orders-api"],
+        ...at,
+      });
+      assert.deepEqual(reference.proofs["lib/orders.ts:1"], {
+        hash: hashText("export const threshold = 10000;"),
+        text: "export const threshold = 10000;",
+      });
+      for (const ref of ["j/util.js:1", "../outside/util.js:1"]) {
+        assert.equal(reference.proofs[ref], undefined, `${ref}: not recorded`);
+        assert.ok(
+          warnings.some(
+            (w) => w.key === "sync.proofOutside" && w.vars.ref === ref && w.vars.page === "take-over/orders-api",
+          ),
+          `${ref}: its reason given`,
+        );
+      }
+      assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
+      const files = Object.keys(reference.pages["take-over/orders-api"].files);
+      assert.ok(files.includes("lib/orders.ts") && !files.some((f) => f.includes("util.js")), files.join(", "));
+    } finally {
+      // The junction first, on its own: removing the folder must never walk into what it points to.
+      try {
+        fs.unlinkSync(junction);
+      } catch {
+        if (fs.existsSync(junction)) fs.rmdirSync(junction);
+      }
+      fx.release();
+    }
+  });
+});
+
 describe("a verified claim badge is a proof (sync and audit)", () => {
   test("extractProofs: [[verified file:line]] and [[verifie …]] are proofs, in order; one shown in a code span is not", async () => {
     const md =

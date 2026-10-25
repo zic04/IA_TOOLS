@@ -9,7 +9,7 @@ import { KitError, EXIT } from "../project/errors.mjs";
 import { adapterTools } from "../check/coverage.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, docFile } from "./dependencies.mjs";
-import { recordProof } from "./proofs.mjs";
+import { recordProof, proofFile } from "./proofs.mjs";
 import { citedLabels, labelFiles, flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
@@ -159,7 +159,14 @@ export async function markPages({
     for (const proof of deps.proofs) {
       const recorded = appDir ? recordProof(appDir, proof) : null;
       if (recorded) newProofs[proof.ref] = recorded;
-      else warnings.push({ key: "sync.proofUnresolved", vars: { page: id, ref: proof.ref } });
+      else {
+        // A file outside the application (`../`, a link or a junction followed) is never read, and is said so.
+        const outside = appDir !== null && proofFile(appDir, proof) === "outside";
+        warnings.push({
+          key: outside ? "sync.proofOutside" : "sync.proofUnresolved",
+          vars: { page: id, ref: proof.ref },
+        });
+      }
     }
 
     newPages[id] = {

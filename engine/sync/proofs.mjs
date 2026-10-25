@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { hashText } from "../core/hash.mjs";
 import { listFiles } from "../facts/common.mjs";
+import { realInside, realPathOf } from "../core/confine.mjs";
 
 /**
  * Same file family as `PROOF` of engine/audit/audit.mjs (tested for parity: every PROOF_REF match is a PROOF
@@ -64,26 +65,45 @@ const appFilesCache = new Map();
  * The file of the application a proof names. Writers cite a short path once the full one was given
  * (`tokens-table.tsx:42` after `frontend/src/components/admin/tokens-table.tsx`), or a path relative to a sub-project
  * (`app/routers/tokens.py` in `api/`): the path as written when it exists, else the one file of the application
- * whose path ends with it (a whole-segment suffix), else null — two candidates are never guessed between.
- * The application's files are listed once per folder (listFiles: no node_modules, no documentation project).
+ * whose path ends with it (a whole-segment suffix), else null — two candidates are never guessed between. A path
+ * as written that really lies outside the application (`../`, a link or a junction followed: proofFile) is none.
+ * The application's files are listed once per folder (listFiles: no node_modules, no documentation project, no link).
  */
 export function resolveProofFile(appDir, file) {
   const clean = file.replace(/\\/g, "/").replace(/^\.\//, "");
-  if (fs.existsSync(path.join(appDir, clean))) return clean;
+  const written = proofFile(appDir, { file: clean });
+  if (written === "outside") return null;
+  if (written) return clean;
   if (!appFilesCache.has(appDir)) appFilesCache.set(appDir, listFiles(appDir));
   const found = appFilesCache.get(appDir).filter((f) => f.endsWith("/" + clean));
   return found.length === 1 ? found[0] : null;
 }
 
 /**
- * Records a proof at marking time: the hash of the cited lines and the first one's trimmed text (120 characters),
- * used later to find the lines again even if they moved. Null when the file does not exist, or `from` is beyond
- * the file's last line. The file is `proof.path` when it was resolved (extractProofs with appDir), else as written.
+ * The file a proof cites (`proof.path` when it was resolved, extractProofs with appDir, else as written): its real
+ * path when it is a file of the application; "outside" when it exists but really lies outside it (`../`, a link or a
+ * junction followed, SECURITY.md: never read); null when there is no such file.
+ * @param {string} appDir
+ * @param {{ file: string, path?: string|null }} proof
+ * @returns {string|null}
  */
-export function recordProof(appDir, proof) {
+export function proofFile(appDir, proof) {
   const abs = path.join(appDir, proof.path || proof.file);
   if (!fs.existsSync(abs)) return null;
-  const lines = fs.readFileSync(abs, "utf8").split(/\r?\n/);
+  const real = realInside(realPathOf(appDir), abs);
+  if (!real) return "outside";
+  return fs.statSync(real).isFile() ? real : null;
+}
+
+/**
+ * Records a proof at marking time: the hash of the cited lines and the first one's trimmed text (120 characters),
+ * used later to find the lines again even if they moved. Null when the file does not exist, is outside the application
+ * (proofFile: never read), or `from` is beyond the file's last line.
+ */
+export function recordProof(appDir, proof) {
+  const real = proofFile(appDir, proof);
+  if (!real || real === "outside") return null;
+  const lines = fs.readFileSync(real, "utf8").split(/\r?\n/);
   if (proof.from > lines.length) return null;
   const to = proof.to ?? proof.from;
   return {

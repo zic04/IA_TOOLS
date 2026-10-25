@@ -22,7 +22,7 @@ import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
 import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
-import { routeFiles } from "../../engine/sync/routes.mjs";
+import { routeFiles, matchRoute } from "../../engine/sync/routes.mjs";
 
 /** A package-lock.json (v3) as npm writes it: each name's tarball from the registry given (npm's public one by default). */
 function npmLock(names, registryOf = () => "https://registry.npmjs.org") {
@@ -1226,6 +1226,108 @@ describe("coverage adapters: facts, fastapi, next-app-router (api)", () => {
       const files = (item) => routeFiles({ spec, options, item, route: item.match[0], tools: adapterTools(dir) });
       assert.deepEqual(files(r.families[0].items[0]), [`routes/hooks/${token}.tsx`]);
       assert.deepEqual(files(r.families[0].items[1]), ["routes/orders/list.tsx"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // A file's name is judged without its extension (`.tsx` reads as no word): a long ordinary name is kept, as
+  // SECURITY.md says of GetUserProfileByIdV2, so two components never collapse into one id; beside it, in the same
+  // folder with the same extension, a name that looks like a token is masked (a minimal pair), and so is a name whose
+  // extension looks like one, or that holds a token written across its last dot.
+  test("glob: a file's name is judged without its extension; two components never collapse into one id", async () => {
+    const token = "Zq8vN3kT6wP1" + "xR4mY7bLc2Hd9sF0"; // a random token of 28 characters, written in two parts
+    const dir = tempDir("doc-kit-coverage-glob-names-");
+    try {
+      for (const file of [
+        "routes/OrderSummaryCard.tsx",
+        "routes/NotificationPreferences.tsx",
+        "routes/GetUserProfileByIdV2.tsx",
+        `routes/${token}.tsx`,
+        `keys/config.${token}`,
+        `keys/${token.slice(0, 13)}.${token.slice(13, 26)}`,
+      ]) {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.writeFileSync(path.join(dir, file), "export default function Page() {}\n");
+      }
+      const spec = { adapter: "glob", family: "Routes", base: "routes", pattern: "*.tsx", match: "/{name}" };
+      const r = await inventory(dir, spec);
+      assert.deepEqual(r.families[0].items, [
+        { id: "GetUserProfileByIdV2.tsx", match: ["/GetUserProfileByIdV2"] },
+        { id: "NotificationPreferences.tsx", match: ["/NotificationPreferences"] },
+        { id: "OrderSummaryCard.tsx", match: ["/OrderSummaryCard"] },
+        { id: "…", match: ["/…"] },
+      ]);
+      const { options } = await loadAdapter("coverage", spec, dir, "coverage[0]");
+      const items = r.families[0].items;
+      const files = (route) =>
+        routeFiles({ spec, options, item: matchRoute(route, items), route, tools: adapterTools(dir) });
+      assert.deepEqual(files("/OrderSummaryCard"), ["routes/OrderSummaryCard.tsx"]);
+      assert.deepEqual(files("/NotificationPreferences"), ["routes/NotificationPreferences.tsx"]);
+      assert.deepEqual(files("/…"), [`routes/${token}.tsx`], "the masked id: the token's file alone");
+      const keys = await inventory(dir, { ...spec, base: "keys", pattern: "*", match: "{file}" });
+      assert.deepEqual(
+        keys.families[0].items,
+        [
+          { id: "…", match: ["…"] },
+          { id: "…", match: ["…"] },
+        ],
+        "a token after the last dot, or across it",
+      );
+      const text = JSON.stringify([r, keys]);
+      assert.ok(
+        ![token, token.slice(0, 13), token.slice(13, 26)].some((t) => text.includes(t)),
+        "no part of the token",
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // sync finds the files of a masked route through every coverage adapter that masks one (engine/sync/routes.mjs): the
+  // route a page cites is the masked one ("…"), the only one the writer sees.
+  test("sync: the files of a masked route, through next-app-router, fastapi, openapi, react-router and glob", async () => {
+    const token = "Zq8vN3kT6wP1" + "xR4mY7bLc2Hd9sF0"; // a random token of 28 characters, written in two parts
+    const dir = tempDir("doc-kit-coverage-masked-files-");
+    try {
+      const write = (file, text) => {
+        fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        fs.writeFileSync(path.join(dir, file), text);
+      };
+      write(
+        "py/main.py",
+        `from fastapi import FastAPI\napp = FastAPI()\n\n@app.post("/hooks/${token}")\ndef hook():\n    return {}\n`,
+      );
+      write(`next/app/hooks/${token}/page.tsx`, "export default function Page() { return null; }\n");
+      write("next/app/orders/page.tsx", "export default function Page() { return null; }\n");
+      write("next/app/layout.tsx", "export default function Layout() { return null; }\n");
+      write("openapi.json", JSON.stringify({ openapi: "3.0.0", paths: { [`/hooks/${token}`]: { post: {} } } }));
+      write("src/App.tsx", `<Route path="/hooks/${token}" element={<Hook />} />\n`);
+      const page = `next/app/hooks/${token}/page.tsx`;
+      const cases = [
+        [{ adapter: "next-app-router", app: "next/app" }, "/hooks/…", [page, "next/app/layout.tsx"]],
+        [
+          { adapter: "next-app-router", app: "next/app" },
+          "/orders",
+          ["next/app/orders/page.tsx", "next/app/layout.tsx"],
+        ],
+        [{ adapter: "fastapi", app: "py" }, "POST /hooks/…", ["py/main.py"]],
+        // An operation of an OpenAPI document has no file of its own (ARCHITECTURE.md §6.10): found, and none.
+        [{ adapter: "openapi", file: "openapi.json" }, "POST /hooks/…", []],
+        [{ adapter: "react-router", file: "src/App.tsx", exclude: [] }, "/hooks/…", ["src/App.tsx"]],
+        [
+          { adapter: "glob", family: "R", base: "next/app", pattern: "**/page.tsx", match: "/{dir}" },
+          "/hooks/…",
+          [page],
+        ],
+      ];
+      for (const [spec, route, expected] of cases) {
+        const item = matchRoute(route, (await inventory(dir, spec)).families[0].items);
+        assert.ok(item, `${spec.adapter} ${route}: an item of the inventory`);
+        const { options } = await loadAdapter("coverage", spec, dir, "coverage[0]");
+        const files = routeFiles({ spec, options, item, route, tools: adapterTools(dir) });
+        assert.deepEqual(files, expected, `${spec.adapter} ${route}`);
+      }
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
