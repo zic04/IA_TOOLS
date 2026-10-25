@@ -139,6 +139,9 @@ entries between a project's `kit` range and the installed version.
     run before, 0 now.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
+  - The ReDoS check of a forbidden path's escapes (`capture forbiddenMatch (escapes)`) reads the input once, after a
+    run of escapes a sixteenth of its length and every tricky escape: about seven times cheaper per input, still
+    linear, where three copies and a run as long as the input took 30 to 100 s against its 60 s hang timeout.
 - **The CLI starts in about a sixth of the time** (ARCHITECTURE.md §4): `doc-kit --version` took 1.3 s, now 0.2 s
   (Node alone: 0.08 s). The dispatcher imports only the module of the command that runs (`cli/registry.mjs`), not
   all 30, and Playwright is imported where a browser is launched, no longer at the start of every command that
@@ -377,9 +380,90 @@ entries between a project's `kit` range and the installed version.
     and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash);
     `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give the same
     command, and that a kit path with a backquote and a `${` is found; the ReDoS harness measures the guard.
-
-### Security
-
+- **A redirect through another origin no longer reaches a `capture.forbidden` route** (SECURITY.md › Read-only
+  captures have limits). The guard checked a navigation's redirects only until the first hop that left the
+  application, then let the browser follow the rest: a sign-in round trip through the identity provider could come
+  back to a forbidden route, which the server then received. With `capture.forbidden`, the kit now fetches every `GET`
+  navigation hop by hop, whatever its origins, tests each hop back on the application before it is requested, and
+  hands the browser only the end of the chain (a page that sends the frame on, whose answer is held for that
+  frame's next navigation; in an iframe, the end itself, since a sandboxed iframe could not run that page and stayed
+  blank): the browser never follows a redirect itself, so a forbidden route cannot be requested on
+  the way, and the server is never asked twice for a hop — one that answers its second request otherwise is no
+  longer replayed. A hop sends the cookies the browser holds for its own address, never those of the first request
+  (they went to the identity provider), and only the referrer's origin to another origin. These requests are sent by
+  Playwright from Node.js, without Chromium's own rules (`SameSite`, HSTS, system proxy): SECURITY.md lists it.
+  After a goto, `capture` waits until the frame has committed the answer held for it (the guard's own signal, never
+  the address: a sign-in callback or a router that rewrites it with `history.replaceState` is captured, the run's
+  session check included). The guard now lives in `engine/capture/guard.mjs`.
+  `test/e2e/capture-redirects.test.mjs` (real servers on three ports), mutants `test/mutations/capture-guard.mjs`
+  (RULES.md M16, S6).
+- **A redirect chain the guard follows has bounds** (RULES.md M7): 20 s for a hop (`TIMINGS.redirectHop`), 25 s for
+  the whole chain (`TIMINGS.redirectChain`, below the 30 s of a start page, so the guard gives up first and says why:
+  `cli.capture.error.redirectTimeout`), 32 MB for the answer held for a frame (`cli.capture.error.landingTooLarge`)
+  and 64 MB for all the answers held at once (`cli.capture.error.heldTooLarge`, en and fr). Each answer the guard
+  fetched is freed once used, a held one also when its frame goes elsewhere (another of its chains that ends after
+  it included: a long run no longer stops on a false `heldTooLarge`) or its page closes (Playwright kept every body
+  until the browser context closed).
+- **The end of a chain is recognised in Chromium's form of its address**: Node.js keeps `/end|x` where Chromium
+  writes `/end%7Cx`, so the end was asked twice and the guard's own page read as its answer (a 401 there went
+  unseen). Both are compared in one written form (`addressForm`).
+- **Every address of the application is the application for `capture.forbidden`**: its host and port whatever the
+  scheme (an `http` `app.url` its server upgrades to `https` no longer turns the protection off), without a trailing
+  dot, and every name of the loopback interface as one host (`applicationKey`): `localhost` and `*.localhost`,
+  `127.x`, `[::1]`, and `0.0.0.0`, `[::]` and `[::ffff:127.0.0.1]`, which Node.js (the guard's requests) reaches
+  where Chromium refuses them — a redirect there reached a forbidden route. One loopback definition
+  (`isLoopbackUrl`, RULES.md M6), which `probe`, `doctor` and `init` now share. With `auth: none`, a start page that
+  lands anywhere else stops the run (`capture.offApplication`, exit code 2, en and fr).
+- **`capture.forbidden` reads a path as a server does**: also without its path parameters (`/approval;jsessionid=…`,
+  `/orders;v=1/7`), dropped before decoding as Tomcat does and after, with each run of escapes decoded on its own (one
+  malformed escape, `%zz`, no longer turns all decoding off), decoded twice (`%252e`), with its `.` and `..` segments
+  resolved (`/orders/7/x/../approval`, `%2e%2e`), its backslashes read as slashes (`%5C`, IIS) and each segment's
+  trailing dots and spaces dropped (`approval.`, `approval%20`, `approval%2e`, IIS). `%u0061` and overlong UTF-8
+  are written as limits. Mutants `test/mutations/capture-paths.mjs`.
+- **A path parameter is never printed** (RULES.md S7): a refused, aborted or blocked request, and a forbidden route
+  shown, are reported by their path without `;jsessionid=…` and without a query string, in the messages and in
+  `--json` (`shownPath`); a sign-in page (an expired session, before or during the run, a sign-in asked for) and a
+  bot challenge by their origin and that path only (`shownUrl`): their state, code and session id were printed. A
+  start page off the application that has no origin (`about:blank?…`, `data:`) is shown as `shownUrl` shows it
+  (`capture.offApplication`), no longer whole.
+- **Speculation rules no longer reach a forbidden route** (SECURITY.md): Chromium fetches the prefetches and
+  prerenders of `<script type="speculationrules">` and of a `Speculation-Rules` header from its own process, which
+  no route of the guard sees, and no launch flag or Content-Security-Policy turns them off. With
+  `capture.forbidden`, the documents the guard serves lose that header, and an init script of every page removes
+  each rules script before the browser reads it (in the document and its shadow roots, at any depth: a declared root
+  inside another; a root declared on a host already seen is found once the document is parsed, or after a script
+  attaches a shadow root). What stays out of reach (a shadow root declared closed, the rules the parser puts in a
+  root declared on a host already seen, `<link rel="prerender">` with Google Chrome) is written in SECURITY.md.
+- **A WebSocket no longer opens a forbidden route** (SECURITY.md): no route of the guard sees a WebSocket's
+  handshake, a `GET` its server answers. With `capture.forbidden`, the kit routes the WebSockets of every page
+  through Playwright (`routeWebSocket`): one to a forbidden path of the application is closed before it opens, as a
+  connection that failed, and listed with the prefetches aborted; any other connects. A worker's, and a
+  `WebSocketStream`, stay out of reach (SECURITY.md).
+- **A local application keeps its local API with `capture.forbidden`**: a page the guard answers itself has no
+  address for Chromium, which refused its calls to another local port (Local Network Access). The kit allows them
+  again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns
+  (except on production) when the application's env files name a local address on another origin
+  (`cli.doctor.localCalls`).
+- **What a page sends as it is left no longer reaches the server** (SECURITY.md › What a page sends as it is left):
+  while the next capture replaced a page, a beacon, a `keepalive` fetch or even an image that page sent on
+  `pagehide`, `unload` or `visibilitychange` left from a document no route of the guard saw any more, and
+  `fetchLater` from Chromium's own process: a read-only run with `capture.forbidden` let a `POST` and a forbidden
+  route through while it printed "0 write requests blocked". Whenever a guard is active (read-only, or
+  `capture.forbidden`), the first init script of every page now stops those events before any handler of the page,
+  through the browser's own `stopImmediatePropagation`, `visibilityState` getter and `Reflect.apply`, kept before
+  the page's scripts run (a page that redefines them changes nothing), and removes `fetchLater`, which the browser is
+  also launched without (`--disable-blink-features=FetchLaterAPI`, never a second `--disable-features`, which would
+  replace Playwright's own list). The page's own events still reach its handlers while it is open, and what it sends
+  then goes through the guard. `test/e2e/capture-redirects.test.mjs`, mutants `test/mutations/capture-guard.mjs`.
+  Written as limits: a `WebTransport` session, which no launch flag turns off and a worker keeps, and the end of an
+  older chain of a frame that ends last, held (within the bounds) until the frame's next navigation or its page's
+  closing.
+- **A shared worker no longer sends what the guard never sees** (SECURITY.md › Shared workers): Playwright routes the
+  requests of pages, frames and dedicated workers, never a `SharedWorker`'s, which reached the server, a `POST`
+  included, neither blocked nor counted, with or without `capture.forbidden`. Whenever a guard is active, the browser
+  is now launched without shared workers (`--disable-blink-features=FetchLaterAPI,SharedWorker`), and the first init
+  script removes `SharedWorker` from every page and frame too. A dedicated worker's requests still go through the
+  guard. `test/e2e/capture-redirects.test.mjs`, mutants `test/mutations/capture-guard.mjs`.
 - **A dependency's licence is kept only as a licence's name** (`engine/facts/deps/licences.mjs`, AUDIT.md S8): a
   package-lock.json entry's `license` was stored as written — an object, a licence's whole text, or a token-shaped
   string a secret detector finds. It now goes through an allowlist: one line, 100 characters at most, the characters

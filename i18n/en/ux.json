@@ -191,6 +191,8 @@
   "cli.doctor.target.production": { "one": "capture target: PRODUCTION, read-only ({url}); {n} forbidden route", "other": "capture target: PRODUCTION, read-only ({url}); {n} forbidden routes" },
   "cli.doctor.target.noForbidden": "capture target: PRODUCTION, read-only ({url}) — no forbidden route declared: check pages that write on render",
   "cli.doctor.target.noForbidden.help": "read the code of each detail page; list the routes whose rendering writes on the server in capture.forbidden (standard/captures.md)",
+  "cli.doctor.localCalls": "capture.forbidden with {url}, not a loopback address: during captures, Chromium blocks the pages' calls to {list} (a local address, an API on another port)",
+  "cli.doctor.localCalls.help": "point app.url at localhost or 127.0.0.1 for a local instance (the kit then lets these calls through), or capture it without capture.forbidden (SECURITY.md › Read-only captures have limits)",
   "cli.doctor.gitignore.ok": "{work} and {dist} are excluded from git",
   "cli.doctor.gitignore.none": "no git repository and no .gitignore: nothing protects the session ({work})",
   "cli.doctor.gitignore.none.help": "add a .gitignore with {work}, {dist} and node_modules/",

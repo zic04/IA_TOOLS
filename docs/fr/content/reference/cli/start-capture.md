@@ -31,7 +31,7 @@ sous-dossier (`frontend/`, `web/`…) : il devient `app.dir`, le code que lisent
 - **Questions** (sans `--yes`) : nom, langue, URL, où prendre les captures, mode de connexion (seulement avec des
   captures), pour qui est la documentation. Sans terminal et sans `--yes`, la commande s'arrête avec le code de sortie 2.
 - **Où prendre les captures** : « 1) application locale ou de démo, 2) production, en lecture seule, 3) aucune
-  capture ». Le choix 1 écrit `capture.target: "local"` pour une URL `localhost` ou `127.x`, `"demo"` sinon. Le
+  capture ». Le choix 1 écrit `capture.target: "local"` pour une URL de boucle locale (`localhost`, `127.x`…), `"demo"` sinon. Le
   choix 2 demande l'**adresse de la production** (jamais l'adresse locale déduite du script de développement), puis
   affiche trois rappels de sécurité : la lecture seule bloque les écritures du navigateur, **pas** une écriture faite
   par le serveur pendant qu'il affiche une page (listez ces routes dans `capture.forbidden`) ; le fichier de session
@@ -75,7 +75,7 @@ Une ligne par vérification, `✔` correct, `⚠` à regarder, `✖` à corriger
 | Groupe | Vérifications |
 |---|---|
 | Environnement | Version de Node ; dépendances du kit ; Chromium ; la dépendance du projet au kit ; le skill Claude Code installé ; la version du kit face à la plage `kit` du projet |
-| Projet | Configuration ; sommaire ; fichier de version (⚠ « version jamais incrémentée ? » quand il dit `0.0.0` ou `1.0.0` alors qu'un `version.txt`, `VERSION` ou `CHANGELOG.md` de l'application dit autre chose) ; dossier de l'application (`app.dir`) ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; la cible des captures (⚠ « aucune route interdite déclarée » pour une production dont `capture.forbidden` est vide) ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème. Avec `capture.mode: "none"`, ni la session, ni le dossier des plans, ni la cible ne sont vérifiés |
+| Projet | Configuration ; sommaire ; fichier de version (⚠ « version jamais incrémentée ? » quand il dit `0.0.0` ou `1.0.0` alors qu'un `version.txt`, `VERSION` ou `CHANGELOG.md` de l'application dit autre chose) ; dossier de l'application (`app.dir`) ; sources de la couverture ; fichiers du masquage ; dossier des plans de capture ; la cible des captures (⚠ « aucune route interdite déclarée » pour une production dont `capture.forbidden` est vide ; ⚠ « Chromium bloque les appels des pages » quand `capture.forbidden` est déclaré, que la cible n'est pas la production, que `app.url` n'est pas une adresse de bouclage et que les fichiers `masking.env` nomment une adresse locale d'une autre origine) ; `.gitignore` de `.doc-kit/` et `dist/` ; session (présente, âge, suivie par git) ; contrastes du thème. Avec `capture.mode: "none"`, ni la session, ni le dossier des plans, ni la cible ne sont vérifiés |
 | `--network` | L'application répond à `app.url` |
 
 Code de sortie : 3 quand l'environnement échoue, 2 quand la configuration est invalide, 1 quand une vérification du
@@ -118,8 +118,8 @@ identité — l'anonyme, plus une par `--as <rôle>` enregistré par `doc-kit co
 |---|---|
 | `--as <rôle>` | Répétable : vérifie aussi en tant que ce rôle |
 
-Refusé (code de sortie 2) sauf si l'adresse de l'application est une adresse locale (`localhost`, `127.x`,
-`[::1]`) ou si `capture.target` vaut `"demo"` ; `"production"` est toujours refusé, et aucune option ne contourne
+Refusé (code de sortie 2) sauf si l'adresse de l'application est une adresse locale (`localhost`, `127.x`, `0.0.0.0`,
+`[::1]`…) ou si `capture.target` vaut `"demo"` ; `"production"` est toujours refusé, et aucune option ne contourne
 l'une ou l'autre règle. Instance inaccessible : code de sortie 3. Sinon informatif : code de sortie 0 quoi qu'elle
 trouve. Au plus 4 requêtes par seconde, et un corps de réponse n'est jamais enregistré. [Revues de sécurité et de
 maintenabilité](#/spaces/reviews) explique les constats et pourquoi la production n'est jamais dans le périmètre.
@@ -167,7 +167,9 @@ sortie 2. Répondre non ne capture rien (code de sortie 0).
 
 Avec une session, la session est d'abord vérifiée et l'exécution se fait en lecture seule
 (`capture.readOnly: "auto"`). Code de sortie 1 quand une route est interdite ou qu'une capture a échoué, 3 quand
-l'application est injoignable ou que la session a expiré, 2 pour une erreur de plan. `--json` affiche `ok`, `failed`,
+l'application est injoignable ou que la session a expiré, 2 pour une erreur de plan, ou quand, avec `capture.forbidden`
+et `auth: none`, la page de départ s'ouvre sur une autre adresse que l'application (`capture.forbidden` ne couvrirait
+pas ses pages). `--json` affiche `ok`, `failed`,
 `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired` et, avec `--compare` ou `--stale`,
 `compared: [{ id, ratio, changed }]`. [Les plans de capture](#/capture/plans) expliquent les plans ;
 [Suivre l'application](#/reference/cli/write-check~doc-kit-sync) explique `doc-kit sync`, que `--stale` lit.

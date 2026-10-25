@@ -18,7 +18,6 @@ import {
 import { collectSecurity, RULES } from "../../engine/facts/security.mjs";
 import { collectQuality, rating } from "../../engine/facts/quality.mjs";
 import {
-  isLoopbackUrl,
   probeAllowed,
   cookieHeaderFromStorageState,
   routeParams,
@@ -30,7 +29,7 @@ import {
   runProbe,
   ProbeUnreachableError,
 } from "../../engine/review/probe.mjs";
-import { roleSessionFile, ROLE_PATTERN } from "../../engine/capture/session.mjs";
+import { roleSessionFile, ROLE_PATTERN, isLoopbackUrl } from "../../engine/capture/session.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { forbiddenMatchers } from "../../engine/capture/plans.mjs";
 
@@ -481,13 +480,31 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
 });
 
 describe("probe: refused outside local/demo (ARCHITECTURE.md §6.13)", () => {
-  test("isLoopbackUrl: localhost, *.localhost, 127.x, [::1]; a real host is not", () => {
-    assert.ok(isLoopbackUrl("http://localhost:3000"));
-    assert.ok(isLoopbackUrl("http://app.localhost:3000"));
-    assert.ok(isLoopbackUrl("http://127.0.0.1:3000"));
-    assert.ok(isLoopbackUrl("http://[::1]:3000"));
-    assert.ok(!isLoopbackUrl("https://acme-orders.example.com"));
-    assert.ok(!isLoopbackUrl("not a url"));
+  test("isLoopbackUrl: localhost, *.localhost, 127.x, 0.0.0.0, [::1], [::], [::ffff:127.x]; a real host is not", () => {
+    for (const url of [
+      "http://localhost:3000",
+      "http://app.localhost:3000",
+      "http://localhost.:3000",
+      "http://127.0.0.1:3000",
+      "http://127.255.0.9",
+      "http://0.0.0.0:3000",
+      "http://0:3000",
+      "http://[::1]:3000",
+      "http://[::]:3000",
+      "http://[::ffff:127.0.0.1]:3000",
+      "http://[::ffff:0.0.0.0]:3000",
+    ])
+      assert.ok(isLoopbackUrl(url), url);
+    for (const url of [
+      "https://acme-orders.example.com",
+      "http://localhost.example.com",
+      "http://0.0.0.1",
+      "http://128.0.0.1",
+      "http://[::ffff:10.0.0.1]",
+      "http://[::2]",
+      "not a url",
+    ])
+      assert.ok(!isLoopbackUrl(url), url);
   });
 
   test("probeAllowed: production never; demo always; local only when the URL is a loopback address", () => {

@@ -95,6 +95,67 @@ Une navigation arrête sa capture, et le bilan la liste :
 
 Les service workers sont bloqués pendant les captures : aucune requête n'échappe au contrôle.
 
+### Les redirections et les formes d'un chemin
+
+Un navigateur suit une redirection sans redemander l'avis du kit. Avec `capture.forbidden`, le kit suit donc lui-même
+les redirections de chaque navigation, un saut à la fois et d'une origine à l'autre, y compris l'aller-retour de
+connexion par le fournisseur d'identité : un saut qui revient sur une route interdite de l'application est refusé
+avant d'être demandé, et la capture s'arrête. Le navigateur ne reçoit que la fin de la chaîne : le serveur n'est
+jamais redemandé pour un saut ; un iframe reçoit cette fin directement (un iframe isolé par `sandbox` ne pourrait pas
+exécuter la page qui fait suivre un cadre). Une chaîne a des bornes : 20 s pour un saut, 25 s pour toute la chaîne,
+32 Mo pour la page au bout et 64 Mo pour toutes les pages gardées à la fois ; au-delà, la capture s'arrête et dit
+pourquoi. Quand deux navigations d'un cadre se chevauchent et que la plus ancienne finit la dernière, la page au bout
+de sa chaîne reste gardée (dans ces bornes) jusqu'à la navigation suivante de ce cadre ou jusqu'à la fermeture de sa
+page.
+
+L'application, ce sont toutes ses adresses : `https` quand son serveur y fait passer `http`, un point final, et
+tous les noms de la boucle locale l'un pour l'autre (même port) : `localhost` et `*.localhost`, `127.x`,
+`0.0.0.0`, `[::1]`, `[::]` et `[::ffff:127.0.0.1]`. Avec `auth: none`, une page de départ qui
+s'ouvre ailleurs (`www.`, un autre port) arrête la campagne : mettez dans `app.url` l'adresse où l'application
+répond.
+
+Un motif interdit est testé sur le chemin tel qu'un serveur le lit : décodé (une et deux fois), ses barres obliques
+inverses lues comme des barres obliques, sans ses paramètres de chemin (`;jsessionid=…`), ses segments `.` et `..`
+résolus, ses barres obliques doublées fusionnées, les points et espaces à la fin de chaque segment retirés
+(`approval.`, `approval%20` : IIS les ignore) et sans barre oblique finale. La casse est gardée : sur un serveur
+qui l'ignore, écrivez le motif pour chaque casse (`[Aa]pprove`) ; sur un serveur qui accepte un suffixe
+(`/approval.json` pour `/approval`), écrivez-le aussi (`^/orders/\d+/approval(\.\w+)?$`). Une route refusée est
+affichée sans ses paramètres de chemin, et une page de connexion par son origine et son chemin seulement : un
+identifiant de session, un état ou un code de connexion dans l'URL n'est jamais affiché.
+
+### Les règles de spéculation
+
+Une page peut demander au navigateur de précharger ou de pré-afficher d'autres pages :
+`<script type="speculationrules">`, ou un en-tête `Speculation-Rules` (des frameworks et des CDN en ajoutent).
+Chromium récupère ces pages depuis son propre processus, hors de portée du kit. Avec `capture.forbidden`, le kit
+retire donc ces règles de chaque page avant que le navigateur les lise. Non couverts : des règles dans une racine
+fantôme que le HTML déclare fermée, celles que l'analyseur place dans une racine fantôme qu'il déclare dans un hôte
+que le kit a déjà vu (un script avant le `<template shadowrootmode>` dans son hôte) et, avec Google Chrome
+(`browser: "chrome"`), un `<link rel="prerender">` (SECURITY.md les liste).
+
+L'ouverture d'un WebSocket échappe elle aussi aux routes du kit : avec `capture.forbidden`, le kit refuse un
+WebSocket vers une route interdite avant qu'il s'ouvre. Celui qu'ouvre un worker dédié, ou un `WebSocketStream`,
+n'est pas couvert (SECURITY.md), ni une session `WebTransport` : aucune option de lancement ne la désactive, et un
+worker la garderait même si la page la perdait.
+
+Ce qu'une page envoie pendant que la capture suivante la remplace (un appel à `sendBeacon`, un `fetch` avec
+`keepalive`, même une image) part d'un document que les routes du kit ne voient plus, et `fetchLater` envoie ses
+requêtes depuis le propre processus de Chromium. Dès que la lecture seule ou `capture.forbidden` est active, les
+gestionnaires qu'une page attache à son départ (`pagehide`, `unload`, `visibilitychange` vers caché) ne s'exécutent
+donc jamais pendant une capture, même sur une page qui redéfinit ce que le kit lit alors (`visibilityState`,
+`stopImmediatePropagation`), et `fetchLater` est retiré : ce qu'ils enverraient n'est ni envoyé ni compté. Tant que
+la page est ouverte, ses propres événements atteignent toujours ses gestionnaires, et ses requêtes (un appel à
+`sendBeacon` compris) passent par les routes du kit, bloquées et comptées comme les autres.
+
+Les requêtes d'un worker partagé échappent elles aussi aux routes du kit (celles d'un worker dédié y passent) : dès
+que la lecture seule ou `capture.forbidden` est active, le navigateur n'a pas de `SharedWorker` pendant une
+capture, dans aucune page ni aucun cadre.
+
+Avec `capture.forbidden`, les pages d'une application locale atteignent toujours son API sur un autre port local
+quand `app.url` est sur `localhost` ou `127.0.0.1`. Sur une autre adresse (une adresse du réseau local, un nom
+d'hôte), Chromium bloque ces appels pendant les captures, et `doc-kit doctor` le signale (sauf sur une cible de
+production) : utilisez `localhost` dans `app.url`.
+
 ## Avant d'ouvrir une page de détail
 
 :::etapes
