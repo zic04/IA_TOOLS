@@ -41,20 +41,130 @@ this file gives access to the application with the rights of the person who sign
 ### Read-only captures have limits
 
 With a session, `doc-kit capture` aborts **in the browser** every request other than `GET`, `HEAD` and `OPTIONS`, and
-counts them. A navigation of the application is fetched without following redirects, and its redirect chain is
-checked hop by hop before the browser follows it: a server redirect to a `capture.forbidden` route is refused before
-that route is requested. A forbidden pattern is tested on the path as written, percent-decoded, with doubled
-slashes collapsed and without a trailing slash. This does not cover:
+counts them. With `capture.forbidden`, the kit fetches every `GET` navigation itself, hop by hop, without following
+redirects, whatever the origins its chain goes through (a sign-in round trip through the identity provider): each hop
+back on the application is tested before it is requested, and a forbidden one never is (the navigation is refused,
+and the capture stops; a chain of more than 10 redirects is refused the same way, a redirect off the web is aborted).
+The application is every address of its own: its host and port whatever the scheme (an `http` application its server
+upgrades to `https`), without a trailing dot, and every name of the loopback interface (`localhost` and `*.localhost`,
+`127.x`, `0.0.0.0`, `[::1]`, `[::]`, `[::ffff:127.x]`) as one host: the guard fetches a hop from Node.js, which
+reaches `0.0.0.0` and `[::ffff:127.0.0.1]` where Chromium refuses them.
+With `capture.forbidden` and no sign-in (`auth: none`), a start page that lands anywhere else stops the run (exit
+code 2): the guard would not cover its pages. A chain has bounds: 20 s for a hop, 25 s for the whole chain (below the
+30 s a start page gets), 32 MB for the answer held for a frame and 64 MB for all the answers held at once; past them
+the navigation is aborted and the capture says why. Each answer the guard fetched is freed once used, and one held
+for a frame also when the frame goes elsewhere (another of its chains that ends after it included) or its page
+closes. When two navigations of a frame overlap and the older one's chain ends last, its end is held in place of the
+newer one's, although the frame went on with the newer one: it stays held, within the bounds above, until that
+frame's next navigation or until its page closes.
+The browser never gets a redirect, only the end of the chain: in a top-level frame, a page that sends the frame on to
+the end, whose answer, already fetched, is held for that frame's next navigation (recognised whatever the way
+Node.js and Chromium write its address: `/end|x`, `/end%7Cx`); in an iframe, the end itself, since a sandboxed
+iframe could not run that page's script. The server is never asked again for a hop of the chain,
+so a server that would answer a second request otherwise is not replayed; only when the end opens in another frame,
+or in a pop-up the kit could not tell yet, is the end asked again — and tested again. A hop sends the cookies the
+browser holds for its own address, never those of the first request, and another origin gets only the referrer's
+origin. A forbidden pattern is tested on the path as written, percent-decoded once and twice (`%252e`, for a proxy
+that decodes before the server does) with each run of escapes decoded on its own (a malformed one, `%zz`, is left as
+written and leaves the others decoded), its backslashes read as slashes, without its path parameters (`;jsessionid=…`,
+dropped before decoding as Tomcat does, and after), with its `.` and `..` segments resolved, with doubled slashes
+collapsed, with each segment's trailing dots and spaces dropped (`approval.`, `approval%20`, `approval%2e`: IIS
+ignores them) and without a trailing slash. A refused, aborted or blocked request is reported by its path without
+its path parameters and without its query string, and a sign-in page (an expired session, a sign-in asked for) or a
+bot challenge by its origin and that path only: a session id, a sign-in state or a code the application puts in its
+URLs is never printed, nor written in `--json`.
+
+**Speculation rules.** Chromium fetches the prefetches and prerenders a page asks for in speculation rules
+(`<script type="speculationrules">`, a `Speculation-Rules` header) from its own process, where the guard never sees
+them. No Chromium launch flag turns them off, and a `Content-Security-Policy` cannot refuse them without refusing
+the page's own inline scripts (`'unsafe-inline'` allows both). With `capture.forbidden`, the documents the guard
+serves lose their `Speculation-Rules` header, and a script the kit runs in every page before the page's own removes
+each `<script type="speculationrules">` before the browser reads it: inserted by the parser or by a script, retyped,
+in the document or in a shadow root the page attaches by script or declares open, at any depth (a declared root
+inside another). A root the HTML declares in a host the kit has already seen is found by the next sweep of the whole
+document: once it is parsed, and after a script attaches a shadow root.
+
+**WebSockets.** No route of the guard sees a WebSocket's handshake, a `GET` its server answers. With
+`capture.forbidden`, the kit routes the WebSockets of every page through Playwright (`routeWebSocket`): one to a
+forbidden path of the application (`ws:` read as `http:`, `wss:` as `https:`, every form of the path) is closed
+before it opens, as a connection that failed (code 1006), and listed with the prefetches aborted; the capture goes
+on. Any other connects, its messages relayed by Playwright.
+
+**What a page sends as it is left.** While the next capture, or a link, replaces a page, what that page still sends
+(`navigator.sendBeacon`, a `fetch` with `keepalive`, even an image) leaves from a document that no route of the guard
+sees any more: it reached the server whatever its method or its route. `fetchLater` sends its requests from
+Chromium's own process, when the page is left or once their delay is over. So whenever a guard is active (read-only,
+or `capture.forbidden`), a script the kit runs in every page before any other stops the events of a page being left
+(`pagehide`, `unload`, and `visibilitychange` to hidden) before any handler of the page sees them (one a script
+added or the HTML set, on the window or on the document), whatever the page redefines: the script keeps the
+browser's own `stopImmediatePropagation`, `visibilityState` getter and `Reflect.apply` before the page's scripts run,
+and calls only those when an event fires, so a page that redefines them (on a prototype, on the document, or their
+`call`) changes nothing. It also removes `fetchLater`, and the browser is launched without it
+(`--disable-blink-features=FetchLaterAPI`: a second `--disable-features` would replace the list Playwright passes
+there). A page's handlers for being left therefore never run during a capture: what they would send is neither sent
+nor counted. The events a page dispatches itself still reach its handlers, and what a page sends while it is open (a
+beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other request.
+
+**Shared workers.** Playwright routes the requests of pages, frames and dedicated workers (a `Worker`, and one it
+starts), never those of a `SharedWorker`: they reached the server whatever their method or their route, neither
+blocked nor counted. So whenever a guard is active, the browser is launched without shared workers (`SharedWorker`
+in the same flag: `--disable-blink-features=FetchLaterAPI,SharedWorker`), and the script the kit runs first in every
+page removes `SharedWorker` as well, in every document and frame: a page that starts one gets an error, as in a
+browser without them, and nothing it would have sent leaves. A dedicated worker's requests go through the guard,
+blocked and counted as a page's.
+
+None of this covers:
 
 - **writes made by the server while it renders a page** requested with a `GET` (a record created when a detail page
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
   list such routes in `capture.forbidden`, which the kit never opens;
 - `GET` requests that change state, WebSocket messages, and calls the server makes to other services;
+- a WebSocket opened by a dedicated worker (`Worker`) or with `WebSocketStream`: Playwright's routing only replaces
+  the `WebSocket` of each page and frame, so their handshake reaches the server unseen, neither refused nor counted;
+- a `WebTransport` session (HTTP/3): Chromium exposes it to pages and to workers, no route of the guard sees it, and
+  no launch flag removes it (`--disable-blink-features=WebTransport`, `--disable-features=WebTransport` and
+  `--disable-quic` leave it to the page). The kit does not take it from the page either: a script run before the
+  page's would remove it from the page, from an `about:blank` frame the page creates and from a pop-up, but a worker
+  the page starts keeps it. So it reaches its server whatever its path, neither refused nor counted;
 - `capture.readOnly: false`, which turns the protection off (the CLI warns on every run);
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);
-- a route on another origin than the application's (an API on another subdomain): `capture.forbidden` only covers
-  the application's origin.
+- a route on another host or port than the application's (an API on another subdomain, `www.`, `https` on another
+  port, a name that resolves to the loopback interface through DNS such as `localtest.me`): `capture.forbidden` only
+  covers the application's host and port. With sign-in, a page on another origin is
+  read as a sign-in page (the capture stops as for an expired session);
+- a server that matches a route by its suffix (Spring MVC's suffix pattern matching, off by default since Spring 5.3:
+  `/approval.json` for `/approval`), or that decodes a path more than twice: write the pattern for it
+  (`^/orders/\d+/approval(\.\w+)?$`); and a path in a non-standard encoding, IIS's `%u0061` or an overlong UTF-8
+  sequence (`%C1%A1` for `a`), which the kit does not decode: current servers reject them;
+- the size of an answer while it is fetched: Playwright reads a whole answer into memory before the kit can measure
+  it; the 32 MB and 64 MB caps bound what is held for the frames, not what one request reads;
+- the speculation rules the parser puts in an open shadow root it declares in a host the kit has already seen (a
+  script, or content long enough for the parser to pause, before the `<template shadowrootmode>` in its host): no
+  mutation reports such a root, which the kit finds only once the document is parsed or a script attaches a shadow
+  root. Chromium may fetch their pages before then, all the more when the document waits for a slow script after
+  them; rules a script puts there later are removed;
+- speculation rules in a shadow root that the HTML declares closed (`<template shadowrootmode="closed">`), in a
+  document the guard does not serve (a navigation sent with another method than `GET`, with
+  `capture.readOnly: false`), or put by a page that works around the kit on purpose; and, with Google Chrome
+  (`browser: "chrome"`), a `<link rel="prerender">`, which Chrome fetches itself (Playwright's Chromium ignores it):
+  such a prefetch is never seen, so neither refused nor counted;
+- an iframe whose address is redirected keeps its first address (its relative links resolve from it), and a pop-up
+  that a sandboxed iframe opens, then redirected, stays blank: it inherits the sandbox and cannot run the guard's
+  page;
+- the redirects of a request that is not a navigation (a `fetch`, an image) or of a navigation sent with another
+  method than `GET` (a form posted with `capture.readOnly: false`): the browser follows them unseen. The first address
+  of such a request is tested, not the places the server sends it to;
+- what Chromium itself would add to a navigation the kit now sends from Node.js (Playwright's request client), for
+  every origin, third-party frames included: cookies are chosen by domain, path and `Secure` only, never by
+  `SameSite`; no HSTS upgrade, no system proxy or certificate store, no Local Network Access check.
+
+**Local addresses.** A page the kit answers itself comes, for Chromium, from no address: its calls to a local address
+(the API of a local application on another port) are refused (Local Network Access). The kit allows them again, for
+the application's origin only, when the application is on a loopback address (`localhost`, `127.x`, `[::1]`…). On any
+other address (a LAN address, a name), `doctor` warns when the application's env files (`masking.env`) name a local
+address on another origin, except on a production target: use `localhost` or `127.0.0.1` in `app.url`, or capture
+that instance without `capture.forbidden`.
 
 On production, plans only navigate: no click on Save, Create, Approve, Delete, Send, Import or Sign out.
 

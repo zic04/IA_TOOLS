@@ -9,13 +9,10 @@
 // replaced and a before/after sheet is written next to the comparison copy in `compareDir`.
 //
 // Safety:
-//   read-only   every request other than GET/HEAD/OPTIONS is aborted in the browser and counted (on whenever a
-//               session is used, with capture.readOnly "auto"; always with capture.target "production");
-//   forbidden   capture.forbidden routes are never requested, whatever the method: a write made by the server
-//               while rendering cannot be blocked by the browser, so the request must never leave it. A request
-//               that only PREFETCHES such a route (fetch, XHR, framework payload, <link rel=prefetch>, iframe,
-//               any sub-resource) is aborted silently and counted: aborting it is what prevents the render. Only a
-//               navigation of a top-level frame (the plan's route, a click on a link, a pop-up) stops the capture;
+//   guard       read-only, capture.forbidden, redirects, speculation rules, WebSockets and what a page sends as it
+//               is left: guard.mjs, installed on every browser context with its first init script (and, with
+//               forbidden routes, its init script against speculation rules and its WebSocket route), its flags
+//               given to the browser;
 //   service workers   blocked whenever a guard is active, so that every request goes through it;
 //   session     checked before the first capture; a redirect to a sign-in page during the run stops it.
 import fs from "node:fs";
@@ -26,15 +23,21 @@ import { readProjectVersion } from "../project/version.mjs";
 import { CaptureError, registerSelectors } from "./actions.mjs";
 import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
-import { forbiddenMatch } from "./plans.mjs";
 import { trackNetwork } from "./stable.mjs";
 import { checkSession, sessionStorageOf, browserLaunch } from "./session.mjs";
-import { takeOne, SessionExpired, storageValues, zoneFile } from "./take.mjs";
+import {
+  requestGuard,
+  localNetworkGrant,
+  blockSpeculationRules,
+  blockUnloadRequests,
+  guardedLaunchArgs,
+} from "./guard.mjs";
+import { shownUrl } from "./plans.mjs";
+import { takeOne, afterRedirects, SessionExpired, storageValues, zoneFile } from "./take.mjs";
+import { TIMINGS } from "./timings.mjs";
 
 // Kept as exports of the capture module for the tests and commands that import them from here.
 export { storageValues, zoneFile };
-
-const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
 /**
  * Effective read-only mode of a run (ARCHITECTURE.md §3): always on for a production target, even without a session
@@ -50,108 +53,6 @@ export function readOnlyMode(capture, hasSession) {
 /** Unique list of blocked requests; the paths of bot challenges are grouped. */
 export function summarizeRequests(list) {
   return [...new Set(list.map((b) => b.replace(/\/cdn-cgi\/challenge-platform\/.*/, "/cdn-cgi/challenge-platform/…")))];
-}
-
-/**
- * Kind of a request to a forbidden route.
- *   "navigation"  a top-level frame opens the route (the plan's route, a click on a link, a pop-up, a redirect):
- *                 the capture would show it, so it stops;
- *   "prefetch"    anything else (fetch, XHR, framework payload, <link rel=prefetch>, iframe, sub-resource): aborted
- *                 silently, the capture goes on.
- * A navigation whose frame is not known yet (a pop-up being created) counts as a navigation.
- * @param {import("playwright").Request} request
- * @returns {"navigation"|"prefetch"}
- */
-export function forbiddenRequestKind(request) {
-  if (!request.isNavigationRequest()) return "prefetch";
-  let frame;
-  try {
-    frame = request.frame();
-  } catch {
-    return "navigation";
-  }
-  return frame?.parentFrame() ? "prefetch" : "navigation";
-}
-
-/**
- * Route handler of the safety guard (installed on every page of the browser context).
- *   - a request to a capture.forbidden path of the application is aborted: a navigation is listed in
- *     `result.refused` and reported through `onNavigation(path)` (the capture stops), anything else is listed in
- *     `result.prefetched` (the capture goes on);
- *   - with `readOnly`, any other method than GET/HEAD/OPTIONS is aborted and listed in `result.blocked`.
- * @param {{ appOrigin: string, forbidden: Array<{pattern, re}>, readOnly: boolean,
- *   result: { blocked: string[], refused: string[], prefetched: string[] }, onNavigation?: (path: string) => void }} p
- * @returns {(route: import("playwright").Route) => Promise<void>}
- */
-export function requestGuard({ appOrigin, forbidden, readOnly, result, onNavigation = () => {} }) {
-  return async (route) => {
-    const req = route.request();
-    let u;
-    try {
-      u = new URL(req.url());
-    } catch {
-      return route.fallback();
-    }
-    const refuse = (pathname) => {
-      const line = `${req.method()} ${pathname}`;
-      if (forbiddenRequestKind(req) === "navigation") {
-        result.refused.push(line);
-        onNavigation(pathname);
-      } else result.prefetched.push(line);
-      return route.abort("blockedbyclient");
-    };
-    if (forbidden.length && u.origin === appOrigin && forbiddenMatch(u.pathname, forbidden)) return refuse(u.pathname);
-    // A redirect is followed by the browser without calling this handler again: a navigation of the application
-    // is fetched here without following redirects, and the chain is checked before the browser sees it, so that
-    // a server redirect never leads to a forbidden route (SECURITY.md).
-    if (
-      forbidden.length &&
-      u.origin === appOrigin &&
-      req.isNavigationRequest() &&
-      SAFE_METHODS.includes(req.method())
-    ) {
-      let chain;
-      try {
-        chain = await redirectChain(route, u, { appOrigin, forbidden });
-      } catch {
-        return route.abort("failed");
-      }
-      if (chain.forbidden) return refuse(chain.forbidden);
-      return route.fulfill({ response: chain.response });
-    }
-    if (readOnly && !SAFE_METHODS.includes(req.method())) {
-      result.blocked.push(`${req.method()} ${u.origin === appOrigin ? u.pathname : u.host + u.pathname}`);
-      return route.abort("blockedbyclient");
-    }
-    return route.fallback();
-  };
-}
-
-/** Longest redirect chain checked before a navigation; a longer one is refused like a forbidden route. */
-const MAX_REDIRECTS = 10;
-
-/**
- * Fetches a navigation without following redirects, then each hop of its redirect chain on the application's
- * origin, stopping before any forbidden route (never requested). A hop on another origin (an identity provider)
- * ends the check: capture.forbidden only covers the application.
- * @returns {Promise<{ response?: object, forbidden?: string }>} the first response, for the browser to follow; or
- *   the forbidden path the chain leads to
- */
-async function redirectChain(route, url, { appOrigin, forbidden }) {
-  const response = await route.fetch({ maxRedirects: 0 });
-  let current = response;
-  let at = url;
-  for (let hop = 0; ; hop++) {
-    const status = current.status();
-    const location = status >= 300 && status < 400 ? current.headers().location : null;
-    if (!location) return { response };
-    const next = new URL(location, at);
-    if (next.origin !== appOrigin) return { response };
-    if (forbiddenMatch(next.pathname, forbidden)) return { forbidden: next.pathname };
-    if (hop >= MAX_REDIRECTS) return { forbidden: next.pathname };
-    current = await route.fetch({ url: next.href, maxRedirects: 0 });
-    at = next;
-  }
 }
 
 /**
@@ -272,17 +173,12 @@ export async function runCaptures({
   );
 
   fs.mkdirSync(rc.zonesDir, { recursive: true });
-  const browser = await launch(browserLaunch(auth, { headless: true }));
+  const browser = await launch(browserLaunch(auth, { headless: true, args: guardedLaunchArgs(rc.guarded) }));
   try {
     rc.encoder = await createWebpEncoder(browser);
     rc.pageFor = (w, name) => pageFor(rc, browser, w, name);
     const workers = Array.from({ length: concurrency }, () => newWorker(rc));
-    if (session) {
-      const page = await rc.pageFor(workers[0], entries[0]?.context || "desktop");
-      const s = await checkSession(page, { url: appUrl, auth });
-      if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: page.url() });
-      rc.result.who = s.who || null;
-    }
+    if (session) await checkRunSession(rc, workers[0], entries);
     await runWorkers(rc, workers, entries, onEvent);
     await rc.encoder.close();
   } finally {
@@ -291,15 +187,26 @@ export async function runCaptures({
   return rc.result;
 }
 
+/** The session, checked on a page of the first worker before the first capture (exit code 3 when it has expired). */
+async function checkRunSession(rc, w, entries) {
+  const page = await rc.pageFor(w, entries[0]?.context || "desktop");
+  const settle = (p, r) => afterRedirects(p, w.guard, r, { timeout: TIMINGS.start });
+  const s = await checkSession(page, { url: rc.appUrl, auth: rc.auth, settle });
+  // The sign-in page by its origin and path only: its query may hold a state or a code (S7).
+  if (!s) throw new KitError(EXIT.ENVIRONMENT, "capture.sessionExpired", { url: shownUrl(page.url()) });
+  rc.result.who = s.who || null;
+}
+
 /** A worker: its own pages (one per context name), guard state, open span and trace. */
 function newWorker(rc) {
-  const w = { pages: new Map(), state: { forbidden: null }, span: { close: () => {} }, tracing: null };
+  const w = { pages: new Map(), state: { forbidden: null, stopped: null }, span: { close: () => {} }, tracing: null };
   w.guard = requestGuard({
     appOrigin: rc.appOrigin,
     forbidden: rc.forbidden,
     readOnly: rc.readOnly,
     result: rc.result,
     onNavigation: (p) => (w.state.forbidden ??= p),
+    onStop: (key, vars) => (w.state.stopped ??= { key, vars }),
   });
   w.tracing = {
     context: null,
@@ -341,7 +248,20 @@ async function pageFor(rc, browser, w, name) {
     // A service worker could answer or send requests outside the guard: none is registered.
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
-  if (guarded) await context.route("**/*", w.guard);
+  if (guarded) {
+    // The first init script: what a page sends as it is left goes through no route, so its handlers never run.
+    await context.addInitScript(blockUnloadRequests);
+    await context.route("**/*", w.guard);
+  }
+  if (rc.forbidden.length) {
+    // Speculation rules would be fetched by Chromium itself, unseen by the guard: removed from every page.
+    await context.addInitScript(blockSpeculationRules);
+    // A WebSocket's handshake is never routed: one to a forbidden route is refused here.
+    await context.routeWebSocket(w.guard.sockets.matches, w.guard.sockets.refuse);
+  }
+  const grant = localNetworkGrant(rc.appUrl, rc.forbidden);
+  // A browser that does not know the permission: the calls stay refused (`doctor`, SECURITY.md).
+  if (grant) await context.grantPermissions(...grant).catch(() => {});
   if (cap.cookies.length)
     await context.addCookies(cap.cookies.map((c) => (c.url || c.domain ? c : { ...c, url: rc.appUrl })));
   if (rc.trace) await context.tracing.start({ screenshots: true, snapshots: true });
