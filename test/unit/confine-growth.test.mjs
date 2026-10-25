@@ -2,7 +2,9 @@
 // page's text and the facts. A missing one is judged by its nearest existing ancestor, found by bisection — asking
 // every ancestor in turn, each call given the whole path, cost depth times length (seconds for 16,000 missing parts).
 // Each shape is built at a base size, then 4 and 16 times larger (linearAt, test/tools/growth.mjs), no absolute time;
-// 16 times stays under the length cap (MAX_PATH, 32,767 characters), past which a path is missing without a call.
+// 16 times stays under the length cap (MAX_PATH, 32,767 characters), past which a path is missing without a call —
+// but the shape path.resolve is quadratic on (`a/` then `b/../`), past it at every size: what is measured there is the
+// check of climbing out as written, which comes before the cap.
 // The file system is a fake (no link privilege needed, no disk). test/tools/run-plan.mjs runs this file alone, after
 // the others. The functional tests of the confinement (the answers, the count of calls) stay in confine.test.mjs.
 import { test } from "node:test";
@@ -77,6 +79,26 @@ test("fileInside: many missing files in a row, as markPages passes them", () => 
   });
   assert.equal(at16.length, 8000);
   assert.ok(at16.every((r) => r === null));
+});
+
+test("fileInside: a path that goes down then back up as written, a/ n times then b/../ n times", () => {
+  // path.resolve is quadratic on it (each `..` cuts the path built so far, copied whole): 0.7 s for 448,000
+  // characters. Climbing out is judged in one pass, then a `rel` past MAX_PATH is missing before path.resolve reads
+  // it: past the cap at every size here (35,000 characters at the base), what is measured is that pass alone.
+  const shape = (n) => "a/".repeat(n) + "b/../".repeat(n) + "z.txt";
+  const inside = linearAt("down then up, inside", {
+    size: 5000,
+    make: (n) => ({ io: fakeIo(base), rel: shape(n) }),
+    read: ({ io, rel }) => fileInside(app, rel, io),
+  });
+  assert.equal(inside.at16, null, "missing: past the cap");
+  // Out of the application first: outside, whatever its length.
+  const outside = linearAt("down then up, out first", {
+    size: 5000,
+    make: (n) => ({ io: fakeIo(base), rel: "../x/" + shape(n) }),
+    read: ({ io, rel }) => fileInside(app, rel, io),
+  });
+  assert.equal(outside.at16, "outside");
 });
 
 test("fileInside: a chain of broken links (the longest followed), with a missing tail of many components", () => {

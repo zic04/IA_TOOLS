@@ -1,8 +1,10 @@
 // fileInside (engine/core/confine.mjs, SECURITY.md): the file a proof cites or a page depends on, judged where it
 // really is. A missing path is judged by its nearest existing ancestor, found by bisection; these tests prove it gives
 // the answers of the walk it replaced (every ancestor asked in turn, kept here as the reference) on random file systems
-// under both systems' path rules, in O(log depth) calls; a path longer than MAX_PATH is missing without a call; a broken
-// link whose target has a `..` after a name is outside; real links and junctions, and the folder given through one.
+// under both systems' path rules, in O(log depth) calls; climbing out as written, judged in one pass, gives the answers
+// of path.resolve (kept here as the reference) on random paths; a path longer than MAX_PATH, resolved or as written, is
+// missing without a call; a broken link whose target has a `..` after a name is outside; real links and junctions, and
+// the folder given through one.
 // The growth of its time is measured in confine-growth.test.mjs.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -358,6 +360,131 @@ describe("fileInside: the bisection gives the answers of the walk it replaced", 
   });
 });
 
+describe("fileInside: climbing out as written, in one pass, is what path.resolve answers", () => {
+  /**
+   * The check it replaced, kept as the reference: the path joined and resolved by path.resolve (quadratic on `a/`×n
+   * then `b/../`×n, confine-growth.test.mjs), then compared with the folder resolved.
+   */
+  const insideAsWritten = (dir, rel, P) => {
+    const top = P.resolve(dir);
+    const abs = P.resolve(P.join(dir, rel));
+    return abs === top || abs.startsWith(top.endsWith(P.sep) ? top : top + P.sep);
+  };
+  /** The folder read in the forms it is given: with or without a last separator, a root, a share, `\\?\`, relative. */
+  const DIRS = {
+    posix: ["/srv/app", "/srv/app/", "/", "/srv", "//srv//app", "/srv/./app", "/srv/x/../app", "srv/app", ".", "a\\b"],
+    win32: [
+      "C:\\srv\\app",
+      "C:/srv/app/",
+      "c:\\srv\\app",
+      "C:\\",
+      "C:\\srv",
+      "\\\\host\\share",
+      "\\\\host\\share\\srv\\app",
+      "//host/share/srv",
+      "\\\\?\\C:\\srv\\app",
+      "\\\\.\\C:\\srv",
+      "\\\\?\\UNC\\host\\share\\app",
+      "\\\\?\\C:",
+      "srv\\app",
+      ".",
+    ],
+  };
+  /** What starts a path elsewhere when it stands alone: a root, a share, a drive, a device. */
+  const STARTS = ["/", "//", "\\", "\\\\", "\\\\?\\", "\\\\.\\", "C:", "C:\\", "c:/", "\\\\host\\share\\"];
+  /**
+   * A random `rel`: often `..` up to past the root, then the folder's own names to come back by (one sometimes
+   * changed: its case, a letter more); then names, those names again, `..`, `.`, empty parts, drives, either
+   * separator (a name's character under POSIX' rules); sometimes a start of its own or separators at its end.
+   */
+  const randomRel = (r, top) => {
+    const own = top.split(/[\\/]/).filter(Boolean);
+    const tokens = ["a", "b", "..", "..", "..", ".", "", "C:", "D:", "...", "?", ...own, ...own];
+    const parts = [];
+    if (r.chance(0.5)) {
+      const up = 1 + r.int(own.length + 2);
+      parts.push(...Array.from({ length: up }, () => ".."));
+      if (r.chance(0.7))
+        parts.push(...own.slice(-up).map((n) => (r.chance(0.15) ? r.pick([n.toUpperCase(), n + "x", "a"]) : n)));
+    }
+    parts.push(...Array.from({ length: r.int(8) }, () => r.pick(tokens)));
+    let rel = parts.map((part, i) => (i ? (r.chance(0.3) ? "\\" : "/") : "") + part).join("");
+    if (r.chance(0.25)) rel = r.pick(STARTS) + rel;
+    if (r.chance(0.25)) rel += r.pick(["/", "\\", "//"]);
+    return rel;
+  };
+  /** A file system where every path is there as written, its calls counted: climbing out is answered before any. */
+  const mirror = (P) => {
+    const io = {
+      path: P,
+      calls: 0,
+      realpathSync: { native: (p) => (io.calls++, p) },
+      statSync: () => (io.calls++, { isFile: () => true }),
+      lstatSync: () => (io.calls++, { isSymbolicLink: () => false }),
+      readlinkSync: () => {
+        io.calls++;
+        throw ERRORS.EINVAL;
+      },
+    };
+    return io;
+  };
+  const RUN = 0x0c11b0a7;
+  const CASES = 6000;
+  for (const [rules, dirs] of Object.entries(DIRS))
+    test(`under ${rules} rules: ${CASES} random paths, outside without a call exactly where path.resolve says so`, (t) => {
+      const P = RULES[rules];
+      const seen = { outside: 0, inside: 0, cameBack: 0, atRoot: 0, started: 0 };
+      for (let i = 0; i < CASES; i++) {
+        const seed = caseSeed(RUN, i);
+        const r = rng(seed);
+        const dir = r.pick(dirs);
+        const rel = randomRel(r, P.resolve(dir));
+        const inside = insideAsWritten(dir, rel, P);
+        const io = mirror(P);
+        const got = fileInside(dir, rel, io);
+        const where = `seed ${hex(seed)}, ${rules}, ${JSON.stringify(dir)}, ${JSON.stringify(rel)}`;
+        assert.equal(io.calls === 0 ? got : "asked", inside ? "asked" : "outside", where);
+        // What the cases hold: each `..` part, the path before it out of the folder, or at its root already.
+        seen[inside ? "inside" : "outside"]++;
+        const sep = rules === "win32" ? /[\\/]/g : /\//g;
+        let out = false;
+        for (let start = 0, m; (m = sep.exec(rel + "/")) !== null; start = m.index + 1) {
+          if (rel.slice(start, m.index) !== "..") continue;
+          const before = P.resolve(P.join(dir, rel.slice(0, start)));
+          if (before === P.resolve(before, "..")) seen.atRoot++;
+          if (!insideAsWritten(dir, rel.slice(0, m.index), P)) out = true;
+        }
+        if (out && inside) seen.cameBack++;
+        if (STARTS.some((s) => rel.startsWith(s))) seen.started++;
+      }
+      // Every kind of answer, paths that leave the folder and come back by its names, `..` at the root, starts.
+      t.diagnostic(JSON.stringify(seen));
+      for (const [kind, count] of Object.entries(seen)) assert.ok(count > 100, `${kind}: ${count}`);
+    });
+
+  test("the minimal pairs: out and back by the folder's own names, the case included, and `..` at the root", () => {
+    for (const [P, app] of [
+      [path.posix, "/srv/app"],
+      [path.win32, "C:\\srv\\app"],
+      [path.win32, "\\\\?\\C:\\srv\\app"],
+    ]) {
+      const outside = (rel) => {
+        const io = mirror(P);
+        return fileInside(app, rel, io) === "outside" && io.calls === 0;
+      };
+      assert.equal(outside("../app/lib/a.txt"), false, `${app}: back by its name`);
+      assert.equal(outside("../APP/lib/a.txt"), true, `${app}: another name, case included`);
+      assert.equal(outside("../ap/../app/x"), false, `${app}: a detour, then back`);
+      assert.equal(outside("x/../../app"), false, `${app}: the folder itself`);
+      assert.equal(outside("x/../../appx"), true, `${app}: a sibling`);
+      const up = "../".repeat(P.resolve(app).split(/[\\/]/).filter(Boolean).length + 3);
+      const back = P.resolve(app).slice(P.resolve(app, P.sep).length).split(P.sep).join("/");
+      assert.equal(outside(up + back + "/x"), false, `${app}: \`..\` past the root is nothing`);
+      assert.equal(outside(up + "x/" + back), true, `${app}: past the root, elsewhere`);
+    }
+  });
+});
+
 describe("fileInside: a path longer than MAX_PATH is missing, without the file system", () => {
   /** A relative path that makes the path under `app` exactly `length` characters long. */
   const relOfLength = (P, app, length) => {
@@ -366,7 +493,7 @@ describe("fileInside: a path longer than MAX_PATH is missing, without the file s
     return "lib" + P.sep + ("d" + P.sep).repeat(pairs) + "z".repeat(room - 4 - 2 * pairs);
   };
   for (const [rules, P] of Object.entries(RULES))
-    test(`under ${rules} rules: asked at MAX_PATH, not one more; climbing out stays outside; a long path that is short once resolved is read`, () => {
+    test(`under ${rules} rules: asked at MAX_PATH, not one more, resolved or as written; climbing out stays outside`, () => {
       const io = modelFs(P);
       const app = io.add(P.join(rules === "win32" ? "C:\\" : "/", "srv", "app"));
       io.add(P.join(app, "lib"));
@@ -381,14 +508,21 @@ describe("fileInside: a path longer than MAX_PATH is missing, without the file s
       assert.equal(at.got, null, "missing inside");
       assert.ok(at.calls > 0, "asked of the file system");
       assert.deepEqual(answer(relOfLength(P, app, MAX_PATH + 1)), { got: null, calls: 0 }, "one more: never asked");
-      // Climbing out as written is checked first: such a path is outside, whatever its length.
+      // Climbing out as written is checked first: such a path is outside, whatever its length; one that comes back
+      // by the folder's name is not, and past the cap it is missing.
       const out = ".." + P.sep + "x" + P.sep + relOfLength(P, app, MAX_PATH + 100);
       assert.ok(P.resolve(app, out).length > MAX_PATH);
       assert.deepEqual(answer(out), { got: "outside", calls: 0 });
-      // The cap is on the path resolved: `./` repeated past it still names lib/a.txt.
-      const padded = "./".repeat(MAX_PATH) + "lib/a.txt";
-      assert.ok(padded.length > MAX_PATH);
+      const back = ".." + P.sep + "app" + P.sep + relOfLength(P, app, MAX_PATH + 100);
+      assert.deepEqual(answer(back), { got: null, calls: 0 });
+      // The cap is on `rel` as written too, before path.resolve (quadratic on some shapes) reads it: `./` repeated
+      // up to it still names lib/a.txt; one character more, and it is missing without a call.
+      const padded = "./".repeat(16379) + "lib/a.txt";
+      assert.equal(padded.length, MAX_PATH);
       assert.equal(answer(padded).got, file);
+      const over = "./".repeat(16379) + "lib//a.txt";
+      assert.equal(over.length, MAX_PATH + 1);
+      assert.deepEqual(answer(over), { got: null, calls: 0 });
     });
 });
 

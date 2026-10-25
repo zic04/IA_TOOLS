@@ -339,7 +339,9 @@ entries between a project's `kit` range and the installed version.
   (`sync.proofOutside`, never `fileDeleted`): no report tells which files of the operator exist. The nearest
   existing folder of a missing path is found by bisection, in O(log depth) calls — asking every folder above it, each
   call given the whole path, took seconds on a path of 16,000 missing parts that a page can cite —, and a path longer
-  than 32,767 characters (Windows' limit) is missing without a call.
+  than 32,767 characters (Windows' limit), resolved or as written, is missing without a call. Climbing out as written
+  (`../`) is judged first, in one pass, before `path.resolve` (0.7 s on 448,000 characters of `a/` then `b/../`)
+  reads the path.
 - **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
   wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
   52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a

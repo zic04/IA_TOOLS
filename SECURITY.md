@@ -395,7 +395,10 @@ as untrusted input:
   parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
   link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
   target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
-  the text cannot. Neither the marking, the report nor `--since` tells whether a file of the operator exists.
+  the text cannot. The cap holds for the path as written too, before `path.resolve` reads it (quadratic on `a/`
+  repeated then `b/../` repeated): climbing out (`../`) is judged first, in one pass, and a path padded past the cap
+  (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor
+  `--since` tells whether a file of the operator exists.
   Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
   one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
   on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the

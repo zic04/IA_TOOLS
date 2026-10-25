@@ -17,7 +17,8 @@ const MAX_LINKS = 32;
 
 /**
  * The longest path a file system resolves: Windows' (32,767 UTF-16 units, which a string's length counts), past
- * POSIX's (4,096 bytes a call). A longer one is missing for fileInside, answered without the file system.
+ * POSIX's (4,096 bytes a call). A longer one is missing for fileInside, answered without the file system; so is a
+ * longer `rel` as written, answered without path.resolve too (climbsOut).
  */
 const MAX_PATH = 32767;
 
@@ -71,9 +72,12 @@ export function realInside(realBase, target, io = fs) {
 /**
  * The file `rel` (relative to the folder `dir`) names, for a reader that must stay in that folder — the file a proof
  * cites, a dependency of a page (engine/sync): its real path when it is a file inside `dir`, links and junctions
- * followed; "outside" when it climbs out as written (`../`), or really lies outside, or would were it there (a link
- * or a junction followed, missingOutside): never read, and whether a file outside exists is never told; null when
- * there is no such file in `dir` (missing, a folder, a broken link that stays inside, a path longer than MAX_PATH).
+ * followed; "outside" when it climbs out as written (`../`, climbsOut, whatever its length), or really lies outside,
+ * or would were it there (a link or a junction followed, missingOutside): never read, and whether a file outside
+ * exists is never told; null when there is no such file in `dir` (missing, a folder, a broken link that stays inside,
+ * a path longer than MAX_PATH). The length is checked on `rel` as written before path.resolve is given it (quadratic
+ * on some shapes, climbsOut), then on the path resolved: a `rel` padded past MAX_PATH (`./` 20,000 times before
+ * `lib/a.txt`) is missing too, though it names a file, which no writer of a proof does.
  * @param {string} dir
  * @param {string} rel
  * @param {ConfineIo} [io]
@@ -82,8 +86,9 @@ export function realInside(realBase, target, io = fs) {
 export function fileInside(dir, rel, io = fs) {
   const P = io.path ?? path;
   const top = P.resolve(dir);
-  const abs = P.resolve(P.join(dir, rel));
-  if (!within(abs, top, P.sep)) return "outside";
+  if (climbsOut(top, rel, P)) return "outside";
+  if (rel.length > MAX_PATH) return null;
+  const abs = P.resolve(P.join(top, rel));
   if (abs.length > MAX_PATH) return null;
   const base = realPathOf(dir, io);
   if (!base) return null;
@@ -95,6 +100,39 @@ export function fileInside(dir, rel, io = fs) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether `rel`, joined to the folder `top` (resolved), lies outside it as written: what path.resolve answers
+ * (`P.resolve(P.join(top, rel))` neither `top` nor under it), in one pass over the parts of `rel`, where
+ * path.resolve is quadratic on `a/`×n then `b/../`×n (each `..` cuts the path built so far, copied whole) and `rel`
+ * comes from a page's text. A name goes down, `..` up, never above the root path.resolve gives (`\\?\` for
+ * `\\?\C:\app`, a name `C:` under it), `.` and an empty part are nothing; `\` separates too under Windows' rules.
+ * Out of `top`, a path may come back by its names (`../app/x` from `app` is inside): `up` counts the folders of
+ * `top` it left, `off` the names it went down that are not `top`'s. A drive, a server or `\\?\` in `rel` is a name:
+ * join puts `rel` under `top`.
+ * @param {string} top   P.resolve(dir)
+ * @param {string} rel
+ * @param {import("node:path").PlatformPath} P
+ */
+function climbsOut(top, rel, P) {
+  const root = P.resolve(top, P.sep);
+  const names = top.length > root.length ? top.slice(root.length).split(P.sep) : [];
+  let up = 0;
+  let off = 0;
+  let start = 0;
+  for (let i = 0; i <= rel.length; i++) {
+    if (i < rel.length && rel[i] !== "/" && rel[i] !== P.sep) continue;
+    const part = rel.slice(start, i);
+    start = i + 1;
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (off > 0) off--;
+      else if (up < names.length) up++;
+    } else if (off === 0 && up > 0 && part === names[names.length - up]) up--;
+    else off++;
+  }
+  return up > 0;
 }
 
 /**
