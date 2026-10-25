@@ -10,6 +10,7 @@
   "cli.sync.sourcesOnePage.help": "lancez {command} sync --mark <page> --sources <fichier[:lignes]>",
   "cli.sync.proofUnresolved": "[{page}] preuve non enregistrée : {ref} (le fichier n'existe pas, ou la ligne dépasse sa fin)",
   "cli.sync.proofOutside": "[{page}] preuve non enregistrée : {ref} (son fichier est hors de l'application, par ../ ou un lien : jamais lu)",
+  "cli.sync.dependencyOutside": "[{page}] dépendance non suivie : {path} (elle est hors de l'application, par ../ ou un lien : jamais lue ni hachée)",
   "cli.sync.truncated": "[{page}] la fermeture des imports locaux a été coupée à 200 fichiers : certaines dépendances manquent peut-être",
   "cli.sync.noGit": "pas de git ici : un fichier supprimé n'est jamais détecté comme un renommage",
   "cli.sync.sinceNoInventory": "--since ne signale jamais d'élément nouveau ou supprimé : les adaptateurs de couverture ne sont pas relancés à ce commit",

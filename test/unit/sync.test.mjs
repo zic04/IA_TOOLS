@@ -2,7 +2,7 @@
 // marking, the report (review/unchanged/proofs/labels/captures/new/removed/unmarked), --apply, the CLI, --check
 // and --estimate. git is read only, reached through the `exec` test seam (engine/sync/git.mjs): never a real
 // git process, never a repository created by the tests.
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -27,6 +27,7 @@ import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { PROOF } from "../../engine/audit/audit.mjs";
+import { fileInside } from "../../engine/core/confine.mjs";
 
 const FIXTURES = path.join(KIT_ROOT, "test", "fixtures");
 
@@ -1539,14 +1540,18 @@ describe("engine/sync: a proof outside the application is never read", () => {
           report.warnings.some((w) => w.key === "sync.proofOutside" && w.vars.ref === ref && w.vars.page === id),
           `${ref}: its reason given`,
         );
-      // Its file, recorded as a dependency, is never hashed again: gone, as a file outside is no dependency now.
+      // Its file, recorded as a dependency, is never hashed again, nor counted deleted (dependencyFile): said so.
       const reasons = report.review.find((r) => r.page === id)?.reasons ?? [];
       assert.deepEqual(
-        reasons.filter((r) => r.path.includes("util.js")).map((r) => [r.path, r.change]),
-        [
-          ["../outside/util.js", "deleted"],
-          ["j/util.js", "deleted"],
-        ],
+        reasons.filter((r) => r.path.includes("util.js")),
+        [],
+      );
+      assert.deepEqual(
+        report.warnings
+          .filter((w) => w.key === "sync.dependencyOutside" && w.vars.page === id)
+          .map((w) => w.vars.path)
+          .sort(),
+        ["../outside/util.js", "j/util.js"],
       );
       const check = await cli(["sync", "--check", "--project", fx.root], { commit: () => "c0ffee" });
       assert.equal(check.code, 1, "a moved proof and a page to review");
@@ -1562,6 +1567,266 @@ describe("engine/sync: a proof outside the application is never read", () => {
       } catch {
         if (fs.existsSync(junction)) fs.rmdirSync(junction);
       }
+      fx.release();
+    }
+  });
+});
+
+/**
+ * Runs `fn` with fs.readFileSync spied on (restored after, on every path): its result, and every file read whose real
+ * path lies in `folder` — the proof that nothing outside the application is read.
+ * @template T
+ * @param {string} folder
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<{ result: T, reads: string[] }>}
+ */
+async function readsIn(folder, fn) {
+  const base = fs.realpathSync.native(folder);
+  const reads = [];
+  const original = fs.readFileSync;
+  const spy = mock.method(fs, "readFileSync", function (p, ...rest) {
+    if (typeof p === "string" || p instanceof URL || Buffer.isBuffer(p)) {
+      let real = null;
+      try {
+        real = fs.realpathSync.native(p);
+      } catch {
+        // missing: nothing read there
+      }
+      if (real && (real === base || real.startsWith(base + path.sep))) reads.push(path.relative(base, real));
+    }
+    return original.call(this, p, ...rest);
+  });
+  try {
+    return { result: await fn(), reads };
+  } finally {
+    spy.mock.restore();
+  }
+}
+
+/** Removes a junction (or a link) on its own: removing the folder must never walk into what it points to. */
+function unlinkJunction(junction) {
+  try {
+    fs.unlinkSync(junction);
+  } catch {
+    if (fs.existsSync(junction)) fs.rmdirSync(junction);
+  }
+}
+
+// SECURITY.md, confinement: a dependency file of a page (declared by --mark --sources or in sync.json, the `file` of a
+// facts/api.json item, a route file) is read and hashed only where it really is in the application, links and
+// junctions followed — at marking and in the report alike (dependencyFile). One outside is never read, hashed nor
+// recorded; it is said so (sync.dependencyOutside), and never counts as deleted: `--check` agrees with the marking.
+describe("engine/sync: a dependency file outside the application is never read", () => {
+  const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", plans: [] };
+  const report = async (fx, config, toc, inventory, reference, extra = {}) =>
+    compareWithReference({
+      root: fx.root,
+      config,
+      toc,
+      reference,
+      since: null,
+      git: createGit(() => null, fx.appDir),
+      inventory,
+      plans: [],
+      appDir: fx.appDir,
+      version: "1.0.0",
+      commit: "c0ffee",
+      factsDir: config.paths.facts,
+      ...extra,
+    });
+  const outsideWarnings = (warnings, page) =>
+    warnings
+      .filter((w) => w.key === "sync.dependencyOutside" && w.vars.page === page)
+      .map((w) => w.vars.path)
+      .sort();
+
+  test("fileInside (engine/core/confine.mjs): a file of the folder, or outside as written or once links are followed", () => {
+    const dir = tempDir("doc-kit-inside-");
+    const app = path.join(dir, "app");
+    const junctions = [path.join(app, "j"), path.join(app, "in")];
+    try {
+      fs.mkdirSync(path.join(app, "lib"), { recursive: true });
+      fs.mkdirSync(path.join(dir, "outside"));
+      fs.writeFileSync(path.join(app, "lib", "a.ts"), "export const a = 1;\n");
+      fs.writeFileSync(path.join(dir, "outside", "b.ts"), "export const b = 1;\n");
+      fs.symlinkSync(path.join(dir, "outside"), junctions[0], "junction");
+      fs.symlinkSync(path.join(app, "lib"), junctions[1], "junction");
+      const real = fs.realpathSync.native(path.join(app, "lib", "a.ts"));
+      // Minimal pairs: the same file, or the same name, one step apart.
+      assert.equal(fileInside(app, "lib/a.ts"), real);
+      assert.equal(fileInside(app, "lib/../lib/a.ts"), real, "a .. that stays inside");
+      assert.equal(fileInside(app, "in/a.ts"), real, "a junction to a folder inside");
+      assert.equal(fileInside(app, "j/b.ts"), "outside", "a junction to a folder outside");
+      assert.equal(fileInside(app, "../outside/b.ts"), "outside", "climbs out, the file exists");
+      assert.equal(fileInside(app, "../outside/missing.ts"), "outside", "climbs out, even missing");
+      assert.equal(fileInside(app, "lib/missing.ts"), null, "missing inside");
+      assert.equal(fileInside(app, "lib"), null, "a folder");
+      assert.equal(fileInside(app, "j"), "outside", "a folder outside");
+    } finally {
+      for (const j of junctions) unlinkJunction(j);
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("sync --mark <page> --sources ../shared/money.ts, then --check: exit code 0 and the warning; never read nor recorded", async () => {
+    const fx = syncFixtureCopy();
+    const shared = path.join(path.dirname(fx.appDir), "shared");
+    const id = "take-over/orders-api";
+    try {
+      fs.mkdirSync(shared);
+      fs.writeFileSync(path.join(shared, "money.ts"), 'export const leaked = "of the operator";\n');
+      const io = { commit: () => "c0ffee" };
+      const run = (...args) => cli([...args, "--project", fx.root], io);
+      const { result, reads } = await readsIn(shared, async () => ({
+        all: await run("sync", "--mark", "--all", "--date", "2026-10-02"),
+        mark: await run("sync", "--mark", id, "--sources", "../shared/money.ts", "--date", "2026-10-02"),
+        check: await run("sync", "--check"),
+        json: await run("sync", "--json"),
+      }));
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.equal(result.mark.code, 0, result.mark.err);
+      assert.match(result.mark.out, /\[take-over\/orders-api\] dependency not followed: \.\.\/shared\/money\.ts \(/);
+      const config = await syncConfig(fx.root);
+      const { reference } = readSyncReference(fx.root, config);
+      assert.ok(!Object.keys(reference.pages[id].files).some((f) => f.includes("money")), "no hash recorded");
+      assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
+      assert.equal(result.check.code, 0, result.check.out);
+      assert.match(result.check.out, /dependency not followed: \.\.\/shared\/money\.ts \(/);
+      assert.doesNotMatch(result.check.out, /deleted/);
+      const r = JSON.parse(result.json.out);
+      assert.deepEqual(r.review, [], "never a deleted file");
+      assert.ok(r.unchanged.includes(id), r.unchanged.join(", "));
+      assert.deepEqual(outsideWarnings(r.warnings, id), ["../shared/money.ts"]);
+      // In French too.
+      const fr = createI18n({ language: "fr" }).t("cli.sync.dependencyOutside", {
+        page: id,
+        path: "../shared/money.ts",
+      });
+      assert.match(fr, /^\[take-over\/orders-api\] dépendance non suivie : \.\.\/shared\/money\.ts \(/);
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("a declared entry outside (../ or a junction), an older sync.json's hash too: never read, never deleted", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "j");
+    const id = "take-over/orders-api";
+    const declared = ["../outside/util.js", "j/util.js"];
+    try {
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
+      fs.symlinkSync(outside, junction, "junction");
+      const config = await syncConfig(fx.root);
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const older = { app: { commit: "c0ffee", version: "1.0.0", date: "2026-10-01" }, pages: { [id]: { declared } } };
+      const { result, reads } = await readsIn(outside, async () => {
+        const marked = await markPages({ root: fx.root, config, toc, pages: [id], inventory, reference: older, ...at });
+        // An older sync.json (0.4.1) hashed them: the report never reads them again, nor calls them deleted.
+        const ref = structuredClone(marked.reference);
+        for (const f of declared) ref.pages[id].files[f] = hashText("export const leaked = 1;\n");
+        return { marked, after: await report(fx, config, toc, inventory, ref) };
+      });
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      const { reference, warnings } = result.marked;
+      assert.deepEqual(outsideWarnings(warnings, id), declared);
+      assert.ok(!Object.keys(reference.pages[id].files).some((f) => f.includes("util.js")), "no hash recorded");
+      assert.ok(Object.keys(reference.pages[id].files).includes("backend/api/orders.py"), "the files beside are");
+      assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
+      assert.deepEqual(result.after.review, [], "never a deleted file");
+      assert.ok(result.after.unchanged.includes(id));
+      assert.deepEqual(outsideWarnings(result.after.warnings, id), declared);
+    } finally {
+      unlinkJunction(junction);
+      fx.release();
+    }
+  });
+
+  test("the `file` of a facts/api.json item outside: never read at marking, nor shown by git with --since", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const id = "use/orders/detail";
+    try {
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
+      const config = await syncConfig(fx.root);
+      const apiFile = path.join(fx.root, config.paths.facts, "api.json");
+      const api = JSON.parse(fs.readFileSync(apiFile, "utf8"));
+      for (const item of api.items) item.file = "../outside/util.js";
+      fs.writeFileSync(apiFile, JSON.stringify(api));
+      // The detail screen calls the API: its handler, outside, becomes a dependency of the page.
+      fs.appendFileSync(path.join(fx.appDir, "app", "orders", "[id]", "page.tsx"), "fetch(`/api/orders/1`);\n");
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const shown = [];
+      const exec = (bin, args) => {
+        if (args[0] === "show") shown.push(args.at(-1));
+        return fakeExec({ showFiles: { "c0ffee:../outside/util.js": "export const leaked = 1;\n" } })(bin, args);
+      };
+      const { result, reads } = await readsIn(outside, async () => {
+        const marked = await markPages({ root: fx.root, config, toc, all: true, inventory, reference: null, ...at });
+        return {
+          marked,
+          now: await report(fx, config, toc, inventory, marked.reference),
+          since: await report(fx, config, toc, inventory, marked.reference, {
+            since: "c0ffee",
+            git: createGit(exec, fx.appDir),
+          }),
+        };
+      });
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      const { reference, warnings } = result.marked;
+      assert.deepEqual(outsideWarnings(warnings, id), ["../outside/util.js"]);
+      assert.ok(!Object.keys(reference.pages[id].files).some((f) => f.includes("util.js")), "no hash recorded");
+      assert.ok(!result.now.review.some((r) => r.page === id), JSON.stringify(result.now.review));
+      assert.ok(result.now.unchanged.includes(id));
+      assert.deepEqual(outsideWarnings(result.now.warnings, id), ["../outside/util.js"]);
+      assert.ok(!shown.some((s) => s.includes("outside")), `never shown by git: ${shown.join(", ")}`);
+      const reasons = result.since.review.find((r) => r.page === id)?.reasons ?? [];
+      assert.ok(!reasons.some((r) => r.path.includes("util.js")), JSON.stringify(reasons));
+      assert.deepEqual(outsideWarnings(result.since.warnings, id), ["../outside/util.js"]);
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("a routes folder that is a junction: its files never read (nor for the API paths they call), the pages unchanged", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "app");
+    try {
+      fs.mkdirSync(outside);
+      fs.renameSync(junction, path.join(outside, "app"));
+      fs.appendFileSync(
+        path.join(outside, "app", "orders", "page.tsx"),
+        "\n// of the operator\nfetch(`/api/orders/1`);\n",
+      );
+      fs.symlinkSync(path.join(outside, "app"), junction, "junction");
+      const config = await syncConfig(fx.root);
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const { result, reads } = await readsIn(outside, async () => {
+        const marked = await markPages({ root: fx.root, config, toc, all: true, inventory, reference: null, ...at });
+        return { marked, after: await report(fx, config, toc, inventory, marked.reference) };
+      });
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      const { reference, warnings } = result.marked;
+      const expected = {
+        "use/orders": ["app/layout.tsx", "app/orders/page.tsx"],
+        "use/orders/detail": ["app/layout.tsx", "app/orders/[id]/page.tsx"],
+      };
+      for (const [id, files] of Object.entries(expected)) {
+        assert.deepEqual(outsideWarnings(warnings, id), files, id);
+        assert.ok(!Object.keys(reference.pages[id].files).some((f) => f.startsWith("app/")), `${id}: no hash recorded`);
+        assert.ok(!result.after.review.some((r) => r.page === id), JSON.stringify(result.after.review));
+        assert.ok(result.after.unchanged.includes(id), `${id} unchanged`);
+        assert.deepEqual(outsideWarnings(result.after.warnings, id), files, id);
+      }
+      assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
+    } finally {
+      unlinkJunction(junction);
       fx.release();
     }
   });

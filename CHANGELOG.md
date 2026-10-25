@@ -298,8 +298,17 @@ entries between a project's `kit` range and the installed version.
   through a junction or by `../` (`j/util.js:1`, `../outside/util.js:1`) and wrote its first line in `sync.json`. Such
   a proof is now neither read, recorded nor a dependency of the page, and the warning says why
   (`sync.proofOutside`). One an older `sync.json` recorded is not read again by the report (`sync`, `--check`):
-  the same warning, in `sync.md`, the output and `warnings` of `sync-report.json`, and its file, recorded as a
-  dependency, is reported gone.
+  the same warning, in `sync.md`, the output and `warnings` of `sync-report.json`; its file, recorded as a
+  dependency, is neither read nor reported gone (below).
+- **A page's dependency file is read only where it really is in the application** (SECURITY.md): `sync --mark`
+  hashed a dependency with its path joined to `app.dir`, unconfined — a declared source (`--sources
+  ../shared/money.ts`, a `declared` entry of `sync.json`), the `file` of a `facts/api.json` item, the route
+  files of a routes folder that is a junction — and `pageDependencies` read those route files to find the API paths
+  they call; the report, confined, then called them deleted, so `sync --check` failed right after `--mark` and such
+  a page was never unchanged again. One helper (`dependencyFile`, engine/sync/dependencies.mjs, on `fileInside` of
+  engine/core/confine.mjs, which `proofFile` uses too) now serves the marking, the report, `--since` (never `git
+  show`n) and those reads: a dependency outside the application is never read, hashed nor recorded, never counted
+  deleted, and the warning `sync.dependencyOutside` says so, at marking and in every report.
 - **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
   wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
   52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a
@@ -308,7 +317,10 @@ entries between a project's `kit` range and the installed version.
   `next-app-router`, `openapi`, `react-router` and `glob` adapters (a segment of a file's path) wrote it in clear in
   `check coverage` and the audit, while `facts` writes "…". For `glob`, a file's name is judged without its
   extension, so `OrderSummaryCard.tsx` is kept and two components never share one id. `sync` finds the files of a
-  masked route through each of them (`next-app-router` too).
+  masked route through each of them (`next-app-router` too). Two limits, written in SECURITY.md and the adapters'
+  reference: the masked names of one folder share one id (`db/migrate/…` for migrations named by a timestamp,
+  files named by a UUID or a hash), and an ordinary name that reads as no words is masked
+  (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`).
 - **`::facts{source}` and `::diagram{id}` name a file by a plain name** (`a-z`, `0-9`, `-`): `source="../../x"` or
   `id="../.."` read a file outside the project. Such an attribute is now a build error, `facts.source` or
   `diagram.id`, and nothing is read; `sync` no longer reads nor hashes it as a dependency of the page

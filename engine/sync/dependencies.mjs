@@ -15,6 +15,7 @@ import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
 import { isPlainName } from "../core/text.mjs";
+import { fileInside } from "../core/confine.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -70,10 +71,37 @@ const factsSourcesOf = (markdown) => [
  * @param {string} ref        "doc:<path>"
  * @returns {string|null}
  */
-export function docFile(root, factsDir, ref) {
+function docFile(root, factsDir, ref) {
   const prefix = `doc:${factsDir}/`;
   const name = ref.startsWith(prefix) && ref.endsWith(".json") ? ref.slice(prefix.length, -".json".length) : null;
   return isPlainName(name) ? path.join(root, factsDir, `${name}.json`) : null;
+}
+
+/**
+ * The file of a dependency of a page, for whatever reads or hashes it — the marking, the report, `--since` and the
+ * page's own files read here (M6, SECURITY.md): a "doc:" facts file (docFile) when it exists; else, relative to
+ * app.dir, its real path only where it really is a file of the application (fileInside, links and junctions followed).
+ * "outside" when it climbs out of the application (`../`) or really lies outside it (a link, a junction): never read,
+ * hashed nor recorded, and never "deleted" either. Null when there is no such file, or no app.dir.
+ * @param {string} root
+ * @param {string} factsDir   config.paths.facts
+ * @param {string|null} appDir
+ * @param {string} p          the dependency's path ("doc:<path>", or relative to app.dir)
+ * @returns {string|null}     a real path, "outside" or null
+ */
+export function dependencyFile(root, factsDir, appDir, p) {
+  if (p.startsWith("doc:")) {
+    const abs = docFile(root, factsDir, p);
+    return abs && fs.existsSync(abs) ? abs : null;
+  }
+  return appDir ? fileInside(appDir, p) : null;
+}
+
+/** The text of a file of the application, read only where it really is in it (dependencyFile: a route folder may be
+ * a junction), or "". */
+function appText(root, factsDir, appDir, f) {
+  const real = dependencyFile(root, factsDir, appDir, f);
+  return (real && real !== "outside" && readCached(real)) || "";
 }
 
 /** Written pages (ARCHITECTURE.md §5): a file that exists and holds no template guidance. */
@@ -232,7 +260,7 @@ export async function pageDependencies({
   // of facts/api.json (api-links.mjs); each handler's file is direct, with the handler's line ──────────────────
   const apiItems = appDir ? factsItems(root, factsDir, "api") : [];
   if (apiItems.length && pageFiles.size) {
-    const texts = [...pageFiles].map((f) => readCached(path.join(appDir, f)) ?? "");
+    const texts = [...pageFiles].map((f) => appText(root, factsDir, appDir, f));
     for (const item of apiRoutesCalledBy(texts, apiItems))
       add(item.file, { via: "api", direct: true, lines: item.line ? [item.line, item.line] : undefined });
   }

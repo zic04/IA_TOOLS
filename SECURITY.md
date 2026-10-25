@@ -180,7 +180,11 @@ as untrusted input:
   forms the same way, and so does `glob` for a segment of a file's path (the file's name judged without its
   extension, so `OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept; its forms rendered from the masked
   path), so a coverage report or the audit never shows a segment that `facts` masks; `sync` compares a route's files
-  masked the same way, and finds the files of a masked route;
+  masked the same way, and finds the files of a masked route. Limits of that masking: the masked names of one folder
+  share one id (`db/migrate/…` for migrations named by a timestamp, `alembic/versions/…`, files named by a UUID or a
+  hash, the hashed assets of `public/`), covered and followed together; and an ordinary name that reads as no words
+  is masked as well (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`) — a loss of detail, never a
+  secret shown;
 - the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
   a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
   `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
@@ -271,7 +275,12 @@ as untrusted input:
   and a dependency of a page outside the application (a route's file reached through a link) is named in its
   context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
   when its report compares it: one through `../` or a link out of the application is never read, its first line
-  never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). The
+  never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). So is
+  every dependency file of a page, by one helper (`dependencyFile`) for the marking, the report, `--since` and the
+  page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
+  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
+  the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
+  so. The
   coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
   `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private declarations of the
   dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a requirements file…,

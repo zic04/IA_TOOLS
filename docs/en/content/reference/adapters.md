@@ -36,7 +36,11 @@ names it and gives its options next to it.
   `next-app-router`, `openapi`, `react-router` and `glob`, as `doc-kit facts` writes it: a webhook's secret path never
   shows in `check coverage` or the audit. For `glob`, each segment of the file's path is judged, its name without its
   extension (`OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept). Cite the masked route (`/hooks/…`):
-  `doc-kit sync` still finds its files.
+  `doc-kit sync` still finds its files. Two limits: the masked names of one folder share one id
+  (`db/migrate/…` for every migration named by a timestamp, `alembic/versions/…`, files named by a UUID or a hash,
+  a hashed asset of `public/`), so a page that cites it covers them all and `sync` follows them all; and an
+  ordinary name that reads as no words is masked too (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`).
+  Leave such files out with `exclude` when they need no page of their own.
 - **`exclude`** holds regular expressions, or exact ids.
 - **`glob`**: `match` is a template where `{path}` is the path relative to `base` without extension, `{name}` the
   file name without extension, `{dir}` its folder and `{file}` the file name.
