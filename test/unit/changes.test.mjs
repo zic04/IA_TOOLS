@@ -125,6 +125,20 @@ describe("doc-kit changes", () => {
 });
 
 describe("changes --record and ::changes", () => {
+  test("readChanges: the kit's order of versions, a pre-release before its release (RULES.md M6)", () => {
+    const root = tempDir("doc-kit-changes-");
+    try {
+      for (const until of ["1.2.3-rc.1", "1.10.0", "1.2.3", "1.2.3-rc.2", "1.9.0"])
+        recordChanges(root, { since: "", until, date: "2026-10-01T00:00:00Z", sources: {}, total: 0 });
+      assert.deepEqual(
+        readChanges(root).map((r) => r.until),
+        ["1.10.0", "1.9.0", "1.2.3", "1.2.3-rc.2", "1.2.3-rc.1"],
+      );
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("recordChanges / readChanges: one file per version, most recent first; renderChanges filters by version and source", () => {
     const root = tempDir("doc-kit-changes-");
     try {
