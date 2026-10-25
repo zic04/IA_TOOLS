@@ -1,6 +1,6 @@
 {
   "name": "doc-kit",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "Product documentation as one self-contained HTML file: extended Markdown, annotated screenshots, guided tours, search, light and dark themes.",
   "keywords": [

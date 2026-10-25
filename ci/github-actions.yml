@@ -94,7 +94,7 @@ jobs:
 #           repository: <owner>/doc-kit          # the kit's repository
 #           # A release tag of the kit: the version the project's `kit` range accepts. Updated at each release of
 #           # the kit (RULES.md, before every release).
-#           ref: v0.4.1
+#           ref: v0.4.2
 #           path: doc-kit
 #           persist-credentials: false
 #
@@ -176,7 +176,7 @@ jobs:
 #       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           repository: <owner>/doc-kit
-#           ref: v0.4.1                      # a release tag of the kit, updated at each release (as in (b))
+#           ref: v0.4.2                      # a release tag of the kit, updated at each release (as in (b))
 #           path: doc-kit
 #           persist-credentials: false
 #
