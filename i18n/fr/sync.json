@@ -1,5 +1,5 @@
 {
-  "cli.help.sync": "Usage : {command} sync [--since <ref>] [--apply [--labels] [--auto-intact]] [--mark <page…> | --mark --all] [--sources <fichier[:lignes]…>] [--date AAAA-MM-JJ] [--check] [--estimate]\n\nCe que la documentation doit suivre après un changement de l'application (ARCHITECTURE.md §6.10) : sans option, un rapport comparant l'application maintenant avec sync.json (ou avec --since <ref>, un commit git) ; --mark enregistre les pages vérifiées maintenant. Écrit {work}/sync.md, {work}/sync-report.json et {work}/sync/<page>.diff. git est en lecture seule, via app.dir de l'application.\n\nOptions\n  --since <ref>            compare avec ce commit git plutôt qu'avec sync.json (pas de new/removed : les adaptateurs ne sont pas relancés à ce commit)\n  --apply                  réécrit les preuves déplacées (fichier:ligne) dans les pages ; retamponne les pages inchangées\n  --labels                 avec --apply : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, dans les seuls contextes autorisés\n  --mark <page…>           enregistre ces pages comme vérifiées maintenant\n  --all                    avec --mark : toutes les pages écrites\n  --sources <fichier[:lignes]…>  avec --mark d'une seule page : sources déclarées, répétable\n  --date AAAA-MM-JJ        date écrite par --mark au lieu d'aujourd'hui\n  --check                  code de sortie 1 si une catégorie autre que « unchanged » et « unmarked » n'est pas vide\n  --estimate                le coût de la mise à jour des pages à relire (ARCHITECTURE.md §6.11)\n\n--auto-intact (avec --apply) marque aussi les pages dont les seuls changements sont probablement sans effet (fichiers partagés dont le diff ne touche rien de ce que la page cite, ou preuves toujours valables), sauf si une preuve cassée, une capture, un libellé ou un élément supprimé les concerne encore : aucun agent n'est nécessaire pour elles.",
+  "cli.help.sync": "Usage : {command} sync [--since <ref>] [--apply [--labels] [--auto-intact]] [--mark <page…> | --mark --all] [--sources <fichier[:lignes]…>] [--date AAAA-MM-JJ] [--check] [--estimate]\n\nCe que la documentation doit suivre après un changement de l'application (ARCHITECTURE.md §6.10) : sans option, un rapport comparant l'application maintenant avec sync.json (ou avec --since <ref>, un commit git) ; --mark enregistre les pages vérifiées maintenant. Écrit {work}/sync.md, {work}/sync-report.json et {work}/sync/<page>.diff. git est en lecture seule, via app.dir de l'application.\n\nOptions\n  --since <ref>            compare les fichiers derrière chaque page avec ce commit git plutôt qu'avec sync.json : seulement les pages à relire et les pages inchangées (jamais avec --mark ni --apply)\n  --apply                  réécrit les preuves déplacées (fichier:ligne) dans les pages ; retamponne les pages marquées restées inchangées\n  --labels                 avec --apply : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, dans les seuls contextes autorisés\n  --mark <page…>           enregistre ces pages comme vérifiées maintenant\n  --all                    avec --mark : toutes les pages écrites\n  --sources <fichier[:lignes]…>  avec --mark d'une seule page : sources déclarées, répétable\n  --date AAAA-MM-JJ        date écrite par --mark au lieu d'aujourd'hui\n  --check                  code de sortie 1 si une catégorie autre que « unchanged », « edited » et « unmarked » n'est pas vide, ou si un fichier de messages ne peut pas être lu\n  --estimate                le coût de la mise à jour des pages à relire (ARCHITECTURE.md §6.11)\n\n--auto-intact (avec --apply) marque aussi les pages dont les seuls changements sont probablement sans effet (fichiers partagés dont le diff ne touche rien de ce que la page cite, ou preuves toujours valables), sauf si une preuve cassée, une capture, un libellé ou un élément supprimé les concerne encore : aucun agent n'est nécessaire pour elles.",
   "cli.sync.noApp": "pas d'application à lire",
   "cli.sync.noApp.help": "renseignez app.dir dans doc.config.mjs, vers le code de l'application",
   "cli.sync.noReference": "pas encore de sync.json",
@@ -13,7 +13,10 @@
   "cli.sync.dependencyOutside": "[{page}] dépendance non suivie : {path} (elle est hors de l'application, par ../ ou un lien : jamais lue ni hachée)",
   "cli.sync.truncated": "[{page}] la fermeture des imports locaux a été coupée à 200 fichiers : certaines dépendances manquent peut-être",
   "cli.sync.noGit": "pas de git ici : un fichier supprimé n'est jamais détecté comme un renommage",
-  "cli.sync.sinceNoInventory": "--since ne signale jamais d'élément nouveau ou supprimé : les adaptateurs de couverture ne sont pas relancés à ce commit",
+  "cli.sync.sinceNoInventory": "--since ne compare que les fichiers derrière chaque page avec ce commit : il ne signale jamais d'élément nouveau ou supprimé (les adaptateurs de couverture n'y sont pas relancés), ni preuve, libellé, capture ou modification, qui demandent sync.json",
+  "cli.sync.labelsUnreadable": "{file} ne peut pas être lu (JSON invalide) : ses libellés ne sont pas comparés, et un marquage garde ce que sync.json en a noté",
+  "cli.sync.noWrittenPage": "aucune page écrite à marquer : la table des matières ne peut pas être lue, ou aucune page n'est encore écrite — rien n'est marqué, sync.json reste tel quel",
+  "cli.sync.noWrittenPage.help": "corrigez la table des matières (toc.json), ou écrivez d'abord une page, puis marquez de nouveau",
   "cli.sync.marked": {
     "one": "✔ {n} page marquée comme vérifiée",
     "other": "✔ {n} pages marquées comme vérifiées"
@@ -51,6 +54,16 @@
     "one": "{n} page inchangée",
     "other": "{n} pages inchangées"
   },
+  "cli.sync.summary.edited": {
+    "one": "{n} page modifiée depuis son marquage",
+    "other": "{n} pages modifiées depuis leur marquage"
+  },
+  "cli.sync.edited.page": "[{page}] son Markdown a changé depuis son marquage : vérifiez-la, puis marquez-la de nouveau (--mark)",
+  "cli.sync.summary.byHand": {
+    "one": "{n} libellé à mettre à jour à la main",
+    "other": "{n} libellés à mettre à jour à la main"
+  },
+  "cli.sync.byHand.item": "[{page}] « {old} » → « {new} » ({file} « {key} ») : à mettre à jour à la main — réécrite ici, la page se rendrait autrement qu'au libellé près (l'ancre d’un titre, un lien, du code, sa structure) ; laissée telle quelle, le libellé toujours en attente",
   "cli.sync.summary.unmarked": {
     "one": "{n} page écrite jamais marquée",
     "other": "{n} pages écrites jamais marquées"

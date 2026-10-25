@@ -322,7 +322,7 @@ Then, **only for the pages still flagged** (none left: the cycle ends here, no a
   triage says `deepen`, and phase 5b's `depth` and `deepen` apply.
 
 Then `{{KIT_CLI}} check all`, and `{{KIT_CLI}} build`. `sync --check` gates CI (exit 1 on anything but
-`unchanged`/`unmarked`). `{{KIT_CLI}} stats --since <version>` shows what the update cost, per step and per model.
+`unchanged`/`edited`/`unmarked`, and on a messages file that cannot be read; a dependency or proof file outside the application is never read, only a warning; a new element no page documents stays `new` until `sync --mark --all`). `{{KIT_CLI}} stats --since <version>` shows what the update cost, per step and per model.
 
 ## The economical conduct
 

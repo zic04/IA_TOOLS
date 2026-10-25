@@ -128,5 +128,45 @@ export const normalize = (s) =>
     .toLowerCase()
     .trim();
 
+/** A letter, a digit, a combining mark or a connector (`_`), of any script: what continues a word. One code point. */
+const WORD_CHAR = /^[\p{L}\p{N}\p{M}\p{Pc}]$/u;
+const isSurrogate = (code, from) => code >= from && code <= from + 0x3ff;
+/** The code point that ends right before `i` (a pair of surrogates is one), "" at the start. */
+function pointBefore(text, i) {
+  if (i <= 0) return "";
+  const pair = i >= 2 && isSurrogate(text.charCodeAt(i - 1), 0xdc00) && isSurrogate(text.charCodeAt(i - 2), 0xd800);
+  return String.fromCodePoint(text.codePointAt(pair ? i - 2 : i - 1));
+}
+/** The code point that starts at `i`, "" at the end. */
+const pointAt = (text, i) => (i < text.length ? String.fromCodePoint(text.codePointAt(i)) : "");
+
+/** Whether the part of `text` from `i` to `end` is whole there: no word character right before or after it, or a
+ * break there (wholeIndexes). */
+export const wholeAt = (text, i, end, breaks = null) =>
+  (!!breaks?.has(i) || !WORD_CHAR.test(pointBefore(text, i))) &&
+  (!!breaks?.has(end) || !WORD_CHAR.test(pointAt(text, end)));
+
+/**
+ * Where `needle` appears in `text` as a whole: no word character right before or after it (WORD_CHAR: "No" is not
+ * in "Note", "Noé", "No_x", "éNo"), or a break there (`breaks`: the indexes where a word ends whatever follows — the
+ * edge of an element in a rendered page). Left to right, never overlapping. Shared by the whole ids of coverage and
+ * the labels of sync (ARCHITECTURE.md §6.10).
+ * @param {string} text
+ * @param {string} needle
+ * @param {Set<number>|null} [breaks]
+ * @returns {number[]}
+ */
+export function wholeIndexes(text, needle, breaks = null) {
+  const out = [];
+  if (!needle) return out;
+  for (let i = text.indexOf(needle); i !== -1;) {
+    const end = i + needle.length;
+    const whole = wholeAt(text, i, end, breaks);
+    if (whole) out.push(i);
+    i = text.indexOf(needle, whole ? end : i + 1);
+  }
+  return out;
+}
+
 /** Escapes a string for use inside a regular expression. */
 export const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

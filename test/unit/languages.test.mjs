@@ -45,6 +45,7 @@ import {
   tempDir,
   demoCopy,
   noExec,
+  syncLabels,
 } from "../tools/helpers.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
 
@@ -946,6 +947,7 @@ describe("sync report (translations category)", () => {
     const config = await languagesConfig();
     const toc = sourceToc();
     const report = await compareWithReference({
+      labels: syncLabels(),
       root: LANGUAGES,
       config,
       toc,
@@ -973,6 +975,7 @@ describe("sync report (translations category)", () => {
     const config = await spacesConfig();
     const toc = JSON.parse(fs.readFileSync(path.join(SPACES, "content", "toc.json"), "utf8"));
     const report = await compareWithReference({
+      labels: syncLabels(),
       root: SPACES,
       config,
       toc,

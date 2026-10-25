@@ -106,13 +106,25 @@ function heading(s, anchor, html, title) {
   return `<h3 id="${esc(anchor)}">${html}<a class="ancre" href="#/${esc(ctx.pageId)}~${esc(anchor)}" aria-label="${esc(s.t("render.sectionLink"))}">#</a></h3>`;
 }
 
-/** A free anchor for a card without an id: its title's slug, made unique in the page. */
-function freeAnchor(s, title) {
-  const ctx = s.context();
-  let anchor = slug(title);
-  while (ctx.slugs.has(anchor)) anchor += "-2";
-  return anchor;
+/**
+ * A slug made unique in the page (`ctx.slugs`): itself, else followed by -2, -3… A counter per slug (`ctx.repeats`):
+ * thousands of headings or cards of one title cost each one the same, where a suffix added again and again made each
+ * one longer than the one before, and read them all.
+ * @param {{ slugs: Set<string>, repeats: Map<string, number> }} ctx
+ * @param {string} base
+ */
+export function uniqueSlug(ctx, base) {
+  if (!ctx.slugs.has(base)) return base;
+  let n = ctx.repeats.get(base) ?? 1;
+  let id;
+  do id = `${base}-${++n}`;
+  while (ctx.slugs.has(id));
+  ctx.repeats.set(base, n);
+  return id;
 }
+
+/** A free anchor for a card without an id: its title's slug, made unique in the page. */
+const freeAnchor = (s, title) => uniqueSlug(s.context(), slug(title));
 
 function renderRule(s, tk, parser) {
   const { id, title } = tk.a;

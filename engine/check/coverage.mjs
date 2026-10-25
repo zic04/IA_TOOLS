@@ -12,6 +12,7 @@ import { loadAdapter } from "../core/adapter-loader.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
 import { globRegex } from "../core/glob.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";
+import { wholeIndexes } from "../core/text.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
@@ -132,16 +133,9 @@ function documentationTexts(root, content) {
   return { text, planned };
 }
 
-/** A letter or a digit, of any script: what continues an id (punctuation — “ ” … ’ — does not). One character. */
-const ID_CHAR = /^[\p{L}\p{N}]$/u;
-const isIdChar = (ch) => ch !== undefined && ID_CHAR.test(ch);
-
-/** Whether `needle` appears in `text` whole: no letter or digit right before or after it (F-01 is not in F-010). */
-function containsWhole(text, needle) {
-  for (let i = text.indexOf(needle); i !== -1; i = text.indexOf(needle, i + 1))
-    if (!isIdChar(text[i - 1]) && !isIdChar(text[i + needle.length])) return true;
-  return false;
-}
+/** Whether `needle` appears in `text` whole: no word character right before or after it (F-01 is not in F-010;
+ * punctuation — “ ” … ’ — ends it). */
+const containsWhole = (text, needle) => wholeIndexes(text, needle).length > 0;
 
 /** Does an item appear in the documentation text? An item marked `whole` (an id: F-01) only as a whole. */
 export const isCovered = (item, text) =>

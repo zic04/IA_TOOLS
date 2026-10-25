@@ -21,6 +21,19 @@ plan entries behind its `:::screen` blocks, of the message labels it quotes verb
 topic group (the other pages a `counterpart` joins) and declared `sources`. `sync.json` lives at the project root by default (`paths.sync`) and is
 **committed with the documentation**, like `facts/*.json`.
 
+Marking merges into `sync.json`, it never rebuilds it: `--mark <page…>` records those pages and the commit they
+were checked at, and acknowledges only what they document. A new route stays `new` until a marked page cites it
+or `--mark --all` acknowledges the whole inventory; a renamed label stays reported while a page that was not
+marked still quotes its old value — and so does a label whose messages file the application deleted (`→ null`).
+A page acknowledges an element only when it names it whole: `/detail` is not in `/orders/detail`, nor `/ord` in
+`/orders`, and `/invoices-export`, `/invoices.csv` or `/invoices/2026` do not name `/invoices` — a route ends
+before a blank, a quote, a bracket, a backquote, `?`, `#` or sentence punctuation (`/invoices.`); `/invoices/2026`
+names `/invoices/[id]`, and `/invoices/2026/edit` names `/invoices/[id]/edit`, never `/invoices/[id]` — a dynamic
+route is named with its own number of segments. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves
+`sync.json` at the next marking. With no page written — a table of contents that cannot be read — a marking is
+refused (exit code 1) and `sync.json` is left as it is: nothing pending is acknowledged. Each page's diff is taken
+from its own commit.
+
 ## Reading the report
 
 ```bash
@@ -37,11 +50,12 @@ one `.doc-kit/sync/<page>.diff` per page to review:
 | `review` (priority `probablyIntact`) | That shared file changed, but nothing the page names did | Review, likely untouched |
 | `proofs.moved` | A cited line's text found elsewhere in the same (or renamed) file | `--apply` fixes it |
 | `proofs.broken` | The file was deleted, or the text is nowhere to be found | Review |
-| `labels` | A quoted message's value changed, or its key disappeared | `--apply --labels` fixes it |
+| `labels` | A quoted message's value changed, or its key disappeared (a messages file that is not valid JSON only warns: its labels are not compared) | `--apply --labels` fixes it |
 | `captures` | The route's files changed, the plan entry changed, or the screenshot's version is stale | Retake: `capture --stale --compare` |
 | `new` | A route, API route, table… the reference never saw | Document it |
 | `removed` | An element a written page still cites, gone from the application | Correct the pages listed |
 | `unchanged` | A marked page, nothing of its dependencies moved | Restamped by `--apply` |
+| `edited` | A marked page whose Markdown changed since it was marked | Check it, then `--mark` it (only a warning, never restamped by `--apply`) |
 | `unmarked` | A written page never marked | `--mark` it once checked (only a warning, never blocks `--check`) |
 
 A page may appear in several categories at once (`proofs.moved` and `captures`, for instance), but in `review` or
@@ -55,9 +69,28 @@ doc-kit sync --apply --labels
 ```
 
 `--apply` rewrites a moved proof's `path:line` wherever it is cited, and restamps every page the run leaves
-unchanged. `--labels` goes further: it replaces an old message value with its new one, but **only** inside
-`**bold**`, code spans, `[[menu …]]` badges and quotes — never inside ordinary prose, where a human sentence
-depends on the old wording. Nothing here ever touches prose: a page whose subject changed still needs a person.
+unchanged — without clearing anything still pending: a screenshot to retake, a new element, a label. `--labels`
+goes further: it replaces an old message value with its new one, as a whole word (`No` is never replaced inside
+`Note`), but **only** inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes —
+never inside ordinary prose, where a human sentence depends on the old wording, nor in any other code span (even
+in bold or between quotes: `` **`getByRole('link', { name: 'Approve' })`** `` stays as it is), a directive's
+attributes, a link's target, a bare address (`https://…`), or a label between brackets that names a link definition
+(`[Approve]` with `[Approve]: approve.md`). A label in bold written across a line end (`**Approval\nchain**`) is
+replaced too. A new value that holds the old one (`Approval chain` → `Approval chain history`) is replaced once: run
+it again, nothing changes. `é` written as one character or as `e` and an accent is the same label.
+
+**Every rewrite is checked on the page as the site renders it.** The page is rendered by the kit's own renderer
+before and after: the rewrite is kept only when the page after is the page before with the label renamed in its
+text, and nothing else — the same links and their targets, the same anchors, the same code blocks and comments —,
+and only where the rendered page shows the label in bold, a badge, between quotes or as a code span of its own.
+Otherwise the page is left as it is and reported **to update by hand**: a label in a heading, say, whose anchor
+would change with it. Its label stays pending until someone updates it. So `--apply --labels` never damages a page
+and never clears a signal: where the reading of the Markdown that proposes the rewrites differs from the renderer, the
+page is only sent to be updated by hand. Nothing here ever touches prose: a page whose subject changed still needs a
+person, and a page nobody marked is never marked by `--apply`, even one whose label it rewrote.
+
+What `--apply` rewrites in a page it leaves to review is no edit by hand: that page is not reported `edited` for
+it — nor for a final newline added or removed, a BOM or CRLF line ends.
 
 ## A gate for continuous integration: `--check`
 
@@ -65,8 +98,9 @@ depends on the old wording. Nothing here ever touches prose: a page whose subjec
 doc-kit sync --check
 ```
 
-Exit code 1 as soon as any category but `unchanged` and `unmarked` is not empty — "the documentation is behind the
-application". `unmarked` only warns, so a project can adopt `sync` one page at a time instead of marking every page
+Exit code 1 as soon as any category but `unchanged`, `edited` and `unmarked` is not empty — "the documentation is behind the
+application" —, or a messages file cannot be read (not valid JSON): none of its labels is compared then, which the CI
+would not see otherwise. `unmarked` only warns, so a project can adopt `sync` one page at a time instead of marking every page
 at once.
 
 ## Comparing with a commit instead of the reference
@@ -75,9 +109,11 @@ at once.
 doc-kit sync --since v2.3.0
 ```
 
-Reads the application's files, proofs and labels **at that commit** instead of from `sync.json`, through read-only
-git. `new` and `removed` are always empty this way: the coverage adapters are not re-run at an old commit, only the
-file contents are.
+Reads the files behind each page **at that commit** instead of from `sync.json`, through read-only git: only
+`review` and `unchanged` are reported this way. Proofs, labels, screenshots and edits are compared with
+`sync.json`, and the coverage adapters are not re-run at an old commit, so `proofs`, `labels`, `captures`,
+`edited`, `new` and `removed` are always empty. `--since` compares and never records: with `--mark` or `--apply`
+it is a usage error (exit code 2).
 
 ## Refreshing only what changed: `capture --compare` and `--stale`
 
@@ -102,6 +138,37 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > [!WARNING] Without `app.dir`, `sync` cannot run
 > Dependencies, proofs and labels are all read from the application's code: configure `app.dir` first
 > ([Project, version and sign-in keys](#/reference/configuration/project)).
+
+> [!NOTE] A page quotes a label where the site shows it
+> A label is quoted where the page, rendered by the kit's own renderer, shows it as text: `_Approve_` quotes
+> `Approve` (an emphasis, shown without its underscores), a link's title or an image's text does too, a code block,
+> an HTML comment, a script, a style sheet or a text field never does, nor a link's target. A character reference
+> is the character it names: `**R&eacute;gler**` quotes `Régler`, as `**Régler**` does. `保存をクリック` does
+> not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the label apart —
+> `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's length times
+> the label's.
+
+> [!NOTE] When `--labels` leaves a page to update by hand
+> The places to rewrite are found by reading the Markdown, close to how the renderer reads it but not as it does:
+> a blockquote opened on a list item's own line (`- > …`), a comment never closed inside a blockquote or a list
+> item, or raw HTML the reading does not follow may be read otherwise. The check on the rendered page catches each
+> of these cases — as it reads the rendered page, with two limits: a formatting element left open in raw HTML (a
+> `<code>` never closed) is read as closed at the end of its block, where a browser opens it again; and an element
+> that draws nothing (`<script>`, `<style>`, `<template>`, `<noscript>`) in the middle of a word ends that word for
+> the kit (`**Approve<script>…</script>d**` reads as `Approve`, where a browser shows `Approved`). The page is left as
+> it is, reported to update by hand, its label still pending — never damaged.
+
+> [!NOTE] A few shapes Marked renders slowly
+> The kit reads a page in linear time, but Marked does not on a few shapes repeated over tens of thousands of
+> characters: emphasis marks never closed (`*a *a *a …`), `x <!-- a --!> ` again and again, lines alternating with
+> quote lines (all three slow in Marked alone), or a paragraph cut by many `::` lines with no blank line (slow in
+> Marked at each cut the kit makes). Such a page takes seconds — minutes for the longest — to render, for `sync` as
+> for `build`.
+
+> [!NOTE] Two labels with the same value, a screenshot on several pages
+> Two message keys with the same value cannot be told apart: a page that quotes it is listed — and rewritten by
+> `--labels` — when either changes. A screenshot shown by several pages is recorded once: marking one of them
+> acknowledges it for all.
 
 > [!NOTE] git is only ever read
 > `--since`, and the commit shown by a stale facts file, come from `git show` and `git diff` in the application —

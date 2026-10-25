@@ -6,11 +6,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { build } from "../../engine/build/build.mjs";
 import { createMarkdownEngine } from "../../engine/build/markdown.mjs";
+import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
+import { labelReader } from "../../engine/sync/labels.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { icon } from "../../engine/site/icons.mjs";
 
 export const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const DEMO = path.join(KIT_ROOT, "examples", "demo-docs");
+
+/** The labels of `sync` read as the CLI reads them, through the kit's renderer (ARCHITECTURE.md §6.10), for a
+ * project's configuration (its statuses, its behaviour cards); a fresh reader, its own cache. */
+export const syncLabels = (config = {}, root = KIT_ROOT) => labelReader(createSyncRenderer({ root, config }));
 
 /** Configuration of the demo project (validated, completed), optionally modified first. */
 export async function demoConfig(modify = (c) => c) {

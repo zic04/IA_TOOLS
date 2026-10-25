@@ -253,14 +253,17 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   if (session.needed && !session.exists) return { step: "connect", folder: root, root, config, session };
   if (captureCount(root, config) === 0) return { step: "capture", folder: root, root, config };
   // What the documentation must follow since the last check (ARCHITECTURE.md §6.10): no git here, only the
-  // documented version against the one sync.json last saw.
+  // documented version against the ones sync.json saw (the last marking's, and each page's).
   // Imported here, not with the CLI: the start-up of every command does without them.
-  const [{ readSyncReference }, { languageCounts }] = await Promise.all([
+  const [{ readSyncReference, versionBehind }, { writtenPages }, { languageCounts }] = await Promise.all([
     import("../engine/sync/reference.mjs"),
+    import("../engine/sync/dependencies.mjs"),
     import("../engine/build/languages.mjs"),
   ]);
   const { reference } = readSyncReference(root, config);
-  if (reference && reference.app.version !== readProjectVersion(root, config.version))
+  // Only the pages still written are waited for: one removed since its marking is no longer behind.
+  const written = () => new Set(writtenPages({ root, config, toc: safeToc(root, config) }).map((p) => p.id));
+  if (reference && versionBehind(reference, readProjectVersion(root, config.version), written()))
     return { step: "sync", folder: root, root, config };
   // Languages (ARCHITECTURE.md §6.12): a translation behind or missing, shown as "translate status".
   if (

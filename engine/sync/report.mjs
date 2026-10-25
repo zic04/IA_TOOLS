@@ -4,9 +4,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages, classifyMissingFile, dependencyFile } from "./dependencies.mjs";
+import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText, dependencyFile } from "./dependencies.mjs";
 import { extractProofs, locateProof, proofFile, PROOF_REF } from "./proofs.mjs";
-import { flattenMessages } from "./labels.mjs";
+import { labelFiles, readFlatLabels } from "./labels.mjs";
+import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
@@ -133,10 +134,6 @@ function readZoneVersion(root, config, id) {
   }
 }
 
-/** Text a page "declares", for a plain citation search: its Markdown plus its table-of-contents entry (so that
- * a route cited only in `routes: […]`, never in prose, still counts — the same text coverage.mjs scans). */
-const pageCiteText = (p) => `${p.markdown}\n${JSON.stringify(p.entry)}`;
-
 /** The written page citing the closest id of the same family (longest shared "/"-prefix, at least one segment). */
 function suggestFor(id, family, written) {
   let best = null;
@@ -157,6 +154,74 @@ function allLabelValues(reference) {
   return out;
 }
 
+/** `labels`: no page attribution is stored, so this is computed once, globally — every written page still citing
+ * a recorded value that changed (or whose key disappeared), where it does not hold the new value. A message file that
+ * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then. Every file followed
+ * now (labelFiles) is read too, not only the recorded ones: one that could not be read when the documentation was
+ * marked has nothing recorded, and would never be said otherwise.
+ * @param {import("./labels.mjs").LabelReader} labels */
+function labelChanges(root, config, reference, written, labels) {
+  const out = [];
+  const unreadable = [];
+  const recorded = reference?.labels || {};
+  for (const file of [...new Set([...Object.keys(recorded), ...labelFiles(root, config)])].sort()) {
+    const entries = recorded[file] || {};
+    // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
+    const flatNow = readFlatLabels(path.resolve(root, file));
+    if (!flatNow) {
+      unreadable.push(file);
+      continue;
+    }
+    for (const [key, oldValue] of Object.entries(entries)) {
+      const newValue = flatNow[key] ?? null;
+      if (newValue === oldValue) continue;
+      const pages = written.filter((p) => labels.citesLabel(p.markdown, oldValue, newValue)).map((p) => p.id);
+      if (pages.length) out.push({ file, key, old: oldValue, new: newValue, pages });
+    }
+  }
+  return { labels: out, unreadable };
+}
+
+/** `new` and `removed`: the inventory now against the reference's (never with --since, which would need the
+ * adapters run again at the ref). */
+function inventoryChanges(reference, inventory, written) {
+  const added = [];
+  const removed = [];
+  const currentByKey = {};
+  for (const a of inventory.adapters) for (const f of a.families || []) currentByKey[`${a.adapter}/${f.name}`] = f;
+  for (const [key, family] of Object.entries(currentByKey)) {
+    const oldIds = new Set(reference.inventory?.[key] || []);
+    for (const item of family.items)
+      if (!oldIds.has(item.id)) added.push({ family: key, id: item.id, suggest: suggestFor(item.id, family, written) });
+  }
+  for (const [key, oldIds] of Object.entries(reference.inventory || {})) {
+    const currentIds = new Set((currentByKey[key]?.items || []).map((i) => i.id));
+    for (const oid of oldIds) {
+      if (currentIds.has(oid)) continue;
+      const pages = written.filter((p) => isCovered({ match: [oid] }, normalize(pageCiteText(p)))).map((p) => p.id);
+      if (pages.length) removed.push({ family: key, id: oid, pages });
+    }
+  }
+  return { added, removed };
+}
+
+/** Translations (ARCHITECTURE.md §6.12): the stale and missing files of every declared language, read from
+ * translations/<lang>/.sources.json and the current content — no git, independent of --since. */
+function translationChanges(root, config, toc) {
+  const out = [];
+  for (const lang of (config.languages || []).slice(1)) {
+    const recorded = readSources(root, config.paths.translations, lang);
+    for (const f of translatableFiles({ toc, root, content: config.paths.content })) {
+      const srcAbs = path.join(root, config.paths.content, f.file);
+      const translatedExists = fs.existsSync(path.join(root, config.paths.translations, lang, f.file));
+      const sourceText = fs.existsSync(srcAbs) ? fs.readFileSync(srcAbs, "utf8") : null;
+      const state = translationState({ sourceText, translatedExists, recorded: recorded[f.file] });
+      if (state === "stale" || state === "missing") out.push({ lang, file: f.file, state });
+    }
+  }
+  return out;
+}
+
 /**
  * The sync report (ARCHITECTURE.md §6.10). Every category is optional for the readers: a hand-written report
  * (tests, or a report from an older run) may lack some.
@@ -173,12 +238,17 @@ function allLabelValues(reference) {
  * @property {any[]} [new]
  * @property {any[]} [removed]
  * @property {string[]} [unchanged]
+ * @property {string[]} [edited]     marked pages whose Markdown changed since they were marked
  * @property {any} [unmarked]
  * @property {any[]} [translations]
  * @property {{ stale: any }} [facts]
  * @property {string[]} [truncated]
+ * @property {string[]} [unreadableLabels]  message files that are not valid JSON: their labels are not compared
  * @property {boolean} [gitAvailable]
- * @property {Array<{ key: string, vars: object }>} [warnings]
+ * @property {Array<{ key: string, vars: object }>} [warnings]  what could not be checked: a file outside the
+ *   application, never read (sync.dependencyOutside, sync.proofOutside)
+ * @property {Array<{ page: string, file: string, key: string, old: string, new: string }>} [byHand]  after
+ *   `--apply --labels`: the label rewrites refused, each page left as it is (applyReport().byHand)
  */
 
 /**
@@ -196,6 +266,7 @@ function allLabelValues(reference) {
  * @param {string} p.version           documented version, now
  * @param {string|null} p.commit       application HEAD, now
  * @param {string} p.factsDir          projRel facts folder
+ * @param {import("./labels.mjs").LabelReader} p.labels   the labels read through the kit's renderer (labelReader)
  * @returns {Promise<SyncReport>}
  */
 export async function compareWithReference({
@@ -211,11 +282,11 @@ export async function compareWithReference({
   version,
   commit,
   factsDir,
+  labels,
 }) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
   const byId = new Map(written.map((p) => [p.id, p]));
-  const refCommit = since || reference?.app?.commit || null;
   const tools = adapterTools(root);
   const gitAvailable = !!git && git.available();
 
@@ -223,28 +294,13 @@ export async function compareWithReference({
   const proofsBroken = [];
   const review = [];
   const unchanged = [];
+  const edited = [];
   const capturesReasons = new Map(); // id → Set(reason)
   const capturesPages = new Map(); // id → Set(page)
 
-  // ─── Labels: no page attribution is stored, so this is computed once, globally (never with --since) ───────
-  const labelsOut = [];
-  if (!since)
-    for (const [file, entries] of Object.entries(reference?.labels || {})) {
-      // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
-      const abs2 = path.resolve(root, file);
-      let flatNow;
-      try {
-        flatNow = fs.existsSync(abs2) ? flattenMessages(JSON.parse(fs.readFileSync(abs2, "utf8"))) : {};
-      } catch {
-        flatNow = {};
-      }
-      for (const [key, oldValue] of Object.entries(entries)) {
-        const newValue = flatNow[key] ?? null;
-        if (newValue === oldValue) continue;
-        const pages = written.filter((p) => p.markdown.includes(oldValue)).map((p) => p.id);
-        if (pages.length) labelsOut.push({ file, key, old: oldValue, new: newValue, pages });
-      }
-    }
+  const { labels: labelsOut, unreadable } = since
+    ? { labels: [], unreadable: [] }
+    : labelChanges(root, config, reference, written, labels);
   const pagesWithLabelIssue = new Set(labelsOut.flatMap((l) => l.pages));
   const labelValues = allLabelValues(reference);
 
@@ -257,6 +313,11 @@ export async function compareWithReference({
     if (!writtenIds.has(id)) continue;
     const page = byId.get(id);
     const recorded = since ? null : reference?.pages?.[id];
+    // The commit this page was checked at (an older sync.json: the global one), for its renames and its diff.
+    const refCommit = since || pageCommit(reference, id);
+    // Its own Markdown, edited since it was marked: reported, never counted unchanged (so never restamped).
+    const isEdited = editedSince(recorded, page.markdown);
+    if (isEdited) edited.push(id);
     const declared = recorded?.declared || [];
     const deps = await pageDependencies({ root, config, toc, pageId: id, inventory, tools, factsDir, plans, declared });
     if (deps.truncated) truncated.push(id);
@@ -363,47 +424,13 @@ export async function compareWithReference({
 
     if (reasons.length)
       review.push({ page: id, priority: priorityOf({ reasons, page, git, refCommit, labelValues }), reasons });
-    else if (!hadProofIssue && !pagesWithLabelIssue.has(id)) unchanged.push(id);
+    else if (!hadProofIssue && !pagesWithLabelIssue.has(id) && !isEdited) unchanged.push(id);
   }
 
   const unmarked = written.filter((p) => !(reference?.pages && p.id in reference.pages)).map((p) => p.id);
 
-  // ─── new / removed: never with --since (would need the adapters re-run at the ref) ──────────────────────
-  const newItems = [];
-  const removedItems = [];
-  if (!since && reference) {
-    const currentByKey = {};
-    for (const a of inventory.adapters) for (const f of a.families || []) currentByKey[`${a.adapter}/${f.name}`] = f;
-    for (const [key, family] of Object.entries(currentByKey)) {
-      const oldIds = new Set(reference.inventory?.[key] || []);
-      for (const item of family.items)
-        if (!oldIds.has(item.id))
-          newItems.push({ family: key, id: item.id, suggest: suggestFor(item.id, family, written) });
-    }
-    for (const [key, oldIds] of Object.entries(reference.inventory || {})) {
-      const currentIds = new Set((currentByKey[key]?.items || []).map((i) => i.id));
-      for (const oid of oldIds) {
-        if (currentIds.has(oid)) continue;
-        const pages = written.filter((p) => isCovered({ match: [oid] }, normalize(pageCiteText(p)))).map((p) => p.id);
-        if (pages.length) removedItems.push({ family: key, id: oid, pages });
-      }
-    }
-  }
-
-  // Translations (ARCHITECTURE.md §6.12): the stale and missing files of every declared language, read from
-  // translations/<lang>/.sources.json and the current content — no git, independent of --since.
-  const translations = [];
-  for (const lang of (config.languages || []).slice(1)) {
-    const recorded = readSources(root, config.paths.translations, lang);
-    for (const f of translatableFiles({ toc, root, content: config.paths.content })) {
-      const srcAbs = path.join(root, config.paths.content, f.file);
-      const trAbs = path.join(root, config.paths.translations, lang, f.file);
-      const translatedExists = fs.existsSync(trAbs);
-      const sourceText = fs.existsSync(srcAbs) ? fs.readFileSync(srcAbs, "utf8") : null;
-      const state = translationState({ sourceText, translatedExists, recorded: recorded[f.file] });
-      if (state === "stale" || state === "missing") translations.push({ lang, file: f.file, state });
-    }
-  }
+  const inventoryOut =
+    !since && reference ? inventoryChanges(reference, inventory, written) : { added: [], removed: [] };
 
   return {
     generator: generatorTag(),
@@ -421,15 +448,18 @@ export async function compareWithReference({
       pages: [...capturesPages.get(id)],
       reasons: [...reasons],
     })),
-    new: newItems,
-    removed: removedItems,
+    new: inventoryOut.added,
+    removed: inventoryOut.removed,
     unchanged,
+    edited,
     unmarked,
-    ...(config.languages ? { translations } : {}),
+    ...(config.languages ? { translations: translationChanges(root, config, toc) } : {}),
     facts: { stale: staleFacts(root, factsDir, commit) },
     // Extra, beyond the documented shape: pages whose import closure hit the 200-file bound (ARCHITECTURE.md §2.2),
-    // and whether git could be used at all (without it, a deleted file is never detected as a rename).
+    // the message files that cannot be read, and whether git could be used at all (without it, a deleted file is
+    // never detected as a rename).
     truncated,
+    unreadableLabels: unreadable,
     gitAvailable,
     // Extra too: what the report could not check, each a message key of cli.<key> (sync.proofOutside,
     // sync.dependencyOutside).
@@ -437,8 +467,12 @@ export async function compareWithReference({
   };
 }
 
+/** The pages edited since they were marked (none in a report written before they were reported). */
+const editedOf = (report) => report.edited ?? [];
+
 /** Markdown of `.doc-kit/sync.md`: one summary line per category, then the pages to review by priority. */
 export function renderReport(report, t) {
+  const edited = editedOf(report);
   const lines = [
     `# ${t("cli.sync.md.title")}`,
     "",
@@ -454,6 +488,8 @@ export function renderReport(report, t) {
   cat("new", report.new.length);
   cat("removed", report.removed.length);
   cat("unchanged", report.unchanged.length);
+  if (edited.length) cat("edited", edited.length);
+  if (report.byHand?.length) cat("byHand", report.byHand.length);
   cat("unmarked", report.unmarked.length);
   // Translations (ARCHITECTURE.md §6.12): never affects --check (checkFails), only `translate status --check` does.
   if (report.translations?.length) {
@@ -484,13 +520,23 @@ export function renderReport(report, t) {
     lines.push(`- ${t("cli.sync.capture.stale", { id: c.id, reasons: c.reasons.join(", ") })}`);
   for (const n of report.new) lines.push(`- ${t(n.suggest ? "cli.sync.new.item" : "cli.sync.new.noSuggest", n)}`);
   for (const r of report.removed) lines.push(`- ${t("cli.sync.removed.item", { ...r, pages: r.pages.join(", ") })}`);
-  if (report.facts.stale.length)
-    lines.push(`- ${t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") })}`);
-  for (const page of report.truncated || []) lines.push(`- ${t("cli.sync.truncated", { page })}`);
-  for (const w of report.warnings || []) lines.push(`- ${t(`cli.${w.key}`, w.vars)}`);
-  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
-    lines.push(`- ${t("cli.sync.noGit")}`);
+  for (const page of edited) lines.push(`- ${t("cli.sync.edited.page", { page })}`);
+  for (const b of report.byHand || []) lines.push(`- ${t("cli.sync.byHand.item", b)}`);
+  lines.push(...notesOf(report, t).map((note) => `- ${note}`));
   return lines.join("\n") + "\n";
+}
+
+/** What the report cannot tell, last: facts behind the application, a closure cut short, a message file that cannot be
+ * read, a file outside the application never read (warnings), no git to see a rename. */
+function notesOf(report, t) {
+  const notes = [];
+  if (report.facts.stale.length) notes.push(t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") }));
+  for (const page of report.truncated || []) notes.push(t("cli.sync.truncated", { page }));
+  for (const file of report.unreadableLabels || []) notes.push(t("cli.sync.labelsUnreadable", { file }));
+  for (const w of report.warnings || []) notes.push(t(`cli.${w.key}`, w.vars));
+  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
+    notes.push(t("cli.sync.noGit"));
+  return notes;
 }
 
 /**
@@ -511,9 +557,11 @@ export function writeReportFiles({ root, report, diffs = new Map(), t }) {
   }
 }
 
-/** Exit code 1 (ARCHITECTURE.md §6.10, "--check") on any category but `unchanged` and `unmarked`. */
+/** Exit code 1 (ARCHITECTURE.md §6.10, "--check") on any category but `unchanged`, `edited` and `unmarked`, and on a
+ * message file that cannot be read: its labels are not compared, a signal the CI would not see otherwise. */
 export function checkFails(report) {
   return !!(
+    report.unreadableLabels?.length ||
     report.proofs.moved.length ||
     report.proofs.broken.length ||
     report.labels.length ||

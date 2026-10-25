@@ -17,9 +17,11 @@ import { scanText, GENERIC, isUrlTemplate, checkSecrets } from "../../engine/che
 import { apiPathsIn } from "../../engine/sync/api-links.mjs";
 import { contentSecurityPolicy } from "../../engine/build/csp.mjs";
 import { extractProofs } from "../../engine/sync/proofs.mjs";
+import { shownText, rendersAsBefore } from "../../engine/sync/html-text.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { linearAt } from "../tools/growth.mjs";
-import { tempDir } from "../tools/helpers.mjs";
+import { tempDir, syncLabels, KIT_ROOT } from "../tools/helpers.mjs";
+import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 
 /** A scanner of a text built of n units; what it gave at the largest size measured. */
 const linear = (label, size, make, read) => linearAt(label, { size, make, read }).found;
@@ -219,6 +221,143 @@ describe("the proofs of a page (engine/sync/proofs.mjs)", () => {
       linear("PROOF_BADGE never closed", 2000, (n) => "[[verified a".repeat(n), extractProofs),
       [],
     );
+  });
+});
+
+describe("the labels of the pages (engine/sync/labels.mjs)", () => {
+  // Every label is looked for in every page: each page is rendered once a run and its shown text read once, however
+  // many pages the documentation has (the cache once held 256 pages, then started again, and each label read every
+  // page again). A fresh reader at each size: nothing read from an earlier one.
+  test("citedLabels: hundreds of labels in thousands of pages, each page rendered and read once", () => {
+    const flat = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`k${i}`, `Label number ${i}`]));
+    const body = "Click **Label number 7** on the `Orders` page, then the [link](x.md).\n\n- step\n\n    code\n";
+    const { found, n } = linearN(
+      "citedLabels pages",
+      100,
+      (k) => Array.from({ length: k }, (_, i) => ({ id: `p${i}`, markdown: `# Page ${k}-${i}\n\n${body}` })),
+      (pages) => syncLabels().citedLabels(flat, pages),
+    );
+    assert.deepEqual(
+      found.map((l) => [l.key, l.pages.length]),
+      [["k7", n]],
+    );
+  });
+
+  // A sync renders each page once to read what it cites, and once more for each label --apply --labels rewrites in it
+  // (the page rendered after, checked against the one before): linear in the number of pages and in their size.
+  test("replaceLabel: every page of a documentation rewritten and checked, linear in the number of pages", () => {
+    const body = "Click **Approve**, then «Approve» in the [[menu Approve]] menu.\n\n| a | **Approve** |\n|---|---|\n";
+    const { found, n } = linearN(
+      "replaceLabel pages",
+      100,
+      (k) => Array.from({ length: k }, (_, i) => `## Step ${i}\n\n${body}`),
+      (pages) => {
+        const labels = syncLabels();
+        return pages.filter(
+          (md) => labels.citesLabel(md, "Approve") && labels.replaceLabel(md, "Approve", "Validate").n === 4,
+        ).length;
+      },
+    );
+    assert.equal(found, n);
+  });
+
+  // The kit's renderer itself (engine/build/markdown.mjs), as sync renders a page: a block directive looked for in the
+  // paragraph only (startInParagraph), and a badge never looked for ahead (Marked's text stops before every "[").
+  test("the kit's renderer: one paragraph of thousands of inline elements, and thousands of paragraphs", () => {
+    const render = createSyncRenderer({ root: KIT_ROOT, config: {} });
+    const paragraph = linear("renderer one paragraph", 1000, (k) => "**b** `c` x ".repeat(k), render);
+    assert.equal(paragraph.split("<strong>").length - 1, 16000);
+    const page = linear("renderer paragraphs", 400, (k) => "A *b* paragraph.\n\n".repeat(k), render);
+    assert.equal(page.split("<p>").length - 1, 6400);
+  });
+
+  // A paragraph ended by a heading, a rule or a fence, with no blank line: a directive is looked for in Marked's own
+  // paragraph only, line by line (it was looked for up to the next blank line, the rest of the page here).
+  test("the kit's renderer: paragraphs ended by a heading, a rule or a fence, never by a blank line", () => {
+    const render = createSyncRenderer({ root: KIT_ROOT, config: {} });
+    for (const [label, unit, tag] of [
+      ["renderer paragraphs cut by headings", (i) => `Some text.\n# Head ${i}\n`, "<h2"],
+      ["renderer paragraphs cut by rules", () => "Some text.\n***\n", "<hr>"],
+      ["renderer paragraphs cut by fences", () => "Some text.\n~~~\nx\n~~~\n", "<pre>"],
+    ]) {
+      const { found, n } = linearN(label, 300, (k) => Array.from({ length: k }, (_, i) => unit(i)).join(""), render);
+      assert.equal(found.split(tag).length - 1, n, label);
+    }
+  });
+
+  // One title again and again: a counter per slug (a suffix added again and again made each anchor longer than the one
+  // before); a badge never closed on a line, again and again: its text never runs over the next opening.
+  test("the kit's renderer: one heading repeated, and badges and claims opened on one line, never closed", () => {
+    const render = createSyncRenderer({ root: KIT_ROOT, config: {} });
+    const repeated = linearN(
+      "renderer one heading repeated",
+      100,
+      (k) => "## Parameters\n\nText.\n\n".repeat(k),
+      render,
+    );
+    assert.ok(repeated.found.includes(`id="parameters-${repeated.n}"`));
+    for (const [label, unit] of [
+      ["renderer badges opened", "[[menu "],
+      ["renderer claims opened", "[[verified a "],
+    ])
+      assert.ok(linear(label, 300, (k) => unit.repeat(k), render).startsWith("<p>[["), label);
+    const blanks = linear("renderer blanks after a badge's kind", 2000, (k) => "[[menu" + " ".repeat(k) + "x", render);
+    assert.ok(blanks.startsWith("<p>[[menu"), "never closed: text");
+  });
+
+  test("replaceLabel, citesLabel: one page of thousands of paragraphs, rewritten and checked", () => {
+    const paragraph = "Click **Approve**, then «Approve» — the `Approve` button.\n\n";
+    const { found, n } = linearN(
+      "replaceLabel page size",
+      200,
+      (k) => paragraph.repeat(k),
+      (md) => {
+        const labels = syncLabels();
+        return labels.citesLabel(md, "Approve") ? labels.replaceLabel(md, "Approve", "Validate").n : -1;
+      },
+    );
+    assert.equal(found, 3 * n);
+  });
+});
+
+describe("a rendered page, read as a browser reads it (engine/sync/html-text.mjs)", () => {
+  // Each shape once took a scanner past linear: a construct never closed, a deep nesting closed by tags that close
+  // nothing, a long run of one character, a text run holding the label many times.
+  test("shownText: tags, comments, quoted values and references never closed; deep nesting", () => {
+    for (const [label, make] of [
+      ["shownText <", (k) => "<".repeat(k)],
+      ["shownText quoted value", (k) => '<a b="' + "x".repeat(k)],
+      ["shownText attributes", (k) => "<a " + "b ".repeat(k)],
+      ["shownText comment", (k) => "<!--" + "-".repeat(k)],
+      ["shownText comments", (k) => "<!-- -->".repeat(k)],
+      ["shownText comments closed by --!>", (k) => "<!-- --!>".repeat(k)],
+      // A text run between each two comments, or tags: a token for each, all built and placed (the ReDoS harness's
+      // "sync shownText comments" shape).
+      ["shownText text between comments", (k) => "x<!-- -->".repeat(k)],
+      ["shownText text between comments closed by --!>", (k) => "x<!-- --!>".repeat(k)],
+      ["shownText text between tags", (k) => 'x<b a="1">'.repeat(k)],
+      ["shownText end tags", (k) => "</".repeat(k)],
+      ["shownText script", (k) => "<script>" + "</scrip".repeat(k)],
+      ["shownText references", (k) => "&#".repeat(k)],
+      ["shownText nesting", (k) => "<div>".repeat(k) + "</span>".repeat(k) + "<p>x</p>"],
+      ["shownText scope", (k) => "<table>" + "<b>".repeat(k) + "</i>".repeat(k) + "<td>x</td>"],
+    ]) {
+      const found = linear(label, 2000, make, (html) => shownText(html).text.length);
+      assert.ok(found >= 0, label);
+    }
+  });
+
+  test("rendersAsBefore: a bold text run holding the label thousands of times, renamed in every other place", () => {
+    const { found } = linearN(
+      "rendersAsBefore places",
+      500,
+      (k) => [
+        `<p><strong>${"Approval chain, ".repeat(k)}</strong></p>`,
+        `<p><strong>${Array.from({ length: k }, (_, i) => (i % 2 ? "Approval chain history, " : "Approval chain, ")).join("")}</strong></p>`,
+      ],
+      ([before, after]) => rendersAsBefore(before, after, ["Approval chain"], "Approval chain history"),
+    );
+    assert.equal(found, true);
   });
 });
 

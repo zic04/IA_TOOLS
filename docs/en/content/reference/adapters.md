@@ -49,7 +49,7 @@ names it and gives its options next to it.
   not failed; serve the document as JSON instead (FastAPI: `/openapi.json`).
 - **`features`**: one item per entry of `features.json` (`[{ id, title, routes?, api?, keys?, sources?, behaviours? }]`,
   `doc-kit inventory --features --write`, `schemas/features.schema.json`), covered when its id is cited whole (`F-01`
-  is not cited by `F-010`) — in practice on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
+  is not cited by `F-010` nor by `F-01_draft`) — in practice on its feature sheet's `feature` field. `sources` (globs of the feature's code, relative to `app.dir`) and
   `behaviours` (the kinds of card its sheet describes) are read by `doc-kit context` and `doc-kit sync`.
 - **`facts`**: reads `facts/<source>.json`, written by `doc-kit facts` (ARCHITECTURE.md §6.9); a missing file
   answers "not available" (`noFacts`), not failed. `dependencies` only ever counts the direct packages.

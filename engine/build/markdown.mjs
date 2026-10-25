@@ -20,7 +20,7 @@ import { Marked } from "marked";
 import { esc, attrs, plainText, slug, isPlainName } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { createFactDirectives } from "./fact-directives.mjs";
-import { createProductBlocks, PRODUCT_CONTAINERS, PRODUCT_ATTRIBUTES } from "./markdown-product.mjs";
+import { createProductBlocks, PRODUCT_CONTAINERS, PRODUCT_ATTRIBUTES, uniqueSlug } from "./markdown-product.mjs";
 import { behaviourRegistry } from "../core/behaviours.mjs";
 
 /** Spelling → canonical kind. */
@@ -130,10 +130,54 @@ const RE_DIRECTIVE = new RegExp(`^::(${alternatives(DIRECTIVES)})\\{([^}\\n]*)\\
 const RE_CONTAINER = new RegExp(
   `^:::(${alternatives(CONTAINERS)})(?:\\{([^}\\n]*)\\})?[ \\t]*\\n([\\s\\S]*?)\\n:::[ \\t]*(?:\\n+|$)`,
 );
-// Lazy content up to the first "]]" not followed by "]": accepts /orders/[id].
-const RE_BADGE = new RegExp(`^\\[\\[(${alternatives(BADGES)})\\s+([^\\n]+?)\\]\\](?!\\])`);
+/**
+ * A badge's or a claim's text, lazy up to the first "]]" not followed by "]" (it accepts /orders/[id] and
+ * /docs/[[...slug]]): on one line, never over the opening of another badge or claim (`[[menu ` repeated on a line is
+ * read once, not once per opening to the line's end), and starting with no blank (the blanks after the kind are read
+ * once). Linear (RULES.md S5).
+ */
+const BADGE_CHAR = `(?:[^\\n[]|\\[(?!\\[(?:${alternatives({ ...BADGES, ...CLAIMS })})\\s))`;
+const BADGE_TEXT = `(?!\\s)${BADGE_CHAR}+?`;
+const RE_BADGE = new RegExp(`^\\[\\[(${alternatives(BADGES)})\\s+(${BADGE_TEXT})\\]\\](?!\\])`);
 // Claim badges (§6.9): the text after the kind is optional ([[verified]] alone, or [[verified lib/orders.ts:42]]).
-const RE_CLAIM = new RegExp(`^\\[\\[(${alternatives(CLAIMS)})(?:\\s+([^\\n]+?))?\\]\\](?!\\])`);
+const RE_CLAIM = new RegExp(`^\\[\\[(${alternatives(CLAIMS)})(?:\\s+(${BADGE_TEXT}))?\\]\\](?!\\])`);
+/** The badge and claim expressions, tried by Marked at each "[" of a text (test/tools/redos-worker.mjs). */
+export const BADGE_PATTERNS = Object.freeze({ RE_BADGE, RE_CLAIM });
+
+/** The end of the line that starts at `p` in `s`, its line end included. */
+const lineEnd = (s, p) => {
+  const end = s.indexOf("\n", p);
+  return end === -1 ? s.length : end + 1;
+};
+
+/**
+ * Where a block extension that opens a line (`opens(src, p)`) may start in `src`, for Marked to cut the paragraph it
+ * is about to read there: the first line of that paragraph that opens one, the paragraph as Marked's own rule reads it
+ * (`paragraph`, the one it reads it with: up to a blank line, a heading, a rule, a fence, a quote, a list, an HTML
+ * line, a table) — a directive further on starts a block of its own. Read line by line, and stopped at the first such
+ * line or at the paragraph's end: searched to the end of the page, to the next blank line, or the paragraph read whole
+ * each time, a page of many paragraphs, or a paragraph of many lines that open none, rendered in quadratic time
+ * (ARCHITECTURE.md §6.10, `sync` renders every page). Whether the paragraph goes on to a line is Marked's rule on that
+ * line and the two after it (a table's head is two lines, and what follows them ends it or not): each line is read
+ * three times at most. `src` is the paragraph from its second character (Marked's).
+ * @param {RegExp} paragraph   Marked's paragraph rule (`this.lexer.tokenizer.rules.block.paragraph`)
+ * @param {string} src
+ * @param {(src: string, p: number) => boolean} opens
+ */
+function startInParagraph(paragraph, src, opens) {
+  for (let p = 0; p < src.length; p = lineEnd(src, p)) {
+    if (p > 0) {
+      const to = lineEnd(src, lineEnd(src, lineEnd(src, p)));
+      if ((paragraph.exec("x\n" + src.slice(p, to))?.[0].length ?? 0) <= 1) return undefined;
+    }
+    if (opens(src, p)) return p;
+  }
+  return undefined;
+}
+/** A line that opens a directive (`::name{…}`) or a container (`:::name`): one `start` for both, the first of
+ * either (Marked cuts at the nearest start of all): two, each reading on past the other's lines, read a paragraph of
+ * directives whole for each one. */
+const opensBlock = (src, p) => src.startsWith("::", p);
 
 function attributes(s) {
   const a = attrs(s);
@@ -248,7 +292,10 @@ export function createMarkdownEngine({
   const directiveExtension = {
     name: "directive",
     level: "block",
-    start: (src) => src.match(/^::(?!:)/m)?.index,
+    /** @this {{ lexer: any }} */
+    start(src) {
+      return startInParagraph(this.lexer.tokenizer.rules.block.paragraph, src, opensBlock);
+    },
     tokenizer(src) {
       const m = RE_DIRECTIVE.exec(src);
       if (m) return { type: "directive", raw: m[0], kind: DIRECTIVES[m[1]], a: attributes(m[2]) };
@@ -299,7 +346,7 @@ export function createMarkdownEngine({
   const containerExtension = {
     name: "container",
     level: "block",
-    start: (src) => src.match(/^:::/m)?.index,
+    // No `start`: the directive's is the containers' too (opensBlock).
     tokenizer(src) {
       const m = RE_CONTAINER.exec(src);
       if (!m) return;
@@ -338,10 +385,11 @@ export function createMarkdownEngine({
     },
   };
 
+  // No `start` for the badges and the claims: Marked's text stops before every "[", so each "[[" is tried where it
+  // opens; one looked for ahead of each piece of text read the rest of the paragraph again (quadratic on a long one).
   const badgeExtension = {
     name: "badge",
     level: "inline",
-    start: (src) => src.indexOf("[["),
     tokenizer(src) {
       const m = RE_BADGE.exec(src);
       if (m) return { type: "badge", raw: m[0], kind: BADGES[m[1]], value: m[2].trim() };
@@ -371,7 +419,6 @@ export function createMarkdownEngine({
   const claimExtension = {
     name: "claim",
     level: "inline",
-    start: (src) => src.indexOf("[["),
     tokenizer(src) {
       const m = RE_CLAIM.exec(src);
       if (m) return { type: "claim", raw: m[0], kind: CLAIMS[m[1]], value: (m[2] || "").trim() };
@@ -389,8 +436,7 @@ export function createMarkdownEngine({
       heading({ tokens, depth, text }) {
         const html = this.parser.parseInline(tokens);
         if (depth > 3) return `<h${depth}>${html}</h${depth}>`;
-        let id = slug(plainText(html) || text);
-        while (ctx.slugs.has(id)) id += "-2";
+        const id = uniqueSlug(ctx, slug(plainText(html) || text));
         ctx.slugs.add(id);
         ctx.toc.push({ id, title: plainText(html), level: Math.max(2, depth) });
         const n = Math.max(2, depth);
@@ -427,6 +473,7 @@ export function createMarkdownEngine({
     ctx = {
       pageId,
       slugs: new Set(),
+      repeats: new Map(),
       toc: [],
       links: [],
       captures: 0,

@@ -9,10 +9,12 @@ import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { checkDate } from "../common.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
-import { readSyncReference, writeSyncReference, markPages } from "../../engine/sync/reference.mjs";
+import { readSyncReference, writeSyncReference, markPages, pageCommit } from "../../engine/sync/reference.mjs";
 import { compareWithReference, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
-import { applyReport } from "../../engine/sync/apply.mjs";
+import { applyReport, pagesToRestamp, followRewrites } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
+import { labelReader } from "../../engine/sync/labels.mjs";
+import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
 import { readToc } from "../../engine/audit/audit.mjs";
@@ -64,6 +66,9 @@ export async function run({ ctx, values, positionals = [] }) {
   const pages = values.mark ? positionals : [];
   if ((values.mark || values.all) && values.since !== undefined)
     throw new KitError(EXIT.USAGE, "option.invalid", { error: "--mark/--since" });
+  // --since compares with a commit, never with sync.json (edits, proofs, captures, labels): nothing to restamp from.
+  if (values.apply && values.since !== undefined)
+    throw new KitError(EXIT.USAGE, "option.invalid", { error: "--apply/--since" });
   if (values["auto-intact"] && !values.apply)
     throw new KitError(EXIT.USAGE, "option.invalid", { error: "--auto-intact (--apply)" });
   if (values.mark && !values.all && !pages.length) throw new KitError(EXIT.USAGE, "sync.markNothing");
@@ -78,12 +83,16 @@ export async function run({ ctx, values, positionals = [] }) {
   const version = readProjectVersion(root, config.version);
   const commit = ctx.commit(appDir);
   const date = values.date || new Date().toISOString().slice(0, 10);
+  // The labels a page cites, and the rewrites of --apply --labels, read in the page as the kit's renderer renders it
+  // (ARCHITECTURE.md §6.10): the engine of sync is given the renderer, as it is given exec.
+  const labels = labelReader(createSyncRenderer({ root, config }));
 
-  if (marking) return runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages });
-  return runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values });
+  if (marking)
+    return runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages, labels });
+  return runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values, labels });
 }
 
-async function runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages }) {
+async function runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages, labels }) {
   const { reference } = readSyncReference(root, config);
   const { reference: next, warnings } = await markPages({
     root,
@@ -98,6 +107,7 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
     inventory,
     plans,
     reference,
+    labels,
   });
   writeSyncReference(root, config, next);
   const marked = values.all ? Object.keys(next.pages) : pages;
@@ -111,7 +121,7 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
   return EXIT.OK;
 }
 
-async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values }) {
+async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values, labels }) {
   const { reference } = readSyncReference(root, config);
   const since = values.since ?? null;
   if (since !== null && !isSafeRef(since))
@@ -122,142 +132,54 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return values.check ? EXIT.CHECK : EXIT.OK;
   }
 
-  /** @type {import("../../engine/sync/report.mjs").SyncReport & { estimate?: any }} */
-  let report = await compareWithReference({
-    root,
-    config,
-    toc,
-    reference,
-    since,
-    git,
-    inventory,
-    plans,
-    appDir,
-    version,
-    commit,
-    factsDir: config.paths.facts,
-  });
+  /**
+   * The report against a reference (sync.json, or the one `--apply` leaves).
+   * @param {object|null} ref
+   * @returns {Promise<import("../../engine/sync/report.mjs").SyncReport & { estimate?: any }>}
+   */
+  const compare = async (ref) => {
+    const r = await compareWithReference({
+      ...{ root, config, toc, reference: ref, since, git, inventory, plans, appDir, version, commit, labels },
+      factsDir: config.paths.facts,
+    });
+    return values.estimate
+      ? { ...r, estimate: await buildEstimate({ root, config, toc, report: r, inventory, plans }) }
+      : r;
+  };
+  let report = await compare(reference);
+  if (values.apply)
+    report = await applyAndRestamp({
+      ctx,
+      root,
+      config,
+      toc,
+      inventory,
+      plans,
+      version,
+      commit,
+      values,
+      report,
+      compare,
+      labels,
+    });
 
-  if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
-
-  if (values.apply) {
-    const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels });
-    if (!ctx.json) {
-      for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
-      if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
-      else {
-        const { count } = numbers(ctx.i18n);
-        ctx.print(
-          ctx.t("cli.sync.applied.summary", {
-            proofs: count("cli.sync.count.proofs", applied.rewritten.proofs),
-            labels: count("cli.sync.count.labels", applied.rewritten.labels),
-            pages: count("cli.build.count.pages", applied.changed.length),
-          }),
-        );
-      }
-    }
-
-    const anyIssue = new Set([
-      ...report.review.map((r) => r.page),
-      ...report.proofs.broken.map((b) => b.page),
-      ...report.captures.flatMap((c) => c.pages),
-      ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
-    ]);
-    const touched = new Set([
-      ...report.proofs.moved.map((m) => m.page),
-      ...(values.labels ? report.labels.flatMap((l) => l.pages) : []),
-    ]);
-    const restamp = new Set(report.unchanged);
-    for (const id of touched) if (!anyIssue.has(id)) restamp.add(id);
-    // --auto-intact (ETUDE-CAPTURES.md §7, G1): a page whose only changes are "probably intact" — shared files
-    // whose diff touches nothing the page cites, or files it reaches only through proofs that still hold — is
-    // marked without asking an agent, unless something else is pending on it (broken proof, capture, label,
-    // removed item it cites).
-    const intact = [];
-    if (values["auto-intact"]) {
-      const pending = new Set([
-        ...report.proofs.broken.map((b) => b.page),
-        ...report.captures.flatMap((c) => c.pages),
-        ...report.removed.flatMap((r) => r.pages),
-        ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
-      ]);
-      for (const r of report.review) if (r.priority === "probablyIntact" && !pending.has(r.page)) intact.push(r.page);
-      for (const id of intact) restamp.add(id);
-      if (!ctx.json) ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
-    }
-    if (restamp.size) {
-      const { reference: before } = readSyncReference(root, config);
-      const { reference: next } = await markPages({
-        root,
-        config,
-        toc,
-        pages: [...restamp],
-        date: before?.app?.date || new Date().toISOString().slice(0, 10),
-        commit,
-        version,
-        inventory,
-        plans,
-        reference: before,
-      });
-      writeSyncReference(root, config, next);
-      report = await compareWithReference({
-        root,
-        config,
-        toc,
-        reference: next,
-        since,
-        git,
-        inventory,
-        plans,
-        appDir,
-        version,
-        commit,
-        factsDir: config.paths.facts,
-      });
-      if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
-    }
-  }
-
+  // Each page's diff from the commit it was checked at (pageCommit), or from --since.
   const diffs = new Map();
-  const refCommit = since || reference?.app?.commit || null;
-  if (git && refCommit)
-    for (const r of report.review) {
-      const d = git.diff(
-        refCommit,
-        r.reasons.map((x) => x.path),
-      );
-      if (d) diffs.set(r.page, d);
-    }
+  for (const r of report.review) {
+    const refCommit = since || pageCommit(reference, r.page);
+    const d =
+      git && refCommit
+        ? git.diff(
+            refCommit,
+            r.reasons.map((x) => x.path),
+          )
+        : null;
+    if (d) diffs.set(r.page, d);
+  }
   writeReportFiles({ root, report, diffs, t: ctx.t });
 
-  if (ctx.json) {
-    ctx.print(JSON.stringify(report, null, 2));
-  } else {
-    ctx.print(ctx.t("cli.sync.written", { folder: ".doc-kit" }));
-    if (since) ctx.print(ctx.paint.dim(ctx.t("cli.sync.sinceNoInventory")));
-    const line = (key, n) => ctx.print(ctx.t(`cli.sync.summary.${key}`, { n }));
-    line("proofsMoved", report.proofs.moved.length);
-    line("proofsBroken", report.proofs.broken.length);
-    line("labels", report.labels.length);
-    line("review", report.review.length);
-    line("captures", report.captures.length);
-    line("new", report.new.length);
-    line("removed", report.removed.length);
-    line("unchanged", report.unchanged.length);
-    line("unmarked", report.unmarked.length);
-    for (const w of report.warnings || []) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t(`cli.${w.key}`, w.vars)}`);
-    if (report.estimate)
-      ctx.print(
-        ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +
-          (report.estimate.total.cost !== null
-            ? " · " +
-              ctx.t("cli.estimate.cost", {
-                cost: report.estimate.total.cost.toFixed(2),
-                currency: report.estimate.currency || "",
-              })
-            : ""),
-      );
-  }
+  if (ctx.json) ctx.print(JSON.stringify(report, null, 2));
+  else printSummary(ctx, report, since);
 
   if (values.check) {
     const failed = checkFails(report);
@@ -272,6 +194,88 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return failed ? EXIT.CHECK : EXIT.OK;
   }
   return EXIT.OK;
+}
+
+/** The report's summary, as text: one line per category, what could not be checked, then the estimate when one was
+ * asked for. */
+function printSummary(ctx, report, since) {
+  ctx.print(ctx.t("cli.sync.written", { folder: ".doc-kit" }));
+  if (since) ctx.print(ctx.paint.dim(ctx.t("cli.sync.sinceNoInventory")));
+  for (const file of report.unreadableLabels || [])
+    ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t("cli.sync.labelsUnreadable", { file })}`);
+  const line = (key, n) => ctx.print(ctx.t(`cli.sync.summary.${key}`, { n }));
+  line("proofsMoved", report.proofs.moved.length);
+  line("proofsBroken", report.proofs.broken.length);
+  line("labels", report.labels.length);
+  line("review", report.review.length);
+  line("captures", report.captures.length);
+  line("new", report.new.length);
+  line("removed", report.removed.length);
+  line("unchanged", report.unchanged.length);
+  if (report.edited.length) line("edited", report.edited.length);
+  if (report.byHand?.length) line("byHand", report.byHand.length);
+  line("unmarked", report.unmarked.length);
+  // What could not be checked: a file outside the application, never read (sync.dependencyOutside, sync.proofOutside).
+  for (const w of report.warnings || []) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t(`cli.${w.key}`, w.vars)}`);
+  if (report.estimate)
+    ctx.print(
+      ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +
+        (report.estimate.total.cost !== null
+          ? " · " +
+            ctx.t("cli.estimate.cost", {
+              cost: report.estimate.total.cost.toFixed(2),
+              currency: report.estimate.currency || "",
+            })
+          : ""),
+    );
+}
+
+/**
+ * `--apply` (ARCHITECTURE.md §6.10): the mechanical fixes of the report, then the reference that follows them — the
+ * pages it rewrote keep a fingerprint of their new text (followRewrites), the pages left with nothing pending are
+ * restamped — and the report again, when the reference changed.
+ */
+async function applyAndRestamp(p) {
+  const { ctx, root, config, toc, inventory, plans, version, commit, values, report, compare, labels } = p;
+  const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels, labels });
+  const { byHand } = applied;
+  if (!ctx.json) {
+    for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
+    for (const b of byHand) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t("cli.sync.byHand.item", b)}`);
+    if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
+    else {
+      const { count } = numbers(ctx.i18n);
+      ctx.print(
+        ctx.t("cli.sync.applied.summary", {
+          proofs: count("cli.sync.count.proofs", applied.rewritten.proofs),
+          labels: count("cli.sync.count.labels", applied.rewritten.labels),
+          pages: count("cli.build.count.pages", applied.changed.length),
+        }),
+      );
+    }
+  }
+
+  const autoIntact = !!values["auto-intact"];
+  const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact, byHand });
+  if (autoIntact && !ctx.json)
+    ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
+  // The rewrites refused stay in the report that follows: each page to update by hand, its label still pending.
+  const withByHand = (r) => (byHand.length ? { ...r, byHand } : r);
+  if (!restamp.length && !applied.rewrites.length) return withByHand(report);
+  const before = followRewrites(readSyncReference(root, config).reference, applied.rewrites);
+  const next = restamp.length
+    ? (
+        await markPages({
+          ...{ root, config, toc, pages: restamp, restamp: true, commit, version, inventory, plans },
+          date: before?.app?.date || new Date().toISOString().slice(0, 10),
+          reference: before,
+          labels,
+        })
+      ).reference
+    : before;
+  if (!next) return withByHand(report);
+  writeSyncReference(root, config, next);
+  return withByHand(await compare(next));
 }
 
 /** engine/context/context.mjs (lot V7) is used when present, to measure a page's real context size; while it
