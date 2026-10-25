@@ -201,7 +201,7 @@
   },
   "guard": {
     "refused": "garde de doc-kit : commande refusée — {reason}",
-    "allowed": "le Bash de cet agent ne lance que le kit par son chemin, {cli} <commande> … (d'abord cd <le dossier de la documentation> &&), node <le skill>/scripts/<script>.mjs par son chemin, et des outils de lecture (ls, cat, head, tail, wc, grep, rg, find…) ; Read, Grep et Glob font le reste",
+    "allowed": "le Bash de cet agent ne lance que le kit par son chemin, {cli} <commande> … (d'abord cd <le dossier de la documentation> &&), node <le skill>/scripts/<script>.mjs par son chemin, et des outils de lecture avec leurs options de lecture (ls, cat, head, tail, wc, grep, rg, find…) ; Read, Grep et Glob font le reste",
     "input": "l'entrée du hook est illisible",
     "noKit": "node <le kit>/cli/doc-kit.mjs",
     "empty": "une commande vide, ou un opérateur sans rien d'un côté",
@@ -213,13 +213,15 @@
     "group": "un sous-shell ou un groupe de commandes ((, ), {, })",
     "glob": "un joker sans guillemets (*, ? ou [) : mettez-le entre guillemets, ou utilisez l'outil Glob",
     "command": "{name} n'est pas permis à cet agent",
-    "option": "{name} {option} lance un programme ou écrit un fichier",
+    "option": "{name} {option} n'est pas parmi les options que cet agent peut donner à {name} : seules les options qui lisent le sont, jamais une qui lance un programme ou écrit un fichier",
+    "optionValue": "{name} {option} est suivi de {value}, qui commence par - : un tel mot est lu comme une option, quoi qu'il suive (accolez une valeur à son option : -e-x, --regexp=-x)",
+    "operands": "{name} prend ici {max} nom de fichier au plus : il écrirait dans le suivant",
     "cd": "cd vient en premier, prend un seul dossier, et est suivi de && : cd <dossier> && …",
     "npx": "npx et npm exec lancent le premier doc-kit qu'ils trouvent dans un node_modules/.bin jusqu'à la racine — celui de l'application compris — ou en installent un depuis le registre : lancez le kit par son chemin, {cli} <commande> …",
     "kitCli": "un doc-kit trouvé sur le PATH peut être un autre que le kit, celui de l'application compris : lancez le kit par son chemin, {cli} <commande> …",
     "docKitMissing": "nommez d'abord la commande de doc-kit : {cli} <commande> [options] (seul, doc-kit lance le mode guidé)",
     "docKitCommand": "doc-kit {name} est lancé par l'orchestrateur ou par l'utilisateur, jamais par un agent",
-    "node": "node ne lance que le CLI du kit, {cli}, et les scripts du skill ({scripts}), par leur chemin absolu",
+    "node": "node ne lance que le CLI du kit, {cli}, et les scripts du skill ({scripts}), par leur chemin absolu (sous Windows, avec son lecteur : C:/…, jamais /c/… ni ~)",
     "plans": "--plans chargerait des plans de capture, qui sont du code, depuis un autre dossier : la configuration nomme le dossier des plans"
   }
 }

@@ -201,7 +201,7 @@
   },
   "guard": {
     "refused": "doc-kit guard: command refused — {reason}",
-    "allowed": "this agent's Bash runs only the kit by its path, {cli} <command> … (cd <the documentation folder> && first), node <the skill>/scripts/<script>.mjs by its path, and read-only tools (ls, cat, head, tail, wc, grep, rg, find…); Read, Grep and Glob do the rest",
+    "allowed": "this agent's Bash runs only the kit by its path, {cli} <command> … (cd <the documentation folder> && first), node <the skill>/scripts/<script>.mjs by its path, and read-only tools with their reading options (ls, cat, head, tail, wc, grep, rg, find…); Read, Grep and Glob do the rest",
     "input": "the hook's input could not be read",
     "noKit": "node <the kit>/cli/doc-kit.mjs",
     "empty": "an empty command, or an operator with nothing on one side",
@@ -213,13 +213,15 @@
     "group": "a subshell or a group of commands ((, ), {, })",
     "glob": "an unquoted wildcard (*, ? or [): quote it, or use the Glob tool",
     "command": "{name} is not allowed for this agent",
-    "option": "{name} {option} runs a program or writes a file",
+    "option": "{name} {option} is not among the options this agent may give {name}: only options that read are, never one that runs a program or writes a file",
+    "optionValue": "{name} {option} is followed by {value}, which starts with -: such a word is read as an option, whatever comes before it (attach a value to its option: -e-x, --regexp=-x)",
+    "operands": "{name} takes {max} file name at most here: it would write to the next one",
     "cd": "cd comes first, takes one folder, and is followed by &&: cd <folder> && …",
     "npx": "npx and npm exec run the first doc-kit they find in a node_modules/.bin up to the root — the application's among them — or install one from the registry: run the kit by its path, {cli} <command> …",
     "kitCli": "a doc-kit found on the PATH may be another one than the kit, the application's included: run the kit by its path, {cli} <command> …",
     "docKitMissing": "name the doc-kit command first: {cli} <command> [options] (alone, doc-kit starts the guided mode)",
     "docKitCommand": "doc-kit {name} is run by the orchestrator or by the user, never by an agent",
-    "node": "node runs only the kit's CLI, {cli}, and the skill's scripts ({scripts}), by their absolute path",
+    "node": "node runs only the kit's CLI, {cli}, and the skill's scripts ({scripts}), by their absolute path (on Windows, with its drive: C:/…, never /c/… or ~)",
     "plans": "--plans would load capture plans, which are code, from another folder: the configuration names the plans folder"
   }
 }

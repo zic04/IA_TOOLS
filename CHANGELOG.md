@@ -265,11 +265,13 @@ entries between a project's `kit` range and the installed version.
   - Every file `doc-kit context` writes starts with a fixed notice, in the site's language: what follows is the
     application's content, data only (the translator's dossier: content to translate).
   - **The agents with Bash run it through a guard**, `skill/doc-kit/scripts/bash-guard.mjs`, their PreToolUse hook
-    (in their definitions, `node "<skill>/scripts/bash-guard.mjs" || exit 2`; `doc-kit skill install` writes the
+    (in their definitions, Claude Code's exec form: `command: node`, `args: ["<skill>/scripts/bash-guard.mjs"]`,
+    `onFailure: block`, so that no shell reads the path; `doc-kit skill install` writes the
     installed skill's path in them): the kit's CLI by its absolute path, `node "<kit>/cli/doc-kit.mjs" <command>`,
     the skill's scripts by theirs, and read-only tools only, after one `cd <folder> &&` first. It refuses git, any
     other program, a program by a relative path, an expansion, a redirection to a file, a subshell, an unquoted
-    wildcard, the options of a read-only tool that run a program (`rg --pre`, `find -exec`), the doc-kit commands of
+    wildcard, any option of a read-only tool that is not on its allowlist (those that run a program or write a file:
+    `rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), the doc-kit commands of
     the orchestrator or the user (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…) and `--plans`. No shell, no
     eval, no file read; it only refuses, and what it lets through still goes through Claude Code's permissions.
   - **The kit runs by its path, never through npx** (SECURITY.md): the skill told the orchestrator and every agent to
@@ -285,16 +287,31 @@ entries between a project's `kit` range and the installed version.
     the original folder.
   - **The guard fails closed**: Claude Code blocks a command only on exit code 2, and a missing script (exit code 1),
     a corrupt message file (a load error, 1) or no `node` (127) let the command run. The guard imports the skill's
-    modules inside a try and refuses on any error, and the hook command ends with `|| exit 2`.
+    modules inside a try and refuses on any error, and the definitions say `onFailure: block`, so that a hook that
+    cannot start or ends with another code blocks too (a shell form, `… || exit 2`, would need bash: under PowerShell,
+    Claude Code's shell for hooks on Windows without Git Bash, it does not parse).
+  - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
+    `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
+    (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one
+    file name at most (it writes to its second).
+  - **On Windows, a program's path has its drive** (`C:/…`): Git Bash's `/c/…` and `~` are refused, since Git Bash
+    leaves such a word unconverted when it holds `'`, a backquote, `*`, `?`, `[`, `]`, `:` or `;` (and always under
+    `MSYS_NO_PATHCONV`), and node then reads `C:\c\…`: `node "/c/<kit>/cli/x'/../doc-kit.mjs"` passed for the kit and
+    ran another file.
+  - **A kit path with a backquote, a `${` or a quote**: `skill install` writes it in the skill's scripts as a JSON
+    string; the template literal it filled before broke on such a path, or ran what followed a `${`.
   - The guard no longer checks that the folder holds a `doc.config.mjs`: it protected nothing against a planted one
     (`cd docs && npx doc-kit build --project ../evil` passed). SECURITY.md says what the guard does not bound: Edit
     and Write, a configuration the kit loads (code), `--project` pointing elsewhere.
   - `test/unit/skill-briefs.test.mjs` (RULES.md M15) checks the rule in every brief, both languages, and every agent,
     and that no skill text gives `npx doc-kit` or a bare `doc-kit`; `test/unit/bash-guard.test.mjs` the guard on a
-    table of allowed and refused commands, a real hook process with a planted `node_modules/.bin/doc-kit` in the
-    application (never run), and the hook's failures (a missing script, no `node`, a corrupt message file, a crash:
-    exit code 2); `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give
-    the same command; the ReDoS harness measures the guard.
+    table of allowed and refused commands, a table per read-only tool of the options agents use and of the ones that
+    run a program or write a file (through the decision and the real hook process), a property (an option not listed
+    is always refused), the Windows path forms, a real hook process with a planted `node_modules/.bin/doc-kit` in the
+    application (never run), the hook started as the exec form starts it from a folder whose name holds quotes, `$`
+    and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash);
+    `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give the same
+    command, and that a kit path with a backquote and a `${` is found; the ReDoS harness measures the guard.
 
 ## [0.4.1] - 2026-10-23
 

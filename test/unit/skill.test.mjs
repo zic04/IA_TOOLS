@@ -103,7 +103,9 @@ describe("skill install", () => {
           name,
         );
         if (!/^tools: .*\bBash\b/m.test(installed)) continue;
-        const hook = /^ {10}command: 'node "(.+)" \|\| exit 2'$/m.exec(installed)?.[1];
+        // Claude Code's exec form: node, the guard's path as its one argument (no shell reads it), failures blocking.
+        const quoted = /^ {10}command: node\n {10}args: \[(".+")\]\n {10}onFailure: block$/m.exec(installed)?.[1];
+        const hook = quoted && JSON.parse(quoted);
         assert.equal(hook, `${skillPath}/scripts/bash-guard.mjs`, `${name}: its Bash hook is the installed guard`);
         assert.ok(fs.existsSync(hook), `${name}: the guard is installed where its hook says`);
       }
@@ -131,10 +133,43 @@ describe("skill install", () => {
     }
   });
 
-  test("the guard's path in an agent's hook command survives the shell's double quotes and YAML's single quotes", () => {
+  test("the guard's path in an agent's hook is a YAML double-quoted string: no shell reads it", () => {
     assert.equal(hookPath("/home/me/.claude/skills/doc-kit"), "/home/me/.claude/skills/doc-kit");
-    assert.equal(hookPath("C:/Users/O'Brien/.claude/skills/doc-kit"), "C:/Users/O''Brien/.claude/skills/doc-kit");
-    assert.equal(hookPath(String.raw`/a"b/$HOME/\x/` + "`id`"), String.raw`/a\"b/\$HOME/\\x/` + "\\`id\\`");
+    // A quote, a dollar sign, a backquote, a semicolon stay as they are (exec form: no shell); `"` and `\` escaped.
+    assert.equal(hookPath("C:/Users/O'Brien/$x;`id`/doc-kit"), "C:/Users/O'Brien/$x;`id`/doc-kit");
+    assert.equal(hookPath(String.raw`/a"b/\x`), String.raw`/a\"b/\\x`);
+    // Control characters and YAML 1.1's line breaks are escaped: the path stays on its line.
+    assert.equal(hookPath("/a\nb\u2028c\u0085d\u2029e"), String.raw`/a\nb\u2028c\u0085d\u2029e`);
+    // Read back as YAML reads a double-quoted string (its escapes are JSON's), it is the path.
+    for (const p of ["C:/Users/O'Brien/sk ill's $x", String.raw`/a"b/\x/` + "`id`;|&<>#: ,]", "/a\tb\nc\u2028d"])
+      assert.equal(JSON.parse(`"${hookPath(p)}"`), p, p);
+  });
+
+  test("a kit path with a backquote, a `${` or quotes: the installed scripts hold it as a JSON string, and find the kit", async () => {
+    const root = tempDir("doc-kit-skill-odd-");
+    try {
+      // A kit folder (isKitRoot: an ARCHITECTURE.md) whose name a template literal would have run or broken on.
+      const name =
+        process.platform === "win32" ? "kit `${process.exit(3)}` 'q' $HOME" : 'kit `${process.exit(3)}` "q" \\ $HOME';
+      const kitRoot = path.join(root, name);
+      fs.mkdirSync(kitRoot, { recursive: true });
+      fs.writeFileSync(path.join(kitRoot, "ARCHITECTURE.md"), "# a kit\n");
+      const skills = path.join(root, "skills");
+      installSkill({ skills, kitRoot });
+      const installed = fs.readFileSync(path.join(skills, "doc-kit", "scripts", "common.mjs"), "utf8");
+      const kit = kitRoot.split(path.sep).join("/");
+      assert.ok(installed.includes(`const INSTALLED_KIT = ${JSON.stringify(kit)};`), "a JSON string");
+      // The positive control: the template literal the scripts held before does not even parse with this path (node
+      // --check only parses the file).
+      const old = path.join(root, "old.mjs");
+      fs.writeFileSync(old, `export const INSTALLED_KIT = String.raw\`${kit}\`;\n`);
+      assert.notEqual(spawnSync(process.execPath, ["--check", old], { encoding: "utf8" }).status, 0);
+      const common = await import(pathToFileURL(path.join(skills, "doc-kit", "scripts", "common.mjs")).href);
+      assert.equal(common.kitPath(), kit, "the installed skill finds the kit, its path unchanged");
+      assert.equal(common.kitCommand(common.kitPath()), kitCli(kit));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test("the kit's CLI, as the installer writes it and as the briefs get it, is one command, quoted for bash", () => {

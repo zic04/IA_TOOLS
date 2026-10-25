@@ -8,7 +8,9 @@ hooks:
     - matcher: "Bash"
       hooks:
         - type: command
-          command: 'node "{{SKILL_PATH}}/scripts/bash-guard.mjs" || exit 2'
+          command: node
+          args: ["{{SKILL_PATH}}/scripts/bash-guard.mjs"]
+          onFailure: block
 ---
 
 You review doc-kit's target application and judge what other agents rely on. Read the brief given to you in full,

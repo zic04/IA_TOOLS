@@ -42,9 +42,9 @@ export function t(key, vars = {}) {
   return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 }
 
-// Replaced by `doc-kit skill install` with the kit's location. In the kit's own source tree the token stays
-// as is, and the kit is found relative to this file (skill/doc-kit/scripts → kit root).
-const INSTALLED_KIT = String.raw`{{KIT_PATH}}`;
+// Replaced whole by `doc-kit skill install` with the kit's location as a JSON string (a backquote, `${` or a quote
+// in it stays a character). In the kit's own source tree the token stays, and the kit is found from this file.
+const INSTALLED_KIT = "{{KIT_PATH}}";
 
 /** Error message in the CLI format: "✖ what is wrong" then "→ what to do". */
 export function error(what, todo) {

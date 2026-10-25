@@ -4,15 +4,25 @@
 // its reason — the refusals are the positive control: a guard that let everything through would fail them. The kit
 // runs only by its absolute path: npx, npm exec and a bare doc-kit run the first doc-kit of a node_modules/.bin up to
 // the root, the application's when the documentation sits inside it (a real hook process and a planted bin show it is
-// never run). Then the hook as Claude Code runs it (its input, its exit code, its message in English and French), its
-// failures (a missing script, a skill file that cannot load, a crash: exit code 2, the only one Claude Code blocks
-// on), and the agent definitions that name it.
+// never run). The read-only tools take the options of their allowlist only: a table per tool of the options agents
+// use (allowed) and of those that run a program or write a file (refused), through the decision and the real hook
+// process, and a property: an option not listed is always refused. Then the hook as Claude Code runs it, in its exec
+// form (node and the guard's path, no shell: its input, its exit code, its message in English and French), its
+// failures (a missing script, a skill file that cannot load, a crash: exit code 2, or a failure `onFailure: block`
+// blocks), and the agent definitions that name it.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { bashDecision, guard, SKILL_SCRIPTS, DOC_KIT_REFUSED } from "../../skill/doc-kit/scripts/bash-guard.mjs";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  bashDecision,
+  guard,
+  SKILL_SCRIPTS,
+  DOC_KIT_REFUSED,
+  READ_ONLY_SPECS,
+} from "../../skill/doc-kit/scripts/bash-guard.mjs";
 import * as common from "../../skill/doc-kit/scripts/common.mjs";
 import { SKILL_SOURCE } from "../../cli/commands/skill.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
@@ -24,8 +34,13 @@ const SKILL = "/home/me/.claude/skills/doc-kit";
 const POSIX = { skillDir: SKILL, kitDir: "/opt/doc-kit", home: "/home/me", windows: false };
 /** The kit's CLI as the briefs give it ({{KIT_CLI}}). */
 const KIT = kitCommand(POSIX.kitDir);
-/** The hook command of the agents with Bash, as their definitions write it. */
-const HOOK_COMMAND = `node "{{SKILL_PATH}}/scripts/bash-guard.mjs" || exit 2`;
+/** The hook of the agents with Bash, as their definitions write it: Claude Code's exec form, failures blocking. */
+const HOOK_LINES = [
+  "        - type: command",
+  "          command: node",
+  '          args: ["{{SKILL_PATH}}/scripts/bash-guard.mjs"]',
+  "          onFailure: block",
+];
 const slash = (p) => p.split(path.sep).join("/");
 
 const ALLOWED = [
@@ -51,6 +66,7 @@ const ALLOWED = [
   "cd docs && ls content || echo none",
   "cat a.md;",
   "ls # a comment, which bash never runs: $(rm -rf /)",
+  "sort -rn counts.txt | uniq -c | head -5",
 ];
 
 /** [command, the reason it is refused] */
@@ -149,6 +165,156 @@ const REFUSED = [
   ["cd a b && ls", "cd"],
 ];
 
+/**
+ * The read-only tools' options, tool by tool: [command, null] goes through, [command, reason, option] is refused. The
+ * allowed ones are the options agents use to read; the refused ones run a program (rg --pre, --hostname-bin, -z; find
+ * -exec; sort --compress-program), write a file (sort -o, find -fprint, uniq's second name), read their list from a
+ * file, never end (tail -f), or are not on the list (an abbreviation, a misspelling).
+ * @type {Array<[string, string|null, string?]>}
+ */
+const OPTION_ROWS = [
+  ["ls -la content", null],
+  ["ls -1 content/use", null],
+  ["ls -lhR --color=never --group-directories-first docs", null],
+  ["ls --sort=time -r docs", null],
+  ["cat -n content/use/orders.md", null],
+  ["head -n 40 a.md", null],
+  ["head -40 a.md", null],
+  ["head -n40 -q a.md b.md", null],
+  ["tail -n +5 a.md", null],
+  ["tail -5 a.md", null],
+  ["wc -l app/a.ts app/b.ts", null],
+  ["grep -rnI --include='*.tsx' --exclude-dir=node_modules -e useTranslations app", null],
+  ["grep -c -E 'a|b' app/x.ts", null],
+  ["grep -rl -A3 -B 2 --color=never TODO app", null],
+  ["grep -e-x app/x.ts", null],
+  ["grep --regexp=-x app/x.ts", null],
+  ["grep -- -x app/x.ts", null],
+  ['rg -n "t\\(" app', null],
+  ["rg -n -i -g '*.tsx' -t ts --hidden useState app", null],
+  ["rg -uu -l --files-with-matches x app", null],
+  ["rg --files app", null],
+  ["rg --json -C2 -m5 --max-depth 3 x app", null],
+  ["rg --color never --sort path -w x app", null],
+  ["rg -- --pre app", null],
+  ["find app -maxdepth 2 -type d -name '*api*'", null],
+  ["find app -name '*.tsx' -type f", null],
+  ["find . -path ./node_modules -prune -o -iname '*.ts' -print", null],
+  ["find app -not -name '*.test.ts' -mindepth 1", null],
+  ["diff -u a.md b.md", null],
+  ["diff -rq --exclude=node_modules a b", null],
+  ["du -sh app", null],
+  ["du -d 1 -h app", null],
+  ["stat -c %s a.md", null],
+  ["echo -n x", null],
+  ["basename -s .md a.md", null],
+  ["dirname a/b.md", null],
+  ["realpath --relative-to=docs app", null],
+  ["cut -d: -f1 a.txt", null],
+  ["tr -d x", null],
+  ["sort -t: -k2 -n -u a.txt", null],
+  ["uniq -c a.txt", null],
+  ["pwd -P", null],
+  ["rg --version", null],
+  ["find --help", null],
+  // rg: a program it runs, a list it reads from a file, a link format that names the host (with --hostname-bin).
+  [
+    "rg --hostname-bin=C:/app/evil.bat '--hyperlink-format=file://{host}{path}' --color=always x",
+    "option",
+    "--hostname-bin=C:/app/evil.bat",
+  ],
+  ["rg --hostname-bin ./evil --hyperlink-format=default --color=always x", "option", "--hostname-bin"],
+  ["rg --hyperlink-format=default x", "option", "--hyperlink-format=default"],
+  ["rg --pre=sh x app", "option", "--pre=sh"],
+  ["rg --pre sh x app", "option", "--pre"],
+  ["rg --pre-glob '*.pdf' x app", "option", "--pre-glob"],
+  ["rg -n --no-config --pre=sh x", "option", "--pre=sh"],
+  ["rg -z x app", "option", "-z"],
+  ["rg -niz x app", "option", "-z"],
+  ["rg --search-zip x app", "option", "--search-zip"],
+  ["rg --ignore-file=/etc/x x app", "option", "--ignore-file=/etc/x"],
+  ["rg --ignore-file ../evil x app", "option", "--ignore-file"],
+  ["rg -f patterns.txt app", "option", "-f"],
+  ["rg --file=patterns.txt app", "option", "--file=patterns.txt"],
+  ["rg --type-add 'x:*.x' x", "option", "--type-add"],
+  ["rg --hidden=yes x", "option", "--hidden=yes"],
+  // grep: a list read from a file; an abbreviation getopt would take for --color.
+  ["grep -f list.txt app", "option", "-f"],
+  ["grep -rnf list.txt app", "option", "-f"],
+  ["grep --exclude-from=list.txt x app", "option", "--exclude-from=list.txt"],
+  ["grep --colo=always x app", "option", "--colo=always"],
+  ["grep --count=3 x app", "option", "--count=3"],
+  // find: what runs a program, deletes or writes; an option before the paths; `--` does not end its expression.
+  ["find app -exec rm \\;", "option", "-exec"],
+  ["find . -exec id ';'", "option", "-exec"],
+  ["find . -execdir id +", "option", "-execdir"],
+  ["find . -ok id \\;", "option", "-ok"],
+  ["find . -okdir id \\;", "option", "-okdir"],
+  ["find . -delete", "option", "-delete"],
+  ["find . -fprint out.txt", "option", "-fprint"],
+  ["find . -fprint0 out.txt", "option", "-fprint0"],
+  ["find . -fprintf out.txt %p", "option", "-fprintf"],
+  ["find . -fls out.txt", "option", "-fls"],
+  ["find . -files0-from list", "option", "-files0-from"],
+  ["find -L . -name x", "option", "-L"],
+  ["find . -- -exec id \\;", "option", "--"],
+  // sort: a file it writes, a folder it writes in, a program it runs, a list it reads.
+  ["sort -o out.txt a.txt", "option", "-o"],
+  ["sort -rno out.txt a.txt", "option", "-o"],
+  ["sort --output=out.txt a.txt", "option", "--output=out.txt"],
+  ["sort -T /tmp a.txt", "option", "-T"],
+  ["sort --compress-program=sh a.txt", "option", "--compress-program=sh"],
+  ["sort --files0-from=list a.txt", "option", "--files0-from=list"],
+  ["sort --random-source=/dev/x -R a.txt", "option", "--random-source=/dev/x"],
+  // tail -f never ends; lists read from files.
+  ["tail -f a.log", "option", "-f"],
+  ["tail -F a.log", "option", "-F"],
+  ["tail --follow a.log", "option", "--follow"],
+  ["wc --files0-from=list", "option", "--files0-from=list"],
+  ["du --files0-from=list", "option", "--files0-from=list"],
+  ["du -X list app", "option", "-X"],
+  ["cat -z a", "option", "-z"],
+  ["echo -x", "option", "-x"],
+  ["ls --hide=x --pre=y", "option", "--hide=x"],
+  // A value given as the next word that starts with -: whatever the tool makes of it, the guard checks it.
+  ["grep -e -foo app", "optionValue"],
+  ["grep --regexp --pre app", "optionValue"],
+  ["find . -name -exec id \\;", "optionValue"],
+  ["head -n -5 a.md", "optionValue"],
+  ["cut -d -f1 a.txt", "optionValue"],
+  // uniq writes to its second file name.
+  ["uniq a.txt out.txt", "operands"],
+  ["uniq -c -- a.txt out.txt", "operands"],
+];
+
+/**
+ * A tool's allowlist as its spec writes it (READ_ONLY_SPECS, read here on its own): each option — a short `-x`, a long
+ * `--name`, a word of find's — with what it takes ("flag", "value", "optional"), `--help` and `--version` included.
+ * @param {string} name
+ */
+function listed(name) {
+  const [spec, more = {}] = READ_ONLY_SPECS[name];
+  /** @type {Map<string, string>} */
+  const kinds = new Map();
+  let numbers = false;
+  for (const item of `${spec} --help --version`.split(" ")) {
+    if (item === "-NUM") numbers = true;
+    else if (item.endsWith("[=]")) kinds.set(item.slice(0, -3), "optional");
+    else if (item.endsWith("=")) kinds.set(item.slice(0, -1), "value");
+    else kinds.set(item, "flag");
+  }
+  return { words: Boolean(more.words), numbers, kinds };
+}
+
+/** A small deterministic generator (linear congruential): the same words on every run. @param {number} seed */
+function generator(seed) {
+  let x = seed >>> 0;
+  return (/** @type {number} */ n) => {
+    x = (Math.imul(x, 1664525) + 1013904223) >>> 0;
+    return x % n;
+  };
+}
+
 describe("bashDecision (pure): what the agents' Bash may run", () => {
   test("the commands of the briefs go through: the kit by its path, the skill's scripts, reading", () => {
     for (const command of ALLOWED) assert.deepEqual(bashDecision(command, POSIX), { allow: true }, command);
@@ -162,12 +328,89 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     }
   });
 
+  test("each read-only tool takes the options of its allowlist only: the ones agents read with, never one that runs a program or writes a file", () => {
+    for (const [command, key, option] of OPTION_ROWS) {
+      const d = bashDecision(command, POSIX);
+      if (key === null) assert.deepEqual(d, { allow: true }, command);
+      else {
+        assert.equal(d.allow === false && d.key, key, command);
+        if (option !== undefined) assert.equal(d.allow === false && d.vars.option, option, command);
+      }
+    }
+    // Every tool has its rows, allowed and refused.
+    for (const name of Object.keys(READ_ONLY_SPECS))
+      assert.ok(
+        OPTION_ROWS.some(([c]) => c.startsWith(`${name} `)),
+        `${name}: a row of OPTION_ROWS`,
+      );
+  });
+
+  test("property: an option not on a tool's allowlist is always refused, and every option on it goes through", () => {
+    const next = generator(20261025);
+    const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.";
+    let refused = 0;
+    for (const name of Object.keys(READ_ONLY_SPECS)) {
+      const { words, numbers, kinds } = listed(name);
+      for (let k = 0; k < 400; k++) {
+        let body = "";
+        for (let j = 1 + next(12); j > 0; j--) body += LETTERS[next(LETTERS.length)];
+        const form = next(4); // a short option, a long one, a long one with a value, one of find's words
+        const word = [`-${body[0]}`, `--${body}`, `--${body}=v`, `-${body}`][form];
+        const [bare] = word.split("=");
+        const kind = kinds.get(bare);
+        const ok = words
+          ? kinds.has(word)
+          : form === 0
+            ? kind !== undefined || (numbers && body[0] >= "0" && body[0] <= "9")
+            : form === 3
+              ? false // grouped short options: a property of their own, below
+              : form === 1
+                ? kind !== undefined
+                : kind === "value" || kind === "optional";
+        if (form === 3 && !words) continue;
+        const d = bashDecision(`${name} '${word}' x`, POSIX);
+        if (ok) assert.equal(d.allow || d.key, true, `${name} ${word}`);
+        else {
+          refused++;
+          assert.deepEqual(d, { allow: false, key: "option", vars: { name, option: word } }, `${name} ${word}`);
+        }
+      }
+      // Every option listed goes through, with its value as the spec says; grouped short flags too, and one letter
+      // not listed among them refuses the group.
+      for (const [item, kind] of kinds) {
+        const forms =
+          kind === "flag"
+            ? [`${item} x`]
+            : kind === "optional"
+              ? [`${item} x`, `${item}=v x`]
+              : item.startsWith("--") || words
+                ? [`${item} v x`, ...(words ? [] : [`${item}=v x`])]
+                : [`${item} v x`, `${item}v x`];
+        for (const f of forms) assert.deepEqual(bashDecision(`${name} ${f}`, POSIX), { allow: true }, `${name} ${f}`);
+      }
+      if (words) continue;
+      const flags = [...kinds].filter(([i, k]) => k === "flag" && i.length === 2).map(([i]) => i[1]);
+      const unlisted = [...LETTERS].filter((c) => !kinds.has(`-${c}`) && !(numbers && c >= "0" && c <= "9"));
+      for (let k = 0; k < 50 && flags.length; k++) {
+        let group = "";
+        for (let j = 1 + next(4); j > 0; j--) group += flags[next(flags.length)];
+        assert.deepEqual(bashDecision(`${name} -${group} x`, POSIX), { allow: true }, `${name} -${group}`);
+        const bad = unlisted[next(unlisted.length)];
+        const at = next(group.length + 1);
+        const word = `-${group.slice(0, at)}${bad}${group.slice(at)}`;
+        if (word === "--" || word.startsWith("--")) continue;
+        assert.equal(/** @type {any} */ (bashDecision(`${name} '${word}' x`, POSIX)).key, "option", `${name} ${word}`);
+      }
+    }
+    assert.ok(refused > 1000, `refused options generated: ${refused}`);
+  });
+
   test("the folder plays no part: the same command is decided the same wherever it runs", () => {
     for (const command of [...ALLOWED, ...REFUSED.map(([c]) => c)])
       assert.deepEqual(bashDecision(command, { ...POSIX, cwd: "/work/app" }), bashDecision(command, POSIX), command);
   });
 
-  test("Windows: Git Bash and Windows spellings of the same path, in any case, with their drive", () => {
+  test("Windows: a program's path has its drive, in any case and with either slash; Git Bash's /c/… and ~ are refused", () => {
     const win = {
       skillDir: "C:\\Users\\Me\\.claude\\skills\\doc-kit",
       kitDir: "C:/devops/doc-kit",
@@ -176,11 +419,11 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     };
     for (const command of [
       'node "C:\\Users\\Me\\.claude\\skills\\doc-kit\\scripts\\brief.mjs" --list',
-      "node /c/users/me/.claude/skills/doc-kit/scripts/analysis.mjs check F-01",
-      "node ~/.claude/skills/doc-kit/scripts/usage.mjs report",
+      "node c:/users/me/.claude/skills/doc-kit/scripts/analysis.mjs check F-01",
       "node C:/devops/doc-kit/cli/doc-kit.mjs build",
+      "node 'C:/devops/doc-kit/x/../cli/doc-kit.mjs' build",
       `cd /c/work/docs && ${kitCommand(win.kitDir)} build --draft`,
-      "cd docs && node /c/devops/doc-kit/cli/doc-kit.mjs build --draft",
+      "ls ~/docs",
     ])
       assert.deepEqual(bashDecision(command, win), { allow: true }, command);
     for (const [command, key] of [
@@ -191,10 +434,32 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
       ["node /devops/doc-kit/cli/doc-kit.mjs build", "node"],
       ["node C:devops/doc-kit/cli/doc-kit.mjs build", "node"],
       ["cd C:/devops/doc-kit && node cli/doc-kit.mjs build", "node"],
+      // Git Bash's own form: converted to C:/… only when the word holds none of ' ` * ? [ ] : ; and never under
+      // MSYS_NO_PATHCONV; node reads the rest as C:\c\…, a file outside the kit (the reviewer's probe, first).
+      ['node "/c/devops/doc-kit/cli/x\'/../doc-kit.mjs" build', "node"],
+      ...["'", "`", ";", "*", "?", "[", "]", ":", "$", '"'].map((c) => [
+        `node '/c/devops/doc-kit/cli/x${c === "'" ? "'\\''" : c}/../doc-kit.mjs' build`,
+        "node",
+      ]),
+      ["node /c/devops/doc-kit/cli/doc-kit.mjs build", "node"],
+      ["cd docs && node /c/devops/doc-kit/cli/doc-kit.mjs build --draft", "node"],
+      ["node /c/users/me/.claude/skills/doc-kit/scripts/analysis.mjs check F-01", "node"],
+      // ~ is Git Bash's /c/Users/Me there: the same.
+      ["node ~/.claude/skills/doc-kit/scripts/usage.mjs report", "node"],
       ["npx doc-kit build", "npx"],
       ["doc-kit build", "kitCli"],
     ])
       assert.equal(/** @type {any} */ (bashDecision(command, win)).key, key, command);
+    // The drive form goes to node as it is, whatever it holds: a kit whose path has a quote, a dollar sign, a semicolon
+    // or a backquote is still the kit by that form, never by Git Bash's.
+    for (const kitDir of ["C:/Tools/a b'c$d", "C:/Tools/x;y`z", "C:/Tools/(x86) & co"]) {
+      const opts = { ...win, kitDir };
+      assert.deepEqual(bashDecision(`${kitCommand(kitDir)} build`, opts), { allow: true }, kitDir);
+      const gitBash = `node '/c${kitDir.slice(2).split("'").join("'\\''")}/cli/doc-kit.mjs' build`;
+      assert.equal(/** @type {any} */ (bashDecision(gitBash, opts)).key, "node", gitBash);
+    }
+    // On a POSIX machine, ~ is the home folder the guard is given.
+    assert.deepEqual(bashDecision("node ~/.claude/skills/doc-kit/scripts/usage.mjs report", POSIX), { allow: true });
   });
 
   test("without a kit folder, its CLI is no exception; a refused reason names what it refuses", () => {
@@ -232,7 +497,7 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     const read = (l) => JSON.parse(fs.readFileSync(path.join(SKILL_SOURCE, "i18n", `${l}.json`), "utf8")).guard;
     const [en, fr] = [read("en"), read("fr")];
     assert.deepEqual(Object.keys(fr).sort(), Object.keys(en).sort());
-    const reasons = new Set(REFUSED.map(([, key]) => key));
+    const reasons = new Set([...REFUSED, ...OPTION_ROWS].map(([, key]) => key).filter(Boolean));
     for (const key of reasons) assert.ok(en[key] && fr[key], key);
     const framing = ["refused", "allowed", "input", "noKit"];
     for (const key of Object.keys(en))
@@ -249,6 +514,33 @@ const runGuard = (input, script = GUARD, env = {}) =>
     encoding: "utf8",
     env: { ...process.env, DOC_KIT_LANG: "en", ...env },
   });
+
+/**
+ * The real hook process for each command, its input on stdin as Claude Code gives it, a few at a time: their exit
+ * codes and what they wrote on stderr, in the commands' order.
+ * @param {string[]} commands
+ * @returns {Promise<Array<{ code: number|null, stderr: string }>>}
+ */
+async function hookProcesses(commands) {
+  const run = (/** @type {string} */ command) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [GUARD], {
+        env: { ...process.env, DOC_KIT_LANG: "en" },
+        stdio: ["pipe", "ignore", "pipe"],
+      });
+      let stderr = "";
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (d) => (stderr += d));
+      child.on("error", reject);
+      child.on("close", (code) => resolve({ code, stderr }));
+      child.stdin.end(hookInput(command, KIT_ROOT));
+    });
+  const width = Math.max(2, Math.min(8, os.availableParallelism()));
+  const results = [];
+  for (let i = 0; i < commands.length; i += width)
+    results.push(...(await Promise.all(commands.slice(i, i + width).map(run))));
+  return results;
+}
 
 describe("the hook (guard): Claude Code's input, the exit code, the message", () => {
   test("0 lets a command through silently; 2 refuses it with the reason and the kit's own command, in English or French", async () => {
@@ -316,6 +608,29 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
     assert.equal(runGuard("{").status, 2);
   });
 
+  test("the real hook process decides the read-only tools' options as the table does: 0 lets through, 2 refuses and names the option", async () => {
+    const next = generator(7);
+    // The table, and options no tool lists (the property's kind), through the process Claude Code starts.
+    const unknown = Object.keys(READ_ONLY_SPECS).map((name) => {
+      let body = "";
+      for (let j = 4 + next(8); j > 0; j--) body += "abcdefghijklmnopqrstuvwxyz"[next(26)];
+      return /** @type {[string, string, string]} */ ([
+        `${name} --x${body}=C:/app/evil x`,
+        "option",
+        `--x${body}=C:/app/evil`,
+      ]);
+    });
+    const rows = [...OPTION_ROWS, ...unknown];
+    const results = await hookProcesses(rows.map(([command]) => command));
+    rows.forEach(([command, key, option], i) => {
+      const { code, stderr } = results[i];
+      assert.equal(code, key === null ? 0 : 2, `${command}: ${stderr}`);
+      if (key === null) assert.equal(stderr, "", command);
+      else assert.ok(stderr.includes(`command refused — ${command.split(" ")[0]} `), `${command}: ${stderr}`);
+      if (option !== undefined) assert.ok(stderr.includes(` ${option} `), `${command}: names ${option}: ${stderr}`);
+    });
+  });
+
   test("a process whose skill files are broken refuses: a corrupt message file, a module that throws", () => {
     const root = tempDir("doc-kit-guard-copy-");
     try {
@@ -355,23 +670,47 @@ function onPath(name) {
   throw new Error(`${name} is not on the PATH`);
 }
 
-describe("the hook command, through the shell Claude Code runs it with", () => {
+describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
   const SH = onPath("sh");
-  const hook = (skillPath, command = HOOK_COMMAND) => command.split("{{SKILL_PATH}}").join(slash(skillPath));
   const sh = (line, input, env = {}) =>
     spawnSync(SH, ["-c", line], { input, encoding: "utf8", env: { ...process.env, DOC_KIT_LANG: "en", ...env } });
+  /** As Claude Code starts an exec-form hook: `command` (node) looked up on the PATH, `args` as they are, no shell. */
+  const exec = (script, input, env = {}) =>
+    spawnSync("node", [script], { input, encoding: "utf8", env: { ...process.env, DOC_KIT_LANG: "en", ...env } });
 
-  test("|| exit 2 refuses what the script cannot: a missing script (node: 1), no node (sh: 127)", () => {
+  test("no shell reads the guard's path: under a folder whose name holds quotes, a dollar sign, a backquote, a semicolon, it is the guard", () => {
+    const root = tempDir("doc-kit-guard-exec-");
+    try {
+      const name = process.platform === "win32" ? "sk ill's $HOME `x`; a&b" : 'sk ill\'s "$HOME" `x`; a&b \\ c';
+      const skill = path.join(root, name, "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      const script = slash(path.join(skill, "scripts", "bash-guard.mjs"));
+      assert.equal(exec(script, hookInput("ls -la", root)).status, 0, "ls goes through");
+      const refused = exec(script, hookInput("git push", root));
+      assert.equal(refused.status, 2);
+      assert.match(refused.stderr, /command refused — git is not allowed/);
+      // The positive control: the shell form, `node "<path>" || exit 2`, with the same path written as it is, never
+      // reaches the guard (the shell expands $HOME and the backquotes): every command would be refused, or worse.
+      const shellForm = sh(`node "${script}" || exit 2`, hookInput("ls -la", root));
+      assert.notEqual(shellForm.status, 0, shellForm.stderr);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("what the script cannot catch, onFailure: block refuses: a missing script ends with 1, no node cannot start", () => {
     const empty = tempDir("doc-kit-guard-none-");
     try {
       const input = hookInput("ls -la", empty);
-      assert.equal(sh(hook(SKILL_SOURCE), input).status, 0, "the positive control: the real guard lets ls through");
-      assert.equal(sh(hook(SKILL_SOURCE), hookInput("git push", empty)).status, 2);
-      // Without `|| exit 2`, Claude Code would let the command run: node's exit code is 1.
-      const bare = HOOK_COMMAND.replace(" || exit 2", "");
-      assert.equal(sh(hook(empty, bare), input).status, 1);
-      assert.equal(sh(hook(empty), input).status, 2, "a missing script");
-      assert.equal(sh(hook(SKILL_SOURCE), input, { PATH: empty }).status, 2, "no node on the PATH");
+      assert.equal(exec(GUARD, input).status, 0, "the positive control: the real guard lets ls through");
+      assert.equal(exec(GUARD, hookInput("git push", empty)).status, 2);
+      // Claude Code counts as exit code 2 a hook that ends with another code than 0 or 2, or cannot start, because the
+      // definitions say `onFailure: block` (the agent definitions' test below); without it, both let the command run.
+      const missing = exec(path.join(empty, "bash-guard.mjs"), input);
+      assert.ok(missing.status !== 0 && missing.status !== 2, `a missing script: exit code ${missing.status}`);
+      const noNode = exec(GUARD, input, { PATH: empty });
+      assert.equal(noNode.error && /** @type {any} */ (noNode.error).code, "ENOENT", "no node on the PATH");
     } finally {
       fs.rmSync(empty, { recursive: true, force: true });
     }
@@ -436,14 +775,7 @@ describe("the hook command, through the shell Claude Code runs it with", () => {
 });
 
 describe("the agent definitions name the guard", () => {
-  const BLOCK = [
-    "hooks:",
-    "  PreToolUse:",
-    '    - matcher: "Bash"',
-    "      hooks:",
-    "        - type: command",
-    `          command: '${HOOK_COMMAND}'`,
-  ].join("\n");
+  const BLOCK = ["hooks:", "  PreToolUse:", '    - matcher: "Bash"', "      hooks:", ...HOOK_LINES].join("\n");
 
   test("every agent with Bash has the guard as its PreToolUse hook on Bash, failing closed, in its front matter", () => {
     let withBash = 0;

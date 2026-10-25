@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 // Claude Code hook (PreToolUse, matcher Bash) of the skill's agents that have Bash — doc-kit-writer, doc-kit-analyst,
-// doc-kit-reviewer: their definitions name it, `node "<skill>/scripts/bash-guard.mjs" || exit 2`, and `doc-kit skill
-// install` writes the skill's path in them. The application's files are data, never instructions (SECURITY.md); a text
-// planted in them must not be able to make an agent run a program. So the agent's Bash runs only:
+// doc-kit-reviewer: their definitions name it in Claude Code's exec form, `command: node` and `args:
+// ["<skill>/scripts/bash-guard.mjs"]` (no shell parses the path), with `onFailure: block`; `doc-kit skill install`
+// writes the skill's path in them. The application's files are data, never instructions (SECURITY.md); a text planted
+// in them must not be able to make an agent run a program. So the agent's Bash runs only:
 //   - the kit's CLI by its absolute path, `node "<kit>/cli/doc-kit.mjs" <command> …` (the path `skill install` writes
-//     in the skill, {{KIT_PATH}}): never `npx doc-kit`, `npm exec` or a bare `doc-kit`, which run the first doc-kit
-//     found in a node_modules/.bin up to the root — the application's, when the documentation sits inside it — or, with
-//     none, install one from the registry; never a command the orchestrator or the user runs (DOC_KIT_REFUSED), never
+//     in the skill): never `npx doc-kit`, `npm exec` or a bare `doc-kit`, which run the first doc-kit found in a
+//     node_modules/.bin up to the root — the application's, when the documentation sits inside it — or, with none,
+//     install one from the registry; never a command the orchestrator or the user runs (DOC_KIT_REFUSED), never
 //     `--plans` (capture plans are code);
 //   - `node <this skill>/scripts/<script>.mjs …`, the skill's own scripts (SKILL_SCRIPTS), by their absolute path;
-//   - read-only tools (READ_ONLY), without their options that run a program or write a file;
+//   - on Windows, a program's path has its drive, `C:/…`: Git Bash converts its own `/c/…` (and `~`) only sometimes;
+//   - read-only tools (READ_ONLY), each with the options of its allowlist only: an option not listed is refused;
 //   - `cd <folder> &&` first, before them (the folder the kit reads its doc.config.mjs from); `|`, `&&`, `||` and `;`
 //     between them; `2>&1` and `>/dev/null`.
 // What runs never depends on the folder the command runs in: a program is named by its absolute path, never a
@@ -21,10 +23,10 @@
 // regular expression — and reads no file. Nothing of the application is read or run. The hook only ever refuses: what
 // it lets through still goes through Claude Code's own permissions.
 // Input (stdin): { tool_name, tool_input: { command } }. Refusal: exit code 2, the reason on stderr (Claude Code
-// gives it to the agent), in DOC_KIT_LANG's language (English by default). Claude Code blocks a command only on exit
-// code 2, so the hook fails closed: unreadable input, a skill file that cannot load (a missing or corrupt message
-// file) and an unexpected error are refused with 2, and the agents' hook command ends with `|| exit 2` for what this
-// file cannot catch (no node, a missing or broken script: exit codes 127 and 1).
+// gives it to the agent), in DOC_KIT_LANG's language (English by default). Claude Code blocks a command on exit code 2,
+// so the hook fails closed: unreadable input, a skill file that cannot load (a missing or corrupt message file) and an
+// unexpected error are refused with 2; what this file cannot catch (no node, a missing or broken script: a hook that
+// cannot start, or ends with another code) the agents' `onFailure: block` refuses.
 // Only Node's own modules are imported here: the skill's (common.mjs, its message files) are imported by the hook,
 // inside a try.
 import os from "node:os";
@@ -41,41 +43,154 @@ export const SKILL_SCRIPTS = ["analysis.mjs", "brief.mjs", "consolidation.mjs", 
 const REFUSED_COMMANDS = "bricks connect demo dev facts hooks init inputs open probe record skill upgrade";
 export const DOC_KIT_REFUSED = REFUSED_COMMANDS.split(" ");
 
-const FIND_ACTIONS = new Set([
-  "-exec",
-  "-execdir",
-  "-ok",
-  "-okdir",
-  "-delete",
-  "-fprint",
-  "-fprint0",
-  "-fprintf",
-  "-fls",
-]);
-const none = () => false;
-/** The read-only tools, each with its refused options: `rg --pre` runs a program on every file, `find -exec` too. */
-const READ_ONLY = Object.freeze({
-  ls: none,
-  pwd: none,
-  cat: none,
-  head: none,
-  tail: none,
-  wc: none,
-  grep: none,
-  egrep: none,
-  fgrep: none,
-  rg: (/** @type {string} */ a) => a.startsWith("--pre"),
-  find: (/** @type {string} */ a) => FIND_ACTIONS.has(a),
-  diff: none,
-  du: none,
-  stat: none,
-  echo: none,
-  basename: none,
-  dirname: none,
-  realpath: none,
-  cut: none,
-  tr: none,
+/** What an option takes after it. */
+const FLAG = 0; // nothing: `--count`, `-c`
+const VALUE = 1; // a value: `--max-count=5` or `--max-count 5`, `-m5` or `-m 5`
+const OPTIONAL = 2; // a value only after `=`: `--color`, `--color=never`
+
+/**
+ * The read-only tools and the options each may take — an allowlist: an option not listed (a new one, an
+ * abbreviation, another spelling) is refused, so that an option that runs a program or writes a file never slips
+ * through a list of the dangerous ones, as `rg --hostname-bin=<program>` did. Each spec lists, separated by spaces:
+ *   -x        a short option without a value, which may be grouped with others (`-la`);
+ *   -x=       a short option with a value, attached (`-n20`) or the next word (`-n 20`): only options that take a value
+ *             in GNU, BSD and busybox alike, so that what follows one is never read as options the guard did not check;
+ *   --name    a long option without a value; `--name=` with one (`--name=v`, `--name v`); `--name[=]` with an
+ *             optional one (`--name=v` only);
+ *   -NUM      a number as an option (`head -20`).
+ * find's are whole words (`-name=` takes one value). `--help` and `--version` are every tool's. A value given as the
+ * next word never starts with `-`: a word that starts with `-` is always checked as an option, whatever a tool makes of
+ * the one before it (such a value is attached: `-e-x`, `--regexp=-x`). No option listed runs a program, writes a file,
+ * or reads a list of files, patterns or rules from a file (`-f`, `--ignore-file`, `--files0-from`): what a tool reads
+ * is named on the line. `operands`: the most words a tool takes besides its options (uniq writes to its second).
+ * @type {Record<string, [string, { operands?: number, words?: boolean }?]>}
+ */
+export const READ_ONLY_SPECS = Object.freeze({
+  // The current folder, as the shell keeps it or with its links resolved.
+  pwd: ["-L -P"],
+  // What it lists (-a -A -d -R -L), the details (-l -h -i -s -n -g -o -F -p --full-time), the order (-t -S -r -X -v
+  // -U -c -u --sort=) and the layout (-1 -C -x -m -G --color[=] --group-directories-first): it prints, nothing else.
+  ls: [
+    "-a -A -d -R -L -l -h -i -s -n -g -o -F -p -t -S -r -X -v -U -c -u -1 -C -x -m -G --all --almost-all --directory" +
+      " --recursive --dereference --human-readable --inode --size --classify --full-time --sort= --color[=]" +
+      " --group-directories-first",
+  ],
+  // How it prints what it reads: line numbers, blanks squeezed, the invisible characters shown.
+  cat: [
+    "-n -b -s -A -E -T -v -e -t -u --number --number-nonblank --squeeze-blank --show-all --show-ends --show-tabs" +
+      " --show-nonprinting",
+  ],
+  // How much they print (-n -c, a number), with or without the file names (-q -v); never -f, which follows a file
+  // and never ends.
+  head: ["-n= -c= -q -v -NUM --lines= --bytes= --quiet --silent --verbose"],
+  tail: ["-n= -c= -q -v -NUM --lines= --bytes= --quiet --silent --verbose"],
+  // What it counts.
+  wc: ["-l -w -c -m -L --lines --words --bytes --chars --max-line-length"],
+  // What it matches (-e -i -w -x -v -E -F -G -P), what it prints (-n -c -l -L -o -h -H -s -q -b -T --color[=]), the
+  // context (-A -B -C), how many (-m), where (-r -R --include --exclude --exclude-dir), binary files (-a -I
+  // --binary-files): it prints, nothing else. Never -f/--file or --exclude-from (a list read from a file).
+  grep: [
+    "-e= -i -w -x -v -E -F -G -P -n -c -l -L -o -h -H -s -q -b -T -a -I -r -R -A= -B= -C= -m= --regexp= --ignore-case" +
+      " --no-ignore-case --word-regexp --line-regexp --invert-match --extended-regexp --fixed-strings --basic-regexp" +
+      " --perl-regexp --line-number --count --files-with-matches --files-without-match --only-matching" +
+      " --no-filename --with-filename --no-messages --quiet --silent --byte-offset --initial-tab --text --recursive" +
+      " --dereference-recursive --after-context= --before-context= --context= --max-count= --include= --exclude=" +
+      " --exclude-dir= --binary-files= --color[=] --colour[=]",
+  ],
+  // The same for ripgrep, with its file filters (-g -t -T -u -d --hidden --no-ignore --files) and its output formats
+  // (--json --vimgrep --heading -p). Never --pre, --pre-glob or --hostname-bin (they run a program), -z/--search-zip
+  // (it runs decompression programs), --hyperlink-format, -f/--file, --ignore-file, --type-add.
+  rg: [
+    "-e= -i -s -S -w -x -v -F -P -U -n -N -c -l -o -H -I -q -a -L -u -0 -p -b -h -V -A= -B= -C= -m= -g= -t= -T= -d=" +
+      " -M= --regexp= --ignore-case --case-sensitive --smart-case --word-regexp --line-regexp --invert-match" +
+      " --fixed-strings --pcre2 --multiline --multiline-dotall --line-number --no-line-number --count" +
+      " --count-matches --files-with-matches --files-without-match --only-matching --with-filename --no-filename" +
+      " --quiet --text --follow --hidden --no-ignore --no-ignore-vcs --null --pretty --byte-offset --column" +
+      " --vimgrep --json --heading --no-heading --stats --trim --files --type-list --passthru --no-messages" +
+      " --no-config --glob-case-insensitive --after-context= --before-context= --context= --max-count= --glob=" +
+      " --iglob= --type= --type-not= --max-depth= --max-columns= --max-filesize= --sort= --sortr= --color=",
+  ],
+  // Which files it lists (-name -iname -path -ipath -type, the depth), combined (-not -and -or -a -o, -prune to skip a
+  // folder), printed (-print). Never -exec, -execdir, -ok, -okdir (they run a program), -delete, -fprint*, -fls (they
+  // write).
+  find: [
+    "-name= -iname= -path= -ipath= -type= -maxdepth= -mindepth= -print -prune -not -and -or -a -o",
+    { words: true },
+  ],
+  // How it compares and prints (-u -U -y -W -q -s), what it ignores (-w -b -B -i -I -x --exclude), folders (-r -N).
+  diff: [
+    "-u -U= -r -q -N -w -b -B -i -a -s -y -t -W= -x= -I= --unified[=] --recursive --brief --new-file" +
+      " --ignore-all-space --ignore-space-change --ignore-blank-lines --ignore-case --text --report-identical-files" +
+      " --side-by-side --width= --exclude= --ignore-matching-lines= --strip-trailing-cr --suppress-common-lines" +
+      " --color[=]",
+  ],
+  // The sizes it prints, and how deep.
+  du: [
+    "-s -h -a -c -k -m -x -L -d= --summarize --human-readable --all --total --max-depth= --apparent-size" +
+      " --one-file-system --dereference --exclude=",
+  ],
+  // What it prints of a file, and in what format.
+  stat: ["-L -t -c= --dereference --terse --format= --printf="],
+  // What it prints: without its newline, its escapes read or not.
+  echo: ["-n -e -E"],
+  // Parts of a name: no file is read.
+  basename: ["-a -s= -z --multiple --suffix= --zero"],
+  dirname: ["-z --zero"],
+  realpath: [
+    "-e -m -s -q -L -P -z --canonicalize-existing --canonicalize-missing --no-symlinks --strip --quiet --logical" +
+      " --physical --zero --relative-to= --relative-base=",
+  ],
+  // Which fields or characters it keeps, and their separators.
+  cut: [
+    "-d= -f= -c= -b= -s -n --delimiter= --fields= --characters= --bytes= --only-delimited --complement" +
+      " --output-delimiter=",
+  ],
+  // Which characters it changes or deletes (it reads its input only).
+  tr: ["-d -s -c -C -t --delete --squeeze-repeats --complement --truncate-set1"],
+  // The order and the keys. Never -o/--output (it writes), -T (a folder it writes in), --compress-program (it runs
+  // one), --files0-from, --random-source.
+  sort: [
+    "-r -n -u -f -b -d -g -h -i -M -R -V -s -c -C -z -k= -t= --reverse --numeric-sort --unique --ignore-case" +
+      " --ignore-leading-blanks --dictionary-order --general-numeric-sort --human-numeric-sort --ignore-nonprinting" +
+      " --month-sort --random-sort --version-sort --stable --check[=] --zero-terminated --key= --field-separator=",
+  ],
+  // What it counts or keeps of repeated lines. One input at most: uniq writes to its second file name.
+  uniq: [
+    "-c -d -u -i -D -z -f= -s= -w= --count --repeated --unique --ignore-case --zero-terminated --skip-fields=" +
+      " --skip-chars= --check-chars= --all-repeated[=]",
+    { operands: 1 },
+  ],
 });
+
+/**
+ * A tool's spec, read once: its short options, its long options (find: its words), what each takes.
+ * @param {string} spec
+ * @param {{ operands?: number, words?: boolean }} [more]
+ */
+function toolOptions(spec, { operands = Infinity, words = false } = {}) {
+  /** @type {Map<string, number>} */
+  const short = new Map();
+  /** @type {Map<string, number>} */
+  const long = new Map();
+  let numbers = false;
+  for (const item of `${spec} --help --version`.split(" ")) {
+    const optional = item.endsWith("[=]");
+    const valued = !optional && item.endsWith("=");
+    const name = item.slice(0, item.length - (optional ? 3 : valued ? 1 : 0));
+    const takes = optional ? OPTIONAL : valued ? VALUE : FLAG;
+    if (item === "-NUM") numbers = true;
+    // find: the whole word, `-name`.
+    else if (words) long.set(name, takes);
+    else if (name.startsWith("--")) long.set(name.slice(2), takes);
+    else short.set(name.slice(1), takes);
+  }
+  return Object.freeze({ short, long, numbers, operands, words });
+}
+
+/** The read-only tools and their allowlists. */
+const READ_ONLY = Object.freeze(
+  Object.fromEntries(Object.entries(READ_ONLY_SPECS).map(([name, [spec, more]]) => [name, toolOptions(spec, more)])),
+);
 const HELP = new Set(["--help", "-h", "--version", "-v"]);
 
 /** What may follow a word: the end, a space, an operator. */
@@ -227,22 +342,19 @@ function splitCommand(command, home) {
 
 const isLetter = (ch) => (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z");
 
-/** A path as Windows reads it: forward slashes, and Git Bash's `/c/…` as `c:/…`. */
-function windowsPath(p) {
-  const s = String(p).split("\\").join("/");
-  return s[0] === "/" && isLetter(s[1] ?? "") && (s.length === 2 || s[2] === "/") ? `${s[1]}:/${s.slice(3)}` : s;
-}
-
 /**
  * An absolute path, in a form two paths of the same file share (lower case on Windows); "" for any other path: a
- * relative one names a file of the folder the command runs in, which may be the application's, and on Windows a path
- * needs its drive (Git Bash reads `/x` under its own folder, not under C:).
+ * relative one names a file of the folder the command runs in, which may be the application's. On Windows a path
+ * needs its drive, `C:/…` or `C:\…`, which Git Bash passes to node as it is. Its own form, `/c/…` (what `~` stands for
+ * there too), it converts to `C:/…` only when the word holds none of `'`, a backquote, `*`, `?`, `[`, `]`, `:`, `;`,
+ * `/~` or `@@`, and never under MSYS_NO_PATHCONV: otherwise node reads `/c/…` as `C:\c\…`, another file than the one
+ * the guard would have checked.
  * @param {string} p
  * @param {boolean} windows
  */
 function absolutePath(p, windows) {
   if (!windows) return p.startsWith("/") ? path.posix.resolve(p) : "";
-  const s = windowsPath(p);
+  const s = String(p).split("\\").join("/");
   if (!(isLetter(s[0] ?? "") && s[1] === ":" && s[2] === "/")) return "";
   return path.win32.resolve(s).split("\\").join("/").toLowerCase();
 }
@@ -285,10 +397,67 @@ function checkSegment({ argv, op }, index, opts) {
   } else if (RUNNERS.has(name) || (name === "npm" && NPM_EXEC.has(args[0]))) throw new Refusal("npx");
   else if (name === "doc-kit") throw new Refusal("kitCli");
   else if (name === "node") checkNode(args, opts);
-  else if (Object.hasOwn(READ_ONLY, name)) {
-    const option = args.find((a) => READ_ONLY[name](a));
-    if (option !== undefined) throw new Refusal("option", { name, option });
-  } else throw new Refusal("command", { name });
+  else if (Object.hasOwn(READ_ONLY, name)) checkOptions(name, READ_ONLY[name], args);
+  else throw new Refusal("command", { name });
+}
+
+/** What an option takes after its word. */
+const NONE = 0;
+const NEXT = 1; // the next word: its value
+
+/**
+ * What the word `a`, an option of a read-only tool, takes after it (NONE or NEXT); throws the Refusal of an option
+ * that is not on the tool's allowlist.
+ * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string} a
+ * @returns {number}
+ */
+function optionTakes(name, tool, a) {
+  /** @param {string} [option] @returns {never} */
+  const refuse = (option = a) => {
+    throw new Refusal("option", { name, option });
+  };
+  if (tool.words) {
+    const takes = tool.long.get(a);
+    if (takes === undefined) refuse();
+    return takes === VALUE ? NEXT : NONE;
+  }
+  if (a.startsWith("--")) {
+    const eq = a.indexOf("=");
+    const takes = tool.long.get(a.slice(2, eq < 0 ? undefined : eq));
+    if (takes === undefined || (takes === FLAG && eq >= 0)) refuse();
+    return takes === VALUE && eq < 0 ? NEXT : NONE;
+  }
+  if (tool.numbers && [...a.slice(1)].every((c) => c >= "0" && c <= "9")) return NONE; // head -20
+  // Short options, grouped: each one listed; one that takes a value takes the rest of the word, or the next word.
+  for (let j = 1; j < a.length; j++) {
+    const takes = tool.short.get(a[j]);
+    if (takes === undefined) refuse(`-${a[j]}`);
+    if (takes === VALUE) return j + 1 < a.length ? NONE : NEXT;
+  }
+  return NONE;
+}
+
+/**
+ * A read-only tool's words against its allowlist (READ_ONLY_SPECS): every option listed, a value given as the next
+ * word never one that starts with `-`, no more operands than the tool may take. As getopt reads them: an option may
+ * come after an operand, and after `--` every word is an operand (not for find, whose expression goes on).
+ * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string[]} args
+ */
+function checkOptions(name, tool, args) {
+  let operands = 0;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "--" && !tool.words) {
+      operands += args.length - i - 1;
+      break;
+    }
+    if (!a.startsWith("-") || a === "-") operands++;
+    else if (optionTakes(name, tool, a) === NEXT && i + 1 < args.length) {
+      const value = args[++i];
+      if (value.startsWith("-")) throw new Refusal("optionValue", { name, option: a, value });
+    }
+  }
+  if (operands > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
 }
 
 /**
@@ -301,7 +470,8 @@ function checkSegment({ argv, op }, index, opts) {
 export function bashDecision(command, opts) {
   const o = { kitDir: "", home: "", windows: false, ...opts };
   try {
-    splitCommand(command, o.home).forEach((segment, index) => checkSegment(segment, index, o));
+    // On Windows, `~` stays as it is: Git Bash makes it `/c/…`, which it may pass to node unconverted (absolutePath).
+    splitCommand(command, o.windows ? "" : o.home).forEach((segment, index) => checkSegment(segment, index, o));
     return { allow: true };
   } catch (e) {
     if (e instanceof Refusal) return { allow: false, key: e.key, vars: e.vars };

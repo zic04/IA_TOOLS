@@ -5,9 +5,11 @@
 // other file in that shared folder is touched):
 //   <skills folder> = --target, otherwise $CLAUDE_CONFIG_DIR/skills, otherwise ~/.claude/skills.
 // {{KIT_PATH}} is replaced with the kit's absolute path (forward slashes) in SKILL.md, references/*.md and
-// scripts/*.mjs; {{KIT_CLI}}, with the command that runs the kit's CLI by that path (`node "<kit>/cli/doc-kit.mjs"`,
-// never npx: SECURITY.md), there and in the agent files; {{SKILL_PATH}}, with the installed skill's path, in the agent
-// files (the agents with Bash name the skill's guard, scripts/bash-guard.mjs, as their PreToolUse hook: SECURITY.md). A fingerprint file (.doc-kit-skill.json,
+// scripts/*.mjs (there, only as a JavaScript string, "{{KIT_PATH}}", by the path's JSON: substitute); {{KIT_CLI}}, with
+// the command that runs the kit's CLI by that path (`node "<kit>/cli/doc-kit.mjs"`, never npx: SECURITY.md), there and
+// in the agent files; {{SKILL_PATH}}, with the installed skill's path, in the agent files (the agents with Bash name
+// the skill's guard, scripts/bash-guard.mjs, as their PreToolUse hook, in Claude Code's exec form: hookPath,
+// SECURITY.md). A fingerprint file (.doc-kit-skill.json,
 // inside <skills folder>/doc-kit/) covers both the skill and the agent files, and lets `doctor` report either copy as
 // outdated or modified.
 // Only the doc-kit folder is ever written or replaced; a doc-kit folder without fingerprint (not installed by
@@ -78,15 +80,34 @@ const SKILL_PLACEHOLDER = "{{SKILL_PATH}}";
 const SUBSTITUTED = /^(SKILL\.md|references\/[^/]+\.md|scripts\/[^/]+\.mjs)$/;
 
 /**
- * A path as it stands in an agent's hook command, `command: 'node "<path>/scripts/bash-guard.mjs"'`: escaped for the
- * shell's double quotes (`"`, `$`, `` ` ``, `\`), then for YAML's single quotes (`'` doubled).
+ * A path as it stands in an agent's hook, `args: ["<path>/scripts/bash-guard.mjs"]` (Claude Code's exec form: no shell
+ * reads it): escaped for YAML's double quotes, whose escapes are JSON's (`"`, `\`, the control characters), and the
+ * three characters YAML 1.1 reads as line breaks, which JSON leaves as they are.
  * @param {string} p
  */
 export function hookPath(p) {
-  return p
-    .replace(/["$`\\]/g, "\\$&")
-    .split("'")
-    .join("''");
+  let s = JSON.stringify(p).slice(1, -1);
+  for (const [c, escape] of [
+    ["\u0085", "\\u0085"],
+    [" ", "\\u2028"],
+    [" ", "\\u2029"],
+  ])
+    s = s.split(c).join(escape);
+  return s;
+}
+
+/**
+ * A file of the skill with its placeholders replaced (`values`: [placeholder, value]). In the skill's scripts, only
+ * where a placeholder stands as a JavaScript string, `"{{KIT_PATH}}"`, replaced whole by the value's JSON: a string
+ * whatever the path holds (a quote, a backquote, `${`, a backslash); one in a comment stays as it is, so that no path
+ * ever ends a comment. In the other files (text), everywhere.
+ * @param {string} file  @param {string} text  @param {Array<[string, string]>} values
+ */
+function substitute(file, text, values) {
+  const script = file.endsWith(".mjs");
+  for (const [token, value] of values)
+    text = script ? text.split(JSON.stringify(token)).join(JSON.stringify(value)) : text.split(token).join(value);
+  return text;
 }
 
 /**
@@ -187,7 +208,10 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
     if (SUBSTITUTED.test(f))
       fs.writeFileSync(
         dest,
-        fs.readFileSync(path.join(source, f), "utf8").split(PLACEHOLDER).join(kitPath).split(CLI_PLACEHOLDER).join(cli),
+        substitute(f, fs.readFileSync(path.join(source, f), "utf8"), [
+          [PLACEHOLDER, kitPath],
+          [CLI_PLACEHOLDER, cli],
+        ]),
       );
     else fs.copyFileSync(path.join(source, f), dest);
   }

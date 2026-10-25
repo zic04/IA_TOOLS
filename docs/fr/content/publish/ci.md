@@ -51,6 +51,11 @@ npx doc-kit check all      # couverture, liens, tableaux, images, secrets
 npx doc-kit audit          # informatif : code 0, écrit .doc-kit/audit.md
 ```
 
+L'application est un clone : lancez le kit que vous avez récupéré par son chemin plutôt que `npx doc-kit`
+(`node ../../../doc-kit/cli/doc-kit.mjs build`, ou une installation globale), car `npx doc-kit` lance la copie que
+contient le `node_modules` du dossier, ou celui d'un dossier parent, qui peut être une copie livrée par l'application
+(voir SECURITY.md).
+
 Pour exiger un niveau de maturité, faites échouer la tâche vous-même :
 
 ```bash
