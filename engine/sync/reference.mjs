@@ -6,11 +6,11 @@ import path from "node:path";
 import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { adapterTools } from "../check/coverage.mjs";
+import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages } from "./dependencies.mjs";
+import { pageDependencies, writtenPages, pageCiteText } from "./dependencies.mjs";
 import { recordProof } from "./proofs.mjs";
-import { citedLabels, labelFiles, flattenMessages } from "./labels.mjs";
+import { citedLabels, citesLabel, labelFiles, readFlatLabels } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
 const SYNC_FILE = "sync.json";
@@ -69,32 +69,104 @@ export function writeSyncReference(root, config, ref) {
 /** "file[:from[-to]]" → the file part, for a declared source. */
 const declaredFile = (s) => /^(.+?)(?::\d+(?:-\d+)?)?$/.exec(s)[1];
 
-/** Every message file of the project, flattened ({ [key]: value }); unreadable or missing files give {}. */
+/** Every message file of the project, flattened ({ [key]: value }); null for an unreadable or missing one. */
 function allFlatLabels(root, config) {
-  return labelFiles(root, config).map((f) => {
-    // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
-    // concatenate onto root instead of using as is.
-    const abs = path.resolve(root, f);
-    if (!fs.existsSync(abs)) return [f, {}];
-    try {
-      return [f, flattenMessages(JSON.parse(fs.readFileSync(abs, "utf8")))];
-    } catch {
-      return [f, {}];
+  // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
+  // concatenate onto root instead of using as is.
+  return labelFiles(root, config).map((f) => [f, readFlatLabels(path.resolve(root, f))]);
+}
+
+/**
+ * The commit a page was checked at (`pages[id].commit`); a page of an older sync.json, without one, was checked at
+ * the global `app.commit` (no migration: read as it is).
+ */
+export function pageCommit(reference, id) {
+  const page = reference?.pages?.[id];
+  return page && "commit" in page ? page.commit : (reference?.app?.commit ?? null);
+}
+
+/** Whether the documentation was checked against another version than `version`: the last marking, or a page. */
+export const versionBehind = (reference, version) =>
+  reference.app.version !== version || Object.values(reference.pages || {}).some((p) => p.version !== version);
+
+/**
+ * The labels after a marking: merged, never rebuilt (ARCHITECTURE.md §6.10). A key no written page cited yet is
+ * added when one cites it; a recorded key keeps its value while a page that is not being acknowledged still cites
+ * it — that page has its signal still — and otherwise takes its current value (dropped when it left its file). A
+ * file that cannot be read keeps what was recorded.
+ */
+function mergeLabels(recorded, files, written, acknowledged) {
+  const out = {};
+  const stillCited = (value) => written.some((p) => !acknowledged.has(p.id) && citesLabel(p.markdown, value));
+  for (const [file, flat] of files) {
+    const entries = { ...(recorded?.[file] || {}) };
+    if (flat) {
+      for (const [key, value] of Object.entries(entries))
+        if (flat[key] !== value && !stillCited(value))
+          if (typeof flat[key] === "string") entries[key] = flat[key];
+          else delete entries[key];
+      for (const { key, value } of citedLabels(flat, written)) if (!(key in entries)) entries[key] = value;
     }
-  });
+    if (Object.keys(entries).length) out[file] = entries;
+  }
+  return out;
+}
+
+/** Every item id of every coverage adapter family (facts sources are coverage adapters too, §6.9). */
+function inventoryIds(inventory) {
+  const out = {};
+  for (const a of inventory.adapters)
+    for (const f of a.families || []) out[`${a.adapter}/${f.name}`] = f.items.map((i) => i.id);
+  return out;
+}
+
+/** The recorded inventory, plus the items the marked pages document now: marking a page acknowledges only those. */
+function mergeInventory(recorded, inventory, marked) {
+  const out = structuredClone(recorded || {});
+  const texts = marked.map((p) => normalize(pageCiteText(p)));
+  for (const a of inventory.adapters)
+    for (const f of a.families || []) {
+      const key = `${a.adapter}/${f.name}`;
+      const ids = new Set(out[key] || []);
+      for (const item of f.items) if (texts.some((text) => isCovered(item, text))) ids.add(item.id);
+      if (ids.size) out[key] = [...ids];
+    }
+  return out;
+}
+
+/** The hashes of a page's dependency files that exist ("doc:<path>" in the project, the others in app.dir). */
+function hashFiles(root, appDir, deps) {
+  const files = {};
+  for (const f of deps) {
+    const abs = f.path.startsWith("doc:") ? path.join(root, f.path.slice(4)) : appDir && path.join(appDir, f.path);
+    if (abs && fs.existsSync(abs)) files[f.path] = hashText(fs.readFileSync(abs));
+  }
+  return files;
+}
+
+/** The captures cited by the marked pages get the hash of their plan entry; a restamp records only a new one, so
+ * that a capture to retake stays one. */
+function mergeCaptures(recorded, plans, cited, restamp) {
+  const out = { ...(recorded || {}) };
+  for (const plan of plans)
+    if (cited.has(plan.id) && !(restamp && out[plan.id]))
+      out[plan.id] = { plan: hashPlanEntry(plan), route: plan.route };
+  return out;
 }
 
 /**
  * Marks pages as checked now (ARCHITECTURE.md §6.10, "`--mark <page…>` / `--all`"): records the hashes of each
- * marked page, its dependencies, its proofs, the labels cited by any written page, the whole inventory and the
- * capture plan hashes used by the marked pages. Pages already in the reference but not marked now are kept as
- * they are.
+ * marked page, its dependencies, its proofs and the commit it was checked at, and merges the rest into the
+ * reference (mergeLabels; the inventory items the marked pages document, the whole inventory when every page is
+ * marked; the capture plan hashes used by the marked pages). Pages already in the reference but not marked now are
+ * kept as they are. A restamp (`sync --apply`) acknowledges nothing pending: no label, no inventory item, no capture.
  * @param {object} p
  * @param {string} p.root
  * @param {object} p.config
  * @param {object} p.toc
  * @param {string[]} [p.pages]        page ids to mark (ignored when `all`)
  * @param {boolean} [p.all]           mark every written page
+ * @param {boolean} [p.restamp]       a restamp by `sync --apply`, not a check by a person
  * @param {string[]} [p.sources]      "file[:from[-to]]" (--sources; one page only, checked by the CLI)
  * @param {string} p.date             YYYY-MM-DD
  * @param {string|null} p.commit      the application's current HEAD
@@ -110,6 +182,7 @@ export async function markPages({
   toc,
   pages = [],
   all = false,
+  restamp = false,
   sources = [],
   date,
   commit,
@@ -126,9 +199,11 @@ export async function markPages({
   const warnings = [];
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const tools = adapterTools(root);
-  const newPages = { ...(reference?.pages || {}) };
+  // A page of an older sync.json was checked at app.commit: kept as its own before app is rewritten.
+  const newPages = Object.fromEntries(
+    Object.entries(reference?.pages || {}).map(([id, p]) => [id, { commit: pageCommit(reference, id), ...p }]),
+  );
   const newProofs = { ...(reference?.proofs || {}) };
-  const newCaptures = { ...(reference?.captures || {}) };
 
   for (const id of targets) {
     const page = written.find((p) => p.id === id);
@@ -146,16 +221,7 @@ export async function markPages({
       declared,
     });
 
-    const files = {};
-    for (const f of deps.files) {
-      const abs = f.path.startsWith("doc:")
-        ? path.join(root, f.path.slice(4))
-        : appDir
-          ? path.join(appDir, f.path)
-          : null;
-      if (abs && fs.existsSync(abs)) files[f.path] = hashText(fs.readFileSync(abs));
-    }
-
+    const files = hashFiles(root, appDir, deps.files);
     for (const proof of deps.proofs) {
       const recorded = appDir ? recordProof(appDir, proof) : null;
       if (recorded) newProofs[proof.ref] = recorded;
@@ -165,6 +231,7 @@ export async function markPages({
     newPages[id] = {
       verified: date,
       version,
+      commit,
       source: hashText(page.markdown),
       files,
       declared,
@@ -172,31 +239,21 @@ export async function markPages({
     };
   }
 
-  // Labels (no page attribution in sync.json): the current, full set of entries cited by any written page.
-  const newLabels = {};
-  for (const [file, flat] of allFlatLabels(root, config)) {
-    const cited = citedLabels(flat, written);
-    if (cited.length) newLabels[file] = Object.fromEntries(cited.map((c) => [c.key, c.value]));
-  }
-
-  // Inventory: every item id of every coverage adapter family (facts sources are coverage adapters too, §6.9).
-  const newInventory = {};
-  for (const a of inventory.adapters)
-    for (const f of a.families || []) newInventory[`${a.adapter}/${f.name}`] = f.items.map((i) => i.id);
-
-  // Captures cited by a marked page: the hash of the plan entry.
-  for (const plan of plans)
-    if (targets.some((id) => newPages[id]?.captures.includes(plan.id)))
-      newCaptures[plan.id] = { plan: hashPlanEntry(plan), route: plan.route };
-
+  const cited = new Set(targets.flatMap((id) => newPages[id].captures));
+  // The project's inventory is acknowledged as a whole only by a person who marks every page (or the first marking).
+  const everyPage = targets.length === writtenIds.size;
+  const marked = restamp ? [] : written.filter((p) => targets.includes(p.id));
   const ref = {
     generator: generatorTag(),
     app: { commit, version, date },
     pages: newPages,
     proofs: newProofs,
-    labels: newLabels,
-    inventory: newInventory,
-    captures: newCaptures,
+    labels: mergeLabels(reference?.labels, allFlatLabels(root, config), written, new Set(marked.map((p) => p.id))),
+    inventory:
+      !reference || (everyPage && !restamp)
+        ? inventoryIds(inventory)
+        : mergeInventory(reference.inventory, inventory, marked),
+    captures: mergeCaptures(reference?.captures, plans, cited, restamp),
   };
   return { reference: ref, warnings };
 }

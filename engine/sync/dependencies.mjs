@@ -57,6 +57,9 @@ const factsSourcesOf = (markdown) => [
   ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1])),
 ];
 
+/** Text a page "declares", for a plain citation search: its Markdown plus its table-of-contents entry (so that
+ * a route cited only in `routes: […]`, never in prose, still counts — the same text coverage.mjs scans). */
+export const pageCiteText = (p) => `${p.markdown}\n${JSON.stringify(p.entry)}`;
 /** Written pages (ARCHITECTURE.md §5): a file that exists and holds no template guidance. */
 export function writtenPages({ root, config, toc }) {
   const { content } = config.paths;

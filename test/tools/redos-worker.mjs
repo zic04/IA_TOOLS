@@ -24,6 +24,7 @@ import { QUALITY_PATTERNS, functionsOf } from "../../engine/facts/quality.mjs";
 import { IMPORT_PATTERNS, pySpecifiers } from "../../engine/facts/imports.mjs";
 import { apiPathsIn } from "../../engine/sync/api-links.mjs";
 import { PROOF_REF, extractProofs } from "../../engine/sync/proofs.mjs";
+import { LABEL_PATTERNS, replaceLabel, citedLabels } from "../../engine/sync/labels.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { INLINE_SCRIPT, SCRIPT_END } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
@@ -831,6 +832,10 @@ export const CHECKS = [
   ["sync apiPathsIn", (s) => apiPathsIn(s).length + apiPathsIn(`"/a/${s}`).length],
   ...patternChecks("sync", { PROOF_REF }),
   ["sync extractProofs", (s) => extractProofs(s).length + extractProofs(`\`${s}:1\` [[verified ${s}`).length],
+  // The labels `--apply --labels` rewrites, on a page: its protected parts and its contexts, then the reader whole.
+  ...patternChecks("sync labels", LABEL_PATTERNS),
+  ["sync replaceLabel", (s) => replaceLabel(s, "No", "Non").n + replaceLabel(`**${s}`, "a", "b").n],
+  ["sync citedLabels", (s) => citedLabels({ a: "No", b: "aa" }, [{ id: "p", markdown: s }]).length],
   ["masking parseEnv", (s) => parseEnv(s).length + parseEnv(`A=${s}`).length],
 ];
 

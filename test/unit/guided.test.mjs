@@ -104,6 +104,17 @@ describe("situation", () => {
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "same version: nothing to follow");
       const r = await cli(["--project", dir, "--json"], {});
       assert.equal(JSON.parse(r.out).step, "menu");
+      // One page marked at the documented version rewrites app.version; a page checked at an older one is still behind.
+      const page = (version) => ({ verified: "2026-10-01", version, source: "0123456789abcdef" });
+      fs.writeFileSync(
+        path.join(dir, "sync.json"),
+        JSON.stringify({
+          generator: "doc-kit 0.1.0",
+          app: { commit: null, version: "1.4.0", date: "2026-10-01" },
+          pages: { "use/orders": page("1.4.0"), "use/settings": page("1.3.0") },
+        }),
+      );
+      assert.equal((await detectSituation({ project: dir, env: {} })).step, "sync", "use/settings: 1.3.0 ≠ 1.4.0");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

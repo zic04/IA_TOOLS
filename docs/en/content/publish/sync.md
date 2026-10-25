@@ -21,6 +21,11 @@ plan entries behind its `:::screen` blocks, of the message labels it quotes verb
 topic group (the other pages a `counterpart` joins) and declared `sources`. `sync.json` lives at the project root by default (`paths.sync`) and is
 **committed with the documentation**, like `facts/*.json`.
 
+Marking merges into `sync.json`, it never rebuilds it: `--mark <page…>` records those pages and the commit they
+were checked at, and acknowledges only what they document. A new route stays `new` until a marked page cites it
+or `--mark --all` acknowledges the whole inventory; a renamed label stays reported while a page that was not
+marked still quotes its old value. Each page's diff is taken from its own commit.
+
 ## Reading the report
 
 ```bash
@@ -42,6 +47,7 @@ one `.doc-kit/sync/<page>.diff` per page to review:
 | `new` | A route, API route, table… the reference never saw | Document it |
 | `removed` | An element a written page still cites, gone from the application | Correct the pages listed |
 | `unchanged` | A marked page, nothing of its dependencies moved | Restamped by `--apply` |
+| `edited` | A marked page whose Markdown changed since it was marked | Check it, then `--mark` it (only a warning, never restamped by `--apply`) |
 | `unmarked` | A written page never marked | `--mark` it once checked (only a warning, never blocks `--check`) |
 
 A page may appear in several categories at once (`proofs.moved` and `captures`, for instance), but in `review` or
@@ -55,9 +61,11 @@ doc-kit sync --apply --labels
 ```
 
 `--apply` rewrites a moved proof's `path:line` wherever it is cited, and restamps every page the run leaves
-unchanged. `--labels` goes further: it replaces an old message value with its new one, but **only** inside
-`**bold**`, code spans, `[[menu …]]` badges and quotes — never inside ordinary prose, where a human sentence
-depends on the old wording. Nothing here ever touches prose: a page whose subject changed still needs a person.
+unchanged — without clearing anything still pending: a screenshot to retake, a new element, a label. `--labels`
+goes further: it replaces an old message value with its new one, as a whole word (`No` is never replaced inside
+`Note`), but **only** inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes —
+never inside ordinary prose, where a human sentence depends on the old wording, nor in a directive's attributes or
+a link's target. Nothing here ever touches prose: a page whose subject changed still needs a person.
 
 ## A gate for continuous integration: `--check`
 
@@ -65,7 +73,7 @@ depends on the old wording. Nothing here ever touches prose: a page whose subjec
 doc-kit sync --check
 ```
 
-Exit code 1 as soon as any category but `unchanged` and `unmarked` is not empty — "the documentation is behind the
+Exit code 1 as soon as any category but `unchanged`, `edited` and `unmarked` is not empty — "the documentation is behind the
 application". `unmarked` only warns, so a project can adopt `sync` one page at a time instead of marking every page
 at once.
 

@@ -32,6 +32,7 @@
         "properties": {
           "verified": { "$ref": "#/$defs/date" },
           "version": { "type": "string" },
+          "commit": { "type": ["string", "null"] },
           "source": { "$ref": "#/$defs/hash" },
           "files": { "type": "object", "additionalProperties": { "$ref": "#/$defs/hash" } },
           "declared": { "type": "array", "items": { "type": "string" } },

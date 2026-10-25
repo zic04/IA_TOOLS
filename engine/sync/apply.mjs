@@ -14,6 +14,37 @@ function pageFile(root, config, toc, pageId) {
 }
 
 /**
+ * The pages `sync --apply` restamps (ARCHITECTURE.md §6.10): the unchanged ones, the ones whose only changes it has
+ * just applied, and, with `autoIntact` (ETUDE-CAPTURES.md §7, G1), the probably intact ones — shared files whose diff
+ * touches nothing the page cites, or files it reaches only through proofs that still hold. Never a page something
+ * else is pending on (a broken proof, a capture, a label not applied, a removed item it cites), nor one edited by
+ * hand since it was marked: that edit has not been checked.
+ * @param {object} report   a SyncReport, computed before the fixes were applied
+ * @returns {{ restamp: string[], intact: string[] }}
+ */
+export function pagesToRestamp(report, { withLabels = false, autoIntact = false } = {}) {
+  const labelPages = report.labels.flatMap((l) => l.pages);
+  const pending = new Set([
+    ...report.proofs.broken.map((b) => b.page),
+    ...report.captures.flatMap((c) => c.pages),
+    ...(withLabels ? [] : labelPages),
+    ...(report.edited || []),
+  ]);
+  const anyIssue = new Set([...pending, ...report.review.map((r) => r.page)]);
+  const restamp = new Set(report.unchanged);
+  for (const id of [...report.proofs.moved.map((m) => m.page), ...(withLabels ? labelPages : [])])
+    if (!anyIssue.has(id)) restamp.add(id);
+  const removed = new Set(report.removed.flatMap((r) => r.pages));
+  const intact = autoIntact
+    ? report.review
+        .filter((r) => r.priority === "probablyIntact" && !pending.has(r.page) && !removed.has(r.page))
+        .map((r) => r.page)
+    : [];
+  for (const id of intact) restamp.add(id);
+  return { restamp: [...restamp], intact };
+}
+
+/**
  * Applies the mechanical fixes of a report.
  * @param {object} p
  * @param {string} p.root

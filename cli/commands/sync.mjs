@@ -9,9 +9,9 @@ import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { checkDate } from "../common.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
-import { readSyncReference, writeSyncReference, markPages } from "../../engine/sync/reference.mjs";
+import { readSyncReference, writeSyncReference, markPages, pageCommit } from "../../engine/sync/reference.mjs";
 import { compareWithReference, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
-import { applyReport } from "../../engine/sync/apply.mjs";
+import { applyReport, pagesToRestamp } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
@@ -157,41 +157,18 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
       }
     }
 
-    const anyIssue = new Set([
-      ...report.review.map((r) => r.page),
-      ...report.proofs.broken.map((b) => b.page),
-      ...report.captures.flatMap((c) => c.pages),
-      ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
-    ]);
-    const touched = new Set([
-      ...report.proofs.moved.map((m) => m.page),
-      ...(values.labels ? report.labels.flatMap((l) => l.pages) : []),
-    ]);
-    const restamp = new Set(report.unchanged);
-    for (const id of touched) if (!anyIssue.has(id)) restamp.add(id);
-    // --auto-intact (ETUDE-CAPTURES.md §7, G1): a page whose only changes are "probably intact" — shared files
-    // whose diff touches nothing the page cites, or files it reaches only through proofs that still hold — is
-    // marked without asking an agent, unless something else is pending on it (broken proof, capture, label,
-    // removed item it cites).
-    const intact = [];
-    if (values["auto-intact"]) {
-      const pending = new Set([
-        ...report.proofs.broken.map((b) => b.page),
-        ...report.captures.flatMap((c) => c.pages),
-        ...report.removed.flatMap((r) => r.pages),
-        ...(!values.labels ? report.labels.flatMap((l) => l.pages) : []),
-      ]);
-      for (const r of report.review) if (r.priority === "probablyIntact" && !pending.has(r.page)) intact.push(r.page);
-      for (const id of intact) restamp.add(id);
-      if (!ctx.json) ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
-    }
-    if (restamp.size) {
+    const autoIntact = !!values["auto-intact"];
+    const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact });
+    if (autoIntact && !ctx.json)
+      ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
+    if (restamp.length) {
       const { reference: before } = readSyncReference(root, config);
       const { reference: next } = await markPages({
         root,
         config,
         toc,
-        pages: [...restamp],
+        pages: restamp,
+        restamp: true,
         date: before?.app?.date || new Date().toISOString().slice(0, 10),
         commit,
         version,
@@ -218,16 +195,19 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     }
   }
 
+  // Each page's diff from the commit it was checked at (pageCommit), or from --since.
   const diffs = new Map();
-  const refCommit = since || reference?.app?.commit || null;
-  if (git && refCommit)
-    for (const r of report.review) {
-      const d = git.diff(
-        refCommit,
-        r.reasons.map((x) => x.path),
-      );
-      if (d) diffs.set(r.page, d);
-    }
+  for (const r of report.review) {
+    const refCommit = since || pageCommit(reference, r.page);
+    const d =
+      git && refCommit
+        ? git.diff(
+            refCommit,
+            r.reasons.map((x) => x.path),
+          )
+        : null;
+    if (d) diffs.set(r.page, d);
+  }
   writeReportFiles({ root, report, diffs, t: ctx.t });
 
   if (ctx.json) {
@@ -244,6 +224,7 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     line("new", report.new.length);
     line("removed", report.removed.length);
     line("unchanged", report.unchanged.length);
+    if (report.edited.length) line("edited", report.edited.length);
     line("unmarked", report.unmarked.length);
     if (report.estimate)
       ctx.print(

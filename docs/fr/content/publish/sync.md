@@ -23,6 +23,12 @@ de message qu'elle cite mot pour mot, et de ses tableaux `::faits`, de son group
 `sources` déclarées. `sync.json` vit à la racine du projet par défaut (`paths.sync`) et est **committé avec la
 documentation**, comme `facts/*.json`.
 
+Marquer fusionne dans `sync.json`, sans jamais le reconstruire : `--mark <page…>` enregistre ces pages et le
+commit sur lequel elles ont été vérifiées, et n'acquitte que ce qu'elles documentent. Une nouvelle route reste
+`new` tant qu'aucune page marquée ne la cite ou que `--mark --all` n'acquitte tout l'inventaire ; un libellé
+renommé reste signalé tant qu'une page non marquée cite encore son ancienne valeur. Le diff de chaque page part
+de son propre commit.
+
 ## Lire le rapport
 
 ```bash
@@ -44,6 +50,7 @@ et un `.doc-kit/sync/<page>.diff` par page à relire :
 | `new` | Une route, une route API, une table… que la référence n'a jamais vue | La documenter |
 | `removed` | Un élément qu'une page écrite cite encore, disparu de l'application | Corriger les pages listées |
 | `unchanged` | Une page marquée, aucune de ses dépendances n'a bougé | Retamponnée par `--apply` |
+| `edited` | Une page marquée dont le Markdown a changé depuis son marquage | La vérifier, puis `--mark` (seulement un avertissement, jamais retamponnée par `--apply`) |
 | `unmarked` | Une page écrite jamais marquée | `--mark` une fois vérifiée (seulement un avertissement, ne bloque jamais `--check`) |
 
 Une page peut apparaître dans plusieurs catégories à la fois (`proofs.moved` et `captures`, par exemple), mais au
@@ -57,9 +64,11 @@ doc-kit sync --apply --labels
 ```
 
 `--apply` réécrit le `fichier:ligne` d'une preuve déplacée partout où elle est citée, et retamponne chaque page
-que l'exécution laisse inchangée. `--labels` va plus loin : il remplace l'ancienne valeur d'un message par la
-nouvelle, mais **seulement** dans `**gras**`, les blocs de code, les badges `[[menu …]]` et les guillemets —
-jamais dans la prose ordinaire, où une phrase humaine dépend de l'ancienne formulation. Rien ici ne touche jamais
+que l'exécution laisse inchangée — sans effacer ce qui reste à faire : une capture à reprendre, un nouvel élément,
+un libellé. `--labels` va plus loin : il remplace l'ancienne valeur d'un message par la nouvelle, en mot entier
+(`No` n'est jamais remplacé dans `Note`), mais **seulement** dans `**gras**`, un bloc de code qui est le libellé
+lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose ordinaire, où une phrase humaine dépend
+de l'ancienne formulation, ni dans les attributs d'une directive ou la cible d'un lien. Rien ici ne touche jamais
 la prose : une page dont le sujet a changé a toujours besoin d'une personne.
 
 ## Une barrière pour l'intégration continue : `--check`
@@ -68,7 +77,7 @@ la prose : une page dont le sujet a changé a toujours besoin d'une personne.
 doc-kit sync --check
 ```
 
-Code de sortie 1 dès qu'une catégorie autre que `unchanged` et `unmarked` n'est pas vide — « la documentation est
+Code de sortie 1 dès qu'une catégorie autre que `unchanged`, `edited` et `unmarked` n'est pas vide — « la documentation est
 en retard sur l'application ». `unmarked` ne fait qu'avertir, pour qu'un projet puisse adopter `sync` page par
 page plutôt que de tout marquer d'un coup.
 

@@ -152,11 +152,11 @@ nouveaux ou disparus des adaptateurs de couverture. Il écrit `.doc-kit/sync.md`
 | `--since <réf>` | Compare avec ce commit git plutôt qu'avec `sync.json` ; `new` et `removed` sont toujours vides (les adaptateurs ne sont pas relancés à ce commit) |
 | `--apply` | Réécrit la référence `fichier:ligne` d'une preuve déplacée dans la page ; retamponne ensuite les pages inchangées |
 | `--labels` | Avec `--apply` : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, uniquement dans `**gras**`, les blocs de code, les badges `[[menu …]]` et les guillemets — jamais dans la prose |
-| `--mark <page…>` | Enregistre ces pages comme vérifiées maintenant (les identifiants de page suivent l'option) |
-| `--all` | Avec `--mark` : toutes les pages écrites |
+| `--mark <page…>` | Enregistre ces pages comme vérifiées maintenant (les identifiants de page suivent l'option), fusionnées dans `sync.json` : seul ce qu'elles documentent est acquitté |
+| `--all` | Avec `--mark` : toutes les pages écrites, et tout l'inventaire acquitté |
 | `--sources <fichier[:lignes]…>` | Avec `--mark` d'une seule page : dépendances déclarées, répétable |
 | `--date AAAA-MM-JJ` | Date écrite par `--mark`, au lieu d'aujourd'hui (exécutions reproductibles) |
-| `--check` | Code de sortie 1 si une catégorie autre que `unchanged` et `unmarked` n'est pas vide : une barrière de CI qu'un projet peut adopter page par page |
+| `--check` | Code de sortie 1 si une catégorie autre que `unchanged`, `edited` et `unmarked` n'est pas vide : une barrière de CI qu'un projet peut adopter page par page |
 | `--estimate` | Le coût de la mise à jour des pages à relire, un agent `doc-kit-writer` par page, selon `llm.prices` |
 
 Sans `app.dir`, code de sortie 2. Une page non encore écrite ne peut pas être marquée (code de sortie 1). Une fois

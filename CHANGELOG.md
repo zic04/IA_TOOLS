@@ -36,6 +36,18 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- **`doc-kit sync` never loses a signal and never corrupts a page** (ARCHITECTURE.md §6.10). Marking merges into
+  `sync.json` instead of rebuilding it: marking one page no longer drops a renamed label that other pages still
+  quote, nor acknowledges every new or removed element of the project (only those the marked pages document;
+  `--mark --all` acknowledges the whole inventory). `--apply` restamps the unchanged pages without clearing a
+  screenshot to retake, a new element or a label, so `capture --stale` still selects what changed. The page's
+  recorded Markdown fingerprint is read back: a page edited by hand since it was marked is reported (`edited`, a
+  warning like `unmarked`) and never restamped by `--apply` or `--auto-intact`. Each page records the commit it was
+  checked at, and its diff is taken from there (an older `sync.json` falls back to `app.commit`, no migration); the
+  guided mode offers `sync` while any page was checked against another version. `--apply --labels` replaces a label
+  as a whole word only, in any script (`No` is never replaced inside `Note` or `None`), never in a directive's
+  attributes, a link's target, a verified badge or longer code; labels are cited as whole words too. A scenario test
+  plays the real sequence on `examples/demo-app` → `demo-app-v2`.
 - **`doc-kit new` in a multilingual project** adds the same entry, at the same place, to every translated table of
   contents (`translations/<l>/toc.json`), its texts left to translate: a new page no longer stops every build with
   `translation.toc.structure`. A translated table of contents that is not valid JSON, or already out of step there

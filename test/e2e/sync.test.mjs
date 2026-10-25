@@ -425,10 +425,11 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
         "settings-profile: the image was replaced",
       );
 
-      // ─── --mark the treated pages (not --all): sync.json follows, nothing stays outstanding ───────────────
+      // ─── --mark the treated pages (not --all): sync.json follows them, and only them ────────────────────────
       // risks/findings: its claim still holds on the renamed line (the link keeps its data-prefetch), re-checked;
       // the two takeover pages: confirmed by the triage (their routes and access unchanged), marked without being
-      // rewritten.
+      // rewritten. The new route is documented by none of them: it stays new (ARCHITECTURE.md §6.10, a marking
+      // acknowledges only what its pages document) until a page documents it or `--mark --all` acknowledges it.
       r = await cli([
         "sync",
         "--mark",
@@ -445,6 +446,19 @@ describe("the full update cycle (ARCHITECTURE.md §6.10, V5a: a real `sync` repo
       assert.equal(r.code, 0, r.out + r.err);
       assert.match(r.out, /5 pages marked as checked/);
 
+      r = await cli(["sync", "--project", cycleDir, "--json"]);
+      const left = JSON.parse(r.out);
+      assert.deepEqual(
+        left.new.map((n) => n.id),
+        ["invoices.html"],
+      );
+      for (const key of ["labels", "review", "captures", "removed", "edited"]) assert.deepEqual(left[key], [], key);
+      assert.deepEqual(left.proofs, { moved: [], broken: [] });
+      assert.equal((await cli(["sync", "--check", "--project", cycleDir])).code, 1, "the new route is still to follow");
+
+      // The placeholder screen needs no page yet: --mark --all acknowledges the whole inventory, on purpose.
+      r = await cli(["sync", "--mark", "--all", "--project", cycleDir, "--date", "2026-10-02"]);
+      assert.equal(r.code, 0, r.out + r.err);
       r = await cli(["sync", "--check", "--project", cycleDir]);
       assert.equal(r.code, 0, r.out + r.err);
       assert.match(r.out, /the documentation follows the application/);

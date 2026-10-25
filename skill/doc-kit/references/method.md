@@ -377,7 +377,7 @@ What to run after an application release, so the documentation catches up withou
     what fell stale from the pages the cycle just touched (`sync`'s own report reminds of it too, category
     "translations"); batch the pages that need a translation the same way as phase 8b.
 8. `doc-kit check all`, then `doc-kit build` (strict); `doc-kit sync --check` gates CI (exit code 1 on anything
-   but `unchanged`/`unmarked`). `node scripts/usage.mjs report` against the cycle's estimate.
+   but `unchanged`/`edited`/`unmarked`; a new element no page documents stays `new` until `sync --mark --all`). `node scripts/usage.mjs report` against the cycle's estimate.
 
 A facts file older than the application's current commit is reported stale by `sync`'s summary: re-run step 1
 before trusting `code-health`'s next read of it.

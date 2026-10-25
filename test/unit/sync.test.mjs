@@ -27,6 +27,7 @@ import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { PROOF } from "../../engine/audit/audit.mjs";
+import { rng } from "../tools/fuzz/prng.mjs";
 
 const FIXTURES = path.join(KIT_ROOT, "test", "fixtures");
 
@@ -636,6 +637,88 @@ describe("engine/sync/labels.mjs", () => {
         text.includes('"Validate"') &&
         text.includes("«Validate»"),
     );
+  });
+
+  // A label is a whole word or phrase, never a piece of one (ARCHITECTURE.md §6.10 §2.8): "No" is not in "Note".
+  test("replaceLabel: whole words only — a word that only contains the label is never touched (minimal pairs)", () => {
+    const same = (md, from, to) => assert.deepEqual(replaceLabel(md, from, to), { text: md, n: 0 }, md);
+    same("**Note** `None`", "No", "Non");
+    assert.deepEqual(replaceLabel("**No** `No`", "No", "Non"), { text: "**Non** `Non`", n: 2 });
+    // Letters of any script, a combining accent, a digit or an underscore continue a word.
+    same('**Approuvée** "Approuvés"', "Approuvé", "Validé");
+    assert.equal(replaceLabel("**Approuvé**", "Approuvé", "Validé").text, "**Validé**");
+    same("**Даже**", "Да", "Нет");
+    assert.equal(replaceLabel("**Да**", "Да", "Нет").text, "**Нет**");
+    same("**Café** **No_entry** **No2**", "Cafe", "Bistro");
+    same("**No_entry** **No2** **éNo**", "No", "Non");
+    // Punctuation and spaces end a word.
+    assert.equal(replaceLabel("**Save, then No.** «No»", "No", "Non").text, "**Save, then Non.** «Non»");
+  });
+
+  test("replaceLabel: never inside a directive's attributes, a link target, a verified badge, or a longer code span", () => {
+    const same = (md) => assert.deepEqual(replaceLabel(md, "Orders", "Sales"), { text: md, n: 0 }, md);
+    same(':::screen{capture="orders-list" title="Orders"}');
+    same('::capture{id="Orders"} :::ecran{titre="Orders"}');
+    same('[the list](orders.md "Orders")');
+    same('<a title="Orders">');
+    same("[[verified lib/Orders.ts:4]]");
+    same('`getOrders("Orders")`');
+    same("[[Orders]]");
+    // The same label beside them, in an allowed context, is replaced.
+    assert.equal(
+      replaceLabel('[the "Orders" page](orders.md "Orders") `Orders` [[menu Orders]]', "Orders", "Sales").text,
+      '[the "Sales" page](orders.md "Orders") `Sales` [[menu Sales]]',
+    );
+    // A badge's kind is never a label: the text after it is.
+    assert.equal(replaceLabel("[[menu Open the menu]]", "menu", "list").text, "[[menu Open the list]]");
+  });
+
+  test("replaceLabel (property, seeded): every word but the label itself comes out unchanged, and so does every protected part", () => {
+    const random = rng(0x5e1ab31);
+    const words = ["No", "No", "Note", "None", "Nos", "Noé", "No_x", "éNo", "No2", "Да", "日本", "no", "Not", "Nobody"];
+    const separators = [" ", ", ", ". ", " — ", " ", "/", "-", "'"];
+    const wrap = [
+      (s) => `**${s}**`,
+      (s) => `\`${s}\``,
+      (s) => `[[menu ${s}]]`,
+      (s) => `"${s}"`,
+      (s) => `«${s}»`,
+      (s) => `“${s}”`,
+      (s) => s,
+    ];
+    const protectedPart = (s) =>
+      random.pick([`::capture{id="x" title="${s}"}`, `](${s}.md "${s}")`, `[[verified lib/${s}.ts:4]]`]);
+    const WORD = /[\p{L}\p{N}\p{M}\p{Pc}]+/gu;
+    for (let c = 0; c < 300; c++) {
+      const kept = [];
+      let md = "";
+      for (let i = random.int(12) + 1; i > 0; i--) {
+        const phrase = Array.from({ length: random.int(3) + 1 }, () => random.pick(words)).join(
+          random.pick(separators),
+        );
+        if (random.chance(0.2)) {
+          const part = protectedPart(phrase);
+          kept.push(part);
+          md += part + " ";
+        } else md += random.pick(wrap)(phrase) + random.pick(separators);
+      }
+      const { text } = replaceLabel(md, "No", "Yes");
+      const before = md.match(WORD) || [];
+      const after = text.match(WORD) || [];
+      assert.equal(after.length, before.length, md);
+      for (let i = 0; i < before.length; i++)
+        if (after[i] !== before[i]) assert.ok(before[i] === "No" && after[i] === "Yes", `${md}\n→ ${text}`);
+      assert.deepEqual(text.split(WORD), md.split(WORD), "nothing but words changes");
+      for (const part of kept) assert.ok(text.includes(part), `${part} kept in ${text}`);
+    }
+  });
+
+  test("citedLabels: a value is cited as a whole word, never as a piece of one", () => {
+    const pages = [
+      { id: "a", markdown: "**Note** and `None`: nothing to approve." },
+      { id: "b", markdown: "Click **No**." },
+    ];
+    assert.deepEqual(citedLabels({ "x.no": "No" }, pages), [{ key: "x.no", value: "No", pages: ["b"] }]);
   });
 
   test("labelFiles: config.sync.labels glob (literal '../' prefix supported); else the i18n-registry adapters", async () => {
@@ -1252,6 +1335,188 @@ describe("CLI `sync`", () => {
       assert.match(r.err, /no application to read/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ARCHITECTURE.md §6.10: marking merges into sync.json, never replaces it — a signal pending on a page stays until
+// that page is marked (or `--mark --all`), and `--apply` never clears one by restamping.
+describe("marking merges: a pending signal stays until its own page is marked", () => {
+  const LABELS = "../sync-app/messages/en.json";
+  /** A fixture copy marked at commit c1; `prepare` runs before the marking. */
+  async function marked(prepare = () => {}) {
+    const fx = syncFixtureCopy();
+    prepare(fx);
+    const config = await syncConfig(fx.root);
+    const toc = readToc(fx.root, config);
+    const at = async (commit, extra) => ({
+      ...{ root: fx.root, config, toc, date: "2026-10-02", commit, version: "1.0.0", plans: [] },
+      inventory: await runCoverage({ root: fx.root, config }),
+      ...extra,
+    });
+    const { reference } = await markPages(await at("c1", { all: true }));
+    const compare = async (ref, extra = {}) =>
+      compareWithReference({
+        ...{ root: fx.root, config, toc, reference: ref, since: null, git: null, plans: [], appDir: fx.appDir },
+        ...{ version: "1.0.0", commit: "c2", factsDir: config.paths.facts },
+        inventory: await runCoverage({ root: fx.root, config }),
+        ...extra,
+      });
+    return { fx, reference, at, compare };
+  }
+  const mark = async (fx, args, io = {}) => cli(["sync", ...args, "--date", "2026-10-02", "--project", fx.root], io);
+  const syncJson = (fx) => JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8"));
+  const addRoute = (fx, route) => {
+    fs.mkdirSync(path.join(fx.appDir, "app", route), { recursive: true });
+    fs.writeFileSync(path.join(fx.appDir, "app", route, "page.tsx"), "export default function P() { return null; }\n");
+  };
+
+  test("a renamed label stays recorded when another page is marked; marking the page that still says it acknowledges it", async () => {
+    const { fx, reference, at, compare } = await marked();
+    try {
+      fs.writeFileSync(
+        path.join(fx.appDir, "messages/en.json"),
+        JSON.stringify({ orders: { approve: "Validate", new: "New order" } }),
+      );
+      const { reference: other } = await markPages(await at("c2", { pages: ["use/orders/detail"], reference }));
+      assert.equal(other.labels[LABELS]?.["orders.approve"], "Approve", "the new value is cited nowhere: kept");
+      assert.deepEqual(
+        (await compare(other)).labels.map((l) => [l.key, l.old, l.new, l.pages]),
+        [["orders.approve", "Approve", "Validate", ["use/orders"]]],
+      );
+      const { reference: checked } = await markPages(await at("c2", { pages: ["use/orders"], reference: other }));
+      assert.equal(checked.labels[LABELS]["orders.approve"], "Validate");
+      assert.deepEqual((await compare(checked)).labels, []);
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("marking one page acknowledges only the new items it documents; the others stay new until --all", async () => {
+    const { fx, reference, at, compare } = await marked();
+    try {
+      addRoute(fx, "customers");
+      addRoute(fx, "invoices");
+      fs.appendFileSync(path.join(fx.root, "content/use/orders.md"), "\nThe invoices of an order: `/invoices`.\n");
+      const { reference: one } = await markPages(await at("c2", { pages: ["use/orders"], reference }));
+      assert.deepEqual(
+        (await compare(one)).new.map((n) => n.id),
+        ["/customers"],
+      );
+      const { reference: other } = await markPages(await at("c2", { pages: ["use/orders/detail"], reference: one }));
+      assert.deepEqual(
+        (await compare(other)).new.map((n) => n.id),
+        ["/customers"],
+        "a page that documents neither acknowledges neither",
+      );
+      const { reference: all } = await markPages(await at("c2", { all: true, reference: other }));
+      assert.deepEqual((await compare(all)).new, [], "--all: the whole inventory, on purpose");
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("sync --apply restamps the unchanged pages without clearing a capture to retake or a new item", async () => {
+    const plan = (caption) =>
+      `export const CAPTURES = ${JSON.stringify([{ id: "orders-list", route: "/orders", zones: [{ text: "Today", caption }] }])};\n`;
+    const fx = syncFixtureCopy();
+    try {
+      fs.mkdirSync(path.join(fx.root, "captures", "plans"), { recursive: true });
+      fs.writeFileSync(path.join(fx.root, "captures", "plans", "use.mjs"), plan("Summary"));
+      fs.appendFileSync(
+        path.join(fx.root, "content/use/orders.md"),
+        '\n:::screen{capture="orders-list"}\n1. **Filters**\n:::\n',
+      );
+      assert.equal((await mark(fx, ["--all"], { commit: () => "c1" })).code, 0);
+      fs.writeFileSync(path.join(fx.root, "captures", "plans", "use.mjs"), plan("Today's orders"));
+      addRoute(fx, "customers");
+      const report = async () => JSON.parse((await cli(["sync", "--json", "--project", fx.root])).out);
+      const pending = (r) => ({
+        captures: r.captures.map((c) => [c.id, c.reasons, c.pages]),
+        new: r.new.map((n) => n.id),
+      });
+      const expected = { captures: [["orders-list", ["plan"], ["use/orders"]]], new: ["/customers"] };
+      const before = await report();
+      assert.deepEqual(pending(before), expected);
+      assert.ok(before.unchanged.includes("use/orders"), "the page itself is unchanged: --apply restamps it");
+      const applied = await cli(["sync", "--apply", "--project", fx.root], { commit: () => "c2" });
+      assert.equal(applied.code, 0, applied.err);
+      const written = JSON.parse(fs.readFileSync(path.join(fx.root, ".doc-kit", "sync-report.json"), "utf8"));
+      assert.deepEqual(pending(written), expected, "what capture --stale reads after --apply");
+      assert.deepEqual(pending(await report()), expected);
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("a page edited by hand since it was marked is reported, and never restamped by --apply or --auto-intact", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      assert.equal((await mark(fx, ["--all"], { commit: () => "c1" })).code, 0);
+      const source = (id) => syncJson(fx).pages[id].source;
+      const recorded = { detail: source("use/orders/detail"), orders: source("use/orders") };
+      fs.appendFileSync(path.join(fx.root, "content/use/orders/detail.md"), "\nIts total is shown in bold.\n");
+      fs.appendFileSync(path.join(fx.root, "content/use/orders.md"), "\nA line added by hand.\n");
+      // use/orders also has a shared file changed whose diff cites nothing of it: probably intact (--auto-intact).
+      fs.writeFileSync(
+        path.join(fx.appDir, "app/layout.tsx"),
+        'export default function RootLayout({ children }) {\n  return <html><body className="updated">{children}</body></html>;\n}\n',
+      );
+      const exec = fakeExec({ rev: "c2", diffs: { c1: '@@ -1 +1 @@\n-old\n+<html><body className="updated">\n' } });
+      const io = { exec, commit: () => "c2" };
+      const r = JSON.parse((await cli(["sync", "--json", "--project", fx.root], io)).out);
+      assert.deepEqual(r.edited, ["use/orders", "use/orders/detail"]);
+      assert.ok(!r.unchanged.includes("use/orders/detail"), JSON.stringify(r.unchanged));
+      assert.deepEqual(
+        r.review.map((x) => [x.page, x.priority]),
+        [
+          ["use/orders", "probablyIntact"],
+          ["use/orders/detail", "probablyIntact"],
+        ],
+      );
+      assert.equal(checkFails({ ...r, review: [] }), false, "an edited page alone never fails --check, like unmarked");
+      assert.equal((await cli(["sync", "--apply", "--auto-intact", "--project", fx.root], io)).code, 0);
+      assert.deepEqual({ detail: source("use/orders/detail"), orders: source("use/orders") }, recorded);
+      const text = await cli(["sync", "--project", fx.root], io);
+      assert.match(text.out, /2 pages edited since they were marked/);
+      // Marking the page is what checks the edit.
+      assert.equal((await mark(fx, ["--mark", "use/orders/detail"], io)).code, 0);
+      const after = JSON.parse((await cli(["sync", "--json", "--project", fx.root], io)).out);
+      assert.deepEqual(after.edited, ["use/orders"]);
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("each page keeps the commit it was checked at: its diff is taken from there; an older sync.json falls back to app.commit", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      assert.equal((await mark(fx, ["--all"], { commit: () => "c1" })).code, 0);
+      fs.writeFileSync(path.join(fx.appDir, "app/layout.tsx"), "export default function L() { return null; }\n");
+      assert.equal((await mark(fx, ["--mark", "use/orders/detail"], { commit: () => "c2" })).code, 0);
+      const ref = syncJson(fx);
+      assert.deepEqual(
+        [ref.pages["use/orders"].commit, ref.pages["use/orders/detail"].commit, ref.app.commit],
+        ["c1", "c2", "c2"],
+      );
+      const diffs = { c0: "@@ -1 +1 @@\n-since c0\n", c1: "@@ -1 +1 @@\n-since c1\n" };
+      const io = { exec: fakeExec({ rev: "c3", diffs }), commit: () => "c3" };
+      const diffOf = async () => {
+        assert.equal((await cli(["sync", "--project", fx.root], io)).code, 0);
+        return fs.readFileSync(path.join(fx.root, ".doc-kit", "sync", "use__orders.diff"), "utf8");
+      };
+      assert.equal(await diffOf(), diffs.c1);
+      // The shape written before per-page commits: no `commit` in a page, the global one is its commit.
+      for (const page of Object.values(ref.pages)) delete page.commit;
+      ref.app.commit = "c0";
+      fs.writeFileSync(path.join(fx.root, "sync.json"), JSON.stringify(ref));
+      assert.equal(await diffOf(), diffs.c0);
+      // Marking another page keeps that fallback for the pages it does not mark.
+      assert.equal((await mark(fx, ["--mark", "take-over/orders-api"], { commit: () => "c2" })).code, 0);
+      assert.equal(syncJson(fx).pages["use/orders"].commit, "c0");
+      assert.equal(await diffOf(), diffs.c0);
+    } finally {
+      fx.release();
     }
   });
 });

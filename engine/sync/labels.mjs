@@ -1,7 +1,9 @@
 // Message labels cited verbatim in the documentation (ARCHITECTURE.md §6.10 §2.5, §2.8, §2.9): which files to
 // read, flattening nested JSON to dotted keys, which entries a written page cites, and the only contexts
 // `--apply --labels` is allowed to rewrite.
+import fs from "node:fs";
 import { adapterTools } from "../check/coverage.mjs";
+import { wholeIndexes } from "../core/text.mjs";
 
 /** Nested JSON → dotted keys, string values only ({ "a": { "b": "x" } } → { "a.b": "x" }). */
 export function flattenMessages(json, prefix = "") {
@@ -14,6 +16,14 @@ export function flattenMessages(json, prefix = "") {
   return out;
 }
 
+/** A message file, flattened; null when it is missing or not valid JSON (then nothing is known of its labels). */
+export function readFlatLabels(abs) {
+  try {
+    return fs.existsSync(abs) ? flattenMessages(JSON.parse(fs.readFileSync(abs, "utf8"))) : null;
+  } catch {
+    return null;
+  }
+}
 /** Splits a glob with a literal directory prefix (possibly "../…") from its wildcard part. */
 function splitGlob(pattern) {
   const parts = pattern.split("/");
@@ -56,30 +66,62 @@ export function labelFiles(root, config) {
   ];
 }
 
-/** Entries of a flattened message file cited verbatim (2+ characters) by at least one written page. */
+/** Whether a page's Markdown cites a label value: verbatim, case-sensitive, as a whole ("No" is not in "Note"). */
+export const citesLabel = (markdown, value) => wholeIndexes(markdown, value).length > 0;
+
+/** Entries of a flattened message file cited verbatim (2+ characters, whole) by at least one of the pages. */
 export function citedLabels(flat, pages) {
   const out = [];
   for (const [key, value] of Object.entries(flat)) {
     if (typeof value !== "string" || value.length < 2) continue;
-    const citedBy = pages.filter((p) => p.markdown.includes(value)).map((p) => p.id);
+    const citedBy = pages.filter((p) => citesLabel(p.markdown, value)).map((p) => p.id);
     if (citedBy.length) out.push({ key, value, pages: citedBy });
   }
   return out;
 }
 
-/** The five contexts `--apply --labels` may rewrite (ARCHITECTURE.md §6.10 §2.8): bold, code spans, badges, and quotes. */
-const LABEL_CONTEXT = /\*\*[^*\n]+\*\*|`[^`\n]+`|\[\[[^\]\n]+\]\]|"[^"\n]+"|«[^»\n]+»|“[^”\n]+”/g;
+/**
+ * The Markdown `--apply --labels` reads (ARCHITECTURE.md §6.10 §2.8). PROTECTED, blanked first and never rewritten:
+ * a directive's name and attributes (`:::screen{capture="…" title="…"}`), a link's or an image's target
+ * (`](orders.md "Orders")`), a link definition, an HTML tag, a verified badge (it names its source file). CONTEXT:
+ * the contexts it may rewrite — bold, code spans, badges and quotes. Linear: no class runs over the character that
+ * opens the next match, so a scan that fails never reads past it again (RULES.md S5).
+ */
+export const LABEL_PATTERNS = Object.freeze({
+  PROTECTED:
+    /:{2,3}[A-Za-z][\w-]*(?:\[[^[\]\n]*\])?\{[^{}\n]*\}|\]\([^()\n]*\)|^ {0,3}\[[^[\]\n]+\]:[^\n]*|<\/?[A-Za-z][^<>\n]*>|\[\[(?:verified|verifie)\s[^[\]\n]*\]\]/gm,
+  CONTEXT: /\*\*[^*\n]+\*\*|`[^`\n]+`|\[\[[^[\]\n]+\]\]|"[^"\n]+"|«[^«»\n]+»|“[^“”\n]+”/g,
+});
 
-/** Replaces `oldValue` by `newValue`, only inside the allowed contexts; the rest of the Markdown is untouched. */
+/** The part of a context token that holds text: inside its delimiters; for a badge, after its kind (`[[menu …]]`). */
+function textRange(token) {
+  if (!token.startsWith("[[")) return token.startsWith("**") ? [2, token.length - 2] : [1, token.length - 1];
+  const space = token.slice(2).search(/\s/);
+  return space < 0 ? [0, 0] : [space + 3, token.length - 2];
+}
+
+/**
+ * Replaces `oldValue` by `newValue`, as a whole word or phrase, only inside the allowed contexts and never in a
+ * protected part (LABEL_PATTERNS); a code span is replaced only when it is the label itself (`Approve`), never
+ * inside longer code. The rest of the Markdown is untouched.
+ */
 export function replaceLabel(markdown, oldValue, newValue) {
-  let n = 0;
-  const text = markdown.replace(LABEL_CONTEXT, (token) => {
-    if (!token.includes(oldValue)) return token;
-    const parts = token.split(oldValue);
-    n += parts.length - 1;
-    return parts.join(newValue);
-  });
-  return { text, n };
+  if (!oldValue || oldValue.includes("\0")) return { text: markdown, n: 0 };
+  const masked = markdown.replace(LABEL_PATTERNS.PROTECTED, (s) => "\0".repeat(s.length));
+  const at = [];
+  for (const m of masked.matchAll(LABEL_PATTERNS.CONTEXT)) {
+    const [from, to] = textRange(m[0]);
+    const inner = m[0].slice(from, to);
+    if (m[0][0] !== "`") for (const i of wholeIndexes(inner, oldValue)) at.push(m.index + from + i);
+    else if (inner.trim() === oldValue) at.push(m.index + from + inner.indexOf(oldValue));
+  }
+  let text = "";
+  let last = 0;
+  for (const i of at) {
+    text += markdown.slice(last, i) + newValue;
+    last = i + oldValue.length;
+  }
+  return { text: text + markdown.slice(last), n: at.length };
 }
 
 const DOTTED_LITERAL = /["'`]([a-z0-9_-]+(?:\.[a-z0-9_-]+)+)["'`]/gi;
