@@ -13,6 +13,7 @@ import { readListed } from "./code-files.mjs";
 import { collectTests, TEST_FILE } from "./tests.mjs";
 import { createRegistryClient, isPrivatePackage, privateRegistries } from "./network.mjs";
 import { oncePerPackage } from "../core/packages.mjs";
+import { majorsBehind } from "../core/versions.mjs";
 import { closingBrace, closingBraces } from "../util/js-scan.mjs";
 
 const CODE_EXT = /\.(js|jsx|ts|tsx|mjs|cjs|py)$/;
@@ -244,40 +245,31 @@ function detectTooling(appDir, allFiles) {
 }
 
 // --network (ARCHITECTURE.md §6.13): direct dependencies behind their latest version (majors behind), asked to the
-// public registries through the network gateway (engine/facts/network.mjs): only the name of a public package is
-// sent, never a private one (AUDIT.md S13).
-
-/** First number of a version-like string ("^2.1.0" → 2), or null. */
-function majorOf(version) {
-  const m = /(\d+)/.exec(String(version ?? "").replace(/^[^\d]*/, ""));
-  return m ? Number(m[1]) : null;
-}
+// public registries through the network gateway (engine/facts/network.mjs): only the name of a package the user lists
+// (facts.network.allow) and a lock file proves public is sent, never a private one (AUDIT.md S13).
 
 /**
- * Direct, public dependencies at least one major behind their latest published version.
+ * Direct, listed, public dependencies at least one major behind their latest published version; null when no direct
+ * package may be sent (none listed, or every one kept back): unknown, not none.
  * @param {Array<{ name: string, ecosystem: string, version?: string|null, spec?: string, direct?: boolean }>} dependencies
  * @param {(url: string) => Promise<any>} fetchImpl
- * @param {{ registries: ReturnType<typeof privateRegistries>, concurrency?: number }} options
+ * @param {{ registries: ReturnType<typeof privateRegistries>, concurrency?: number, answers?: Map<string, any> }} options
+ *   answers: the run's answers, shared with the `dependencies` source (one request a package between them)
  */
-async function countOutdated(dependencies, fetchImpl, { registries, concurrency = 8 }) {
+async function countOutdated(dependencies, fetchImpl, { registries, concurrency = 8, answers }) {
   const sendable = dependencies.filter((d) => d.direct && !isPrivatePackage(d, registries));
   // Once a package (PEP 503 for pip), the item with an exact version first: a lower bound alone names no major.
   const direct = oncePerPackage(sendable);
-  const client = createRegistryClient({ fetch: fetchImpl, registries });
+  if (!direct.length) return null;
+  const client = createRegistryClient({ fetch: fetchImpl, registries, answers });
   const queue = [...direct];
   let outdated = 0;
   async function worker() {
     for (let item = queue.shift(); item; item = queue.shift()) {
-      // The exact version, else a range that names the major in use ("^17.0.0", "~17.1", "~=17.0", "==17.*"): a
-      // lower bound alone (">=1.26") says nothing of the version installed.
-      const namesMajor = ["^", "~", "=="].some((op) =>
-        String(item.spec ?? "")
-          .trim()
-          .startsWith(op),
-      );
-      const current = majorOf(item.version ?? (namesMajor ? item.spec : null));
-      const latestMajor = majorOf(await client.latest(item));
-      if (current != null && latestMajor != null && latestMajor > current) outdated++;
+      // The exact version, else a range that names the major in use; a lower bound alone names none
+      // (engine/core/versions.mjs, the rule `majorsBehind` of the dependencies follows too).
+      const answer = await client.describe(item);
+      if ((majorsBehind(item, answer?.exists ? answer.latest : null) ?? 0) > 0) outdated++;
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, direct.length) }, worker));
@@ -298,12 +290,15 @@ export function rating(ratio, thresholds) {
  * @param {object} [options]
  * @param {(url: string) => Promise<{ok,status}>} [options.fetch]   --network: outdated direct dependencies
  * @param {Array<{name,version,ecosystem,direct,spec?}>} [options.dependencies]   --network: already-collected `dependencies` items
- * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is declared private; read from
- *   the application alone when absent (a private name is never sent)
+ * @param {ReturnType<typeof privateRegistries>} [options.registries]   --network: what is listed and what is declared
+ *   private; read from the application alone when absent (a private name, an unlisted one, is never sent)
+ * @param {readonly string[]} [options.allow]   --network, `registries` absent: the packages listed
+ *   (facts.network.allow)
+ * @param {Map<string, any>} [options.answers]   --network: the run's answers, by package (engine/facts/network.mjs)
  * @returns {Promise<{ items: Array<object>, summary: object, unreadable: Array<{ file: string, reason: string }> }>}
  *   unreadable: a file over 512 KB or that cannot be read (readCode): counted in `files`, not measured
  */
-export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries } = {}) {
+export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, registries, allow, answers } = {}) {
   const allFiles = listFiles(appDir);
   const files = allFiles.filter((f) => CODE_EXT.test(f) && !TEST_FILE.test(f) && !GENERATED.test(f));
   const unreadable = [];
@@ -360,7 +355,8 @@ export async function collectQuality(appDir, { fetch: fetchImpl, dependencies, r
   };
   if (fetchImpl && dependencies)
     summary.outdated = await countOutdated(dependencies, fetchImpl, {
-      registries: registries ?? privateRegistries(appDir, { items: dependencies }),
+      registries: registries ?? privateRegistries(appDir, { items: dependencies, allow }),
+      answers,
     });
   return { items, summary, unreadable };
 }

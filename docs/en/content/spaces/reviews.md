@@ -82,7 +82,7 @@ write path, a rate limit that trips a real alert, a response body that happens t
 kit would rather be checked against a local copy or a prepared demo, same as every screenshot it takes
 ([Demo or production: capturing safely](#/capture/safety)) — the facts sources (`api`, `security`, `quality`) have
 no such restriction, since they only read files; only `--network` reaches a public registry, with the names of
-public packages alone.
+the public packages you list alone (`facts.network.allow`).
 
 ## Pitfalls and observed gaps
 

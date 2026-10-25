@@ -181,7 +181,7 @@ describe("the tarball must be the name's own", () => {
       const lock = packageLockV3({}, { [KEY("@scope/ui")]: entryAt(resolved) });
       lock.packages[""] = { optionalDependencies: { "@scope/ui": RANGE } };
       const result = await expectSent({ [LOCK]: lock }, ["npm @scope/ui"]);
-      assert.deepEqual(result.urls, ["https://registry.npmjs.org/%40scope%2Fui"], label);
+      assert.deepEqual(result.urls, ["https://registry.npmjs.org/%40scope%2Fui/latest"], label);
     });
 
   test("a scoped package's tarball under another scope proves nothing", async () => {

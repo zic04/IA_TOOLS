@@ -29,6 +29,18 @@
   "cli.stacks.outside": "adaptateur de la famille {kind} « {name} » : ce n'est pas un fichier du projet de documentation",
   "cli.stacks.outside.help": "un adaptateur de la famille {kind} propre au projet se trouve dans le projet de documentation ({key}.adapters: [\"local:adapters/x.mjs\"]) ; rien de l'application n'est jamais exécuté",
   "cli.facts.noApp.help": "renseignez app.dir dans doc.config.mjs, vers la racine de l'application (un dossier existant)",
+  "cli.facts.network.unlisted": {
+    "one": "--network : {n} paquet direct non envoyé : facts.network.allow ne le liste pas",
+    "other": "--network : {n} paquets directs non envoyés : facts.network.allow ne les liste pas"
+  },
+  "cli.facts.network.howToList": "relisez les candidats avec le responsable de l'application ({command} facts --network --json : network.candidates, où ne figure jamais un nom privé ou non prouvé), puis listez dans doc.config.mjs ceux seulement que vous acceptez d'envoyer : facts: { network: { allow: [\"{example}\"] } }",
+  "cli.facts.network.nothingListed": "--network : aucun nom de paquet n'a été envoyé : facts.network.allow ne liste aucun paquet, et aucun paquet direct n'est candidat (prouvé public par un fichier de verrouillage, et déclaré privé nulle part)",
+  "cli.validate.networkAllowEcosystem": "« {got} » : une entrée commence par son écosystème ({known})",
+  "cli.validate.networkAllowEcosystem.help": "écrivez \"npm:<nom>\" ou \"pip:<nom>\", par exemple \"npm:react\", \"pip:fastapi\"",
+  "cli.validate.networkAllowName": "« {got} » : aucun nom de paquet, ou un nom qui contient un blanc",
+  "cli.validate.networkAllowName.help": "écrivez le nom du paquet après son écosystème, comme son registre l'écrit : \"npm:@types/node\", \"pip:fastapi\"",
+  "cli.validate.networkAllowWildcard": "« {got} » : un joker ne liste aucun paquet",
+  "cli.validate.networkAllowWildcard.help": "listez chaque paquet par son nom : seuls les noms listés sont envoyés ({command} facts --network --json donne les candidats)",
   "cli.facts.tool.failed": "⚠ {tool} : échec ({reason}) ; ses faits sont inconnus, pas vides",
   "cli.facts.tool.findings": {
     "one": "{tool} : exécuté, {n} constat",

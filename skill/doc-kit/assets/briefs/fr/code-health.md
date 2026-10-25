@@ -19,8 +19,12 @@ liste exactement ce que chaque contrôle ci-dessous défend.
 
 1. **Les faits** (dossier dans Variables, écrits par `doc-kit facts` ; l'orchestrateur les a produits avant ce
    brief — si une source dont tu as besoin manque, ou est plus ancienne que le commit actuel de l'application,
-   dis-le dans ton rapport plutôt que d'en inventer une) : `api.json`, `dependencies.json` (`--network` ajoute
-   `exists`), `agents.json`, `tests.json`, `db.json`, `secrets.json`, `env.json`.
+   dis-le dans ton rapport plutôt que d'en inventer une) : `api.json`, `dependencies.json` (la `license` de chaque
+   élément dit d'où elle vient, `licenseFrom` : `lock`, `installed`, ou `registry` — celle de la dernière version,
+   avec `--network` ; `--network` ajoute `exists`, `latest` et `majorsBehind` à chaque dépendance directe qu'il
+   peut envoyer — seulement celles que l'utilisateur a listées dans `facts.network.allow` —, `null` pour celles
+   qu'il retient : `unlisted`, `unproven` ou `private`), `agents.json`, `tests.json`, `db.json`, `secrets.json`,
+   `env.json`.
 2. Pour les types qui le permettent (`api-surface`, `dependencies`, `agent-instructions`), l'orchestrateur a pu
    déjà lancer `doc-kit new <id> --prefill` : un tableau pré-rempli à partir des faits, avec un marqueur
    `<!-- doc-kit:prefill -->` au-dessus. Complète les colonnes de jugement (Authentification, Rôle, Isolation des
@@ -43,9 +47,10 @@ liste exactement ce que chaque contrôle ci-dessous défend.
   `## Manques` (chaque route sans contrôle d'authentification confirmé ou sans filtre de locataire, chacune un
   candidat constat numéroté).
 - **`dependencies`** : `## En bref` ; `## Dépendances directes` (`::faits{source="dependencies"}`) ; `## Paquets
-  qui n'existent pas` (une dépendance directe avec `exists: false`, ou une que tu ne trouves pas toi-même dans
-  son registre par son nom quand les faits ont été produits sans `--network` — dis-le plutôt que de deviner) ;
-  `## Licences` (copyleft ou absente, quand cela compte pour un produit propriétaire) ; `## Obsolètes` ;
+  qui n'existent pas` (une dépendance directe avec `exists: false` ; celle que les faits n'ont pas vérifiée —
+  produits sans `--network`, ou retenue : `unlisted`, `unproven`, `private` — est `[[inconnu]]` : dis-le plutôt
+  que de deviner, et ne cherche jamais toi-même le nom d'un paquet, puisque seuls les noms que l'utilisateur
+  liste quittent la machine) ; `## Licences` (copyleft ou absente, quand cela compte pour un produit propriétaire) ; `## Obsolètes` ;
   `## À vérifier` (un fork publié sous le nom d'origine, un paquet privé qui ressemble seulement à un paquet
   public).
 - **`agent-instructions`** : `## En bref` ; `## Les fichiers` (`::faits{source="agents"}`) ; `## Chaque règle`
@@ -92,7 +97,9 @@ liste exactement ce que chaque contrôle ci-dessous défend.
 1. Pages écrites (mots) ; routes, dépendances, règles ou tests couverts, par page.
 2. **Candidats constats** : gravité — constat — preuve (`fichier:ligne` ou un fichier de faits nommé) — Décision
    suggérée.
-3. Faits qui semblaient périmés ou manquants, et ce que tu n'as pas pu confirmer sans eux.
+3. Faits qui semblaient périmés ou manquants, et ce que tu n'as pas pu confirmer sans eux — dont le nombre de
+   dépendances directes qui portent `unlisted: true`, pour que l'orchestrateur relise les candidats avec
+   l'utilisateur avant d'en lister un (ne modifie jamais `facts.network.allow` toi-même).
 4. Erreurs dans les pages existantes (fichier, phrase, preuve) ; termes de glossaire proposés.
 
 ## Variables

@@ -565,7 +565,7 @@ risk).
 |---|---|---|
 | In short | ✱ | How many direct dependencies, and whether any package was checked against the registry |
 | Direct dependencies | ✱ | From `facts/dependencies.json`; ecosystem, version, licence when known |
-| Packages that do not exist | ✱ | Every dependency `doc-kit facts --network` could not find in its registry — a `C` finding each |
+| Packages that do not exist | ✱ | Every dependency `doc-kit facts --network` could not find in its registry (`exists: false`) — a `C` finding each; one it kept back (`unlisted`, `unproven`, `private`: `exists: null`) is unknown, not a finding |
 | Licences | | Licences that restrict distribution or require attribution |
 | Out of date | | Direct dependencies several major versions behind |
 | To check | | Dependencies whose purpose in the code was not obvious |

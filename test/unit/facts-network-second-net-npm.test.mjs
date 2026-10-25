@@ -467,7 +467,7 @@ describe("an application's own package is never sent", () => {
     const changed = files({ utilsName: "acme-utils", tarballHost: HOST.corpNpm });
     const result = await network(changed, PROVEN);
     // next, named by the package.json and by its lock: one request, the answer shared by both items.
-    assert.deepEqual(result.urls, [`${HOST.npm}/next`]);
+    assert.deepEqual(result.urls, [`${HOST.npm}/next/latest`]);
     assert.ok(result.out.filter((i) => i.name === "next").every((i) => i.exists === true));
     for (const name of ["@acme/billing-core", "acme-utils", "corp-private"]) {
       const direct = result.out.filter((i) => i.name === name && i.direct);

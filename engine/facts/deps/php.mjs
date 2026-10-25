@@ -1,6 +1,7 @@
 // PHP manifests and lock files of the `dependencies` source (engine/facts/dependencies.mjs), ecosystem `composer`
 // (Packagist names, `vendor/package`): composer.json and composer.lock, each read on its own.
 import { readJson } from "./read.mjs";
+import { composerLicence } from "./licences.mjs";
 
 /** The manifests are untrusted: this expression is anchored and bounded, so linear (RULES.md S5). */
 export const PHP_PATTERNS = Object.freeze({
@@ -89,13 +90,11 @@ function fromComposerJson(abs, manifest, unreadable) {
   return out;
 }
 
-/** The license of a composer.lock package: an array joined with " OR " (Composer's meaning), or nothing. */
+/** The license of a composer.lock package: an array joined with " OR " (Composer's meaning), through the licences'
+ * allowlist (deps/licences.mjs), or nothing. */
 function license(value) {
-  const list = [value]
-    .flat()
-    .filter((l) => typeof l === "string" && l)
-    .join(" OR ");
-  return list ? { license: list } : {};
+  const kept = composerLicence(value);
+  return kept ? { license: kept, licenseFrom: "lock" } : {};
 }
 
 /**

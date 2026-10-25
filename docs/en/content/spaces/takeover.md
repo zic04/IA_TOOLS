@@ -41,7 +41,7 @@ doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, whe
 
 | Source | What it reads | Never |
 |---|---|---|
-| `dependencies` | Every manifest and lock file found under the application, up to 4 folders deep | — |
+| `dependencies` | Every manifest and lock file found under the application, up to 4 folders deep; for a licence no lock gives, the installed copy (`node_modules/`, `.venv/`) | Anything installed run, a link out of the application followed |
 | `env` | Names read by the code, and by an example `.env` file | A value |
 | `api` | Route handlers: Next.js, FastAPI, Express — with `auth` and `guards` (see below) | — |
 | `db` | Tables, columns, row-level security and policies: Prisma, SQLAlchemy, SQL migrations | — |
@@ -56,10 +56,34 @@ doc-kit facts --tools              # also gitleaks, osv-scanner, syft, knip, whe
 security review's static access matrix, and what `doc-kit probe` expects from each route when it checks a running
 local or demo instance: see [Security and maintainability reviews](#/spaces/reviews).
 
+`dependencies`'s `license` is a licence's name or SPDX expression, never its text, and `licenseFrom` says where it
+was read: `"lock"`, the item's own entry in `package-lock.json` or `composer.lock`; else, for npm and pip,
+`"installed"`, its installed copy, read offline — `node_modules/<name>/package.json`, the copy Node would load from
+the manifest's folder up to the application's, or the `*.dist-info/METADATA` of a `.venv/` or `venv/` folder
+(`License-Expression`, a one-line `License`, the licence classifiers). That copy counts only when it lies inside the
+application (a link out of it is never followed), has the item's name and, when the item states an exact version,
+that version; a `package.json` over 1 MB is not read, nor a METADATA past its header. An application checked out
+without its installs (no `node_modules/`, no virtual environment) only has the licences its lock files give.
+
 Each source writes `facts/<source>.json` in the documentation project, **never in the application**; the same code
 run against the same commit writes the same file, so it is safe to commit alongside the pages it feeds.
-`--network` only sends a dependency's name to its registry, to check it exists and how far behind it is, when a lock
-file proves the public registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`)
+`--network` sends **only the packages you list** in `doc.config.mjs`, one by one, with no wildcard:
+
+```js
+facts: { network: { allow: ["npm:react", "npm:@types/node", "pip:fastapi"] } },
+```
+
+With nothing listed, nothing is sent: `doc-kit facts --network` says how many direct packages it kept back, and
+`doc-kit facts --network --json` gives them as `network.candidates` — only names a lock file proves public and that
+nothing declares private. Review them with whoever owns the application, then list the ones you agree to send. An
+item kept back by the list gets `unlisted: true`. A listed name is still judged as below: listing a private or
+unproven package never sends it. For a listed name, `--network` asks the registry of each direct dependency, one
+request a package, for its latest version: each item
+gets `exists`, `latest` and `majorsBehind` (how many majors behind the latest; `null` when the version in use or the
+answer does not tell, as for a package never asked), and, when neither its lock file nor its installed copy gave its licence, the one the latest
+version declares (`licenseFrom: "registry"`: it may not be the installed version's); what the registry answers is kept
+only when it reads as a version and a licence name. It only sends a dependency's name, never its version, and only
+when a lock file proves the public registry served it (`package-lock.json`, Yarn 1 `yarn.lock`, `poetry.lock`, `uv.lock`)
 — a name known only from a manifest, `pnpm-lock.yaml`, a Yarn berry lock or a `Pipfile.lock` is never sent — and
 never the name of a private package (one of the application's own packages, a scope with its own registry, a
 private index, a workspace, local or privately hosted package), read from the application, its lock files, every

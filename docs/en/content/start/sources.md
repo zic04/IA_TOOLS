@@ -66,7 +66,7 @@ the gaps between the DAT and reality.
 `doc-kit inputs` lists each source with its state: a folder **here**, a repository **fetched**, a document
 **converted, up to date**. `doc-kit bricks` shows the bricks `inputs.repos` and `inputs.docs`: `bricks run --stale
 --network` fetches and converts what is out of date before the facts are read again (`--network` also lets
-`facts` ask the public package registries, for the public packages only: see SECURITY.md).
+`facts` ask the public package registries, for the public packages `facts.network.allow` lists only: see SECURITY.md).
 
 ## Common errors and fixes
 
