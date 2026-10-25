@@ -50,7 +50,7 @@ The `tests` checks run on Linux, Windows and macOS, each with Node 20, 22 and 24
 | Command | What it runs | Time |
 |---|---|---|
 | `npm run test:unit`, `npm run test:snapshot` | One half of `npm test` | less than `npm test` |
-| `npm run mutate` | The mutants of `test/mutations/` against their tests (RULES.md M16): before a pull request that touches `engine/facts/deps/`, `declarations.mjs`, `network.mjs` or `engine/util/safe-git.mjs` | several minutes |
+| `npm run mutate` | The mutants of `test/mutations/` against their tests (RULES.md M16): before a pull request that touches `engine/facts/deps/`, `declarations.mjs`, `network.mjs`, `engine/capture/guard.mjs`, `engine/capture/plans.mjs`, `engine/check/secret-values.mjs` or `engine/util/safe-git.mjs` | several minutes |
 
 - After an **intended** change of the generated site, update the snapshots: `UPDATE=1 npm run test:snapshot`, and
   explain the change in the pull request.
