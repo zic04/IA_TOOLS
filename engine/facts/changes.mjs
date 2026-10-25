@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { compareVersions } from "../project/semver.mjs";
 
 // What changed in the application between two states of its facts (AUDIT.md §5, "what changed" on every build):
 // routes, tables and columns, environment variables, dependencies, security findings, secrets, import cycles and
@@ -129,11 +130,8 @@ export function recordChanges(root, record) {
   return file;
 }
 
-/** Every recorded version (invalid files skipped), the most recent version first. */
-export function readChanges(
-  root,
-  compare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }),
-) {
+/** Every recorded version (invalid files skipped), the most recent version first (the kit's order of versions). */
+export function readChanges(root, compare = compareVersions) {
   const dir = path.join(root, CHANGES_DIR);
   let files;
   try {

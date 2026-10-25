@@ -80,8 +80,8 @@ Amène un projet à la version installée du kit, même quand sa plage `kit` ref
 
 :::etapes
 1. Affiche les entrées du `CHANGELOG.md` du kit entre la plage du projet et la version installée.
-2. Exécute **en mémoire** les migrations du kit (`engine/migrations/<version>.mjs`) plus récentes que la version de
-   base de la plage, et affiche le diff de chaque fichier qu'elles modifient, y compris `kit` porté à
+2. Exécute **en mémoire** les migrations du kit (`engine/migrations/<version>.mjs`) plus récentes que la plus basse
+   version que la plage admet, et affiche le diff de chaque fichier qu'elles modifient, y compris `kit` porté à
    `^<version installée>`.
 3. Avec `--apply`, écrit les modifications : `1 fichier mis à jour ; le projet exige désormais le kit ^0.4.0.`
 :::

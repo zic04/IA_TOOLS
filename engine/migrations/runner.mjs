@@ -8,7 +8,9 @@
 // Its title, shown by upgrade, is the i18n key cli.migration.<version>.
 // The migrations that run are those newer than the lowest version the project's `kit` range allows (^0.1.0 →
 // 0.1.0, ^0.4.0 || ^0.3.0 → 0.3.0, <1.0.0 → 0.0.0; all of them when it allows none) and not newer than the
-// installed kit, in version order (engine/project/semver.mjs: npm's rules).
+// installed kit, in version order (engine/project/semver.mjs: npm's rules). A migration X.Y.Z counts as X.Y.Z-0, the
+// first pre-release of its version: a pre-release of the kit runs its release's migration (it ships it), and a range
+// that names a pre-release of X.Y.Z (^X.Y.Z-rc.1, which `upgrade` writes) has run it already.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -20,12 +22,16 @@ const VERSION_FILE = /^(\d+)\.(\d+)\.(\d+)\.mjs$/;
 
 /**
  * Is a kit version past the project's range (newer than the lowest version it allows; any, when it allows none or
- * cannot be read) and not past the installed kit? Its migrations run and its changes are shown (`upgrade`).
+ * cannot be read) and not past the installed kit, a release X.Y.Z read as X.Y.Z-0 (above)? Its migrations run and
+ * its changes are shown (`upgrade`).
  * @returns {(version: string) => boolean}
  */
 export function sinceRange(range, kitVersion) {
   const base = minVersion(range);
-  return (version) => (!base || compareVersions(version, base) > 0) && compareVersions(version, kitVersion) <= 0;
+  return (version) => {
+    const first = String(version).includes("-") ? version : `${version}-0`;
+    return (!base || compareVersions(first, base) > 0) && compareVersions(first, kitVersion) <= 0;
+  };
 }
 
 /** Available migrations: [{ version, file }], sorted. */

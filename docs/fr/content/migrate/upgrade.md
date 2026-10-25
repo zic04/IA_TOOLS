@@ -52,7 +52,8 @@ Rien n'a été écrit (simulation). Pour appliquer : doc-kit upgrade --apply
   **en mémoire** : le diff montre chaque fichier qu'ils modifieraient.
 - `doc-kit upgrade` fonctionne même quand la plage refuse le kit installé : c'est précisément là qu'on en a besoin.
 - Une préversion du kit (`0.5.0-rc.1`) est refusée par une plage écrite pour des versions publiées, comme npm la
-  refuse : `doc-kit upgrade --apply` règle `kit` sur `^0.5.0-rc.1`, que la version 0.5.0 accepte aussi.
+  refuse : `doc-kit upgrade --apply` exécute les migrations de 0.5.0, que la préversion apporte, et règle `kit` sur
+  `^0.5.0-rc.1`, que la version 0.5.0 accepte aussi, sans les exécuter de nouveau.
 
 ## Étape 2 — Appliquer
 

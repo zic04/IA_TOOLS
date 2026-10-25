@@ -56,8 +56,12 @@ describe("migration framework", () => {
       assert.deepEqual(pending("^0.3.0", "0.10.0"), ["0.3.1", "0.4.0", "0.10.0"], "0.10.0 after 0.4.0");
       assert.deepEqual(pending("*"), ["0.2.0", "0.3.0", "0.3.1", "0.4.0"]);
       assert.deepEqual(pending(">2.0.0 <1.0.0"), ["0.2.0", "0.3.0", "0.3.1", "0.4.0"], "a range that allows none: all");
-      // A pre-release of the kit runs the migrations up to it, not its release's.
-      assert.deepEqual(pending("^0.3.0", "0.4.0-rc.1"), ["0.3.1"]);
+      // A pre-release of the kit ships its release's migration and runs it; a range that names a pre-release of
+      // that version has run it already.
+      assert.deepEqual(pending("^0.3.0", "0.4.0-rc.1"), ["0.3.1", "0.4.0"]);
+      assert.deepEqual(pending("^0.4.0-rc.1"), [], "run under the pre-release, not again under the release");
+      assert.deepEqual(pending("^0.4.0-rc.1", "0.4.0-rc.2"), []);
+      assert.deepEqual(pending("^0.3.1-rc.1"), ["0.4.0"], "a pre-release of an older version: the later ones");
     } finally {
       fs.rmSync(folder, { recursive: true, force: true });
     }
@@ -300,6 +304,48 @@ describe("upgrade", () => {
       assert.ok(satisfies("0.5.0-rc.1", plan.newRange) && satisfies("0.5.0", plan.newRange), plan.newRange);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a pre-release, then its release: the release's migration runs once, under the pre-release", async () => {
+    const dir = demoCopy();
+    const migrations = tempDir("doc-kit-migrations-");
+    try {
+      for (const v of ["0.4.2", "0.5.0"])
+        fs.writeFileSync(
+          path.join(migrations, `${v}.mjs`),
+          `export const version = "${v}";
+export async function migrate({ files }) {
+  files.write("ran.txt", (files.exists("ran.txt") ? files.read("ran.txt") : "") + "${v}\\n");
+}
+`,
+        );
+      setRange(dir, "^0.4.1");
+      const configFile = path.join(dir, "doc.config.mjs");
+      const upgrade = (kit, kitVersion) =>
+        planUpgrade({
+          root: dir,
+          configFile,
+          raw: { kit },
+          apply: true,
+          kitVersion,
+          migrationsFolder: migrations,
+          kitRoot: dir,
+        });
+      const rc = await upgrade("^0.4.1", "0.5.0-rc.1");
+      assert.deepEqual(
+        rc.migrations.map((m) => m.version),
+        ["0.4.2", "0.5.0"],
+        "the pre-release ships 0.5.0.mjs and runs it",
+      );
+      assert.match(fs.readFileSync(configFile, "utf8"), /kit: "\^0\.5\.0-rc\.1"/);
+      const release = await upgrade("^0.5.0-rc.1", "0.5.0");
+      assert.deepEqual(release.migrations, [], "not again under the release");
+      assert.match(fs.readFileSync(configFile, "utf8"), /kit: "\^0\.5\.0"/);
+      assert.equal(fs.readFileSync(path.join(dir, "ran.txt"), "utf8"), "0.4.2\n0.5.0\n");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(migrations, { recursive: true, force: true });
     }
   });
 

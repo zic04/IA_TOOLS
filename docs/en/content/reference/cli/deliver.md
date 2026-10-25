@@ -78,8 +78,9 @@ Brings a project to the installed kit version, even when its `kit` range refuses
 
 :::steps
 1. Shows the entries of the kit's `CHANGELOG.md` between the project's range and the installed version.
-2. Runs the migrations of the kit (`engine/migrations/<version>.mjs`) newer than the range's base version, **in
-   memory**, and shows the diff of every file they change, including `kit` set to `^<installed version>`.
+2. Runs the migrations of the kit (`engine/migrations/<version>.mjs`) newer than the lowest version the range
+   allows, **in memory**, and shows the diff of every file they change, including `kit` set to
+   `^<installed version>`.
 3. With `--apply`, writes the changes: `1 file updated; the project now requires kit ^0.4.0.`
 :::
 

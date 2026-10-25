@@ -51,7 +51,8 @@ Nothing written (dry run). To apply: doc-kit upgrade --apply
   memory**: the diff shows every file they would change.
 - `doc-kit upgrade` works even when the range refuses the installed kit: it is precisely when it is needed.
 - A pre-release of the kit (`0.5.0-rc.1`) is refused by a range written for releases, as npm refuses one:
-  `doc-kit upgrade --apply` sets `kit` to `^0.5.0-rc.1`, which the release 0.5.0 accepts too.
+  `doc-kit upgrade --apply` runs the 0.5.0 migrations, which the pre-release ships, and sets `kit` to `^0.5.0-rc.1`,
+  which the release 0.5.0 accepts too, without running them again.
 
 ## Step 2 — Apply
 
