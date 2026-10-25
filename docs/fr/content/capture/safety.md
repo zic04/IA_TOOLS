@@ -134,16 +134,22 @@ que le kit a déjà vu (un script avant le `<template shadowrootmode>` dans son 
 (`browser: "chrome"`), un `<link rel="prerender">` (SECURITY.md les liste).
 
 L'ouverture d'un WebSocket échappe elle aussi aux routes du kit : avec `capture.forbidden`, le kit refuse un
-WebSocket vers une route interdite avant qu'il s'ouvre. Celui qu'ouvre un worker, ou un `WebSocketStream`, n'est pas
-couvert (SECURITY.md), ni une session `WebTransport`, qu'aucune option de lancement ne désactive.
+WebSocket vers une route interdite avant qu'il s'ouvre. Celui qu'ouvre un worker dédié, ou un `WebSocketStream`,
+n'est pas couvert (SECURITY.md), ni une session `WebTransport` : aucune option de lancement ne la désactive, et un
+worker la garderait même si la page la perdait.
 
 Ce qu'une page envoie pendant que la capture suivante la remplace (un appel à `sendBeacon`, un `fetch` avec
 `keepalive`, même une image) part d'un document que les routes du kit ne voient plus, et `fetchLater` envoie ses
 requêtes depuis le propre processus de Chromium. Dès que la lecture seule ou `capture.forbidden` est active, les
 gestionnaires qu'une page attache à son départ (`pagehide`, `unload`, `visibilitychange` vers caché) ne s'exécutent
-donc jamais pendant une capture, et `fetchLater` est retiré : ce qu'ils enverraient n'est ni envoyé ni compté. Tant
-que la page est ouverte, ses propres événements atteignent toujours ses gestionnaires, et ses requêtes (un appel à
+donc jamais pendant une capture, même sur une page qui redéfinit ce que le kit lit alors (`visibilityState`,
+`stopImmediatePropagation`), et `fetchLater` est retiré : ce qu'ils enverraient n'est ni envoyé ni compté. Tant que
+la page est ouverte, ses propres événements atteignent toujours ses gestionnaires, et ses requêtes (un appel à
 `sendBeacon` compris) passent par les routes du kit, bloquées et comptées comme les autres.
+
+Les requêtes d'un worker partagé échappent elles aussi aux routes du kit (celles d'un worker dédié y passent) : dès
+que la lecture seule ou `capture.forbidden` est active, le navigateur n'a pas de `SharedWorker` pendant une
+capture, dans aucune page ni aucun cadre.
 
 Avec `capture.forbidden`, les pages d'une application locale atteignent toujours son API sur un autre port local
 quand `app.url` est sur `localhost` ou `127.0.0.1`. Sur une autre adresse (une adresse du réseau local, un nom

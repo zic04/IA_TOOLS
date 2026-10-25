@@ -20,6 +20,8 @@
 //               the first init script of every page): what a document sends while the next one replaces it reaches
 //               the server unseen by any route; and fetchLater, whose requests leave from Chromium's own process, is
 //               removed (`guardedLaunchArgs` too).
+//   workers     whenever a guard is active, there is no SharedWorker (`guardedLaunchArgs`, `blockUnloadRequests`):
+//               Playwright routes the requests of pages, frames and dedicated workers, never a shared worker's.
 import { forbiddenMatch, shownPath, applicationKey, isLoopbackUrl } from "./plans.mjs";
 import { TIMINGS } from "./timings.mjs";
 
@@ -422,13 +424,15 @@ export function localNetworkGrant(appUrl, forbidden) {
 
 /**
  * The browser's flags for a guarded run (capture.mjs): fetchLater turned off, whose requests Chromium sends from its
- * own process when the page is left (or once their delay is over), unseen by any route (blockUnloadRequests removes
- * it from the page too). A Blink feature, never `--disable-features`: Playwright passes its own list of features
- * there, which a second flag would replace (third-party storage partitioning back on, among others).
+ * own process when the page is left (or once their delay is over), unseen by any route; and SharedWorker, whose
+ * requests no route sees either (Playwright routes those of pages, frames and dedicated workers only).
+ * blockUnloadRequests removes both from the page too. Blink features, never `--disable-features`: Playwright passes
+ * its own list of features there, which a second flag would replace (third-party storage partitioning back on, among
+ * others).
  * @param {boolean} guarded
  * @returns {string[]}
  */
-export const guardedLaunchArgs = (guarded) => (guarded ? ["--disable-blink-features=FetchLaterAPI"] : []);
+export const guardedLaunchArgs = (guarded) => (guarded ? ["--disable-blink-features=FetchLaterAPI,SharedWorker"] : []);
 
 /**
  * The page's half of the guard against what a page sends as it is left (SECURITY.md): the first init script of every
@@ -438,19 +442,29 @@ export const guardedLaunchArgs = (guarded) => (guarded ? ["--disable-blink-featu
  * being left never reach the page's handlers: `pagehide`, `unload`, and `visibilitychange` to hidden are stopped by a
  * listener of the window in the capture phase, added before any of the page's (stopImmediatePropagation: a handler
  * set in the HTML, of the window or of the document, is never called). An event the page dispatches itself (not
- * trusted) goes on: while the page is open, its handlers run and their requests go through the guard. `fetchLater`
- * is removed (guardedLaunchArgs turns it off as well). Self-contained: it is serialised into the page.
+ * trusted) goes on: while the page is open, its handlers run and their requests go through the guard. What the
+ * listeners call when an event fires (stopImmediatePropagation, the visibilityState getter, Reflect.apply) is the
+ * browser's own, kept when the script starts: a page that redefines them later changes nothing (`isTrusted` is an
+ * own property of each event that a page cannot redefine). `fetchLater` and `SharedWorker` are removed, in every
+ * document and frame (guardedLaunchArgs turns them off as well). Self-contained: it is serialised into the page.
  * @param {any} [scope]   the page's global object (a test seam)
  */
 export function blockUnloadRequests(scope = globalThis) {
+  // The browser's own functions, kept before any script of the page runs, and called through the kept Reflect.apply:
+  // what the page redefines later (a prototype, the document, a function's `call`) is never read when an event fires.
+  const { apply } = scope.Reflect;
+  const stopNative = scope.Event.prototype.stopImmediatePropagation;
+  const visibility = Object.getOwnPropertyDescriptor(scope.Document.prototype, "visibilityState").get;
+  const doc = scope.document;
   const stop = (e) => {
-    if (e.isTrusted) e.stopImmediatePropagation();
+    if (e.isTrusted) apply(stopNative, e, []);
   };
   scope.addEventListener("pagehide", stop, true);
   scope.addEventListener("unload", stop, true);
-  scope.addEventListener("visibilitychange", (e) => scope.document.visibilityState === "hidden" && stop(e), true);
+  scope.addEventListener("visibilitychange", (e) => apply(visibility, doc, []) === "hidden" && stop(e), true);
   delete scope.fetchLater;
   if (scope.Window) delete scope.Window.prototype.fetchLater;
+  delete scope.SharedWorker;
 }
 
 /**

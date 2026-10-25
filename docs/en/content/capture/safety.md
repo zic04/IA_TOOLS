@@ -126,15 +126,20 @@ root it declares in a host the kit has already seen (a script before the `<templ
 and, with Google Chrome (`browser: "chrome"`), a `<link rel="prerender">` (SECURITY.md lists them).
 
 A WebSocket's handshake escapes the kit's routes too: with `capture.forbidden`, the kit refuses a WebSocket to a
-forbidden route before it opens. One that a worker opens, or a `WebSocketStream`, is not covered (SECURITY.md), nor
-is a `WebTransport` session, which no launch flag turns off.
+forbidden route before it opens. One that a dedicated worker opens, or a `WebSocketStream`, is not covered
+(SECURITY.md), nor is a `WebTransport` session: no launch flag turns it off, and a worker would keep it even if the
+page lost it.
 
 What a page sends while the next capture replaces it (a beacon, a `keepalive` fetch, even an image) leaves from a
 document the kit's routes no longer see, and `fetchLater` sends its requests from Chromium's own process. So
 whenever read-only or `capture.forbidden` is on, a page's handlers for being left (`pagehide`, `unload`,
-`visibilitychange` to hidden) never run during a capture, and `fetchLater` is removed: what they would send is
-neither sent nor counted. While the page is open, its own events still reach its handlers, and its requests (a beacon
-included) go through the kit's routes, blocked and counted as any other.
+`visibilitychange` to hidden) never run during a capture, even on a page that redefines what the kit reads then
+(`visibilityState`, `stopImmediatePropagation`), and `fetchLater` is removed: what they would send is neither sent
+nor counted. While the page is open, its own events still reach its handlers, and its requests (a beacon included) go
+through the kit's routes, blocked and counted as any other.
+
+A shared worker's requests escape the kit's routes too (a dedicated worker's go through them): whenever read-only or
+`capture.forbidden` is on, the browser has no `SharedWorker` during a capture, in any page or frame.
 
 With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
 is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during

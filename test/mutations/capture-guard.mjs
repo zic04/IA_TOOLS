@@ -369,23 +369,49 @@ export default {
     },
     {
       name: "the page's visibilitychange handlers run as it is left",
-      find: '  scope.addEventListener("visibilitychange", (e) => scope.document.visibilityState === "hidden" && stop(e), true);\n',
+      find: '  scope.addEventListener("visibilitychange", (e) => apply(visibility, doc, []) === "hidden" && stop(e), true);\n',
       replace: "",
     },
     {
       name: "visibilitychange stopped while the page is visible (its handlers never run while it is open)",
-      find: '(e) => scope.document.visibilityState === "hidden" && stop(e)',
+      find: '(e) => apply(visibility, doc, []) === "hidden" && stop(e)',
       replace: "(e) => stop(e)",
     },
     {
       name: "the page's own events stopped too (its handlers never run while it is open)",
-      find: "    if (e.isTrusted) e.stopImmediatePropagation();\n",
-      replace: "    e.stopImmediatePropagation();\n",
+      find: "    if (e.isTrusted) apply(stopNative, e, []);\n",
+      replace: "    apply(stopNative, e, []);\n",
     },
     {
       name: "the page's other handlers of the window still run (propagation stopped, not the window's listeners)",
-      find: "    if (e.isTrusted) e.stopImmediatePropagation();\n",
-      replace: "    if (e.isTrusted) e.stopPropagation();\n",
+      find: "  const stopNative = scope.Event.prototype.stopImmediatePropagation;",
+      replace: "  const stopNative = scope.Event.prototype.stopPropagation;",
+    },
+    // What the listeners call when an event fires: the browser's own, kept when the script starts.
+    {
+      name: "stopImmediatePropagation looked up on the event when it fires (one the page redefines is called)",
+      find: "    if (e.isTrusted) apply(stopNative, e, []);",
+      replace: "    if (e.isTrusted) e.stopImmediatePropagation();",
+    },
+    {
+      name: "visibilityState read from the document when the event fires (one the page redefines is read)",
+      find: 'apply(visibility, doc, []) === "hidden"',
+      replace: 'scope.document.visibilityState === "hidden"',
+    },
+    {
+      name: "the kept stopImmediatePropagation called through its call (which the page can redefine)",
+      find: "apply(stopNative, e, [])",
+      replace: "stopNative.call(e)",
+    },
+    {
+      name: "the kept visibilityState getter called through its call (which the page can redefine)",
+      find: "apply(visibility, doc, [])",
+      replace: "visibility.call(doc)",
+    },
+    {
+      name: "Reflect.apply looked up when the event fires (one the page redefines is called)",
+      find: "  const { apply } = scope.Reflect;\n",
+      replace: "  const apply = (...args) => scope.Reflect.apply(...args);\n",
     },
     {
       name: "pagehide stopped in the bubbling phase (after a handler of the page in the capture phase)",
@@ -409,13 +435,24 @@ export default {
     },
     {
       name: "fetchLater left on in the browser",
-      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI"] : [])',
-      replace: "(guarded ? [] : [])",
+      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI,SharedWorker"] : [])',
+      replace: '(guarded ? ["--disable-blink-features=SharedWorker"] : [])',
     },
     {
       name: "fetchLater turned off by --disable-features (Playwright's own list of features replaced)",
-      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI"] : [])',
-      replace: '(guarded ? ["--disable-features=FetchLaterAPI"] : [])',
+      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI,SharedWorker"] : [])',
+      replace: '(guarded ? ["--disable-features=FetchLaterAPI,SharedWorker"] : [])',
+    },
+    // A shared worker, whose requests no route sees.
+    {
+      name: "SharedWorker kept on the window",
+      find: "  delete scope.SharedWorker;\n",
+      replace: "",
+    },
+    {
+      name: "SharedWorker left on in the browser",
+      find: 'FetchLaterAPI,SharedWorker"] : [])',
+      replace: 'FetchLaterAPI"] : [])',
     },
   ],
 };

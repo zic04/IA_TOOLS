@@ -96,12 +96,22 @@ sees any more: it reached the server whatever its method or its route. `fetchLat
 Chromium's own process, when the page is left or once their delay is over. So whenever a guard is active (read-only,
 or `capture.forbidden`), a script the kit runs in every page before any other stops the events of a page being left
 (`pagehide`, `unload`, and `visibilitychange` to hidden) before any handler of the page sees them (one a script
-added or the HTML set, on the window or on the document); it also removes `fetchLater`, and the browser is
-launched without it (`--disable-blink-features=FetchLaterAPI`: a second `--disable-features` would replace the list
-Playwright passes there). A page's handlers for being left therefore never run during a capture: what they would send
-is neither sent nor counted. The events a page dispatches itself still reach its handlers, and what a page sends
-while it is open (a beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other
-request.
+added or the HTML set, on the window or on the document), whatever the page redefines: the script keeps the
+browser's own `stopImmediatePropagation`, `visibilityState` getter and `Reflect.apply` before the page's scripts run,
+and calls only those when an event fires, so a page that redefines them (on a prototype, on the document, or their
+`call`) changes nothing. It also removes `fetchLater`, and the browser is launched without it
+(`--disable-blink-features=FetchLaterAPI`: a second `--disable-features` would replace the list Playwright passes
+there). A page's handlers for being left therefore never run during a capture: what they would send is neither sent
+nor counted. The events a page dispatches itself still reach its handlers, and what a page sends while it is open (a
+beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other request.
+
+**Shared workers.** Playwright routes the requests of pages, frames and dedicated workers (a `Worker`, and one it
+starts), never those of a `SharedWorker`: they reached the server whatever their method or their route, neither
+blocked nor counted. So whenever a guard is active, the browser is launched without shared workers (`SharedWorker`
+in the same flag: `--disable-blink-features=FetchLaterAPI,SharedWorker`), and the script the kit runs first in every
+page removes `SharedWorker` as well, in every document and frame: a page that starts one gets an error, as in a
+browser without them, and nothing it would have sent leaves. A dedicated worker's requests go through the guard,
+blocked and counted as a page's.
 
 None of this covers:
 
@@ -109,12 +119,13 @@ None of this covers:
   opens, a notification sent): the browser cannot see them. Read the server code of a page before opening it, and
   list such routes in `capture.forbidden`, which the kit never opens;
 - `GET` requests that change state, WebSocket messages, and calls the server makes to other services;
-- a WebSocket opened by a worker (`Worker`, `SharedWorker`) or with `WebSocketStream`: Playwright's routing only
-  replaces the `WebSocket` of each page and frame, so their handshake reaches the server unseen, neither refused nor
-  counted;
-- a `WebTransport` session (HTTP/3): Chromium exposes it to pages, no route of the guard sees it, and no launch flag
-  removes it (`--disable-blink-features=WebTransport`, `--disable-features=WebTransport` and `--disable-quic` leave it
-  to the page), so it reaches its server whatever its path, neither refused nor counted;
+- a WebSocket opened by a dedicated worker (`Worker`) or with `WebSocketStream`: Playwright's routing only replaces
+  the `WebSocket` of each page and frame, so their handshake reaches the server unseen, neither refused nor counted;
+- a `WebTransport` session (HTTP/3): Chromium exposes it to pages and to workers, no route of the guard sees it, and
+  no launch flag removes it (`--disable-blink-features=WebTransport`, `--disable-features=WebTransport` and
+  `--disable-quic` leave it to the page). The kit does not take it from the page either: a script run before the
+  page's would remove it from the page, from an `about:blank` frame the page creates and from a pop-up, but a worker
+  the page starts keeps it. So it reaches its server whatever its path, neither refused nor counted;
 - `capture.readOnly: false`, which turns the protection off (the CLI warns on every run);
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);

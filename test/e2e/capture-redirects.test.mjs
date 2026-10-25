@@ -28,8 +28,11 @@
 //   - the guard's bounds (a hop that never answers, a chain past its deadline, an answer too large to hold, the
 //     answers held for all pages), with small bounds given to the guard itself on a real Chromium page;
 //   - what a page sends while the next entry replaces it (a beacon, a keepalive fetch, an image, on pagehide, unload
-//     or visibilitychange), which no route sees, and fetchLater, never reach the server; a page with such handlers
-//     still works while it is open, its writes blocked and counted.
+//     or visibilitychange), which no route sees, and fetchLater, never reach the server, even from a page that
+//     redefines what the kit's script calls then; a page with such handlers still works while it is open, its writes
+//     blocked and counted;
+//   - a shared worker, whose requests no route sees, never starts (from a page or a frame), with forbidden routes or
+//     read-only alone; a dedicated worker's writes, and those of the worker it starts, are blocked and counted.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -164,6 +167,50 @@ const STAYS = `<h1>Stays</h1><p id="state">open</p>
   navigator.sendBeacon("/api/beacon-open", "x");
   fetch("/api/keepalive-open", { method: "POST", keepalive: true }).catch(() => {});
 </script>`;
+/**
+ * Pages that redefine, before they are left, what the kit's script calls when a page is left: the document's
+ * visibilityState (on the document and on its prototype), Event.prototype.stopImmediatePropagation, or the `call`,
+ * `apply` and `bind` of the browser's own functions and Reflect.apply; each sends a beacon on pagehide and on
+ * visibilitychange.
+ */
+const REDEFINED = {
+  visibility: `Object.defineProperty(document, "visibilityState", { get: () => "visible" });
+  Object.defineProperty(Document.prototype, "visibilityState", { get: () => "visible" });`,
+  stop: `Event.prototype.stopImmediatePropagation = function () {};`,
+  call: `for (const f of [Event.prototype.stopImmediatePropagation,
+    Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState").get])
+    f.call = f.apply = f.bind = () => "visible";
+  Reflect.apply = () => "visible";`,
+};
+const redefined = (name) => `<h1>Redefined</h1>
+<script>
+  ${REDEFINED[name]}
+  addEventListener("pagehide", () => navigator.sendBeacon("/orders/51/approval?via=${name}-pagehide", "x"));
+  document.addEventListener("visibilitychange", () => navigator.sendBeacon("/orders/52/approval?via=${name}-hidden", "x"));
+</script>`;
+/**
+ * A page that starts shared workers (from the page, and from an about:blank frame it creates at once), which write
+ * and ask for a forbidden route; and a dedicated worker that writes and starts a nested one, which writes too.
+ */
+const SHARED = `<h1>Shared worker</h1>
+<script>
+  const frame = document.body.appendChild(document.createElement("iframe"));
+  for (const [scope, via] of [[window, "page"], [frame.contentWindow, "frame"]]) {
+    try {
+      new scope.SharedWorker("/worker/shared.js?via=" + via);
+    } catch {}
+  }
+  new Worker("/worker/dedicated.js");
+</script>`;
+/** A shared worker's script, and those of a dedicated worker and of the worker it starts, by path. */
+const WORKERS = {
+  "/worker/shared.js": `fetch("/orders/30/approval?via=shared", { method: "POST" }).catch(() => {});
+    fetch("/api/save?via=shared", { method: "PUT", body: "x" }).catch(() => {});
+    fetch("/orders/31/approval?via=shared-get").catch(() => {});`,
+  "/worker/dedicated.js": `fetch("/api/worker-save?via=dedicated", { method: "POST" }).catch(() => {});
+    new Worker("/worker/nested.js");`,
+  "/worker/nested.js": `fetch("/api/nested-save?via=nested", { method: "POST" }).catch(() => {});`,
+};
 
 /** How long the application takes to answer each hop of /drip/<n> (a redirect to /drip/<n + 1>). */
 const DRIP_MS = 300;
@@ -218,6 +265,13 @@ before(async () => {
     if (p === "/sockets") return page(res, SOCKETS);
     if (p === "/leave") return page(res, LEAVE);
     if (p === "/stays") return page(res, STAYS);
+    const redefinedPage = /^\/redefined\/(\w+)$/.exec(p);
+    if (redefinedPage) return page(res, redefined(redefinedPage[1]));
+    if (p === "/shared") return page(res, SHARED);
+    if (Object.hasOwn(WORKERS, p)) {
+      res.writeHead(200, { "content-type": "text/javascript" });
+      return res.end(WORKERS[p]);
+    }
     if (p === "/spec-rules.json") {
       res.writeHead(200, { "content-type": "application/speculationrules+json" });
       return res.end(rules("header"));
@@ -680,6 +734,40 @@ describe("capture: what a page sends as it is left, which no route sees, and fet
       r.out + r.err,
       /Read-only: 2 write requests blocked — POST \/api\/beacon-open, POST \/api\/keepalive-open\n/,
     );
+  });
+
+  for (const [name, what] of [
+    ["visibility", "its visibilityState, on the document and on its prototype"],
+    ["stop", "Event.prototype.stopImmediatePropagation"],
+    ["call", "the call, apply and bind of the browser's own functions"],
+  ])
+    test(`a page that redefines ${what} still sends nothing as it is left`, async () => {
+      const r = await leaving(`[
+        { id: "redefined", route: "/redefined/${name}", zones: [{ text: "Redefined" }] },
+        { id: "after", route: "/home", zones: [{ text: "Home page" }] },
+      ]`);
+      assert.equal(r.code, 0, r.out + r.err);
+      assert.match(r.out, /2\/2 captures taken/);
+      assert.deepEqual(sent(), [], "nothing it sent as it was left");
+      assert.match(r.out, /Read-only: 0 write requests blocked\n/);
+    });
+
+  test("a shared worker, whose requests no route sees, never starts: nothing it would send is received, with forbidden routes or read-only alone; a dedicated worker's writes are still blocked and counted", async () => {
+    const plans = `[
+      { id: "shared", route: "/shared", delay: 1000, zones: [{ text: "Shared worker" }] },
+      { id: "after", route: "/home", zones: [{ text: "Home page" }] },
+    ]`;
+    for (const options of [{}, { forbidden: [] }]) {
+      const r = await leaving(plans, options);
+      assert.equal(r.code, 0, r.out + r.err);
+      assert.match(r.out, /2\/2 captures taken/);
+      const label = JSON.stringify(options);
+      assert.deepEqual(sent(), [], `nothing a worker sent reaches the server (${label})`);
+      assert.ok(!seen.app.some((l) => l.startsWith("GET /worker/shared.js")), `no shared worker started (${label})`);
+      const blocked = /Read-only: 2 write requests blocked — (.+)\n/.exec(r.out);
+      assert.ok(blocked, r.out);
+      assert.deepEqual(blocked[1].split(", ").sort(), ["POST /api/nested-save", "POST /api/worker-save"], label);
+    }
   });
 });
 

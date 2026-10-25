@@ -350,12 +350,20 @@ entries between a project's `kit` range and the installed version.
   `fetchLater` from Chromium's own process: a read-only run with `capture.forbidden` let a `POST` and a forbidden
   route through while it printed "0 write requests blocked". Whenever a guard is active (read-only, or
   `capture.forbidden`), the first init script of every page now stops those events before any handler of the page,
-  and removes `fetchLater`, which the browser is also launched without (`--disable-blink-features=FetchLaterAPI`,
-  never a second `--disable-features`, which would replace Playwright's own list). The page's own events still reach
-  its handlers while it is open, and what it sends then goes through the guard. `test/e2e/capture-redirects.test.mjs`,
-  mutants `test/mutations/capture-guard.mjs`. Written as limits: a `WebTransport` session, which no launch flag
-  turns off, and the end of an older chain of a frame that ends last, held (within the bounds) until the frame's next
-  navigation or its page's closing.
+  through the browser's own `stopImmediatePropagation`, `visibilityState` getter and `Reflect.apply`, kept before
+  the page's scripts run (a page that redefines them changes nothing), and removes `fetchLater`, which the browser is
+  also launched without (`--disable-blink-features=FetchLaterAPI`, never a second `--disable-features`, which would
+  replace Playwright's own list). The page's own events still reach its handlers while it is open, and what it sends
+  then goes through the guard. `test/e2e/capture-redirects.test.mjs`, mutants `test/mutations/capture-guard.mjs`.
+  Written as limits: a `WebTransport` session, which no launch flag turns off and a worker keeps, and the end of an
+  older chain of a frame that ends last, held (within the bounds) until the frame's next navigation or its page's
+  closing.
+- **A shared worker no longer sends what the guard never sees** (SECURITY.md › Shared workers): Playwright routes the
+  requests of pages, frames and dedicated workers, never a `SharedWorker`'s, which reached the server, a `POST`
+  included, neither blocked nor counted, with or without `capture.forbidden`. Whenever a guard is active, the browser
+  is now launched without shared workers (`--disable-blink-features=FetchLaterAPI,SharedWorker`), and the first init
+  script removes `SharedWorker` from every page and frame too. A dedicated worker's requests still go through the
+  guard. `test/e2e/capture-redirects.test.mjs`, mutants `test/mutations/capture-guard.mjs`.
 - **A dependency's licence is kept only as a licence's name** (`engine/facts/deps/licences.mjs`, AUDIT.md S8): a
   package-lock.json entry's `license` was stored as written — an object, a licence's whole text, or a token-shaped
   string a secret detector finds. It now goes through an allowlist: one line, 100 characters at most, the characters

@@ -1065,38 +1065,51 @@ describe("plan entries", () => {
   });
 
   /**
-   * A page as blockUnloadRequests sees it (its global object): the listeners it adds to the window, by type, a
-   * document whose visibility the test sets, and fetchLater on the window and on its prototype.
+   * A page as blockUnloadRequests sees it (its global object): the listeners it adds to the window, by type, the
+   * browser's own Event (whose methods say what was done with an event), Document (whose visibilityState the test
+   * sets with `hide`) and Reflect, its document, and fetchLater (on the window and on its prototype) and
+   * SharedWorker.
    */
   function unloadPage() {
     const listeners = new Map();
+    let visibility = "visible";
     class Window {}
     Window.prototype.fetchLater = () => {};
     const scope = {
       Window,
+      Event: class {
+        stopImmediatePropagation() {
+          this.did = "stopped";
+        }
+        stopPropagation() {
+          this.did = "propagation";
+        }
+      },
+      Document: class {
+        get visibilityState() {
+          return visibility;
+        }
+      },
+      Reflect: { apply: Reflect.apply },
       fetchLater: () => {},
-      document: { visibilityState: "visible" },
+      SharedWorker: class {},
       addEventListener: (type, listener, capture) => {
         assert.ok(!listeners.has(type), `one listener for ${type}`);
         listeners.set(type, { listener, capture });
       },
     };
+    scope.document = new scope.Document();
     blockUnloadRequests(scope);
     /** Dispatches a `type` event to the kit's listener: what it did with it ("stopped", "propagation", or "") */
     const dispatch = (type, { isTrusted = true } = {}) => {
-      let did = "";
-      listeners.get(type).listener({
-        type,
-        isTrusted,
-        stopImmediatePropagation: () => (did = "stopped"),
-        stopPropagation: () => (did = "propagation"),
-      });
-      return did;
+      const event = Object.assign(new scope.Event(), { type, isTrusted });
+      listeners.get(type).listener(event);
+      return event.did ?? "";
     };
-    return { scope, listeners, dispatch };
+    return { scope, listeners, dispatch, hide: () => (visibility = "hidden") };
   }
 
-  test("what a page sends as it is left: pagehide, unload and visibilitychange to hidden never reach its handlers; its own events do; fetchLater removed (blockUnloadRequests)", () => {
+  test("what a page sends as it is left: pagehide, unload and visibilitychange to hidden never reach its handlers; its own events do; fetchLater and SharedWorker removed (blockUnloadRequests)", () => {
     const p = unloadPage();
     // On the window, in the capture phase: before any of the page's handlers, of the window or of the document.
     assert.deepEqual(
@@ -1112,7 +1125,7 @@ describe("plan entries", () => {
     assert.equal(p.dispatch("unload"), "stopped");
     // visibilitychange: only to hidden (a page that is open stays visible, and its handlers run).
     assert.equal(p.dispatch("visibilitychange"), "", "visible: the page's handlers run");
-    p.scope.document.visibilityState = "hidden";
+    p.hide();
     assert.equal(p.dispatch("visibilitychange"), "stopped");
     // An event the page dispatches itself, while it is open: its handlers run, and their requests are routed.
     for (const type of ["pagehide", "unload", "visibilitychange"])
@@ -1120,12 +1133,34 @@ describe("plan entries", () => {
     // fetchLater, sent from Chromium's own process: gone from the window and from its prototype.
     assert.ok(!("fetchLater" in p.scope), "fetchLater left on the window");
     assert.ok(!("fetchLater" in p.scope.Window.prototype), "fetchLater left on the prototype");
-    // A page without fetchLater, or without Window: nothing to remove, no error.
-    assert.doesNotThrow(() => blockUnloadRequests({ document: {}, addEventListener: () => {} }));
+    // SharedWorker, whose requests no route sees: gone from the window.
+    assert.ok(!("SharedWorker" in p.scope), "SharedWorker left on the window");
+    // A page without fetchLater, SharedWorker or Window: nothing to remove, no error.
+    const { Event, Document } = p.scope;
+    assert.doesNotThrow(() =>
+      blockUnloadRequests({ Event, Document, Reflect, document: new Document(), addEventListener: () => {} }),
+    );
   });
 
-  test("a guarded run's browser: fetchLater turned off as a Blink feature, never by --disable-features (Playwright's own list) (guardedLaunchArgs)", () => {
-    assert.deepEqual(guardedLaunchArgs(true), ["--disable-blink-features=FetchLaterAPI"]);
+  test("a page that redefines what the kit's listeners call when it is left changes nothing: the browser's own stopImmediatePropagation, visibilityState getter and Reflect.apply, kept when the script starts (blockUnloadRequests)", () => {
+    const p = unloadPage();
+    const natives = [
+      p.scope.Event.prototype.stopImmediatePropagation,
+      Object.getOwnPropertyDescriptor(p.scope.Document.prototype, "visibilityState").get,
+    ];
+    p.hide();
+    // What the page's scripts may redefine once the kit's has run: the prototype's method, the visibility on the
+    // document and on its prototype, the call, apply and bind of the browser's own functions, and Reflect.apply.
+    p.scope.Event.prototype.stopImmediatePropagation = () => {};
+    for (const target of [p.scope.document, p.scope.Document.prototype])
+      Object.defineProperty(target, "visibilityState", { get: () => "visible" });
+    for (const f of natives) f.call = f.apply = f.bind = () => "visible";
+    p.scope.Reflect.apply = () => "visible";
+    for (const type of ["pagehide", "unload", "visibilitychange"]) assert.equal(p.dispatch(type), "stopped", type);
+  });
+
+  test("a guarded run's browser: fetchLater and SharedWorker turned off as Blink features, never by --disable-features (Playwright's own list) (guardedLaunchArgs)", () => {
+    assert.deepEqual(guardedLaunchArgs(true), ["--disable-blink-features=FetchLaterAPI,SharedWorker"]);
     assert.ok(!guardedLaunchArgs(true).some((a) => a.startsWith("--disable-features")));
     assert.deepEqual(guardedLaunchArgs(false), [], "no guard, the browser as Playwright launches it");
   });
