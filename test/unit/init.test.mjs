@@ -748,8 +748,9 @@ describe("capture target (local, demo, production) and the follow-up of init", (
   });
 
   test("helpers: loopback addresses, local or demo", () => {
-    for (const u of ["http://localhost:3000", "http://app.localhost", "http://127.0.0.1:4173", "http://[::1]:8080"])
-      assert.equal(isLoopback(u), true, u);
+    // The kit's one loopback definition (isLoopbackUrl): a dev server shown on 0.0.0.0 is local too.
+    const local = ["http://localhost:3000", "http://app.localhost", "http://127.0.0.1:4173", "http://[::1]:8080"];
+    for (const u of [...local, "http://0.0.0.0:5173"]) assert.equal(isLoopback(u), true, u);
     for (const u of ["https://orders.acme.example", "http://10.0.0.5", "not a url"])
       assert.equal(isLoopback(u), false, u);
     assert.equal(localOrDemo("http://localhost:3000"), "local");

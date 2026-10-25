@@ -233,7 +233,10 @@ function npmCopy(run, item, folders) {
  * line, or at a line that is neither a field nor a continuation; a continuation line (a blank first) folds into the
  * field before it, a "\n" kept (a multi-line text, which safeLicence refuses). `cut`: the text is the start of a
  * longer header — its last line, and the field it belongs to (it may go on past the cut), are left out. One pass:
- * linear (test/unit/facts-deps-growth.test.mjs, test/tools/redos-worker.mjs).
+ * linear (test/unit/facts-deps-growth.test.mjs, test/tools/redos-worker.mjs). A folded field's lines are one slice of
+ * the text, taken when the field ends, never added line by line: a string grown so is a chain of every line, which the
+ * garbage collector copies at each pass once it outgrows the young generation — past 80,000 lines or so, about as much
+ * time again as the reading, and the growth test measured the collector's jump, not the reader.
  * @param {string} text
  * @param {{ cut?: boolean }} [o]
  * @returns {{ name: string|null, version: string|null, expression: string|null, license: string|null,
@@ -243,20 +246,32 @@ export function metadataFields(text, { cut = false } = {}) {
   const body = cut ? text.slice(0, text.lastIndexOf("\n") + 1) : text;
   /** @type {Array<[string, string]>} */
   const fields = [];
+  // The last field's continuation lines: from the line break that ends its first line to the end of its last one.
+  let from = 0;
+  let to = 0;
+  const fold = () => {
+    if (to > from) fields[fields.length - 1][1] += body.slice(from, to).replaceAll("\r\n", "\n");
+  };
   let ended = false;
   for (let start = 0; start < body.length && !ended;) {
     const next = body.indexOf("\n", start);
     const end = next < 0 ? body.length : next;
-    const line = body.slice(start, end > start && body[end - 1] === "\r" ? end - 1 : end);
+    const stop = end > start && body[end - 1] === "\r" ? end - 1 : end;
+    const line = body.slice(start, stop);
     start = end + 1;
     const colon = line.indexOf(":");
     const field = line.slice(0, colon);
     if (line === "") ended = true;
     else if (line[0] === " " || line[0] === "\t") {
-      if (fields.length) fields[fields.length - 1][1] += `\n${line}`;
+      if (fields.length) to = stop;
     } else if (colon <= 0 || field.includes(" ") || field.includes("\t")) ended = true;
-    else fields.push([field.toLowerCase(), line.slice(colon + 1).trim()]);
+    else {
+      fold();
+      fields.push([field.toLowerCase(), line.slice(colon + 1).trim()]);
+      from = to = end;
+    }
   }
+  fold();
   if (cut && !ended) fields.pop();
   // A field given twice: the first, as Python's email parser gives it; the classifiers, every one.
   const first = (key) => fields.find(([k]) => k === key)?.[1] ?? null;

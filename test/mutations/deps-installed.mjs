@@ -1,7 +1,7 @@
 // Mutants of engine/facts/deps/installed.mjs: the rules by which a licence is read from an installed copy — inside the
 // application, the item's own copy (its name, its version), the nearest one judged alone, within bounds, never over a
 // lock's — taken out, which the dependency tests must catch (RULES.md M16).
-import { DEPENDENCY_TESTS } from "./_tests.mjs";
+import { DEPENDENCY_TESTS, GROWTH_TESTS } from "./_tests.mjs";
 
 /** `return null` turned into `continue`: a copy further up stands in for the one judged. */
 const standsIn = (name, line) => ({ name, find: line, replace: line.replace("return null;", "continue;") });
@@ -138,6 +138,15 @@ export default {
       name: "METADATA: a cut header keeps the field it was cut in",
       find: "  if (cut && !ended) fields.pop();\n",
       replace: "",
+    },
+    {
+      // One continuation line in 256, so that the growth test ends in a minute rather than at the time-out: a quadratic
+      // part that small is still past ×8 at 16 times its size.
+      name: "METADATA: the field folded so far scanned again at its lines (quadratic)",
+      find: "      if (fields.length) to = stop;",
+      replace:
+        '      if (fields.length) to = (stop & 255) === 0 && body.slice(from, stop).includes("\\0") ? to : stop;',
+      tests: [...DEPENDENCY_TESTS, ...GROWTH_TESTS],
     },
     {
       name: "METADATA: a cut header read as a whole one",

@@ -31,7 +31,7 @@ Creates the documentation project of the application in `app-dir` (default: the 
 - **Questions** (without `--yes`): name, language, URL, where the screenshots are taken, sign-in method (only with
   screenshots), who the documentation is for. Without a terminal and without `--yes`, it stops with exit code 2.
 - **Where the screenshots are taken**: "1) local or demo application, 2) production, read-only, 3) no screenshots".
-  Choice 1 writes `capture.target: "local"` for a `localhost` or `127.x` URL, `"demo"` otherwise. Choice 2 asks the
+  Choice 1 writes `capture.target: "local"` for a loopback URL (`localhost`, `127.x`…), `"demo"` otherwise. Choice 2 asks the
   **production URL** (never the local one detected from the dev script), then prints three safety reminders:
   read-only blocks the browser's writes, **not** a write made by the server while it renders a page (list such routes
   in `capture.forbidden`); the session file is a secret; the screenshots show real data, which is the owner's written
@@ -70,7 +70,7 @@ One line per check, `✔` OK, `⚠` to look at, `✖` to fix, each problem follo
 | Group | Checks |
 |---|---|
 | Environment | Node version; kit dependencies; Chromium; the project's dependency on the kit; the installed Claude Code skill; the kit's version against the project's `kit` range |
-| Project | Configuration; table of contents; version file (⚠ "version never incremented?" when it says `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application says otherwise); application folder (`app.dir`); coverage sources; masking files; capture plans folder; the capture target (⚠ "no forbidden route declared" for a production with an empty `capture.forbidden`); `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts. With `capture.mode: "none"`, neither the session, the plans folder nor the target is checked |
+| Project | Configuration; table of contents; version file (⚠ "version never incremented?" when it says `0.0.0` or `1.0.0` while a `version.txt`, `VERSION` or `CHANGELOG.md` of the application says otherwise); application folder (`app.dir`); coverage sources; masking files; capture plans folder; the capture target (⚠ "no forbidden route declared" for a production with an empty `capture.forbidden`; ⚠ "Chromium blocks the pages' calls" when `capture.forbidden` is declared, the target is not production, `app.url` is not on a loopback address and the `masking.env` files name a local address on another origin); `.gitignore` of `.doc-kit/` and `dist/`; session (present, age, tracked by git); theme contrasts. With `capture.mode: "none"`, neither the session, the plans folder nor the target is checked |
 | `--network` | The application answers at `app.url` |
 
 Exit code: 3 when the environment fails, 2 when the configuration is invalid, 1 when a project check fails, 0
@@ -112,7 +112,7 @@ and on one API route, then every `GET` route of `facts/api.json`, once per ident
 |---|---|
 | `--as <role>` | Repeatable: also checks as this role |
 
-Refused (exit code 2) unless the application URL is a loopback address (`localhost`, `127.x`, `[::1]`) or
+Refused (exit code 2) unless the application URL is a loopback address (`localhost`, `127.x`, `0.0.0.0`, `[::1]`…) or
 `capture.target` is `"demo"`; `"production"` is always refused, and no option overrides either rule. Unreachable
 instance: exit code 3. Otherwise informative: exit code 0 whatever it finds. At most 4 requests a second, and a
 response body is never stored. [Security and maintainability reviews](#/spaces/reviews) explains the findings and
@@ -160,7 +160,8 @@ code 2. Answering no captures nothing (exit code 0).
 
 With a session, the session is checked first and the run is read-only (`capture.readOnly: "auto"`). Exit code 1
 when a route is forbidden or a capture failed, 3 when the application cannot be reached or the session expired, 2
-for a plan error. `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired`
+for a plan error, or when, with `capture.forbidden` and `auth: none`, the start page opens on another address than
+the application (`capture.forbidden` would not cover its pages). `--json` prints `ok`, `failed`, `readOnly`, `blocked`, `blockedRequests`, `refused`, `expired`
 and, with `--compare` or `--stale`, `compared: [{ id, ratio, changed }]`.
 [Capture plans](#/capture/plans) explains the plans; [Following the application](#/reference/cli/write-check~doc-kit-sync)
 explains `doc-kit sync`, which `--stale` reads.
