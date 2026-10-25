@@ -152,15 +152,18 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > The places to rewrite are found by reading the Markdown, close to how the renderer reads it but not as it does:
 > a blockquote opened on a list item's own line (`- > …`), a comment never closed inside a blockquote or a list
 > item, or raw HTML the reading does not follow may be read otherwise. The check on the rendered page catches each
-> of these cases — as it reads the rendered page, with one limit: a formatting element left open in raw HTML (a
-> `<code>` never closed) is read as closed at the end of its block, where a browser opens it again. The page is
-> left as it is, reported to update by hand, its label still pending — never damaged.
+> of these cases — as it reads the rendered page, with two limits: a formatting element left open in raw HTML (a
+> `<code>` never closed) is read as closed at the end of its block, where a browser opens it again; and an element
+> that draws nothing (`<script>`, `<style>`, `<template>`, `<noscript>`) in the middle of a word ends that word for
+> the kit (`**Approve<script>…</script>d**` reads as `Approve`, where a browser shows `Approved`). The page is left as
+> it is, reported to update by hand, its label still pending — never damaged.
 
 > [!NOTE] A few shapes Marked renders slowly
-> The kit reads a page in linear time, but Marked itself does not on a few shapes repeated over tens of thousands
-> of characters: emphasis marks never closed (`*a *a *a …`), `x <!-- a --!> ` again and again, lines alternating
-> with quote lines, or a paragraph cut by many `::` lines with no blank line. Such a page takes seconds — minutes
-> for the longest — to render, for `sync` as for `build`.
+> The kit reads a page in linear time, but Marked does not on a few shapes repeated over tens of thousands of
+> characters: emphasis marks never closed (`*a *a *a …`), `x <!-- a --!> ` again and again, lines alternating with
+> quote lines (all three slow in Marked alone), or a paragraph cut by many `::` lines with no blank line (slow in
+> Marked at each cut the kit makes). Such a page takes seconds — minutes for the longest — to render, for `sync` as
+> for `build`.
 
 > [!NOTE] Two labels with the same value, a screenshot on several pages
 > Two message keys with the same value cannot be told apart: a page that quotes it is listed — and rewritten by

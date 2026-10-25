@@ -81,7 +81,10 @@ entries between a project's `kit` range and the installed version.
   without spaces (`保存をクリック`) is not seen; finding a very long label costs up to the page's length times its
   own; a formatting element left open in raw HTML (a `<code>` never closed) is read as closed at the end of its
   block; two keys with the same value cannot be told apart; a screenshot shown by several pages is acknowledged by
-  marking one of them; an element hidden by its attributes (`hidden`, a closed `<dialog>`) is read as shown. A scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`, and a
+  marking one of them; an element hidden by its attributes (`hidden`, a closed `<dialog>`) is read as shown; an
+  element that draws nothing (`<script>`, `<style>`, `<template>`, `<noscript>`) in the middle of a word ends that
+  word (`**Approve<script>…</script>d**` reads as `Approve`); `output`, `ruby`, `rt`, `slot` and `acronym` end a
+  phrase where a browser runs it on. A scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`, and a
   seeded property renders thousands of pages to check both promises.
 - **The Markdown renderer reads a long page in linear time** (ARCHITECTURE.md §6.6, §6.10): to cut a paragraph before
   a `::directive` or a `:::container` that opens one of its lines, the engine looked for one in the whole rest of the
@@ -90,14 +93,16 @@ entries between a project's `kit` range and the installed version.
   never ahead for a badge (Marked's text stops before every `[`); a badge's text never runs over the opening of
   another one, and headings of one title are numbered by a counter — rendered in linear time instead of quadratic
   (a page of 25,000 paragraphs took 8 s, one paragraph of 64,000 inline elements 2 s, 3,200 headings `## Approve`
-  38 s in `sync`), for the build as for `sync`. Three outputs change: a paragraph followed by a line that ends it
+  38 s in `sync`), for the build as for `sync`. Four outputs change: a paragraph followed by a line that ends it
   for Marked but that no block of it takes (`<preview>`, which opens like `<pre`; a table's head whose cells do not
   match) is now two paragraphs whatever follows, as Marked renders it alone — a directive anywhere further on joined
   them (`markdown.test.mjs` pins the pair); the third heading of one title is anchored `-3`, the fourth `-4` (they
-  were `-2-2`, `-2-2-2`: the demo's third `Example`); `[[menu A [[menu B]]` shows the badge `B` (the text of the
-  first ran over it). Still slow, in Marked itself: a few shapes repeated over tens of thousands of characters
-  (emphasis marks never closed, `x <!-- a --!> ` again and again, lines alternating with quote lines, a paragraph
-  cut by many `::` lines with no blank line), ARCHITECTURE.md §6.10.
+  were `-2-2`, `-2-2-2`: the demo's third `Example`; a link written to a former `-2-2` anchor is reported by the
+  build as `link.anchor`); `[[menu A [[menu B]]` shows the badge `B` (the text of the first ran over it); a badge or
+  a claim whose text is only blanks (`[[menu  ]]`) is now plain text, no longer an empty badge. Still slow, in Marked:
+  a few shapes repeated over tens of thousands of characters (emphasis marks never closed, `x <!-- a --!> ` again
+  and again, lines alternating with quote lines, all three slow in Marked alone; a paragraph cut by many `::` lines
+  with no blank line, slow in Marked at each cut the kit makes), ARCHITECTURE.md §6.10.
 - **`sync`'s reading of a rendered page is fast on Node.js 20 too**: on V8 11, an object spread followed by a field
   takes a slow path, some twenty times an object literal, and `shownText` built every token of a page that way
   (107 s on the ReDoS harness's comment runs, against 12 s on Node.js 24, past its hang detector); its tokens are
