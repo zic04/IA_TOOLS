@@ -391,9 +391,11 @@ treats them as data on every path an agent takes:
     --hyperlink-format=… --color=always` ran the program while only `--pre` was refused. Left out, among others: rg's
     `--pre`, `--pre-glob`, `--hostname-bin`, `--hyperlink-format`, `-z` (it runs decompression programs),
     `--ignore-file`, `-f`; find's `-exec`, `-execdir`, `-ok`, `-okdir`, `-delete`, `-fprint*`, `-fls`; sort's `-o`,
-    `-T`, `--compress-program`; `tail -f`; every option that reads its list of files or patterns from a file. A value
-    given as the next word never starts with `-` (whatever a tool makes of the option before it, such a word is
-    checked as an option), and uniq takes one file name at most (it writes to its second).
+    `-T`, `--compress-program`; `tail -f`, and its old forms that follow the file too (`tail +1f`, `tail -n +1f`): of
+    a word that starts with `+`, tail, sort and uniq take a plain `+N` only, and `-n`, `-c` take a number; every option
+    that reads its list of files or patterns from a file. A value given as the next word never starts with `-`
+    (whatever a tool makes of the option before it, such a word is checked as an option), and uniq takes one file
+    name at most (it writes to its second).
   - It refuses git, npm, any other program or path, a variable or a command substitution, a redirection to a file, a
     background job, a subshell, an unquoted wildcard, a second line, the doc-kit commands that run something else or
     belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`, `init`, `inputs`,
@@ -430,13 +432,19 @@ does not bound:
   `doc.config.mjs` the application ships still runs if an agent is steered to it. The guard no longer checks that a
   folder holds a `doc.config.mjs`: that told nothing of whose it is (`cd docs && npx doc-kit build --project ../evil`
   passed it). Review a `doc.config.mjs` you did not write before running the kit on it.
-- **The hook itself.** It needs a Claude Code that knows the exec form of hooks (`args`) and `onFailure` (2.1.310,
-  the version this was checked with, does). An older one ignores both and runs `node` alone through its shell: node
-  reads the hook's input as a script and fails, a failure that does not block, so the guard does not run — update
-  Claude Code. The exec form needs no shell: written as a command line, the hook would need bash or sh, which Claude
-  Code uses for hooks except on Windows without Git Bash, where it uses PowerShell, in which `|| exit 2` does not parse
-  (the hook would fail without blocking) and a path's `\$` is no escape. An agent definition edited after installation
-  may have lost its hook (`doctor` reports it as modified).
+- **Reads are not bounded to the project.** A read-only tool reads any file the operator can: `cat ~/.ssh/id_rsa`,
+  `cat /proc/self/environ` and `grep -r TOKEN ~` pass the guard, so an agent steered to it can read the operator's
+  keys, tokens and environment. Its Edit and Write are not guarded either (above), so what it read may end up in a
+  page; `doc-kit check secrets` is then the remaining net (`pack` and `backlog export` run its detectors too), and it
+  reads patterns (a secret of an unknown shape passes). Keep Claude Code's permission prompts on for the agents'
+  Bash, and refuse a read outside the project.
+- **The hook itself.** It needs Claude Code 2.1.295 or later, the first that knows the exec form of hooks (`args`) and
+  `onFailure`; `doctor` warns when the `claude` on the `PATH` is older. An older one ignores both and runs `node` alone
+  through its shell: node reads the hook's input as a script and fails, a failure that does not block, so the guard does
+  not run — update Claude Code. The exec form needs no shell: written as a command line, the hook would need bash or sh,
+  which Claude Code uses for hooks except on Windows without Git Bash, where it uses PowerShell, in which `|| exit 2`
+  does not parse (the hook would fail without blocking) and a path's `\$` is no escape. An agent definition edited after
+  installation may have lost its hook (`doctor` reports it as modified).
 
 Keep Claude Code's permission prompts on for the agents' writes outside the documentation folder.
 

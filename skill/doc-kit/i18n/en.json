@@ -215,6 +215,7 @@
     "command": "{name} is not allowed for this agent",
     "option": "{name} {option} is not among the options this agent may give {name}: only options that read are, never one that runs a program or writes a file",
     "optionValue": "{name} {option} is followed by {value}, which starts with -: such a word is read as an option, whatever comes before it (attach a value to its option: -e-x, --regexp=-x)",
+    "number": "{name} {option} takes a number here, + or - before it at most: {value} is not one",
     "operands": "{name} takes {max} file name at most here: it would write to the next one",
     "cd": "cd comes first, takes one folder, and is followed by &&: cd <folder> && …",
     "npx": "npx and npm exec run the first doc-kit they find in a node_modules/.bin up to the root — the application's among them — or install one from the registry: run the kit by its path, {cli} <command> …",

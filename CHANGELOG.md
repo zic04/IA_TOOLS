@@ -323,11 +323,15 @@ entries between a project's `kit` range and the installed version.
     a corrupt message file (a load error, 1) or no `node` (127) let the command run. The guard imports the skill's
     modules inside a try and refuses on any error, and the definitions say `onFailure: block`, so that a hook that
     cannot start or ends with another code blocks too (a shell form, `… || exit 2`, would need bash: under PowerShell,
-    Claude Code's shell for hooks on Windows without Git Bash, it does not parse).
+    Claude Code's shell for hooks on Windows without Git Bash, it does not parse). This form needs Claude Code
+    2.1.295 or later: an older one runs `node` alone and the guard never runs. `doctor` warns when the `claude` it
+    finds on the `PATH` (through the kit's safe lookup) is older; with none found, it says nothing.
   - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
     `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
     (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one
-    file name at most (it writes to its second).
+    file name at most (it writes to its second). GNU tail's old syntax follows the file like `-f`: of a word that
+    starts with `+`, tail, sort and uniq take a plain `+N` only (`tail +1f` is refused), and tail's and head's `-n`
+    and `-c` take a number (`tail -n +1f` is refused).
   - **On Windows, a program's path has its drive** (`C:/…`): Git Bash's `/c/…` and `~` are refused, since Git Bash
     leaves such a word unconverted when it holds `'`, a backquote, `*`, `?`, `[`, `]`, `:` or `;` (and always under
     `MSYS_NO_PATHCONV`), and node then reads `C:\c\…`: `node "/c/<kit>/cli/x'/../doc-kit.mjs"` passed for the kit and
@@ -336,7 +340,8 @@ entries between a project's `kit` range and the installed version.
     string; the template literal it filled before broke on such a path, or ran what followed a `${`.
   - The guard no longer checks that the folder holds a `doc.config.mjs`: it protected nothing against a planted one
     (`cd docs && npx doc-kit build --project ../evil` passed). SECURITY.md says what the guard does not bound: Edit
-    and Write, a configuration the kit loads (code), `--project` pointing elsewhere.
+    and Write, a configuration the kit loads (code), `--project` pointing elsewhere, and reads outside the project
+    (`cat ~/.ssh/id_rsa` passes; what an agent reads may end up in a page, where `check secrets` is the net).
   - `test/unit/skill-briefs.test.mjs` (RULES.md M15) checks the rule in every brief, both languages, and every agent,
     and that no skill text gives `npx doc-kit` or a bare `doc-kit`; `test/unit/bash-guard.test.mjs` the guard on a
     table of allowed and refused commands, a table per read-only tool of the options agents use and of the ones that

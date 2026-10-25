@@ -57,10 +57,11 @@ de l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). 
 données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un agent.
 Le hook échoue fermé : une garde qui ne peut pas démarrer ou se charger (pas de `node`, un fichier absent ou abîmé)
 refuse la commande ; il est écrit sous la forme exec de Claude Code (`command: node`, `args`, `onFailure: block`), qui
-n'a besoin d'aucun shell mais d'un Claude Code récent (SECURITY.md). La garde ne fait que refuser ; ce qu'elle laisse
-passer demande toujours vos autorisations, comme d'habitude. Elle ne borne que Bash : les écritures d'un agent, et le
-`doc.config.mjs` que le kit charge là où il tourne (du code, comme un plan de capture), ne sont pas de son ressort —
-relisez une configuration que vous n'avez pas écrite avant d'y lancer le kit.
+n'a besoin d'aucun shell, mais de Claude Code 2.1.295 ou plus récent : un plus ancien ne lance jamais la garde (`doctor`
+le signale, SECURITY.md). La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations,
+comme d'habitude. Elle ne borne que Bash : les écritures d'un agent, et le `doc.config.mjs` que le kit charge là où il
+tourne (du code, comme un plan de capture), ne sont pas de son ressort — relisez une configuration que vous n'avez pas
+écrite avant d'y lancer le kit.
 
 ## Étape 2 — Le charger dans Claude Code
 

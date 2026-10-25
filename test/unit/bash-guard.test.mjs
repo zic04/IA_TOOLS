@@ -269,6 +269,22 @@ const OPTION_ROWS = [
   // tail -f never ends; lists read from files.
   ["tail -f a.log", "option", "-f"],
   ["tail -F a.log", "option", "-F"],
+  // GNU tail's old syntax follows the file too: of a word that starts with +, a plain +N only; -n and -c take a number.
+  ["tail +1f x", "option", "+1f"],
+  ["tail +f x", "option", "+f"],
+  ["tail -n +1f x", "number"],
+  ["tail -n+1f x", "number"],
+  ["tail --lines=+1f x", "number"],
+  ["tail --lines +1f x", "number"],
+  ["tail -c 1f x", "number"],
+  ["tail +5 x", null],
+  ["tail -n+5 x", null],
+  ["head -n-5 x", null],
+  ["sort +1b x", "option", "+1b"],
+  ["sort +1 x", null],
+  ["uniq +2x a.txt", "option", "+2x"],
+  ["uniq -f x a.txt", "number"],
+  ["uniq +2", null],
   ["tail --follow a.log", "option", "--follow"],
   ["wc --files0-from=list", "option", "--files0-from=list"],
   ["du --files0-from=list", "option", "--files0-from=list"],
@@ -300,6 +316,7 @@ function listed(name) {
   for (const item of `${spec} --help --version`.split(" ")) {
     if (item === "-NUM") numbers = true;
     else if (item.endsWith("[=]")) kinds.set(item.slice(0, -3), "optional");
+    else if (item.endsWith("=N")) kinds.set(item.slice(0, -2), "number");
     else if (item.endsWith("=")) kinds.set(item.slice(0, -1), "value");
     else kinds.set(item, "flag");
   }
@@ -366,8 +383,10 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
               ? false // grouped short options: a property of their own, below
               : form === 1
                 ? kind !== undefined
-                : kind === "value" || kind === "optional";
+                : kind === "number" || kind === "value" || kind === "optional";
         if (form === 3 && !words) continue;
+        // An option listed that takes a number, given `x` or `v`: refused for its value, as the table shows.
+        if (ok && kind === "number") continue;
         const d = bashDecision(`${name} '${word}' x`, POSIX);
         if (ok) assert.equal(d.allow || d.key, true, `${name} ${word}`);
         else {
@@ -378,14 +397,15 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
       // Every option listed goes through, with its value as the spec says; grouped short flags too, and one letter
       // not listed among them refuses the group.
       for (const [item, kind] of kinds) {
+        const v = kind === "number" ? "+5" : "v";
         const forms =
           kind === "flag"
             ? [`${item} x`]
             : kind === "optional"
               ? [`${item} x`, `${item}=v x`]
               : item.startsWith("--") || words
-                ? [`${item} v x`, ...(words ? [] : [`${item}=v x`])]
-                : [`${item} v x`, `${item}v x`];
+                ? [`${item} ${v} x`, ...(words ? [] : [`${item}=${v} x`])]
+                : [`${item} ${v} x`, `${item}${v} x`];
         for (const f of forms) assert.deepEqual(bashDecision(`${name} ${f}`, POSIX), { allow: true }, `${name} ${f}`);
       }
       if (words) continue;

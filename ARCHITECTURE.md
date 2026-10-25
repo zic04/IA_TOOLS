@@ -1377,6 +1377,8 @@ The source lives in `skill/doc-kit/`:
 `doc-kit skill install [--target <skills folder>] [--force]` copies the skill to `<skills folder>/doc-kit/`:
 - the skills folder is `--target`, else `$CLAUDE_CONFIG_DIR/skills`, else `~/.claude/skills`; nothing but its `doc-kit/` folder is written;
 - `{{KIT_PATH}}` is replaced with the kit's absolute path (forward slashes) in `SKILL.md`, `references/*.md` and `scripts/*.mjs`, and `{{KIT_CLI}}` with the command that runs its CLI by that path (`node "<kit>/cli/doc-kit.mjs"`) there and in the agent files; the briefs keep their own placeholders (`brief.mjs` fills `{{KIT_CLI}}` with the same command);
+- in `scripts/*.mjs`, a placeholder is replaced only where it stands as a JavaScript string, `"{{KIT_PATH}}"`, by the value's JSON (`JSON.stringify`): a quote, a backquote or a `${` in the path stays a character of it, and a placeholder in a comment stays as it is, so no path ends a comment;
+- `{{SKILL_PATH}}`, in the agent files, is the installed skill's folder written for YAML's double quotes (JSON's escapes): the agents' hook names the guard in Claude Code's exec form, `args: ["<skill>/scripts/bash-guard.mjs"]`, which no shell reads;
 - a fingerprint, `.doc-kit-skill.json` (kit version, kit path, hashes of the source and of the installed copy), lets `doctor` report the copy as current, missing, outdated (the kit's skill changed), modified (edited by hand), installed from another kit, or foreign (no fingerprint);
 - a `doc-kit/` folder without fingerprint is left alone (exit code 1) unless `--force`.
 

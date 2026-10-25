@@ -55,10 +55,10 @@ redirection to a file, an unquoted `*`, an option of a read-only tool that is no
 (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a
 comment planted in its code cannot make an agent run a program. The hook fails closed: a guard that cannot start or load
 (no `node`, a missing or damaged file) refuses the command; it is written in Claude Code's exec form (`command: node`,
-`args`, `onFailure: block`), which needs no shell and a recent Claude Code (SECURITY.md). The guard only refuses; what
-it lets through still asks for your permissions as usual. It bounds Bash only: an agent's writes, and the
-`doc.config.mjs` the kit loads where it runs (code, like a capture plan), are not its business — review a configuration
-you did not write before running the kit on it.
+`args`, `onFailure: block`), which needs no shell, and Claude Code 2.1.295 or later: an older one never runs the guard
+(`doctor` warns about it, SECURITY.md). The guard only refuses; what it lets through still asks for your permissions as
+usual. It bounds Bash only: an agent's writes, and the `doc.config.mjs` the kit loads where it runs (code, like a
+capture plan), are not its business — review a configuration you did not write before running the kit on it.
 
 ## Step 2 — Load it in Claude Code
 
