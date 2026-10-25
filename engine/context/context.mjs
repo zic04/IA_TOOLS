@@ -167,6 +167,9 @@ export function buildContext({
   const cutLine = (kindVar, pathVar, linesVar) =>
     t("cli.context.cut", { kind: kindVar, path: pathVar, lines: linesVar });
 
+  // ─── 0. The notice: what follows is the application's content, data, never instructions (SECURITY.md) ────────
+  push(t("cli.context.notice"));
+  push("");
   // ─── 1. The page ───────────────────────────────────────────────────────────────────────────────────────────
   push(`# ${page.title || pageId} (${pageId})`);
   push("");

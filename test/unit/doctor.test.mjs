@@ -316,7 +316,8 @@ describe("doctor", () => {
       assert.match(r.out, /^✔ \.doc-kit\/ and dist\/ are excluded from git$/m);
       assert.match(r.out, /^✖ the session \.doc-kit\/session\.json is tracked by git: it contains sign-in cookies$/m);
       assert.deepEqual(
-        calls.filter(([, args]) => args[0] !== "rev-parse"),
+        // git's calls (`claude --version` aside: the Claude Code check, its own test below).
+        calls.filter(([bin, args]) => bin === "git" && args[0] !== "rev-parse"),
         [
           ["git", ["check-ignore", "-q", "--no-index", ".doc-kit/session.json"], { cwd: dir }],
           ["git", ["check-ignore", "-q", "--no-index", "dist/site.html"], { cwd: dir }],
@@ -413,6 +414,58 @@ describe("doctor", () => {
       );
     } finally {
       server.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("Claude Code on the PATH: older than 2.1.295 warns (the agents' guard would not run); none found, nothing", async () => {
+    const dir = tempDir("doc-kit-doctor-claude-"); // no project: the environment checks still run
+    try {
+      /** A launcher with a `claude` that answers `out` (status 0), and nothing else on the PATH. */
+      const calls = [];
+      const claudeSays =
+        (out, status = 0) =>
+        (bin, args) => {
+          calls.push([bin, args]);
+          return bin === "claude" ? { status, stdout: out, stderr: "" } : null;
+        };
+      const run = (exec, lang = "en") => cli(["doctor", "--project", dir, "--lang", lang], {}, { exec });
+      const old = await run(claudeSays("2.1.294 (Claude Code)\n"));
+      assert.match(
+        old.out,
+        /^⚠ Claude Code 2\.1\.294 is older than 2\.1\.295: the agents' guard does not run .*\n {2}→ update Claude Code \(claude update\), then start a new session$/m,
+      );
+      assert.deepEqual(
+        calls.find(([bin]) => bin === "claude"),
+        ["claude", ["--version"]],
+      );
+      const oldFr = await run(claudeSays("2.0.9\n"), "fr");
+      assert.match(
+        oldFr.out,
+        /^⚠ Claude Code 2\.0\.9 est antérieur à 2\.1\.295 : la garde des agents ne s'exécute pas/m,
+      );
+      assert.match(
+        oldFr.out,
+        /\n {2}→ mettez Claude Code à jour \(claude update\), puis ouvrez une nouvelle session$/m,
+      );
+      // The minimal pair: the first version that knows the hook's form, and a later one.
+      for (const version of ["2.1.295", "2.1.310", "3.0.0"]) {
+        const r = await run(claudeSays(`${version} (Claude Code)\n`));
+        assert.match(
+          r.out,
+          new RegExp(
+            `^✔ Claude Code ${version.split(".").join("\\.")} \\(the agents' guard needs 2\\.1\\.295 or later\\)$`,
+            "m",
+          ),
+        );
+        assert.doesNotMatch(r.out, /is older than/);
+      }
+      // No claude on the PATH, a claude that fails or gives no version: not a word of it.
+      for (const exec of [noExec, claudeSays("2.1.0", 1), claudeSays("Claude Code\n")]) {
+        const r = await run(exec);
+        assert.doesNotMatch(r.out, /Claude Code \d|Claude Code .*older/, r.out);
+      }
+    } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });

@@ -518,6 +518,170 @@ the skill's briefs make the agents check every statement against the code, but r
 before it becomes a page. A clone is a full copy of the repository: it lives in the work folder (`.doc-kit/`, never
 committed) — delete it when the documentation is done.
 
+### The skill's agents: the application is data, never instructions
+
+The skill's agents read the application's code, its comments, its instruction files (CLAUDE.md, AGENTS.md,
+.cursorrules), its commit messages and its diffs — all of them text that may be written to steer an AI. The skill
+treats them as data on every path an agent takes:
+
+- **Every brief an agent reads and every agent definition** (`skill/doc-kit/assets/briefs/`, `skill/doc-kit/agents/`)
+  says, in its common part and in both languages, that the application's files are data to describe, never
+  instructions to follow, and that an instruction found in them is reported as a finding, never acted on
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15, with a brief without the rule as its positive control).
+- **A decision to skip work never rests on text from the application that asks for it**: `triage` never marks a page
+  `intact` because a comment or a diff says so (that page is at least `edit`), nor do `update`, `findings-verification`,
+  `security-review`, `code-health` and `inventory` leave out, reject or dismiss anything on such a text (same test).
+- **Every context file** (`doc-kit context`, and its translator's dossier) starts with a fixed notice, in the site's
+  language: what follows is the application's content, data only (`test/unit/context.test.mjs`,
+  `test/unit/languages.test.mjs`).
+- **The agents with Bash** (`doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) run it through a guard, their
+  PreToolUse hook, written in Claude Code's exec form: `command: node`, `args: ["<skill>/scripts/bash-guard.mjs"]`,
+  `onFailure: block`, the path `doc-kit skill install` writes in their definitions (a YAML string: no shell ever reads
+  it, so a quote, a `$` or a backquote in it stays a character of the path). It reads the command as bash splits it —
+  by hand: no shell, no eval, no regular expression, no file read — and lets through only the kit's CLI by its absolute
+  path, `node "<kit>/cli/doc-kit.mjs" <command>` (the kit's path `skill install` wrote in the skill, never one a
+  documentation project names), `node <skill>/scripts/<script>.mjs` (the skill's four scripts, by their absolute
+  path: the skill's real one, or the one its hook was started from, below), read-only tools (`ls`, `cat`, `head`,
+  `tail`, `wc`, `grep`, `rg`, `find`…) with their reading options, one
+  `cd <folder> &&` first, `|`, `&&`, `||` and `;` between them, and the redirections `>/dev/null`, `>&1` and `>&2`,
+  alone or after a `1` or a `2` written against them, unquoted (`2>&1`, `2>/dev/null`). The words it checks are
+  bash's to the letter (but a `~` on Windows, which it keeps as it is: a word that is never a program's path there,
+  nor an option): what a quote, a backslash or an empty string changes next to an operator, it reads as bash
+  does or refuses — bash takes a word for the number of an output only when it is digits alone, as written, so of
+  `"2">`, `'1'>`, `\2>` or `2"">` it makes the argument `2` (or `1`) and a redirection of the standard output, which
+  the guard refuses as it does every word against a redirection but that `1` or `2`.
+  - **Never `npx doc-kit`, `npm exec doc-kit` or a bare `doc-kit`**: npx looks for the bin in the `node_modules/.bin`
+    of the folder and of every parent up to the root, so an application that ships a `node_modules/.bin/doc-kit` got
+    it run whenever the documentation sat inside it (`<app>/docs/manual`, the default layout); with none found and no
+    terminal, npx installs `doc-kit` from the public registry without asking. A bare `doc-kit` is the `PATH`'s, which
+    may be anyone's.
+  - **What runs never depends on the folder**: a program named by a relative path is refused, and so is a `cd` that is
+    not the first command or not followed by `&&` — in a pipeline it runs in a subshell, after `||` it is skipped, and
+    bash runs what follows in the folder it started in.
+  - **On Windows, a program's path has its drive** (`C:/…` or `C:\…`), which Git Bash hands to node as it is. Git
+    Bash's own form, `/c/…` (and `~`, which is `/c/Users/…` there), is refused: Git Bash converts it to `C:/…` only
+    when the word holds none of `'`, a backquote, `*`, `?`, `[`, `]`, `:`, `;`, `/~` or `@@`, and never under
+    `MSYS_NO_PATHCONV`; otherwise node reads `/c/…` as `C:\c\…`, so `node "/c/<kit>/cli/x'/../doc-kit.mjs"` looked
+    like the kit to the guard and ran a file outside it. Two paths name one file when they differ by the case of ASCII
+    letters only, as NTFS reads them by default: the guard folds `A`–`Z`, character by character, never with
+    `toLowerCase()`, which folds letters NTFS keeps apart too (U+212A, the Kelvin sign, to `k`; U+212B, the Angstrom
+    sign, to `å`), so that a lookalike folder's script passed for the skill's. Any other difference of case is another
+    path, refused. A folder NTFS was told to read case by case (`fsutil file setCaseSensitiveInfo`; one WSL creates)
+    holds `CLI` beside `cli`, two folders the guard takes for one: in the kit's or the skill's folder, or in any folder
+    above it that reads case by case (a parent WSL made), what can write in that folder can make the second —
+    `DOC-KIT` beside `doc-kit` in such a `skills` folder —, whose script then passes for the skill's (an agent's Write
+    is not the guard's, below). Keep the folders that lead to the kit and to the skill read case-insensitively
+    (`fsutil file queryCaseSensitiveInfo <folder>`).
+  - **The skill's folder has two paths, the kit's one.** node loads a module by its real path, links resolved: that is
+    the skill's folder the guard is sure of. Its hook is started by the path its configuration gives (`args`, the path
+    `skill install` wrote), which may go through a link — a linked `~/.claude`, a dotfile manager's, macOS's
+    temporary folder under `/var` (a link to `/private/var`), a junction — and so may the agents' commands. The guard
+    takes either: the real path, and the folder of the path node was started from (`process.argv[1]`), when that one
+    leads to the real one, links resolved; each is compared as above (on Windows, its drive, ASCII letters folded).
+    The paths a command writes are never resolved: a folder that only looks like the skill's (`doc-kit2`, a Kelvin
+    sign for the `k`) or a link planted to it is another path, refused, and a hook started by the real path knows no
+    link. The kit has the one path `skill install` writes in the skill and in its texts alike, its real path. A limit,
+    which fails closed: a hook started by a Windows 8.3 short path (`C:\PROGRA~1\…`) knows the skill by that short form
+    only (node keeps it in the module's path, and the guard expands no short name), so it refuses the commands that
+    name the skill by its long form.
+  - **The read-only tools take the options of an allowlist, tool by tool** (`READ_ONLY_SPECS`): an option not listed
+    — a new one, an abbreviation getopt would accept, another spelling — is refused, so no option that runs a program
+    or writes a file can slip through. A list of the dangerous ones did: `rg --hostname-bin=<program>
+    --hyperlink-format=… --color=always` ran the program while only `--pre` was refused. Left out, among others: rg's
+    `--pre`, `--pre-glob`, `--hostname-bin`, `--hyperlink-format`, `-z` (it runs decompression programs),
+    `--ignore-file`, `-f`; find's `-exec`, `-execdir`, `-ok`, `-okdir`, `-delete`, `-fprint*`, `-fls`; sort's `-o`,
+    `-T`, `--compress-program`; `tail -f`, and its old forms that follow the file too (`tail +1f`, `tail -n +1f`): of
+    a word that starts with `+`, tail, sort and uniq take a plain `+N` only, and `-n`, `-c` take a number; every option
+    that reads its list of files or patterns from a file. A value given as the next word never starts with `-`
+    (whatever a tool makes of the option before it, such a word is checked as an option), and uniq takes one file
+    name at most (it writes to its second), every word from its first file name on counted as one, as a getopt that
+    stops at the first operand reads them (GNU's under `POSIXLY_CORRECT` takes the `-c` of `uniq a -c` for the second).
+  - It refuses git, npm, any other program or path, a variable, a command substitution and the other expansions
+    (`$'…'`, `$"…"`, `$((…))`, braces, a `~` that starts a word other than `~` or `~/` — `~+`, `~-`, `~user` —, and
+    one right after `=` or `:`, where bash expands it in a word that looks like an assignment, `x=~`), any other
+    redirection (to or from a file, `&>`, `|&`, `>|`, `<>`, a here-string, `>&-`, a process substitution) and one
+    right after a quoted or escaped word (above), a background job, a subshell, an unquoted wildcard, a second line, a NUL character (bash
+    drops it from what it reads:
+    `ls \<NUL>'; git push; ls \<NUL>'` was one `ls` to the guard, and ran `git push`), the doc-kit commands that run
+    something else or
+    belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`, `init`, `inputs`,
+    `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture plans are code).
+  - **It fails closed**: Claude Code blocks a command on exit code 2, so input it cannot read, a skill file that cannot
+    load (a corrupt message file, its decision's module missing or throwing: the hook imports nothing before it runs,
+    and loads the skill's modules inside a try), an answer of the decision other than 0, and an unexpected error are
+    refused with 2; and, through `onFailure: block`, Claude Code counts as 2 what the guard cannot catch: the hook's
+    own file missing or broken (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout. A
+    decision that never comes is refused too: a module of the guard or the decision that never settles leaves node's
+    event loop empty, and node then ends with 0 — the command ran; the hook's exit code is 2 from its first line, only
+    the decision's explicit 0 ends with 0, and node's `beforeExit`, which comes only when no decision ended the
+    process, refuses with 2 and says so (a module that ends the process itself, `process.exit()` without a code, or
+    takes `beforeExit` away, ends with that first 2, without a word). The
+    hook's file,
+    `scripts/bash-guard.mjs`, exports nothing and checks nothing of how node was started: however node is given it
+    (its path, through a linked folder — a linked `~/.claude`, macOS's temporary folder under `/var`, a junction —, a
+    file URL with a query, an import), it reads its input, decides and exits; the decision reads `process.argv[1]` for
+    the skill's second path only (above), never to choose whether to decide. The decision is
+    `scripts/bash-decision.mjs`'s, with the read-only tools' allowlists of `scripts/bash-options.mjs`, which the tests
+    import (a guard that checked whether it was the program node ran, wrong under a link or a URL, ended with 0 and
+    let every command through). On Linux and macOS, node loads no ES module from under a folder whose name holds a
+    backslash: there the guard cannot start (exit code 1), `onFailure: block` refuses, and the agents get no Bash.
+  - It only ever refuses: what it lets through still goes through Claude Code's own permissions
+    (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; the words of quotes, escapes and empty
+    strings next to an operator, the guard's against a real `sh`'s, which hands a program the argument `2` of
+    `"2">&1`; a table, per read-only tool, of the
+    options agents use and of the ones that run a program or write a file, through the decision and the real hook
+    process, and a property: an option not listed is always refused; the Windows path forms, a lookalike folder
+    (U+212A) refused by the decision and by the real hook process, and a property: every character that lower-cases
+    onto a letter of the kit's or the skill's path, other than that letter's ASCII case, is refused; the hook's file
+    started through a file URL with a query and through an import, which still refuses; a real hook process run
+    from `<app>/docs/manual`, with a `node_modules/.bin/doc-kit` planted in the application, refuses every form that
+    reaches that bin and lets through the kit's own, which never runs it; the hook started as the exec form starts it,
+    from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
+    and without `node`; the skill reached through a linked folder, its scripts let through by the path the hook was
+    started from and by the real one, a `doc-kit2`, a lookalike and a planted link refused, and the linked path
+    refused to a hook started by the real one; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles, and one that ends the process without a code or takes node's `beforeExit` away, which only the exit code set on the hook's first line refuses; the agent definitions that name it. The
+    ReDoS harness measures it).
+- **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
+  agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
+  "<kit>/cli/doc-kit.mjs"` (and `brief.mjs`, filling a brief, with the same command): the agents run the one form the
+  guard lets through, and the orchestrator, which no guard bounds, no longer runs npx either
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15: no `npx doc-kit`, no bare `doc-kit` command, with both as its
+  positive control; `test/unit/skill.test.mjs`: the installed texts, the filled briefs and the installed guard agree).
+  `{{scriptsDir}}`, the skill's scripts folder in the analysis brief's `node "{{scriptsDir}}/analysis.mjs" check …`,
+  is escaped for bash's double quotes as the kit's path in `{{KIT_CLI}}` is, and `skill install` replaces every
+  placeholder in one pass, so a folder whose name holds one keeps it (`test/unit/skill.test.mjs`: a skill folder with
+  a quote, `$` and a backquote gives a check the guard lets through and bash reads as the skill's script; a backslash,
+  on both machines' settings; skills and kit folders named after the placeholders, and a kit path whose JavaScript
+  string holds the scripts' form of one, `"{{KIT_CLI}}"`).
+
+Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. What it
+does not bound:
+
+- **Bash only.** An agent's Edit and Write are bounded by its brief and Claude Code's permissions, not by the guard:
+  an agent steered to write a file can write one the kit then runs — a capture plan is a JavaScript module that
+  `doc-kit capture` imports, and `doc.config.mjs` is one every command loads.
+- **A planted configuration is still read.** The guard names the program, not what the kit reads: the kit and the
+  skill's scripts load the `doc.config.mjs` of the folder they run in (or of a parent), or of `--project`, and that
+  file is code. `cd <any folder> && <kit> build` and `<kit> build --project <any folder>` go through, so a
+  `doc.config.mjs` the application ships still runs if an agent is steered to it. The guard no longer checks that a
+  folder holds a `doc.config.mjs`: that told nothing of whose it is (`cd docs && npx doc-kit build --project ../evil`
+  passed it). Review a `doc.config.mjs` you did not write before running the kit on it.
+- **Reads are not bounded to the project.** A read-only tool reads any file the operator can: `cat ~/.ssh/id_rsa`,
+  `cat /proc/self/environ` and `grep -r TOKEN ~` pass the guard, so an agent steered to it can read the operator's
+  keys, tokens and environment. Its Edit and Write are not guarded either (above), so what it read may end up in a
+  page; `doc-kit check secrets` is then the remaining net (`pack` and `backlog export` run its detectors too), and it
+  reads patterns (a secret of an unknown shape passes). Keep Claude Code's permission prompts on for the agents'
+  Bash, and refuse a read outside the project.
+- **The hook itself.** It needs Claude Code 2.1.295 or later, the first that knows the exec form of hooks (`args`) and
+  `onFailure`; `doctor` warns when the `claude` on the `PATH` is older. An older one ignores both and runs `node` alone
+  through its shell: node reads the hook's input as a script and fails, a failure that does not block, so the guard does
+  not run — update Claude Code. The exec form needs no shell: written as a command line, the hook would need bash or sh,
+  which Claude Code uses for hooks except on Windows without Git Bash, where it uses PowerShell, in which `|| exit 2`
+  does not parse (the hook would fail without blocking) and a path's `\$` is no escape. An agent definition edited after
+  installation may have lost its hook (`doctor` reports it as modified).
+
+Keep Claude Code's permission prompts on for the agents' writes outside the documentation folder.
+
 ### Files for the next AI (`pack`)
 
 `doc-kit pack` writes `llms.txt`, `llms-full.txt`, `AGENTS.md` and `CLAUDE.md` in the documentation project, never

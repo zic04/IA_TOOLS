@@ -16,9 +16,7 @@ import {
   ExitError,
   SKILL_ROOT,
   WORK_DIR,
-  baseVariables,
   checkLanguage,
-  fill,
   findProject,
   loadConfig,
   parseOptions,
@@ -28,6 +26,7 @@ import {
   useMessages,
   warn,
 } from "./common.mjs";
+import { baseVariables, fill } from "./placeholders.mjs";
 
 useMessages("consolidation");
 
