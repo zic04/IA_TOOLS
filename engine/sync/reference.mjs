@@ -81,7 +81,7 @@ function allFlatLabels(root, config, recorded) {
     // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
     // concatenate onto root instead of using as is.
     const abs = path.resolve(root, file);
-    return { file, flat: fs.existsSync(abs) ? readFlatLabels(abs) : {}, followed: followed.has(file) };
+    return { file, flat: readFlatLabels(abs), followed: followed.has(file) };
   });
 }
 
@@ -122,19 +122,19 @@ export const versionBehind = (reference, version, writtenIds) =>
 /**
  * The labels after a marking: merged, never rebuilt (ARCHITECTURE.md §6.10). A key no written page cited yet is
  * added when one cites it; a recorded key keeps its value while a page that is not being acknowledged still cites
- * it — that page has its signal still — and otherwise takes its current value (dropped when it left its file, or
- * the file is gone). A file that cannot be read keeps what was recorded. `everyPage` (`--mark --all`): a key no
- * written page cites any more is dropped.
+ * it — that page has its signal still; a page that holds the new value there does not cite the old one inside it —
+ * and otherwise takes its current value (dropped when it left its file, or the file is gone). A file that cannot be
+ * read keeps what was recorded. `everyPage` (`--mark --all`): a key no written page cites any more is dropped.
  */
 function mergeLabels(recorded, files, written, acknowledged, everyPage) {
   const out = {};
-  const cited = (value, pages) => pages.some((p) => citesLabel(p.markdown, value));
+  const cited = (value, pages, now = null) => pages.some((p) => citesLabel(p.markdown, value, now));
   const notAcknowledged = written.filter((p) => !acknowledged.includes(p));
   for (const { file, flat, followed } of files) {
     const entries = { ...(recorded?.[file] || {}) };
     if (flat) {
       for (const [key, value] of Object.entries(entries))
-        if (flat[key] !== value && !cited(value, notAcknowledged))
+        if (flat[key] !== value && !cited(value, notAcknowledged, flat[key]))
           if (typeof flat[key] === "string") entries[key] = flat[key];
           else delete entries[key];
       if (followed)
@@ -154,17 +154,37 @@ function inventoryIds(inventory) {
   return out;
 }
 
+/** What may follow a route where it ends: a blank, a quote, a closing bracket, a backquote, `?`, `#`, `*`, `|`. */
+const ROUTE_END = /[\s"'`’”»)\]}>?#*|]/u;
+/** Punctuation that ends a sentence or a clause, a route before it ending there when an end follows (`/invoices.`). */
+const ROUTE_STOP = /[.,;:!]/;
+
+/** Whether a route cited in `text` ends at `i`: one "/" there at most (a trailing slash), punctuation, then the end
+ * of the text or ROUTE_END. `/invoices` ends in "`/invoices`", "(/invoices)", "/invoices?page=2", "/invoices."; it
+ * does not in "/invoices-export", "/invoices.csv", "/invoices/2026" (another path). */
+function routeEndsAt(text, i) {
+  let j = text[i] === "/" ? i + 1 : i;
+  while (j < text.length && ROUTE_STOP.test(text[j])) j++;
+  return j >= text.length || ROUTE_END.test(text[j]);
+}
+
 /**
- * Whether a marked page's text (normalised) documents an item: one of its forms as a whole, made of whole route
- * segments (`/detail` is not in `/orders/detail`, nor `/ord` in `/orders`); a form that ends with "/" (the static
- * prefix of `/orders/[id]`) goes on with any segment.
+ * Whether a marked page's text (normalised) documents an item: one of its forms as a whole; a route (a form with a
+ * "/") made of whole segments — `/detail` is not in `/orders/detail`, nor `/ord` in `/orders` — and ending where its
+ * last segment does (routeEndsAt). A form that ends with "/" (the static prefix of `/orders/[id]`) goes on with a
+ * segment.
  */
 function documents(item, text) {
   return (item.match || []).some((m) => {
     const form = normalize(String(m ?? "")).trim();
     const prefix = form.length > 1 && form.endsWith("/");
     const stem = prefix ? form.slice(0, -1) : form;
-    return !!stem && wholeIndexes(text, stem).some((i) => !prefix || text[i + stem.length] === "/");
+    if (!stem) return false;
+    const route = stem.includes("/");
+    return wholeIndexes(text, stem).some((i) => {
+      const end = i + stem.length;
+      return prefix ? text[end] === "/" && !routeEndsAt(text, end) : !route || routeEndsAt(text, end);
+    });
   });
 }
 
@@ -208,7 +228,8 @@ function mergeCaptures(recorded, plans, cited, restamp) {
  * reference (mergeLabels; the inventory items the marked pages document, the whole inventory when every page is
  * marked; the capture plan hashes used by the marked pages). Pages already in the reference but not marked now are
  * kept as they are, unless they are no longer written. A restamp (`sync --apply`) acknowledges nothing pending: no
- * label, no inventory item, no capture.
+ * label, no inventory item, no capture. With no page written (a table of contents that cannot be read), nothing is
+ * marked: `sync.noWrittenPage`.
  * @param {object} p
  * @param {string} p.root
  * @param {object} p.config
@@ -242,6 +263,9 @@ export async function markPages({
 }) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
+  // No page written — a table of contents that cannot be read, or nothing written yet: nothing is marked, and nothing
+  // pending is acknowledged (`--all` would mark "every page" of none).
+  if (!writtenIds.size) throw new KitError(EXIT.CHECK, "sync.noWrittenPage");
   const targets = all ? [...writtenIds] : [...new Set(pages)];
   for (const id of targets) if (!writtenIds.has(id)) throw new KitError(EXIT.CHECK, "sync.unwritten", { page: id });
 
@@ -249,10 +273,10 @@ export async function markPages({
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const tools = adapterTools(root);
   // A page of an older sync.json was checked at app.commit: kept as its own before app is rewritten. A page no longer
-  // written is dropped — none while no page is written at all: an unreadable table of contents forgets nothing.
+  // written is dropped.
   const newPages = Object.fromEntries(
     Object.entries(reference?.pages || {})
-      .filter(([id]) => writtenIds.has(id) || !writtenIds.size)
+      .filter(([id]) => writtenIds.has(id))
       .map(([id, p]) => [id, { commit: pageCommit(reference, id), ...p }]),
   );
   const newProofs = { ...(reference?.proofs || {}) };

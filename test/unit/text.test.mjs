@@ -81,6 +81,9 @@ describe("wholeIndexes: a needle as a whole word (ARCHITECTURE.md §6.10)", () =
     assert.deepEqual(wholeIndexes("No,No.No", "No"), [0, 3, 6]);
     assert.deepEqual(wholeIndexes("aaaa", "aa"), [], "each candidate is inside a longer word");
     assert.deepEqual(wholeIndexes("x", ""), []);
+    // Never overlapping: a match found, the next one is looked for after it, never inside it.
+    assert.deepEqual(wholeIndexes("No No No", "No No"), [0]);
+    assert.deepEqual(wholeIndexes("a a a a", "a a"), [0, 4]);
   });
 
   // A letter outside the first plane is two UTF-16 units: the one before the needle is read as a pair, a letter.

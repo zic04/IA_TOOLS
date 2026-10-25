@@ -41,21 +41,31 @@ entries between a project's `kit` range and the installed version.
   A recorded label keeps its value, and stays reported, while a page that is not being marked still quotes it —
   also when its key or its whole messages file is gone (`→ null`); `--mark --all` drops a label no page quotes any
   more. A marking acknowledges only the new or removed elements its pages document, named whole and in whole route
-  segments (`/detail` is not in `/orders/detail`, nor `/ord` in `/orders`); `--mark --all` acknowledges the whole
-  inventory. Each page records the commit it was checked at, and its diff is taken from there (an older `sync.json`
-  falls back to `app.commit`, no migration). A page no longer written leaves `sync.json` at the next marking, and
-  the guided mode offers `sync` while a page still written was checked against another version. `--apply`
-  restamps the unchanged pages without clearing a screenshot to retake, a new element or a label, so `capture
-  --stale` still selects what changed. A page edited by hand since it was marked is reported (`edited`, a warning
-  like `unmarked`) and never restamped by `--apply` or `--auto-intact`; what `--apply` itself rewrote, a final
+  segments: `/detail` is not in `/orders/detail`, nor `/ord` in `/orders`, and `/invoices-export`,
+  `/invoices.csv` or `/invoices/2026` do not document `/invoices` (`/invoices/2026` documents `/invoices/[id]`);
+  `--mark --all` acknowledges the whole inventory — and, with no page written (a table of contents that cannot be
+  read), is refused (exit code 1, `sync.json` left as it is) instead of acknowledging everything pending. Each page
+  records the commit it was checked at, and its diff is taken from there (an older `sync.json` falls back to
+  `app.commit`, no migration). A page no longer written leaves `sync.json` at the next marking, and the guided mode
+  offers `sync` while a page still written was checked against another version. `--apply` restamps the unchanged
+  pages without clearing a screenshot to retake, a new element or a label, so `capture --stale` still selects what
+  changed, and never marks a page nobody marked; `--apply` with `--since`, which compares nothing with
+  `sync.json`, is a usage error. A page edited by hand since it was marked is reported (`edited`, a warning like
+  `unmarked`) and never restamped by `--apply` or `--auto-intact`; what `--apply` itself rewrote, a final
   newline, a BOM or CRLF line ends are no edit. `--apply --labels` replaces a label as a whole word, in any script
   and in either Unicode form (`é` as one character or as `e` and an accent), only in bold, quotes, badges and a
-  code span that is the label itself — never in a directive's attributes, a link's target or definition, an HTML
-  tag or comment, a verified badge, a code block (fenced or indented) or the front matter; in a code block, a
-  comment, a tag over several lines or the front matter, a label is not counted as quoted either. Known limits: a
-  label stuck to the text in a script written without spaces (`保存をクリック`) is not seen, and finding a very long
-  label costs up to the page's length times its own. A scenario test plays the real sequence on `examples/demo-app`
-  → `demo-app-v2`.
+  code span that is the label itself — never in another code span, even in bold or between quotes, a directive's
+  attributes, a link's target, a bare address, a link definition or a label between brackets that names one, an
+  HTML tag or comment, a verified badge or a code block; a new value that holds the old one (`Approval chain` →
+  `Approval chain history`) is replaced once, and the page then quotes the new value only. A label is quoted where
+  the site shows it, the page read as the kit's renderer, Marked, reads it: a code span first (`` `<!--` `` hides
+  nothing), a fence closed with the blockquote or list item it sits in, `<pre>`, `<script>` and `<style>` read to
+  their closing tag, a comment that never closes in its paragraph read as text, and no front matter (the renderer
+  has none: a leading `---` is a rule). A messages file that is not valid JSON gives one warning, never every key
+  reported gone. Known limits: a label stuck to the text in a script written without spaces (`保存をクリック`) is
+  not seen; finding a very long label costs up to the page's length times its own; two keys with the same value
+  cannot be told apart; a screenshot shown by several pages is acknowledged by marking one of them. A scenario
+  test plays the real sequence on `examples/demo-app` → `demo-app-v2`.
 - **One order of versions and one reading of ranges, npm's** (`engine/project/semver.mjs`), where four functions
   gave four answers. The `kit` range of `doc.config.mjs` is read as npm reads one: `>1.2` is `>=1.3.0` (it was
   `>1.2.0`), `>= 1.2.3` with a space is accepted (it was refused), hyphen ranges and `~>` are read. Pre-releases are

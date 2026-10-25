@@ -129,20 +129,26 @@ function allLabelValues(reference) {
 }
 
 /** `labels`: no page attribution is stored, so this is computed once, globally — every written page still citing
- * a recorded value that changed (or whose key disappeared). */
+ * a recorded value that changed (or whose key disappeared), where it does not hold the new value. A message file that
+ * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then. */
 function labelChanges(root, reference, written) {
   const out = [];
+  const unreadable = [];
   for (const [file, entries] of Object.entries(reference?.labels || {})) {
     // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
-    const flatNow = readFlatLabels(path.resolve(root, file)) || {};
+    const flatNow = readFlatLabels(path.resolve(root, file));
+    if (!flatNow) {
+      unreadable.push(file);
+      continue;
+    }
     for (const [key, oldValue] of Object.entries(entries)) {
       const newValue = flatNow[key] ?? null;
       if (newValue === oldValue) continue;
-      const pages = written.filter((p) => citesLabel(p.markdown, oldValue)).map((p) => p.id);
+      const pages = written.filter((p) => citesLabel(p.markdown, oldValue, newValue)).map((p) => p.id);
       if (pages.length) out.push({ file, key, old: oldValue, new: newValue, pages });
     }
   }
-  return out;
+  return { labels: out, unreadable };
 }
 
 /** `new` and `removed`: the inventory now against the reference's (never with --since, which would need the
@@ -206,6 +212,7 @@ function translationChanges(root, config, toc) {
  * @property {any[]} [translations]
  * @property {{ stale: any }} [facts]
  * @property {string[]} [truncated]
+ * @property {string[]} [unreadableLabels]  message files that are not valid JSON: their labels are not compared
  * @property {boolean} [gitAvailable]
  */
 
@@ -254,7 +261,9 @@ export async function compareWithReference({
   const capturesReasons = new Map(); // id → Set(reason)
   const capturesPages = new Map(); // id → Set(page)
 
-  const labelsOut = since ? [] : labelChanges(root, reference, written);
+  const { labels: labelsOut, unreadable } = since
+    ? { labels: [], unreadable: [] }
+    : labelChanges(root, reference, written);
   const pagesWithLabelIssue = new Set(labelsOut.flatMap((l) => l.pages));
   const labelValues = allLabelValues(reference);
 
@@ -419,8 +428,10 @@ export async function compareWithReference({
     ...(config.languages ? { translations: translationChanges(root, config, toc) } : {}),
     facts: { stale: staleFacts(root, factsDir, commit) },
     // Extra, beyond the documented shape: pages whose import closure hit the 200-file bound (ARCHITECTURE.md §2.2),
-    // and whether git could be used at all (without it, a deleted file is never detected as a rename).
+    // the message files that cannot be read, and whether git could be used at all (without it, a deleted file is
+    // never detected as a rename).
     truncated,
+    unreadableLabels: unreadable,
     gitAvailable,
   };
 }
@@ -478,12 +489,20 @@ export function renderReport(report, t) {
   for (const n of report.new) lines.push(`- ${t(n.suggest ? "cli.sync.new.item" : "cli.sync.new.noSuggest", n)}`);
   for (const r of report.removed) lines.push(`- ${t("cli.sync.removed.item", { ...r, pages: r.pages.join(", ") })}`);
   for (const page of edited) lines.push(`- ${t("cli.sync.edited.page", { page })}`);
-  if (report.facts.stale.length)
-    lines.push(`- ${t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") })}`);
-  for (const page of report.truncated || []) lines.push(`- ${t("cli.sync.truncated", { page })}`);
-  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
-    lines.push(`- ${t("cli.sync.noGit")}`);
+  lines.push(...notesOf(report, t).map((note) => `- ${note}`));
   return lines.join("\n") + "\n";
+}
+
+/** What the report cannot tell, last: facts behind the application, a closure cut short, a message file that cannot be
+ * read, no git to see a rename. */
+function notesOf(report, t) {
+  const notes = [];
+  if (report.facts.stale.length) notes.push(t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") }));
+  for (const page of report.truncated || []) notes.push(t("cli.sync.truncated", { page }));
+  for (const file of report.unreadableLabels || []) notes.push(t("cli.sync.labelsUnreadable", { file }));
+  if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
+    notes.push(t("cli.sync.noGit"));
+  return notes;
 }
 
 /**

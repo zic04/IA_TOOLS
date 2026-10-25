@@ -26,8 +26,12 @@ were checked at, and acknowledges only what they document. A new route stays `ne
 or `--mark --all` acknowledges the whole inventory; a renamed label stays reported while a page that was not
 marked still quotes its old value — and so does a label whose messages file the application deleted (`→ null`).
 A page acknowledges an element only when it names it whole: `/detail` is not in `/orders/detail`, nor `/ord` in
-`/orders`. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves `sync.json`
-at the next marking. Each page's diff is taken from its own commit.
+`/orders`, and `/invoices-export`, `/invoices.csv` or `/invoices/2026` do not name `/invoices` — a route ends
+before a blank, a quote, a bracket, a backquote, `?`, `#` or sentence punctuation (`/invoices.`); `/invoices/2026`
+names `/invoices/[id]`. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves
+`sync.json` at the next marking. With no page written — a table of contents that cannot be read — a marking is
+refused (exit code 1) and `sync.json` is left as it is: nothing pending is acknowledged. Each page's diff is taken
+from its own commit.
 
 ## Reading the report
 
@@ -45,7 +49,7 @@ one `.doc-kit/sync/<page>.diff` per page to review:
 | `review` (priority `probablyIntact`) | That shared file changed, but nothing the page names did | Review, likely untouched |
 | `proofs.moved` | A cited line's text found elsewhere in the same (or renamed) file | `--apply` fixes it |
 | `proofs.broken` | The file was deleted, or the text is nowhere to be found | Review |
-| `labels` | A quoted message's value changed, or its key disappeared | `--apply --labels` fixes it |
+| `labels` | A quoted message's value changed, or its key disappeared (a messages file that is not valid JSON only warns: its labels are not compared) | `--apply --labels` fixes it |
 | `captures` | The route's files changed, the plan entry changed, or the screenshot's version is stale | Retake: `capture --stale --compare` |
 | `new` | A route, API route, table… the reference never saw | Document it |
 | `removed` | An element a written page still cites, gone from the application | Correct the pages listed |
@@ -67,10 +71,17 @@ doc-kit sync --apply --labels
 unchanged — without clearing anything still pending: a screenshot to retake, a new element, a label. `--labels`
 goes further: it replaces an old message value with its new one, as a whole word (`No` is never replaced inside
 `Note`), but **only** inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes —
-never inside ordinary prose, where a human sentence depends on the old wording, nor in a directive's attributes or a
-link's target. A code block (fenced or indented), an HTML comment, a tag spread over several lines and the front
-matter are not text at all: a label there is neither replaced nor read as quoted. `é` written as one character or as `e` and an accent is the
-same label. Nothing here ever touches prose: a page whose subject changed still needs a person.
+never inside ordinary prose, where a human sentence depends on the old wording, nor in any other code span (even
+in bold or between quotes: `` **`getByRole('link', { name: 'Approve' })`** `` stays as it is), a directive's
+attributes, a link's target, a bare address (`https://…`), or a label between brackets that names a link definition
+(`[Approve]` with `[Approve]: approve.md`). A new value that holds the old one
+(`Approval chain` → `Approval chain history`) is replaced once: run it again, nothing changes. A code block (fenced or indented), an HTML comment and a
+tag spread over several lines are not text at all: a label there is neither replaced nor read as quoted — read as
+the site's renderer reads them, so a code span such as `` `<!--` `` opens no comment, and a fence closes with the
+blockquote or list item it sits in. There is no front matter: a page that starts with `---` starts with a rule.
+`é` written as one character or as `e` and an accent is the same label. Nothing here ever touches prose: a page
+whose subject changed still needs a person, and a page nobody marked is never marked by `--apply`, even one whose
+label it rewrote.
 
 What `--apply` rewrites in a page it leaves to review is no edit by hand: that page is not reported `edited` for
 it — nor for a final newline added or removed, a BOM or CRLF line ends.
@@ -91,9 +102,11 @@ at once.
 doc-kit sync --since v2.3.0
 ```
 
-Reads the application's files, proofs and labels **at that commit** instead of from `sync.json`, through read-only
-git. `new` and `removed` are always empty this way: the coverage adapters are not re-run at an old commit, only the
-file contents are.
+Reads the files behind each page **at that commit** instead of from `sync.json`, through read-only git: only
+`review` and `unchanged` are reported this way. Proofs, labels, screenshots and edits are compared with
+`sync.json`, and the coverage adapters are not re-run at an old commit, so `proofs`, `labels`, `captures`,
+`edited`, `new` and `removed` are always empty. `--since` compares and never records: with `--mark` or `--apply`
+it is a usage error (exit code 2).
 
 ## Refreshing only what changed: `capture --compare` and `--stale`
 
@@ -123,6 +136,11 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > `保存をクリック` does not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the
 > label apart — `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's
 > length times the label's.
+
+> [!NOTE] Two labels with the same value, a screenshot on several pages
+> Two message keys with the same value cannot be told apart: a page that quotes it is listed — and rewritten by
+> `--labels` — when either changes. A screenshot shown by several pages is recorded once: marking one of them
+> acknowledges it for all.
 
 > [!NOTE] git is only ever read
 > `--since`, and the commit shown by a stale facts file, come from `git show` and `git diff` in the application —

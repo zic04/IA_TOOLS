@@ -149,9 +149,9 @@ nouveaux ou disparus des adaptateurs de couverture. Il écrit `.doc-kit/sync.md`
 
 | Option | Effet |
 |---|---|
-| `--since <réf>` | Compare avec ce commit git plutôt qu'avec `sync.json` ; `new` et `removed` sont toujours vides (les adaptateurs ne sont pas relancés à ce commit) |
-| `--apply` | Réécrit la référence `fichier:ligne` d'une preuve déplacée dans la page ; retamponne ensuite les pages inchangées |
-| `--labels` | Avec `--apply` : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, en mot entier, uniquement dans `**gras**`, du code en ligne qui est le libellé lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose, les attributs d'une directive, la cible d'un lien, un bloc de code, un commentaire ou une balise HTML, ni l'en-tête YAML |
+| `--since <réf>` | Compare les fichiers derrière chaque page avec ce commit git plutôt qu'avec `sync.json` : seuls `review` et `unchanged` sont rapportés (les adaptateurs ne sont pas relancés à ce commit, et preuves, libellés, captures et retouches demandent `sync.json`) ; jamais avec `--mark` ni `--apply` |
+| `--apply` | Réécrit la référence `fichier:ligne` d'une preuve déplacée dans la page ; retamponne ensuite les pages marquées restées inchangées (jamais une page que personne n'a marquée) |
+| `--labels` | Avec `--apply` : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, en mot entier, uniquement dans `**gras**`, du code en ligne qui est le libellé lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose, un autre code en ligne (même en gras ou entre guillemets), les attributs d'une directive, la cible d'un lien, une adresse nue, un libellé qui nomme une définition de lien, un bloc de code, un commentaire ou une balise HTML ; une nouvelle valeur qui contient l'ancienne n'est remplacée qu'une fois |
 | `--mark <page…>` | Enregistre ces pages comme vérifiées maintenant (les identifiants de page suivent l'option), fusionnées dans `sync.json` : seul ce qu'elles documentent est acquitté |
 | `--all` | Avec `--mark` : toutes les pages écrites, tout l'inventaire acquitté, et retiré un libellé qu'aucune page ne cite plus |
 | `--sources <fichier[:lignes]…>` | Avec `--mark` d'une seule page : dépendances déclarées, répétable |

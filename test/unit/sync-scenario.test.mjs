@@ -194,6 +194,11 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
     assert.deepEqual(diffs(), reviewDiffs([...reviewed, "use/settings"]));
 
     // ─── 4. Apply: the unchanged pages are restamped, and nothing pending is cleared ──────────────────────────
+    // Against a commit (--since), nothing is compared with sync.json: --apply there is refused, never a restamp.
+    const marking = fs.readFileSync(path.join(root, "sync.json"), "utf8");
+    r = await cli("sync", "--since", "c1", "--apply");
+    assert.equal(r.code, 2, r.out);
+    assert.equal(fs.readFileSync(path.join(root, "sync.json"), "utf8"), marking);
     r = await cli("sync", "--apply");
     assert.equal(r.code, 0, r.err);
     assert.deepEqual(signals(await report()), v2);
@@ -212,13 +217,14 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
     assert.deepEqual(signals(await report()), AFTER_SETTINGS);
     assert.deepEqual(diffs(), reviewDiffs(reviewed));
 
-    // ─── 7. The application renames the label again ──────────────────────────────────────────────────────────
+    // ─── 7. The application renames the label again, to a longer text that holds the old one ─────────────────
     state.head = "c3";
     const messages = path.join(appDir, "public", "messages", "en.json");
-    fs.writeFileSync(messages, JSON.stringify({ orders: { approvalLink: "Approval steps" } }, null, 2) + "\n");
+    const LONGER = "Approval chain history";
+    fs.writeFileSync(messages, JSON.stringify({ orders: { approvalLink: LONGER } }, null, 2) + "\n");
     const renamed = {
       ...AFTER_SETTINGS,
-      labels: [`orders.approvalLink: Approval chain → Approval steps ${LABEL_PAGES}`],
+      labels: [`orders.approvalLink: Approval chain → ${LONGER} ${LABEL_PAGES}`],
     };
     assert.deepEqual(signals(await report()), renamed);
 
@@ -239,29 +245,82 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
     assert.equal(ref.labels["../app/public/messages/en.json"]["orders.approvalLink"], "Approval chain");
     assert.ok(!ref.inventory["glob/Routes"].includes("invoices.html"), "never documented, never acknowledged");
 
-    // ─── 9. The application drops its messages file: the label its pages quote is gone ────────────────────────
-    state.head = "c4";
-    fs.rmSync(messages);
-    const gone = { ...AFTER_SETTINGS, labels: [`orders.approvalLink: Approval chain → null ${LABEL_PAGES}`] };
-    assert.deepEqual(signals(await report()), gone);
-
-    // ─── 10. Mark a page that does not quote it: the pages that do keep their signal ─────────────────────────
-    r = await cli("sync", "--mark", "maintain/architecture", "--date", "2026-10-05");
-    assert.equal(r.code, 0, r.err);
-    assert.deepEqual(signals(await report()), gone);
-    assert.equal(syncJson().labels["../app/public/messages/en.json"]["orders.approvalLink"], "Approval chain");
-
-    // ─── 11. Mark the pages that quote it: acknowledged, and nothing left to follow in that file ──────────────
+    // ─── 9. Apply the labels, twice: each page says the new label once, and the signal is gone ───────────────
     const quoting = ["features/approve-order", "features/rules", "features/roles"];
-    r = await cli("sync", "--mark", ...quoting, "--date", "2026-10-05");
-    assert.equal(r.code, 0, r.err);
+    const said = () =>
+      quoting.map((p) => {
+        const text = fs.readFileSync(path.join(root, "content", ...p.split("/")) + ".md", "utf8");
+        return [text.split(LONGER).length - 1, text.includes(`${LONGER} history`)];
+      });
+    for (const run of [1, 2]) {
+      r = await cli("sync", "--apply", "--labels");
+      assert.equal(r.code, 0, r.err);
+      assert.deepEqual(
+        said(),
+        [
+          [7, false],
+          [1, false],
+          [2, false],
+        ],
+        `run ${run}`,
+      );
+    }
+    // The pages it rewrote have their translation to follow; the two left with nothing else pending are restamped.
+    const translated = [
+      ...AFTER_SETTINGS.translations,
+      ...["approve-order", "rules", "roles"].map((p) => `fr features/${p}.md stale`),
+    ];
     assert.deepEqual(signals(await report()), {
       ...AFTER_SETTINGS,
       labels: [],
+      unchanged: [...AFTER_SETTINGS.unchanged, "features/roles", "features/rules"].sort(),
+      translations: translated,
+    });
+    assert.equal(syncJson().labels["../app/public/messages/en.json"]["orders.approvalLink"], LONGER);
+
+    // ─── 10. The application drops its messages file: the label its pages quote is gone ───────────────────────
+    state.head = "c4";
+    fs.rmSync(messages);
+    const AFTER_LABELS = { ...AFTER_SETTINGS, translations: translated };
+    const gone = { ...AFTER_LABELS, labels: [`orders.approvalLink: ${LONGER} → null ${LABEL_PAGES}`] };
+    assert.deepEqual(signals(await report()), gone);
+
+    // ─── 11. Mark a page that does not quote it: the pages that do keep their signal ─────────────────────────
+    r = await cli("sync", "--mark", "maintain/architecture", "--date", "2026-10-05");
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(signals(await report()), gone);
+    assert.equal(syncJson().labels["../app/public/messages/en.json"]["orders.approvalLink"], LONGER);
+
+    // ─── 12. Mark the pages that quote it: acknowledged, and nothing left to follow in that file ──────────────
+    r = await cli("sync", "--mark", ...quoting, "--date", "2026-10-05");
+    assert.equal(r.code, 0, r.err);
+    const checked = {
+      ...AFTER_LABELS,
+      labels: [],
       review: AFTER_SETTINGS.review.filter((x) => x !== "features/approve-order direct"),
       unchanged: [...AFTER_SETTINGS.unchanged, ...quoting].sort(),
-    });
+    };
+    assert.deepEqual(signals(await report()), checked);
     assert.deepEqual(syncJson().labels, {});
+
+    // ─── 13. A page that cites another path, which only starts like the new screen: still new ─────────────────
+    const orders = path.join(root, "content", "use", "orders.md");
+    fs.appendFileSync(orders, "\nThe list is exported from `/invoices-export` and `/invoices.csv`.\n");
+    r = await cli("sync", "--mark", "use/orders", "--date", "2026-10-06");
+    assert.equal(r.code, 0, r.err);
+    const exported = await report();
+    assert.deepEqual(signals(exported).new, ["glob/Routes invoices.html"], "/invoices is documented nowhere");
+
+    // ─── 14. The table of contents, broken in the middle of an edit: --mark --all marks nothing ───────────────
+    const toc = path.join(root, "content", "toc.json");
+    const good = fs.readFileSync(toc, "utf8");
+    const reference = fs.readFileSync(path.join(root, "sync.json"), "utf8");
+    fs.writeFileSync(toc, good.replace("{", "{,"));
+    r = await cli("sync", "--mark", "--all", "--date", "2026-10-07");
+    assert.equal(r.code, 1, r.out);
+    assert.equal(fs.readFileSync(path.join(root, "sync.json"), "utf8"), reference, "nothing acknowledged");
+    fs.writeFileSync(toc, good);
+    assert.deepEqual(signals(await report()), signals(exported));
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

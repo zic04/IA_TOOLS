@@ -19,7 +19,8 @@ function pageFile(root, config, toc, pageId) {
  * just applied, and, with `autoIntact` (ETUDE-CAPTURES.md §7, G1), the probably intact ones — shared files whose diff
  * touches nothing the page cites, or files it reaches only through proofs that still hold. Never a page something
  * else is pending on (a broken proof, a capture, a label not applied, a removed item it cites), nor one edited by
- * hand since it was marked: that edit has not been checked.
+ * hand since it was marked: that edit has not been checked. A page nobody marked is never marked here, even one
+ * whose label it rewrote: it stays `unmarked`.
  * @param {object} report   a SyncReport, computed before the fixes were applied
  * @returns {{ restamp: string[], intact: string[] }}
  */
@@ -31,7 +32,7 @@ export function pagesToRestamp(report, { withLabels = false, autoIntact = false 
     ...(withLabels ? [] : labelPages),
     ...(report.edited || []),
   ]);
-  const anyIssue = new Set([...pending, ...report.review.map((r) => r.page)]);
+  const anyIssue = new Set([...pending, ...report.review.map((r) => r.page), ...(report.unmarked || [])]);
   const restamp = new Set(report.unchanged);
   for (const id of [...report.proofs.moved.map((m) => m.page), ...(withLabels ? labelPages : [])])
     if (!anyIssue.has(id)) restamp.add(id);

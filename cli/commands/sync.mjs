@@ -64,6 +64,9 @@ export async function run({ ctx, values, positionals = [] }) {
   const pages = values.mark ? positionals : [];
   if ((values.mark || values.all) && values.since !== undefined)
     throw new KitError(EXIT.USAGE, "option.invalid", { error: "--mark/--since" });
+  // --since compares with a commit, never with sync.json (edits, proofs, captures, labels): nothing to restamp from.
+  if (values.apply && values.since !== undefined)
+    throw new KitError(EXIT.USAGE, "option.invalid", { error: "--apply/--since" });
   if (values["auto-intact"] && !values.apply)
     throw new KitError(EXIT.USAGE, "option.invalid", { error: "--auto-intact (--apply)" });
   if (values.mark && !values.all && !pages.length) throw new KitError(EXIT.USAGE, "sync.markNothing");
@@ -167,34 +170,8 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
   }
   writeReportFiles({ root, report, diffs, t: ctx.t });
 
-  if (ctx.json) {
-    ctx.print(JSON.stringify(report, null, 2));
-  } else {
-    ctx.print(ctx.t("cli.sync.written", { folder: ".doc-kit" }));
-    if (since) ctx.print(ctx.paint.dim(ctx.t("cli.sync.sinceNoInventory")));
-    const line = (key, n) => ctx.print(ctx.t(`cli.sync.summary.${key}`, { n }));
-    line("proofsMoved", report.proofs.moved.length);
-    line("proofsBroken", report.proofs.broken.length);
-    line("labels", report.labels.length);
-    line("review", report.review.length);
-    line("captures", report.captures.length);
-    line("new", report.new.length);
-    line("removed", report.removed.length);
-    line("unchanged", report.unchanged.length);
-    if (report.edited.length) line("edited", report.edited.length);
-    line("unmarked", report.unmarked.length);
-    if (report.estimate)
-      ctx.print(
-        ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +
-          (report.estimate.total.cost !== null
-            ? " · " +
-              ctx.t("cli.estimate.cost", {
-                cost: report.estimate.total.cost.toFixed(2),
-                currency: report.estimate.currency || "",
-              })
-            : ""),
-      );
-  }
+  if (ctx.json) ctx.print(JSON.stringify(report, null, 2));
+  else printSummary(ctx, report, since);
 
   if (values.check) {
     const failed = checkFails(report);
@@ -209,6 +186,36 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return failed ? EXIT.CHECK : EXIT.OK;
   }
   return EXIT.OK;
+}
+
+/** The report's summary, as text: one line per category, then the estimate when one was asked for. */
+function printSummary(ctx, report, since) {
+  ctx.print(ctx.t("cli.sync.written", { folder: ".doc-kit" }));
+  if (since) ctx.print(ctx.paint.dim(ctx.t("cli.sync.sinceNoInventory")));
+  for (const file of report.unreadableLabels || [])
+    ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t("cli.sync.labelsUnreadable", { file })}`);
+  const line = (key, n) => ctx.print(ctx.t(`cli.sync.summary.${key}`, { n }));
+  line("proofsMoved", report.proofs.moved.length);
+  line("proofsBroken", report.proofs.broken.length);
+  line("labels", report.labels.length);
+  line("review", report.review.length);
+  line("captures", report.captures.length);
+  line("new", report.new.length);
+  line("removed", report.removed.length);
+  line("unchanged", report.unchanged.length);
+  if (report.edited.length) line("edited", report.edited.length);
+  line("unmarked", report.unmarked.length);
+  if (report.estimate)
+    ctx.print(
+      ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +
+        (report.estimate.total.cost !== null
+          ? " · " +
+            ctx.t("cli.estimate.cost", {
+              cost: report.estimate.total.cost.toFixed(2),
+              currency: report.estimate.currency || "",
+            })
+          : ""),
+    );
 }
 
 /**

@@ -17,6 +17,7 @@ import { scanText, GENERIC, isUrlTemplate, checkSecrets } from "../../engine/che
 import { apiPathsIn } from "../../engine/sync/api-links.mjs";
 import { contentSecurityPolicy } from "../../engine/build/csp.mjs";
 import { extractProofs } from "../../engine/sync/proofs.mjs";
+import { citedLabels } from "../../engine/sync/labels.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { linearAt } from "../tools/growth.mjs";
 import { tempDir } from "../tools/helpers.mjs";
@@ -218,6 +219,25 @@ describe("the proofs of a page (engine/sync/proofs.mjs)", () => {
     assert.deepEqual(
       linear("PROOF_BADGE never closed", 2000, (n) => "[[verified a".repeat(n), extractProofs),
       [],
+    );
+  });
+});
+
+describe("the labels of the pages (engine/sync/labels.mjs)", () => {
+  // Every label is looked for in every page: what is never text in a page is read once a run, however many pages
+  // the documentation has (the cache once held 256 pages, then started again, and each label read every page again).
+  test("citedLabels: hundreds of labels in thousands of pages, the text of each page read once", () => {
+    const flat = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`k${i}`, `Label number ${i}`]));
+    const body = "Click **Label number 7** on the `Orders` page, then the [link](x.md).\n\n- step\n\n    code\n";
+    const { found, n } = linearN(
+      "citedLabels pages",
+      100,
+      (k) => Array.from({ length: k }, (_, i) => ({ id: `p${i}`, markdown: `# Page ${k}-${i}\n\n${body}` })),
+      (pages) => citedLabels(flat, pages),
+    );
+    assert.deepEqual(
+      found.map((l) => [l.key, l.pages.length]),
+      [["k7", n]],
     );
   });
 });

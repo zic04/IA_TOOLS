@@ -24,7 +24,8 @@ import { QUALITY_PATTERNS, functionsOf } from "../../engine/facts/quality.mjs";
 import { IMPORT_PATTERNS, pySpecifiers } from "../../engine/facts/imports.mjs";
 import { apiPathsIn } from "../../engine/sync/api-links.mjs";
 import { PROOF_REF, extractProofs } from "../../engine/sync/proofs.mjs";
-import { LABEL_PATTERNS, replaceLabel, citedLabels, proseOf } from "../../engine/sync/labels.mjs";
+import { LABEL_PATTERNS, replaceLabel, citedLabels } from "../../engine/sync/labels.mjs";
+import { proseOf } from "../../engine/sync/prose.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { INLINE_SCRIPT, SCRIPT_END } from "../../engine/build/csp.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
@@ -333,8 +334,12 @@ const SCANNER_SHAPES = [
   ["", "a:\r"],
   ["", "<script "],
 ];
-/** What opens a part of a page that is never text (engine/sync/labels.mjs, proseOf), put before an input. */
-const PROSE_OPENINGS = ["", "```\n", "~~~\n", "<!--", "<a\n", "- a\n\n    ", "# a\n    ", "---\nk: v\n"];
+/** What opens a part of a page that is never text, or one read before it (engine/sync/prose.mjs, proseOf: a code
+ * span, a fence in a blockquote or a list item, an HTML block, a tag's quoted value), put before an input. */
+const PROSE_OPENINGS = [
+  ...["", "```\n", "~~~\n", "<!--", "<a\n", "- a\n\n    ", "# a\n    ", "> ```\n", "- ```\n", "1.      "],
+  ...["`", "``", "<div>\n", '<a b="', "<a b='", "x <!--", "\\`", "> - ", "<pre>\n", "<script>\n", "> [a]: "],
+];
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */
 const CLOSER_TEXT = { prismaModel: "\n}", createTable: ");" };
 const KNOWN = new Set(PREFIXES.flatMap((p) => UNITS.map((u) => JSON.stringify([p, u]))));
@@ -856,7 +861,7 @@ export const CHECKS = [
   ...patternChecks("sync labels", LABEL_PATTERNS),
   ["sync replaceLabel", (s) => replaceLabel(s, "No", "Non").n + replaceLabel(`**${s}`, "a", "b").n],
   ["sync citedLabels", (s) => citedLabels({ a: "No", b: "aa" }, [{ id: "p", markdown: s }]).length],
-  // What is never text (code blocks, comments, tags over several lines, the front matter), from every kind of opening.
+  // What is never text (code blocks, comments, tags over several lines), from every kind of opening.
   ["sync proseOf", (s) => PROSE_OPENINGS.reduce((n, p) => n + proseOf(p + s).length, 0)],
   ["masking parseEnv", (s) => parseEnv(s).length + parseEnv(`A=${s}`).length],
 ];

@@ -28,9 +28,13 @@ commit sur lequel elles ont été vérifiées, et n'acquitte que ce qu'elles doc
 `new` tant qu'aucune page marquée ne la cite ou que `--mark --all` n'acquitte tout l'inventaire ; un libellé
 renommé reste signalé tant qu'une page non marquée cite encore son ancienne valeur — de même qu'un libellé dont
 l'application a supprimé le fichier de messages (`→ null`). Une page n'acquitte un élément que si elle le nomme en
-entier : `/detail` n'est pas dans `/orders/detail`, ni `/ord` dans `/orders`. `--mark --all` retire aussi un
-libellé qu'aucune page ne cite plus ; une page qui n'est plus écrite quitte `sync.json` au marquage suivant. Le
-diff de chaque page part de son propre commit.
+entier : `/detail` n'est pas dans `/orders/detail`, ni `/ord` dans `/orders`, et `/invoices-export`,
+`/invoices.csv` ou `/invoices/2026` ne nomment pas `/invoices` — une route se termine avant un blanc, un guillemet,
+un crochet, un accent grave, `?`, `#` ou une ponctuation de phrase (`/invoices.`) ; `/invoices/2026` nomme
+`/invoices/[id]`. `--mark --all` retire aussi un libellé qu'aucune page ne cite plus ; une page qui n'est plus écrite
+quitte `sync.json` au marquage suivant. Sans aucune page écrite — une table des matières illisible — un marquage
+est refusé (code de sortie 1) et `sync.json` reste tel quel : rien de ce qui reste à faire n'est acquitté. Le diff
+de chaque page part de son propre commit.
 
 ## Lire le rapport
 
@@ -48,7 +52,7 @@ et un `.doc-kit/sync/<page>.diff` par page à relire :
 | `review` (priorité `probablyIntact`) | Ce fichier partagé a changé, mais rien que la page nomme | Relire, probablement intact |
 | `proofs.moved` | Le texte d'une ligne citée trouvé ailleurs dans le même fichier (ou renommé) | `--apply` corrige |
 | `proofs.broken` | Le fichier a été supprimé, ou le texte ne se trouve plus nulle part | Relire |
-| `labels` | La valeur d'un message cité a changé, ou sa clé a disparu | `--apply --labels` corrige |
+| `labels` | La valeur d'un message cité a changé, ou sa clé a disparu (un fichier de messages au JSON invalide ne fait qu'avertir : ses libellés ne sont pas comparés) | `--apply --labels` corrige |
 | `captures` | Les fichiers de la route ont changé, l'entrée de plan a changé, ou la capture est périmée | Reprendre : `capture --stale --compare` |
 | `new` | Une route, une route API, une table… que la référence n'a jamais vue | La documenter |
 | `removed` | Un élément qu'une page écrite cite encore, disparu de l'application | Corriger les pages listées |
@@ -71,10 +75,18 @@ que l'exécution laisse inchangée — sans effacer ce qui reste à faire : une 
 un libellé. `--labels` va plus loin : il remplace l'ancienne valeur d'un message par la nouvelle, en mot entier
 (`No` n'est jamais remplacé dans `Note`), mais **seulement** dans `**gras**`, du code en ligne qui est le libellé
 lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose ordinaire, où une phrase humaine dépend
-de l'ancienne formulation, ni dans les attributs d'une directive ou la cible d'un lien. Un bloc de code (délimité ou
-indenté), un commentaire HTML, une balise étalée sur plusieurs lignes et l'en-tête YAML ne sont pas du texte : un
-libellé qui s'y trouve n'est ni remplacé ni lu comme cité. `é` écrit en un caractère ou en `e` suivi d'un accent est le même libellé. Rien
-ici ne touche jamais la prose : une page dont le sujet a changé a toujours besoin d'une personne.
+de l'ancienne formulation, ni dans un autre code en ligne (même en gras ou entre guillemets :
+`` **`getByRole('link', { name: 'Approve' })`** `` reste tel quel), les attributs d'une directive, la cible d'un
+lien, une adresse nue (`https://…`), ou un libellé entre crochets qui nomme une définition de lien (`[Approve]` avec
+`[Approve]: approve.md`). Une nouvelle valeur qui contient l'ancienne
+(`Approval chain` → `Approval chain history`) n'est remplacée qu'une fois : relancé, il ne change plus rien. Un bloc de code (délimité ou indenté), un
+commentaire HTML et une balise étalée sur plusieurs lignes ne sont pas du texte : un libellé qui s'y trouve n'est ni
+remplacé ni lu comme cité — lus comme le moteur de rendu du site les lit : du code en ligne comme `` `<!--` ``
+n'ouvre aucun commentaire, et un bloc délimité se ferme avec la citation ou l'élément de liste qui le contient. Il
+n'y a pas d'en-tête YAML : une page qui commence par `---` commence par un filet. `é` écrit en un caractère ou en
+`e` suivi d'un accent est le même libellé. Rien ici ne touche jamais la prose : une page dont le sujet a changé a
+toujours besoin d'une personne, et une page que personne n'a marquée n'est jamais marquée par `--apply`, même
+celle dont il a réécrit un libellé.
 
 Ce que `--apply` réécrit dans une page qu'il laisse à relire n'est pas une retouche à la main : cette page n'est
 pas signalée `edited` pour autant — ni pour un saut de ligne final ajouté ou retiré, un BOM ou des fins de ligne
@@ -96,9 +108,11 @@ page plutôt que de tout marquer d'un coup.
 doc-kit sync --since v2.3.0
 ```
 
-Lit les fichiers, preuves et libellés de l'application **à ce commit** plutôt que depuis `sync.json`, par un git en
-lecture seule. `new` et `removed` sont toujours vides de cette façon : les adaptateurs de couverture ne sont pas
-relancés à un ancien commit, seul le contenu des fichiers l'est.
+Lit les fichiers derrière chaque page **à ce commit** plutôt que depuis `sync.json`, par un git en lecture seule :
+seuls `review` et `unchanged` sont rapportés de cette façon. Preuves, libellés, captures et retouches se comparent
+avec `sync.json`, et les adaptateurs de couverture ne sont pas relancés à un ancien commit : `proofs`, `labels`,
+`captures`, `edited`, `new` et `removed` sont donc toujours vides. `--since` compare et n'enregistre jamais : avec
+`--mark` ou `--apply`, c'est une erreur d'usage (code de sortie 2).
 
 ## Ne rafraîchir que ce qui a changé : `capture --compare` et `--stale`
 
@@ -129,6 +143,11 @@ construction.
 > `保存をクリック` ne cite pas `保存` : une lettre le suit, comme `Approved` ne cite pas `Approve`. Détachez le
 > libellé — `**保存**をクリック` — pour qu'il soit suivi. Chercher un libellé très long est plus lent : jusqu'à la
 > longueur de la page fois celle du libellé.
+
+> [!NOTE] Deux libellés de même valeur, une capture sur plusieurs pages
+> Deux clés de message de même valeur ne se distinguent pas : une page qui la cite est listée — et réécrite par
+> `--labels` — quand l'une ou l'autre change. Une capture montrée par plusieurs pages est enregistrée une fois :
+> marquer l'une d'elles l'acquitte pour toutes.
 
 > [!NOTE] git n'est jamais qu'en lecture
 > `--since`, et le commit affiché par un fichier de faits périmé, viennent de `git show` et `git diff` dans
