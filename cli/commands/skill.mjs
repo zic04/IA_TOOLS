@@ -5,8 +5,14 @@
 // other file in that shared folder is touched):
 //   <skills folder> = --target, otherwise $CLAUDE_CONFIG_DIR/skills, otherwise ~/.claude/skills.
 // {{KIT_PATH}} is replaced with the kit's absolute path (forward slashes) in SKILL.md, references/*.md and
-// scripts/*.mjs. A fingerprint file (.doc-kit-skill.json, inside <skills folder>/doc-kit/) covers both the
-// skill and the agent files, and lets `doctor` report either copy as outdated or modified.
+// scripts/*.mjs (there, only as a JavaScript string, "{{KIT_PATH}}", by the path's JSON: substitute); {{KIT_CLI}}, with
+// the command that runs the kit's CLI by that path (`node "<kit>/cli/doc-kit.mjs"`, never npx: SECURITY.md), there and
+// in the agent files; {{SKILL_PATH}}, with the installed skill's path, in the agent files (the agents with Bash name
+// the skill's guard, scripts/bash-guard.mjs, as their PreToolUse hook, in Claude Code's exec form: hookPath,
+// SECURITY.md). Every placeholder of a file is replaced in one pass: a value is never read again, so a folder whose
+// name holds a placeholder keeps it. A fingerprint file (.doc-kit-skill.json,
+// inside <skills folder>/doc-kit/) covers both the skill and the agent files, and lets `doctor` report either copy as
+// outdated or modified.
 // Only the doc-kit folder is ever written or replaced; a doc-kit folder without fingerprint (not installed by
 // this command) is left alone unless --force. The agent files are always written or replaced (they have
 // no "foreign" concept: the shared agents folder is never owned exclusively by doc-kit).
@@ -66,8 +72,72 @@ export const FINGERPRINT = ".doc-kit-skill.json";
 export const SKILL_SOURCE = path.join(KIT_ROOT, "skill", SKILL_NAME);
 const AGENTS_SUBDIR = "agents";
 const PLACEHOLDER = "{{KIT_PATH}}";
+/** Replaced where {{KIT_PATH}} is and in the agent files: the kit's CLI by its path, the one form the agents' guard
+ * lets through (the briefs get it from brief.mjs, the same way: skill/doc-kit/scripts/common.mjs kitCommand). */
+const CLI_PLACEHOLDER = "{{KIT_CLI}}";
+/** Replaced in the agent files: the installed skill's folder, where their guard lives. */
+const SKILL_PLACEHOLDER = "{{SKILL_PATH}}";
 /** Files where the placeholder is replaced. */
 const SUBSTITUTED = /^(SKILL\.md|references\/[^/]+\.md|scripts\/[^/]+\.mjs)$/;
+
+/**
+ * A path as it stands in an agent's hook, `args: ["<path>/scripts/bash-guard.mjs"]` (Claude Code's exec form: no shell
+ * reads it): escaped for YAML's double quotes, whose escapes are JSON's (`"`, `\`, the control characters), and the
+ * three characters YAML 1.1 reads as line breaks, which JSON leaves as they are.
+ * @param {string} p
+ */
+export function hookPath(p) {
+  let s = JSON.stringify(p).slice(1, -1);
+  for (const [c, escape] of [
+    ["\u0085", "\\u0085"],
+    [" ", "\\u2028"],
+    [" ", "\\u2029"],
+  ])
+    s = s.split(c).join(escape);
+  return s;
+}
+
+/**
+ * `text` with its placeholders replaced (`values`: [token, value], each token starting with `lead`), all of them in one
+ * pass from left to right: what a value holds is never read again, so a folder whose name holds a placeholder (a
+ * skills folder under `{{KIT_CLI}}`) stays as it is, never another value put in it.
+ * @param {string} text  @param {Array<[string, string]>} values  @param {string} lead
+ */
+function replaceOnce(text, values, lead) {
+  let out = "";
+  let from = 0;
+  for (let at = text.indexOf(lead, from); at >= 0; at = text.indexOf(lead, from)) {
+    const hit = values.find(([token]) => text.startsWith(token, at));
+    out += text.slice(from, at) + (hit ? hit[1] : text[at]);
+    from = at + (hit ? hit[0].length : 1);
+  }
+  return out + text.slice(from);
+}
+
+/**
+ * A file of the skill with its placeholders replaced (`values`: [placeholder, value]), in one pass (replaceOnce). In
+ * the skill's scripts, only where a placeholder stands as a JavaScript string, `"{{KIT_PATH}}"`, replaced whole by the
+ * value's JSON: a string whatever the path holds (a quote, a backquote, `${`, a backslash); one in a comment stays as
+ * it is, so that no path ever ends a comment. In the other files (text), everywhere.
+ * @param {string} file  @param {string} text  @param {Array<[string, string]>} values
+ */
+function substitute(file, text, values) {
+  if (!file.endsWith(".mjs")) return replaceOnce(text, values, "{{");
+  const json = values.map(
+    ([token, value]) => /** @type {[string, string]} */ ([JSON.stringify(token), JSON.stringify(value)]),
+  );
+  return replaceOnce(text, json, '"{{');
+}
+
+/**
+ * The command that runs the kit's CLI by its path, as the skill's texts give it: `node "<kit>/cli/doc-kit.mjs"`, the
+ * path escaped for bash's double quotes. The same as skill/doc-kit/scripts/common.mjs kitCommand, which the briefs and
+ * the agents' guard use (test/unit/skill.test.mjs).
+ * @param {string} kitPath  the kit's absolute path, forward slashes
+ */
+export function kitCli(kitPath) {
+  return `node "${kitPath.replace(/["$`\\]/g, "\\$&")}/cli/doc-kit.mjs"`;
+}
 
 /**
  * Skills folder: --target, $CLAUDE_CONFIG_DIR/skills, ~/.claude/skills.
@@ -149,19 +219,36 @@ export function installSkill({ skills, force = false, source = SKILL_SOURCE, kit
   // nothing but <skills>/doc-kit is ever created in the skills folder.
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "doc-kit-skill-"));
   const kitPath = slash(path.resolve(kitRoot));
+  const cli = kitCli(kitPath);
   const files = listFiles(source);
   for (const f of files) {
     const dest = path.join(staging, f);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     if (SUBSTITUTED.test(f))
-      fs.writeFileSync(dest, fs.readFileSync(path.join(source, f), "utf8").split(PLACEHOLDER).join(kitPath));
+      fs.writeFileSync(
+        dest,
+        substitute(f, fs.readFileSync(path.join(source, f), "utf8"), [
+          [PLACEHOLDER, kitPath],
+          [CLI_PLACEHOLDER, cli],
+        ]),
+      );
     else fs.copyFileSync(path.join(source, f), dest);
   }
 
   const agentNames = agentFileNames(source);
   const agentsDest = agentsFolder({ target: skills });
   fs.mkdirSync(agentsDest, { recursive: true });
-  for (const name of agentNames) fs.copyFileSync(path.join(source, AGENTS_SUBDIR, name), path.join(agentsDest, name));
+  const skillPath = hookPath(slash(path.resolve(folder)));
+  for (const name of agentNames) {
+    const text = fs.readFileSync(path.join(source, AGENTS_SUBDIR, name), "utf8");
+    fs.writeFileSync(
+      path.join(agentsDest, name),
+      substitute(name, text, [
+        [SKILL_PLACEHOLDER, skillPath],
+        [CLI_PLACEHOLDER, cli],
+      ]),
+    );
+  }
 
   const fingerprint = {
     kit: BRAND.version,

@@ -28,7 +28,7 @@ plans, plus a separate production plan with its own prefix.
 **With a Product space**: add `functional-spec` batches (codes `fs1`, `fs2`…), each a group of `features.json`
 entries and the pages they produce (feature sheets, plus the shared `business-rules`, `roles-matrix` and
 `process` pages, usually their own small batch since they are not tied to one feature). The **analysis wave**
-comes before them: one `behaviour-analysis` analyst per feature of `features.json` (ARCHITECTURE.md §6.11a), so
+comes before them: one `behaviour-analysis` analyst per feature of `features.json` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11a), so
 that each `functional-spec` batch starts from the Product digests of its features. **For the takeover
 dossier** (the Develop space, and the Operate part of Administer): `code-health` is one batch of its own (it judges `api-surface`, `dependencies`, `agent-instructions`,
 `tests-quality` and `threat-model` together, so that one reviewer keeps a consistent view of the facts); so are
@@ -55,9 +55,9 @@ batch of its own).
 
 **Centrally managed** (orchestrator only): `content/toc.json`, `content/glossary.json`, `features.json` (unless
 explicitly delegated to the corrections agent), `content/home.md`, `doc.config.mjs`, `WRITING-GUIDE.md`,
-`captures/targets.mjs`, `facts/*.json` (written only by `doc-kit facts`), `sync.json` (written only by
-`doc-kit sync --mark`), the engine (the kit, never changed by a writing agent), and the commands that write these
-files or touch access: `doc-kit new`, `doc-kit connect`, `doc-kit demo`, `doc-kit facts`. No agent runs a git
+`captures/targets.mjs`, `facts/*.json` (written only by `{{KIT_CLI}} facts`), `sync.json` (written only by
+`{{KIT_CLI}} sync --mark`), the engine (the kit, never changed by a writing agent), and the commands that write these
+files or touch access: `{{KIT_CLI}} new`, `{{KIT_CLI}} connect`, `{{KIT_CLI}} demo`, `{{KIT_CLI}} facts`. No agent runs a git
 command.
 
 Why: agents work at the same time; two concurrent writes of a shared file lose one agent's work. Anything that touches
@@ -67,19 +67,19 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 
 | Wave | Agents in parallel | Start condition |
 |---|---|---|
-| 0 | `doc-kit facts` (orchestrator, no agent) | `init` + `doctor` green |
+| 0 | `{{KIT_CLI}} facts` (orchestrator, no agent) | `init` + `doctor` green |
 | 1 | inventory (1 Explore) | facts generated |
 | 2 | reference page(s) (orchestrator, or 1 agent per space) | toc written |
 | 2b | the analysis wave: `behaviour-analysis`, one `doc-kit-analyst` per feature (up to 8 at a time), then `analysis.mjs check` and the digests | toc written, captures tried; only with a Product space or any feature sheet |
 | 3 | all writing batches: `writing-batch` and `functional-spec`, every space together (example: 8); the technical counterparts of the feature sheets (`feature-mechanism`, one per feature) | reference page(s) approved, captures tried, digests made |
-| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `doc-kit audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
+| 3b | the depth loop's deepen wave: `deepen` (`haiku`), one feature sheet per agent, after `{{KIT_CLI}} audit` and `analysis.mjs depth`; at most two rounds per feature | wave 3 written, `build --draft` green |
 | 4 | findings verification + page corrections (2) | reports of wave 3 consolidated |
 | 5 | fact sheets of the reference journey (2), then its pages | — |
 | 6 | other journeys + troubleshooting (example: 5) | reference journey written |
 | 7 | 2nd consolidation (2) | reports of wave 6 |
 | apart | `code-health`, `access-ownership`, `system-dossier`, `production-technical`, `architecture-reconcile` (each its own agent) | facts generated (the first three), portal screenshots received (production-technical), or a DAT ingested and `inputs reconcile` run (architecture-reconcile); disjoint files, so each can join any wave |
 
-- Translations (ARCHITECTURE.md §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
+- Translations (`{{KIT_PATH}}/ARCHITECTURE.md` §6.12, brief `translate`): one agent per batch of at most 6 pages, all of the
   same target language (never mixed); each batch can join any wave once its pages are written.
 - Agents run in the background; you are notified when they finish, no need to poll. Paste each report into the
   consolidation file as soon as it arrives.
@@ -91,7 +91,7 @@ a central file comes back through the **report** ("proposed glossary terms", "su
 **Launching an agent**: the type named in the brief's own front matter (`agent: <type>`), also printed by
 `brief.mjs` after it writes the file — `doc-kit-writer` for writing and updating, `doc-kit-reviewer` for the
 inventory, the verification of findings and the production dossier, `doc-kit-triage` for the maintenance `triage` brief,
-`doc-kit-analyst` for `behaviour-analysis` (ARCHITECTURE.md §6.11, "Economy of the agents"; the new briefs
+`doc-kit-analyst` for `behaviour-analysis` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11, "Economy of the agents"; the new briefs
 `behaviour-analysis`, `feature-mechanism` and `deepen`: §6.11a). The model is the one `brief.mjs` prints (`DEFAULT_ROUTING`, `llm.routing`), passed at launch. The
 prompt is **the brief's full text**, with its common part first and its variables last, followed by one line:
 
@@ -115,7 +115,7 @@ agent ends, `node scripts/usage.mjs log --brief … --agent … --model … --to
 with the estimate. That total is the agent's last context, not its spend (a sixth to a third of the tokens it used, §8): for the spend,
 `node scripts/usage.mjs scan --transcripts ~/.claude/projects/<project>/<session>/subagents` once at the end (each
 scan appends one entry; `report`'s total is then the scans', the logged floor shown apart), or the statistics
-hook (`doc-kit skill install --hooks`).
+hook (`{{KIT_CLI}} skill install --hooks`).
 
 ## 4. Brief placeholders
 
@@ -133,7 +133,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `appUrl` | `DOC_KIT_URL` or `<PREFIX>_URL` when set (same precedence as the CLI), else `app.url` | http://localhost:3000 |
 | `envPrefix` | `env.prefix` (else the slug in upper case, as the kit does) | ACME |
 | `docDir` | documentation folder (absolute) | …/acme-orders/docs/manual |
-| `appDir` | `extra.briefs.appDir`, else `app.dir` (written by `doc-kit init`: the application root), else the documentation folder's parent or grandparent that holds `.git`, else its grandparent. `brief.mjs` warns when it was derived, and when the coverage source sits in a separate front end (`frontend/` with its own `package.json`): the routes inventory then misses the back end | …/acme-orders |
+| `appDir` | `extra.briefs.appDir`, else `app.dir` (written by `{{KIT_CLI}} init`: the application root), else the documentation folder's parent or grandparent that holds `.git`, else its grandparent. `brief.mjs` warns when it was derived, and when the coverage source sits in a separate front end (`frontend/` with its own `package.json`): the routes inventory then misses the back end | …/acme-orders |
 | `plansDir` | `capture.plans` | captures/plans |
 | `kitPath` | the kit's location | (set at install) |
 | `version`, `date` | `version` of the config (else the app's `package.json`); today | 2.3.1; 2026-10-01 |
@@ -152,7 +152,7 @@ placeholders and their values; `--list` lists the templates. Default output: `.d
 | `feature`, `featureTitle`, `size`, `level` | `--var` or, for `level`, `extra.briefs.level` (`behaviour-analysis`; `feature` also in `deepen` and `feature-mechanism`): the feature's id and title in the features file, its size (S, M, L: the reading budget) and the detail level (`essential`, `standard`, `detailed`) | F-03, Search orders, M, standard |
 | `page`, `sheet`, `gaps` | `--var`: `page` = the page id the brief works on (the page of the gaps between the DAT and reality for `architecture-reconcile`; the feature sheet for `behaviour-analysis` and `deepen`, the counterpart for `feature-mechanism`); `sheet` = the feature sheet's id (`feature-mechanism`); `gaps` = the gaps `analysis.mjs depth` lists (`deepen`) | use/orders/search; use/orders/search; B-01.match, US-02.criteria |
 | `focus` | `--var` (optional, `behaviour-analysis`): the items `analysis.mjs depth` lists to analyse again; the brief then asks for a second pass on those items only | B-01.match (Search an order · Matching), US-02.criteria |
-| `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder; `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
+| `scriptsDir`, `behavioursFile` | `scriptsDir` = the skill's `scripts` folder, escaped for bash's double quotes (`node "{{scriptsDir}}/analysis.mjs"`, as `{{KIT_CLI}}`); `behavioursFile` = the project's own kinds of behaviour, when it has some (optional) | …/skills/doc-kit/scripts; standard/behaviours.json of the project |
 | `otherWriters`, `productionNotes`, `dataPolicy`, `factSheet`, `referenceJourney` | `--var` or `extra.briefs` (optional) | "inv, ast, tbl"; "open no order other than…"; "fictitious customers only"; yes; take-over/order-journey |
 
 Conditional blocks in templates: `{{#if key}}…{{/if}}` (non-empty value), `{{#if key=value}}…{{/if}}`,
@@ -195,7 +195,7 @@ owner.
 
 ## 7. Splitting a page that is too long
 
-Beyond about 2,000 words (each template sets its own limit; `doc-kit audit` lists the pages over it), split into
+Beyond about 2,000 words (each template sets its own limit; `{{KIT_CLI}} audit` lists the pages over it), split into
 sub-pages. It is a central operation, because it changes the toc.
 1. Declare each sub-page in `content/toc.json`, right after its parent, with `"level": 2` and an id that extends the
    parent's (`take-over/security/sign-in`).
@@ -209,7 +209,7 @@ On site A, 37 sub-pages were created this way in one pass, with a script that mo
 ## 8. The cost of an agent, and the step budget
 
 **Model**: an agent's cost ≈ its number of round-trips × its context size. Cache reads dominate — each round-trip
-re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (ARCHITECTURE.md §6.11) cuts what one
+re-reads the whole context accumulated so far, so every agent pays for its round-trips' growing history. A context folder (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11) cuts what one
 read costs; it does not by itself cut how many reads an agent takes. **The step budget is the main lever**: how
 many extra reads an agent allows itself beyond the context file and the page's own template, how many times it
 runs a build, whether it reviews a screenshot mid-way.
@@ -228,7 +228,7 @@ per token, but there are far more of them per round-trip than any other kind.) T
 14 %; the step budget bought the rest. Conformance to the standard did not move: fewer steps did not mean fewer
 checks, only fewer *exploratory* ones. The sober method also cut words by 24 % and proofs by 19 % at equal
 conformance: conformance measures structure, not depth. The analysis of each feature and the depth loop
-(ARCHITECTURE.md §6.11a) are what bring the depth back.
+(`{{KIT_PATH}}/ARCHITECTURE.md` §6.11a) are what bring the depth back.
 
 **The analysis of a feature, measured** (pilot of 0.4.0, the demo, two features of size S at level `standard`, one
 analyst each on Sonnet; token-equivalent as above, the output estimated from what the agents wrote, ÷ 4, the
@@ -261,5 +261,5 @@ transcripts recording a partial output count for a response that calls a tool):
   now asks to check each of those facts. M and L sizes are still to measure, on a real project.
 
 **The rule**: an agent that would exceed its step budget stops and says so in its report (what it still needed),
-rather than exploring further to resolve it itself. `writing-batch` and `update` (ARCHITECTURE.md §6.11) apply
+rather than exploring further to resolve it itself. `writing-batch` and `update` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11) apply
 this: at most 3 extra reads per page for a writer, at most 1 for an updater.

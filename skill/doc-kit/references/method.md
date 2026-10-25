@@ -12,7 +12,7 @@ Contents: [Orders of magnitude](#orders-of-magnitude) · [0 Scoping](#0--scoping
 [7 Journeys](#7--end-to-end-journeys-and-troubleshooting) · [8 Takeover dossier](#8--takeover-dossier) · [9 Checks](#9--checks-and-review) · [10 Delivery](#10--delivery-and-maintenance) ·
 [The update cycle](#the-update-cycle)
 
-Sites A and B below predate spaces, `doc-kit facts` and `doc-kit sync` (ARCHITECTURE.md §6.1a, §6.9, §6.10):
+Sites A and B below predate spaces, `{{KIT_CLI}} facts` and `{{KIT_CLI}} sync` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a, §6.9, §6.10):
 their numbers, given by their four sections Use, Configure, Administer and Take over, stay a faithful lower bound
 for a site without spaces. Where this file describes the four spaces (Use, Product, Administer, Develop), the
 Product space's feature sheets, the takeover dossier or the update cycle, it gives the method, not a fabricated
@@ -42,16 +42,16 @@ Decisions to make with the owner, **before any code**:
 
 | Decision | Options | What depends on it |
 |---|---|---|
-| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (ARCHITECTURE.md §6.1a); which of phases 5 and 8 apply |
+| Space(s) | `use` · `product` · `admin` · `develop`: all four (the default of `init`), a subset or none (`init --spaces`) | `spaces` in `content/toc.json` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a); which of phases 5 and 8 apply |
 | Audience | users, product owners, administrators and operators, technical successors | one space per audience, and its parts (`{{KIT_PATH}}/standard/structure.md`) |
 | Language | `en` or `fr` | `language` in `doc.config.mjs`, briefs `assets/briefs/<lang>/` |
 | Level of detail | `essential` (the required rubrics of each behaviour, the stories, the rules, the permissions) · `standard` (the default: also the fields, states, messages word for word, one acceptance criterion per story, the limits) · `detailed` (also every optional rubric, the variants, a criterion per behaviour) | the `level` of every `behaviour-analysis` brief: `extra: { briefs: { level: "standard" } }` in `doc.config.mjs`; the cost grows with it |
-| Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (ARCHITECTURE.md §6.11): the per-million-token price of each model in play |
+| Cost tracking | tokens only · tokens + cost in a currency | `llm: { currency, prices }` in `doc.config.mjs` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11): the per-million-token price of each model in play |
 | Capture mode | prepared demo · read-only production · none | `capture.target` (`init --target`), phase 4, safety, `capture.setup` |
 | Visible data | real in clear · masked · fictitious | **written** decision of the owner; `masking.patterns` |
 | Routes never to open | pages that write when rendered, customer data exports | `capture.forbidden` |
-| Deliverable | HTML only · self-contained export of the folder | phase 10, `doc-kit export` |
-| Access | who signs in (SSO, MFA), access window | `doc-kit connect` |
+| Deliverable | HTML only · self-contained export of the folder | phase 10, `{{KIT_CLI}} export` |
+| Access | who signs in (SSO, MFA), access window | `{{KIT_CLI}} connect` |
 | Infrastructure | portal screenshots provided? infrastructure code readable? | phase 8 |
 
 - Site A: "every capture on production, without any change", real data in clear by the owner's decision. The decision
@@ -64,16 +64,16 @@ Decisions to make with the owner, **before any code**:
 
 | Question | Answers | What follows |
 |---|---|---|
-| Where will the screenshots be taken? | local or demo application · production, read-only · no screenshots | `doc-kit init --target local\|demo` · `--target production --url <production address>` · `--capture none` |
-| Open the browser now to sign in? (only with screenshots and a sign-in) | yes · later | `doc-kit connect`: the user signs in in the visible window and presses Enter · the command written in the decisions |
+| Where will the screenshots be taken? | local or demo application · production, read-only · no screenshots | `{{KIT_CLI}} init --target local\|demo` · `--target production --url <production address>` · `--capture none` |
+| Open the browser now to sign in? (only with screenshots and a sign-in) | yes · later | `{{KIT_CLI}} connect`: the user signs in in the visible window and presses Enter · the command written in the decisions |
 
-`--target production` writes `capture.readOnly: true`; the kit then refuses `readOnly: false`, refuses `doc-kit demo`,
-prints a PRODUCTION banner before every `doc-kit capture` and asks for a confirmation (default No; `--yes` without a
+`--target production` writes `capture.readOnly: true`; the kit then refuses `readOnly: false`, refuses `{{KIT_CLI}} demo`,
+prints a PRODUCTION banner before every `{{KIT_CLI}} capture` and asks for a confirmation (default No; `--yes` without a
 terminal, once the user agreed). `doctor` shows the target and warns while `capture.forbidden` is empty.
 
 ## 1 · Set up the project
 
-- `doc-kit init <app-dir>` creates `<app-dir>/docs/manual/` (`--dir` to change it). `<app-dir>` is the application
+- `{{KIT_CLI}} init <app-dir>` creates `<app-dir>/docs/manual/` (`--dir` to change it). `<app-dir>` is the application
   **root**, even when the front end sits in `frontend/` or `web/`. It detects the framework, the product name (Next.js
   `metadata.title`, else `package.json` without its `-frontend`/`-web` suffix), the version file (`version.txt` or
   `VERSION` at the root first) and the `.env` files to mask, then asks for the product name, language, application
@@ -81,7 +81,7 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   is for) (`--name`, `--lang`, `--url`, `--capture`, `--target`, `--auth`, `--spaces <ids>|none`, `--framework`
   answer in advance; `--yes` asks nothing and opens no browser). In a terminal, it
   then offers to open the browser (`connect`) and a first test screenshot (`capture --preview`). Its **recap** is printed before anything is written, even with `--yes`: read it
-  (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `doc-kit` with no command
+  (renaming afterwards: `product.name` and the titles of `content/toc.json`). Running `{{KIT_CLI}}` with no command
   starts the **guided mode**, which detects the current state and proposes the next step.
 - `app.dir` (written by `init`) is the application root given to the agents as `appDir`. With a **separate front
   end**, the coverage adapter only sees the front's routes: `brief.mjs` warns about it, and the inventory brief must
@@ -95,21 +95,21 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   - `capture.cookies` / `capture.storage`: language and theme set before each capture
     (for example `[{ name: "NEXT_LOCALE", value: "en" }]`);
   - `capture.forbidden`: route regular expressions never opened (filled after reading the detail pages' code).
-- `doc-kit doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
+- `{{KIT_CLI}} doctor`: Node, Chromium, kit range, config, paths, `.gitignore`, session, contrasts, installed skill. Nothing
   starts until it has no ✖ (exit code 3 environment, 2 configuration, 1 project).
-- **Then, before any agent**: `doc-kit facts [--network] [--tools]` (ARCHITECTURE.md §6.9) reads the application's
+- **Then, before any agent**: `{{KIT_CLI}} facts [--network] [--tools]` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.9) reads the application's
   code and writes `facts/*.json` — `dependencies`, `env`, `api`, `db`, `agents`, `secrets`, `tests` — committed
   with the documentation project. It calls no LLM: a fact is what a pattern matched, not yet a judgment. This is
   the deterministic, zero-token half of phase 2 and the main input of phase 8's `code-health` and
   `access-ownership`; it costs nothing to run again after every later code change (phase "The update cycle").
   `--network` sends only what `facts.network.allow` lists (nothing by default): review `network.candidates`
-  (`doc-kit facts --network --json`) with the user before listing any.
+  (`{{KIT_CLI}} facts --network --json`) with the user before listing any.
 
 ### No-screenshot mode
 
 When the scoping decides "capture mode: none" (no access to the application, sensitive data, a first quick pass):
-`doc-kit init --capture none` (or `capture.mode: "none"` in `doc.config.mjs`). The skeleton then has no example
-capture plan and no "interactive screens" callout; its pages, like those of `doc-kit new`, describe "The screen" with
+`{{KIT_CLI}} init --capture none` (or `capture.mode: "none"` in `doc.config.mjs`). The skeleton then has no example
+capture plan and no "interactive screens" callout; its pages, like those of `{{KIT_CLI}} new`, describe "The screen" with
 a table `| Element | What it shows |`, one row per element in reading order, exact labels in bold. Skip phase 4;
 `capture` and `connect` refuse to run, `doctor` and the guided mode stop asking for a session, the briefs tell the
 writers to write tables (`screenshots=none`), and `audit` counts `annotated` as n/a, so level 2 stays reachable.
@@ -118,12 +118,12 @@ keeps the same items.
 
 ## 2 · Code inventory
 
-- `doc-kit inventory --json > .doc-kit/inventory.json`: what the coverage adapters see. `doc-kit facts` (phase 1)
+- `{{KIT_CLI}} inventory --json > .doc-kit/inventory.json`: what the coverage adapters see. `{{KIT_CLI}} facts` (phase 1)
   has already run: the reviewer reads its output too, instead of re-deriving by hand what a fact file already
   states.
 - One **`doc-kit-reviewer`** agent (read-only, "very thorough") with the `inventory` brief. It cannot write: save
   its report as is in `.doc-kit/inventory-<slug>.md`, which every later brief cites — except the batch writers of
-  phase 5, who read their pages' context files instead (never the whole inventory: ARCHITECTURE.md §6.11).
+  phase 5, who read their pages' context files instead (never the whole inventory: `{{KIT_PATH}}/ARCHITECTURE.md` §6.11).
 - Expected content:
   1. real navigation (menu, administration, top bar, floating elements), with its source files;
   2. every route by section, with permissions, hidden pages, orphans and redirects;
@@ -135,8 +135,8 @@ keeps the same items.
 - Lesson: on site A, a roles document in the repository announced 8 roles and 11 permissions (the code: 9 and 17), and a
   screen inventory described the mock-up, not the application. Writers are warned from the brief on: "always check in
   the code".
-- **With a Product space**: `doc-kit inventory --features --write` groups the adapters' routes, API routes and
-  i18n keys into candidate features (by their first static segment, ARCHITECTURE.md §6.8), each a suggested
+- **With a Product space**: `{{KIT_CLI}} inventory --features --write` groups the adapters' routes, API routes and
+  i18n keys into candidate features (by their first static segment, `{{KIT_PATH}}/ARCHITECTURE.md` §6.8), each a suggested
   `F-xx` id — a starting `features.json` for phase 3's plan and phase 5's `functional-spec` batches. The
   inventory report also gives each feature its size (S, M, L), its epic and the behaviours to document in depth:
   the sizes budget phase 4b.
@@ -145,15 +145,15 @@ keeps the same items.
 
 1. **Table of contents** (`content/toc.json`): sections, groups, pages (`id`, `title`, `menuTitle`, `summary`,
    `routes`, `permissions`, `template`); `level: 2` for a sub-page. Two ways that worked:
-   - `doc-kit new <id> --template <type> --title "…" [--parent <id>]` page by page (skeleton + toc entry);
+   - `{{KIT_CLI}} new <id> --template <type> --title "…" [--parent <id>]` page by page (skeleton + toc entry);
    - a small script that writes the whole toc at once (for example a helper `P(id, title, menuTitle, summary, routes,
      permissions)` with permission abbreviations taken from the inventory legend).
-   **With spaces**: declare `spaces: ["use", "product", "admin", "develop"]` (what `doc-kit init` writes; keep
-   only the spaces the project has readers for) and give each section a `space` (ARCHITECTURE.md §6.1a); a
+   **With spaces**: declare `spaces: ["use", "product", "admin", "develop"]` (what `{{KIT_CLI}} init` writes; keep
+   only the spaces the project has readers for) and give each section a `space` (`{{KIT_PATH}}/ARCHITECTURE.md` §6.1a); a
    page's own `space` overrides its section's, and `counterpart` joins the pages of one subject — a feature sheet, its
    screen, its technical page, its runbook — in a topic group (one page or a list; declared once, shown on each). A space of the project's own names the kind it behaves like: `{ "id": "ops", "kind": "admin", "title":
    "Operations" }`.
-2. **Coverage**: `doc-kit check coverage` must find each route in the `routes` field of a page (the `features`
+2. **Coverage**: `{{KIT_CLI}} check coverage` must find each route in the `routes` field of a page (the `features`
    adapter too, when `features.json` exists: a feature is covered once a written `feature` page cites its id).
 3. The project's **`WRITING-GUIDE.md`**: where the exact labels live, the reference page(s), capture prefixes,
    rules of the capture mode, decisions from scoping.
@@ -168,12 +168,12 @@ keeps the same items.
 ## 4 · Captures
 
 Common preparation:
-- **Demo**: an idempotent setup script (`capture.setup`, run by `doc-kit demo`). Site B: accounts, logs and
+- **Demo**: an idempotent setup script (`capture.setup`, run by `{{KIT_CLI}} demo`). Site B: accounts, logs and
   notifications inserted, two reference data sets, the AI assistant pointed at a fake provider.
-- **Production** (`capture.target: "production"`): `doc-kit connect` opens a visible browser, the person signs in
+- **Production** (`capture.target: "production"`): `{{KIT_CLI}} connect` opens a visible browser, the person signs in
   (SSO, MFA), presses Enter, and the session is written in `.doc-kit/`. Read `capture-safety.md` in full first. Each
-  `doc-kit capture` shows the PRODUCTION banner and asks; an agent passes `--yes` only for a batch the user approved.
-- Trial on the reference page: `doc-kit capture "<prefix>-*" --preview`, then look at each `<id>.zones.png`.
+  `{{KIT_CLI}} capture` shows the PRODUCTION banner and asks; an agent passes `--yes` only for a batch the user approved.
+- Trial on the reference page: `{{KIT_CLI}} capture "<prefix>-*" --preview`, then look at each `<id>.zones.png`.
 
 Two organisations worked:
 
@@ -189,18 +189,18 @@ the `main` target for the area without the menu; small runs of 3 to 8 captures p
 
 With a Product space (or any feature sheet or technical counterpart), once the plan and the captures are done and
 before the writing: each feature is traced once in the code, and every space's writer starts from a digest of that
-analysis. For each feature of `features.json`: `doc-kit context <its sheet>`, then one `doc-kit-analyst`
+analysis. For each feature of `features.json`: `{{KIT_CLI}} context <its sheet>`, then one `doc-kit-analyst`
 (brief `behaviour-analysis`, estimated first, up to 8 at a time: the first alone, the others in the next message); then `analysis.mjs check`, `analysis.mjs
 findings` (candidates for the consolidation file) and `analysis.mjs digest <feature> --for product|develop|use|admin`.
-The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, ARCHITECTURE.md §6.11a.
+The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md` phase 4b, `{{KIT_PATH}}/ARCHITECTURE.md` §6.11a.
 
 ## 5 · Writing in batches
 
-- **Before generating a brief**, for every page of the batch: `doc-kit context <page>` writes
+- **Before generating a brief**, for every page of the batch: `{{KIT_CLI}} context <page>` writes
   `.doc-kit/context/<page>.md` — dependencies, excerpts, exact labels, facts rows, glossary terms — the only
-  reading a writer needs for the application (ARCHITECTURE.md §6.11); never hand it the whole inventory or
+  reading a writer needs for the application (`{{KIT_PATH}}/ARCHITECTURE.md` §6.11); never hand it the whole inventory or
   table of contents instead. For a type that supports it (`variables`, `api-surface`, `data-model`,
-  `dependencies`, `agent-instructions`), also `doc-kit new <id> --prefill` before the brief runs: the page's main
+  `dependencies`, `agent-instructions`), also `{{KIT_CLI}} new <id> --prefill` before the brief runs: the page's main
   table arrives already filled from the facts.
 - One brief per batch, **estimated first**: `node scripts/brief.mjs writing-batch --estimate --project . --var
   code=u1 --var prefix=u1 --var pages=@.doc-kit/pages-u1.txt --var captureMode=production`, then the same without
@@ -217,9 +217,9 @@ The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md`
   the technical mechanism belongs to the page's `counterpart` in the Develop space, written in phase 8.
 - Every agent's final report has the same outline (pages, captures and zones, blocked writes, candidate findings,
   errors, glossary, not captured): it is pasted as is into the consolidation file.
-- **Each writer ends its own pages with** `doc-kit sync --mark <page> --sources …`, once that page's checks pass,
+- **Each writer ends its own pages with** `{{KIT_CLI}} sync --mark <page> --sources …`, once that page's checks pass,
   from the documentation folder: it records the page as checked against the current application, so that a later
-  `doc-kit sync` (the update cycle) can tell it apart from a page nobody has touched since.
+  `{{KIT_CLI}} sync` (the update cycle) can tell it apart from a page nobody has touched since.
 - An instruction discovered along the way is added to the briefs **and** sent to the agents already running (site A:
   "open no other order record" once a detail page was found to write when rendered).
 - With analyses: a `functional-spec` writer starts from each sheet's Product digest, and the technical
@@ -227,12 +227,12 @@ The level of detail chosen at scoping is the brief's `level`. Detail: `SKILL.md`
 
 ## 5b · Depth loop
 
-After the writing wave: `doc-kit build --draft`, `doc-kit audit` (it writes `.doc-kit/audit.json`), then
+After the writing wave: `{{KIT_CLI}} build --draft`, `{{KIT_CLI}} audit` (it writes `.doc-kit/audit.json`), then
 `analysis.mjs depth`. For each feature, `deepen` means one `doc-kit-writer` on `haiku` with brief `deepen` for the gaps it lists, and
 `analyse again` means `behaviour-analysis` with `focus`, then the digest again. At most two rounds per feature;
 `analysis.mjs questions` then writes `.doc-kit/open-questions.md` for the product owner. The loop ends when `depth`
 prints ✔ (nothing left to deepen or to analyse again); what stays open goes to `questions`. A new loop starts
-with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, ARCHITECTURE.md §6.11a.
+with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, `{{KIT_PATH}}/ARCHITECTURE.md` §6.11a.
 
 ## 6 · Consolidation
 
@@ -247,7 +247,7 @@ with `analysis.mjs depth --reset <feature>`. Detail: `SKILL.md` phase 5b, ARCHIT
      keeps it unless the code shows otherwise, and every new finding gets an Owner (start it "—" when none was
      proposed), a Status and a Due date;
    - `page-corrections`: fixes the errors reported in the other pages and adds the glossary terms.
-5. Then the orchestrator runs `doc-kit build` (strict) and carries the new finding numbers into the pages that discuss
+5. Then the orchestrator runs `{{KIT_CLI}} build` (strict) and carries the new finding numbers into the pages that discuss
    them (the "candidate → number" table of the verification report).
 
 Site A ran two consolidations: after the 8 batches, then after the journeys (5 writers, 37 candidates, 5 duplicates;
@@ -276,7 +276,7 @@ architecture document, resources, variables) go to the Operate part of the Admin
 
 Four disjoint agents, each able to start as soon as its own inputs are ready (none waits for another):
 
-- **`code-health`** (one `doc-kit-reviewer`, from `facts/*.json`, ARCHITECTURE.md §6.9): `api-surface`
+- **`code-health`** (one `doc-kit-reviewer`, from `facts/*.json`, `{{KIT_PATH}}/ARCHITECTURE.md` §6.9): `api-surface`
   (authentication and tenant isolation of every route, row-level security from `facts/db.json`), `dependencies`
   (packages that do not exist — `--network` checks each one against its public registry — licences, out of
   date), `agent-instructions` (every rule in `AGENTS.md`-like files, confirmed/obsolete/contradicted, hidden
@@ -290,7 +290,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   contacts the owner.
 - **`system-dossier`** (one `doc-kit-writer`, from `facts/db.json`, `facts/infra.json` and `facts/tool-knip.json` when present):
   `runbook` (install, build, deploy, roll back, scheduled jobs, backup and restore — every command checked in a
-  script, a Dockerfile instruction or a CI workflow, never assumed); `data-model` (from `doc-kit new <id>
+  script, a Dockerfile instruction or a CI workflow, never assumed); `data-model` (from `{{KIT_CLI}} new <id>
   --prefill` on `facts/db.json`: personal data, retention, processors); `code-map` (a C4-style context diagram,
   containers, components, integrations, duplicated or dead code); `adr`, one sub-page per reconstructed
   decision, its "How it was reconstructed" section naming the code, the existing document or the person's
@@ -298,7 +298,7 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
   already readable (comments, `CHANGELOG.md`, an answer the orchestrator already obtained), not from running
   `git log` itself.
 - **`architecture-reconcile`** (one `doc-kit-reviewer`), when a DAT was ingested: inputs are the first pass
-  `doc-kit inputs reconcile` writes (`.doc-kit/inputs/reconcile.json`: confirmed, said by the DAT without a trace,
+  `{{KIT_CLI}} inputs reconcile` writes (`.doc-kit/inputs/reconcile.json`: confirmed, said by the DAT without a trace,
   in the code but not in the DAT, the hosts), the converted DAT and the facts. One Develop page, linked from
   Administer: what the code confirms, what only the DAT says, what only the code does, addresses and
   environments, flows, questions for the DAT's author. A trace is evidence, never proof; each statement cites
@@ -314,16 +314,16 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 
 ## 9 · Checks and review
 
-- `doc-kit build` (strict): links, anchors, legend = zones, required sections of templates, captures and diagrams
+- `{{KIT_CLI}} build` (strict): links, anchors, legend = zones, required sections of templates, captures and diagrams
   present.
-- `doc-kit check all`: coverage, links, tables (no overflow), images (orphans, heavy), secrets.
-- `doc-kit audit`: score and maturity level (1 Skeleton → 4 Takeover), with the "to do for the next level" list;
+- `{{KIT_CLI}} check all`: coverage, links, tables (no overflow), images (orphans, heavy), secrets.
+- `{{KIT_CLI}} audit`: score and maturity level (1 Skeleton → 4 Takeover), with the "to do for the next level" list;
   with `spaces` declared, also a "Level by space" table, each space held to the criteria of its kind (`n/a`:
   `written2` in Develop, `proofs4` outside Develop, `takeover4` in Use and Product, the depth of the feature sheets —
   `featureSheets3`, `scenarios4`, `behaviourDepth4` — outside Product; Administer's `takeover4` counts only its two
   required pages, the technical architecture document and Operate).
-- Visual review: `doc-kit view <page> --theme light|dark`, `--tour 2` for the guided tour, diagrams in light and dark.
-- `doc-kit optimize` when the HTML is heavier than what is easy to share.
+- Visual review: `{{KIT_CLI}} view <page> --theme light|dark`, `--tour 2` for the guided tour, diagrams in light and dark.
+- `{{KIT_CLI}} optimize` when the HTML is heavier than what is easy to share.
 - `node scripts/usage.mjs report`: totals the phase's cost by brief, agent type and model, against the waves'
   estimates — a large gap is worth understanding before the next phase repeats it.
 
@@ -331,10 +331,10 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 
 - The "maintaining the documentation" page is up to date: date and version of the capture campaign, procedure, detail
   pages already opened in production (site A: 10 records, which can be reopened without effect).
-- Session deleted: `doc-kit connect --forget`. Nothing is committed by an agent.
-- `doc-kit sync --mark --all`: records every written page as checked against this version, so the first run of
+- Session deleted: `{{KIT_CLI}} connect --forget`. Nothing is committed by an agent.
+- `{{KIT_CLI}} sync --mark --all`: records every written page as checked against this version, so the first run of
   the update cycle (below) after delivery reports `unchanged`, not `unmarked`, for all of them.
-- `doc-kit export <target> --with-dist [--zip]` for a self-contained handover; with `spaces`, `--with-dist` also
+- `{{KIT_CLI}} export <target> --with-dist [--zip]` for a self-contained handover; with `spaces`, `--with-dist` also
   copies every per-space export (`dist/<Product>-Documentation-use.html`, `-product`, `-admin`, `-develop`);
   checklist `{{KIT_PATH}}/standard/delivery.md`.
 - Maintenance after an application release: see "The update cycle" below. After a kit release: `doc-kit
@@ -343,22 +343,22 @@ Four disjoint agents, each able to start as soon as its own inputs are ready (no
 ## The update cycle
 
 What to run after an application release, so the documentation catches up without a full rewrite
-(ARCHITECTURE.md §6.10-6.11); none of it calls an LLM before the triage step.
+(`{{KIT_PATH}}/ARCHITECTURE.md` §6.10-6.11); none of it calls an LLM before the triage step.
 
-1. `doc-kit facts [--network]`: refresh the deterministic facts (zero tokens; skip sources that have not
-   changed with `--source` if the application is large). `doc-kit bricks` shows which brick is stale (the inputs,
-   each facts source, the tools, the documentation audit), and `doc-kit bricks run <id> --deps --stale` runs the
+1. `{{KIT_CLI}} facts [--network]`: refresh the deterministic facts (zero tokens; skip sources that have not
+   changed with `--source` if the application is large). `{{KIT_CLI}} bricks` shows which brick is stale (the inputs,
+   each facts source, the tools, the documentation audit), and `{{KIT_CLI}} bricks run <id> --deps --stale` runs the
    deterministic steps of those that are.
-2. `doc-kit sync`: compares the application now with `sync.json` (or a git ref with `--since`) and writes
+2. `{{KIT_CLI}} sync`: compares the application now with `sync.json` (or a git ref with `--since`) and writes
    `.doc-kit/sync.md`, `.doc-kit/sync-report.json` and one `.doc-kit/sync/<page>.diff` per flagged page — proofs
    moved or broken, labels whose value changed, pages to review by priority (`direct`, `shared`,
    `probablyIntact`), captures from a changed route, new or removed coverage elements, pages never marked.
-3. `doc-kit sync --apply [--labels]`: the mechanical fixes only (a moved proof's line number, a changed label,
+3. `{{KIT_CLI}} sync --apply [--labels]`: the mechanical fixes only (a moved proof's line number, a changed label,
    both only inside bold text, code spans and badges) — never prose; restamps the pages left otherwise
    unchanged.
-4. `doc-kit capture --stale --compare`: retakes only the captures `sync` flagged; a capture under the pixel
+4. `{{KIT_CLI}} capture --stale --compare`: retakes only the captures `sync` flagged; a capture under the pixel
    threshold keeps its old image (no binary diff for git), only its zone file updates.
-5. For every page still listed under `review` or `captures`: `doc-kit context <page> --update` writes its
+5. For every page still listed under `review` or `captures`: `{{KIT_CLI}} context <page> --update` writes its
    context file with, in addition to the usual content, why it was flagged, its diff, and its captures'
    before/after sheets.
 6. **Triage** (`doc-kit-triage`, haiku, read-only, brief `triage`): one decision per page from its `--update`
@@ -371,12 +371,12 @@ What to run after an application release, so the documentation catches up withou
     the `update` agent works from the fresh digest (outside its 1-read budget). A new depth loop starts
     with `node scripts/analysis.mjs depth --reset <feature>`, before `deepen`.
 7. **Update** (`doc-kit-writer`, sonnet, brief `update`), one wave for the `edit` and `rewrite` pages: each
-   changes only what its context file's flagged reasons require, then ends with `doc-kit sync --mark <page>
+   changes only what its context file's flagged reasons require, then ends with `{{KIT_CLI}} sync --mark <page>
    --sources …`.
-7a. With `languages` declared (ARCHITECTURE.md §6.12): `doc-kit translate status` after step 2 already lists
+7a. With `languages` declared (`{{KIT_PATH}}/ARCHITECTURE.md` §6.12): `{{KIT_CLI}} translate status` after step 2 already lists
     what fell stale from the pages the cycle just touched (`sync`'s own report reminds of it too, category
     "translations"); batch the pages that need a translation the same way as phase 8b.
-8. `doc-kit check all`, then `doc-kit build` (strict); `doc-kit sync --check` gates CI (exit code 1 on anything
+8. `{{KIT_CLI}} check all`, then `{{KIT_CLI}} build` (strict); `{{KIT_CLI}} sync --check` gates CI (exit code 1 on anything
    but `unchanged`/`unmarked`). `node scripts/usage.mjs report` against the cycle's estimate.
 
 A facts file older than the application's current commit is reported stale by `sync`'s summary: re-run step 1

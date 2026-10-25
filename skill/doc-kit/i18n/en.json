@@ -198,5 +198,32 @@
     "skippedSecret": "{feature} is skipped: one of its texts holds a secret-like value",
     "appDirDerived": "app.dir is not set: the proofs are checked against {dir}, a folder guessed from the documentation's",
     "appDirDerived_todo": "set app.dir in doc.config.mjs to the application's root"
+  },
+  "guard": {
+    "refused": "doc-kit guard: command refused — {reason}",
+    "allowed": "this agent's Bash runs only the kit by its path, {cli} <command> … (cd <the documentation folder> && first), node <the skill>/scripts/<script>.mjs by its path, and read-only tools with their reading options (ls, cat, head, tail, wc, grep, rg, find…); Read, Grep and Glob do the rest",
+    "input": "the hook's input could not be read",
+    "noKit": "node <the kit>/cli/doc-kit.mjs",
+    "empty": "an empty command, or an operator with nothing on one side",
+    "newline": "more than one line: run one command per call",
+    "nul": "a NUL character, which bash drops from what it reads: write the command without it",
+    "quote": "an unterminated quote, or a backslash at the end",
+    "expansion": "a shell expansion ($, a backquote, a ~ that starts a word other than ~ or ~/, a ~ right after = or :): write the value itself",
+    "redirect": "a redirection: only >/dev/null, >&1 and >&2 are allowed, alone or after a 1 or a 2 written against them, unquoted (2>&1, 2>/dev/null); a file is written with Write or Edit",
+    "background": "a background job (&)",
+    "group": "a subshell or a group of commands ((, ), {, })",
+    "glob": "an unquoted wildcard (*, ? or [): quote it, or use the Glob tool",
+    "command": "{name} is not allowed for this agent",
+    "option": "{name} {option} is not among the options this agent may give {name}: only options that read are, never one that runs a program or writes a file",
+    "optionValue": "{name} {option} is followed by {value}, which starts with -: such a word is read as an option, whatever comes before it (attach a value to its option: -e-x, --regexp=-x)",
+    "number": "{name} {option} takes a number here, + or - before it at most: {value} is not one",
+    "operands": "{name} takes {max} file name at most here: it would write to the next one",
+    "cd": "cd comes first, takes one folder, and is followed by &&: cd <folder> && …",
+    "npx": "npx and npm exec run the first doc-kit they find in a node_modules/.bin up to the root — the application's among them — or install one from the registry: run the kit by its path, {cli} <command> …",
+    "kitCli": "a doc-kit found on the PATH may be another one than the kit, the application's included: run the kit by its path, {cli} <command> …",
+    "docKitMissing": "name the doc-kit command first: {cli} <command> [options] (alone, doc-kit starts the guided mode)",
+    "docKitCommand": "doc-kit {name} is run by the orchestrator or by the user, never by an agent",
+    "node": "node runs only the kit's CLI, {cli}, and the skill's scripts ({scripts}), by their absolute path (on Windows, with its drive: C:/…, never /c/… or ~)",
+    "plans": "--plans would load capture plans, which are code, from another folder: the configuration names the plans folder"
   }
 }

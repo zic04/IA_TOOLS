@@ -32,11 +32,8 @@ import {
   WORK_DIR,
   useMessages,
   briefModel,
-  appDirInfo,
-  baseVariables,
   checkLanguage,
   citedPaths,
-  fill,
   findProject,
   flattenedPages,
   loadConfig,
@@ -44,15 +41,14 @@ import {
   pageTemplatesTable,
   parseOptions,
   parsePageList,
-  readVars,
   run,
   setMessageLanguage,
   t,
   templateAgent,
   outputBySize,
-  templateVariables,
   warn,
 } from "./common.mjs";
+import { appDirInfo, baseVariables, fill, readVars, templateVariables } from "./placeholders.mjs";
 
 useMessages("brief");
 

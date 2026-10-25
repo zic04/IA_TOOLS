@@ -11,7 +11,7 @@ Contents: [Vibe-coded applications](#vibe-coded-applications) · [Windows and sh
 A vibe-coded application — written largely by an AI assistant from natural-language prompts — tends to fail the
 same way twice. A 2025 study of AI-generated coding tasks found an OWASP Top 10 vulnerability in 45 % of them;
 none of that is specific to one model or one tool, so check for it on every takeover, whatever generated the
-code. The `code-health` brief (ARCHITECTURE.md §6.9, `doc-kit facts`) exists to make these checks routine rather
+code. The `code-health` brief (`{{KIT_PATH}}/ARCHITECTURE.md` §6.9, `{{KIT_CLI}} facts`) exists to make these checks routine rather
 than a one-off review.
 
 - **Access control missing, or only on the client** — a page hides a button with CSS or a client-side `if`, but
@@ -28,7 +28,7 @@ than a one-off review.
   misunderstood. → `facts/secrets.json` and `facts/env.json` (never a value); check a browser-sent variable
   against the server/client boundary of the framework in use.
 - **A package that does not exist ("slopsquatting")** — an assistant invents a plausible package name that was
-  never published; an attacker can register it later and ship anything. → `doc-kit facts --source dependencies
+  never published; an attacker can register it later and ship anything. → `{{KIT_CLI}} facts --source dependencies
   --network` checks each direct dependency `facts.network.allow` lists against its public registry; list every
   `exists: false` on `dependencies`'s "Packages that do not exist", and anything the facts could not check (no
   `--network`, or kept back: `unlisted`, `unproven`, `private`) as "to confirm".
@@ -42,7 +42,7 @@ than a one-off review.
 - **Agent instructions as a hidden specification, sometimes with invisible characters** — `AGENTS.md`,
   `CLAUDE.md` or a `.cursorrules` file can carry a real behavioural rule that exists nowhere else, or, more
   rarely, characters invisible to a human reviewer (zero-width joiners, bidi overrides) that steer an agent
-  without a human noticing — a known prompt-injection technique. → `doc-kit facts --source agents` lists every
+  without a human noticing — a known prompt-injection technique. → `{{KIT_CLI}} facts --source agents` lists every
   file and flags `hidden` characters by codepoint; check each rule against the code (confirmed, obsolete,
   contradicted) on `agent-instructions`.
 - **Dependencies out of date** — a framework or library several major versions behind, often because an
@@ -68,7 +68,7 @@ than a one-off review.
   of a text; the backslashes of a Windows path or a regular expression (`\s`) can vanish on the way (seen while writing
   this skill: a version pattern and a kit path came out truncated). → Write files and scripts with the file-writing
   tool, then run them; do not pass code through the shell.
-- **Environment variables** — `ACME_SESSION=… node …` works in Git Bash, not in PowerShell. → Prefer `doc-kit` options
+- **Environment variables** — `ACME_SESSION=… node …` works in Git Bash, not in PowerShell. → Prefer the kit's options
   and `doc.config.mjs`; in PowerShell, `$env:NAME = "…"`.
 
 ## Captures
@@ -82,7 +82,7 @@ than a one-off review.
   capture (`images/zones/<id>.json`): that is what the engine does; never merge them.
 - **Number badges hiding text** — the badge sits left of the zone; when the zone touches the left edge of the frame
   (less than 32 px), it moves to the inner corner and hides the start of the text. → Give the frame some margin
-  (`margin`, 34 px by default), target an element that leaves room, check with `doc-kit view <page> --tour 2`.
+  (`margin`, 34 px by default), target an element that leaves room, check with `{{KIT_CLI}} view <page> --tour 2`.
 - **Legend and zones out of step** — the build refuses ("N zone(s) captured but M item(s) in the legend"). → After
   each recapture, recount the `:::screen` list. `::capture` is refused for a capture with zones: use `:::screen`.
 - **Zone on the wrong element** — several "Save" buttons, a label repeated in the menu. → `exact: true`, `within`
@@ -104,7 +104,7 @@ than a one-off review.
 - **Empty page in read-only mode** — its data comes through a server action (`POST`), which is blocked. → Describe it
   from the code; do not bypass the lock (dashboard counters, directory synchronisation).
 - **Expired session** — redirect to sign-in or 401, captures of the sign-in page. → Stop, report; the person runs
-  `doc-kit connect` again.
+  `{{KIT_CLI}} connect` again.
 - **Permission system refusal** — reading administration endpoints refused as "secret exploration". → Do not change
   the means; read the values on screen; write the refusal in the report.
 - **Incomplete masking** — a gateway URL or a database host visible: masking only knows the local `.env`. → Review
@@ -131,7 +131,7 @@ than a one-off review.
   reports anchors.
 - **Anchor to another writer's page** — their headings change during parallel writing. → Link without an anchor to
   other writers' pages; anchors only to your own pages.
-- **Tables overflowing** — at 1,440 px, code columns push the page. → `doc-kit check tables`; shorten cells, split the
+- **Tables overflowing** — at 1,440 px, code columns push the page. → `{{KIT_CLI}} check tables`; shorten cells, split the
   table.
 - **Line numbers drifting** — proofs age with the code. → State the checked version on the findings page ("line numbers
   of version 2.3.1"); re-check at each release.
@@ -153,10 +153,10 @@ than a one-off review.
 
 ## Delivery
 
-- **File too heavy** — 34 MB on one site, impossible to e-mail. → `doc-kit optimize` (re-encodes images above the
+- **File too heavy** — 34 MB on one site, impossible to e-mail. → `{{KIT_CLI}} optimize` (re-encodes images above the
   threshold, keeps the new version only if it saves at least 20 %); share through the repository or a file share.
 - **Forgotten session** — a production session file left on the machine gives access to the application while it is
-  valid (30 days on one site). → `doc-kit connect --forget`, an item of the delivery checklist.
+  valid (30 days on one site). → `{{KIT_CLI}} connect --forget`, an item of the delivery checklist.
 - **Production export in the repository** — a production configuration export had been committed. → Git-ignore it
   before producing it.
 - **Unknown capture date** — the version shown is the build's, not the campaign's. → The kit writes `version` and
