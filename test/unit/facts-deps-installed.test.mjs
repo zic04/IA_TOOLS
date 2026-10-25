@@ -620,13 +620,24 @@ describe("metadataFields: a METADATA header as Python's email parser reads it", 
     });
   });
 
-  test("a folded field of a CRLF header: its lines joined by a LF, each CR before a line break left out", () => {
+  test("a folded field of a CRLF header: its lines joined by a LF, the CR before each line break left out", () => {
     const text = "Name: x\r\nLicense: MIT\r\n  and more\r\n\tand a tab\r\nVersion: 1.0\r\n  folded too\r";
     assert.deepEqual(metadataFields(text), {
       name: "x",
       version: "1.0\n  folded too",
       expression: null,
       license: "MIT\n  and more\n\tand a tab",
+      classifiers: [],
+    });
+    assert.equal(metadataFields("License: MIT\r\n  a\r\r\n  b").license, "MIT\n  a\r\n  b", "one CR left out, not two");
+  });
+
+  test("a continuation line before any field folds into nothing: the header is read on", () => {
+    assert.deepEqual(metadataFields("  lead\nName: x\nLicense: MIT\n"), {
+      name: "x",
+      version: null,
+      expression: null,
+      license: "MIT",
       classifiers: [],
     });
   });
