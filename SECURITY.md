@@ -30,7 +30,8 @@ this file gives access to the application with the rights of the person who sign
   single rename. Windows ignores that mode: there the file takes the rights of its folder, so keep the project in a
   folder only you can read (your user profile).
 - `doc-kit doctor` reports a session file tracked by git; `doc-kit check secrets` reports a session file found
-  anywhere else in the project, whatever its size, or tracked by git.
+  anywhere else in the project, whatever its size (one over 5 MB is told by its first 64 KB, as `export` tells it
+  below), or tracked by git.
 - `doc-kit export` never copies a `.doc-kit/` folder (at any depth), the file named by `<PREFIX>_SESSION` /
   `DOC_KIT_SESSION`, any JSON file that is a browser session, environment files (`.env*`, `.envrc`), keys and
   certificates (`*.pem`, `*.key`, `*.p8`, `*.p12`, `*.ppk`, `id_rsa`…), tool credentials (`.npmrc`, `.netrc`,
@@ -98,7 +99,8 @@ for a mere mention:
   secrets, SendGrid (`SG.`), Hugging Face (`hf_`), DigitalOcean (`dop_v1_`, `doo_v1_`, `dor_v1_`), Twilio API keys
   (`SK` and 32 hexadecimal digits), Discord webhooks and Microsoft Teams incoming webhooks;
 - the value of an assignment to a secret's name, whatever the words before it: `SECRET_KEY`, `DB_PASSWORD`,
-  `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`…, after `=`, `:`, `:=` or `=>`, quoted
+  `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`…, or a secret's word glued to a name in
+  capitals (`PGPASSWORD`, `MYSQLPASSWORD`, `VAULTTOKEN`), after `=`, `:`, `:=` or `=>`, quoted
   or not, and the text of an XML element or setting named so, on one line (`<password>…</password>` in Maven's
   `settings.xml`, `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`, a .NET `appSettings`). The value
   is read on the name's line, up to a character other than an ASCII letter, a digit or
@@ -110,8 +112,25 @@ for a mere mention:
   `passwd`, `pwd`, `pass`, `pw`, `passphrase`), from 8 digits (`DB_PASSWORD=73829164`). A name merely starting so (`KEYBOARD`, `TOKENIZER`) is not one. For the key of anything else
   (`STRIPE_KEY`, `CACHE_KEY`), the value must have 16 characters or more and look generated; a public name
   (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`) is never a secret's. The password of a connection string
-  (`Password=`, `Pwd=`) is read inside one only (`Server=db;Password=…`): a lone `password = …` is an assignment;
+  (`Password=` or `Pwd=` written as a word, its value unquoted) is a connection string's next to another pair, after a
+  `;` or a blank (`Server=db;Password=…`, `Password=…;Server=db`, a libpq DSN `host=db user=app password=…
+  dbname=orders`), whatever its value, in capitals too (`Password=ORDERS2024PROD;`), but a placeholder or a variable's
+  name in capitals with an underscore; a lone `password = …` is an assignment (and the floor below reads it from 6
+  characters), and so is `password:` or a quoted value next to a pair;
 - the signature of a signed URL (`sig=`, `Sig=`, `X-Amz-Signature=`…, in any case);
+- the floor: the two value rules of 0.4.1 run after the detectors above, reading the text as they read it, so that
+  what 0.4.1 reported is still reported (`test/unit/secret-recall.test.mjs` checks a table of such lines and eleven
+  realistic files holding secrets): one of the words `password`, `passwd`, `secret`, `token`, `api_key` (`api-key`,
+  `apikey`), `client_secret` or `access_key`, written as a word (`db.password`, `x-api-key`, `--password`; not
+  `DB_PASSWORD`), then `:` or `=` and a value of 16 characters or more of letters, digits and `_-+/=.` holding a digit
+  and a letter, on the name's line or the next (`password:` then `  Summer2024Winter99`); and `Password=` or `Pwd=`,
+  written as a word, then a value of 6 characters or more up to a blank, a quote or a `;` (`password=postgres`,
+  `--password=Summer2024Winter`, `password=$ecretPa55w0rd`). What they find is reported whatever the exceptions
+  below say, with only these: a reference in code (a member that names a secret's field, `Password = model.Password;`;
+  a call, `GetPassword()`, a word alone before a parenthesis, `Summer(2024)`, or a value holding a number of two
+  digits or more, `Orders2024Prod(1)`, being a password; an index by a quoted key, `configuration["DbPassword"]`; a
+  shell's or Windows' variable in capitals, `$DB_PASSWORD`, `%DB_PASSWORD%`), a placeholder (`change-me` and
+  `replace-me` among them), and the `,` or `)` of code after a value (`password=********,` is a mask);
 - last, a fallback by entropy: a value assigned to any name, or quoted, of 20 to 256 characters, holding lower case,
   upper case and digits, whose kind of character (lower case, upper case, digit) changes from one letter or digit to
   the next at least 45 times in 100, as in a random token (a name made of words and numbers changes far less), and
@@ -127,12 +146,13 @@ reference (`process.env.…`, `os.environ…`). Under a secret's name (or the ke
 under a secret's name, a reference written as code: a variable's name in capitals with an underscore, unquoted
 (`DB_PASSWORD_VALUE`), or quoted when it holds no digit, is wrapped in underscores or holds a secret's word
 (`"__REPLACE_AT_DEPLOY__"`, `"OPENAI_API_KEY"`; `"S3CR_ET99_ZQ"` is a value), a sigil and a name
-(`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a member
-(`config.jwt.secret`) or members joined by `+` (`r.C0.ESC+r.C0.ESC`, minified code), a path (`/run/secrets/db`), a
-comparison (`token === …`); unquoted, a call or an index
-(`getPassword()`, `configuration["DbPassword"]`) and, under a name that is not in capitals (code rather than an
-environment file), a name in code of several words (`hashedPassword`, `new_password`); unquoted after `:`, a CSS
-pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
+(`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a path
+(`/run/secrets/db`), a comparison (`token === …`); unquoted, a member (`config.jwt.secret`) or members joined by `+`
+(`r.C0.ESC+r.C0.ESC`, minified code), a call or an index (`getPassword()`, `configuration["DbPassword"]`) and, under a
+name that is not in capitals (code rather than an environment file), a name in code of several words
+(`hashedPassword`, `new_password`): a value holding a number of two digits or more is neither a member nor a name in
+code (`password: SummerHoliday2024`, `password: Summer2024.Winter99` and `ya29.…` are values); unquoted after `:`, a
+CSS pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
 `.password:picture-in-picture{`) and, under a name in lower case ending in `secret` (a Helm value), a resource's name
 of lower-case words joined by `-`, `.` or `/` (`tlsSecret: wildcard-tls-certificate`); a documentation's example,
 letters only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). A name holding `existing` or
@@ -144,7 +164,8 @@ query or fragment parameter whose name says nothing of a secret (`?list=`, `&fbc
 name ends in a secret's word, or in one a URL gives a secret (`sig`, `signature`, `token`, `key`, `secret`,
 `password`, `credential`, `session`, `sid`, `auth`), is read. An OAuth authorisation code (`?code=`) is not: it is
 used once, within minutes, and every provider's documentation shows one. A value two detectors find is reported
-once, by the first (a Google key in a URL's `key=`: `cloudKey`).
+once, by the first (a Google key in a URL's `key=`: `cloudKey`). These exceptions never hide what the floor finds
+(above).
 
 Limits: the detectors are patterns and a measure, not a proof.
 
@@ -155,12 +176,17 @@ Limits: the detectors are patterns and a measure, not a proof.
 - Under a secret's name, a password passes when it is shorter than 8 characters (16 for letters only), holds a
   character the value stops at (a blank: `"correct horse battery staple"` is read as `correct`; `:`, `,`, `;`, a
   bracket, a parenthesis, `^`, `?`, a letter outside ASCII) before its 8th, is on the line after its name, or is
-  written like one of the references above: `MySecretPassword2024` or `SummerHoliday2024` unquoted under a name
-  in lower case (`password: SummerHoliday2024`), `PROD_DB_PASS_2024` unquoted (a variable's name in capitals:
+  written like one of the references above: a name in code with one digit at most unquoted under a name in lower
+  case (`db_password: OrdersProdValue1`), `PROD_DB_PASS_2024` unquoted (a variable's name in capitals:
   `SECRET=PROD_DB_PASS_2024`), `@dmin2024Prod` or `$ecretPa55w0rd` (a sigil and a name), `my.pass.word` (a
   member), `supersecretpassword` (letters with a secret's word), `!Password` (a YAML tag), lower-case words joined by
   `-` under a name in lower case ending in `secret` (a resource's name), or the default of a shell expansion. A
-  number of fewer than 8 digits, or under a token's or a secret's name, is not one.
+  number of fewer than 8 digits, or under a token's or a secret's name, is not one. The floor finds some of them
+  all the same (after `Password=` or `Pwd=` from 6 characters; after one of 0.4.1's words, 16 characters or more
+  holding a digit), as 0.4.1 did.
+- A secret's word glued to a name in lower case (`pgpassword=`, `dbpassword:`) is not a secret's name, nor is a name
+  of more than 128 characters (only the floor reads one, by its last word), nor a setting written without `=` or `:`
+  (Redis' `requirepass Orders2024Prod`).
 - On a command line, a password after a blank (`--password value`, `-p value`) is not looked for; `--password=value`
   is. An XML element's text is read on one line, without a blank, 256 characters at most; a setting only as
   `<add key="…" value="…">`, its key first.

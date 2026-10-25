@@ -9,8 +9,9 @@
 //            a JSON file, PGP, PuTTY; a "-----BEGIN PRIVATE KEY-----" line alone is documentation), a JWT, the
 //            password of a connection string or of a URL, a cloud or service token, the value of an assignment to a
 //            secret's name (SECRET_KEY, DB_PASSWORD…: any value of 8 characters or more, assignedPassword) or of an
-//            XML element or setting named so, the signature of a signed URL, and last a random-looking value under
-//            any name (entropy); placeholders ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse",
+//            XML element or setting named so, the signature of a signed URL, then the two value rules of 0.4.1 as a
+//            floor (what it found is still found), and last a random-looking value under any name (entropy);
+//            placeholders ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse",
 //            "change-me", an UPPER_CASE variable name, a shell default…) and references written as code
 //            ($DB_PASSWORD, config.password, getPassword()) are not values (engine/check/secret-values.mjs: GENERIC,
 //            re-exported here); a value two detectors find is reported once

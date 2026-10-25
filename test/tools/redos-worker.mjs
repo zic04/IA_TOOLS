@@ -175,6 +175,14 @@ const PREFIXES = [
   // A compound name; a quoted value (the entropy fallback).
   "DB_PASSWORD=",
   'x = "',
+  // The floor (0.4.1's rules) and the connection strings: a glued name, a DSN's pair before, a value on the next
+  // line, a lone password in code before a call, an index, a member.
+  "PGPASSWORD=",
+  "host=db password=",
+  "password:\n  ",
+  "Password = a.b(",
+  'Password = c["',
+  "f(password=",
   "verify=",
   "app.get(",
   "@app.get(",
@@ -357,6 +365,13 @@ const SCANNER_SHAPES = [
   ["", "#password:-webkit-a"],
   ["", "${DB_PASSWORD:-a1b2c3d4"],
   ["o.key=", "r.C0+"],
+  // Runs of name characters that never reach a separator (a name is read from the start of its run only), pairs of a
+  // DSN one after the other, values ended by the commas and parentheses of code.
+  ["", "a."],
+  ["", "a--"],
+  ["", "1.a-"],
+  ["", "a=b password=c1d2e3 "],
+  ["password=a", ",)"],
   ['{"cookies": [', '{"origins": ["\\"x", '],
 ];
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */

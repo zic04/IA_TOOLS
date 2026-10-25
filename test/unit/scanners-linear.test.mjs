@@ -237,19 +237,32 @@ describe("check secrets finds what its former form found (engine/check/secrets.m
     };
     /**
      * What scanText gives `ignore`, in order, with the former token: the fallback (entropy) last, on the lines where
-     * no other detector reported (one `ignored` did not set aside).
+     * no other detector reported (one `ignored` did not set aside), and never a value a detector before reported
+     * (the same start: the floor after the detectors that found it first).
      */
     const calls = (text, ignored = () => false) => {
       const lineOf = (m) => lineAt(text, m.index);
       const pairOf = (m) => [(m.groups?.v ?? m[0]).trim(), tokenAround(text, m.index, m.index + m[0].length)];
       const accepted = (d) =>
-        [...text.matchAll(new RegExp(d.re.source, d.re.flags))].filter((m) => !d.accept || d.accept(m));
-      const named = GENERIC.filter((d) => !d.fallback).flatMap(accepted);
-      const reported = new Set(named.filter((m) => !ignored(...pairOf(m))).map(lineOf));
-      const fallback = GENERIC.filter((d) => d.fallback)
+        [...text.matchAll(new RegExp(d.re.source, d.re.flags + "d"))].filter((m) => !d.accept || d.accept(m));
+      const reported = new Set();
+      const values = new Set();
+      const given = [];
+      const visit = (fallback) => (m) => {
+        const at = m.indices?.groups?.v?.[0] ?? m.index;
+        if ((fallback && reported.has(lineOf(m))) || values.has(at)) return;
+        given.push(pairOf(m));
+        if (ignored(...pairOf(m))) return;
+        values.add(at);
+        if (!fallback) reported.add(lineOf(m));
+      };
+      GENERIC.filter((d) => !d.fallback)
         .flatMap(accepted)
-        .filter((m) => !reported.has(lineOf(m)));
-      return [...named, ...fallback].map(pairOf);
+        .forEach(visit(false));
+      GENERIC.filter((d) => d.fallback)
+        .flatMap(accepted)
+        .forEach(visit(true));
+      return given;
     };
     const tokens = [
       "eyJabcdefgh",

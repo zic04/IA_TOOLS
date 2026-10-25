@@ -1,8 +1,9 @@
 // The value detectors of `check secrets` (engine/check/secrets.mjs, which runs them): what a secret's value looks
 // like, by format (private keys, JWTs, connection strings, credentials in a URL, cloud and service tokens, an
-// assignment to a secret's name, signed URLs) and last by entropy, and what is never one (a placeholder, a reference
-// written as code). Also used by `pack`, `backlog export`, `inputs ingest` and the `secrets` facts (SECURITY.md,
-// RULES.md S5: every expression here is measured by the ReDoS harness, through GENERIC).
+// assignment to a secret's name, signed URLs), then the two rules of 0.4.1 as a floor (what they found is still
+// found), last by entropy, and what is never one (a placeholder, a reference written as code). Also used by `pack`,
+// `backlog export`, `inputs ingest` and the `secrets` facts (SECURITY.md, RULES.md S5: every expression here is
+// measured by the ReDoS harness, through GENERIC).
 
 /** A placeholder, a variable name or a masked value: not a secret. */
 export const PLACEHOLDER =
@@ -29,20 +30,26 @@ const SECRET_WORDS = new Set(["secret", "token", "password", "passwd", "pwd", "p
 const REFERENCE_WORDS = new Set(["existing", "pull"]);
 /** Words that make a name ending in "key" a secret's: `API_KEY`, `SECRET_KEY`, `accessKey`, `PRIVATE_KEY`… */
 const KEY_WORDS = new Set(["api", "secret", "access", "private", "client", "auth", "signing", "encryption", "master"]);
+/** A name in capitals, an environment variable's (`PGPASSWORD`, `DB_PASSWORD`). */
+const ENV_NAME = /^[A-Z][A-Z\d_]*$/;
+/** The secret's words a name in capitals may end in, glued to the word before (`PGPASSWORD`, `MYSQLPASSWORD`). */
+const GLUED_WORDS = ["password", "passwd", "passphrase", "token", "secret"];
 
 /**
- * What a name says of its value: "secret" when its last word says so (`GITHUB_TOKEN`, `DB_PASSWORD`, `clientSecret`)
- * or it ends in "key" after a word that makes it one (`SECRET_KEY`, `aws_secret_access_key`, `apiKey`); "key" for the
- * key of anything else (`STRIPE_KEY`, `CACHE_KEY`, `sortKey`), whose value must look generated; null for a word merely
- * starting so (`KEYBOARD`, `TOKENIZER`), a public name, the name of a reference to a resource (`existingSecret`,
- * `imagePullSecret`; `secretName`, `secretRef` end in another word) and any other name.
+ * What a name says of its value: "secret" when its last word says so (`GITHUB_TOKEN`, `DB_PASSWORD`, `clientSecret`),
+ * or ends so in a name in capitals (`PGPASSWORD`), or it ends in "key" after a word that makes it one (`SECRET_KEY`,
+ * `aws_secret_access_key`, `apiKey`); "key" for the key of anything else (`STRIPE_KEY`, `CACHE_KEY`, `sortKey`),
+ * whose value must look generated; null for a word merely starting so (`KEYBOARD`, `TOKENIZER`), a public name, the
+ * name of a reference to a resource (`existingSecret`, `imagePullSecret`; `secretName`, `secretRef` end in another
+ * word) and any other name.
  * @returns {"secret"|"key"|null}
  */
 function secretName(name) {
   const parts = nameParts(name);
-  const last = parts.at(-1);
+  const last = parts.at(-1) ?? "";
   if (isPublic(parts) || parts.some((p) => REFERENCE_WORDS.has(p))) return null;
   if (SECRET_WORDS.has(last)) return "secret";
+  if (ENV_NAME.test(name) && GLUED_WORDS.some((w) => last.endsWith(w))) return "secret";
   if (last !== "key") return null;
   return parts.slice(0, -1).some((p) => KEY_WORDS.has(p)) ? "secret" : "key";
 }
@@ -133,6 +140,11 @@ const YAML_TAG = /^!{1,2}(?:[A-Za-z_]+|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)$
 const MEMBER = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/;
 /** Members, or a sum of members (`r.C0.ESC+r.C0.ESC`, minified code): an expression, not a value. */
 const members = (v) => v.split("+").every((p) => MEMBER.test(p));
+/**
+ * A number of two digits or more: a name in code seldom holds one, a password often does (`Orders2024Prod`,
+ * `Summer2024.Winter99`), so a value holding one is never read as a name or a member in code.
+ */
+const NUMBER_RUN = /\d\d/;
 /** A path to a file holding the secret (`/run/secrets/db`, `~/.pgpass`, `./keys/app`). */
 const FILE_PATH = /^(?:~|\.{1,2})?(?:\/[A-Za-z_.][\w.-]*)+\/?$/;
 /** A name in code: an identifier of several words (`hashedPassword`, `new_password`, `oauth2Token`, `Token$1`). */
@@ -143,16 +155,18 @@ const WORD_PART = /^[a-z]*\d*$/;
  * `MYTOKEN1`), not a password.
  */
 const SECRET_WORD_IN = /secret|passw|token|changeit/i;
+/** A name in code of several words, without a number of two digits or more (NUMBER_RUN): `hashedPassword`. */
 const codeName = (v) => {
-  if (!IDENTIFIER.test(v) || !/[a-z]/.test(v)) return false;
+  if (!IDENTIFIER.test(v) || !/[a-z]/.test(v) || NUMBER_RUN.test(v)) return false;
   const parts = nameParts(v);
   return parts.length > 1 && parts.every((p) => WORD_PART.test(p)) && classChanges(v) < RANDOM_CHANGES;
 };
 
 /**
  * Is a value written as a reference: a PEM armour line (the private key detectors decide), a comparison
- * (`token === x`), code (`a&&b`), a sigil and a name, a YAML tag, members, a path, a variable's name in capitals
- * (constantName)?
+ * (`token === x`), code (`a&&b`), a sigil and a name, a YAML tag, a path, a variable's name in capitals
+ * (constantName), and unquoted, members without a number of two digits or more (`config.jwt.secret`; a quoted
+ * value, `"Summer2024.Winter99"`, or `ya29.a0…` is a value)?
  * @param {string} v
  * @param {string} [quote]
  */
@@ -163,7 +177,7 @@ const writtenAsReference = (v, quote = "") =>
   constantName(v, quote) ||
   SIGIL_NAME.test(v) ||
   YAML_TAG.test(v) ||
-  members(v) ||
+  (!quote && !NUMBER_RUN.test(v) && members(v)) ||
   FILE_PATH.test(v);
 /** A vendor's CSS pseudo-class after a selector named as a secret (`#password:-webkit-autofill`, `.token:-moz-…`). */
 const VENDOR_PREFIX = /^-(?:webkit|moz|ms|o)-/i;
@@ -209,10 +223,12 @@ function tooPlain(name, v) {
  * or more (16 when made of letters only), signs included (`Tr0ub4dor&3xQ!`, an Azure secret's `~`), in capitals too
  * (a base 32 key), but never a placeholder, a number, a value of fewer than 5 different characters, or a reference:
  * a variable's name in capitals with an underscore, a sigil and a name (`$DB_PASSWORD`, `%DB_PASSWORD%`), a YAML tag, a
- * member (`config.password`), a path; unquoted, a call or an index (`getPassword()`, `config["password"]`) and, under
- * a name that is not in capitals (code, not an environment file), a name in code (`hashedPassword`, `new_password`);
- * after `:`, a CSS pseudo-class or a resource's name (notAValueAfterColon); the default of a shell expansion
- * (`${DB_PASSWORD:-postgres}`). A number is a value under a password's name only (8 digits or more).
+ * path; unquoted, a member (`config.password`), a call or an index (`getPassword()`, `config["password"]`) and, under
+ * a name that is not in capitals (code, not an environment file), a name in code (`hashedPassword`, `new_password`),
+ * neither holding a number of two digits or more (NUMBER_RUN: `Orders2024Prod` is a password); after `:`, a CSS
+ * pseudo-class or a resource's name (notAValueAfterColon); the default of a shell expansion
+ * (`${DB_PASSWORD:-postgres}`). A number is a value under a password's name only (8 digits or more). What 0.4.1 read
+ * is read again after it (floorAssignment, floorPassword).
  * @param {RegExpMatchArray} m   a match of the detector: groups n (the name), s (the separator), q (a quote, or `>` for
  *   the text of an XML element), v (the value)
  */
@@ -221,40 +237,128 @@ function assignedPassword(m) {
   if (secretName(name) !== "secret") return false;
   const input = m.input ?? "";
   const at = m.index ?? 0;
-  // A connection string's password is reported as one (connectionPassword), once.
-  if (/^(?:password|pwd)$/i.test(name) && inConnectionString(m)) return false;
-  if (tooPlain(name, v) || writtenAsReference(v, quote) || input.slice(Math.max(0, at - 2), at) === "${") return false;
+  const nameAt = at + m[0].indexOf(name);
+  // A connection string's password is reported as one (connectionPassword), once: only where its expression reads
+  // it, `Password=` unquoted and written as a word, then a value without a quote.
+  const asConnection =
+    /^(?:password|pwd)$/i.test(name) &&
+    separator === "=" &&
+    !quote &&
+    !/[\w"']/.test(input[nameAt + name.length] ?? "") &&
+    !/\w/.test(input[nameAt - 1] ?? "");
+  if (asConnection && connectionContext(m)) return false;
+  if (tooPlain(name, v) || writtenAsReference(v, quote) || input.slice(Math.max(0, nameAt - 2), nameAt) === "${")
+    return false;
   if (quote) return true;
   const next = input[at + m[0].length];
   if (separator === ":" && notAValueAfterColon(name, v, next)) return false;
   return next !== "(" && next !== "[" && !(/[a-z]/.test(name) && codeName(v));
 }
 
-/**
- * Is a match inside a connection string: its name after a `;` (blanks between) or its value before one
- * (`Server=db;Password=…`, `Password=…;Server=db`)?
- * @param {RegExpMatchArray} m
- */
-function inConnectionString(m) {
-  const input = m.input ?? "";
-  let before = (m.index ?? 0) - 1;
-  while (before >= 0 && (input[before] === " " || input[before] === "\t")) before--;
-  return input[before] === ";" || input[(m.index ?? 0) + m[0].length] === ";";
+/** At most this many characters are read back for the pair before a `Password=` (a DSN's `user=app`). */
+const PAIR_BACK = 256;
+/** A `key=value` pair of a connection string or a DSN (`user=app`, `Data Source=db`'s `Source=db`). */
+const PAIR = /^[A-Za-z_][\w.-]*=/;
+const BLANKS = new Set([" ", "\t"]);
+/** The text from `i` back to a blank, a quote or the start of the line, PAIR_BACK characters at most. */
+function tokenBefore(input, i) {
+  let a = i;
+  while (a >= 0 && i - a < PAIR_BACK && !` \t\r\n"'\`;`.includes(input[a])) a--;
+  return input.slice(a + 1, i + 1);
 }
-/** A call in code (`GetPassword()`, `config.get(`). */
-const CALL = /^[A-Za-z_$][\w$.]*\(/;
+/**
+ * Where a `Password=` or `Pwd=` stands: "pairs" inside a connection string, a `key=value` pair next to it, after a
+ * `;` or a blank (`Server=db;Password=…`, `Password=…;Server=db`, a libpq DSN `host=db password=… dbname=orders`);
+ * "statement" when only a `;` follows its value (`Password=…;`, or a statement in code); null alone. Linear: a fixed
+ * number of characters read around the match.
+ * @param {RegExpMatchArray} m
+ * @returns {"pairs"|"statement"|null}
+ */
+function connectionContext(m) {
+  const input = m.input ?? "";
+  const start = m.index ?? 0;
+  const end = start + m[0].length;
+  let before = start - 1;
+  while (before >= 0 && BLANKS.has(input[before])) before--;
+  if (input[before] === ";" || (before < start - 1 && PAIR.test(tokenBefore(input, before)))) return "pairs";
+  let after = end;
+  if (input[after] === ";") after++;
+  const semicolon = after > end;
+  while (BLANKS.has(input[after])) after++;
+  if ((semicolon || after > end) && PAIR.test(input.slice(after, after + 65))) return "pairs";
+  return semicolon ? "statement" : null;
+}
+
+/** A name in code before a call or an index: several words, or members (`GetPassword`, `config.get`, `os.environ`). */
+const CODE_HEAD = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
+/** A sigil and a variable's name in capitals: a shell's or Windows' variable (`$DB_PASSWORD`, `%DB_PASSWORD%`). */
+const SIGIL_CONSTANT = /^(?:\$[A-Z_][A-Z\d_]*|%[A-Z_][A-Z\d_]*%)$/;
+/** A value without the `,` and `)` of code after it (`connect(password=DB_PASSWORD,`). Linear: no expression. */
+function bare(v) {
+  let e = v.length;
+  while (e > 0 && (v[e - 1] === "," || v[e - 1] === ")")) e--;
+  return v.slice(0, e);
+}
+
+/**
+ * Is a value written as a reference in code, which names where the secret is, never the secret: a member that names
+ * a secret's field (`model.Password`, `request.form.password`), a call (`GetPassword()`, `config.get(…)`; a word
+ * alone before a parenthesis, `Summer(2024)`, is a password), an index by a quoted key (`configuration["…"]`), a
+ * sigil and a variable's name in capitals (`$DB_PASSWORD`, `%DB_PASSWORD%`)? A name holding a number of two digits or
+ * more is none of them (NUMBER_RUN: `Orders2024Prod(1)` is a password). What the floor (0.4.1's rules) leaves out,
+ * its only exceptions with the placeholders (test/unit/secret-recall.test.mjs, INTENDED_CHANGES).
+ * @param {RegExpMatchArray} m   a match whose value, group v, ends it
+ */
+function codeReference(m) {
+  const input = m.input ?? "";
+  const v = bare(m.groups.v);
+  const at = (m.index ?? 0) + m[0].length - m.groups.v.length;
+  if (SIGIL_CONSTANT.test(v)) return true;
+  // The name before a parenthesis or a bracket, inside the value or just after it.
+  let i = 0;
+  while (i < v.length && v[i] !== "(" && v[i] !== "[") i++;
+  const head = v.slice(0, i);
+  if (!CODE_HEAD.test(head) || NUMBER_RUN.test(v)) return false;
+  const sign = input[at + i];
+  const quoted = input[at + i + 1] === '"' || input[at + i + 1] === "'";
+  if (sign === "(" && (head.includes(".") || nameParts(head).length > 1)) return true;
+  if (sign === "[" && quoted) return true;
+  return i === v.length && MEMBER.test(v) && secretName(v.slice(v.lastIndexOf(".") + 1)) === "secret";
+}
+
 /**
  * Is a connection string's key or password one: `AccountKey=`, `SharedAccessKey=`, or a `Password=`, `Pwd=` inside a
- * connection string, never a reference in code (`Password = model.Password;`)? A lone `password = …` is an assignment
- * to a secret's name (assignedPassword).
+ * connection string (connectionContext: next to another pair, a libpq DSN too), whatever its value as 0.4.1 read it
+ * (but a placeholder, the `,` or `)` of code after it put aside), or before a `;` alone unless it is a reference in
+ * code (`Password = model.Password;`)? A lone `password = …` is an assignment to a secret's name (assignedPassword,
+ * floorPassword).
  * @param {RegExpMatchArray} m
  */
 const connectionPassword = (m) => {
-  const v = m.groups.v;
-  if (!isValue(v)) return false;
+  const v = bare(m.groups.v);
+  // A value in capitals is a password (a base 32 key, `ORDERS2024PROD`), a variable's name with an underscore is not.
+  if (!v || PLACEHOLDER.test(v) || (VARIABLE_NAME.test(v) && CONSTANT_NAME.test(v))) return false;
   if (/key$/i.test(m.groups.k)) return true;
-  return inConnectionString(m) && !MEMBER.test(v) && !SIGIL_NAME.test(v) && !CALL.test(v);
+  const where = connectionContext(m);
+  return where === "pairs" || (where === "statement" && !codeReference(m));
 };
+
+/**
+ * 0.4.1's assignment, the floor of the detectors (SECURITY.md): one of its words written as a word (`password`,
+ * `passwd`, `secret`, `token`, `api_key`, `client_secret`, `access_key`), then a value of 16 characters or more of
+ * letters, digits and `_-+/=.` that looks generated, on the name's line or the next (`\s`), as it read them. Reported
+ * unless a detector before found it (scanText reports a value once), or it is a reference in code (codeReference) or
+ * a placeholder.
+ * @param {RegExpMatchArray} m
+ */
+const floorAssignment = (m) => looksRandom(m.groups.v) && !codeReference(m);
+/**
+ * 0.4.1's connection string's password, the floor of the detectors for a lone `Password=` or `Pwd=` (written as a
+ * word): a value of 6 characters or more up to a blank, a quote or a `;`, as it read it (`password=postgres`,
+ * `--password=…`), but never a reference in code (codeReference) or a placeholder, the `,` or `)` after it put aside.
+ * @param {RegExpMatchArray} m
+ */
+const floorPassword = (m) => isValue(bare(m.groups.v)) && !codeReference(m);
 
 /**
  * The end of a URL parameter's name that says its value is a secret (`sig`, `access_token`, `X-Amz-Signature`). Not
@@ -270,7 +374,7 @@ const URL_SECRET_NAME =
 function harmlessParameter(m) {
   const name = m.groups?.n;
   const input = m.input ?? "";
-  const at = m.index ?? 0;
+  const at = (m.index ?? 0) + (name ? m[0].indexOf(name) : 0);
   if (!name || input[at + name.length] !== "=") return false;
   if (!"?&#".includes(input[at - 1] ?? "x") && input.slice(Math.max(0, at - 5), at) !== "&amp;") return false;
   return !URL_SECRET_NAME.test(name.toLowerCase().replace(/[^a-z\d]/g, ""));
@@ -356,8 +460,10 @@ export const GENERIC = Object.freeze([
   },
   {
     kind: "assignment",
-    // The key of anything (secretName "key"), 64 characters of name at most: `STRIPE_KEY=`, `"sortKey": "`.
-    re: /\b(?<n>[A-Za-z_][\w.-]{0,63})["']?\s*[:=]>?\s*["'`]?(?:base64:)?(?<v>[\w\-+/=.]{16,})/g,
+    // The key of anything (secretName "key"), 128 characters of name at most: `STRIPE_KEY=`, `"sortKey": "`. A name
+    // is read from the start of its run of name characters (never after a letter, a digit, `.` or `-`; digits, dots
+    // and dashes first are skipped, `--db-key`), so that a long run is read once, not again from each of its words.
+    re: /(?<![\w.-])[\d.-]{0,8}(?<n>[A-Za-z_][\w.-]{0,127})["']?\s*[:=]>?\s*["'`]?(?:base64:)?(?<v>[\w\-+/=.]{16,})/g,
     accept: (m) => assignedKey(m.groups.n, m.groups.v),
   },
   {
@@ -371,7 +477,7 @@ export const GENERIC = Object.freeze([
     // bracket or a parenthesis: `DB_PASSWORD=`, `"clientSecret": "`, `password := "`, `'password' => '`. Its signs
     // include `~!@#$%&*`; a `&` that starts another parameter (`&user=`) ends it. Only a name ending in a secret's word
     // is matched, so that the value of another (`https://…#access_token=…`) never hides one.
-    re: /\b(?<n>[A-Za-z_][\w.-]{0,63})(?<=secret|token|passw(?:or)?d|passphrase|pwd|pass|pw|key)["']?[ \t]*(?<s>:=|[:=]>?)[ \t]*(?<q>["'`]?)(?:base64:)?(?<v>(?:[\w\-+/=.~!@#$%*]|&(?![\w.-]*=)){8,})/gi,
+    re: /(?<![\w.-])[\d.-]{0,8}(?<n>[A-Za-z_][\w.-]{0,127})(?<=secret|token|passw(?:or)?d|passphrase|pwd|pass|pw|key)["']?[ \t]*(?<s>:=|[:=]>?)[ \t]*(?<q>["'`]?)(?:base64:)?(?<v>(?:[\w\-+/=.~!@#$%*]|&(?![\w.-]*=)){8,})/gi,
     accept: assignedPassword,
   },
   {
@@ -388,13 +494,26 @@ export const GENERIC = Object.freeze([
     re: /<add\s+key\s*=\s*["'](?<n>[\w.:-]{1,64})["']\s+value\s*=\s*(?<q>["'])(?<v>[^"'<>\r\n]{8,256})\k<q>/gi,
     accept: assignedPassword,
   },
+  // The floor: the two value rules of 0.4.1, as they read the text, so that what they reported is still reported
+  // (test/unit/secret-recall.test.mjs), but a reference in code and a placeholder (codeReference, isValue). After the
+  // detectors above: a value one of them reported is not reported again.
+  {
+    kind: "assignment",
+    re: /\b(?:api[_-]?key|secret|token|password|passwd|client[_-]?secret|access[_-]?key)\b["']?\s*[:=]\s*["']?(?<v>[A-Za-z0-9_\-+/=.]{16,})/gi,
+    accept: floorAssignment,
+  },
+  {
+    kind: "assignment",
+    re: /\b(?<k>Password|Pwd)\s*=\s*(?<v>[^;\s"'`]{6,})/gi,
+    accept: floorPassword,
+  },
   {
     kind: "entropy",
     fallback: true,
     // An assigned value (`NAME=value`, `name: "value"`) or a quoted one, of a token's characters: 256 at most (a
     // longer run is embedded data), up to a quote, a blank or a separator. Never a URL parameter whose name says
     // nothing of a secret (`?list=`, `&fbclid=`).
-    re: /(?:\b(?<n>[A-Za-z_][\w.-]{0,63})["']?[ \t]*[:=]>?[ \t]*["'`]?|["'`])(?<v>[\w+/-]{20,256}={0,2})(?=["'`\s,;)}\]&#]|$)/g,
+    re: /(?:(?<![\w.-])[\d.-]{0,8}(?<n>[A-Za-z_][\w.-]{0,127})["']?[ \t]*[:=]>?[ \t]*["'`]?|["'`])(?<v>[\w+/-]{20,256}={0,2})(?=["'`\s,;)}\]&#]|$)/g,
     accept: (m) => !harmlessParameter(m) && highEntropy(m.groups.v, m.groups.n),
   },
 ]);

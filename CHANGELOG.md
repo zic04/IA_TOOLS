@@ -299,59 +299,70 @@ entries between a project's `kit` range and the installed version.
 - **`check secrets` finds the common formats it missed**, and so do the filters of `pack`, `backlog export` and
   `inputs ingest`, and the `secrets` facts (SECURITY.md, "The secret detectors have limits"):
   - an assignment to a compound name: `SECRET_KEY=`, `DB_PASSWORD=`, `GITHUB_TOKEN=`, `aws_secret_access_key =`
-    (the AWS secret key), `dbPassword:`, `"client-secret":`; the exact word was required (`KEYBOARD` and
-    `TOKENIZER` are still not secrets' names, and the key of anything else needs a value that looks generated);
-  - GitHub fine-grained tokens, GitLab, npm, Google OAuth client secrets, Slack app tokens and incoming webhooks;
+    (the AWS secret key), `dbPassword:`, `"client-secret":`, and a secret's word glued to a name in capitals
+    (`PGPASSWORD=`, `MYSQLPASSWORD=`); the exact word was required (`KEYBOARD` and `TOKENIZER` are still not
+    secrets' names, and the key of anything else needs a value that looks generated);
+  - under a secret's name, a value from 8 characters (16 for letters only), with its signs (`~!@#$%&*`:
+    `Tr0ub4dor&3xQ!`, the `~` of every Azure AD client secret), in capitals (a base 32 key), without a digit
+    (`correcthorsebatterystaple`), and a number of 8 digits or more under a password's name (`DB_PASSWORD=73829164`),
+    where a digit was required, a value in capitals was taken for a variable's name, and a value stopped at its first
+    sign and needed 16 characters; so is the text of an XML element or setting named so (`<password>…</password>` in
+    Maven's `settings.xml`, `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`);
+  - a connection string's password in capitals (`Server=db;Password=ORDERS2024PROD;`), which was taken for a
+    variable's name;
+  - GitHub fine-grained tokens, GitLab (personal, runner and runner registration, deploy and pipeline trigger
+    tokens), npm, Google OAuth client secrets, Slack app tokens and incoming webhooks, SendGrid, Hugging Face,
+    DigitalOcean, Twilio API keys, Discord and Microsoft Teams webhooks;
   - a PEM key escaped on one line in a JSON file (a service account's `private_key`), PGP private key blocks,
     PuTTY keys;
   - a URL signature in any case (`Sig=`), and `X-Amz-Signature=`, `X-Goog-Signature=`;
   - last, a random-looking value under any name, assigned or quoted (`entropy`, "random-looking value"): 20
     characters or more, an entropy threshold by length and a measure of how often the kind of character changes,
-    never for a hash, a nonce, an identifier or a placeholder. Calibrated on random tokens (about 9 in 10 found from
-    20 characters, 97 in 100 from 32) and on a corpus of harmless values and the kit's documentation (none found),
-    `test/unit/secret-detectors.test.mjs`.
-  - `change-me` and `replace-me` are placeholders; a number is not a secret's value.
-- **`export` leaves out more secret files**: Terraform state (`*.tfstate`, `*.tfstate.backup`), PuTTY keys
-  (`*.ppk`), VPN profiles (`*.ovpn`), encrypted files (`*.gpg`), `credentials` and `credentials.json`, the settings
-  of an environment (`appsettings.*.json`); the sources of a feature too (`SECRET_FILE`). A browser session is
-  recognised whatever its size: one over 2 MB (local storage) was copied. `check secrets` reports such a session
-  outside the session folder: one over 5 MB was not read. A file of 5 MB at most is parsed whole, as before; a longer
-  one is told by its first 64 KB.
-- **A secret's name finds the passwords SECURITY.md promised** (S11): under `DB_PASSWORD`, `SECRET_KEY`,
-  `clientSecret`… a value is a secret from 8 characters (16 for letters only), with its signs (`~!@#$%&*`:
-  `Tr0ub4dor&3xQ!`, the `~` of every Azure AD client secret), in capitals (a base 32 key), without a digit
-  (`correcthorsebatterystaple`), and a number of 8 digits or more under a password's name (`DB_PASSWORD=73829164`);
-  so is the text of an XML element or setting named so (`<password>…</password>` in Maven's `settings.xml`,
-  `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`). Each was missed: a digit was required, a value in
-  capitals was taken for a variable's name, a value stopped at its first sign and needed 16 characters. A password
-  written like a reference is still missed (SECURITY.md lists them: `password: SummerHoliday2024` unquoted under a name
-  in lower case, `SECRET=PROD_DB_PASS_2024`, `@dmin2024Prod`, `$ecretPa55w0rd`, `--password value`). References written as code stay out
-  (`$DB_PASSWORD`, `%DB_PASSWORD%`, `config.password`, `getPassword()`, `os.environ[…]`, `hashedPassword` under a
-  name in lower case, a YAML tag, a path), and so do placeholders (`changeme`, `***`, `${…}`, `<your-password>`,
-  `mysecretpassword`). `password = …` alone is no longer a connection string's password (`Password = model.Password;`
-  was reported); `Server=db;Password=…` still is. SECURITY.md writes the exact limits (a blank in the value, the value
-  on the next line, `Bearer`, a token as a URL's user, a PEM key quoted with `> ` or cut).
-- Not secrets, which would have failed a build: a CSS pseudo-class after a selector named as a secret
-  (`#password:-webkit-autofill`, `.token:-webkit-any-link`, `.field-secret:-moz-ui-invalid`), a Kubernetes secret's
-  name in Helm values (`existingSecret: postgresql-credentials`, `imagePullSecret: registry-credentials`, `tlsSecret:
-  wildcard-tls-certificate`), the default of a shell expansion (`${POSTGRES_PASSWORD:-postgres}`, read as `-postgres`),
-  members joined by `+` in minified code (`o.key=r.C0.ESC+r.C0.ESC`), and an OAuth authorisation code (`?code=`: used
-  once, within minutes; Google's and Microsoft's documented examples were reported). Ten realistic configuration files
-  (`test/fixtures/secret-configs/`) and the kit's documentation, examples and templates hold none. A quoted value in
-  capitals with an underscore is a value when it holds a digit and no secret's word (`"S3CR_ET99_ZQ"`); a Google key
-  in a URL's `key=` is reported once.
-- New shapes: SendGrid, Hugging Face, DigitalOcean, Twilio API keys, GitLab runner, runner registration, deploy and
-  pipeline trigger tokens, Discord and Microsoft Teams webhooks.
-- The entropy fallback no longer reports a URL parameter whose name says nothing of a secret (a YouTube `?list=`, a
-  `?fbclid=`, a `&amp;gclid=`): `inputs ingest` refused such a link, `pack` replaced its line and `check secrets`
-  failed the build. `?session=`, `?sig=`, `?token=`… are still read.
-- A JSON file whose first key is `cookies` or `origins` is a session only when its top-level object also holds the
-  other key, or its first item has a session's shape (a cookie's `name`, `value`, `domain`; an origin's
-  `localStorage`): a data file that merely started with a `cookies` list was left out of `export` and reported. Up
-  to 5 MB the file is parsed whole, so a session in any key order is one; past it, the depth of the JSON is followed in
-  its first 64 KB, so that an `origins` list inside an item is not the other key.
-- `export` also leaves out Terraform variables (`*.tfvars`), Apple keys (`*.p8`), `.htpasswd`, Google OAuth
-  `client_secret*.json`, `kubeconfig` and a `.bak` copy of `appsettings.*.json`.
+    never for a hash, a nonce, an identifier or a placeholder, nor the value of a URL parameter whose name says
+    nothing of a secret (a YouTube `?list=`, a `?fbclid=`, a `&amp;gclid=`; `?session=`, `?sig=`, `?token=`… are
+    read) or an OAuth authorisation code (`?code=`: used once, within minutes; the documentation of every provider
+    shows one). Calibrated on random tokens (about 9 in 10 found from 20 characters, 97 in 100 from 32) and on a
+    corpus of harmless values and the kit's documentation (none found), `test/unit/secret-detectors.test.mjs`.
+
+  The new detectors leave out what is not a secret: a reference written as code (`$DB_PASSWORD`, `%DB_PASSWORD%`,
+  `config.password`, `getPassword()`, `os.environ[…]`, `hashedPassword` under a name in lower case, a YAML tag, a
+  path), a placeholder (`change-me`, `replace-me`, `***`, `${…}`, `<your-password>`, `mysecretpassword`), a CSS
+  pseudo-class after a selector named as a secret (`#password:-webkit-autofill`, `.field-secret:-moz-ui-invalid`), a
+  Kubernetes secret's name in Helm values (`existingSecret: postgresql-credentials`, `imagePullSecret:
+  registry-credentials`, `tlsSecret: wildcard-tls-certificate`), the default of a shell expansion
+  (`${POSTGRES_PASSWORD:-postgres}`) and members joined by `+` in minified code (`o.key=r.C0.ESC+r.C0.ESC`). A value
+  holding a number of two digits or more is never read as a name or a member in code (`password: SummerHoliday2024`,
+  `password: Summer2024.Winter99`), nor is a quoted value a member; a quoted value in capitals with an underscore is
+  a value when it holds a digit and no secret's word (`"S3CR_ET99_ZQ"`). A value two detectors find is reported once
+  (a Google key in a URL's `key=`). Ten realistic configuration files without a secret
+  (`test/fixtures/secret-configs/`) and the kit's documentation, examples and templates give no finding; eleven that
+  hold some (`test/fixtures/secret-configs-with-secrets/`: Spring, an INI file, docker-compose, a Kubernetes Secret,
+  Helm values, a `.env`, a shell script with a libpq DSN, ADO.NET connection strings, Maven, NuGet) give each line
+  that holds one, with its kind, and no other (`test/unit/secret-recall.test.mjs`). SECURITY.md writes the exact
+  limits (a blank in the value, a value on the line after a name 0.4.1 did not read, `Bearer`, a token as a URL's
+  user, a PEM key quoted with `> ` or cut, a secret's word glued to a name in lower case, Redis' `requirepass`).
+- **What 0.4.1 found is still found**: its two value rules run after the new detectors, reading the text as they
+  read it (a word among `password`, `passwd`, `secret`, `token`, `api_key`, `client_secret` and `access_key`, then a
+  value of 16 characters or more holding a digit, on its line or the next; `Password=` or `Pwd=`, then a value of 6
+  characters or more: `password=postgres`, `--password=…`), so that a value they reported is still reported, under
+  the kind `assignment` outside a connection string (a libpq DSN, pairs separated by blanks, `host=db user=app
+  password=… dbname=orders`, is one, as `Server=db;Password=…` is); `test/unit/secret-recall.test.mjs` checks it on a
+  table of lines 0.4.1 reported. Left out on purpose, as they name where a secret is and never the secret: a reference in
+  code, a member that names a secret's field (`Password = model.Password;`, `password = request.form.password`,
+  `token: config.v2.jwt.secret`), a call (`Password = GetPassword();`) or an index by a quoted key
+  (`Password = configuration["DbPassword"];`); a shell's or Windows' variable (`PASSWORD=$DB_PASSWORD`,
+  `password=%DB_PASSWORD%`); the placeholders `change-me` and `replace-me` (`password=change-me`,
+  `secret: replace-me-with-a-real-key-2024`), and a mask or a variable's name followed by the `,` of code
+  (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`).
+- **`export` leaves out more secret files**: Terraform state and variables (`*.tfstate`, `*.tfstate.backup`,
+  `*.tfvars`), PuTTY and Apple keys (`*.ppk`, `*.p8`), VPN profiles (`*.ovpn`), encrypted files (`*.gpg`),
+  `credentials` and `credentials.json`, `.htpasswd`, Google OAuth `client_secret*.json`, `kubeconfig`, the settings of
+  an environment (`appsettings.*.json` and its `.bak` copy); the sources of a feature too (`SECRET_FILE`). A browser
+  session is recognised whatever its size: one over 2 MB (local storage) was copied. `check secrets` reports such a
+  session outside the session folder: one over 5 MB was not read. A file of 5 MB at most is parsed whole, as before;
+  a longer one is told by its first 64 KB, the depth of the JSON followed (an `origins` list inside an item is not
+  the other key). A list of cookies or of origins of a session's shape alone (a cookie jar) is a session too; a data
+  file that merely starts with a `cookies` list is not.
 
 ### Security
 

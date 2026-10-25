@@ -258,6 +258,9 @@ describe("assignments to a secret's name", () => {
     const secret = token(3) + draw(1, DIGITS) + "Q~" + draw(34, B62 + "._~-");
     assert.deepEqual(kinds(`AZURE_CLIENT_SECRET=${secret}`), ["assignment"]);
     assert.deepEqual(kinds(`"clientSecret": "${secret}"`), ["assignment"]);
+    // Under Spring's name of 65 characters (a name is read up to 128).
+    const spring = "spring.security.oauth2.client.registration.azure-ad.client-secret";
+    assert.deepEqual(kinds(`${spring}=${secret}`), ["assignment"]);
     assert.deepEqual(kinds("AZURE_CLIENT_SECRET=<client-secret>"), []);
     assert.deepEqual(kinds('"clientSecret": "${AZURE_CLIENT_SECRET}"'), []);
   });
@@ -265,7 +268,7 @@ describe("assignments to a secret's name", () => {
   test("a value written as code is a reference, not a secret: a variable, a member, a call, an index, a path", () => {
     for (const text of [
       "password: hashedPassword,",
-      "password = new_password",
+      "password: new_password",
       "token: accessToken",
       "password = request.form.password",
       "secret: config.jwt.secret,",
@@ -295,13 +298,63 @@ describe("assignments to a secret's name", () => {
       assert.deepEqual(kinds(text), [], text);
     // Quoted, the same kind of text is a value.
     assert.deepEqual(kinds('password = "new_password_2024"'), ["assignment"]);
+    // After a lone `password =`, a name in code with nothing of code around it reads as a password, as 0.4.1 read it
+    // (test/unit/secret-recall.test.mjs).
+    assert.deepEqual(kinds("password = new_password"), ["assignment"]);
   });
 
-  test("a name in code is a value under a name in capitals (an environment file), a variable under a name in lower case", () => {
+  test("a name in code is a value under a name in capitals, a variable under a name in lower case; with a number of two digits, a password", () => {
     const words = "My" + "Secret" + "Password" + "2024";
     assert.deepEqual(kinds(`DB_PASSWORD=${words}`), ["assignment"]);
     assert.deepEqual(kinds(`db_password: "${words}"`), ["assignment"], "quoted");
-    assert.deepEqual(kinds(`db_password: ${words}`), [], "unquoted, under a name in lower case (SECURITY.md, a limit)");
+    assert.deepEqual(kinds(`db_password: ${words}`), ["assignment"], "a number of two digits: not a name in code");
+    for (const pw of [
+      "Summer" + "Holiday2024",
+      "Orders" + "2024Prod",
+      "Prod2024" + "Secret99",
+      "Ab" + "CdEf1234567890",
+    ])
+      assert.deepEqual(kinds(`password: ${pw}`), ["assignment"], pw);
+    assert.deepEqual(kinds("db_password: hashedUserValue2"), [], "a name in code: one digit");
+    assert.deepEqual(kinds("db_password: OrdersProdValue1"), [], "a name in code: one digit (SECURITY.md, a limit)");
+    assert.deepEqual(kinds("DB_PASSWORD=hashedUserValue2"), ["assignment"], "under a name in capitals");
+    // After one of 0.4.1's words, 16 characters or more holding a digit: the floor reads it, as 0.4.1 did.
+    assert.deepEqual(kinds("password: OrdersProdValue1"), ["assignment"]);
+  });
+
+  test("known limits (SECURITY.md): a name of more than 128 characters, a setting without = or :", () => {
+    const pw = "Orders" + "2024Prod";
+    const name = "spring.datasource.hikari.data-source-properties.connection.attributes";
+    assert.deepEqual(kinds(`${name}.db_password=${pw}`), ["assignment"], "128 characters at most");
+    const long = `${name}.${name}`;
+    assert.ok(long.length > 128);
+    assert.deepEqual(kinds(`${long}.db_password=${pw}`), [], "only the floor reads a longer name, by its last word");
+    assert.deepEqual(kinds(`${long}.password=${pw}`), ["assignment"], "the floor: `password` as a word");
+    assert.deepEqual(kinds(`requirepass ${pw}`), []);
+  });
+
+  test("a value holding a dot is a member in code only unquoted and without a number of two digits", () => {
+    const pw = "Summer" + "2024.Winter99";
+    assert.deepEqual(kinds(`password: ${pw}`), ["assignment"]);
+    assert.deepEqual(kinds(`db_password: "${pw}"`), ["assignment"], "quoted");
+    assert.deepEqual(kinds(`token: ${"ya" + "29.a0AfH6SMBxYz12kLmN3oPqR4sTuV5wXyZ"}`), ["assignment"]);
+    assert.deepEqual(kinds("db_password: config.jwt.secret"), [], "a member");
+    assert.deepEqual(kinds("db_password: user.password2"), [], "a member: one digit");
+  });
+
+  test("a secret's word glued to a name in capitals (PGPASSWORD, MYSQLPASSWORD): found; in lower case, or at the start, not", () => {
+    const pw = "Orders" + "2024Prod";
+    for (const name of [
+      "PGPASSWORD",
+      "MYSQLPASSWORD",
+      "export PGPASSWORD",
+      "  - PGPASSWORD",
+      "VAULTTOKEN",
+      "APPSECRET",
+    ])
+      assert.deepEqual(kinds(`${name}=${pw}`), ["assignment"], name);
+    for (const name of ["pgpassword", "KEYBOARD", "TOKENIZER", "PASSWORDLESS", "PGPASSFILE"])
+      assert.deepEqual(kinds(`${name}=${pw}`), [], name);
   });
 
   test("a connection string's password inside a connection string; a lone password = … is an assignment, once", () => {
@@ -310,6 +363,35 @@ describe("assignments to a secret's name", () => {
     assert.deepEqual(kinds(`Password=${pw};Server=db`), ["connectionString"]);
     assert.deepEqual(kinds(`password = ${pw}`), ["assignment"]);
     assert.deepEqual(kinds("Password = model.Password;"), []);
+    // A libpq DSN: pairs separated by blanks, before or after; a command line's option is not a pair.
+    assert.deepEqual(kinds(`host=db user=app password=${pw}`), ["connectionString"]);
+    assert.deepEqual(kinds(`password=${pw} dbname=orders`), ["connectionString"]);
+    assert.deepEqual(kinds(`mysqldump --user=app --password=${pw} orders`), ["assignment"]);
+    // Inside a connection string, whatever the value, as 0.4.1 read it; a short one alone too (6 characters).
+    assert.deepEqual(kinds("Server=db;Password=my.pass.word;"), ["connectionString"]);
+    assert.deepEqual(kinds("password=hunter2"), ["assignment"]);
+    assert.deepEqual(kinds("password=hunt3"), [], "5 characters");
+    // A password in capitals (a base 32 key) inside one too; a variable's name with an underscore is not one.
+    const caps = "ORDERS" + "2024PROD";
+    for (const text of [
+      `Server=db;Password=${caps};`,
+      `Password=${caps};`,
+      `Data Source=db;User Id=sa;Password=${"P4SS" + "W0RD2024"};`,
+      `host=db user=app password=${caps} dbname=orders`,
+    ])
+      assert.deepEqual(kinds(text), ["connectionString"], text);
+    assert.deepEqual(kinds("Server=db;Password=DB_PASSWORD;"), []);
+    // Next to a pair, but not written as a connection string's (`:`, a quoted name or value): an assignment.
+    const pw2 = "Orders" + "2024";
+    for (const text of [
+      `pwd: ${pw2} dbname=x`,
+      `user=app password: ${pw2}`,
+      `PASSWORD: ${pw2} user=app`,
+      `"password": "${pw2};Prod"`,
+      `password: ${pw2};`,
+      `password="${pw2}Prod" dbname=x`,
+    ])
+      assert.deepEqual(kinds(text), ["assignment"], text);
   });
 
   test("known limits (SECURITY.md): a password with a blank, on the next line, after Bearer or Basic, as a URL's user", () => {
