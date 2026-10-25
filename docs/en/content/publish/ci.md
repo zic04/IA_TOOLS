@@ -30,7 +30,7 @@ the path is `file:../../../doc-kit`.
 - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
   with: { path: app, persist-credentials: false }
 - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-  with: { repository: <owner>/doc-kit, ref: v0.4.1, path: doc-kit, persist-credentials: false }
+  with: { repository: <owner>/doc-kit, ref: v0.4.2, path: doc-kit, persist-credentials: false }
 ```
 
 ## Step 2 — Install the kit, Chromium and the project

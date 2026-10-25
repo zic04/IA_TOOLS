@@ -232,14 +232,15 @@ describe("parity with 0.4.1: what it reported is still reported", () => {
   });
 
   test("each intended change is not reported, has its reason, and the CHANGELOG names it", () => {
+    // Every entry written since 0.4.1, the floor: [Unreleased] while it is unreleased, the releases after 0.4.1 then.
     const changelog = fs.readFileSync(path.join(KIT_ROOT, "CHANGELOG.md"), "utf8");
     const start = changelog.indexOf("## [Unreleased]");
-    const unreleased = changelog.slice(start, changelog.indexOf("\n## [", start + 1));
-    assert.ok(start >= 0 && unreleased.length > 1000);
+    const since = changelog.slice(start, changelog.indexOf("\n## [0.4.1]", start + 1));
+    assert.ok(start >= 0 && since.length > 1000);
     for (const [line, reason] of INTENDED_CHANGES) {
       assert.deepEqual(kinds(line), [], line);
       assert.ok(reason.length > 10, line);
-      assert.ok(unreleased.includes("`" + line + "`"), `the CHANGELOG names ${line}`);
+      assert.ok(since.includes("`" + line + "`"), `the CHANGELOG names ${line}`);
     }
   });
 

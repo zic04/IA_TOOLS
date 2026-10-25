@@ -78,7 +78,7 @@ steps:
 #       name: <project>/doc-kit        # the kit's repository
 #       # A release tag of the kit: the version the project's `kit` range accepts. Updated at each release of the
 #       # kit (RULES.md, before every release).
-#       ref: refs/tags/v0.4.1
+#       ref: refs/tags/v0.4.2
 #
 # variables:
 #   docs: $(Build.SourcesDirectory)/$(Build.Repository.Name)/docs/manual

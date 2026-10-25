@@ -6,6 +6,8 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-25
+
 ### Added
 
 - **The demo in English and French** (ARCHITECTURE.md §6.12): `examples/demo-docs` declares `languages: ["en", "fr"]`
