@@ -42,6 +42,7 @@ import { tomlEntries, tomlLeaves, dottedParts, tableDependencies, configLines } 
 import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
 import { packageKey } from "../../engine/core/packages.mjs";
 import { VERSION_PATTERNS, majorsBehind } from "../../engine/core/versions.mjs";
+import { SEMVER_PATTERNS, satisfies, minVersion, compareVersions } from "../../engine/project/semver.mjs";
 import { metadataFields } from "../../engine/facts/deps/installed.mjs";
 import { RULES } from "../../engine/facts/security.mjs";
 import { ENV_PATTERNS } from "../../engine/build/c4.mjs";
@@ -537,6 +538,12 @@ const SITE_SEARCH = (() => {
   );
   return context.EXT.searchCore;
 })();
+/** The site's order of versions (engine/site/lib/versions.js), run as the site runs it. */
+const SITE_VERSIONS = (() => {
+  const context = { EXT: { hydrators: [], api: {} } };
+  vm.runInNewContext(fs.readFileSync(new URL("../../engine/site/lib/versions.js", import.meta.url), "utf8"), context);
+  return context.EXT.compareVersions;
+})();
 /** app.js's normalisation; an index entry of a text. */
 const searchNorm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 // "ab" and "orders" in the text: the query's two terms resolve, so the scoring runs over the whole input too.
@@ -690,6 +697,17 @@ export const CHECKS = [
   // A version's major (engine/core/versions.mjs): a manifest's version or range, a registry's latest version.
   ...Object.entries(VERSION_PATTERNS).map(([name, re]) => [`versions ${name}`, (s) => re.exec(s)]),
   ["versions majorsBehind", (s) => majorsBehind({ version: null, spec: `^${s}` }, s)],
+  // The kit's versions and ranges (engine/project/semver.mjs): doc.config.mjs's `kit`, the versions of the
+  // application a backlog and the screenshots give; the text as it is and after a version's start, so that the
+  // pre-release and build parts run over it. The site's copy of the order likewise.
+  ...Object.entries(SEMVER_PATTERNS).flatMap(([name, re]) => [
+    [`semver ${name}`, (s) => re.exec(s)],
+    [`semver ${name} (after a version)`, (s) => re.exec(`1.2.3-${s}`) || re.exec(`1.2.3+${s}`)],
+  ]),
+  ["semver satisfies", (s) => satisfies(`1.2.3-${s}`, `${s} || ^1.2.3-${s} ${s}`)],
+  ["semver minVersion", (s) => minVersion(`>${s} || >=1.2.3-${s} || ${s} - ${s}`)],
+  ["semver compareVersions", (s) => compareVersions(`1.2.3-${s}`, `1.2.3-${s}.1`) + compareVersions(s, `${s}1`)],
+  ["site compareVersions", (s) => SITE_VERSIONS(`1.2.3-${s}`, `1.2.3-${s}.1`) + SITE_VERSIONS(s, `${s}1`)],
   // The header of an installed METADATA (deps/installed.mjs): the text as a field's value, as many folded lines, and
   // cut (its last line and field left out).
   [

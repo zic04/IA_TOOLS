@@ -2,7 +2,7 @@
 
 | Key | Type · default | Role | Example |
 |---|---|---|---|
-| `kit` | text · `"*"` | Kit versions the project accepts (semver range); outside the range, exit code 3 | `"^0.4.0"` |
+| `kit` | text · `"*"` | Kit versions the project accepts, a range read as npm reads one (`^`, `~`, `1.x`, `1.2 - 2`, `>= 1.2`, `\|\|`); outside the range, exit code 3. A pre-release of the kit (`0.5.0-rc.1`) is accepted only by a range that names a pre-release of the same version (`^0.5.0-rc.1`, written by `doc-kit upgrade --apply`) | `"^0.4.0"` |
 | `product` | object, required | The documented product | `{ name: "Acme Orders" }` |
 | `product.name` | text, required | Name shown in the site, the messages and the default output file | `"Acme Orders"` |
 | `product.slug` | `[a-z0-9-]` · from the name | Short name: default of `theme.key` and `env.prefix` | `"acme-orders"` |

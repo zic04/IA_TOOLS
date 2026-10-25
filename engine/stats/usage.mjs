@@ -11,6 +11,7 @@
 //   actor  "kit" (measured by the kit), "agent" (an AI agent, tokens and model given), "human" (a person's time)
 import fs from "node:fs";
 import path from "node:path";
+import { compareVersions } from "../project/semver.mjs";
 
 export const USAGE_DIR = "usage";
 
@@ -159,21 +160,6 @@ export function summarize(entries, by = "step", { since } = /** @type {{ since?:
     g.share = base ? g.ms / base : 0;
   }
   return { total, groups };
-}
-
-/** Compares two versions numerically, part by part ("1.10.0" > "1.9.2"); non-numeric parts as text. */
-export function compareVersions(a, b) {
-  const pa = String(a).split(/[.+-]/);
-  const pb = String(b).split(/[.+-]/);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const x = pa[i] ?? "0";
-    const y = pb[i] ?? "0";
-    const nx = Number(x);
-    const ny = Number(y);
-    const c = Number.isFinite(nx) && Number.isFinite(ny) ? nx - ny : x.localeCompare(y);
-    if (c) return Math.sign(c);
-  }
-  return 0;
 }
 
 /** CSV of the lines (one row per line, the fields in a fixed order). */
