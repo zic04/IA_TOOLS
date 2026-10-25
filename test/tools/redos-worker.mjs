@@ -62,6 +62,15 @@ import { DB_PATTERNS, DB_CLOSERS } from "../../engine/facts/db.mjs";
 import { upToLast } from "../../engine/core/text.mjs";
 import { parseNumstat } from "../../engine/facts/history.mjs";
 import { RECORD_PATTERNS, codegenToEntry } from "../../engine/capture/record.mjs";
+import {
+  forbiddenMatch,
+  forbiddenMatchers,
+  shownPath,
+  shownUrl,
+  applicationKey,
+  isLoopbackUrl,
+} from "../../engine/capture/plans.mjs";
+import { addressForm } from "../../engine/capture/guard.mjs";
 import { closingBrace, braceDepths } from "../../engine/util/js-scan.mjs";
 import { walkXml, decodeEntities, inertMarkup } from "../../engine/core/xml.mjs";
 import { diagramToMarkdown } from "../../engine/inputs/diagrams.mjs";
@@ -265,6 +274,8 @@ const UNITS = [
   "<<",
 ];
 const N = 3000;
+/** A capture.forbidden pattern as the configurations write them (the person's own expression, trusted). */
+const FORBIDDEN_MATCHERS = forbiddenMatchers(["^/orders/\\d+/approval$"]);
 
 /** A check of a scanner that may refuse its input (KitError): the refusal is caught, any other error is not. */
 const refusing = (fn) => (s) => {
@@ -613,6 +624,22 @@ export const CHECKS = [
   ["history parseNumstat", (s) => parseNumstat(s)],
   ...Object.entries(RECORD_PATTERNS).map(([name, re]) => [`record ${name}`, (s) => re.exec(s)]),
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
+  // The forms of a path a server may read as a forbidden route (plans.mjs): a URL or a Location header, untrusted.
+  ["capture forbiddenMatch", (s) => forbiddenMatch(`/${s};${s}/./${s}/../${s}`, FORBIDDEN_MATCHERS)],
+  // Each run of escapes decoded on its own, one that is not UTF-8 (%FF) and one malformed (%zz) among them: a run of
+  // escapes a sixteenth of the input long (it grows with it), then a path parameter, a twice-encoded dot and the input
+  // once. Every form of the path (up to some 80) is read for each input: three copies of it, and a run as long as it,
+  // made the check take 30 to 100 s against its 60 s hang timeout.
+  [
+    "capture forbiddenMatch (escapes)",
+    (s) => forbiddenMatch(`/${"%FF%2e%25".repeat(Math.ceil(s.length / 144))}%zz;%2F/%252e${s}`, FORBIDDEN_MATCHERS),
+  ],
+  ["capture shownPath", (s) => shownPath(`/${s};${s}/${s};`)],
+  ["capture applicationKey", (s) => applicationKey(`http://${s}/`)],
+  // A sign-in page as it is reported, the loopback names, one form of an address (an untrusted Location header).
+  ["capture shownUrl", (s) => shownUrl(`http://a.test/${s};${s}?${s}#${s}`)],
+  ["capture isLoopbackUrl", (s) => isLoopbackUrl(`http://[::ffff:${s}]/`) || isLoopbackUrl(`http://${s}./`)],
+  ["capture addressForm", (s) => addressForm(`http://a.test/${s}%7c|${s}%zz?${s}`)],
   ["check secrets HTML_ATTRIBUTE", (s) => [...s.matchAll(HTML_ATTRIBUTE)].length],
   // The language of a doc.config.mjs, read as text without running it (engine/project/find.mjs): spaces around `[`.
   ["project languageInConfig", (s) => [s, `language: ${s}`, `languages: ${s}[${s}`].map(languageInConfig).length],

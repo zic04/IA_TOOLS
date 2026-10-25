@@ -11,6 +11,10 @@ import { KitError, EXIT, firstLine } from "../project/errors.mjs";
 import { loadAdapter, LOGIN_PATTERN } from "../core/adapter-loader.mjs";
 import { launchBrowser } from "../project/browser.mjs";
 import { TIMINGS } from "./timings.mjs";
+import { isLoopbackUrl } from "./plans.mjs";
+
+// A loopback host (ARCHITECTURE.md §6.13): one definition, next to the application's addresses (plans.mjs).
+export { isLoopbackUrl };
 
 /**
  * Is this URL a sign-in page? True when it leaves the application's origin (identity provider) or when its path
@@ -227,13 +231,18 @@ export async function refreshSession({ file, appUrl, refresh, launch = launchBro
 /**
  * Checks a session before a capture run: opens the start page (in a context that already loads the session),
  * then asks the adapter. A 401 answer or a sign-in page means the session has expired.
+ * @param {import("playwright").Page} page
+ * @param {{ url: string, auth: any, settle?: (page: import("playwright").Page, response: any) => Promise<any> }} o
+ *   settle: waits for the end of the redirects the capture guard followed itself, and gives its response
+ *   (afterRedirects, take.mjs)
  * @returns {Promise<object|null>} the adapter's answer, null when expired
  * @throws {KitError} exit code 3 when the application cannot be reached
  */
-export async function checkSession(page, { url, auth }) {
+export async function checkSession(page, { url, auth, settle = async (_page, response) => response }) {
   let response;
   try {
     response = await page.goto(url + auth.options.start, { waitUntil: "load", timeout: TIMINGS.start });
+    response = await settle(page, response);
   } catch (e) {
     throw new KitError(EXIT.ENVIRONMENT, "capture.unreachable", { url, error: firstLine(e) }, { cause: e });
   }

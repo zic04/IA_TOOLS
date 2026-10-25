@@ -186,6 +186,54 @@ describe("doctor", () => {
     }
   });
 
+  test("capture.forbidden on an application that is not on a loopback address and calls another local port → ⚠ (SECURITY.md › Read-only captures)", async () => {
+    const env = [
+      "API_URL=http://192.168.1.20:8000/api",
+      "ASSETS=http://192.168.1.20:3000/static",
+      "DATABASE_URL=postgres://localhost:5432/orders",
+      "ANALYTICS_URL=https://stats.example.com",
+      "TILES_URL=http://localhost:9000",
+    ].join("\n");
+    const config = (app, capture = {}) => ({
+      ...base,
+      app: { url: app },
+      masking: { env: [".env.local"] },
+      capture: { forbidden: ["^/orders/\\d+/approval$"], ...capture },
+    });
+    const run = async (c, lang = "en") => {
+      const dir = project(c);
+      try {
+        fs.writeFileSync(path.join(dir, ".env.local"), env);
+        return await cli(["doctor", "--project", dir, "--lang", lang]);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const warned = await run(config("http://192.168.1.20:3000"));
+    assert.equal(warned.code, 0, "a warning only");
+    assert.match(
+      warned.out,
+      /^⚠ capture\.forbidden with http:\/\/192\.168\.1\.20:3000, not a loopback address: during captures, Chromium blocks the pages' calls to 192\.168\.1\.20:8000, localhost:9000 \(a local address, an API on another port\)\n {2}→ point app\.url at localhost or 127\.0\.0\.1/m,
+    );
+    assert.match(
+      (await run(config("http://192.168.1.20:3000"), "fr")).out,
+      /^⚠ capture\.forbidden avec http:\/\/192\.168\.1\.20:3000, qui n'est pas une adresse de bouclage : pendant les captures, Chromium bloque les appels des pages vers 192\.168\.1\.20:8000, localhost:9000/m,
+    );
+    // The same project, one thing changed: no warning.
+    for (const [why, c] of [
+      ["a loopback application (the kit lets the calls through)", config("http://localhost:3000")],
+      [
+        "no forbidden route (the browser loads the pages itself)",
+        config("http://192.168.1.20:3000", { forbidden: [] }),
+      ],
+      [
+        "production (a local address is not the application's)",
+        config("http://192.168.1.20:3000", { target: "production" }),
+      ],
+    ])
+      assert.doesNotMatch((await run(c)).out, /Chromium blocks/, why);
+  });
+
   test("messages in the project's language (config.language), even with an invalid configuration; --lang wins", async () => {
     const fr = project({ ...base, language: "fr" });
     const broken = project({ ...base, language: "fr", capture: { storgae: {} } });

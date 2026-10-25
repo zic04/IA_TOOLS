@@ -34,6 +34,7 @@ import { recapLines, askSources, saveSources, askSpaces } from "../init-answers.
 import { run as runConnect } from "./connect.mjs";
 import { run as runCapture } from "./capture.mjs";
 import { braceDepths } from "../../engine/util/js-scan.mjs";
+import { isLoopbackUrl } from "../../engine/capture/plans.mjs";
 
 export const options = {
   dir: { type: "string" },
@@ -352,15 +353,11 @@ const arrayLiteral = (list) => `[${list.map((x) => JSON.stringify(x)).join(", ")
 
 const URL_RE = /^https?:\/\/[^\s/]+/;
 
-/** Is this URL a loopback address (localhost, *.localhost, 127.x, [::1])? A URL that cannot be read is not. */
-export function isLoopback(url) {
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    return host === "localhost" || host.endsWith(".localhost") || /^127(\.\d{1,3}){3}$/.test(host) || host === "[::1]";
-  } catch {
-    return false;
-  }
-}
+/**
+ * Is this URL a loopback address? The kit's one definition (isLoopbackUrl: localhost, *.localhost, 127.x, 0.0.0.0,
+ * [::1], [::], [::ffff:127.x]). A URL that cannot be read is not.
+ */
+export const isLoopback = (url) => isLoopbackUrl(url);
 
 /** Target of the answer "local or demo application": local on a loopback address, demo anywhere else. */
 export const localOrDemo = (url) => (isLoopback(url) ? "local" : "demo");
