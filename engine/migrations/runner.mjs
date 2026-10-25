@@ -6,28 +6,26 @@
 //     // paths are relative to the project, with forward slashes; nothing touches the disk until --apply
 //   }
 // Its title, shown by upgrade, is the i18n key cli.migration.<version>.
-// The migrations that run are those newer than the base version of the project's `kit` range (^0.1.0 → 0.1.0)
-// and not newer than the installed kit, in version order.
+// The migrations that run are those newer than the lowest version the project's `kit` range allows (^0.1.0 →
+// 0.1.0, ^0.4.0 || ^0.3.0 → 0.3.0, <1.0.0 → 0.0.0; all of them when it allows none) and not newer than the
+// installed kit, in version order (engine/project/semver.mjs: npm's rules).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { KitError } from "../project/errors.mjs";
+import { compareVersions, minVersion } from "../project/semver.mjs";
 
 const FOLDER = path.dirname(fileURLToPath(import.meta.url));
 const VERSION_FILE = /^(\d+)\.(\d+)\.(\d+)\.mjs$/;
 
-/** Compares two x.y.z versions. */
-export function compareVersions(a, b) {
-  const pa = String(a).split(".").map(Number);
-  const pb = String(b).split(".").map(Number);
-  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
-  return 0;
-}
-
-/** Base version of a range: the first version written in it (^1.2.0 → 1.2.0, ~0.1 → 0.1.0, * → null). */
-export function rangeBase(range) {
-  const m = /(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(String(range || ""));
-  return m ? `${m[1]}.${m[2] || 0}.${m[3] || 0}` : null;
+/**
+ * Is a kit version past the project's range (newer than the lowest version it allows; any, when it allows none or
+ * cannot be read) and not past the installed kit? Its migrations run and its changes are shown (`upgrade`).
+ * @returns {(version: string) => boolean}
+ */
+export function sinceRange(range, kitVersion) {
+  const base = minVersion(range);
+  return (version) => (!base || compareVersions(version, base) > 0) && compareVersions(version, kitVersion) <= 0;
 }
 
 /** Available migrations: [{ version, file }], sorted. */
@@ -41,10 +39,8 @@ export function listMigrations(folder = FOLDER) {
 
 /** Migrations to run between the project's range and the installed kit. */
 export function pendingMigrations(range, kitVersion, folder = FOLDER) {
-  const base = rangeBase(range);
-  return listMigrations(folder).filter(
-    (m) => (!base || compareVersions(m.version, base) > 0) && compareVersions(m.version, kitVersion) <= 0,
-  );
+  const pending = sinceRange(range, kitVersion);
+  return listMigrations(folder).filter((m) => pending(m.version));
 }
 
 /**
@@ -138,10 +134,21 @@ export async function runMigrations(migrations, { files, config, root }) {
   return done;
 }
 
-/** Unified diff of two texts (3 lines of context), "" when equal. */
+/** The lines of a text, each with its "\n" but a last one that has none (so that the two never compare equal). */
+function linesOf(text) {
+  if (!text) return [];
+  const lines = text.split("\n").map((l) => l + "\n");
+  const last = lines.pop().slice(0, -1);
+  return last ? [...lines, last] : lines;
+}
+
+/**
+ * Unified diff of two texts (3 lines of context), "" when equal: a patch as `diff -u` writes one, a last line with
+ * no line break marked "\ No newline at end of file" (test/unit/upgrade.test.mjs applies it).
+ */
 export function unifiedDiff(file, before, after, context = 3) {
-  const a = before === null ? [] : before.split("\n");
-  const b = after === null ? [] : after.split("\n");
+  const a = linesOf(before);
+  const b = linesOf(after);
   // Common prefix and suffix, then a longest-common-subsequence table on the middle.
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
@@ -208,7 +215,9 @@ export function unifiedDiff(file, before, after, context = 3) {
     lines.push(
       `@@ -${countA ? positions[from][0] : positions[from][0] - 1},${countA} +${countB ? positions[from][1] : positions[from][1] - 1},${countB} @@`,
     );
-    for (const [t, l] of hunk) lines.push(t + l);
+    for (const [t, l] of hunk)
+      if (l.endsWith("\n")) lines.push(t + l.slice(0, -1));
+      else lines.push(t + l, "\\ No newline at end of file");
   }
   return lines.join("\n");
 }

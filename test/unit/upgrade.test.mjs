@@ -10,14 +10,13 @@ import { runCli } from "../../cli/doc-kit.mjs";
 import { readChangelog, changesBetween, planUpgrade, migrationFailure } from "../../cli/commands/upgrade.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import {
-  rangeBase,
-  compareVersions,
   listMigrations,
   pendingMigrations,
   createVirtualFiles,
   unifiedDiff,
   setKitRange,
 } from "../../engine/migrations/runner.mjs";
+import { compareVersions, satisfies } from "../../engine/project/semver.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { KIT_ROOT, demoCopy, tempDir } from "../tools/helpers.mjs";
 
@@ -33,11 +32,7 @@ const setRange = (dir, range) => {
 };
 
 describe("migration framework", () => {
-  test("versions, range base, the migrations of the kit (the 0.1.0 model is a no-op)", async () => {
-    assert.equal(rangeBase("^1.2.0"), "1.2.0");
-    assert.equal(rangeBase("~0.1"), "0.1.0");
-    assert.equal(rangeBase(">=0.2.0 <0.4.0"), "0.2.0");
-    assert.equal(rangeBase("*"), null);
+  test("the migrations of the kit, in version order (the 0.1.0 model is a no-op)", async () => {
     assert.ok(compareVersions("0.10.0", "0.9.9") > 0);
     const kit = listMigrations();
     assert.ok(kit.some((m) => m.version === "0.1.0"));
@@ -45,6 +40,27 @@ describe("migration framework", () => {
     const files = createVirtualFiles(demoCopyOnce());
     await mod.migrate({ files, config: {}, root: "" });
     assert.deepEqual(files.changes(), []);
+  });
+
+  test("the migrations to run start after the lowest version the range allows, not the first one written", () => {
+    const folder = tempDir("doc-kit-migrations-");
+    try {
+      for (const v of ["0.2.0", "0.3.0", "0.3.1", "0.4.0", "0.10.0"])
+        fs.writeFileSync(path.join(folder, `${v}.mjs`), "");
+      const pending = (range, kit = "0.4.0") => pendingMigrations(range, kit, folder).map((m) => m.version);
+      assert.deepEqual(pending("^0.4.0 || ^0.3.0"), ["0.3.1", "0.4.0"], "the 0.3 to 0.4 migrations run");
+      assert.deepEqual(pending("<1.0.0"), ["0.2.0", "0.3.0", "0.3.1", "0.4.0"], "every one up to the kit");
+      assert.deepEqual(pending(">=0.2.0 <0.4.0"), ["0.3.0", "0.3.1", "0.4.0"]);
+      assert.deepEqual(pending(">0.3.0"), ["0.4.0"], ">0.3.0 allows 0.3.1 first");
+      assert.deepEqual(pending("^0.4.0"), [], "a project at the kit's version: none");
+      assert.deepEqual(pending("^0.3.0", "0.10.0"), ["0.3.1", "0.4.0", "0.10.0"], "0.10.0 after 0.4.0");
+      assert.deepEqual(pending("*"), ["0.2.0", "0.3.0", "0.3.1", "0.4.0"]);
+      assert.deepEqual(pending(">2.0.0 <1.0.0"), ["0.2.0", "0.3.0", "0.3.1", "0.4.0"], "a range that allows none: all");
+      // A pre-release of the kit runs the migrations up to it, not its release's.
+      assert.deepEqual(pending("^0.3.0", "0.4.0-rc.1"), ["0.3.1"]);
+    } finally {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
   });
 
   test("virtual files: nothing on disk until apply; list, remove, diff", () => {
@@ -95,6 +111,7 @@ describe("migration framework", () => {
         "-m",
         "+M",
         " n",
+        "\\ No newline at end of file",
       ].join("\n"),
     );
     // Changes at most 6 lines apart share one hunk; an added last line.
@@ -115,8 +132,10 @@ describe("migration framework", () => {
         " h",
         " i",
         "-j",
+        "\\ No newline at end of file",
         "+J",
         "+k",
+        "\\ No newline at end of file",
       ].join("\n"),
     );
     assert.equal(unifiedDiff("x", "same", "same"), "");
@@ -129,7 +148,87 @@ describe("migration framework", () => {
       'export default defineConfig({\n  kit: "^0.1.0", product: {} });',
     );
   });
+
+  test("unified diff: a patch that applies, its last line and the missing line break as diff -u writes them", () => {
+    // GNU diff -u's own text: no phantom empty line after a text that ends with a line break.
+    assert.equal(
+      unifiedDiff("f", "one\ntwo\nthree\n", "one\n2\nthree\n"),
+      ["--- a/f", "+++ b/f", "@@ -1,3 +1,3 @@", " one", "-two", "+2", " three"].join("\n"),
+    );
+    // A line break added at the end changes the last line.
+    assert.equal(
+      unifiedDiff("f", "a\nb", "a\nb\n"),
+      ["--- a/f", "+++ b/f", "@@ -1,2 +1,2 @@", " a", "-b", "\\ No newline at end of file", "+b"].join("\n"),
+    );
+    assert.equal(
+      unifiedDiff("f", null, "x\ny\n"),
+      ["--- /dev/null", "+++ b/f", "@@ -0,0 +1,2 @@", "+x", "+y"].join("\n"),
+    );
+    const pairs = [
+      ["one\ntwo\nthree\n", "one\n2\nthree\n"],
+      ["a\nb", "a\nb\n"],
+      ["a\nb\n", "a\nb"],
+      ["a\nb", "a\nc"],
+      ["a\nb\nc\n", "a\nb\n"],
+      ["", "x\n"],
+      ["\n", "\n\n"],
+      [null, "x"],
+      ["x\ny\n", null],
+      ["x", null],
+    ];
+    for (const [before, after] of pairs)
+      assert.equal(applyPatch(before, unifiedDiff("f", before, after)), after ?? "", JSON.stringify([before, after]));
+    // Any two texts of a few lines, with or without a last line break (a seeded generator: the same texts each run).
+    let seed = 7;
+    const random = (n) => ((seed = (seed * 48271) % 2147483647), seed % n);
+    const text = () =>
+      Array.from({ length: random(9) }, () => ["a", "b", "c", ""][random(4)]).join("\n") + ["", "\n"][random(2)];
+    for (let i = 0; i < 400; i++) {
+      const before = text();
+      const after = text();
+      if (before !== after) assert.equal(applyPatch(before, unifiedDiff("f", before, after, random(4))), after);
+    }
+  });
 });
+
+/**
+ * A unified diff applied to a text as `patch` applies one, strictly: every context and removed line must be the
+ * text's own, with or without its line break, and each hunk's header must give its place and its counts.
+ */
+function applyPatch(text, patch) {
+  const source = (text ?? "").match(/[^\n]*\n|[^\n]+$/g) ?? [];
+  const lines = patch.split("\n");
+  assert.match(lines[0], /^--- (a\/|\/dev\/null)/);
+  assert.match(lines[1], /^\+\+\+ (b\/|\/dev\/null)/);
+  const out = [];
+  let at = 0;
+  for (let i = 2; i < lines.length;) {
+    const h = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@$/.exec(lines[i++]);
+    assert.ok(h, `a hunk header: ${lines[i - 1]}`);
+    const [oldStart, oldCount, newStart, newCount] = [h[1], h[2] ?? "1", h[3], h[4] ?? "1"].map(Number);
+    const first = oldCount ? oldStart - 1 : oldStart;
+    assert.ok(first >= at, "hunks in order");
+    while (at < first) out.push(source[at++]);
+    assert.equal(out.length, newCount ? newStart - 1 : newStart, "the hunk's new start");
+    const seen = [0, 0];
+    while (i < lines.length && !lines[i].startsWith("@@")) {
+      const line = lines[i++];
+      const end = lines[i] === "\\ No newline at end of file" ? (i++, "") : "\n";
+      assert.ok([" ", "-", "+"].includes(line[0]), `a hunk line: ${JSON.stringify(line)}`);
+      if (line[0] !== "+") {
+        assert.equal(source[at++], line.slice(1) + end, "a context or removed line is the text's");
+        seen[0]++;
+      }
+      if (line[0] !== "-") {
+        out.push(line.slice(1) + end);
+        seen[1]++;
+      }
+    }
+    assert.deepEqual(seen, [oldCount, newCount], "the hunk's counts");
+  }
+  while (at < source.length) out.push(source[at++]);
+  return out.join("");
+}
 
 let once = null;
 function demoCopyOnce() {
@@ -165,6 +264,15 @@ describe("changelog", () => {
         changesBetween(entries, "^0.1.0", "0.2.0").map((e) => e.version),
         ["0.2.0"],
       );
+      // From the lowest version the range allows, not the first one written (VER-01).
+      assert.deepEqual(
+        changesBetween(entries, "^0.3.0 || ^0.1.0", "0.3.0").map((e) => e.version),
+        ["0.3.0", "0.2.0"],
+      );
+      assert.deepEqual(
+        changesBetween(entries, "<1.0.0", "0.3.0").map((e) => e.version),
+        ["0.3.0", "0.2.0", "0.1.0"],
+      );
     } finally {
       fs.rmSync(kit, { recursive: true, force: true });
     }
@@ -172,6 +280,29 @@ describe("changelog", () => {
 });
 
 describe("upgrade", () => {
+  test("a pre-release of the kit: --apply writes a range that names it, which its release accepts too", async () => {
+    const dir = demoCopy();
+    try {
+      setRange(dir, "^0.4.1");
+      const configFile = path.join(dir, "doc.config.mjs");
+      const raw = { kit: "^0.4.1" };
+      const plan = await planUpgrade({
+        root: dir,
+        configFile,
+        raw,
+        apply: true,
+        kitVersion: "0.5.0-rc.1",
+        kitRoot: dir,
+      });
+      assert.equal(plan.compatible, false, "a range written for releases refuses it");
+      assert.equal(plan.applied, true);
+      assert.match(fs.readFileSync(configFile, "utf8"), /kit: "\^0\.5\.0-rc\.1"/);
+      assert.ok(satisfies("0.5.0-rc.1", plan.newRange) && satisfies("0.5.0", plan.newRange), plan.newRange);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("a migration of a later kit: dry run shows the diff, --apply writes it and bumps kit", async () => {
     const dir = demoCopy();
     const migrations = tempDir("doc-kit-migrations-");

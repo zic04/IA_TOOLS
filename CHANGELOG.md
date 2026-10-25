@@ -36,6 +36,18 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- **One order of versions and one reading of ranges, npm's** (`engine/project/semver.mjs`), where four functions
+  gave four answers. The `kit` range of `doc.config.mjs` is read as npm reads one: `>1.2` is `>=1.3.0` (it was
+  `>1.2.0`), `>= 1.2.3` with a space is accepted (it was refused), hyphen ranges and `~>` are read. Pre-releases are
+  ordered as SemVer 2.0 says (`1.2.3-rc.1` after `1.2.2`; it came before), for the kit's versions, a backlog's
+  `since`, the statistics and the versions of the screenshots in the site's footer. A pre-release of the kit, which
+  no range accepted (exit code 3 for every project), is accepted by a range that names a pre-release of the same
+  version, as npm does: `doc-kit upgrade --apply` writes `^0.5.0-rc.1`, which the release accepts too.
+- `doc-kit upgrade` runs the migrations, and shows the changes, newer than the **lowest** version the project's range
+  allows: `^0.4.0 || ^0.3.0` starts after 0.3.0 and `<1.0.0` after 0.0.0. It took the first number written, so
+  skipped the migrations from 0.3 to 0.4, and with `<1.0.0` every one.
+- The diff of `doc-kit upgrade` is a patch that applies: no empty line after a file's last line, and "\ No newline
+  at end of file" after a last line that has no line break.
 - **`doc-kit new` in a multilingual project** adds the same entry, at the same place, to every translated table of
   contents (`translations/<l>/toc.json`), its texts left to translate: a new page no longer stops every build with
   `translation.toc.structure`. A translated table of contents that is not valid JSON, or already out of step there
