@@ -620,6 +620,17 @@ describe("metadataFields: a METADATA header as Python's email parser reads it", 
     });
   });
 
+  test("a folded field of a CRLF header: its lines joined by a LF, each CR before a line break left out", () => {
+    const text = "Name: x\r\nLicense: MIT\r\n  and more\r\n\tand a tab\r\nVersion: 1.0\r\n  folded too\r";
+    assert.deepEqual(metadataFields(text), {
+      name: "x",
+      version: "1.0\n  folded too",
+      expression: null,
+      license: "MIT\n  and more\n\tand a tab",
+      classifiers: [],
+    });
+  });
+
   test("the header ends at a blank line, or at a line that is no field", () => {
     assert.equal(metadataFields("Name: x\r\n\r\nLicense: MIT").license, null, "a blank line (CRLF)");
     assert.equal(metadataFields("Name: x\nsome prose\nLicense: MIT").license, null, "a line with no field");
