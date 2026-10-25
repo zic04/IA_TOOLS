@@ -383,6 +383,15 @@ const SCANNER_SHAPES = [
   ["", "1.a-"],
   ["", "a=b password=c1d2e3 "],
   ["password=a", ",)"],
+  // A reference in code read as the whole value: calls one after the other, a call's arguments and blanks never
+  // closed, a quoted key never closed, sigils; an instruction to replace the value followed by words.
+  ["", "password = a.b(c, "],
+  ["password = a.b(", " "],
+  ["password = a.b(", '"x", '],
+  ["password = a.b(c", ", d"],
+  ['password = c["', "a"],
+  ["", "password=$A_B "],
+  ["password=change-me", "-a"],
   ['{"cookies": [', '{"origins": ["\\"x", '],
 ];
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */

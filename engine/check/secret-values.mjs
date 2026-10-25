@@ -5,12 +5,29 @@
 // `backlog export`, `inputs ingest` and the `secrets` facts (SECURITY.md, RULES.md S5: every expression here is
 // measured by the ReDoS harness, through GENERIC).
 
-/** A placeholder, a variable name or a masked value: not a secret. */
-export const PLACEHOLDER =
-  /^(?:x+|\*+|•+|\.+|0+|_+|-+)$|example|exemple|placeholder|your|votre|change[-_ ]?me|replace[-_ ]?me|masked|redacted|dummy|sample|mot[-_ ]?de[-_ ]?passe|[<>{}]|\$\(|\.\.\.|…|process\.env|import\.meta|os\.environ/i;
+/** A masked value as a whole (`xxxx…`, `****`, `0000…`): never a secret. */
+const MASK = /^(?:x+|\*+|•+|\.+|0+|_+|-+)$/i;
+/** 0.4.1's placeholders: a mask, or a word of documentation anywhere in the value (`your-api-key`, `<password>`). */
+const PLACEHOLDER_0_4_1 = new RegExp(
+  MASK.source +
+    String.raw`|example|exemple|placeholder|your|votre|changeme|masked|redacted|dummy|sample|mot[-_ ]?de[-_ ]?passe|[<>{}]|\$\(|\.\.\.|…|process\.env|import\.meta|os\.environ`,
+  "i",
+);
+/**
+ * A placeholder, a variable name or a masked value: not a secret. 0.4.1's (PLACEHOLDER_0_4_1), and an instruction to
+ * replace the value, as the whole value only: `change-me`, `replace_me`, words after it and a number last
+ * (`replace-me-with-a-real-key-2024`); never a word that holds it (`Replacement2024!`, `Exchange-Me2024`), nor a
+ * number right after it (`Change-Me-2024!`, `change-meXYZ2024` are passwords).
+ */
+export const PLACEHOLDER = new RegExp(
+  String.raw`^(?:change|replace)[-_ ]?me(?:(?:[-_. ][a-z]+)+(?:[-_. ]\d+)?)?$|` + PLACEHOLDER_0_4_1.source,
+  "i",
+);
 
 const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
 const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
+/** A value as 0.4.1 read it: not one of its placeholders, nor a variable name. */
+const isValue041 = (v) => !!v && !PLACEHOLDER_0_4_1.test(v) && !VARIABLE_NAME.test(v);
 
 /** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
 export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
@@ -289,41 +306,89 @@ function connectionContext(m) {
   return semicolon ? "statement" : null;
 }
 
-/** A name in code before a call or an index: several words, or members (`GetPassword`, `config.get`, `os.environ`). */
-const CODE_HEAD = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/;
 /** A sigil and a variable's name in capitals: a shell's or Windows' variable (`$DB_PASSWORD`, `%DB_PASSWORD%`). */
-const SIGIL_CONSTANT = /^(?:\$[A-Z_][A-Z\d_]*|%[A-Z_][A-Z\d_]*%)$/;
+const SIGIL_CONSTANT = /^(?:\$(?<s>[A-Z_][A-Z\d_]*)|%(?<w>[A-Z_][A-Z\d_]*)%)$/;
+/**
+ * Is a value, as a whole, a sigil and a variable's name in capitals whose words are joined by `_` (CONSTANT_NAME) or
+ * that names a secret (`$DB_PASSWORD`, `%DB_PASSWORD%`, `$PGPASSWORD`)? `$PRODPASS` and `$ECRET` are passwords.
+ * @param {string} v
+ */
+function sigilConstant(v) {
+  const g = SIGIL_CONSTANT.exec(v)?.groups;
+  const name = g?.s ?? g?.w;
+  return !!name && (CONSTANT_NAME.test(name) || secretName(name) === "secret");
+}
 /** A value without the `,` and `)` of code after it (`connect(password=DB_PASSWORD,`). Linear: no expression. */
 function bare(v) {
   let e = v.length;
   while (e > 0 && (v[e - 1] === "," || v[e - 1] === ")")) e--;
   return v.slice(0, e);
 }
+/** A name in code, or members (`GetPassword`, `config.get`, `os.getenv`). */
+const CODE_NAME = String.raw`[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*`;
+/** A quoted text on one line (`"DbPassword"`, `'db'`). */
+const QUOTED = String.raw`"[^"\r\n]*"|'[^'\r\n]*'`;
+/**
+ * An argument of a call in code: a name in lower case (`user`, `userId`), members (`Keys.Db`) or a quoted text; never a
+ * number nor a word in capitals alone (`BlueSky(7)`, `SummerFun(Beach)` are passwords).
+ */
+const ARGUMENT = String.raw`(?:[a-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+|${QUOTED})`;
+/** An index by a quoted key (`["DbPassword"]`). */
+const QUOTED_INDEX = String.raw`\[\s*(?:${QUOTED})\s*\]`;
+/**
+ * A call or an index, read from the start of a value (sticky): a name in code, then its arguments in parentheses
+ * (`GetPassword()`, `config.get("db", key)`) or a quoted key in brackets (`configuration["DbPassword"]`). Linear:
+ * each repetition starts with a sign the one before cannot read, on CODE_MAX characters at most.
+ */
+const CALL_OR_INDEX = new RegExp(
+  String.raw`(?<head>${CODE_NAME})(?:(?<call>\(\s*(?:${ARGUMENT}(?:\s*,\s*${ARGUMENT})*\s*)?\))|${QUOTED_INDEX})`,
+  "y",
+);
+/** The most characters read as a call or an index: a longer one is not. */
+const CODE_MAX = 256;
+/**
+ * What may follow a reference in code: what ends a value as 0.4.1 read it (the end of the text, a blank, `;`, a quote,
+ * a backtick), or the `,` or `)` of code.
+ */
+const CODE_END = new Set([undefined, "\r", "\n", " ", "\t", ";", '"', "'", "`", ",", ")"]);
+/**
+ * Is a value written as code: the `;`, `,` or `)` of code after it, or a blank before it and a name in lower case
+ * first (`password = request.form.password`, `password = config.get("db")`)? Not `password=my.secret` nor
+ * `password=GetPassword()` (a properties file's or a command line's password), nor `password = Root.Secret`.
+ * @param {string} input
+ * @param {number} at   where the value starts
+ * @param {string} v
+ */
+const writtenAsCode = (input, at, v) =>
+  [";", ",", ")"].includes(input[at + v.length]) ||
+  ((input[at - 1] === " " || input[at - 1] === "\t") && /^[a-z_$]/.test(v));
 
 /**
- * Is a value written as a reference in code, which names where the secret is, never the secret: a member that names
- * a secret's field (`model.Password`, `request.form.password`), a call (`GetPassword()`, `config.get(…)`; a word
- * alone before a parenthesis, `Summer(2024)`, is a password), an index by a quoted key (`configuration["…"]`), a
- * sigil and a variable's name in capitals (`$DB_PASSWORD`, `%DB_PASSWORD%`)? A name holding a number of two digits or
- * more is none of them (NUMBER_RUN: `Orders2024Prod(1)` is a password). What the floor (0.4.1's rules) leaves out,
- * its only exceptions with the placeholders (test/unit/secret-recall.test.mjs, INTENDED_CHANGES).
+ * Is a value, as a whole, a reference in code, which names where the secret is, never the secret: a shell's or
+ * Windows' variable (sigilConstant), or, written as code (writtenAsCode), a call (`GetPassword()`, `config.get("db")`:
+ * a name of several words or members, then names in lower case, members or quoted texts; a word alone before a
+ * parenthesis, `Welcome(x)`, or a number in it, `SuperSecret(1)`, is a password), an index by a quoted key
+ * (`configuration["DbPassword"]`) or a member that names a secret's field (`Password = model.Password;`)? Nothing may
+ * follow it but the end of the value (CODE_END: `HappyDays(x)!` is a password), and a value holding a number of two
+ * digits or more is none of them, checked first (NUMBER_RUN: `$ECRET2024`, `Orders2024Prod(1)`). What the floor
+ * (0.4.1's rules) leaves out, its only exceptions with the placeholders (test/unit/secret-recall.test.mjs).
  * @param {RegExpMatchArray} m   a match whose value, group v, ends it
  */
 function codeReference(m) {
   const input = m.input ?? "";
   const v = bare(m.groups.v);
   const at = (m.index ?? 0) + m[0].length - m.groups.v.length;
-  if (SIGIL_CONSTANT.test(v)) return true;
-  // The name before a parenthesis or a bracket, inside the value or just after it.
-  let i = 0;
-  while (i < v.length && v[i] !== "(" && v[i] !== "[") i++;
-  const head = v.slice(0, i);
-  if (!CODE_HEAD.test(head) || NUMBER_RUN.test(v)) return false;
-  const sign = input[at + i];
-  const quoted = input[at + i + 1] === '"' || input[at + i + 1] === "'";
-  if (sign === "(" && (head.includes(".") || nameParts(head).length > 1)) return true;
-  if (sign === "[" && quoted) return true;
-  return i === v.length && MEMBER.test(v) && secretName(v.slice(v.lastIndexOf(".") + 1)) === "secret";
+  if (NUMBER_RUN.test(v)) return false;
+  CALL_OR_INDEX.lastIndex = 0;
+  const shape = CALL_OR_INDEX.exec(input.slice(at, at + CODE_MAX));
+  // The whole value: the call or the index read from its start (past a quote the value stops at), else the value.
+  const whole = shape?.[0] ?? v;
+  if (v.length > whole.length || NUMBER_RUN.test(whole) || !CODE_END.has(input[at + whole.length])) return false;
+  if (sigilConstant(whole)) return true;
+  if (!writtenAsCode(input, at, whole)) return false;
+  if (!shape) return MEMBER.test(whole) && secretName(whole.slice(whole.lastIndexOf(".") + 1)) === "secret";
+  const head = shape.groups.head;
+  return !shape.groups.call || head.includes(".") || nameParts(head).length > 1;
 }
 
 /**
@@ -336,8 +401,10 @@ function codeReference(m) {
  */
 const connectionPassword = (m) => {
   const v = bare(m.groups.v);
-  // A value in capitals is a password (a base 32 key, `ORDERS2024PROD`), a variable's name with an underscore is not.
-  if (!v || PLACEHOLDER.test(v) || (VARIABLE_NAME.test(v) && CONSTANT_NAME.test(v))) return false;
+  if (!v || PLACEHOLDER.test(v)) return false;
+  // A value in capitals is a password (a base 32 key, `ORDERS2024PROD`), a variable's name with an underscore is not,
+  // unless it holds a number of two digits or more (`AccountKey=PROD_KEY_2024,`, as 0.4.1 read it).
+  if (VARIABLE_NAME.test(v) && CONSTANT_NAME.test(v) && !NUMBER_RUN.test(v)) return false;
   if (/key$/i.test(m.groups.k)) return true;
   const where = connectionContext(m);
   return where === "pairs" || (where === "statement" && !codeReference(m));
@@ -355,10 +422,16 @@ const floorAssignment = (m) => looksRandom(m.groups.v) && !codeReference(m);
 /**
  * 0.4.1's connection string's password, the floor of the detectors for a lone `Password=` or `Pwd=` (written as a
  * word): a value of 6 characters or more up to a blank, a quote or a `;`, as it read it (`password=postgres`,
- * `--password=…`), but never a reference in code (codeReference) or a placeholder, the `,` or `)` after it put aside.
+ * `--password=…`), but never a reference in code (codeReference) or a placeholder, the `,` or `)` after it put aside
+ * (`password=********,`), unless it holds a number of two digits or more (`password=PROD_DB_PASS_2024,`).
  * @param {RegExpMatchArray} m
  */
-const floorPassword = (m) => isValue(bare(m.groups.v)) && !codeReference(m);
+function floorPassword(m) {
+  const v = m.groups.v;
+  if (!isValue(v)) return false;
+  if (NUMBER_RUN.test(v)) return true;
+  return isValue(bare(v)) && !codeReference(m);
+}
 
 /**
  * The end of a URL parameter's name that says its value is a secret (`sig`, `access_token`, `X-Amz-Signature`). Not
@@ -420,7 +493,8 @@ export const GENERIC = Object.freeze([
     kind: "credentialsUrl",
     // A scheme of 32 characters at most: from each word of "a-a-a…", never a run to the end of the text.
     re: /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
-    accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
+    // As 0.4.1 read it, its placeholders only (isValue041): a floor of its own (test/unit/secret-recall.test.mjs).
+    accept: (m) => isValue041(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
   },
   {
     kind: "cloudKey",
@@ -469,7 +543,9 @@ export const GENERIC = Object.freeze([
   {
     kind: "signedUrl",
     re: /[?&](?:sig|signature|x-amz-signature|x-goog-signature)=(?<v>[A-Za-z0-9%+/=]{20,})/gi,
-    accept: (m) => !PLACEHOLDER.test(m.groups.v),
+    // 0.4.1 read `?sig=` and `&sig=` whatever the value: they still are (its floor). After another name, a mask as
+    // the whole value is not a signature, a placeholder's word inside one is (a signature is random).
+    accept: (m) => m[0].slice(1, 5) === "sig=" || !MASK.test(m.groups.v),
   },
   {
     kind: "assignment",

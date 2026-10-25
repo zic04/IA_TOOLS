@@ -5,8 +5,10 @@
 //   - a parity table: lines the `assignment` and `connectionString` rules of 0.4.1 reported, each still reported by
 //     scanText and by looksSecret (the filters of `facts`: withoutCredentials, routeWithoutSecrets). A line 0.4.1
 //     reported and this version does not is an intended change: INTENDED_CHANGES gives it with its reason, and the
-//     CHANGELOG names it: only a reference in code or a placeholder, never a value holding a number of two digits or
-//     more, which is never read as code.
+//     CHANGELOG names it: only a reference in code or a placeholder, decided on the whole value (never on a part of
+//     it: `password=Replacement2024!` is a password), never a value holding a number of two digits or more, which is
+//     never read as code. Each rule of those exceptions has its minimal pair here and its mutant
+//     (test/mutations/secret-values.mjs).
 // The false-positive side is in secret-detectors.test.mjs (test/fixtures/secret-configs/, the kit's documentation).
 // A literal of a provider's token shape is written in parts (push protection).
 import { test, describe } from "node:test";
@@ -139,6 +141,55 @@ const CAUGHT_BY_0_4_1 = [
   "secret: kubernetes-secret-2024-prod",
   "jwt:\n  secret: my-super-secret-key-2024",
   "password:\n  Summer2024Winter99",
+  // An instruction to replace the value is a placeholder as the whole value only: a word that holds it, or a number
+  // right after it, is a password, in a connection string, a DSN and a URL too.
+  "password=Replacement2024!",
+  "Server=db;Database=orders;User Id=sa;Password=Replacement2024!;",
+  "host=db user=app password=Replacement2024! dbname=orders",
+  "postgres://app:Replacement2024@db/orders",
+  "AccountKey=Replacement2024abc==",
+  "password=MyReplacementPwd1",
+  "password=Exchange-Me2024",
+  "password=change-meXYZ2024",
+  "password=Change-Me-2024!",
+  "password=Change-Me-2024",
+  "password=replace_me_2024!",
+  // A sigil before a number of two digits, or before a name in capitals that has no `_` and names no secret.
+  "password=$ECRET2024",
+  "password=%ECRET2024%",
+  "PASSWORD=$UPER2024PASS",
+  "PASSWORD=$DB_PASSWORD_2024",
+  "password=$PRODPASS",
+  "password=%PRODPASS%",
+  // A parenthesis that is not a call as the whole value: a sign after it, a number or a word in capitals in it, a
+  // word alone before it; a bracket that is not an index by a quoted key.
+  "password=Pass.Word(1)#Kx!q",
+  "password=HappyDays(1)!",
+  "mysqldump --password=HappyDays(1)! orders",
+  "jdbc:postgresql://db:5432/orders?user=app&password=HappyDays(1)!",
+  "password=SuperSecret(1)",
+  "password=BlueSky(7)",
+  "password=Orders.Prod(1)",
+  "Password = SuperSecret(1);",
+  "Password = SummerFun(Beach);",
+  "Password = Welcome(user);",
+  "Password = Secret[x];",
+  'Password = configuration["DbPassword2024"];',
+  "password=GetPassword())Kx9",
+  "password = config.get(key)#Kx9!q",
+  "secret: vault.v1.read_secret(path)#Kx9",
+  // A member or a call in a line that is not written as code: `password=…` at the end of the line (a properties
+  // file's, a command line's), or a name in capitals after a blank.
+  "password=Admin.Pass",
+  "password=my.secret",
+  "password=Root.Secret",
+  "password = Root.Secret",
+  "Password = Model.Password",
+  "password=model.Password",
+  "password=GetPassword()",
+  // The `,` of code after a value holding a number of two digits: still the value's.
+  "password=PROD_DB_PASS_2024,",
+  "AccountKey=PROD_KEY_2024,",
 ];
 
 /**
@@ -171,7 +222,11 @@ describe("parity with 0.4.1: what it reported is still reported", () => {
   });
 
   test("the filters of facts keep none of them: withoutCredentials, routeWithoutSecrets", () => {
-    for (const line of CAUGHT_BY_0_4_1) assert.equal(withoutCredentials(line), null, line);
+    // Dropped, or, for a URL's password, the user and password taken out of the URL (as 0.4.1 did).
+    for (const line of CAUGHT_BY_0_4_1) {
+      const kept = withoutCredentials(line);
+      assert.ok(kept === null || (kept !== line && !looksSecret(kept)), line);
+    }
     assert.equal(routeWithoutSecrets("/login?password=Orders2024Prod"), "/…");
     assert.equal(routeWithoutSecrets("/reset/password=postgres"), "/reset/…");
   });
@@ -207,5 +262,53 @@ describe("parity with 0.4.1: what it reported is still reported", () => {
       "password=MyPass(2024)",
     ])
       assert.ok(kinds(line).length > 0, line);
+  });
+
+  test("an exception is decided on the whole value: each rule's minimal pair, a password and an intended change", () => {
+    // [reported, not reported]: the same shape, one rule apart.
+    for (const [secret, reference] of [
+      // A placeholder: an instruction to replace the value as the whole value, words then a number after it.
+      ["password=Replacement2024!", "password=change-me"],
+      ["password=Change-Me-2024", "secret: replace-me-with-a-real-key-2024"],
+      // A number of two digits or more first: never a variable, a call's argument or the value before a `,` of code.
+      ["PASSWORD=$DB_PASSWORD_2024", "PASSWORD=$DB_PASSWORD"],
+      ['Password = configuration["DbPassword2024"];', 'Password = configuration["DbPassword"];'],
+      ["password=PROD_DB_PASS_2024,", "connect(password=DB_PASSWORD_VALUE, user=USER)"],
+      // A sigil and a name in capitals whose words are joined by `_`, or that names a secret.
+      ["password=$PRODPASS", "PASSWORD=$DB_PASSWORD"],
+      ["password=%PRODPASS%", "password=%DB_PASSWORD%"],
+      // A call as the whole value, nothing after it but the end of the value: a name of several words or members, then
+      // names in lower case, members or quoted texts.
+      ["password=GetPassword())Kx9", "Password = GetPassword();"],
+      ["password = config.get(key)#Kx9!q", "password = config.get(key)"],
+      ["secret: vault.v1.read_secret(path)#Kx9", "secret: vault.v1.read_secret(path)"],
+      ["Password = Welcome(user);", "Password = GetPassword(user);"],
+      ["Password = SuperSecret(1);", "Password = GetPassword(user);"],
+      ["Password = SummerFun(Beach);", "Password = GetPassword(Keys.Db);"],
+      // An index by a quoted key only.
+      ["Password = Secret[x];", 'Password = configuration["DbPassword"];'],
+      // A line written as code: the `;`, `,` or `)` of code after the value, or a blank before it and a name in
+      // lower case first.
+      ["password=my.secret", "password = request.form.password"],
+      ["password=model.Password", "Password = model.Password;"],
+      ["password=GetPassword()", "Password = GetPassword();"],
+      ["password = Root.Secret", "password = request.form.password"],
+      ["Password = Model.Password", "Password = Model.Password;"],
+    ]) {
+      assert.ok(kinds(secret).length > 0, secret);
+      assert.ok(looksSecret(secret), `looksSecret: ${secret}`);
+      assert.deepEqual(kinds(reference), [], reference);
+    }
+  });
+
+  test("a URL's password and 0.4.1's ?sig= are read as 0.4.1 read them: its placeholders only, a mask too", () => {
+    // 0.4.1's placeholders (`changeme`, `your`, `example`…) never held `change-me`: its floor reads it in a URL.
+    assert.deepEqual(kinds("postgres://app:change-me@db.example.org/orders"), ["credentialsUrl"]);
+    assert.deepEqual(kinds("postgres://app:your-password@db.example.org/orders"), []);
+    const query = "https://acct.blob.core.windows.net/c/f.pdf?sv=2024-01-01&";
+    assert.deepEqual(kinds(`${query}s${"ig"}=${"X".repeat(43)}`), ["signedUrl"], "0.4.1's ?sig=: whatever its value");
+    // Under another name, a mask as the whole value is a placeholder; a placeholder's word in a signature is not.
+    assert.deepEqual(kinds(`${query}S${"ig"}=${"X".repeat(43)}`), []);
+    assert.deepEqual(kinds(`${query}S${"ig"}=AbYour3kL9mN2pQ4rS6tU8vW1xY%3D`), ["signedUrl"]);
   });
 });

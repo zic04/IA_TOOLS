@@ -340,6 +340,10 @@ describe("assignments to a secret's name", () => {
     assert.deepEqual(kinds(`token: ${"ya" + "29.a0AfH6SMBxYz12kLmN3oPqR4sTuV5wXyZ"}`), ["assignment"]);
     assert.deepEqual(kinds("db_password: config.jwt.secret"), [], "a member");
     assert.deepEqual(kinds("db_password: user.password2"), [], "a member: one digit");
+    // Quoted, members with one digit are a value; unquoted, members holding a number of two digits are too.
+    assert.deepEqual(kinds('db_password: "Abc.Def1x"'), ["assignment"], "quoted");
+    assert.deepEqual(kinds('DB_PASSWORD="Prod.Secret1x"'), ["assignment"], "quoted");
+    assert.deepEqual(kinds("DB_PASSWORD=Summer" + "2024.Winter"), ["assignment"], "a number of two digits");
   });
 
   test("a secret's word glued to a name in capitals (PGPASSWORD, MYSQLPASSWORD): found; in lower case, or at the start, not", () => {
@@ -378,9 +382,18 @@ describe("assignments to a secret's name", () => {
       `Password=${caps};`,
       `Data Source=db;User Id=sa;Password=${"P4SS" + "W0RD2024"};`,
       `host=db user=app password=${caps} dbname=orders`,
+      // A number of two digits is checked before the sigil: never a variable's name, before a `;` too.
+      "Password=$DB_PASSWORD_" + "2024;",
     ])
       assert.deepEqual(kinds(text), ["connectionString"], text);
     assert.deepEqual(kinds("Server=db;Password=DB_PASSWORD;"), []);
+    // A DSN's pair before it is read back to a blank, a quote or a `;`, 256 characters at most: a long host name too.
+    assert.deepEqual(kinds(`host=db.internal.example.org password=${pw}`), ["connectionString"]);
+    // A quoted password, a quoted name or a name glued to a digit before it is not the connection string's rule's to
+    // read (a value without a quote, a name written as a word): an assignment reads it.
+    assert.deepEqual(kinds(`Server=db;Password="${pw}";`), ["assignment"]);
+    assert.deepEqual(kinds(`"Password"=${pw};Server=db`), ["assignment"]);
+    assert.deepEqual(kinds(`Server=db;2Password=${pw};`), ["assignment"]);
     // Next to a pair, but not written as a connection string's (`:`, a quoted name or value): an assignment.
     const pw2 = "Orders" + "2024";
     for (const text of [
@@ -498,6 +511,10 @@ describe("assignments to a secret's name", () => {
       "- DB_PASSWORD=${DB_PASSWORD:=localdev1}",
     ])
       assert.deepEqual(kinds(text), [], text);
+    // The expansion is told by the two characters before the name itself: after a dash or a digit, a value is read.
+    const pw = "Kx9#" + "mQ2vL7pZ4";
+    for (const text of ["x: ${-DB_PASSWORD:-" + pw + "}", "x: ${1db_password:-" + pw + "}"])
+      assert.deepEqual(kinds(text), ["assignment"], text);
     assert.deepEqual(kinds(`POSTGRES_PASSWORD: ${"Kx9#" + "mQ2vL7pZ4"}`), ["assignment"]);
   });
 

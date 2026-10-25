@@ -350,19 +350,27 @@ entries between a project's `kit` range and the installed version.
   that holds one, with its kind, and no other (`test/unit/secret-recall.test.mjs`). SECURITY.md writes the exact
   limits (a blank in the value, a value on the line after a name 0.4.1 did not read, `Bearer`, a token as a URL's
   user, a PEM key quoted with `> ` or cut, a secret's word glued to a name in lower case, Redis' `requirepass`).
-- **What 0.4.1 found is still found**: its two value rules run after the new detectors, reading the text as they
-  read it (a word among `password`, `passwd`, `secret`, `token`, `api_key`, `client_secret` and `access_key`, then a
-  value of 16 characters or more holding a digit, on its line or the next; `Password=` or `Pwd=`, then a value of 6
-  characters or more: `password=postgres`, `--password=…`), so that a value they reported is still reported, under
-  the kind `assignment` outside a connection string (a libpq DSN, pairs separated by blanks, `host=db user=app
-  password=… dbname=orders`, is one, as `Server=db;Password=…` is); `test/unit/secret-recall.test.mjs` checks it on a
-  table of lines 0.4.1 reported. Left out on purpose, as they name where a secret is and never the secret: a reference in
-  code, a member that names a secret's field (`Password = model.Password;`, `password = request.form.password`,
-  `token: config.v2.jwt.secret`), a call (`Password = GetPassword();`) or an index by a quoted key
-  (`Password = configuration["DbPassword"];`); a shell's or Windows' variable (`PASSWORD=$DB_PASSWORD`,
-  `password=%DB_PASSWORD%`); the placeholders `change-me` and `replace-me` (`password=change-me`,
-  `secret: replace-me-with-a-real-key-2024`), and a mask or a variable's name followed by the `,` of code
-  (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`).
+- **What 0.4.1 found is still found**: its two value rules run after the new detectors, reading the text as they read it
+  (a word among `password`, `passwd`, `secret`, `token`, `api_key`, `client_secret` and `access_key`, then a value of 16
+  characters or more holding a digit, on its line or the next; `Password=` or `Pwd=`, then a value of 6 characters or
+  more: `password=postgres`, `--password=…`), so that a value they reported is still reported, under the kind
+  `assignment` outside a connection string (a libpq DSN, pairs separated by blanks,
+  `host=db user=app password=… dbname=orders`, is one, as `Server=db;Password=…` is); its rule for a URL's password
+  (`credentialsUrl`) keeps 0.4.1's placeholders only, and its `?sig=` is read whatever its value.
+  `test/unit/secret-recall.test.mjs` checks it on a table of lines 0.4.1 reported. Left out on purpose, as they name
+  where a secret is and never the secret, each only as the whole value and never when it holds a number of two digits or
+  more (`password=$ECRET2024`, `password=PROD_DB_PASS_2024,` are reported): a shell's or Windows' variable, its words
+  joined by `_` or naming a secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`; `password=$PRODPASS` is
+  reported); in a line written as code (the `;`, `,` or `)` of code after it, or a blank before it and a name in lower
+  case first), a member that names a secret's field (`Password = model.Password;`, `password = request.form.password`,
+  `token: config.v2.jwt.secret`), a call of a name of several words or of members, its arguments names in lower case,
+  members or quoted texts (`Password = GetPassword();`), or an index by a quoted key
+  (`Password = configuration["DbPassword"];`), with nothing after it (`password=model.Password`,
+  `password = Root.Secret`, `password=SuperSecret(1)` and `password=HappyDays(1)!` are reported); the placeholders
+  `change-me` and `replace-me` as the whole value (`password=change-me`, `secret: replace-me-with-a-real-key-2024`;
+  `password=Replacement2024!` and `password=Exchange-Me2024` are reported), and a mask or a variable's name followed by
+  the `,` of code (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`). A password written exactly
+  as such a reference in a line of code (`Password = Root.Secret;`) is left out too (SECURITY.md, a limit).
 - **`export` leaves out more secret files**: Terraform state and variables (`*.tfstate`, `*.tfstate.backup`,
   `*.tfvars`), PuTTY and Apple keys (`*.ppk`, `*.p8`), VPN profiles (`*.ovpn`), encrypted files (`*.gpg`),
   `credentials` and `credentials.json`, `.htpasswd`, Google OAuth `client_secret*.json`, `kubeconfig`, the settings of

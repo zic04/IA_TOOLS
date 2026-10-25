@@ -119,18 +119,24 @@ et dans le **texte du site construit** (pages, introductions des sections, page 
   plus, mêlant minuscules, majuscules et chiffres comme un jeton généré ; jamais un paramètre d'URL dont le nom ne dit
   rien d'un secret, comme `?list=` ou `?fbclid=`) : « valeur d'apparence aléatoire (forte entropie) ».
 
-Ce que la version 0.4.1 trouvait est toujours trouvé, sauf une référence dans du code (`Password = model.Password;`)
-et un texte de remplacement.
+Ce que la version 0.4.1 trouvait est toujours trouvé, sauf une référence dans du code et un texte de remplacement,
+chacun comme valeur entière et jamais quand elle contient un nombre de deux chiffres ou plus : une variable du shell ou
+de Windows en capitales (`PASSWORD=$DB_PASSWORD`), un membre, un appel ou un index dans une ligne écrite comme du code
+(`Password = model.Password;`, `Password = GetPassword();`, `password = request.form.password` ; pas après un
+`password=` sans espace, comme l'écrit un fichier de propriétés), `change-me` et `replace-me`, et un masque avant la `,`
+du code (`password=********,`). Un mot de passe écrit exactement comme une telle référence dans une ligne de code
+(`Password = Root.Secret;`) est aussi laissé de côté, la ligne ne pouvant le distinguer d'une référence de même forme :
+SECURITY.md en donne les limites.
 
 Une simple mention n'est pas un secret : un texte de remplacement (`<password>`, `****`, `${SECRET}`, `example`,
-`exemple`, `motdepasse`, `change-me`, un nom de variable en capitales, une référence dans du code comme
-`process.env.…`, `$PASSWORD`, `config.password` ou `getPassword()`, une valeur par défaut du shell comme
+`exemple`, `motdepasse`, `change-me`, un nom de variable en capitales, une référence dans du code comme `process.env.…`,
+`$PASSWORD`, `password = config.password` ou `password = getPassword()`, une valeur par défaut du shell comme
 `${DB_PASSWORD:-postgres}`) est ignoré, de même qu'un sélecteur CSS (`#password:-webkit-autofill`), le nom d'un secret
 Kubernetes dans des valeurs Helm (`existingSecret: db-credentials`), un code d'autorisation OAuth (`?code=`), et une
-empreinte, un nonce ou un identifiant pour les valeurs d'apparence aléatoire. Les détecteurs et leurs limites sont décrits dans
-SECURITY.md. Un constat indique où il se trouve, et seulement
-les premiers caractères et la longueur de la valeur. Le contrôle signale aussi un fichier de session trouvé hors de
-`.doc-kit/`, et un fichier de session suivi par git.
+empreinte, un nonce ou un identifiant pour les valeurs d'apparence aléatoire. Les détecteurs et leurs limites sont
+décrits dans SECURITY.md. Un constat indique où il se trouve, et seulement les premiers caractères et la longueur de la
+valeur. Le contrôle signale aussi un fichier de session trouvé hors de `.doc-kit/`, et un fichier de session suivi par
+git.
 
 Jamais signalés non plus, quel que soit le détecteur :
 

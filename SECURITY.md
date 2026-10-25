@@ -227,7 +227,8 @@ for a mere mention:
   dbname=orders`), whatever its value, in capitals too (`Password=ORDERS2024PROD;`), but a placeholder or a variable's
   name in capitals with an underscore; a lone `password = …` is an assignment (and the floor below reads it from 6
   characters), and so is `password:` or a quoted value next to a pair;
-- the signature of a signed URL (`sig=`, `Sig=`, `X-Amz-Signature=`…, in any case);
+- the signature of a signed URL (`sig=`, `Sig=`, `X-Amz-Signature=`…, in any case), but a mask as the whole value
+  (`Sig=XXXX…`; a placeholder's word inside a signature does not hide it);
 - the floor: the two value rules of 0.4.1 run after the detectors above, reading the text as they read it, so that
   what 0.4.1 reported is still reported (`test/unit/secret-recall.test.mjs` checks a table of such lines and eleven
   realistic files holding secrets): one of the words `password`, `passwd`, `secret`, `token`, `api_key` (`api-key`,
@@ -236,11 +237,27 @@ for a mere mention:
   and a letter, on the name's line or the next (`password:` then `  Summer2024Winter99`); and `Password=` or `Pwd=`,
   written as a word, then a value of 6 characters or more up to a blank, a quote or a `;` (`password=postgres`,
   `--password=Summer2024Winter`, `password=$ecretPa55w0rd`). What they find is reported whatever the exceptions
-  below say, with only these: a reference in code (a member that names a secret's field, `Password = model.Password;`;
-  a call, `GetPassword()`, a word alone before a parenthesis, `Summer(2024)`, or a value holding a number of two
-  digits or more, `Orders2024Prod(1)`, being a password; an index by a quoted key, `configuration["DbPassword"]`; a
-  shell's or Windows' variable in capitals, `$DB_PASSWORD`, `%DB_PASSWORD%`), a placeholder (`change-me` and
-  `replace-me` among them), and the `,` or `)` of code after a value (`password=********,` is a mask);
+  below say, with only these, each decided on the whole value, never on a part of it, and never for a value holding
+  a number of two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
+  and `password=PROD_DB_PASS_2024,` are reported):
+  - a shell's or Windows' variable: a sigil and a name in capitals whose words are joined by `_`, or that names a
+    secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`, `$PGPASSWORD`; `$PRODPASS` is a password);
+  - in a line written as code, that is with the `;`, `,` or `)` of code after the value, or a blank before it and a
+    name in lower case first (`Password = model.Password;`, `password = request.form.password`; not
+    `password=model.Password` nor `password=GetPassword()`, as a properties file or a command line writes a password,
+    nor `password = Root.Secret`): a member that names a secret's field; a call of a name of several words or of
+    members, whose arguments are names in lower case, members or quoted texts (`Password = GetPassword();`,
+    `password = config.get("db")`; `Welcome(user)`, `SuperSecret(1)` and `SummerFun(Beach)` are passwords); an index
+    by a quoted key (`Password = configuration["DbPassword"];`); with nothing after it but what ends a value as
+    0.4.1 read it (a blank, `;`, a quote), `,` or `)` (`HappyDays(x)!`, `Pass.Word(1)#Kx!q` are passwords);
+  - a placeholder: 0.4.1's, and `change-me` or `replace-me` as the whole value, words and a number last after it
+    (`password=change-me`, `secret: replace-me-with-a-real-key-2024`; `Replacement2024!`, `Exchange-Me2024`,
+    `Change-Me-2024` and `change-meXYZ2024` are passwords); a mask or a variable's name in capitals before the `,` or
+    `)` of code (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`).
+
+  The password of a URL (`credentialsUrl`) is read as 0.4.1 read it, with its placeholders only
+  (`postgres://app:change-me@db/orders` is reported, `your-password` is not), and 0.4.1's `?sig=` and
+  `&sig=` whatever their value (`?sig=XXXX…` too);
 - last, a fallback by entropy: a value assigned to any name, or quoted, of 20 to 256 characters, holding lower case,
   upper case and digits, whose kind of character (lower case, upper case, digit) changes from one letter or digit to
   the next at least 45 times in 100, as in a random token (a name made of words and numbers changes far less), and
@@ -249,33 +266,32 @@ for a mere mention:
   20 to 28 characters and 97 in 100 of 32 or more, and nothing in a corpus of harmless values (names in code, paths,
   cloud sizes, versions, alphabets, hashes) nor in the kit's own documentation.
 
-Never a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `xxxx…`, `example`, `your…`, `change-me`,
-`replace-me`, `exemple`, `votre`, `motdepasse`…), the default of a shell expansion (`${DB_PASSWORD:-postgres}`), a
-reference (`process.env.…`, `os.environ…`). Under a secret's name (or the key of anything), neither is a number
-(but 8 digits or more under a password's name) nor a value of fewer than 5 different characters (`***-***-***`), nor,
-under a secret's name, a reference written as code: a variable's name in capitals with an underscore, unquoted
-(`DB_PASSWORD_VALUE`), or quoted when it holds no digit, is wrapped in underscores or holds a secret's word
-(`"__REPLACE_AT_DEPLOY__"`, `"OPENAI_API_KEY"`; `"S3CR_ET99_ZQ"` is a value), a sigil and a name
+Never a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `xxxx…`, `example`, `your…`, `exemple`, `votre`,
+`motdepasse`…, and `change-me` or `replace-me` as the whole value), the default of a shell expansion
+(`${DB_PASSWORD:-postgres}`), a reference (`process.env.…`, `os.environ…`). Under a secret's name (or the key of
+anything), neither is a number (but 8 digits or more under a password's name) nor a value of fewer than 5 different
+characters (`***-***-***`), nor, under a secret's name, a reference written as code: a variable's name in capitals with
+an underscore, unquoted (`DB_PASSWORD_VALUE`), or quoted when it holds no digit, is wrapped in underscores or holds a
+secret's word (`"__REPLACE_AT_DEPLOY__"`, `"OPENAI_API_KEY"`; `"S3CR_ET99_ZQ"` is a value), a sigil and a name
 (`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a path
 (`/run/secrets/db`), a comparison (`token === …`); unquoted, a member (`config.jwt.secret`) or members joined by `+`
 (`r.C0.ESC+r.C0.ESC`, minified code), a call or an index (`getPassword()`, `configuration["DbPassword"]`) and, under a
-name that is not in capitals (code rather than an environment file), a name in code of several words
-(`hashedPassword`, `new_password`): a value holding a number of two digits or more is neither a member nor a name in
-code (`password: SummerHoliday2024`, `password: Summer2024.Winter99` and `ya29.…` are values); unquoted after `:`, a
-CSS pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
-`.password:picture-in-picture{`) and, under a name in lower case ending in `secret` (a Helm value), a resource's name
-of lower-case words joined by `-`, `.` or `/` (`tlsSecret: wildcard-tls-certificate`); a documentation's example,
-letters only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). A name holding `existing` or
-`pull` points to a resource that holds the secret (`existingSecret`, `imagePullSecret`): it is not a secret's
-name, nor are `secretName` and `secretRef`, which end in another word. For the entropy
-fallback, never a hash (hexadecimal, `sha512-…`), the value of a hash, a nonce or an identifier (`integrity`,
-`pin-sha256`, `nonce`, `state`, `code_challenge`, `id`, `client_id`, `…_name`) or of a public name, nor a URL's
-query or fragment parameter whose name says nothing of a secret (`?list=`, `&fbclid=`, `&amp;gclid=`): one whose
-name ends in a secret's word, or in one a URL gives a secret (`sig`, `signature`, `token`, `key`, `secret`,
-`password`, `credential`, `session`, `sid`, `auth`), is read. An OAuth authorisation code (`?code=`) is not: it is
-used once, within minutes, and every provider's documentation shows one. A value two detectors find is reported
-once, by the first (a Google key in a URL's `key=`: `cloudKey`). These exceptions never hide what the floor finds
-(above).
+name that is not in capitals (code rather than an environment file), a name in code of several words (`hashedPassword`,
+`new_password`): a value holding a number of two digits or more is neither a member nor a name in code
+(`password: SummerHoliday2024`, `password: Summer2024.Winter99` and `ya29.…` are values); unquoted after `:`, a CSS
+pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
+`.password:picture-in-picture{`) and, under a name in lower case ending in `secret` (a Helm value), a resource's name of
+lower-case words joined by `-`, `.` or `/` (`tlsSecret: wildcard-tls-certificate`); a documentation's example, letters
+only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). A name holding `existing` or `pull` points
+to a resource that holds the secret (`existingSecret`, `imagePullSecret`): it is not a secret's name, nor are
+`secretName` and `secretRef`, which end in another word. For the entropy fallback, never a hash (hexadecimal,
+`sha512-…`), the value of a hash, a nonce or an identifier (`integrity`, `pin-sha256`, `nonce`, `state`,
+`code_challenge`, `id`, `client_id`, `…_name`) or of a public name, nor a URL's query or fragment parameter whose name
+says nothing of a secret (`?list=`, `&fbclid=`, `&amp;gclid=`): one whose name ends in a secret's word, or in one a URL
+gives a secret (`sig`, `signature`, `token`, `key`, `secret`, `password`, `credential`, `session`, `sid`, `auth`), is
+read. An OAuth authorisation code (`?code=`) is not: it is used once, within minutes, and every provider's documentation
+shows one. A value two detectors find is reported once, by the first (a Google key in a URL's `key=`: `cloudKey`). These
+exceptions never hide what the floor finds (above).
 
 Limits: the detectors are patterns and a measure, not a proof.
 
@@ -294,6 +310,12 @@ Limits: the detectors are patterns and a measure, not a proof.
   number of fewer than 8 digits, or under a token's or a secret's name, is not one. The floor finds some of them
   all the same (after `Password=` or `Pwd=` from 6 characters; after one of 0.4.1's words, 16 characters or more
   holding a digit), as 0.4.1 did.
+- The floor leaves out a password written exactly as a reference in a line written as code (above):
+  `Password = Root.Secret;`, `password = my.secret`, `Password = Get.Token(x);`,
+  `connect(password=Hello["x"], user=USER)`. A line cannot tell such a password from a reference of the same
+  shape, and the detectors do not know whether a file is code or configuration (`scanText` reads a text, never its
+  file's name): left out, as in code, where a reference is far more common than a password written so. 0.4.1
+  reported them.
 - A secret's word glued to a name in lower case (`pgpassword=`, `dbpassword:`) is not a secret's name, nor is a name
   of more than 128 characters (only the floor reads one, by its last word), nor a setting written without `=` or `:`
   (Redis' `requirepass Orders2024Prod`).
