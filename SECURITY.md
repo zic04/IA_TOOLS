@@ -33,13 +33,17 @@ this file gives access to the application with the rights of the person who sign
   anywhere else in the project, whatever its size, or tracked by git.
 - `doc-kit export` never copies a `.doc-kit/` folder (at any depth), the file named by `<PREFIX>_SESSION` /
   `DOC_KIT_SESSION`, any JSON file that is a browser session, environment files (`.env*`, `.envrc`), keys and
-  certificates (`*.pem`, `*.key`, `*.p12`, `*.ppk`, `id_rsa`…), tool credentials (`.npmrc`, `.netrc`,
-  `.git-credentials`, `credentials`, `credentials.json`), Terraform state (`*.tfstate`, `*.tfstate.backup`), VPN
-  profiles (`*.ovpn`), encrypted files (`*.gpg`) or the settings of an environment (`appsettings.*.json`;
+  certificates (`*.pem`, `*.key`, `*.p8`, `*.p12`, `*.ppk`, `id_rsa`…), tool credentials (`.npmrc`, `.netrc`,
+  `.git-credentials`, `.htpasswd`, `credentials`, `credentials.json`, a Google OAuth `client_secret*.json`, a
+  `kubeconfig`), Terraform state and variables (`*.tfstate`, `*.tfstate.backup`, `*.tfvars`), VPN profiles
+  (`*.ovpn`), encrypted files (`*.gpg`) or the settings of an environment (`appsettings.*.json` and its `.bak` copy;
   `appsettings.json` itself is copied). A session is told by its first 64 KB, never by reading the file whole: a file
   that fits in them is parsed, a longer one is a session when it starts as one (an object whose first key is
-  `cookies` or `origins`), so a session holding megabytes of local storage is left out too. A session written in
-  another order, longer than 64 KB, is not recognised: keep sessions in `.doc-kit/`.
+  `cookies` or `origins`) and its first 64 KB also hold the other key, or a first item of a session's shape (a cookie
+  with its `name`, `value` and `domain`; an origin with its `localStorage`), so a session holding megabytes of local
+  storage is left out too, and a data file that merely starts with a `cookies` list is not one. A session written in
+  another order, longer than 64 KB, is not recognised: keep sessions in `.doc-kit/`. Other names are copied: a
+  `.kube/config`, a key without its extension.
 - Never copy, show, attach or pass the file on — not in a ticket, not to a colleague, not to an agent, not to a CI
   pipeline. Delete it at the end of a campaign: `doc-kit connect --forget`. If it leaked, sign out of the application
   (or revoke the session on the identity provider) to invalidate it.
@@ -84,13 +88,22 @@ for a mere mention:
 - private keys holding key material: PEM blocks (PKCS#8, RSA, EC, OpenSSH, encrypted ones), a PEM block escaped on one
   line in a JSON file (the `private_key` of a service account), PGP private key blocks, the private lines of a PuTTY
   key; a JWT; the password of a connection string or of a URL;
-- the tokens of known services, by their shape: AWS access key IDs, GitHub (classic and fine-grained), GitLab, npm,
-  Slack (tokens, app tokens, incoming webhooks), Google API keys and OAuth client secrets, OpenAI-style `sk-` keys,
-  Stripe keys and webhook secrets;
+- the tokens of known services, by their shape: AWS access key IDs, GitHub (classic and fine-grained), GitLab
+  (personal, runner and runner registration, deploy and pipeline trigger tokens), npm, Slack (tokens, app tokens,
+  incoming webhooks), Google API keys and OAuth client secrets, OpenAI-style `sk-` keys, Stripe keys and webhook
+  secrets, SendGrid (`SG.`), Hugging Face (`hf_`), DigitalOcean (`dop_v1_`, `doo_v1_`, `dor_v1_`), Twilio API keys
+  (`SK` and 32 hexadecimal digits), Discord webhooks and Microsoft Teams incoming webhooks;
 - the value of an assignment to a secret's name, whatever the words before it: `SECRET_KEY`, `DB_PASSWORD`,
-  `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`… A name merely starting so (`KEYBOARD`,
-  `TOKENIZER`) is not one. For the key of anything else (`STRIPE_KEY`, `CACHE_KEY`), the value must also look
-  generated; a public name (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`) is never a secret's;
+  `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`…, after `=`, `:`, `:=` or `=>`, quoted
+  or not. The value is read on the name's line, up to a character other than an ASCII letter, a digit or
+  `_-+/=.~!@#$%&*` (a blank, a quote, `,`, `:`, `;`, a bracket, a parenthesis…): it may hold the signs of a password
+  (`Tr0ub4dor&3xQ!`) and the `~` of every Azure AD client secret, but a `&` that starts another URL parameter
+  (`&user=`) ends it. It is a secret from 8 characters, in capitals (a base 32 key) or without a digit too, and from
+  16 when made of letters only, or of words of letters joined by `-`, `_` or `.` (`correcthorsebatterystaple`; a
+  label's word, `"password": "Passwort"`, is shorter). A name merely starting so (`KEYBOARD`, `TOKENIZER`) is not one. For the key of anything else
+  (`STRIPE_KEY`, `CACHE_KEY`), the value must have 16 characters or more and look generated; a public name
+  (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`) is never a secret's. The password of a connection string
+  (`Password=`, `Pwd=`) is read inside one only (`Server=db;Password=…`): a lone `password = …` is an assignment;
 - the signature of a signed URL (`sig=`, `Sig=`, `X-Amz-Signature=`…, in any case);
 - last, a fallback by entropy: a value assigned to any name, or quoted, of 20 to 256 characters, holding lower case,
   upper case and digits, whose kind of character (lower case, upper case, digit) changes from one letter or digit to
@@ -101,20 +114,40 @@ for a mere mention:
   cloud sizes, versions, alphabets, hashes) nor in the kit's own documentation.
 
 Never a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `xxxx…`, `example`, `your…`, `change-me`,
-`replace-me`, `exemple`, `votre`, `motdepasse`…), a variable name in capitals, a reference (`process.env.…`), a number;
-and for the entropy fallback, a hash (hexadecimal, `sha512-…`), the value of a hash, a nonce or an identifier
-(`integrity`, `pin-sha256`, `nonce`, `state`, `code_challenge`, `id`, `client_id`, `…_name`) or of a public name.
+`replace-me`, `exemple`, `votre`, `motdepasse`…), a reference (`process.env.…`, `os.environ…`). Under a secret's name
+(or the key of anything), neither is a number nor a value of fewer than 5 different characters (`***-***-***`), nor,
+under a secret's name, a reference written as code: a variable's name in capitals with an underscore (`DB_PASSWORD_VALUE`), a sigil and a name
+(`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a member
+(`config.jwt.secret`), a path (`/run/secrets/db`), a comparison (`token === …`); unquoted, a call or an index
+(`getPassword()`, `configuration["DbPassword"]`) and, under a name that is not in capitals (code rather than an
+environment file), a name in code of several words (`hashedPassword`, `new_password`); and a documentation's
+example, letters only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). For the entropy
+fallback, never a hash (hexadecimal, `sha512-…`), the value of a hash, a nonce or an identifier (`integrity`,
+`pin-sha256`, `nonce`, `state`, `code_challenge`, `id`, `client_id`, `…_name`) or of a public name, nor a URL's
+query or fragment parameter whose name says nothing of a secret (`?list=`, `&fbclid=`, `&amp;gclid=`): one whose
+name ends in a secret's word, or in one a URL gives a secret (`sig`, `signature`, `token`, `key`, `secret`,
+`password`, `credential`, `session`, `sid`, `auth`, `code`), is read.
 
 Limits: the detectors are patterns and a measure, not a proof.
 
 - A secret of an unknown shape under a name that does not say so passes when it is short (under 20 characters), of
   one case or without digits (a password made of words, a base 32 or hexadecimal key: only an assignment to a
-  secret's name finds it), longer than 256 characters, or not assigned nor quoted (a word alone in a sentence or a
-  table cell).
+  secret's name finds it), longer than 256 characters, not assigned nor quoted (a word alone in a sentence or a table
+  cell), or the value of a URL parameter whose name says nothing of a secret.
+- Under a secret's name, a password passes when it is shorter than 8 characters (16 for letters only), holds a
+  character the value stops at (a blank: `"correct horse battery staple"` is read as `correct`; `:`, `,`, `;`, a
+  bracket, a parenthesis, `^`, `?`, a letter outside ASCII) before its 8th, is on the line after its name, or is
+  written like one of the references above: `MySecretPassword2024` unquoted under a name in lower case,
+  `my.pass.word` (a member), `supersecretpassword` (letters with a secret's word), `!Password` (a YAML tag).
+- Not looked for: a token after `Authorization: Bearer` or `Basic` (unless it has a known shape or is a JWT), a token
+  as the user of a URL (`https://<token>@host`; a `user:password@` is found), a PEM key whose lines start with `> `
+  or `// ` (quoted in a message or a comment), a PEM block cut before its `END` line, and an Azure AD client secret
+  under a name that does not say so.
 - About one random token in ten of 20 to 28 characters looks too regular to the entropy fallback, and one in thirty
   of 32 or more.
 - A random value that is not a secret can be reported: a test fixture, data encoded in base 64, an identifier made of
-  short words and digits (`dnsAlpnH3JobWonWithoutRace`). Set a value known to be public aside with `masking.allow`.
+  short words and digits (`dnsAlpnH3JobWonWithoutRace`), a public token under a secret's name (a coverage badge's
+  `?token=`). Set a value known to be public aside with `masking.allow`.
 - Lines are the unit: one detector's finding hides the fallback's on the same line, and a filter (`pack`, `backlog
   export`, `inputs ingest`) replaces the whole line.
 

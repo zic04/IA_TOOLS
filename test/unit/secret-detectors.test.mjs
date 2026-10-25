@@ -8,8 +8,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { GENERIC, scanText, highEntropy, SECRET_FILE } from "../../engine/check/secrets.mjs";
-import { KIT_ROOT } from "../tools/helpers.mjs";
+import { GENERIC, scanText, highEntropy, SECRET_FILE, isSessionFile } from "../../engine/check/secrets.mjs";
+import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 /** The kinds the generic detectors report in a text, in order. */
 const kinds = (text) => scanText(text, GENERIC).map((f) => f.kind);
@@ -32,6 +32,7 @@ const B62 = UPPER + LOWER + DIGITS;
 const B64 = B62 + "+/";
 const B64URL = B62 + "-_";
 const HEX = "0123456789abcdef";
+const B32 = UPPER + "234567";
 const random = generator(0x5ec06);
 /** `length` characters of `alphabet`, drawn by the generator. */
 const draw = (length, alphabet = B62, next = random) =>
@@ -87,6 +88,40 @@ describe("cloud and service tokens", () => {
     const appToken = `${app}A${draw(10, UPPER + DIGITS)}-${draw(13, DIGITS)}-${draw(64, HEX)}`;
     assert.deepEqual(kinds(`SLACK=${appToken}`), ["cloudKey"]);
     assert.deepEqual(kinds(`SLACK=${app}${"X".repeat(11)}-${"X".repeat(13)}-${"X".repeat(64)}`), []);
+  });
+
+  test("SendGrid, Hugging Face, DigitalOcean, Twilio, GitLab runner, trigger and deploy tokens: found; their placeholders are not", () => {
+    for (const [real, placeholder] of [
+      ["S" + "G." + token(22, B64URL) + "." + token(43, B64URL), "SG." + "x".repeat(22) + "." + "x".repeat(43)],
+      // (Letters only, as Hugging Face writes them.)
+      ["h" + "f_" + draw(17, UPPER) + draw(17, LOWER), "hf_" + "x".repeat(34)],
+      ["do" + "p_v1_" + draw(64, HEX), "dop_v1_" + "0".repeat(64)],
+      ["do" + "o_v1_" + draw(64, HEX), "doo_v1_" + "a".repeat(64)],
+      ["do" + "r_v1_" + draw(64, HEX), "dor_v1_" + "f".repeat(64)],
+      ["S" + "K" + draw(32, HEX), "SK" + "0".repeat(32)],
+      ["gl" + "rt-" + token(20, B64URL), "glrt-" + "x".repeat(20)],
+      ["GR" + "1348941" + token(20, B64URL), "GR1348941" + "x".repeat(20)],
+      ["gl" + "ptt-" + draw(40, HEX), "glptt-" + "0".repeat(40)],
+      ["gl" + "dt-" + token(20, B64URL), "gldt-" + "X".repeat(20)],
+    ]) {
+      assert.deepEqual(kinds(`value: ${real}`), ["cloudKey"], real.slice(0, 3));
+      assert.deepEqual(kinds(`value: ${placeholder}`), [], placeholder.slice(0, 7));
+    }
+  });
+
+  test("Discord and Microsoft Teams webhooks: found; their placeholders are not", () => {
+    const discord = "https://discord" + ".com/api/webhooks/";
+    assert.deepEqual(kinds(`url: ${discord}${draw(18, DIGITS)}/${token(68, B64URL)}`), ["cloudKey"]);
+    assert.deepEqual(kinds(`url: ${discord}123456789012345678/${"X".repeat(68)}`), []);
+    const guid = () => [8, 4, 4, 4, 12].map((n) => draw(n, HEX)).join("-");
+    const teams = () => "https://contoso.webhook" + `.office.com/webhookb2/${guid()}@${guid()}/IncomingWebhook/`;
+    assert.deepEqual(kinds(`url: ${teams()}${draw(32, HEX)}/${guid()}`), ["cloudKey"]);
+    assert.deepEqual(kinds(`url: ${teams()}${"x".repeat(32)}/${guid()}`), []);
+    assert.deepEqual(kinds(`url: ${teams()}${"0".repeat(32)}/${guid()}`), []);
+    // The connector's former address.
+    const outlook = "https://outlook.office" + `.com/webhook/${guid()}@${guid()}/IncomingWebhook/`;
+    assert.deepEqual(kinds(`url: ${outlook}${draw(32, HEX)}/${guid()}`), ["cloudKey"]);
+    assert.deepEqual(kinds(`url: ${outlook}${"x".repeat(32)}/${guid()}`), []);
   });
 
   test("a URL signature in any case (Sig=, sig=, X-Amz-Signature=): found; a placeholder is not", () => {
@@ -173,6 +208,126 @@ describe("assignments to a secret's name", () => {
     assert.deepEqual(kinds(`PublicKeyToken=${draw(16, HEX)}`), []);
   });
 
+  test("a password made of words: found from 16 letters; a label, a placeholder or fewer letters are not", () => {
+    const words = "correct" + "horse" + "battery" + "staple";
+    assert.deepEqual(kinds(`DB_PASSWORD=${words}`), ["assignment"]);
+    assert.deepEqual(kinds(`"password": "${words}"`), ["assignment"]);
+    assert.deepEqual(kinds(`db_password: ${"correct-" + "horse-" + "battery"}`), ["assignment"]);
+    assert.deepEqual(kinds(`DB_PASSWORD=your${words}`), [], "a placeholder");
+    assert.deepEqual(kinds('"password": "Passwort"'), [], "a label");
+    assert.deepEqual(kinds(`DB_PASSWORD=${words.slice(0, 15)}`), [], "15 letters");
+    assert.deepEqual(kinds(`DB_PASSWORD=${words.slice(0, 16)}`), ["assignment"], "16 letters");
+  });
+
+  test("a base 32 key in capitals (SECRET_KEY=JBSWY3DP…): found; a variable's name in capitals is not", () => {
+    // Its first character a letter, as in JBSWY3DP…: a variable's name in capitals, to the former rule.
+    const key = draw(1, UPPER) + draw(31, B32);
+    assert.deepEqual(kinds(`SECRET_KEY=${key}`), ["assignment"]);
+    assert.deepEqual(kinds(`totp_secret: "${key}"`), ["assignment"]);
+    assert.deepEqual(kinds("SECRET_KEY=DJANGO_SECRET_KEY"), [], "a variable's name");
+    assert.deepEqual(kinds(`SECRET_KEY=${"A".repeat(32)}`), [], "one letter");
+  });
+
+  test("a password with signs (Tr0ub4dor&3xQ!): found from 8 characters; 7, a mask or a reference are not", () => {
+    const pw = "Tr0" + "ub4dor&3xQ!";
+    for (const text of [
+      `DB_PASSWORD=${pw}`,
+      `db_password: "${pw}"`,
+      `"password":"${pw}"`,
+      `password := "${pw}"`,
+      `'password' => '${pw}',`,
+      `DB_PASSWORD=${pw.slice(0, 8)}`,
+      `DB_PASSWORD=~!@#$%&*${pw.slice(0, 3)}`,
+    ])
+      assert.deepEqual(kinds(text), ["assignment"], text);
+    for (const text of [
+      `DB_PASSWORD=${pw.slice(0, 7)}`,
+      "DB_PASSWORD=********",
+      "DB_PASSWORD=${DB_PASSWORD}",
+      "DB_PASSWORD=$DB_PASSWORD_VALUE",
+      "DB_PASSWORD=%DB_PASSWORD%",
+      "DB_PASSWORD=<your-password>",
+      "DB_PASSWORD=changeme",
+      "DB_PASSWORD=xxxxxxxxxxxx",
+      "DB_PASSWORD=***-***-***",
+    ])
+      assert.deepEqual(kinds(text), [], text);
+  });
+
+  test("an Azure AD client secret, with its ~: found; its placeholder is not", () => {
+    const secret = token(3) + draw(1, DIGITS) + "Q~" + draw(34, B62 + "._~-");
+    assert.deepEqual(kinds(`AZURE_CLIENT_SECRET=${secret}`), ["assignment"]);
+    assert.deepEqual(kinds(`"clientSecret": "${secret}"`), ["assignment"]);
+    assert.deepEqual(kinds("AZURE_CLIENT_SECRET=<client-secret>"), []);
+    assert.deepEqual(kinds('"clientSecret": "${AZURE_CLIENT_SECRET}"'), []);
+  });
+
+  test("a value written as code is a reference, not a secret: a variable, a member, a call, an index, a path", () => {
+    for (const text of [
+      "password: hashedPassword,",
+      "password = new_password",
+      "token: accessToken",
+      "password = request.form.password",
+      "secret: config.jwt.secret,",
+      "password: getPassword()",
+      "token = generate_token(user)",
+      'password = os.environ["DB_PASSWORD"]',
+      "password: process.env.DB_PASSWORD,",
+      'Password = configuration["DbPassword"];',
+      "Password = model.Password;",
+      "Password = GetPassword();",
+      "type ArrowToken = ArrowToken$1;",
+      "if (v.token===w.Keyword) return",
+      "endToken=a&&a.join()",
+      "passphrase: 'mysecretpassword',",
+      "//registry.example.org/:_authToken=MYTOKEN1",
+      "'password' => $password,",
+      "password: @password",
+      "password: *default_password",
+      "MasterUserPassword: !ImportValue SharedPassword",
+      "PASSWORD=$(cat /run/secrets/db)",
+      "SECRET_KEY=/run/secrets/django_key",
+      "password: string;",
+      "password: undefined",
+      "token: required",
+      "GITHUB_TOKEN=\nOTHER_SETTING=a_long_value_2024",
+    ])
+      assert.deepEqual(kinds(text), [], text);
+    // Quoted, the same kind of text is a value.
+    assert.deepEqual(kinds('password = "new_password_2024"'), ["assignment"]);
+  });
+
+  test("a name in code is a value under a name in capitals (an environment file), a variable under a name in lower case", () => {
+    const words = "My" + "Secret" + "Password" + "2024";
+    assert.deepEqual(kinds(`DB_PASSWORD=${words}`), ["assignment"]);
+    assert.deepEqual(kinds(`db_password: "${words}"`), ["assignment"], "quoted");
+    assert.deepEqual(kinds(`db_password: ${words}`), [], "unquoted, under a name in lower case (SECURITY.md, a limit)");
+  });
+
+  test("a connection string's password inside a connection string; a lone password = … is an assignment, once", () => {
+    const pw = "hun" + "ter22";
+    assert.deepEqual(kinds(`Server=db;Password=${pw};`), ["connectionString"]);
+    assert.deepEqual(kinds(`Password=${pw};Server=db`), ["connectionString"]);
+    assert.deepEqual(kinds(`password = ${pw}`), ["assignment"]);
+    assert.deepEqual(kinds("Password = model.Password;"), []);
+  });
+
+  test("known limits (SECURITY.md): a password with a blank, on the next line, after Bearer or Basic, as a URL's user", () => {
+    const pem = (prefix) =>
+      [begin(""), ...Array.from({ length: 4 }, () => token(64, B64)), end("")].map((l) => prefix + l).join("\n");
+    for (const text of [
+      `"password": "correct ${"horse battery staple"}"`,
+      `password:\n  ${"Tr0" + "ub4dor&3xQ!"}`,
+      `Authorization: Bearer ${token(40, B64URL)}`,
+      `Authorization: Basic ${token(28, B64)}==`,
+      `https://${token(40)}@git.example.org/team/app.git`,
+      pem("> "),
+      pem("// "),
+      pem("").split("\n").slice(0, -1).join("\n"),
+    ])
+      assert.deepEqual(kinds(text), [], text.slice(0, 30));
+  });
+
   test("a documentation placeholder, a variable and a number are not values", () => {
     for (const v of [
       "change-me-in-production-2024",
@@ -214,6 +369,20 @@ describe("the entropy fallback", () => {
       `<mxCell id="${token(20, B64URL)}-1" parent="${token(20, B64URL)}-1" />`,
     ])
       assert.deepEqual(kinds(text), [], text.slice(0, 40));
+  });
+
+  test("a URL's query value under a name that says nothing (?list=, ?fbclid=): not found; under a secret's name it is", () => {
+    const youtube = "https://www.youtube" + `.com/watch?v=${token(11, B64URL)}&list=PL${token(32, B64URL)}`;
+    assert.deepEqual(kinds(youtube), []);
+    assert.deepEqual(kinds(`<a href="${youtube.replace("&", "&amp;")}">talk</a>`), []);
+    assert.deepEqual(kinds(`https://shop.test/?fbclid=IwAR${token(57, B64URL)}`), []);
+    assert.deepEqual(kinds(`https://shop.test/?utm_source=x&gclid=${token(40, B64URL)}`), []);
+    // A secret's name, or a name a URL gives a secret (a session, a code): found.
+    assert.deepEqual(kinds(`https://shop.test/cb?state=abc&code=${token(32, B64URL)}`), ["entropy"]);
+    assert.deepEqual(kinds(`https://shop.test/a?session=${token(32)}`), ["entropy"]);
+    assert.deepEqual(kinds(`https://shop.test/a#access_token=${token(32)}`), ["assignment"]);
+    // Outside a query, the same name is an assignment like any other.
+    assert.deepEqual(kinds(`list=PL${token(32, B64URL)}`), ["entropy"]);
   });
 
   test("calibration: random tokens of 20 characters or more are found 85 times in 100, of 32 or more 95", () => {
@@ -330,6 +499,14 @@ describe("secret files (export, the sources of a feature)", () => {
       "credentials",
       "appsettings.Production.json",
       "appsettings.Development.json",
+      "appsettings.Production.json.bak",
+      "terraform.tfvars",
+      "prod.auto.tfvars",
+      "client_secret.json",
+      "client_secret_1234-abc.apps.googleusercontent.com.json",
+      "kubeconfig",
+      "AuthKey_ABC123.p8",
+      ".htpasswd",
     ])
       assert.ok(SECRET_FILE.test(name), name);
     for (const name of [
@@ -342,7 +519,42 @@ describe("secret files (export, the sources of a feature)", () => {
       "credentials.example.json",
       "appsettings.json",
       "appsettings.md",
+      "appsettings.Production.json.md",
+      "terraform.tfvars.example",
+      "tfvars.md",
+      "client_secret.md",
+      "client_secret.example.json",
+      "kubeconfig.md",
+      "p8.md",
+      "htpasswd.md",
+      ".htaccess",
     ])
       assert.ok(!SECRET_FILE.test(name), name);
+  });
+
+  test("a JSON file over 64 KB whose first key is cookies or origins is a session only with a session's shape", () => {
+    const dir = tempDir("doc-kit-session-");
+    try {
+      const write = (name, data) => {
+        const file = path.join(dir, name);
+        fs.writeFileSync(file, JSON.stringify(data, null, 2));
+        assert.ok(fs.statSync(file).size > 64 * 1024, name);
+        return file;
+      };
+      const many = (item) => Array.from({ length: 2000 }, (_, i) => item(i));
+      // Data that merely starts with a "cookies" or an "origins" list.
+      const recipes = { cookies: many((i) => ({ id: i, flavour: "chocolate chip" })) };
+      assert.equal(isSessionFile(write("recipes.json", recipes)), false);
+      const cors = { origins: many((i) => ({ origin: `https://a${i}.test`, methods: ["GET"] })) };
+      assert.equal(isSessionFile(write("cors.json", cors)), false);
+      // Sessions: Playwright's cookies, the other key in the head, an origin with its local storage.
+      const cookie = (i) => ({ name: `c${i}`, value: "v", domain: "app.test", path: "/", expires: -1 });
+      assert.equal(isSessionFile(write("jar.json", { cookies: many(cookie) })), true);
+      const origins = [{ origin: "https://app.test", localStorage: [{ name: "cache", value: "x".repeat(100_000) }] }];
+      assert.equal(isSessionFile(write("state.json", { cookies: [], origins })), true);
+      assert.equal(isSessionFile(write("origins-first.json", { origins, cookies: [] })), true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

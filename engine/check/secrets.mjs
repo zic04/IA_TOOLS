@@ -8,9 +8,11 @@
 //   generic  actual secret VALUES only, never a mere mention: a private key holding key material (PEM, escaped in
 //            a JSON file, PGP, PuTTY; a "-----BEGIN PRIVATE KEY-----" line alone is documentation), a JWT, the
 //            password of a connection string or of a URL, a cloud or service token, the value of an assignment to a
-//            secret's name (SECRET_KEY, DB_PASSWORD…), the signature of a signed URL, and last a random-looking
-//            value under any name (entropy); placeholders ("<password>", "****", "${SECRET}", "example", "exemple",
-//            "motdepasse", "change-me", an UPPER_CASE variable name…) are not values
+//            secret's name (SECRET_KEY, DB_PASSWORD…: any value of 8 characters or more, assignedPassword), the
+//            signature of a signed URL, and last a random-looking value under any name (entropy); placeholders
+//            ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse", "change-me", an UPPER_CASE
+//            variable name…) and references written as code ($DB_PASSWORD, config.password, getPassword()) are not
+//            values (engine/check/secret-values.mjs: GENERIC, re-exported here)
 // Never reported (ignoreRules), whatever the detector:
 //   local      an address that means nothing outside the machine or the private network: 0.0.0.0, ::, loopback
 //              (localhost, 127.x, ::1), private and link-local ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x),
@@ -27,10 +29,9 @@ import { sensitiveValues, GUID } from "../capture/masking.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { spawnHardened } from "../util/safe-git.mjs";
 import { upToLast } from "../core/text.mjs";
+import { PLACEHOLDER, GENERIC, looksRandom, highEntropy } from "./secret-values.mjs";
 
-/** A placeholder, a variable name or a masked value: not a secret. */
-export const PLACEHOLDER =
-  /^(?:x+|\*+|•+|\.+|0+|_+|-+)$|example|exemple|placeholder|your|votre|change[-_ ]?me|replace[-_ ]?me|masked|redacted|dummy|sample|mot[-_ ]?de[-_ ]?passe|[<>{}]|\$\(|\.\.\.|…|process\.env|import\.meta|os\.environ/i;
+export { PLACEHOLDER, GENERIC, looksRandom, highEntropy };
 
 /** Hosts that mean nothing outside the machine or the private network. */
 const LOCAL_HOST =
@@ -126,185 +127,14 @@ export function ignoreRules(masking = {}) {
   };
 }
 const BUILT_IN_RULES = ignoreRules();
-const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
-const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
 /**
- * Files never exported nor read for a page, at any depth: environment files, keys and certificates, tool credentials,
- * Terraform state, PuTTY keys, VPN profiles, encrypted files, the settings of an environment (appsettings.*.json).
+ * Files never exported nor read for a page, at any depth: environment files, keys and certificates (`*.p8` too),
+ * tool credentials (`.htpasswd`, a Google OAuth `client_secret*.json`, a `kubeconfig`), Terraform state and variables
+ * (`*.tfvars`), PuTTY keys, VPN profiles, encrypted files, the settings of an environment (appsettings.*.json, and
+ * its `.bak` copy).
  */
 export const SECRET_FILE =
-  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|credentials(\.json)?|appsettings\..+\.json|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx|ppk|ovpn|gpg|tfstate|tfstate\.backup))$/i;
-
-/** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
-export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
-
-/** The words of a name, in lower case: `DB_PASSWORD`, `db-password` and `dbPassword` all give ["db", "password"]. */
-const nameParts = (name) =>
-  String(name)
-    .replace(/([a-z\d])([A-Z])/g, "$1_$2")
-    .toLowerCase()
-    .split(/[^a-z\d]+/)
-    .filter(Boolean);
-/** The words of a public name (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`, `STRIPE_PUBLISHABLE_KEY`). */
-const isPublic = (parts) => parts.includes("public") || parts.includes("publishable");
-/** The last word of a name that says its value is a secret. */
-const SECRET_WORDS = new Set(["secret", "token", "password", "passwd", "pwd", "pass", "pw", "passphrase", "apikey"]);
-/** Words that make a name ending in "key" a secret's: `API_KEY`, `SECRET_KEY`, `accessKey`, `PRIVATE_KEY`… */
-const KEY_WORDS = new Set(["api", "secret", "access", "private", "client", "auth", "signing", "encryption", "master"]);
-
-/**
- * What a name says of its value: "secret" when its last word says so (`GITHUB_TOKEN`, `DB_PASSWORD`, `clientSecret`)
- * or it ends in "key" after a word that makes it one (`SECRET_KEY`, `aws_secret_access_key`, `apiKey`); "key" for the
- * key of anything else (`STRIPE_KEY`, `CACHE_KEY`, `sortKey`), whose value must look generated; null for a word merely
- * starting so (`KEYBOARD`, `TOKENIZER`), a public name and any other name.
- * @returns {"secret"|"key"|null}
- */
-function secretName(name) {
-  const parts = nameParts(name);
-  const last = parts.at(-1);
-  if (isPublic(parts)) return null;
-  if (SECRET_WORDS.has(last)) return "secret";
-  if (last !== "key") return null;
-  return parts.slice(0, -1).some((p) => KEY_WORDS.has(p)) ? "secret" : "key";
-}
-
-/** Shannon entropy of a text, in bits per character. */
-function entropy(text) {
-  const counts = new Map();
-  for (const c of text) counts.set(c, (counts.get(c) || 0) + 1);
-  let bits = 0;
-  for (const n of counts.values()) bits -= (n / text.length) * Math.log2(n / text.length);
-  return bits;
-}
-const charClass = (c) => (c >= "a" ? 0 : c >= "A" ? 1 : 2);
-/**
- * How often a letter or digit is of another kind (lower case, upper case, digit) than the one before it: about 0.6
- * in a random token, under 0.3 in a name made of words and numbers (`JSONSchema7Definition`, `File_0_not_found_6053`).
- */
-function classChanges(value) {
-  const s = value.replace(/[^A-Za-z\d]/g, "");
-  let n = 0;
-  for (let i = 1; i < s.length; i++) if (charClass(s[i]) !== charClass(s[i - 1])) n++;
-  return s.length > 1 ? n / (s.length - 1) : 0;
-}
-/** The last word of a name whose value is a hash, a nonce or an identifier: never a secret on its entropy alone. */
-const NOT_SECRET_WORD =
-  /^(?:sha\d*|md5|h1|hash|digest|checksum|integrity|fingerprint|pin|etag|nonce|challenge|state|id|ids|uuid|guid|name|ref|parent|source|target)$/;
-/** A hash written with its algorithm (`sha512-…`, as npm and Subresource Integrity write them), or hexadecimal. */
-const HASH_VALUE = /^(?:sha(?:1|224|256|384|512)|md5)[-_]|^[\da-f-]+$/i;
-/** At least this share of a random token's letters and digits are of another kind than the one before. */
-const RANDOM_CHANGES = 0.45;
-/**
- * Bits per character a value of this length needs to look random: log2(length) - 0.6, at most 4.2. Random tokens of
- * base 62 or 64 reach it about 9 times in 10 from 20 characters and 97 times in 100 from 32
- * (test/unit/secret-detectors.test.mjs measures it, and the false positives of a corpus).
- */
-const entropyThreshold = (length) => Math.min(4.2, Math.log2(length) - 0.6);
-
-/**
- * Does a value assigned to `name` (or quoted) look random enough to be a secret whatever its name? 20 characters or
- * more, lower case, upper case and digits, kinds of characters that change as in a random token (RANDOM_CHANGES),
- * and an entropy over entropyThreshold. Never a placeholder, a hash (hexadecimal, `sha512-…`), the value of a hash,
- * a nonce or an identifier (`integrity`, `pin-sha256`, `state`, `client_id`, `storage_name`), or of a public name
- * (`publicKey`, `NEXT_PUBLIC_…`).
- * @param {string} value
- * @param {string} [name]
- */
-export function highEntropy(value, name = "") {
-  const v = value.replace(/=+$/, "");
-  if (v.length < 20 || !isValue(v) || HASH_VALUE.test(v)) return false;
-  if (!/[a-z]/.test(v) || !/[A-Z]/.test(v) || !/\d/.test(v)) return false;
-  const parts = nameParts(name);
-  if (NOT_SECRET_WORD.test(parts.at(-1) ?? "") || isPublic(parts)) return false;
-  return classChanges(v) >= RANDOM_CHANGES && entropy(v) >= entropyThreshold(v.length);
-}
-
-/** A number, written as a program or a price list writes it (`8.76e-06`): never a secret. */
-const NUMBER = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i;
-/** Is a value assigned to a secret's name one (looksRandom), or, for the key of anything, a generated one? */
-function assignedSecret(name, value) {
-  const said = secretName(name);
-  return (
-    !!said && looksRandom(value) && !NUMBER.test(value) && (said === "secret" || classChanges(value) >= RANDOM_CHANGES)
-  );
-}
-
-/** The random part of a token after its prefix: a placeholder (`glpat-xxxx…`) has none. */
-const TOKEN_PREFIX = /^(?:github_pat_|glpat-|npm_|GOCSPX-|xapp-\d-)/;
-/** The material of a key written on one line, its line ends escaped (`\n`, as in a JSON file). */
-const ESCAPED_MATERIAL = /\\[rn/]/g;
-
-/**
- * Value detectors: `re` (group `v` = the value, else the whole match), an optional `accept(match)`, and `fallback`
- * for the one that only reports a line no other detector reported (scanText).
- */
-export const GENERIC = Object.freeze([
-  {
-    kind: "privateKey",
-    // PEM blocks (PKCS#8, RSA, EC, OpenSSH, encrypted) and PGP private key blocks.
-    re: /-----BEGIN ([A-Z0-9 ]*?)PRIVATE KEY( BLOCK)?-----[ \t]*\r?\n(?<v>(?:[ \t]*(?:(?:[A-Za-z0-9+/=]+|[A-Za-z-]+:[^\n]*)[ \t]*)?\r?\n)+?)[ \t]*-----END \1PRIVATE KEY\2-----/g,
-    accept: (m) => m.groups.v.replace(/^[A-Za-z-]+:.*$/gm, "").replace(/\s/g, "").length >= 40,
-  },
-  {
-    kind: "privateKey",
-    // A PEM block on one line, its line ends escaped: the private_key of a JSON key file (a service account).
-    re: /-----BEGIN ([A-Z0-9 ]*?)PRIVATE KEY-----(?<v>(?:\\[rn/]|[A-Za-z0-9+/=])+?)-----END \1PRIVATE KEY-----/g,
-    accept: (m) => m.groups.v.replace(ESCAPED_MATERIAL, "").length >= 40,
-  },
-  {
-    kind: "privateKey",
-    // The private lines of a PuTTY key (.ppk), encrypted or not.
-    re: /\bPrivate-Lines:[ \t]*\d{1,5}[ \t]*\r?\n(?<v>(?:[A-Za-z0-9+/=]+[ \t]*\r?\n)+)/g,
-    accept: (m) => m.groups.v.replace(/\s/g, "").length >= 40,
-  },
-  { kind: "jwt", re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
-  {
-    kind: "connectionString",
-    re: /\b(?:AccountKey|SharedAccessKey|Password|Pwd)\s*=\s*(?<v>[^;\s"'`]{6,})/gi,
-    accept: (m) => isValue(m.groups.v),
-  },
-  {
-    kind: "credentialsUrl",
-    // A scheme of 32 characters at most: from each word of "a-a-a…", never a run to the end of the text.
-    re: /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
-    accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
-  },
-  {
-    kind: "cloudKey",
-    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b|\b[sr]k_(?:live|test)_[0-9A-Za-z]{16,}\b|\bwhsec_[0-9A-Za-z]{24,}\b/g,
-  },
-  {
-    kind: "cloudKey",
-    // GitHub fine-grained, GitLab, npm, Google OAuth client secrets, Slack app tokens: their random part is random.
-    re: /\bgithub_pat_[0-9A-Za-z_]{40,}|\bglpat-[0-9A-Za-z_-]{20,}|\bnpm_[0-9A-Za-z]{36}\b|\bGOCSPX-[0-9A-Za-z_-]{24,}|\bxapp-\d-[0-9A-Za-z-]{20,}/g,
-    accept: (m) => looksRandom(m[0].replace(TOKEN_PREFIX, "")),
-  },
-  {
-    kind: "cloudKey",
-    // A Slack incoming webhook (its last segment is the secret; Slack's placeholder is XXXX…).
-    re: /\bhooks\.slack\.com\/(?:services|workflows|triggers)\/[A-Za-z0-9_-]{6,40}\/[A-Za-z0-9_-]{6,40}\/(?<b>[A-Za-z0-9_-]{16,80})/g,
-    accept: (m) => looksRandom(m.groups.b),
-  },
-  {
-    kind: "assignment",
-    // Any name of 64 characters at most (secretName decides): `SECRET_KEY=`, `"dbPassword": "`, `token => '`.
-    re: /\b(?<n>[A-Za-z_][\w.-]{0,63})["']?\s*[:=]>?\s*["'`]?(?:base64:)?(?<v>[\w\-+/=.]{16,})/g,
-    accept: (m) => assignedSecret(m.groups.n, m.groups.v),
-  },
-  {
-    kind: "signedUrl",
-    re: /[?&](?:sig|signature|x-amz-signature|x-goog-signature)=(?<v>[A-Za-z0-9%+/=]{20,})/gi,
-    accept: (m) => !PLACEHOLDER.test(m.groups.v),
-  },
-  {
-    kind: "entropy",
-    fallback: true,
-    // An assigned value (`NAME=value`, `name: "value"`) or a quoted one, of a token's characters: 256 at most (a
-    // longer run is embedded data), up to a quote, a blank or a separator.
-    re: /(?:\b(?<n>[A-Za-z_][\w.-]{0,63})["']?[ \t]*[:=]>?[ \t]*["'`]?|["'`])(?<v>[\w+/-]{20,256}={0,2})(?=["'`\s,;)}\]&#]|$)/g,
-    accept: (m) => highEntropy(m.groups.v, m.groups.n),
-  },
-]);
+  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|\.htpasswd|credentials(\.json)?|client_secret(_[\w.-]+)?\.json|kubeconfig(\.ya?ml)?|appsettings\..+\.json(\.bak)?|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p8|p12|pfx|jks|keystore|kdbx|ppk|ovpn|gpg|kubeconfig|tfvars|tfvars\.json|tfstate|tfstate\.backup))$/i;
 
 /** First characters and length of a value, never the value itself. */
 export function redact(value) {
@@ -487,13 +317,37 @@ export function isStorageState(text) {
  * How a storageState starts: an object whose first key, "cookies" or "origins", holds an array (`\s` takes a byte
  * order mark too). Linear: anchored, blanks between fixed characters.
  */
-export const SESSION_HEAD = /^\s*\{\s*"(?:cookies|origins)"\s*:\s*\[/;
+export const SESSION_HEAD = /^\s*\{\s*"(cookies|origins)"\s*:\s*\[\s*/;
+/** The other key of a storageState, holding an array, anywhere in the head. */
+const SESSION_OTHER_KEY = { cookies: /"origins"\s*:\s*\[/, origins: /"cookies"\s*:\s*\[/ };
+/** A JSON string. Linear: a character or an escape, never both. */
+const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`;
+/** The first item of a storageState's list as Playwright writes it: a cookie (name, value, domain), an origin. */
+const SESSION_ITEM = {
+  cookies: new RegExp(
+    String.raw`^\{\s*"name"\s*:\s*${JSON_STRING}\s*,\s*"value"\s*:\s*${JSON_STRING}\s*,\s*"domain"\s*:`,
+  ),
+  origins: new RegExp(String.raw`^\{\s*"origin"\s*:\s*${JSON_STRING}\s*,\s*"localStorage"\s*:\s*\[`),
+};
 /** What is read of a file to tell a session: a session of local storage can weigh megabytes. */
 const SESSION_HEAD_BYTES = 64 * 1024;
 
 /**
+ * Does a text start as a storageState (SESSION_HEAD), with a session's other key in it or a first item of a
+ * session's shape (a cookie: `name`, `value`, `domain`; an origin: `origin`, `localStorage`)? A data file whose first
+ * key is merely "cookies" or "origins" (`{"cookies": [{"id": 1, "flavour": …}]}`) is not one.
+ * @param {string} head
+ */
+export function startsAsSession(head) {
+  const m = SESSION_HEAD.exec(head);
+  if (!m) return false;
+  const first = /** @type {"cookies"|"origins"} */ (m[1]);
+  return SESSION_OTHER_KEY[first].test(head) || SESSION_ITEM[first].test(head.slice(m[0].length));
+}
+
+/**
  * Is a file a browser session (a storageState), whatever its size? Only its first 64 KB are read: a file that fits
- * in them is parsed, a longer one is a session when it starts as one (SESSION_HEAD). False when it cannot be read.
+ * in them is parsed, a longer one is a session when it starts as one (startsAsSession). False when it cannot be read.
  * @param {string} file
  */
 export function isSessionFile(file) {
@@ -503,7 +357,7 @@ export function isSessionFile(file) {
     const head = Buffer.alloc(SESSION_HEAD_BYTES + 1);
     const n = fs.readSync(fd, head, 0, head.length, 0);
     const text = head.toString("utf8", 0, n);
-    return n <= SESSION_HEAD_BYTES ? isStorageState(text) : SESSION_HEAD.test(text);
+    return n <= SESSION_HEAD_BYTES ? isStorageState(text) : startsAsSession(text);
   } catch {
     return false;
   } finally {

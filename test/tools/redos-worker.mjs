@@ -15,6 +15,7 @@ import {
   PLACEHOLDER,
   SECRET_FILE,
   SESSION_HEAD,
+  startsAsSession,
   scanText,
   isUrlTemplate,
   htmlText,
@@ -821,6 +822,17 @@ export const CHECKS = [
     (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`) || SECRET_FILE.test(`appsettings.${s}`),
   ],
   ["check secrets SESSION_HEAD", (s) => SESSION_HEAD.test(s) || SESSION_HEAD.test(`{"cookies"${s}`)],
+  // A session told by its head: the other key anywhere in it, or a first item of a session's shape (a cookie's
+  // strings, an origin's), on a text that starts as one.
+  [
+    "check secrets startsAsSession",
+    (s) =>
+      startsAsSession(s) ||
+      startsAsSession(`{"cookies": [${s}`) ||
+      startsAsSession(`{"cookies": [{"name": "${s}`) ||
+      startsAsSession(`{"cookies": [{"name": "a", "value": "${s}", "domain": ${s}`) ||
+      startsAsSession(`{"origins": [{"origin": "${s}", "localStorage": [${s}`),
+  ],
   // The paths of the application: an agent's instructions, a test file (a long name in a folder they look for).
   ...AGENT_FILES.map((re, i) => [`agents file ${i}`, (s) => re.test(s) || re.test(`.claude/${s}`)]),
   ["tests TEST_FILE", (s) => TEST_FILE.test(s) || TEST_FILE.test(`tests/${s}`)],
