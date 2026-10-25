@@ -100,7 +100,8 @@ provider included: a hop that comes back to a forbidden route of the application
 and the capture stops. The browser only receives the end of the chain, so the server is never asked twice for a hop;
 an iframe receives that end directly (a sandboxed iframe could not run the page that sends a frame on). A chain has
 bounds: 20 s for a hop, 25 s for the whole chain, 32 MB for the page at its end and 64 MB for all the pages held at
-once; past them the capture stops and says why.
+once; past them the capture stops and says why. When two navigations of a frame overlap and the older one ends last,
+the page at its end stays held (within these bounds) until that frame's next navigation or until its page closes.
 
 The application is every address of its own: `https` when its server upgrades `http`, a trailing dot, and every
 name of the loopback interface for one another (same port): `localhost` and `*.localhost`, `127.x`, `0.0.0.0`,
@@ -125,7 +126,15 @@ root it declares in a host the kit has already seen (a script before the `<templ
 and, with Google Chrome (`browser: "chrome"`), a `<link rel="prerender">` (SECURITY.md lists them).
 
 A WebSocket's handshake escapes the kit's routes too: with `capture.forbidden`, the kit refuses a WebSocket to a
-forbidden route before it opens. One that a worker opens, or a `WebSocketStream`, is not covered (SECURITY.md).
+forbidden route before it opens. One that a worker opens, or a `WebSocketStream`, is not covered (SECURITY.md), nor
+is a `WebTransport` session, which no launch flag turns off.
+
+What a page sends while the next capture replaces it (a beacon, a `keepalive` fetch, even an image) leaves from a
+document the kit's routes no longer see, and `fetchLater` sends its requests from Chromium's own process. So
+whenever read-only or `capture.forbidden` is on, a page's handlers for being left (`pagehide`, `unload`,
+`visibilitychange` to hidden) never run during a capture, and `fetchLater` is removed: what they would send is
+neither sent nor counted. While the page is open, its own events still reach its handlers, and its requests (a beacon
+included) go through the kit's routes, blocked and counted as any other.
 
 With `capture.forbidden`, the pages of a local application still reach its API on another local port when `app.url`
 is on `localhost` or `127.0.0.1`. On another address (a LAN address, a host name), Chromium blocks these calls during

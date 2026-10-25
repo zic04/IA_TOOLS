@@ -16,6 +16,10 @@
 //               each <script type="speculationrules"> before the browser reads it.
 //   sockets     with capture.forbidden, a WebSocket to a forbidden route is refused before it opens (`socketGuard`:
 //               no route sees its handshake).
+//   leaving     whenever a guard is active, a page never runs its handlers for being left (`blockUnloadRequests`,
+//               the first init script of every page): what a document sends while the next one replaces it reaches
+//               the server unseen by any route; and fetchLater, whose requests leave from Chromium's own process, is
+//               removed (`guardedLaunchArgs` too).
 import { forbiddenMatch, shownPath, applicationKey, isLoopbackUrl } from "./plans.mjs";
 import { TIMINGS } from "./timings.mjs";
 
@@ -414,6 +418,39 @@ function hopHeaders(request, url) {
 export function localNetworkGrant(appUrl, forbidden) {
   if (!forbidden.length || !isLoopbackUrl(appUrl)) return null;
   return [["local-network-access"], { origin: new URL(appUrl).origin }];
+}
+
+/**
+ * The browser's flags for a guarded run (capture.mjs): fetchLater turned off, whose requests Chromium sends from its
+ * own process when the page is left (or once their delay is over), unseen by any route (blockUnloadRequests removes
+ * it from the page too). A Blink feature, never `--disable-features`: Playwright passes its own list of features
+ * there, which a second flag would replace (third-party storage partitioning back on, among others).
+ * @param {boolean} guarded
+ * @returns {string[]}
+ */
+export const guardedLaunchArgs = (guarded) => (guarded ? ["--disable-blink-features=FetchLaterAPI"] : []);
+
+/**
+ * The page's half of the guard against what a page sends as it is left (SECURITY.md): the first init script of every
+ * page of a guarded run (capture.mjs), run in each document before its own scripts. While the next entry, or a link,
+ * replaces a document, what that document still sends (`navigator.sendBeacon`, a `fetch` with `keepalive`, even an
+ * image) reaches the server unseen by any route, whatever its method or its route. So the events of a document
+ * being left never reach the page's handlers: `pagehide`, `unload`, and `visibilitychange` to hidden are stopped by a
+ * listener of the window in the capture phase, added before any of the page's (stopImmediatePropagation: a handler
+ * set in the HTML, of the window or of the document, is never called). An event the page dispatches itself (not
+ * trusted) goes on: while the page is open, its handlers run and their requests go through the guard. `fetchLater`
+ * is removed (guardedLaunchArgs turns it off as well). Self-contained: it is serialised into the page.
+ * @param {any} [scope]   the page's global object (a test seam)
+ */
+export function blockUnloadRequests(scope = globalThis) {
+  const stop = (e) => {
+    if (e.isTrusted) e.stopImmediatePropagation();
+  };
+  scope.addEventListener("pagehide", stop, true);
+  scope.addEventListener("unload", stop, true);
+  scope.addEventListener("visibilitychange", (e) => scope.document.visibilityState === "hidden" && stop(e), true);
+  delete scope.fetchLater;
+  if (scope.Window) delete scope.Window.prototype.fetchLater;
 }
 
 /**

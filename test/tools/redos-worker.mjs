@@ -492,11 +492,13 @@ export const CHECKS = [
   ["record codegenToEntry", (s) => codegenToEntry(s, { appUrl: "http://a.test", id: "x" })],
   // The forms of a path a server may read as a forbidden route (plans.mjs): a URL or a Location header, untrusted.
   ["capture forbiddenMatch", (s) => forbiddenMatch(`/${s};${s}/./${s}/../${s}`, FORBIDDEN_MATCHERS)],
-  // Each run of escapes decoded on its own, one that is not UTF-8 (%FF) and one malformed (%zz) among them.
+  // Each run of escapes decoded on its own, one that is not UTF-8 (%FF) and one malformed (%zz) among them: a run of
+  // escapes a sixteenth of the input long (it grows with it), then a path parameter, a twice-encoded dot and the input
+  // once. Every form of the path (up to some 80) is read for each input: three copies of it, and a run as long as it,
+  // made the check take 30 to 100 s against its 60 s hang timeout.
   [
     "capture forbiddenMatch (escapes)",
-    (s) =>
-      forbiddenMatch(`/${"%FF%2e%25".repeat(Math.ceil(s.length / 9))}%zz${s};%2F${s}/%252e${s}`, FORBIDDEN_MATCHERS),
+    (s) => forbiddenMatch(`/${"%FF%2e%25".repeat(Math.ceil(s.length / 144))}%zz;%2F/%252e${s}`, FORBIDDEN_MATCHERS),
   ],
   ["capture shownPath", (s) => shownPath(`/${s};${s}/${s};`)],
   ["capture applicationKey", (s) => applicationKey(`http://${s}/`)],

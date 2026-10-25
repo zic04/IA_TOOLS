@@ -104,7 +104,9 @@ avant d'être demandé, et la capture s'arrête. Le navigateur ne reçoit que la
 jamais redemandé pour un saut ; un iframe reçoit cette fin directement (un iframe isolé par `sandbox` ne pourrait pas
 exécuter la page qui fait suivre un cadre). Une chaîne a des bornes : 20 s pour un saut, 25 s pour toute la chaîne,
 32 Mo pour la page au bout et 64 Mo pour toutes les pages gardées à la fois ; au-delà, la capture s'arrête et dit
-pourquoi.
+pourquoi. Quand deux navigations d'un cadre se chevauchent et que la plus ancienne finit la dernière, la page au bout
+de sa chaîne reste gardée (dans ces bornes) jusqu'à la navigation suivante de ce cadre ou jusqu'à la fermeture de sa
+page.
 
 L'application, ce sont toutes ses adresses : `https` quand son serveur y fait passer `http`, un point final, et
 tous les noms de la boucle locale l'un pour l'autre (même port) : `localhost` et `*.localhost`, `127.x`,
@@ -133,7 +135,15 @@ que le kit a déjà vu (un script avant le `<template shadowrootmode>` dans son 
 
 L'ouverture d'un WebSocket échappe elle aussi aux routes du kit : avec `capture.forbidden`, le kit refuse un
 WebSocket vers une route interdite avant qu'il s'ouvre. Celui qu'ouvre un worker, ou un `WebSocketStream`, n'est pas
-couvert (SECURITY.md).
+couvert (SECURITY.md), ni une session `WebTransport`, qu'aucune option de lancement ne désactive.
+
+Ce qu'une page envoie pendant que la capture suivante la remplace (un appel à `sendBeacon`, un `fetch` avec
+`keepalive`, même une image) part d'un document que les routes du kit ne voient plus, et `fetchLater` envoie ses
+requêtes depuis le propre processus de Chromium. Dès que la lecture seule ou `capture.forbidden` est active, les
+gestionnaires qu'une page attache à son départ (`pagehide`, `unload`, `visibilitychange` vers caché) ne s'exécutent
+donc jamais pendant une capture, et `fetchLater` est retiré : ce qu'ils enverraient n'est ni envoyé ni compté. Tant
+que la page est ouverte, ses propres événements atteignent toujours ses gestionnaires, et ses requêtes (un appel à
+`sendBeacon` compris) passent par les routes du kit, bloquées et comptées comme les autres.
 
 Avec `capture.forbidden`, les pages d'une application locale atteignent toujours son API sur un autre port local
 quand `app.url` est sur `localhost` ou `127.0.0.1`. Sur une autre adresse (une adresse du réseau local, un nom

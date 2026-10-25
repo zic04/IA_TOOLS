@@ -51,6 +51,9 @@ entries between a project's `kit` range and the installed version.
     run before, 0 now.
   - Snapshots: only `UPDATE=1` writes one, and a missing one fails instead of being written. New checks: no orphan
     file, two identical builds, no trace of the machine (`test/tools/snapshot.mjs`).
+  - The ReDoS check of a forbidden path's escapes (`capture forbiddenMatch (escapes)`) reads the input once, after a
+    run of escapes a sixteenth of its length and every tricky escape: about seven times cheaper per input, still
+    linear, where three copies and a run as long as the input took 30 to 100 s against its 60 s hang timeout.
 
 ### Security
 
@@ -118,6 +121,18 @@ entries between a project's `kit` range and the installed version.
   again for the application's origin only, when it is on a loopback address; on another address, `doctor` warns
   (except on production) when the application's env files name a local address on another origin
   (`cli.doctor.localCalls`).
+- **What a page sends as it is left no longer reaches the server** (SECURITY.md › What a page sends as it is left):
+  while the next capture replaced a page, a beacon, a `keepalive` fetch or even an image that page sent on
+  `pagehide`, `unload` or `visibilitychange` left from a document no route of the guard saw any more, and
+  `fetchLater` from Chromium's own process: a read-only run with `capture.forbidden` let a `POST` and a forbidden
+  route through while it printed "0 write requests blocked". Whenever a guard is active (read-only, or
+  `capture.forbidden`), the first init script of every page now stops those events before any handler of the page,
+  and removes `fetchLater`, which the browser is also launched without (`--disable-blink-features=FetchLaterAPI`,
+  never a second `--disable-features`, which would replace Playwright's own list). The page's own events still reach
+  its handlers while it is open, and what it sends then goes through the guard. `test/e2e/capture-redirects.test.mjs`,
+  mutants `test/mutations/capture-guard.mjs`. Written as limits: a `WebTransport` session, which no launch flag
+  turns off, and the end of an older chain of a frame that ends last, held (within the bounds) until the frame's next
+  navigation or its page's closing.
 
 ## [0.4.1] - 2026-10-23
 

@@ -1,9 +1,9 @@
 // Mutants of engine/capture/guard.mjs: the rules of the capture guard taken out (requestGuard, redirectChain,
-// hopHeaders, addressForm, hold, socketGuard, blockSpeculationRules, localNetworkGrant), which its tests must catch
-// (RULES.md M16, S6).
+// hopHeaders, addressForm, hold, socketGuard, blockSpeculationRules, localNetworkGrant, guardedLaunchArgs,
+// blockUnloadRequests), which its tests must catch (RULES.md M16, S6).
 // The guard's work in a real browser (the page that opens the end of a chain, a sandboxed iframe, the local
-// addresses of a loopback application, speculation rules, WebSockets, its bounds on a slow and a huge server, the
-// answers held for all pages) is test/e2e/capture-redirects.test.mjs.
+// addresses of a loopback application, speculation rules, WebSockets, what a page sends as it is left, its bounds on
+// a slow and a huge server, the answers held for all pages) is test/e2e/capture-redirects.test.mjs.
 export default {
   target: "engine/capture/guard.mjs",
   tests: ["test/unit/capture.test.mjs"],
@@ -355,6 +355,67 @@ export default {
       name: "local network access for every origin",
       find: '  return [["local-network-access"], { origin: new URL(appUrl).origin }];',
       replace: '  return [["local-network-access"], {}];',
+    },
+    // What a page sends as it is left, which no route sees, and fetchLater.
+    {
+      name: "the page's pagehide handlers run as it is left",
+      find: '  scope.addEventListener("pagehide", stop, true);\n',
+      replace: "",
+    },
+    {
+      name: "the page's unload handlers run as it is left",
+      find: '  scope.addEventListener("unload", stop, true);\n',
+      replace: "",
+    },
+    {
+      name: "the page's visibilitychange handlers run as it is left",
+      find: '  scope.addEventListener("visibilitychange", (e) => scope.document.visibilityState === "hidden" && stop(e), true);\n',
+      replace: "",
+    },
+    {
+      name: "visibilitychange stopped while the page is visible (its handlers never run while it is open)",
+      find: '(e) => scope.document.visibilityState === "hidden" && stop(e)',
+      replace: "(e) => stop(e)",
+    },
+    {
+      name: "the page's own events stopped too (its handlers never run while it is open)",
+      find: "    if (e.isTrusted) e.stopImmediatePropagation();\n",
+      replace: "    e.stopImmediatePropagation();\n",
+    },
+    {
+      name: "the page's other handlers of the window still run (propagation stopped, not the window's listeners)",
+      find: "    if (e.isTrusted) e.stopImmediatePropagation();\n",
+      replace: "    if (e.isTrusted) e.stopPropagation();\n",
+    },
+    {
+      name: "pagehide stopped in the bubbling phase (after a handler of the page in the capture phase)",
+      find: '  scope.addEventListener("pagehide", stop, true);',
+      replace: '  scope.addEventListener("pagehide", stop);',
+    },
+    {
+      name: "visibilitychange stopped in the bubbling phase (after the document's handlers)",
+      find: '"hidden" && stop(e), true);',
+      replace: '"hidden" && stop(e));',
+    },
+    {
+      name: "fetchLater kept on the window",
+      find: "  delete scope.fetchLater;\n",
+      replace: "",
+    },
+    {
+      name: "fetchLater kept on the window's prototype",
+      find: "  if (scope.Window) delete scope.Window.prototype.fetchLater;\n",
+      replace: "",
+    },
+    {
+      name: "fetchLater left on in the browser",
+      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI"] : [])',
+      replace: "(guarded ? [] : [])",
+    },
+    {
+      name: "fetchLater turned off by --disable-features (Playwright's own list of features replaced)",
+      find: '(guarded ? ["--disable-blink-features=FetchLaterAPI"] : [])',
+      replace: '(guarded ? ["--disable-features=FetchLaterAPI"] : [])',
     },
   ],
 };

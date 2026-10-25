@@ -144,6 +144,7 @@ describe("capture on production", () => {
       );
       assert.equal(calls.length, 1);
       assert.equal(calls[0].headless, true);
+      assert.deepEqual(calls[0].args, ["--disable-blink-features=FetchLaterAPI"], "a guarded run: fetchLater off");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

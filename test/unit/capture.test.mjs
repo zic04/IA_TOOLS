@@ -25,6 +25,8 @@ import {
   localNetworkGrant,
   addressForm,
   blockSpeculationRules,
+  blockUnloadRequests,
+  guardedLaunchArgs,
 } from "../../engine/capture/guard.mjs";
 import { afterRedirects, SessionExpired, originOf } from "../../engine/capture/take.mjs";
 import { TIMINGS } from "../../engine/capture/timings.mjs";
@@ -1060,6 +1062,72 @@ describe("plan entries", () => {
     const count = removed.length;
     p.loaded[0]();
     assert.equal(removed.length, count);
+  });
+
+  /**
+   * A page as blockUnloadRequests sees it (its global object): the listeners it adds to the window, by type, a
+   * document whose visibility the test sets, and fetchLater on the window and on its prototype.
+   */
+  function unloadPage() {
+    const listeners = new Map();
+    class Window {}
+    Window.prototype.fetchLater = () => {};
+    const scope = {
+      Window,
+      fetchLater: () => {},
+      document: { visibilityState: "visible" },
+      addEventListener: (type, listener, capture) => {
+        assert.ok(!listeners.has(type), `one listener for ${type}`);
+        listeners.set(type, { listener, capture });
+      },
+    };
+    blockUnloadRequests(scope);
+    /** Dispatches a `type` event to the kit's listener: what it did with it ("stopped", "propagation", or "") */
+    const dispatch = (type, { isTrusted = true } = {}) => {
+      let did = "";
+      listeners.get(type).listener({
+        type,
+        isTrusted,
+        stopImmediatePropagation: () => (did = "stopped"),
+        stopPropagation: () => (did = "propagation"),
+      });
+      return did;
+    };
+    return { scope, listeners, dispatch };
+  }
+
+  test("what a page sends as it is left: pagehide, unload and visibilitychange to hidden never reach its handlers; its own events do; fetchLater removed (blockUnloadRequests)", () => {
+    const p = unloadPage();
+    // On the window, in the capture phase: before any of the page's handlers, of the window or of the document.
+    assert.deepEqual(
+      [...p.listeners].map(([type, { capture }]) => [type, capture]),
+      [
+        ["pagehide", true],
+        ["unload", true],
+        ["visibilitychange", true],
+      ],
+    );
+    // The browser's own events of a document being left: stopped, the page's other handlers included.
+    assert.equal(p.dispatch("pagehide"), "stopped");
+    assert.equal(p.dispatch("unload"), "stopped");
+    // visibilitychange: only to hidden (a page that is open stays visible, and its handlers run).
+    assert.equal(p.dispatch("visibilitychange"), "", "visible: the page's handlers run");
+    p.scope.document.visibilityState = "hidden";
+    assert.equal(p.dispatch("visibilitychange"), "stopped");
+    // An event the page dispatches itself, while it is open: its handlers run, and their requests are routed.
+    for (const type of ["pagehide", "unload", "visibilitychange"])
+      assert.equal(p.dispatch(type, { isTrusted: false }), "", `${type} dispatched by the page`);
+    // fetchLater, sent from Chromium's own process: gone from the window and from its prototype.
+    assert.ok(!("fetchLater" in p.scope), "fetchLater left on the window");
+    assert.ok(!("fetchLater" in p.scope.Window.prototype), "fetchLater left on the prototype");
+    // A page without fetchLater, or without Window: nothing to remove, no error.
+    assert.doesNotThrow(() => blockUnloadRequests({ document: {}, addEventListener: () => {} }));
+  });
+
+  test("a guarded run's browser: fetchLater turned off as a Blink feature, never by --disable-features (Playwright's own list) (guardedLaunchArgs)", () => {
+    assert.deepEqual(guardedLaunchArgs(true), ["--disable-blink-features=FetchLaterAPI"]);
+    assert.ok(!guardedLaunchArgs(true).some((a) => a.startsWith("--disable-features")));
+    assert.deepEqual(guardedLaunchArgs(false), [], "no guard, the browser as Playwright launches it");
   });
 
   test("forbidden routes: a segment's trailing dots and spaces dropped, as IIS does, each with its minimal pair", () => {

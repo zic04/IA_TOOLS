@@ -26,7 +26,10 @@
 //   - an end of a chain whose address Chromium writes otherwise than Node.js (/end|x, /end%7Cx) is asked once, and
 //     its own answer read (a 401);
 //   - the guard's bounds (a hop that never answers, a chain past its deadline, an answer too large to hold, the
-//     answers held for all pages), with small bounds given to the guard itself on a real Chromium page.
+//     answers held for all pages), with small bounds given to the guard itself on a real Chromium page;
+//   - what a page sends while the next entry replaces it (a beacon, a keepalive fetch, an image, on pagehide, unload
+//     or visibilitychange), which no route sees, and fetchLater, never reach the server; a page with such handlers
+//     still works while it is open, its writes blocked and counted.
 import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -127,6 +130,41 @@ const SOCKETS = `<h1>Sockets</h1><p id="live">pending</p><p id="refused">pending
   refused.onclose = (e) => (document.getElementById("refused").textContent = "refused " + e.code);
 </script>`;
 
+/**
+ * A page that sends requests as it is left, in every way Chromium sends them unseen by any route (a beacon, a keepalive
+ * fetch, an image; on pagehide, unload, or visibilitychange to hidden; a handler of the window or of the document,
+ * added or set), and the requests it defers (fetchLater: sent when the page is left, or at once).
+ */
+const LEAVE = `<h1>Leaving</h1>
+<script>
+  addEventListener("pagehide", () => navigator.sendBeacon("/orders/71/approval?via=beacon", "x"));
+  addEventListener("pagehide", () => fetch("/api/lock/release?via=keepalive", { method: "POST", keepalive: true }));
+  onpagehide = () => (new Image().src = "/orders/72/approval?via=image");
+  addEventListener("unload", () => navigator.sendBeacon("/api/unload?via=unload"));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") fetch("/orders/73/approval?via=hidden", { keepalive: true });
+  });
+  if (typeof fetchLater === "function") {
+    fetchLater("/orders/74/approval?via=fetchLater");
+    fetchLater("/api/later?via=fetchLater-now", { method: "POST", body: "x", activateAfter: 0 });
+  }
+</script>`;
+/**
+ * A page with handlers for being left that works while it is open: its own events (pagehide, visibilitychange) run
+ * its handlers, and the writes it sends at once (a beacon, a keepalive fetch) are blocked and counted.
+ */
+const STAYS = `<h1>Stays</h1><p id="state">open</p>
+<script>
+  const ran = [];
+  addEventListener("pagehide", () => ran.push("pagehide"));
+  document.addEventListener("visibilitychange", () => ran.push("visibilitychange " + document.visibilityState));
+  dispatchEvent(new Event("pagehide"));
+  document.dispatchEvent(new Event("visibilitychange"));
+  document.getElementById("state").textContent = ran.join(", ") + ", fetchLater " + typeof fetchLater;
+  navigator.sendBeacon("/api/beacon-open", "x");
+  fetch("/api/keepalive-open", { method: "POST", keepalive: true }).catch(() => {});
+</script>`;
+
 /** How long the application takes to answer each hop of /drip/<n> (a redirect to /drip/<n + 1>). */
 const DRIP_MS = 300;
 /** How many times the application has answered /next: a redirect to the forbidden route from the second time on. */
@@ -178,6 +216,8 @@ before(async () => {
     if (p === "/spec") return page(res, SPECULATION, { "speculation-rules": '"/spec-rules.json"' });
     if (p === "/spec-late") return page(res, LATE_ROOT);
     if (p === "/sockets") return page(res, SOCKETS);
+    if (p === "/leave") return page(res, LEAVE);
+    if (p === "/stays") return page(res, STAYS);
     if (p === "/spec-rules.json") {
       res.writeHead(200, { "content-type": "application/speculationrules+json" });
       return res.end(rules("header"));
@@ -259,18 +299,23 @@ before(async () => {
   project(dir, { adapter: "none" });
 });
 
-/** A documentation project of the application in `folder`, signed in with `auth`. */
-function project(folder, auth) {
+/**
+ * A documentation project of the application in `folder`, signed in with `auth`; `capture`: more capture options;
+ * `plans`: the source of its own capture entries, in place of the file's.
+ */
+function project(folder, auth, { capture = {}, plans = null } = {}) {
   const config = {
     product: { name: "Acme Orders" },
     app: { url: servers.app.url },
     auth,
-    capture: { plans: "captures/plans", forbidden: [FORBIDDEN] },
+    capture: { plans: "captures/plans", forbidden: [FORBIDDEN], ...capture },
   };
   fs.writeFileSync(path.join(folder, "doc.config.mjs"), `export default ${JSON.stringify(config, null, 2)};\n`);
   fs.mkdirSync(path.join(folder, "content"), { recursive: true });
   fs.writeFileSync(path.join(folder, "content", "toc.json"), JSON.stringify({ title: "Acme Orders", sections: [] }));
   fs.mkdirSync(path.join(folder, "captures", "plans"), { recursive: true });
+  if (plans)
+    return fs.writeFileSync(path.join(folder, "captures", "plans", "own.mjs"), `export const CAPTURES = ${plans};`);
   fs.writeFileSync(
     path.join(folder, "captures", "plans", "redirects.mjs"),
     `export const CAPTURES = [
@@ -583,6 +628,58 @@ describe("capture: WebSockets, whose handshake no route of the guard sees (SECUR
     assert.match(r.out, /✔ sockets \(2 zones, \d+ KB, [\d.]+ s\)\n/);
     assert.deepEqual(seen.sockets, ["GET /live"], "the server never receives the forbidden handshake");
     assert.match(r.out + r.err, /1 prefetch request to forbidden routes aborted — GET \/orders\/101\/approval\n/);
+  });
+});
+
+describe("capture: what a page sends as it is left, which no route sees, and fetchLater (SECURITY.md)", () => {
+  /**
+   * `doc-kit capture` on a read-only project whose entries run one after the other on one page, so that each page is
+   * left for the next one; `options`: more capture options.
+   */
+  async function leaving(plans, options = {}) {
+    const folder = tempDir("doc-kit-e2e-redirects-leave-");
+    try {
+      project(folder, { adapter: "none" }, { capture: { readOnly: true, concurrency: 1, ...options }, plans });
+      return await capture("*", { folder });
+    } finally {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
+  }
+  /** What the application received other than its pages. */
+  const sent = () => seen.app.filter((r) => /^\w+ \/(orders|api)\//.test(r));
+
+  test("a beacon, a keepalive fetch, an image sent on pagehide, unload or visibilitychange, and fetchLater: never received, with forbidden routes or read-only alone", async () => {
+    const plans = `[
+      { id: "leave", route: "/leave", zones: [{ text: "Leaving" }] },
+      { id: "after", route: "/home", zones: [{ text: "Home page" }] },
+      { id: "again", route: "/leave", zones: [{ text: "Leaving" }] },
+      { id: "last", route: "/home", zones: [{ text: "Home page" }] },
+    ]`;
+    for (const options of [{}, { forbidden: [] }]) {
+      const r = await leaving(plans, options);
+      assert.equal(r.code, 0, r.out + r.err);
+      assert.match(r.out, /4\/4 captures taken/);
+      assert.deepEqual(
+        sent(),
+        [],
+        `nothing the pages sent as they were left, nor deferred (${JSON.stringify(options)})`,
+      );
+      assert.match(r.out, /Read-only: 0 write requests blocked\n/, "nothing was sent, so nothing was blocked");
+    }
+  });
+
+  test("a page with handlers for being left works while it is open: its own events run them, its writes are blocked and counted", async () => {
+    const r = await leaving(`[
+      { id: "stays", route: "/stays", zones: [{ text: "pagehide, visibilitychange visible, fetchLater undefined" }] },
+      { id: "after", route: "/home", zones: [{ text: "Home page" }] },
+    ]`);
+    assert.equal(r.code, 0, r.out + r.err);
+    assert.match(r.out, /2\/2 captures taken/);
+    assert.deepEqual(sent(), [], "the writes it sent while it was open never reach the server");
+    assert.match(
+      r.out + r.err,
+      /Read-only: 2 write requests blocked — POST \/api\/beacon-open, POST \/api\/keepalive-open\n/,
+    );
   });
 });
 

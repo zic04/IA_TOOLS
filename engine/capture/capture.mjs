@@ -9,9 +9,10 @@
 // replaced and a before/after sheet is written next to the comparison copy in `compareDir`.
 //
 // Safety:
-//   guard       read-only, capture.forbidden, redirects, speculation rules and WebSockets: guard.mjs, installed
-//               on every browser context (and, with forbidden routes, its init script on every page and its
-//               WebSocket route);
+//   guard       read-only, capture.forbidden, redirects, speculation rules, WebSockets and what a page sends as it
+//               is left: guard.mjs, installed on every browser context with its first init script (and, with
+//               forbidden routes, its init script against speculation rules and its WebSocket route), its flags
+//               given to the browser;
 //   service workers   blocked whenever a guard is active, so that every request goes through it;
 //   session     checked before the first capture; a redirect to a sign-in page during the run stops it.
 import fs from "node:fs";
@@ -24,7 +25,13 @@ import { sensitiveValues, maskSource } from "./masking.mjs";
 import { createWebpEncoder } from "./webp.mjs";
 import { trackNetwork } from "./stable.mjs";
 import { checkSession, sessionStorageOf, browserLaunch } from "./session.mjs";
-import { requestGuard, localNetworkGrant, blockSpeculationRules } from "./guard.mjs";
+import {
+  requestGuard,
+  localNetworkGrant,
+  blockSpeculationRules,
+  blockUnloadRequests,
+  guardedLaunchArgs,
+} from "./guard.mjs";
 import { shownUrl } from "./plans.mjs";
 import { takeOne, afterRedirects, SessionExpired, storageValues, zoneFile } from "./take.mjs";
 import { TIMINGS } from "./timings.mjs";
@@ -166,7 +173,7 @@ export async function runCaptures({
   );
 
   fs.mkdirSync(rc.zonesDir, { recursive: true });
-  const browser = await launch(browserLaunch(auth, { headless: true }));
+  const browser = await launch(browserLaunch(auth, { headless: true, args: guardedLaunchArgs(rc.guarded) }));
   try {
     rc.encoder = await createWebpEncoder(browser);
     rc.pageFor = (w, name) => pageFor(rc, browser, w, name);
@@ -241,7 +248,11 @@ async function pageFor(rc, browser, w, name) {
     // A service worker could answer or send requests outside the guard: none is registered.
     ...(guarded ? { serviceWorkers: "block" } : {}),
   });
-  if (guarded) await context.route("**/*", w.guard);
+  if (guarded) {
+    // The first init script: what a page sends as it is left goes through no route, so its handlers never run.
+    await context.addInitScript(blockUnloadRequests);
+    await context.route("**/*", w.guard);
+  }
   if (rc.forbidden.length) {
     // Speculation rules would be fetched by Chromium itself, unseen by the guard: removed from every page.
     await context.addInitScript(blockSpeculationRules);

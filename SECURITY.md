@@ -54,7 +54,9 @@ code 2): the guard would not cover its pages. A chain has bounds: 20 s for a hop
 30 s a start page gets), 32 MB for the answer held for a frame and 64 MB for all the answers held at once; past them
 the navigation is aborted and the capture says why. Each answer the guard fetched is freed once used, and one held
 for a frame also when the frame goes elsewhere (another of its chains that ends after it included) or its page
-closes.
+closes. When two navigations of a frame overlap and the older one's chain ends last, its end is held in place of the
+newer one's, although the frame went on with the newer one: it stays held, within the bounds above, until that
+frame's next navigation or until its page closes.
 The browser never gets a redirect, only the end of the chain: in a top-level frame, a page that sends the frame on to
 the end, whose answer, already fetched, is held for that frame's next navigation (recognised whatever the way
 Node.js and Chromium write its address: `/end|x`, `/end%7Cx`); in an iframe, the end itself, since a sandboxed
@@ -88,6 +90,19 @@ forbidden path of the application (`ws:` read as `http:`, `wss:` as `https:`, ev
 before it opens, as a connection that failed (code 1006), and listed with the prefetches aborted; the capture goes
 on. Any other connects, its messages relayed by Playwright.
 
+**What a page sends as it is left.** While the next capture, or a link, replaces a page, what that page still sends
+(`navigator.sendBeacon`, a `fetch` with `keepalive`, even an image) leaves from a document that no route of the guard
+sees any more: it reached the server whatever its method or its route. `fetchLater` sends its requests from
+Chromium's own process, when the page is left or once their delay is over. So whenever a guard is active (read-only,
+or `capture.forbidden`), a script the kit runs in every page before any other stops the events of a page being left
+(`pagehide`, `unload`, and `visibilitychange` to hidden) before any handler of the page sees them (one a script
+added or the HTML set, on the window or on the document); it also removes `fetchLater`, and the browser is
+launched without it (`--disable-blink-features=FetchLaterAPI`: a second `--disable-features` would replace the list
+Playwright passes there). A page's handlers for being left therefore never run during a capture: what they would send
+is neither sent nor counted. The events a page dispatches itself still reach its handlers, and what a page sends
+while it is open (a beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other
+request.
+
 None of this covers:
 
 - **writes made by the server while it renders a page** requested with a `GET` (a record created when a detail page
@@ -97,6 +112,9 @@ None of this covers:
 - a WebSocket opened by a worker (`Worker`, `SharedWorker`) or with `WebSocketStream`: Playwright's routing only
   replaces the `WebSocket` of each page and frame, so their handshake reaches the server unseen, neither refused nor
   counted;
+- a `WebTransport` session (HTTP/3): Chromium exposes it to pages, no route of the guard sees it, and no launch flag
+  removes it (`--disable-blink-features=WebTransport`, `--disable-features=WebTransport` and `--disable-quic` leave it
+  to the page), so it reaches its server whatever its path, neither refused nor counted;
 - `capture.readOnly: false`, which turns the protection off (the CLI warns on every run);
 - the letter case of a path: on a server that ignores it (IIS, ASP.NET), write the pattern for every case
   (`[Aa]pprove`);
