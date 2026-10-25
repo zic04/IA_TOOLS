@@ -482,7 +482,13 @@ treats them as data on every path an agent takes:
   documentation project names), `node <skill>/scripts/<script>.mjs` (the skill's four scripts, by their absolute
   path: the skill's real one, or the one its hook was started from, below), read-only tools (`ls`, `cat`, `head`,
   `tail`, `wc`, `grep`, `rg`, `find`…) with their reading options, one
-  `cd <folder> &&` first, and `|`, `&&`, `||`, `;`, `2>&1`, `>/dev/null` between them.
+  `cd <folder> &&` first, `|`, `&&`, `||` and `;` between them, and the redirections `>/dev/null`, `>&1` and `>&2`,
+  alone or after a `1` or a `2` written against them, unquoted (`2>&1`, `2>/dev/null`). The words it checks are
+  bash's to the letter (but a `~` on Windows, which it keeps as it is: a word that is never a program's path there,
+  nor an option): what a quote, a backslash or an empty string changes next to an operator, it reads as bash
+  does or refuses — bash takes a word for the number of an output only when it is digits alone, as written, so of
+  `"2">`, `'1'>`, `\2>` or `2"">` it makes the argument `2` (or `1`) and a redirection of the standard output, which
+  the guard refuses as it does every word against a redirection but that `1` or `2`.
   - **Never `npx doc-kit`, `npm exec doc-kit` or a bare `doc-kit`**: npx looks for the bin in the `node_modules/.bin`
     of the folder and of every parent up to the root, so an application that ships a `node_modules/.bin/doc-kit` got
     it run whenever the documentation sat inside it (`<app>/docs/manual`, the default layout); with none found and no
@@ -513,7 +519,10 @@ treats them as data on every path an agent takes:
     leads to the real one, links resolved; each is compared as above (on Windows, its drive, ASCII letters folded).
     The paths a command writes are never resolved: a folder that only looks like the skill's (`doc-kit2`, a Kelvin
     sign for the `k`) or a link planted to it is another path, refused, and a hook started by the real path knows no
-    link. The kit has the one path `skill install` writes in the skill and in its texts alike, its real path.
+    link. The kit has the one path `skill install` writes in the skill and in its texts alike, its real path. A limit,
+    which fails closed: a hook started by a Windows 8.3 short path (`C:\PROGRA~1\…`) knows the skill by that short form
+    only (node keeps it in the module's path, and the guard expands no short name), so it refuses the commands that
+    name the skill by its long form.
   - **The read-only tools take the options of an allowlist, tool by tool** (`READ_ONLY_SPECS`): an option not listed
     — a new one, an abbreviation getopt would accept, another spelling — is refused, so no option that runs a program
     or writes a file can slip through. A list of the dangerous ones did: `rg --hostname-bin=<program>
@@ -524,9 +533,14 @@ treats them as data on every path an agent takes:
     a word that starts with `+`, tail, sort and uniq take a plain `+N` only, and `-n`, `-c` take a number; every option
     that reads its list of files or patterns from a file. A value given as the next word never starts with `-`
     (whatever a tool makes of the option before it, such a word is checked as an option), and uniq takes one file
-    name at most (it writes to its second).
-  - It refuses git, npm, any other program or path, a variable or a command substitution, a redirection to a file, a
-    background job, a subshell, an unquoted wildcard, a second line, a NUL character (bash drops it from what it reads:
+    name at most (it writes to its second), every word from its first file name on counted as one, as a getopt that
+    stops at the first operand reads them (GNU's under `POSIXLY_CORRECT` takes the `-c` of `uniq a -c` for the second).
+  - It refuses git, npm, any other program or path, a variable, a command substitution and the other expansions
+    (`$'…'`, `$"…"`, `$((…))`, braces, a `~` that starts a word other than `~` or `~/` — `~+`, `~-`, `~user` —, and
+    one right after `=` or `:`, where bash expands it in a word that looks like an assignment, `x=~`), any other
+    redirection (to or from a file, `&>`, `|&`, `>|`, `<>`, a here-string, `>&-`, a process substitution) and one
+    right after a quoted or escaped word (above), a background job, a subshell, an unquoted wildcard, a second line, a NUL character (bash
+    drops it from what it reads:
     `ls \<NUL>'; git push; ls \<NUL>'` was one `ls` to the guard, and ran `git push`), the doc-kit commands that run
     something else or
     belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`, `init`, `inputs`,
@@ -539,7 +553,8 @@ treats them as data on every path an agent takes:
     decision that never comes is refused too: a module of the guard or the decision that never settles leaves node's
     event loop empty, and node then ends with 0 — the command ran; the hook's exit code is 2 from its first line, only
     the decision's explicit 0 ends with 0, and node's `beforeExit`, which comes only when no decision ended the
-    process, refuses with 2 and says so. The
+    process, refuses with 2 and says so (a module that ends the process itself, `process.exit()` without a code, or
+    takes `beforeExit` away, ends with that first 2, without a word). The
     hook's file,
     `scripts/bash-guard.mjs`, exports nothing and checks nothing of how node was started: however node is given it
     (its path, through a linked folder — a linked `~/.claude`, macOS's temporary folder under `/var`, a junction —, a
@@ -550,7 +565,9 @@ treats them as data on every path an agent takes:
     let every command through). On Linux and macOS, node loads no ES module from under a folder whose name holds a
     backslash: there the guard cannot start (exit code 1), `onFailure: block` refuses, and the agents get no Bash.
   - It only ever refuses: what it lets through still goes through Claude Code's own permissions
-    (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; a table, per read-only tool, of the
+    (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; the words of quotes, escapes and empty
+    strings next to an operator, the guard's against a real `sh`'s, which hands a program the argument `2` of
+    `"2">&1`; a table, per read-only tool, of the
     options agents use and of the ones that run a program or write a file, through the decision and the real hook
     process, and a property: an option not listed is always refused; the Windows path forms, a lookalike folder
     (U+212A) refused by the decision and by the real hook process, and a property: every character that lower-cases
@@ -561,7 +578,7 @@ treats them as data on every path an agent takes:
     from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
     and without `node`; the skill reached through a linked folder, its scripts let through by the path the hook was
     started from and by the real one, a `doc-kit2`, a lookalike and a planted link refused, and the linked path
-    refused to a hook started by the real one; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles; the agent definitions that name it. The
+    refused to a hook started by the real one; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles, and one that ends the process without a code or takes node's `beforeExit` away, which only the exit code set on the hook's first line refuses; the agent definitions that name it. The
     ReDoS harness measures it).
 - **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
   agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node

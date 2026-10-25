@@ -20,6 +20,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import {
   bashDecision,
+  splitCommand,
   guard,
   FAILED,
   SKILL_SCRIPTS,
@@ -70,6 +71,15 @@ const ALLOWED = [
   "cat a.md;",
   "ls # a comment, which bash never runs: $(rm -rf /)",
   "sort -rn counts.txt | uniq -c | head -5",
+  // The positive controls of the redirection rows: an unquoted 1 or 2 against the operator is the output's number; a 2
+  // before a space is an argument, as bash reads it; quoted operators and escaped ones are characters.
+  `node 2>/dev/null ${SKILL}/scripts/brief.mjs --list`,
+  `node ${SKILL}/scripts/brief.mjs --list 1>&2`,
+  "uniq -c a.txt 2>/dev/null",
+  "ls 2 >/dev/null",
+  "grep -e \"|\" -e ';' -e \\; -e \\& -e \\> a.txt",
+  "ls \\~ '~' ''~ a~ a/~ ~/docs ''#x \\#y",
+  "echo ! x!",
 ];
 
 /** [command, the reason it is refused] */
@@ -132,6 +142,50 @@ const REFUSED = [
   ["cat < a", "redirect"],
   ["echo x 2>err.log", "redirect"],
   ["echo x>/dev/null", "redirect"],
+  // bash takes a word for the number of an output only when it is digits alone, unquoted: of a quoted or escaped one
+  // it makes an argument, and redirects the standard output (`node 2 <script>`, `uniq a 2`, a second file name).
+  [`node "2">/dev/null ${SKILL}/scripts/brief.mjs`, "redirect"],
+  [`node '1'>&2 ${SKILL}/scripts/brief.mjs --list`, "redirect"],
+  [`node \\2>/dev/null ${SKILL}/scripts/brief.mjs`, "redirect"],
+  [`node 2"">/dev/null ${SKILL}/scripts/brief.mjs`, "redirect"],
+  [`node ""2>/dev/null ${SKILL}/scripts/brief.mjs`, "redirect"],
+  ['uniq a "2">/dev/null', "redirect"],
+  ['ls "">/dev/null', "redirect"],
+  ['ls "&">/dev/null', "redirect"],
+  ["ls \\\\>/dev/null", "redirect"],
+  // Every other redirection: both outputs to a file, a pipe of both, a file forced, read and written, a here-string,
+  // an output closed or moved, a target that is not the word it seems, a process substitution.
+  ["ls &>out.txt", "redirect"],
+  ["ls &>>out.txt", "redirect"],
+  ["ls |& cat", "redirect"],
+  ["ls >|out.txt", "redirect"],
+  ["ls <>out.txt", "redirect"],
+  ["cat <<<x", "redirect"],
+  ["ls >&-", "redirect"],
+  ["ls 1>&2-", "redirect"],
+  ["ls >&1x", "redirect"],
+  ["ls 2>&1#x", "redirect"],
+  ["ls {fd}>out.txt", "group"],
+  ["cat <(ls)", "redirect"],
+  ["ls >(cat)", "redirect"],
+  // ANSI-C and locale quoting, arithmetic, braces: expansions bash makes of unquoted text.
+  ["ls $'\\x41'", "expansion"],
+  ['ls $"x"', "expansion"],
+  ["ls $((1+1))", "expansion"],
+  ["ls {a,b}", "group"],
+  ["ls a{b,c}", "group"],
+  // ~ is the home folder at the start of a word, alone or before /: before anything else it may be another folder
+  // (the current one, the previous one, a user's), and after = or : bash expands it too in a word that looks like an
+  // assignment, even an argument.
+  ["ls ~+", "expansion"],
+  ["ls ~-", "expansion"],
+  ["cat ~root/.profile", "expansion"],
+  ["ls ~1", "expansion"],
+  ['ls ~"/x"', "expansion"],
+  ["grep -e x=~ a.txt", "expansion"],
+  ["grep -e x=~/a a.txt", "expansion"],
+  ["ls x=a:~", "expansion"],
+  [`node ~+/scripts/brief.mjs`, "expansion"],
   [`${KIT} build &`, "background"],
   [`(cd docs && ${KIT} build)`, "group"],
   ["{ ls; }", "group"],
@@ -304,9 +358,16 @@ const OPTION_ROWS = [
   ["find . -name -exec id \\;", "optionValue"],
   ["head -n -5 a.md", "optionValue"],
   ["cut -d -f1 a.txt", "optionValue"],
-  // uniq writes to its second file name.
+  // uniq writes to its second file name: every word from its first one on counts, as a getopt that stops there reads
+  // them (GNU's under POSIXLY_CORRECT takes `-c` after a file name for the second one).
   ["uniq a.txt out.txt", "operands"],
   ["uniq -c -- a.txt out.txt", "operands"],
+  ["uniq a.txt -c", "operands"],
+  ["uniq a.txt -- out.txt", "operands"],
+  ["uniq a.txt -f 2", "operands"],
+  ["uniq - -c", "operands"],
+  ["uniq -c -f 2 a.txt", null],
+  ["uniq -c -- a.txt", null],
 ];
 
 /**
@@ -836,6 +897,22 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
         assert.equal(r.status, 2, `${file}, ${text}: ${r.stderr}`);
         assert.match(r.stderr, /the guard ended without a decision.*\n.*la garde s'est arrêtée sans décision/, text);
       }
+      // A process that ends with no decision and no beforeExit to refuse it — process.exit() without a code, the
+      // listener taken away — ends with the exit code the hook's first line sets: 2, never node's 0.
+      for (const [file, text] of [
+        ["common.mjs", "process.exit();\n"],
+        [
+          "bash-decision.mjs",
+          'process.removeAllListeners("beforeExit");\nexport const guard = () => new Promise(() => {});\n',
+        ],
+      ]) {
+        const module = path.join(skill, "scripts", file);
+        const saved = fs.readFileSync(module, "utf8");
+        fs.writeFileSync(module, text);
+        const r = runGuard(input, script);
+        fs.writeFileSync(module, saved);
+        assert.equal(r.status, 2, `${file}, ${text}: ${r.stderr}`);
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -857,6 +934,76 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
   /** As Claude Code starts an exec-form hook: `command` (node) looked up on the PATH, `args` as they are, no shell. */
   const exec = (script, input, env = {}) =>
     spawnSync("node", [script], { input, encoding: "utf8", env: { ...process.env, DOC_KIT_LANG: "en", ...env } });
+
+  test("the guard reads a command's words as a real shell does, or refuses it: quotes, escapes and empty strings next to an operator", () => {
+    const home = "/home/me";
+    const B = "\\";
+    /** [what follows the command's name, the guard's refusal (null: it reads the shell's words), the shell's words] */
+    const FORMS = [
+      // A shell takes a word for the number of an output only when it is digits alone, unquoted: of a quoted or
+      // escaped one it makes an argument, and redirects the standard output.
+      [`"2">&1`, "redirect", ["2"]],
+      [`'1'>&2`, "redirect", ["1"]],
+      [`${B}2>/dev/null`, "redirect", ["2"]],
+      [`2"">/dev/null`, "redirect", ["2"]],
+      [`""2>/dev/null`, "redirect", ["2"]],
+      [`a "2">&1`, "redirect", ["a", "2"]],
+      [`"">/dev/null`, "redirect", [""]],
+      [`"&">/dev/null`, "redirect", ["&"]],
+      // The positive controls: the number of an output, written against the operator; a 2 before a space.
+      ["2>&1", null, []],
+      ["x 1>&2 2>/dev/null", null, ["x"]],
+      ["x 2 >&1", null, ["x", "2"]],
+      [">/dev/null x", null, ["x"]],
+      // Quotes, escapes and empty strings, next to operators or not.
+      [`"a b" 'c d' e${B} f`, null, ["a b", "c d", "e f"]],
+      [`"a"'b'${B}c`, null, ["abc"]],
+      [`"${B}a" "${B}"" "${B}${B}" "${B}$" "${B}\`"`, null, [`${B}a`, '"', B, "$", "`"]],
+      [`'' a ""`, null, ["", "a", ""]],
+      [`${B}& "|" ';' ${B}; ${B}>`, null, ["&", "|", ";", ";", ">"]],
+      [`2${B}>x`, null, ["2>x"]],
+      [`a''#b ''#x ${B}#y "#"`, null, ["a#b", "#x", "#y", "#"]],
+      ["a #x", null, ["a"]],
+      ["a\tb\vc d", null, ["a", "b\vc d"]],
+      ["x ! !x", null, ["x", "!", "!x"]],
+      [`-- -x '-'`, null, ["--", "-x", "-"]],
+      // ~: the home folder at the start of a word, alone or before /; a character anywhere else.
+      ["~ ~/x", null, [home, `${home}/x`]],
+      [`${B}~ '~' ''~ a~ a/~`, null, ["~", "~", "~", "a~", "a/~"]],
+    ];
+    const dir = tempDir("doc-kit-guard-words-");
+    try {
+      // A function receives the words a program would; it writes them to a file, whatever the line redirects.
+      const out = path.join(dir, "words.txt");
+      const script = [
+        `p() { for a in "$@"; do printf '%s\\036' "$a"; done >>"$OUT"; printf '\\n' >>"$OUT"; }`,
+        ...FORMS.map(([form]) => `p ${form}`),
+        "",
+      ].join("\n");
+      const r = spawnSync(SH, [], {
+        input: script,
+        encoding: "utf8",
+        env: { ...process.env, HOME: home, OUT: out, MSYS_NO_PATHCONV: "1" },
+      });
+      assert.equal(r.status, 0, r.stderr);
+      const lines = fs.readFileSync(out, "utf8").split("\n").slice(0, -1);
+      assert.equal(lines.length, FORMS.length, r.stderr);
+      FORMS.forEach(([form, key, words], k) => {
+        assert.deepEqual(lines[k].split("\u001e").slice(0, -1), words, `the shell's words of p ${form}`);
+        /** @type {unknown} */
+        let read;
+        try {
+          read = splitCommand(`p ${form}`, home);
+        } catch (e) {
+          read = /** @type {any} */ (e).key;
+        }
+        if (key === null) assert.deepEqual(read, [{ argv: ["p", ...words], op: "" }], `the guard's words of p ${form}`);
+        else assert.equal(read, key, `the guard refuses p ${form}`);
+      });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
   test("no shell reads the guard's path: under a folder whose name holds quotes, a dollar sign, a backquote, a semicolon, it is the guard", () => {
     const root = tempDir("doc-kit-guard-exec-");

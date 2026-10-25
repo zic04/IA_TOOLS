@@ -12,11 +12,14 @@
 //     two paths are one file when they differ by the case of ASCII letters only (absolutePath);
 //   - read-only tools (READ_ONLY, bash-options.mjs), each with the options of its allowlist only;
 //   - `cd <folder> &&` first, before them (the folder the kit reads its doc.config.mjs from); `|`, `&&`, `||` and `;`
-//     between them; `2>&1` and `>/dev/null`.
+//     between them; `>/dev/null`, `>&1` and `>&2`, alone or after a `1` or a `2` written against them, unquoted.
 // What runs never depends on the folder the command runs in: a program is named by its absolute path, never a
 // relative one a `cd` that fails, or a `cd` in a pipeline, would resolve elsewhere.
-// Anything else is refused: an expansion ($, a backquote), a redirection to a file, a background job, a subshell, an
-// unquoted wildcard, a second line, git, npm, a path to another program.
+// Anything else is refused: an expansion ($, a backquote, a `~` that starts a word other than `~` or `~/`, a `~`
+// right after `=` or `:`), any other redirection, a background job, a subshell, an unquoted wildcard, a second line,
+// git, npm, a path to another program. The words are bash's to the letter, or the command is refused: a quote, a
+// backslash or an empty string changes what bash makes of a word next to an operator, and the guard reads it as bash
+// does or refuses it.
 //
 // The decision (bashDecision) is pure: it reads the command as bash would split it, by hand — no shell, no eval, no
 // regular expression — and reads no file. Nothing of the application is read or run. The guard only ever refuses:
@@ -62,9 +65,9 @@ const FORBIDDEN = new Map([
 ]);
 
 /**
- * The state of the reading of a command: the text, the position, the word being read (null: none), the words of
- * the simple command being read, the simple commands read.
- * @typedef {{ text: string, i: number, word: string|null, words: string[], segments: Array<{ argv: string[], op: string }> }} Lexer
+ * The state of the reading of a command: the text, the position, the word being read (null: none) and whether a
+ * quote or a backslash went into it, the words of the simple command being read, the simple commands read.
+ * @typedef {{ text: string, i: number, word: string|null, quoted: boolean, words: string[], segments: Array<{ argv: string[], op: string }> }} Lexer
  */
 
 /** @param {Lexer} lex @param {string} s */
@@ -73,6 +76,7 @@ const append = (lex, s) => (lex.word = (lex.word ?? "") + s);
 function flush(lex) {
   if (lex.word !== null) lex.words.push(lex.word);
   lex.word = null;
+  lex.quoted = false;
 }
 /** @param {Lexer} lex @param {string} op */
 function endSegment(lex, op) {
@@ -87,6 +91,7 @@ function singleQuoted(lex) {
   const close = lex.text.indexOf("'", lex.i + 1);
   if (close < 0) throw new Refusal("quote");
   append(lex, lex.text.slice(lex.i + 1, close));
+  lex.quoted = true;
   lex.i = close;
 }
 
@@ -98,6 +103,7 @@ function doubleQuoted(lex) {
     const c = text[j];
     if (c === '"') {
       append(lex, value);
+      lex.quoted = true;
       lex.i = j;
       return;
     }
@@ -112,30 +118,59 @@ function doubleQuoted(lex) {
 function escaped(lex) {
   if (lex.i + 1 >= lex.text.length) throw new Refusal("quote");
   append(lex, lex.text[++lex.i]);
+  lex.quoted = true;
 }
 
-/** `|` or `||`. @param {Lexer} lex */
+/** `|` or `||`; `|&` pipes the error output too (write `2>&1 |`). @param {Lexer} lex */
 function pipe(lex) {
+  if (lex.text[lex.i + 1] === "&") throw new Refusal("redirect");
   const op = lex.text[lex.i + 1] === "|" ? "||" : "|";
   lex.i += op.length - 1;
   endSegment(lex, op);
 }
 
-/** `&&`; a lone `&` is a background job. @param {Lexer} lex */
+/** `&&`; `&>` and `&>>` write both outputs to a file; a lone `&` is a background job. @param {Lexer} lex */
 function and(lex) {
-  if (lex.text[lex.i + 1] !== "&") throw new Refusal("background");
+  const next = lex.text[lex.i + 1];
+  if (next === ">") throw new Refusal("redirect");
+  if (next !== "&") throw new Refusal("background");
   lex.i++;
   endSegment(lex, "&&");
 }
 
-/** A redirection, after the word `1` or `2` if any: only to /dev/null or to the other output. @param {Lexer} lex */
+/**
+ * A redirection: only to /dev/null or to the other output, after nothing (a space, an operator) or after the digit
+ * `1` or `2` alone, written against it and neither quoted nor escaped: bash takes a word for the number of an output
+ * only when it is digits and nothing else, as written. Of `"2">`, `'1'>`, `\2>`, `2"">` or `""2>`, bash makes the
+ * argument 2 (or 1) and a redirection of the standard output (`node "2">/dev/null <script>` is `node 2 <script>`), so
+ * a word quoted or escaped, even in part, before a redirection is refused, as any other word against it is.
+ * @param {Lexer} lex
+ */
 function redirection(lex) {
   const { text, i, word } = lex;
-  if (text[i] === "<" || (word !== null && word !== "1" && word !== "2")) throw new Refusal("redirect");
+  const output = word === null || (!lex.quoted && (word === "1" || word === "2"));
+  if (text[i] === "<" || !output) throw new Refusal("redirect");
   const form = NULL_REDIRECTS.find((f) => text.startsWith(f, i));
   if (!form || !WORD_END.has(text[i + form.length])) throw new Refusal("redirect");
   lex.i = i + form.length - 1;
   lex.word = null;
+}
+
+/**
+ * An unquoted `~`. At the start of a word, alone or before `/`, bash makes it the home folder (`home`; "" leaves it as
+ * it is); before anything else it may be another folder (`~+` the current one, `~-` the previous one, `~user`, `~1`),
+ * refused. Right after `=` or `:` bash expands it too, in a word that looks like an assignment (`x=~`, `x=a:~`), even
+ * as an argument: refused, wherever that `=` or `:` stands (the guard never decides what looks like one).
+ * Elsewhere it is a character. @param {Lexer} lex @param {string} home
+ */
+function tilde(lex, home) {
+  const { text, i } = lex;
+  if (lex.word === null) {
+    if (text[i + 1] !== "/" && !WORD_END.has(text[i + 1])) throw new Refusal("expansion");
+    if (home) lex.word = home;
+    else append(lex, "~");
+  } else if (text[i - 1] === "=" || text[i - 1] === ":") throw new Refusal("expansion");
+  else append(lex, "~");
 }
 
 /** What each special character does when it is not quoted. */
@@ -154,25 +189,25 @@ const HANDLERS = new Map([
 
 /**
  * The command as bash splits it: its simple commands, each with its words and the operator after it ("" for the
- * last). One pass, character by character. Throws a Refusal for what the guard never lets through.
+ * last). One pass, character by character. Throws a Refusal for what the guard never lets through, and for what it
+ * would read otherwise than bash (test/unit/bash-guard.test.mjs compares its words with a real shell's).
  * @param {string} command
  * @param {string} home  what an unquoted `~` at the start of a word stands for ("" leaves it as is)
  * @returns {Array<{ argv: string[], op: string }>}
  */
-function splitCommand(command, home) {
+export function splitCommand(command, home) {
   const text = String(command);
   if (text.includes("\n") || text.includes("\r")) throw new Refusal("newline");
   // bash drops a NUL from what it reads: `ls \<NUL>'; git push; ls \<NUL>'` is one ls to the guard, three commands to it.
   if (text.includes("\0")) throw new Refusal("nul");
   /** @type {Lexer} */
-  const lex = { text, i: 0, word: null, words: [], segments: [] };
+  const lex = { text, i: 0, word: null, quoted: false, words: [], segments: [] };
   for (; lex.i < text.length; lex.i++) {
     const c = text[lex.i];
     if (c === "#" && lex.word === null) break; // a comment, to the end
     if (HANDLERS.has(c)) HANDLERS.get(c)(lex);
     else if (FORBIDDEN.has(c)) throw new Refusal(FORBIDDEN.get(c));
-    else if (c === "~" && lex.word === null && home && (text[lex.i + 1] === "/" || WORD_END.has(text[lex.i + 1])))
-      lex.word = home;
+    else if (c === "~") tilde(lex, home);
     else append(lex, c);
   }
   flush(lex);

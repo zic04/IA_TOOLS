@@ -47,18 +47,21 @@ passent :
 |---|---|
 | Le CLI du kit, par son chemin absolu, depuis le dossier de la documentation | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
 | Les scripts du skill, par leur chemin absolu : le chemin réel du skill, ou celui que nomme son hook, à travers un lien (sous Windows, avec son lecteur : `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
-| Des outils de lecture, avec leurs seules options de lecture | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, reliés par un tube, `&&` ou `;` |
+| Des outils de lecture, avec leurs seules options de lecture | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, reliés par un tube, `&&`, `\|\|` ou `;` ; `>/dev/null`, `>&1` et `>&2`, seules ou après un `1` ou un `2` sans guillemets (`2>&1`) |
 
 Tout le reste est refusé, avec sa raison : `npx doc-kit`, `npm exec` et un `doc-kit` nu (ils peuvent lancer celui de
 l'application), un programme par un chemin relatif, un `cd` ailleurs qu'en premier, git, npm, tout autre programme,
-`$(…)`, une redirection vers un fichier, un `*` sans guillemets, une option d'un outil de lecture absente de sa liste
+`$(…)` et les autres expansions (`~+`, `~utilisateur`, `x=~`…), toute autre redirection (vers un fichier, `&>`,
+`<<<`…) et celle qui suit un mot entre guillemets ou échappé (bash lit `"2">/dev/null` comme un argument `2` et une
+redirection de la sortie), un `*` sans guillemets, une option d'un outil de lecture absente de sa liste
 (`rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), et les commandes de doc-kit qui sont les vôtres ou celles
 de l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les fichiers de l'application sont des
 données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un agent.
 Le hook échoue fermé : une garde qui ne peut pas démarrer ou se charger (pas de `node`, un fichier absent ou abîmé),
 ou qui ne décide jamais, refuse la commande ; il est écrit sous la forme exec de Claude Code (`command: node`, `args`, `onFailure: block`), qui
 n'a besoin d'aucun shell, mais de Claude Code 2.1.295 ou plus récent : un plus ancien ne lance jamais la garde (`doctor`
-le signale, SECURITY.md). La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations,
+le signale, SECURITY.md). Lancé par un chemin court 8.3 de Windows (`C:\PROGRA~1\…`), le hook ne connaît le skill que
+sous cette forme courte et refuse les commandes qui le nomment sous sa forme longue : il échoue fermé. La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations,
 comme d'habitude. Elle ne borne que Bash : les écritures d'un agent, et le `doc.config.mjs` que le kit charge là où il
 tourne (du code, comme un plan de capture), ne sont pas de son ressort — relisez une configuration que vous n'avez pas
 écrite avant d'y lancer le kit.

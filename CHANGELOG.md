@@ -331,8 +331,8 @@ entries between a project's `kit` range and the installed version.
     `onFailure: block`, so that no shell reads the path; `doc-kit skill install` writes the
     installed skill's path in them): the kit's CLI by its absolute path, `node "<kit>/cli/doc-kit.mjs" <command>`,
     the skill's scripts by theirs, and read-only tools only, after one `cd <folder> &&` first. It refuses git, any
-    other program, a program by a relative path, an expansion, a redirection to a file, a subshell, an unquoted
-    wildcard, any option of a read-only tool that is not on its allowlist (those that run a program or write a file:
+    other program, a program by a relative path, an expansion, any redirection but `>/dev/null`, `>&1` and `>&2`, a
+    subshell, an unquoted wildcard, any option of a read-only tool that is not on its allowlist (those that run a program or write a file:
     `rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), the doc-kit commands of
     the orchestrator or the user (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…) and `--plans`. No shell, no
     eval, no file read; it only refuses, and what it lets through still goes through Claude Code's permissions.
@@ -375,6 +375,13 @@ entries between a project's `kit` range and the installed version.
     line, only the decision's explicit 0 ends with 0, and its `beforeExit` refuses, in both languages.
   - **A NUL character is refused**, as a second line is: bash drops it from what it reads, so
     `ls \<NUL>'; git push; ls \<NUL>'` was one `ls` to the guard, and ran `git push`.
+  - **The words the guard checks are bash's to the letter**: bash takes a word for the number of an output only when
+    it is digits alone, as written, and makes an argument of a quoted or escaped one (`"2">`, `'1'>`, `\2>`, `2"">`,
+    `""2>`) and a redirection of the standard output. The guard takes `1` or `2` for an output's number only when it
+    is written against the operator, unquoted, and refuses a redirection after any other word. It refuses too a `~`
+    bash expands to another folder than the home one (`~+`, `~-`, `~user`) or after `=` or `:` (`x=~`, which bash
+    expands in a word that looks like an assignment, an argument included), and names `&>`, `&>>` and `|&` for the
+    redirections they are.
   - **On Windows, two paths name one file up to the case of their ASCII letters only**: the guard compared them in
     lower case, and `toLowerCase()` also folds letters NTFS keeps apart (U+212A, the Kelvin sign, to `k`; U+212B, the
     Angstrom sign, to `å`), so a lookalike folder's script could pass for the skill's. It folds `A`–`Z` only; any
@@ -391,9 +398,10 @@ entries between a project's `kit` range and the installed version.
   - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
     `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
     (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one
-    file name at most (it writes to its second). GNU tail's old syntax follows the file like `-f`: of a word that
-    starts with `+`, tail, sort and uniq take a plain `+N` only (`tail +1f` is refused), and tail's and head's `-n`
-    and `-c` take a number (`tail -n +1f` is refused).
+    file name at most (it writes to its second), every word from its first file name on counted as one (GNU's getopt
+    under `POSIXLY_CORRECT` stops there: `uniq a -c` writes `-c`). GNU tail's old syntax follows the file like `-f`:
+    of a word that starts with `+`, tail, sort and uniq take a plain `+N` only (`tail +1f` is refused), and tail's and
+    head's `-n` and `-c` take a number (`tail -n +1f` is refused).
   - **On Windows, a program's path has its drive** (`C:/…`): Git Bash's `/c/…` and `~` are refused, since Git Bash
     leaves such a word unconverted when it holds `'`, a backquote, `*`, `?`, `[`, `]`, `:` or `;` (and always under
     `MSYS_NO_PATHCONV`), and node then reads `C:\c\…`: `node "/c/<kit>/cli/x'/../doc-kit.mjs"` passed for the kit and
@@ -406,11 +414,13 @@ entries between a project's `kit` range and the installed version.
     (`cat ~/.ssh/id_rsa` passes; what an agent reads may end up in a page, where `check secrets` is the net).
   - `test/unit/skill-briefs.test.mjs` (RULES.md M15) checks the rule in every brief, both languages, and every agent,
     and that no skill text gives `npx doc-kit` or a bare `doc-kit`; `test/unit/bash-guard.test.mjs` the guard on a
-    table of allowed and refused commands, a table per read-only tool of the options agents use and of the ones that
+    table of allowed and refused commands, the words of quotes, escapes and empty strings next to an operator against
+    a real `sh`'s, a table per read-only tool of the options agents use and of the ones that
     run a program or write a file (through the decision and the real hook process), a property (an option not listed
     is always refused), the Windows path forms, a real hook process with a planted `node_modules/.bin/doc-kit` in the
     application (never run), the hook started as the exec form starts it from a folder whose name holds quotes, `$`
-    and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash), a
+    and a backquote, and the hook's failures (a missing script, no `node`, a corrupt message file, a crash, a module
+    that ends the process without a code or takes its `beforeExit` away), a
     lookalike folder (U+212A) through the decision and the real hook process, a property over every character that
     lower-cases onto a letter of the path, and the hook started through a file URL with a query and through an
     import; `test/unit/skill.test.mjs` that the installed texts, the filled briefs and the installed guard give the

@@ -40,7 +40,7 @@ const isNumber = (v) => {
  * next word never starts with `-`: a word that starts with `-` is always checked as an option, whatever a tool makes of
  * the one before it (such a value is attached: `-e-x`, `--regexp=-x`). No option listed runs a program, writes a file,
  * or reads a list of files, patterns or rules from a file (`-f`, `--ignore-file`, `--files0-from`): what a tool reads
- * is named on the line. `operands`: the most words a tool takes besides its options (uniq writes to its second);
+ * is named on the line. `operands`: the most words a tool takes from its first operand on (uniq writes to its second);
  * `plus`: a word that starts with `+` is a plain `+N` only (tail's, sort's and uniq's old syntax: `tail +1f` follows the
  * file and never ends).
  * @type {Record<string, [string, { operands?: number, words?: boolean, plus?: boolean }?]>}
@@ -220,22 +220,24 @@ function optionTakes(name, tool, a) {
 /**
  * A read-only tool's words against its allowlist (READ_ONLY_SPECS): every option listed, a value given as the next
  * word never one that starts with `-` (and a number where the option takes one), a word that starts with `+` a plain
- * `+N` where the tool reads one (`plus`), no more operands than the tool may take. As getopt reads them: an option may
- * come after an operand, and after `--` every word is an operand (not for find, whose expression goes on).
+ * `+N` where the tool reads one (`plus`), no more operands than the tool may take. As GNU's getopt reads them, an
+ * option may come after an operand, and after `--` every word is an operand (not for find, whose expression goes on);
+ * as a getopt that stops at the first operand reads them (GNU's under POSIXLY_CORRECT), every word from the first
+ * operand on is one: the operands are counted so, never fewer than GNU's reading counts (`uniq a -c` writes to `-c`).
  * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string[]} args
  */
 export function checkOptions(name, tool, args) {
-  let operands = 0;
+  let first = -1; // the first operand
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "--" && !tool.words) {
-      operands += args.length - i - 1;
+      if (first < 0) first = i + 1;
       break;
     }
     if (!a.startsWith("-") || a === "-") {
       // tail +1f follows the file and never ends: of the old syntax, a plain +N only.
       if (tool.plus && a.startsWith("+") && !isNumber(a)) throw new Refusal("option", { name, option: a });
-      operands++;
+      if (first < 0) first = i;
       continue;
     }
     const takes = optionTakes(name, tool, a);
@@ -244,5 +246,6 @@ export function checkOptions(name, tool, args) {
     if (value.startsWith("-")) throw new Refusal("optionValue", { name, option: a, value });
     if (takes === NEXT_NUMBER && !isNumber(value)) throw new Refusal("number", { name, option: a, value });
   }
+  const operands = first < 0 ? 0 : args.length - first;
   if (operands > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
 }
