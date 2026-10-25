@@ -45,11 +45,14 @@ Migrations:
 Nothing written (dry run). To apply: doc-kit upgrade --apply
 ```
 
-- **Changes** are the entries of the kit's `CHANGELOG.md` newer than the base version of your range (`^0.0.1` →
-  0.0.1) and not newer than the installed kit, newest first.
+- **Changes** are the entries of the kit's `CHANGELOG.md` newer than the lowest version your range allows (`^0.0.1`
+  → 0.0.1, `^0.4.0 || ^0.3.0` → 0.3.0, `<1.0.0` → 0.0.0) and not newer than the installed kit, newest first.
 - **Migrations** are the scripts of the kit (`engine/migrations/<version>.mjs`) for the same versions, run **in
   memory**: the diff shows every file they would change.
 - `doc-kit upgrade` works even when the range refuses the installed kit: it is precisely when it is needed.
+- A pre-release of the kit (`0.5.0-rc.1`) is refused by a range written for releases, as npm refuses one:
+  `doc-kit upgrade --apply` runs the 0.5.0 migrations, which the pre-release ships, and sets `kit` to `^0.5.0-rc.1`,
+  which the release 0.5.0 accepts too, without running them again.
 
 ## Step 2 — Apply
 

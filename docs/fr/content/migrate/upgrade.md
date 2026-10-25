@@ -45,11 +45,15 @@ Migrations :
 Rien n'a été écrit (simulation). Pour appliquer : doc-kit upgrade --apply
 ```
 
-- Les **changements** sont les entrées du `CHANGELOG.md` du kit plus récentes que la version de base de votre plage
-  (`^0.0.1` → 0.0.1) et pas plus récentes que le kit installé, de la plus récente à la plus ancienne.
+- Les **changements** sont les entrées du `CHANGELOG.md` du kit plus récentes que la plus basse version que votre
+  plage admet (`^0.0.1` → 0.0.1, `^0.4.0 || ^0.3.0` → 0.3.0, `<1.0.0` → 0.0.0) et pas plus récentes que le kit
+  installé, de la plus récente à la plus ancienne.
 - Les **migrations** sont les scripts du kit (`engine/migrations/<version>.mjs`) pour les mêmes versions, exécutés
   **en mémoire** : le diff montre chaque fichier qu'ils modifieraient.
 - `doc-kit upgrade` fonctionne même quand la plage refuse le kit installé : c'est précisément là qu'on en a besoin.
+- Une préversion du kit (`0.5.0-rc.1`) est refusée par une plage écrite pour des versions publiées, comme npm la
+  refuse : `doc-kit upgrade --apply` exécute les migrations de 0.5.0, que la préversion apporte, et règle `kit` sur
+  `^0.5.0-rc.1`, que la version 0.5.0 accepte aussi, sans les exécuter de nouveau.
 
 ## Étape 2 — Appliquer
 

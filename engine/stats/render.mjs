@@ -8,7 +8,8 @@
 //          slowest   the ten slowest parts (step › part), where to optimise first
 // Without `view`, every table in that order. Cost: `llm.prices` per million tokens (input, output, cacheRead,
 // cacheWrite; cacheWrite defaults to 1.25 × input, cacheRead to 0.1 × input); no price, no cost column.
-import { summarize, compareVersions } from "./usage.mjs";
+import { summarize } from "./usage.mjs";
+import { compareVersions } from "../project/semver.mjs";
 
 export const USAGE_VIEWS = Object.freeze(["summary", "versions", "steps", "models", "slowest"]);
 
