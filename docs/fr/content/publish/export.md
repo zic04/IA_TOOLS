@@ -44,7 +44,7 @@ doc-kit export ../acme-orders-docs --with-dist --zip
 
 | Quoi | Dans la copie |
 |---|---|
-| Les fichiers du projet | Tout sauf `node_modules/`, `.doc-kit/` (la session !), `.git/`, les fichiers `.env`, `package-lock.json`, les journaux, et `dist/` sans `--with-dist` |
+| Les fichiers du projet | Tout sauf `node_modules/`, `.doc-kit/` (la session !), `.git/`, tout fichier de session du navigateur, les fichiers `.env`, les clés et identifiants (`*.pem`, `*.p8`, `*.ppk`, `.npmrc`, `.htpasswd`, `credentials.json`, `client_secret.json`, `kubeconfig`…), l'état et les variables Terraform (`*.tfvars`), les profils VPN, les fichiers `*.gpg`, `appsettings.*.json` et sa copie `.bak` (SECURITY.md), `package-lock.json`, les journaux, et `dist/` sans `--with-dist` |
 | Le moteur | `vendor/doc-kit/` : moteur, ligne de commande, adaptateurs, textes, schémas, gabarits, standard ; ni tests, ni exemples, ni skill, ni documentation |
 | `package.json` | Dépend de `"doc-kit": "file:./vendor/doc-kit"` |
 | `doc.config.mjs` | `version.fallback` fixé à la version documentée, commentaires conservés |

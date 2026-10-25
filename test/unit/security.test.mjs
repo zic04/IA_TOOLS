@@ -362,4 +362,73 @@ describe("export never carries a secret", () => {
       fs.rmSync(path.dirname(target), { recursive: true, force: true });
     }
   });
+
+  test("Terraform state and variables, PuTTY and Apple keys, VPN profiles, encrypted files, credentials, an environment's settings and a session of any size are left out; their neighbours are kept", async () => {
+    const docs = demoCopy();
+    const target = path.join(tempDir("doc-kit-export-"), "copy");
+    const write = (rel, text) => {
+      fs.mkdirSync(path.dirname(path.join(docs, rel)), { recursive: true });
+      fs.writeFileSync(path.join(docs, rel), text);
+    };
+    try {
+      const secrets = [
+        "infra/terraform.tfstate",
+        "infra/terraform.tfstate.backup",
+        "keys/deploy.ppk",
+        "vpn/office.ovpn",
+        "backup.tar.gpg",
+        "credentials.json",
+        "config/appsettings.Production.json",
+        "config/appsettings.Production.json.bak",
+        "infra/terraform.tfvars",
+        "keys/AuthKey_ABC123.p8",
+        "web/.htpasswd",
+        "client_secret.json",
+        "deploy/kubeconfig",
+      ];
+      const neighbours = [
+        "content/tfstate.md",
+        "keys/ppk-howto.md",
+        "vpn/ovpn.md",
+        "gpg-keys.md",
+        "credentials.example.json",
+        "config/appsettings.json",
+        "infra/terraform.tfvars.example",
+        "keys/p8.md",
+        "web/.htaccess",
+        "client_secret.md",
+        "deploy/kubeconfig.md",
+      ];
+      for (const f of [...secrets, ...neighbours]) write(f, "{}");
+      // A session holding megabytes of local storage (it was read whole only up to 2 MB, so not recognised), and
+      // data files as large, or named like one, that are not sessions.
+      const large = "x".repeat(3 * 1024 * 1024);
+      const origins = [{ origin: "https://app.example.org", localStorage: [{ name: "cache", value: large }] }];
+      write(
+        "captures/large-session.json",
+        JSON.stringify({ cookies: [{ name: "sid", value: "v" }], origins }, null, 2),
+      );
+      write("captures/origins-first.json", JSON.stringify({ origins, cookies: [] }));
+      write("content/large-data.json", JSON.stringify({ title: "Cookies", cookies: [large] }));
+      write("content/cookies.json", JSON.stringify({ cookies: ["analytics"] }));
+      // Data over 64 KB that merely starts with a "cookies" list (SEC-12): not a session.
+      const recipes = Array.from({ length: 2000 }, (_, i) => ({ id: i, flavour: "chocolate chip" }));
+      write("content/recipes.json", JSON.stringify({ cookies: recipes }, null, 2));
+      let err = "";
+      const code = await runCli(["export", target, "--project", docs], {
+        stdout: { write: () => {} },
+        stderr: { write: (s) => (err += s) },
+        env: {},
+        exec: noExec,
+      });
+      assert.equal(code, 0, err);
+      for (const f of [...secrets, "captures/large-session.json", "captures/origins-first.json"])
+        assert.ok(!fs.existsSync(path.join(target, f)), `${f} left out`);
+      for (const f of [...neighbours, "content/large-data.json", "content/cookies.json", "content/recipes.json"])
+        assert.ok(fs.existsSync(path.join(target, f)), `${f} kept`);
+    } finally {
+      fs.rmSync(docs, { recursive: true, force: true });
+      fs.rmSync(path.dirname(target), { recursive: true, force: true });
+    }
+  });
 });

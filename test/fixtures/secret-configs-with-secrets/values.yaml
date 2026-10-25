@@ -1,0 +1,9 @@
+postgresql:
+  auth:
+    existingSecret: ""
+    username: orders
+    password: Helm2024Release
+    postgresPassword: Super2024Admin
+redis:
+  auth:
+    password: Cache2024Redis
