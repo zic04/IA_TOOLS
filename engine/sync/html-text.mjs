@@ -72,7 +72,10 @@ function tagAt(html, at, closing) {
   for (;;) {
     while (i < html.length && (isBlank(html[i]) || html[i] === "/")) i++;
     if (i >= html.length) return tag;
-    if (html[i] === ">") return { ...tag, end: i + 1 };
+    if (html[i] === ">") {
+      tag.end = i + 1;
+      return tag;
+    }
     const name = i;
     i++; // a first "=" is part of the name
     while (i < html.length && !isBlank(html[i]) && html[i] !== "/" && html[i] !== ">" && html[i] !== "=") i++;
@@ -170,8 +173,15 @@ function htmlTokens(html) {
     i = markup.end;
     if (markup.type === "tag" && markup.name === "wbr") continue;
     flush();
-    const { end, ...token } = markup;
-    tokens.push({ ...token, raw: html.slice(lt, end) });
+    // Each token (and each tag, and each text run placed) is written field by field, never as an object spread with a
+    // field after it: V8 11 (Node 20) builds that one on a slow path, some twenty times an object literal, on every
+    // token of a page.
+    const raw = html.slice(lt, markup.end);
+    tokens.push(
+      markup.type === "tag"
+        ? { type: "tag", name: markup.name, closing: markup.closing, attributes: markup.attributes, raw }
+        : { type: "other", raw },
+    );
     if (markup.type === "tag" && !markup.closing && (RAW.has(markup.name) || markup.name === "plaintext")) {
       const rawTo = markup.name === "plaintext" ? html.length : rawEnd(html, i, markup.name);
       if (rawTo > i) tokens.push({ type: "other", raw: html.slice(i, rawTo) });
@@ -245,7 +255,9 @@ function placed(tokens) {
   const open = openElements();
   return tokens.map((token) => {
     if (token.type === "tag") open.read(token);
-    return token.type === "text" ? { ...token, place: open.place(), inContext: open.inContext() } : token;
+    return token.type === "text"
+      ? { type: "text", raw: token.raw, place: open.place(), inContext: open.inContext() }
+      : token;
   });
 }
 

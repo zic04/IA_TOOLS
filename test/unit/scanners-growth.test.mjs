@@ -297,6 +297,11 @@ describe("a rendered page, read as a browser reads it (engine/sync/html-text.mjs
       ["shownText comment", (k) => "<!--" + "-".repeat(k)],
       ["shownText comments", (k) => "<!-- -->".repeat(k)],
       ["shownText comments closed by --!>", (k) => "<!-- --!>".repeat(k)],
+      // A text run between each two comments, or tags: a token for each, all built and placed (the ReDoS harness's
+      // "sync shownText comments" shape).
+      ["shownText text between comments", (k) => "x<!-- -->".repeat(k)],
+      ["shownText text between comments closed by --!>", (k) => "x<!-- --!>".repeat(k)],
+      ["shownText text between tags", (k) => 'x<b a="1">'.repeat(k)],
       ["shownText end tags", (k) => "</".repeat(k)],
       ["shownText script", (k) => "<script>" + "</scrip".repeat(k)],
       ["shownText references", (k) => "&#".repeat(k)],
