@@ -393,6 +393,39 @@ describe("buildContext with hand-built dependencies (labels, glossary, counterpa
     }
   });
 
+  // SECURITY.md, confinement: the context gives an agent up to whole files; a dependency whose real path (links and
+  // junctions followed) is not in the application is named, never excerpted. A junction needs no privilege on Windows.
+  test("a file behind a junction to a folder outside: its path only, never its text; the file beside: its text", () => {
+    const dir = tempDir("doc-kit-context-link-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    const junction = path.join(app, "j");
+    try {
+      fs.mkdirSync(app);
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
+      fs.writeFileSync(path.join(app, "local.js"), 'export const local = "of the application";\n');
+      fs.symlinkSync(outside, junction, "junction");
+      const deps = baseDeps({ title: "Orders" });
+      deps.files = [
+        { path: "j/util.js", kind: "direct", via: ["import"], lines: [] },
+        { path: "local.js", kind: "direct", via: ["import"], lines: [] },
+      ];
+      const { text } = buildContext({ root: dir, config, toc, pageId: "p", deps, appDir: app, templates: null, t: en });
+      assert.match(text, /of the application/);
+      assert.doesNotMatch(text, /of the operator/);
+      assert.match(text, /### j\/util\.js \(direct\)\n/, "named, path only");
+    } finally {
+      // The junction first, on its own: removing the folder must never walk into what it points to.
+      try {
+        fs.unlinkSync(junction);
+      } catch {
+        if (fs.existsSync(junction)) fs.rmdirSync(junction);
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("its topic group: each other page's id, title and summary (looked up in toc), whoever declared the counterpart", () => {
     const deps = baseDeps({ title: "Orders", counterpart: "tech/orders" });
     const tocWithTarget = {

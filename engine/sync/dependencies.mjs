@@ -14,6 +14,8 @@ import { extractProofs } from "./proofs.mjs";
 import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
+import { isPlainName } from "../core/text.mjs";
+import { fileInside, within } from "../core/confine.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -52,10 +54,56 @@ export function captureIds(markdown) {
   return [...ids];
 }
 
-/** `::facts` / `::faits` sources cited by a page's Markdown. */
+/**
+ * `::facts` / `::faits` sources cited by a page's Markdown: a plain name only (isPlainName), as the build reads it
+ * (engine/build/fact-directives.mjs) — a path (`../../x`) names no facts file, and is never read nor hashed.
+ */
 const factsSourcesOf = (markdown) => [
-  ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1])),
+  ...new Set([...markdown.matchAll(/::(?:facts|faits)\{[^}]*source="([^"]+)"/g)].map((m) => m[1]).filter(isPlainName)),
 ];
+
+/**
+ * The file of a "doc:" dependency of a page — a `::facts` table, `doc:<factsDir>/<source>.json` — or null when it is
+ * not one: its source a plain name (isPlainName), never a path out of the facts folder (an older sync.json may hold
+ * one).
+ * @param {string} root
+ * @param {string} factsDir   config.paths.facts
+ * @param {string} ref        "doc:<path>"
+ * @returns {string|null}
+ */
+function docFile(root, factsDir, ref) {
+  const prefix = `doc:${factsDir}/`;
+  const name = ref.startsWith(prefix) && ref.endsWith(".json") ? ref.slice(prefix.length, -".json".length) : null;
+  return isPlainName(name) ? path.join(root, factsDir, `${name}.json`) : null;
+}
+
+/**
+ * The file of a dependency of a page, for whatever reads or hashes it — the marking, the report, `--since` and the
+ * page's own files read here (M6, SECURITY.md): a "doc:" facts file (docFile) when it exists; else, relative to
+ * app.dir, its real path only where it really is a file of the application (fileInside, links and junctions followed).
+ * "outside" when it climbs out of the application (`../`) or lies outside it, present there or missing (a link, a
+ * junction): never read, hashed nor recorded, and never "deleted" either. Null when there is no such file, or no
+ * app.dir.
+ * @param {string} root
+ * @param {string} factsDir   config.paths.facts
+ * @param {string|null} appDir
+ * @param {string} p          the dependency's path ("doc:<path>", or relative to app.dir)
+ * @returns {string|null}     a real path, "outside" or null
+ */
+export function dependencyFile(root, factsDir, appDir, p) {
+  if (p.startsWith("doc:")) {
+    const abs = docFile(root, factsDir, p);
+    return abs && fs.existsSync(abs) ? abs : null;
+  }
+  return appDir ? fileInside(appDir, p) : null;
+}
+
+/** The text of a file of the application, read only where it really is in it (dependencyFile: a route folder may be
+ * a junction), or "". */
+function appText(root, factsDir, appDir, f) {
+  const real = dependencyFile(root, factsDir, appDir, f);
+  return (real && real !== "outside" && readCached(real)) || "";
+}
 
 /** Written pages (ARCHITECTURE.md §5): a file that exists and holds no template guidance. */
 export function writtenPages({ root, config, toc }) {
@@ -108,7 +156,7 @@ function toAppRel(root, appDir, projRel) {
   if (!appDir) return null;
   const abs = path.resolve(root, projRel);
   const base = path.resolve(appDir);
-  if (abs !== base && !abs.startsWith(base + path.sep)) return null;
+  if (!within(abs, base)) return null;
   return relPath(appDir, abs);
 }
 
@@ -213,7 +261,7 @@ export async function pageDependencies({
   // of facts/api.json (api-links.mjs); each handler's file is direct, with the handler's line ──────────────────
   const apiItems = appDir ? factsItems(root, factsDir, "api") : [];
   if (apiItems.length && pageFiles.size) {
-    const texts = [...pageFiles].map((f) => readCached(path.join(appDir, f)) ?? "");
+    const texts = [...pageFiles].map((f) => appText(root, factsDir, appDir, f));
     for (const item of apiRoutesCalledBy(texts, apiItems))
       add(item.file, { via: "api", direct: true, lines: item.line ? [item.line, item.line] : undefined });
   }

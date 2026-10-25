@@ -53,7 +53,7 @@ The home page is `content/home.md`; each section may have an introduction, `cont
 
 | Field | Required | Role |
 |---|---|---|
-| `id` | yes | Address of the page (`#/use/orders`) and file `content/<id>.md`; no space, `~` or `#` |
+| `id` | yes | Address of the page (`#/use/orders`) and file `content/<id>.md`: segments of lower-case letters, digits, `-` and `_` (`[a-z0-9_-]`, never starting with `-` or `_`), separated by `/` |
 | `title` | yes | Title of the page; the Markdown file has no `#` heading |
 | `menuTitle` | no | Shorter label in the menu |
 | `summary` | no | One sentence, shown under the title, on the section's overview and in the search |

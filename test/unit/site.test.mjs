@@ -74,6 +74,43 @@ describe("app.js and template.html", () => {
     assert.doesNotMatch(code, /confirm\("/);
   });
 
+  // RULES.md S9: a page, section, space or language id reaches a link or an attribute through esc() only, every
+  // expression of the value (the toc schema refuses a quote in an id; a site whose data was changed after the build
+  // must not gain an attribute either: e2e site.test.mjs checks it in a browser).
+  test("app.js and its modules: every expression in a link or an id attribute goes through esc()", () => {
+    const ID_ATTRIBUTES = /\b(href|id|lang|data-section|data-cible|data-langue|data-espace|data-scope)="/g;
+    /** The expressions `${…}` of an attribute value starting at `from`, up to its closing quote (braces matched). */
+    const expressions = (code, from) => {
+      const found = [];
+      for (let i = from; i < code.length && code[i] !== '"' && code[i] !== "`"; i++) {
+        if (code[i] !== "$" || code[i + 1] !== "{") continue;
+        let depth = 1;
+        let j = i + 2;
+        for (; j < code.length && depth; j++) depth += code[j] === "{" ? 1 : code[j] === "}" ? -1 : 0;
+        found.push(code.slice(i + 2, j - 1));
+        i = j - 1;
+      }
+      return found;
+    };
+    const unescaped = (code) =>
+      [...code.matchAll(ID_ATTRIBUTES)].flatMap((m) =>
+        expressions(code, m.index + m[0].length)
+          .filter((e) => !e.startsWith("esc("))
+          .map((e) => `${m[1]}: \${${e}}`),
+      );
+    // The matcher sees what it must see: an id in clear, the second expression of a value too.
+    assert.deepEqual(unescaped('`<a href="#/${esc(a)}~${b}" data-section="${s.id}">`'), [
+      "href: ${b}",
+      "data-section: ${s.id}",
+    ]);
+    assert.deepEqual(unescaped('`<a href="#/${esc(t("x", { n }))}">${p.title}</a>`'), []);
+    const sources = [
+      "engine/site/app.js",
+      ...fs.readdirSync(path.join(KIT_ROOT, "engine/site/lib")).map((f) => `engine/site/lib/${f}`),
+    ];
+    for (const file of sources) assert.deepEqual(unescaped(read(file)), [], file);
+  });
+
   test("template.html: no visible text outside {{t:…}} markers", () => {
     const html = read("engine/site/template.html")
       .replace(/<script>[\s\S]*?<\/script>/, "")

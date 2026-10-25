@@ -110,6 +110,11 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **Breaking: a page or section id with a capital letter, a dot, an accent or another character outside `a-z`,
+  `0-9`, `-`, `_` and `/` is now refused by the build** (`toc.json`, the ids of `doc-kit new`; Security below): the
+  error names the id. Rename it in `toc.json` (each translated one too, and the `counterpart`, `suggestions` and
+  links that cite it) and rename its page file to match (`content/<id>.md` unless the entry gives its `file`, and
+  its translations).
 - **Changed (breaking): `facts --network` sends nothing until names are listed** (ARCHITECTURE.md §3, §6.9;
   SECURITY.md, Network). A package's name now leaves the machine only when `facts.network.allow` of
   `doc.config.mjs` lists it, one entry a package: `"npm:<name>"`, compared exactly, or `"pip:<name>"`, compared as
@@ -312,6 +317,69 @@ entries between a project's `kit` range and the installed version.
   as whole readers too, and the harness builds the crafted shapes
   (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
   the former forms against the new ones on random input).
+- **The `secrets` and `security` sources never read through a link out of the application** (SECURITY.md): `git
+  ls-files` lists a committed link as a file, and both read it, following it — a link to a file of the operator
+  (`~/.aws/credentials`) was scanned, and its report told what kind of secret the machine held. A file is now read
+  only when its real path (links and junctions followed) is in the application, the confinement of a page's
+  `sources` (`engine/core/confine.mjs`, now the one helper of `sources`, `inputs reconcile` and the project's
+  adapters), real paths compared exactly, case included: in a case-sensitive folder (WSL's, or one `fsutil` marks
+  so), `APP` beside `app` is another folder. `realpathSync.native` gives the case on disk on Windows and macOS; on
+  a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the case as written: at worst a false
+  "outside", never a file read outside.
+- **The imports of a page's code are never followed through a link out of the application** (SECURITY.md): an
+  import resolved through a junction to a folder outside (`./j/util.js`, a `tsconfig.json` alias, a Python module)
+  joined the page's dependencies, and its context gave an agent up to 200 lines of that file. An import, a
+  `tsconfig.json` and every file of the closure (`sync`, the context, the `modules` facts) are now resolved and read
+  only where they really are in the application, and the context never excerpts a dependency outside it (named,
+  path only). The coverage report `facts --source tests` reads by its fixed name is confined the same way.
+- **A proof is recorded only from a file of the application** (SECURITY.md): `sync --mark` read a proof cited
+  through a junction or by `../` (`j/util.js:1`, `../outside/util.js:1`) and wrote its first line in `sync.json`. Such
+  a proof is now neither read, recorded nor a dependency of the page, and the warning says why
+  (`sync.proofOutside`). One an older `sync.json` recorded is not read again by the report (`sync`, `--check`):
+  the same warning, in `sync.md`, the output and `warnings` of `sync-report.json`; its file, recorded as a
+  dependency, is neither read nor reported gone (below).
+- **A page's dependency file is read only where it really is in the application** (SECURITY.md): `sync --mark`
+  hashed a dependency with its path joined to `app.dir`, unconfined — a declared source (`--sources
+  ../shared/money.ts`, a `declared` entry of `sync.json`), the `file` of a `facts/api.json` item, the route
+  files of a routes folder that is a junction — and `pageDependencies` read those route files to find the API paths
+  they call; the report, confined, then called them deleted, so `sync --check` failed right after `--mark` and such
+  a page was never unchanged again. One helper (`dependencyFile`, engine/sync/dependencies.mjs, on `fileInside` of
+  engine/core/confine.mjs, which `proofFile` uses too) now serves the marking, the report, `--since` (never `git
+  show`n) and those reads: a dependency outside the application is never read, hashed nor recorded, never counted
+  deleted, and the warning `sync.dependencyOutside` says so, at marking and in every report. Present there or missing
+  (a link that leads nowhere judged by its target as written; one whose target has a `..` after a name, `j/../x`,
+  which POSIX takes from wherever `j` leads, outside), a file outside gets the same answer, a proof too
+  (`sync.proofOutside`, never `fileDeleted`): no report tells which files of the operator exist. The nearest
+  existing folder of a missing path is found by bisection, in O(log depth) calls — asking every folder above it, each
+  call given the whole path, took seconds on a path of 16,000 missing parts that a page can cite —, and a path longer
+  than 32,767 characters (Windows' limit), resolved or as written, is missing without a call. Climbing out as written
+  (`../`) is judged first, in one pass, before `path.resolve` (0.7 s on 448,000 characters of `a/` then `b/../`)
+  reads the path.
+- **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
+  wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
+  52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a
+  key with two `*` (invalid for TypeScript) matches nothing.
+- **A route segment that looks like a token is masked in the coverage ids** (RULES.md S7): the `fastapi`,
+  `next-app-router`, `openapi`, `react-router` and `glob` adapters (a segment of a file's path) wrote it in clear in
+  `check coverage` and the audit, while `facts` writes "…". For `glob`, a file's name is judged without its
+  extension, so `OrderSummaryCard.tsx` is kept and two components never share one id. `sync` finds the files of a
+  masked route through each of them (`next-app-router` too). Two limits, written in SECURITY.md and the adapters'
+  reference: the masked names of one folder share one id (`db/migrate/…` for migrations named by a timestamp,
+  files named by a UUID or a hash), and an ordinary name that reads as no words is masked
+  (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`).
+- **`::facts{source}` and `::diagram{id}` name a file by a plain name** (`a-z`, `0-9`, `-`): `source="../../x"` or
+  `id="../.."` read a file outside the project. Such an attribute is now a build error, `facts.source` or
+  `diagram.id`, and nothing is read; `sync` no longer reads nor hashes it as a dependency of the page
+  (`doc:facts/../../x.json`), nor one an older `sync.json` recorded.
+- **Page and section ids** (RULES.md S9): the toc schema accepted a `"` in an id, which reached the site's links
+  unescaped (an attribute could be added; the Content Security Policy only stops it from running). An id is now
+  lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` — the ids of `doc-kit new` — and one outside them
+  is refused by the build, the error naming it (rename it in `toc.json` and its page file); the site and the
+  anchors of headings and cards escape every id all the same.
+- **`inputs ingest` of an HTML page**: a tag written as text (`&lt;img onerror=…&gt;`) became a real tag of the
+  converted text once decoded. Every `<` that could open a tag is written `&lt;`, as for a Word file; and so it is
+  in a Markdown or a text document, whose HTML reached the converted text as written — there in its code and its
+  autolinks too (`Map&lt;string, number>`, `&lt;https://…>`, no longer a link); its other text is kept.
 - **`check secrets` finds the common formats it missed**, and so do the filters of `pack`, `backlog export` and
   `inputs ingest`, and the `secrets` facts (SECURITY.md, "The secret detectors have limits"):
   - an assignment to a compound name: `SECRET_KEY=`, `DB_PASSWORD=`, `GITHUB_TOKEN=`, `aws_secret_access_key =`

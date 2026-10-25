@@ -10,6 +10,7 @@ import { applyEnv, readEnv } from "../../engine/project/env.mjs";
 import { satisfies, isValidRange } from "../../engine/project/semver.mjs";
 import { findProject } from "../../engine/project/find.mjs";
 import { KitError } from "../../engine/project/errors.mjs";
+import { createI18n } from "../../engine/i18n.mjs";
 import { DEMO, KIT_ROOT, tempDir } from "../tools/helpers.mjs";
 
 const keys = (r) => r.errors.map((e) => `${e.path}:${e.key}`);
@@ -116,6 +117,47 @@ describe("content schemas", () => {
       "sections[0].groups[0].pages[0].level:enum",
       "sections[0].groups[0].pages[0].titel:unknownClose",
     ]);
+  });
+
+  // RULES.md S9: a page id goes into the site's links and attributes; the kit's id characters only (cli/commands/new.mjs
+  // PAGE_ID: lower-case segments of a-z, 0-9, "-" and "_", separated by "/"). The render escapes it all the same
+  // (markdown.test.mjs, site.test.mjs).
+  test("toc: an id outside the kit's characters is refused, and the error names it in English and in French", () => {
+    // No blank needed: a browser reads `href="#/use/x"onmouseover="…"` as two attributes.
+    const hostile = 'use/x"onmouseover="alert(1)';
+    const toc = (id, more = {}) => ({
+      title: "T",
+      sections: [{ id: "use", title: "U", groups: [{ pages: [{ id: "use/ok", title: "Ok", ...more }] }] }],
+      ...(id === null ? {} : { suggestions: [id] }),
+    });
+    for (const id of ["use/ok", "use/sub/page_2", "faq", "a-1/b"])
+      assert.deepEqual(keys(validate(toc(id), readSchema("toc"))), [], id);
+    for (const id of [
+      hostile,
+      'use/x" y="z',
+      "use/<b>",
+      "use/x'y",
+      "use/Upper",
+      "use/a.b",
+      "use//b",
+      "/use",
+      "use/",
+      "../x",
+      "use/é",
+    ])
+      assert.deepEqual(keys(validate(toc(id), readSchema("toc"))), ["suggestions[0]:pattern"], id);
+    const counterpart = validate(toc(null, { counterpart: `use/ok~a"x="y` }), readSchema("toc")).errors;
+    assert.deepEqual(
+      counterpart.map((e) => `${e.path}:${e.key}`),
+      ["sections[0].groups[0].pages[0].counterpart:anyOf"],
+    );
+    assert.deepEqual(keys(validate(toc(null, { counterpart: "use/ok~in-short" }), readSchema("toc"))), []);
+    const [error] = validate(toc(hostile), readSchema("toc")).errors;
+    assert.equal(error.vars.got, hostile);
+    for (const language of ["en", "fr"]) {
+      const text = createI18n({ language }).t(`cli.validate.${error.key}`, error.vars);
+      assert.ok(text.includes(hostile), `${language}: ${text}`);
+    }
   });
 
   test("zones: version and captured optional, unknown fields tolerated", () => {

@@ -308,7 +308,7 @@
   const languageButtons = () =>
     LANGUAGES.map(
       (id) =>
-        `<button type="button" class="espace-choix" data-langue="${id}" lang="${id}" aria-pressed="${id === currentLang}">${esc(TEXTS["ui.language." + id] || id)}</button>`,
+        `<button type="button" class="espace-choix" data-langue="${esc(id)}" lang="${esc(id)}" aria-pressed="${id === currentLang}">${esc(TEXTS["ui.language." + id] || id)}</button>`,
     ).join("");
   const sidebarLanguages = () =>
     LANGUAGES
@@ -373,7 +373,7 @@
     $("#topnav").innerHTML = D.sections
       .map(
         (s) =>
-          `<a href="#/${sectionLink(s)}" class="${s.id === sectionId ? "actif" : ""} ${s.featured ? "vedette" : ""}">${esc(s.shortTitle || s.title)}</a>`,
+          `<a href="#/${esc(sectionLink(s))}" class="${s.id === sectionId ? "actif" : ""} ${s.featured ? "vedette" : ""}">${esc(s.shortTitle || s.title)}</a>`,
       )
       .join("");
   }
@@ -411,16 +411,16 @@
                     const count = children
                       ? `<span class="lat-nb" title="${esc(t("ui.subPages", { n: children.length }))}">${children.length}</span>`
                       : "";
-                    return `<a class="${classes}" href="#/${pid}"><span>${esc(p.menuTitle || p.title)}</span>${count}</a>`;
+                    return `<a class="${classes}" href="#/${esc(pid)}"><span>${esc(p.menuTitle || p.title)}</span>${count}</a>`;
                   })
                   .join(""),
             )
             .join("");
           // The overview of a section belongs to its own space: not offered from another one.
           const overview = !currentSpace || s.space === currentSpace;
-          return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${s.id}">
+          return `${spaceHeader(s, i)}<div class="lat-section ${open ? "ouverte" : ""}" data-section="${esc(s.id)}">
           <button type="button" aria-expanded="${open}"><span class="pastille-section">${icon(s.icon)}</span>${esc(s.title)}${icon("chevron", "ico chevron")}</button>
-          <div class="lat-corps">${overview ? `<a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${s.id}">${esc(t("ui.sidebar.overview"))}</a>` : ""}${groups}</div>
+          <div class="lat-corps">${overview ? `<a class="lat-lien ${!pageId && sectionId === s.id ? "actif" : ""}" href="#/${esc(s.id)}">${esc(t("ui.sidebar.overview"))}</a>` : ""}${groups}</div>
         </div>`;
         })
         .join("");
@@ -457,8 +457,8 @@
     const previous = i > 0 ? D.pages[D.order[i - 1]] : null;
     const next = i >= 0 && i < D.order.length - 1 ? D.pages[D.order[i + 1]] : null;
     return `<nav class="pied-nav" aria-label="${esc(t("ui.footer.neighbours"))}">
-      ${previous ? `<a href="#/${previous.id}"><small>${esc(t("ui.footer.previous"))}</small><span>${esc(previous.title)}</span></a>` : ""}
-      ${next ? `<a class="suivant" href="#/${next.id}"><small>${esc(t("ui.footer.next"))}</small><span>${esc(next.title)}</span></a>` : ""}
+      ${previous ? `<a href="#/${esc(previous.id)}"><small>${esc(t("ui.footer.previous"))}</small><span>${esc(previous.title)}</span></a>` : ""}
+      ${next ? `<a class="suivant" href="#/${esc(next.id)}"><small>${esc(t("ui.footer.next"))}</small><span>${esc(next.title)}</span></a>` : ""}
     </nav>`;
   }
 
@@ -528,7 +528,7 @@
     renderTopnav(p.section);
     renderSidebar(p.section, id);
     main.innerHTML = `<article class="article">
-      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(p.space)}<a href="#/${sectionLink(sec)}">${esc(sec.title)}</a>${p.group ? `<span class="sep">›</span><span>${esc(p.group)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${parentOf[id]}">${esc(D.pages[parentOf[id]].menuTitle || D.pages[parentOf[id]].title)}</a>` : ""}</nav>
+      <nav class="ariane" aria-label="${esc(t("ui.breadcrumb.label"))}"><a href="#/">${esc(t("ui.breadcrumb.home"))}</a><span class="sep">›</span>${spaceCrumb(p.space)}<a href="#/${esc(sectionLink(sec))}">${esc(sec.title)}</a>${p.group ? `<span class="sep">›</span><span>${esc(p.group)}</span>` : ""}${parentOf[id] ? `<span class="sep">›</span><a href="#/${esc(parentOf[id])}">${esc(D.pages[parentOf[id]].menuTitle || D.pages[parentOf[id]].title)}</a>` : ""}</nav>
       <h1 class="page-titre">${esc(p.title)}</h1>
       ${p.summary ? `<p class="page-resume">${esc(p.summary)}</p>` : ""}
       ${pageBadges(p)}
@@ -566,7 +566,7 @@
               ]
                 .filter(Boolean)
                 .join(" · ");
-              return `<a class="carte-lien" href="#/${pid}"><span class="titre">${esc(p.title)}</span><span class="resume">${esc(p.summary || "")}</span>${counts ? `<span class="compte">${counts}</span>` : ""}</a>`;
+              return `<a class="carte-lien" href="#/${esc(pid)}"><span class="titre">${esc(p.title)}</span><span class="resume">${esc(p.summary || "")}</span>${counts ? `<span class="compte">${counts}</span>` : ""}</a>`;
             })
             .join("")}</div>`,
       )
@@ -599,7 +599,7 @@
         : D.sections
             .map((sec) => {
               const n = sec.groups.reduce((total, g) => total + g.pages.length, 0);
-              return `<a class="porte ${sec.featured ? "vedette" : ""}" href="#/${sectionLink(sec)}">
+              return `<a class="porte ${sec.featured ? "vedette" : ""}" href="#/${esc(sectionLink(sec))}">
           ${sec.featured ? `<span class="etiquette">${esc(t("home.featured"))}</span>` : ""}
           <span class="icone">${icon(sec.icon)}</span>
           <h2>${esc(sec.title)}</h2>
@@ -612,7 +612,7 @@
     const journeyCount = (D.journeys || []).length;
     const journeyCard = (j) =>
       `<div class="carte-lien"><span class="titre">${esc(j.title)}</span><span class="resume">${esc(j.desc)}</span>
-        <ol>${j.steps.map((pid) => (D.pages[pid] ? `<li><a href="#/${pid}">${esc(D.pages[pid].title)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`;
+        <ol>${j.steps.map((pid) => (D.pages[pid] ? `<li><a href="#/${esc(pid)}">${esc(D.pages[pid].title)}</a></li>` : "")).join("")}</ol>${j.hidden ? `<span class="parcours-cache">${esc(t("ui.journey.hidden", { n: j.hidden }))}</span>` : ""}</div>`;
     const grid = (list) =>
       `<div class="parcours ${list.length === 4 ? "deux-colonnes" : ""}">${list.map(journeyCard).join("")}</div>`;
     // "Everything" mode with spaces: the journeys by audience, in the order of the spaces, each under its space.
@@ -641,8 +641,8 @@
           <h1>${th("home.title", { accent: `<span>${esc(t("home.titleAccent", { product: D.meta.product }))}</span>` })}</h1>
           <p>${esc(D.meta.tagline)}</p>
           <div class="actions">
-            <a class="bouton primaire" href="#/${sectionLink(first)}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.shortTitle || first.title }))}</a>
-            <a class="bouton" href="#/${sectionLink(D.sections[0])}">${icon("map")}${esc(t("home.gettingStarted"))}</a>
+            <a class="bouton primaire" href="#/${esc(sectionLink(first))}">${icon("sliders")}${esc(t("home.primaryAction", { section: first.shortTitle || first.title }))}</a>
+            <a class="bouton" href="#/${esc(sectionLink(D.sections[0]))}">${icon("map")}${esc(t("home.gettingStarted"))}</a>
             <button class="bouton" type="button" data-action="recherche">${icon("search")}${esc(t("home.search"))}</button>
           </div>
           <div class="chiffres">
@@ -680,15 +680,12 @@
 
   // ─── Page table of contents + scroll tracking ─────────────────────────────
   function renderToc(p) {
-    if (!p.toc || p.toc.length < 2) {
-      toc.innerHTML = "";
-      return;
-    }
-    toc.innerHTML =
-      `<div class="toc-titre">${esc(t("ui.toc.title"))}</div>` +
-      p.toc
-        .map((h) => `<a class="h${h.level}" href="#/${p.id}~${h.id}" data-cible="${h.id}">${esc(h.title)}</a>`)
-        .join("");
+    const items = p.toc && p.toc.length >= 2 ? p.toc : [];
+    const link = (h) =>
+      `<a class="h${h.level}" href="#/${esc(p.id)}~${esc(h.id)}" data-cible="${esc(h.id)}">${esc(h.title)}</a>`;
+    toc.innerHTML = items.length
+      ? `<div class="toc-titre">${esc(t("ui.toc.title"))}</div>${items.map(link).join("")}`
+      : "";
   }
   let tocFrame = 0;
   window.addEventListener(
@@ -1147,7 +1144,7 @@
         suggestions
           .map(
             (pid, i) =>
-              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${pid}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].title)}</div><div class="titre">${esc(D.pages[pid].title)}</div></a>`,
+              `<a class="resultat ${i === selection ? "actif" : ""}" href="#/${esc(pid)}"><div class="chemin">${esc(sectionsById[D.pages[pid].section].title)}</div><div class="titre">${esc(D.pages[pid].title)}</div></a>`,
           )
           .join("");
       results = suggestions.map((pid) => ({ link: "#/" + pid }));
@@ -1179,7 +1176,7 @@
           const start = Math.max(0, pos - 50);
           const excerpt =
             (start > 0 ? "…" : "") + e.x.slice(start, start + 170) + (e.x.length > start + 170 ? "…" : "");
-          return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${results[i].link}">
+          return `${resultHeading(r, i)}<a class="resultat ${i === selection ? "actif" : ""}" href="${esc(results[i].link)}">
           <div class="chemin">${spacePath(p)}${esc(sectionsById[p.section].title)} › ${esc(p.title)}</div>
           <div class="titre">${mark(e.t, terms)}</div>
           <div class="extrait">${mark(excerpt, terms)}</div></a>`;

@@ -8,8 +8,8 @@ import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { adapterTools } from "../check/coverage.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages } from "./dependencies.mjs";
-import { recordProof } from "./proofs.mjs";
+import { pageDependencies, writtenPages, dependencyFile } from "./dependencies.mjs";
+import { recordProof, proofFile } from "./proofs.mjs";
 import { citedLabels, labelFiles, flattenMessages } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
@@ -146,20 +146,26 @@ export async function markPages({
       declared,
     });
 
+    // A dependency is hashed only where the report reads it again (dependencyFile): one outside the application
+    // (`../`, a link or a junction followed) is never read nor recorded, and is said so.
     const files = {};
     for (const f of deps.files) {
-      const abs = f.path.startsWith("doc:")
-        ? path.join(root, f.path.slice(4))
-        : appDir
-          ? path.join(appDir, f.path)
-          : null;
-      if (abs && fs.existsSync(abs)) files[f.path] = hashText(fs.readFileSync(abs));
+      const abs = dependencyFile(root, config.paths.facts, appDir, f.path);
+      if (abs === "outside") warnings.push({ key: "sync.dependencyOutside", vars: { page: id, path: f.path } });
+      else if (abs) files[f.path] = hashText(fs.readFileSync(abs));
     }
 
     for (const proof of deps.proofs) {
       const recorded = appDir ? recordProof(appDir, proof) : null;
       if (recorded) newProofs[proof.ref] = recorded;
-      else warnings.push({ key: "sync.proofUnresolved", vars: { page: id, ref: proof.ref } });
+      else {
+        // A file outside the application (`../`, a link or a junction followed) is never read, and is said so.
+        const outside = appDir !== null && proofFile(appDir, proof) === "outside";
+        warnings.push({
+          key: outside ? "sync.proofOutside" : "sync.proofUnresolved",
+          vars: { page: id, ref: proof.ref },
+        });
+      }
     }
 
     newPages[id] = {

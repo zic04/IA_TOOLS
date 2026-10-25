@@ -7,8 +7,12 @@
   "additionalProperties": false,
   "required": ["title", "sections"],
   "$defs": {
-    "counterpartTarget": { "type": "string", "pattern": "^[^\\s~#]+(~[^\\s~#]+)?$" },
-    "pageId": { "type": "string", "pattern": "^[^\\s~#]+$" },
+    "counterpartTarget": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*(~[a-z0-9_-]+)?$" },
+    "pageId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$",
+      "description": "A section or page id: lower-case segments of a-z, 0-9, \"-\" and \"_\", separated by \"/\" (the ids of doc-kit new). It goes into the site's links and attributes."
+    },
     "strings": { "type": "array", "items": { "type": "string" } },
     "spaceId": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
     "space": {

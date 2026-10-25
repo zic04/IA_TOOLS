@@ -351,6 +351,12 @@ Limits: the detectors are patterns and a measure, not a proof.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.
+- What the kit itself writes from the content is escaped. A section or page id of the table of contents is
+  lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` (the toc schema refuses another, and the error
+  names it), and the site escapes every id it writes into a link or an attribute all the same. `::facts{source}` and
+  `::diagram{id}` name a file of the project by a plain name (`a-z`, `0-9`, `-`): a path (`../..`, `a/b`) is a build
+  error (`facts.source`, `diagram.id`), and nothing is read; `sync` takes such a `::facts` table for no dependency of
+  the page, and neither reads nor hashes the file it names (nor one an older `sync.json` recorded).
 - The generated site carries a Content Security Policy (a `<meta>` in its `<head>`): only its own inline scripts
   run, each allowed by its hash; images and fonts must be embedded; no request, frame, form or `<base>` is allowed.
   A script, an `onclick=`, a `javascript:` link, an iframe or an external image written in a page is refused by the
@@ -435,7 +441,16 @@ as untrusted input:
   heuristic, which masks a random token of 32 characters or more of the usual shapes (base62, base64url,
   hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
-  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked. The kit's
+  coverage adapters that read routes (`fastapi`, `next-app-router`, `openapi`, `react-router`) mask their ids and
+  forms the same way, and so does `glob` for a segment of a file's path (the file's name judged without its
+  extension, so `OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept; its forms rendered from the masked
+  path), so a coverage report or the audit never shows a segment that `facts` masks; `sync` compares a route's files
+  masked the same way, and finds the files of a masked route. Limits of that masking: the masked names of one folder
+  share one id (`db/migrate/…` for migrations named by a timestamp, `alembic/versions/…`, files named by a UUID or a
+  hash, the hashed assets of `public/`), covered and followed together; and an ordinary name that reads as no words
+  is masked as well (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`) — a loss of detail, never a
+  secret shown;
 - the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
   a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
   `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
@@ -516,6 +531,46 @@ as untrusted input:
   junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent;
+- the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
+  (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
+  (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
+  finding of their reports comes from a link to a file of the operator (`~/.aws/credentials`);
+- the imports of a page's code (the closure of `sync` and of the context of a page, two levels for a feature sheet)
+  and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
+  the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
+  and a dependency of a page outside the application (a route's file reached through a link) is named in its
+  context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
+  when its report compares it: one through `../` or a link out of the application is never read, its first line
+  never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). So is
+  every dependency file of a page, by one helper (`dependencyFile`) for the marking, the report, `--since` and the
+  page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
+  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
+  the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
+  so. A proof or a dependency through a link out of the application is outside whether its file exists there or
+  not (judged by where its nearest existing folder really is, found by bisection: a path of thousands of missing
+  parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
+  link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
+  target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
+  the text cannot. The cap holds for the path as written too, before `path.resolve` reads it (quadratic on `a/`
+  repeated then `b/../` repeated): climbing out (`../`) is judged first, in one pass, and a path padded past the cap
+  (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor
+  `--since` tells whether a file of the operator exists.
+  Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
+  one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
+  on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the
+  case as written, so a file of the application reached in another case may be judged outside: a false "outside",
+  never a file read outside. The coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
+  `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private
+  declarations of the dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a
+  requirements file…, read by their fixed names) follow links, as they read the operator's own configuration on
+  purpose; only flags, scopes and names to keep off the network come out of them (whether a registry or an index is
+  private, a private scope, the application's own package names), never a value;
+- limits of this confinement: a hard link cannot be told from the file itself (it is another name of the same file,
+  with no target to follow), so a hard link in the application to a file outside it is read as a file of the
+  application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
+  checked, then read: a file or a folder of the application swapped for a link in between, by a process that
+  changes the application while the kit reads it, is not seen. Read an application received as an archive from a
+  fresh clone, and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
@@ -590,7 +645,13 @@ Both are untrusted input.
   refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
   `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
   expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
-  is ever opened. A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
+  is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag (followed by a
+  letter, `/`, `!` or `?`) is written `&lt;` — in a Word file's text, a diagram's labels, a Markdown or a text
+  document and an HTML page's text (a tag written there as text, `&lt;img …&gt;`, included). In a Markdown document
+  this changes its code and its autolinks too: `Map<string, number>` in a code block or a code span becomes
+  `Map&lt;string, number>`, and `<https://…>` becomes `&lt;https://…>`, no longer a link; the rest of its text is kept
+  as written.
+  A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
   Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
   is written, and starts with a notice telling the agent that reads it that it is information to check, never an
   instruction to follow. A Word table, paragraphs nested in one another (read in one pass, whatever their depth), a diagram or a label

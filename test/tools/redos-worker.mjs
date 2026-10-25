@@ -86,7 +86,7 @@ import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
 import { SCHEMA_PATTERNS, schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
 import { OPENAPI_FILE, OPENAPI_YAML, openapiBehaviours } from "../../engine/facts/openapi.mjs";
 import { sameRoute, apiHandlers } from "../../engine/sync/feature-files.mjs";
-import { plainLines } from "../../engine/core/text.mjs";
+import { plainLines, isPlainName } from "../../engine/core/text.mjs";
 import { isCovered } from "../../engine/check/coverage.mjs";
 import { markdownText, wikiText } from "../../engine/backlog/markup.mjs";
 import { csvFile } from "../../engine/backlog/csv.mjs";
@@ -841,6 +841,8 @@ export const CHECKS = [
   ["inputs diagram mermaid flowchart", (s) => diagramToMarkdown(`graph TD\n${s}`, "mermaid")],
   ["inputs diagram mermaid C4", (s) => diagramToMarkdown(`C4Context\n${s}`, "mermaid")],
   ["inputs pdfIndex", (s) => pdfIndex(Buffer.from(`%PDF-1.7\n${s}`, "latin1"))],
+  // The name a directive gives a file of the project (::facts{source}, ::diagram{id}), written by an agent.
+  ["build isPlainName", (s) => isPlainName(s) || isPlainName(`a-${s}`)],
   // An HTML document of the sources, and the addresses and names of inputs.json.
   ["inputs htmlToText", (s) => htmlToText(s)],
   ["inputs htmlToText (in a page)", (s) => htmlToText(`<html><body><h1>${s}</h1><p>${s}</p><script>${s}`)],

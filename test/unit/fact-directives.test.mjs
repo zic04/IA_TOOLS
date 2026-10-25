@@ -42,6 +42,28 @@ test("::facts with no source: facts.missing names facts/.json, as before the mov
   assert.deepEqual(signals, [{ strict: true, key: "facts.missing", vars: { source: "", file: "facts/.json" } }]);
 });
 
+test("::facts{source} that is not a plain name (a path that climbs, a slash, a dot): facts.source, never read", () => {
+  for (const source of ["../../..", "../../secret", "a/b", "env.json", "Env", "a b", "a\\b"]) {
+    const reads = [];
+    const files = { [`facts/${source}.json`]: '{"items":[{"x":1}]}' };
+    const signals = [];
+    const directives = createFactDirectives({
+      exists: (f) => (reads.push(f), f in files),
+      read: (f) => (reads.push(f), files[f]),
+      paths: { facts: "facts" },
+      t: (key) => key,
+      signal: (strict, key, vars) => signals.push({ strict, key, vars }),
+      changes: [],
+    });
+    assert.equal(directives.render({ kind: "facts", a: { source } }), "", source);
+    assert.deepEqual(signals, [{ strict: true, key: "facts.source", vars: { source } }], source);
+    assert.deepEqual(reads, [], `${source}: no file is looked at`);
+  }
+  const { render, signals } = renderer({ "facts/env.json": '{"items":[{"name":"A"}]}' });
+  assert.match(render("facts", { source: "env" }), /<table data-generated="facts">/, "a plain name is read");
+  assert.deepEqual(signals, []);
+});
+
 test("::health counts packages, not items: a package named by a manifest and by its lock is one", () => {
   const items = [
     { name: "react", version: null, spec: "^18", ecosystem: "npm", direct: true, dev: false, manifest: "package.json" },

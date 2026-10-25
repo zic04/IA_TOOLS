@@ -4,6 +4,7 @@
 // reported as unavailable, not failed.
 //   coverage: [{ adapter: "openapi", file: "../../openapi.json", prefix: "/api", exclude: ["^/health$"] }]
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
 
 /** HTTP methods an OpenAPI/Swagger path item may declare (the other keys, parameters, $ref…, are not operations). */
 const METHODS = new Set(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
@@ -22,7 +23,8 @@ export default {
     const doc = tools.json(options.file);
     const items = [];
     for (const [route, ops] of Object.entries(doc.paths || {})) {
-      const full = options.prefix + route;
+      // A segment that looks like a key or a token is "…", as the `api` facts write it (RULES.md S7).
+      const full = routeWithoutSecrets(options.prefix + route);
       for (const [method, op] of Object.entries(ops || {})) {
         if (!METHODS.has(method.toLowerCase()) || !op || typeof op !== "object") continue;
         const verb = method.toUpperCase();
