@@ -365,7 +365,6 @@ describe("the readers of the pipelines and of the configuration (RULES.md S5)", 
       deep("- a:"),
       deep("- hosts: a\n" + "  block:"),
       "jobs:\n" + list(n / 40, (i) => `  j${i}: { environment: e${i}, stage: s }\n`),
-      list(n / 40, (i) => `- hosts: h${i}\n  roles: [r${i}]\n`),
       "stages:\n" + list(n / 60, (i) => `- \${{ if a }}:\n  - stage: s${i}\n    jobs: [{ job: j${i} }]\n`),
       "include:\n" + list(n / 20, () => "  - local: '*/*.yml'\n"),
     ];
@@ -380,6 +379,21 @@ describe("the readers of the pipelines and of the configuration (RULES.md S5)", 
           build: (n) => textsOf(n)[i],
           run: (text) => read(adapter, new Map([[file, text]])),
         });
+  });
+
+  // Larger: at SIZE, macOS Node 20 measured ×3.4 (1 ms), ×6.2 (6 ms), ×8.6 (36 ms), twice, for two readers: the time
+  // a character doubled there from 1,250 to 20,000 plays (26 to 55 ns), as the tree read outgrows the young
+  // generation (seen here with a smaller one). Linear: 100 to 115 ns a character here from 2,500 to 40,000 plays.
+  // Measured from 2,500 plays, the step trusted on those runners goes from 10,000 plays to 40,000, the most the YAML
+  // reader reads (200,000 nodes, 5 a play).
+  test("many declarations: a playbook of many plays, measured from 2,500 plays", () => {
+    const plays = (n) => list(n / 40, (i) => `- hosts: h${i}\n  roles: [r${i}]\n`);
+    for (const [adapter, file] of READERS)
+      assertLinear(`${adapter.name} on many plays`, {
+        size: 100_000,
+        build: plays,
+        run: (text) => read(adapter, new Map([[file, text]])),
+      });
   });
 
   /**
