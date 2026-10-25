@@ -104,8 +104,10 @@
   "cli.init.notInteractive.help": "add --yes to accept the detected values (and --name, --lang, --url, --auth, --capture, --target to set them)",
 
   "cli.doctor.title": "{name} {version} doctor — {folder}",
-  "cli.doctor.summary.ok": "{ok} OK · {warnings} warning(s) · {problems} problem(s): ready.",
-  "cli.doctor.summary.fail": "{ok} OK · {warnings} warning(s) · {problems} problem(s) to fix (✖).",
+  "cli.doctor.summary.ok": "{ok} OK · {warnings} · {problems}: ready.",
+  "cli.doctor.summary.fail": "{ok} OK · {warnings} · {problems} to fix (✖).",
+  "cli.doctor.count.warnings": { "one": "{count} warning", "other": "{count} warnings" },
+  "cli.doctor.count.problems": { "one": "{count} problem", "other": "{count} problems" },
   "cli.doctor.node.ok": "Node.js {version} (required: {required})",
   "cli.doctor.node.fail": "Node.js {version} is too old (required: {required})",
   "cli.doctor.node.fail.help": "install Node.js 20 or later (https://nodejs.org)",
@@ -218,7 +220,7 @@
     "one": "{n} day",
     "other": "{n} days"
   },
-  "cli.doctor.contrast.ok": "theme contrasts: {n} pairs at WCAG level (4.5 for text, 3 for large elements)",
+  "cli.doctor.contrast.ok": { "one": "theme contrasts: {n} pair at WCAG level (4.5 for text, 3 for large elements)", "other": "theme contrasts: {n} pairs at WCAG level (4.5 for text, 3 for large elements)" },
   "cli.doctor.contrast.fail": {
     "one": "{n} colour pair below the WCAG contrast: {list}",
     "other": "{n} colour pairs below the WCAG contrast: {list}"
@@ -295,9 +297,9 @@
   "cli.upgrade.dryRun": "Nothing written (dry run). To apply: {command} upgrade --apply",
   "cli.migration.0.1.0": "baseline of the project format (no change)",
 
-  "cli.skill.installed": "Claude Code skill installed in {folder} ({n} files, kit {kit})",
-  "cli.skill.updated": "Claude Code skill updated in {folder} ({n} files, kit {kit})",
-  "cli.skill.agents": "agent types installed in {folder} ({n} files)",
+  "cli.skill.installed": { "one": "Claude Code skill installed in {folder} ({n} file, kit {kit})", "other": "Claude Code skill installed in {folder} ({n} files, kit {kit})" },
+  "cli.skill.updated": { "one": "Claude Code skill updated in {folder} ({n} file, kit {kit})", "other": "Claude Code skill updated in {folder} ({n} files, kit {kit})" },
+  "cli.skill.agents": { "one": "agent types installed in {folder} ({n} file)", "other": "agent types installed in {folder} ({n} files)" },
   "cli.skill.restart": "Start a new Claude Code session to load it.",
   "cli.skill.action": "unknown action: “{action}”",
   "cli.skill.action.help": "{command} skill install [--target <skills folder>] [--force] [--hooks [--settings <file>]]",

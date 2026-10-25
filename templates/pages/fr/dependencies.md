@@ -6,7 +6,7 @@ Exemple : « Quelques dizaines de paquets directs ; un paquet importé n'existe 
 
 ## Dépendances directes
 
-<!-- consigne : construit à partir de `::faits{source="dependencies"}` ; `--network` ajoute `exists` (une recherche dans le registre, nom seul). -->
+<!-- consigne : construit à partir de `::faits{source="dependencies"}` ; `--network` ajoute `exists` (une recherche dans le registre, nom seul, pour les paquets que liste `facts.network.allow` ; un paquet non listé porte `unlisted: true`). -->
 
 ::faits{source="dependencies" colonnes="name,version,ecosystem,direct,license"}
 

@@ -17,6 +17,7 @@ import { git, isTracked } from "../../engine/dev/environment.mjs";
 import { safeGitArgs, isSafeRef, riskyGitConfig, parseGitConfig, resolveOnPath } from "../../engine/util/safe-git.mjs";
 import { defaultExec } from "../../cli/common.mjs";
 import { isLocalHost } from "../../engine/dev/server.mjs";
+import { checkExistence, createRegistryClient, privateRegistries } from "../../engine/facts/network.mjs";
 import { KIT_ROOT, demoCopy, tempDir, noExec } from "../tools/helpers.mjs";
 import { MEASURABLE_MS } from "../tools/growth.mjs";
 
@@ -69,11 +70,43 @@ describe("source rules (RULES.md § Security)", () => {
     );
   });
 
+  test("facts --network sends nothing the configuration does not list (RULES.md S12, SECURITY.md › Network)", async () => {
+    // A package a lock proves public and nothing declares private: still never asked while unlisted, whoever asks
+    // (checkExistence, the client itself); asked once listed. The minimal pairs: facts-network-allow.test.mjs.
+    const dir = tempDir("doc-kit-security-allow-");
+    try {
+      const item = { name: "react", ecosystem: "npm", version: "18.3.1", direct: true, public: true };
+      const urls = [];
+      const fetch = async (url) => (
+        urls.push(url),
+        { ok: true, status: 200, json: async () => ({ version: "19.0.0" }) }
+      );
+      for (const allow of [undefined, [], ["npm:React"], ["npm:*"]]) {
+        const registries = privateRegistries(dir, { items: [item], allow });
+        const [out] = await checkExistence([item], fetch, { registries });
+        assert.equal(out.unlisted, true, JSON.stringify(allow));
+        await assert.rejects(createRegistryClient({ fetch, registries }).describe(item), /network gateway/);
+      }
+      assert.deepEqual(urls, [], "nothing sent");
+      const listed = privateRegistries(dir, { items: [item], allow: ["npm:react"] });
+      await checkExistence([item], fetch, { registries: listed });
+      assert.deepEqual(urls, ["https://registry.npmjs.org/react/latest"], "the control: listed, asked once");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("git only through the hardened path (engine/util/safe-git.mjs): no direct spawn of git", () => {
     assert.deepEqual(offending(/spawn(Sync)?\(\s*["']git["']/), []);
-    // Each module that spawns a process itself, and calls git, hardens the arguments.
-    for (const { f, text } of files.filter(({ text }) => /spawnSync\(bin/.test(text)))
-      assert.match(text, /safeGitArgs\(/, f);
+    // One launcher (spawnHardened): no other file looks git up on the PATH or hardens its arguments itself, so no
+    // other file can start git without the configuration check, the hardened arguments and the cleaned environment.
+    assert.deepEqual(
+      offending(/resolveOnPath\(\s*["']git["']|\bsafeGitArgs\(|\bgitEnv\(/, (f) => f === "engine/util/safe-git.mjs"),
+      [],
+    );
+    const launcher = files.find(({ f }) => f === "engine/util/safe-git.mjs").text;
+    for (const step of ["riskyGitConfig(dir)", "safeGitArgs(args)", "gitEnv(env, untrusted)", "shell: false"])
+      assert.ok(launcher.includes(step), `spawnHardened: ${step}`);
   });
 
   test("git writes only in engine/inputs/repos.mjs (RULES.md S2): clone, fetch and checkout of the sources, hardened", () => {
@@ -176,12 +209,18 @@ describe("no catastrophic backtracking on untrusted text (ReDoS)", () => {
 });
 
 describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
-  test("safeGitArgs: no file system monitor, no pager; diff, show and log without external diff or textconv", () => {
+  test("safeGitArgs: no file system monitor, no pager, no git in a submodule; diff, show and log without external diff or textconv", () => {
     assert.deepEqual(safeGitArgs(["ls-files"]), [
       "-c",
       "core.fsmonitor=false",
       "-c",
       "core.pager=cat",
+      "-c",
+      "diff.ignoreSubmodules=dirty",
+      "-c",
+      "diff.submodule=short",
+      "-c",
+      "submodule.recurse=false",
       "--no-pager",
       "ls-files",
     ]);
@@ -223,7 +262,7 @@ describe("git on an untrusted repository (engine/util/safe-git.mjs)", () => {
         found.map((l) => l.split(" = ")[0]),
         ["core.fsmonitor", "diff.x.textconv", "filter.y.clean", "diff.external", "include.path"],
       );
-      // The CLI's process launcher refuses git there, without starting any process.
+      // The CLI's process launcher refuses git there, without starting any process (safe-git.test.mjs: its spawn).
       const r = defaultExec("git", ["ls-files"], { cwd: path.join(dir2, "app") });
       assert.equal(r.status, 128);
       assert.equal(r.refused.length, 5);

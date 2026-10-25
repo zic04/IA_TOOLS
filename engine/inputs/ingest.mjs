@@ -85,7 +85,7 @@ function convert(buf, format, t) {
   if (format === "pdf") {
     const r = pdfIndex(buf);
     return {
-      body: t("cli.inputs.output.pdf", { pages: r.pages ?? "?" }),
+      body: t("cli.inputs.output.pdf", { pages: r.pages ?? "?", n: r.pages ?? "?" }),
       facts: { pages: r.pages, encrypted: r.encrypted },
     };
   }

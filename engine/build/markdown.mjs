@@ -310,7 +310,7 @@ export function createMarkdownEngine({
       if (!img.ok) return img.html;
       const zones = img.c.zones || [];
       if (items.length !== zones.length)
-        signal(true, "screen.legend", { id, zones: zones.length, items: items.length });
+        signal(true, "screen.legend", { id, zones: zones.length, items: items.length, n: zones.length });
       zoneCount += items.length;
       ctx.used.zones += items.length;
       const legend = items

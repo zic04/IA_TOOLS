@@ -106,7 +106,7 @@ describe("check coverage and inventory", () => {
         ["/audit", "/orders", "/orders/[id]", "/settings"],
       );
       const text = await cli(["inventory", "--project", dir, "--lang", "fr"]);
-      assert.match(text.out, /next-app-router › Routes : 4 éléments, 4 déjà cité\(s\)\n {2}✔ \/audit\n/);
+      assert.match(text.out, /next-app-router › Routes : 4 éléments, 4 déjà cités\n {2}✔ \/audit\n/);
     } finally {
       rm(dir);
     }

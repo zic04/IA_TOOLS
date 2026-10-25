@@ -86,8 +86,8 @@ describe("doc-kit record", () => {
       assert.equal(seen[0].url, "http://127.0.0.1:4173/orders");
       const file = path.join(dir, "captures", "plans", "orders.mjs");
       assert.match(fs.readFileSync(file, "utf8"), /"name": "New order"/);
-      assert.match(out, /orders\.mjs written: 7 step\(s\) recorded/);
-      assert.match(out, /2 line\(s\) not translated/);
+      assert.match(out, /orders\.mjs written: 7 steps recorded/);
+      assert.match(out, /2 lines not translated/);
       assert.equal(await runCli(["record", "/orders", "--project", dir], io), 1, "the file exists");
       assert.equal(await runCli(["record", "/orders", "--force", "--id", "orders", "--project", dir], io), 0);
       assert.equal(await runCli(["record", "orders", "--project", dir], io), 2, "a route starts with /");

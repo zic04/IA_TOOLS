@@ -18,6 +18,8 @@ export function limitOf(value, fallback = DEFAULT_LIMIT) {
 }
 
 const code = (esc, file) => `<code>${esc(file)}</code>`;
+/** A number and its noun, in the plural form of the number ("1 file", "2 files"): a plural whose text shows {count}. */
+export const counted = (t, key, n) => t(key, { n, count: n });
 const table = (head, rows) =>
   `<div class="tableau" data-generated="developer"><table data-generated="developer"><thead><tr>${head
     .map((h) => `<th>${h}</th>`)
@@ -37,13 +39,14 @@ export function renderModules(data, { t, esc, limit = DEFAULT_LIMIT }) {
   const summary = /** @type {any} */ (data.summary || {});
   const cycles = Array.isArray(summary.cycles) ? summary.cycles : [];
   const orphans = items.filter((i) => !i.imports && !i.importedBy).map((i) => i.file);
+  const count = (key, n) => counted(t, `render.modules.count.${key}`, n);
   const parts = [
     `<p class="dev-summary">${esc(
       t("render.modules.summary", {
-        files: summary.files ?? items.length,
-        edges: summary.edges ?? items.reduce((n, i) => n + (i.imports || 0), 0),
-        cycles: cycles.length,
-        orphans: orphans.length,
+        files: count("files", summary.files ?? items.length),
+        edges: count("imports", summary.edges ?? items.reduce((n, i) => n + (i.imports || 0), 0)),
+        cycles: count("cycles", cycles.length),
+        orphans: count("orphans", orphans.length),
       }),
     )}</p>`,
   ];
@@ -119,8 +122,8 @@ export function renderHotspots(history, quality, { t, esc, limit = DEFAULT_LIMIT
       )}</td><td><span class="dev-bar" style="--w:${Math.max(4, Math.round((h.score / max) * 100))}%"></span></td></tr>`,
   );
   const intro = t("render.hotspots.summary", {
-    commits: s.commits ?? "—",
-    authors: s.authors ?? "—",
+    commits: counted(t, "render.hotspots.count.commits", s.commits ?? "—"),
+    authors: counted(t, "render.hotspots.count.authors", s.authors ?? "—"),
     since: s.since || "—",
     until: s.until || "—",
     busFactor: s.busFactor ?? "—",
@@ -174,7 +177,7 @@ const RISK_DETECTORS = [
   (f) => {
     const h = f.history?.summary;
     return h && h.available !== false && h.busFactor === 1
-      ? [{ level: "medium", key: "busFactor", vars: { authors: h.authors } }]
+      ? [{ level: "medium", key: "busFactor", vars: { authors: h.authors, n: h.authors } }]
       : [];
   },
   (f) => {
@@ -284,7 +287,9 @@ const HEALTH_CARDS = [
     lines: (f, t) => {
       const deps = f.dependencies?.items;
       if (!deps) return null;
-      const checked = deps.some((d) => "exists" in d);
+      // Checked: a direct package its registry answered for (--network). One kept back (unlisted, unproven,
+      // private: `exists: null`) or never asked is unknown, not "found".
+      const checked = deps.some((d) => d.direct && d.exists != null);
       // Packages, not items: a manifest and its lock file name a package twice.
       const packages = (list) => String(new Set(list.map(packageId)).size);
       return [

@@ -62,7 +62,7 @@ describe("doctor", () => {
       assert.match(r.out, /^✔ \.doc-kit\/ and dist\/ are excluded from git$/m);
       assert.match(r.out, /^⚠ no session yet \(\.doc-kit\/session\.json\)\n {2}→ doc-kit connect$/m);
       assert.match(r.out, /^✔ theme contrasts: \d+ pairs at WCAG level/m);
-      assert.match(r.out, /\d+ OK · \d+ warning\(s\) · 0 problem\(s\): ready\.\n$/);
+      assert.match(r.out, /\d+ OK · \d+ warnings? · 0 problems: ready\.\n$/);
       for (const l of r.out
         .split("\n")
         .slice(2)
@@ -246,7 +246,7 @@ describe("doctor", () => {
         "the environment checks, before the configuration is read",
       );
       assert.match(r.out, /^✔ doc\.config\.mjs valide$/m);
-      assert.match(r.out, /avertissement\(s\) · 0 problème\(s\) : prêt\.\n$/);
+      assert.match(r.out, /avertissements? · 0 problème : prêt\.\n$/);
       assert.match((await cli(["doctor", "--project", fr, "--lang", "en"])).out, /^✔ doc\.config\.mjs valid$/m);
       const invalid = await cli(["doctor", "--project", broken]);
       assert.equal(invalid.code, 2);

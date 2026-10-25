@@ -8,13 +8,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { collectApi } from "../../engine/facts/api.mjs";
 import {
-  collectApi,
   classifyAuth,
   resolveGuardPatterns,
   DEFAULT_ROLE_GUARD,
   DEFAULT_USER_GUARD,
-} from "../../engine/facts/api.mjs";
+} from "../../engine/facts/guards.mjs";
 import { collectSecurity, RULES } from "../../engine/facts/security.mjs";
 import { collectQuality, rating } from "../../engine/facts/quality.mjs";
 import {
@@ -80,12 +80,12 @@ describe("api: auth/guards on the enriched fixtures (ARCHITECTURE.md §6.13)", (
     assert.deepEqual(byRoute("POST", "/api/orders").guards, ["require_admin"]);
   });
 
-  test("Express: requireSession (user), requireAdmin (role), requireAuth (unknown), no middleware (none)", () => {
+  test("Express: isAuthenticated (user), requireAdmin (role), requireAuth (unknown), no middleware (none)", () => {
     const items = collectApi(app("express-app"));
     const byRoute = (method, route) =>
       items.find((i) => i.method === method && i.route === route && i.framework === "express");
     assert.equal(byRoute("GET", "/orders").auth, "user");
-    assert.deepEqual(byRoute("GET", "/orders").guards, ["requireSession"]);
+    assert.deepEqual(byRoute("GET", "/orders").guards, ["isAuthenticated"]);
     assert.equal(byRoute("POST", "/orders").auth, "role");
     assert.deepEqual(byRoute("POST", "/orders").guards, ["requireAdmin"]);
     assert.equal(byRoute("GET", "/health").auth, "none");
@@ -93,16 +93,15 @@ describe("api: auth/guards on the enriched fixtures (ARCHITECTURE.md §6.13)", (
     assert.deepEqual(byRoute("GET", "/admin/stats").guards, ["requireAuth"]);
   });
 
-  test("Next.js App Router: no guard (none), a role check next to a session call (role), currentUser() alone (unknown)", () => {
+  test("Next.js App Router: no guard (none); a session lookup and a role word in a body (unknown, never user nor role)", () => {
     const items = collectApi(app("next-app"));
     const byRoute = (method, route) =>
       items.find((i) => i.method === method && i.route === route && i.framework === "next-app-router");
     assert.equal(byRoute("GET", "/api/orders").auth, "none");
-    assert.equal(byRoute("POST", "/api/orders").auth, "role");
-    assert.ok(byRoute("POST", "/api/orders").guards.includes("getServerSession"));
-    assert.ok(byRoute("POST", "/api/orders").guards.includes("role"));
+    assert.equal(byRoute("POST", "/api/orders").auth, "unknown");
+    assert.deepEqual(byRoute("POST", "/api/orders").guards, ["getServerSession (body)", "role (body)"]);
     assert.equal(byRoute("GET", "/api/orders/[id]").auth, "unknown");
-    assert.deepEqual(byRoute("GET", "/api/orders/[id]").guards, ["currentUser"]);
+    assert.deepEqual(byRoute("GET", "/api/orders/[id]").guards, ["currentUser (body)"]);
   });
 
   test("classifyAuth: none without a guard, role checked before user, unknown when neither pattern matches", () => {
@@ -443,7 +442,9 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
       ok: true,
       json: async () => (url.includes("left-behind") ? { version: "4.0.0" } : { version: "3.0.0" }),
     });
-    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies });
+    // Every one listed in the configuration (facts.network.allow), the transitive one too.
+    const allow = dependencies.map((d) => `npm:${d.name}`);
+    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies, allow });
     assert.equal(summary.outdated, 1, "only left-behind (major 1 vs 4); the transitive one is never checked");
   });
 
@@ -463,7 +464,9 @@ describe("quality: functions, complexity, duplication, TODOs, ratings (ARCHITECT
       sent.push(url);
       return { ok: true, json: async () => ({ version: "19.0.0" }) };
     };
-    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies });
+    // Every one listed too (facts.network.allow): the list never lets out a name the second net keeps back.
+    const allow = dependencies.map((d) => `npm:${d.name}`);
+    const { summary } = await collectQuality(dir, { fetch: fetchImpl, dependencies, allow });
     assert.deepEqual(sent, ["https://registry.npmjs.org/react/latest"]);
     assert.equal(summary.outdated, 1);
   });

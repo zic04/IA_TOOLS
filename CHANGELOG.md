@@ -14,6 +14,25 @@ entries between a project's `kit` range and the installed version.
   labels of its annotated screens' zones (`images/fr/zones/`, the screenshots shared). `doc-kit build --project
   examples/demo-docs` gives one file with a language switch; `--lang fr` the French file alone. The French snapshot
   is now a strict build.
+- **`facts --network`: the latest version, how far behind, and the registry's licence** (ARCHITECTURE.md §6.9):
+  each direct dependency sent now gets `latest` (its latest published version) and `majorsBehind` (how many majors
+  behind, never negative, `null` when the version in use is a lower bound alone or unknown) beside `exists`, and,
+  when no offline source gave the package a licence, the licence its latest version declares (`license`,
+  `licenseFrom: "registry"`). One request a package for the whole run, on its latest version's document
+  (`registry.npmjs.org/<name>/latest`, `pypi.org/pypi/<name>/json`): `dependencies` and `quality` share the answers,
+  where npm was asked twice before; still the name alone. The answer is kept through allowlists (a version as a
+  release reads, 64 characters at most, a licence's name); a body whose told size is over 8 MiB is never read. A
+  package kept back (`private`, `unproven`, `unlisted`) gets `latest: null` and `majorsBehind: null`. `quality`'s outdated count
+  shares the rule (`engine/core/versions.mjs`).
+- **Licences from the installed copies** (ARCHITECTURE.md §6.9): an npm or pip item of `facts --source
+  dependencies` its lock gives no licence takes the one its installed copy names, `licenseFrom: "installed"` —
+  `node_modules/<name>/package.json`, the copy Node would load from the manifest's folder up, or the
+  `*.dist-info/METADATA` of a `.venv/` or `venv/` (`License-Expression`, a one-line `License`, the licence
+  classifiers). Read offline, never executed, and only inside the application (each link's target judged before it
+  is touched: a link out of it is never followed), from the item's own copy (its name, its exact version), the
+  nearest one judged alone, within bounds (10,000 entries a folder listed, 5,000 dist-info folders a site-packages, a
+  `package.json` of 1 MB, a METADATA's header, 64 KB read at most); a lock's licence (`licenseFrom: "lock"`) is kept,
+  and a licence is only ever a licence's name (SECURITY.md).
 
 ### Fixed
 
@@ -32,11 +51,54 @@ entries between a project's `kit` range and the installed version.
 - `doctor`, `export`, `check secrets` and the audit's secrets measure start git through the command's process
   launcher, as the other commands do: in a repository whose git configuration names a program, they now warn and
   name the keys (git is still not run). For the kit's developers: the unit tests no longer start the machine's git
-  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its two git
-  helpers).
+  (`test/unit/git-exec.test.mjs`; `seams.test.mjs` keeps the engine from starting a process outside its launcher
+  and its git helpers).
+- FastAPI: the dependencies of a route's decorator (`@router.get("/x", dependencies=[Depends(require_admin)])`)
+  and `Security(…)` are guards; such an admin route came out with no guard (`"none"`). A `Depends(…)` in a comment
+  or a string (`# dependencies=[…]`, `description="… Depends(require_admin)"`), of a decorator, a signature, an
+  `APIRouter(…)` or an `include_router(…)`, is none.
+- Flask: `@jwt_required(optional=True)` (and any route decorator with `optional=` anything but `False`, or `True`
+  first, on one line or several, after blanks too, `@jwt_required (optional=True)`, outside comments) is kept as
+  `jwt_required(optional=True)`, which lets anonymous callers in: no longer `"user"`. `optional = False` requires a
+  user.
+- The docs say which global access rules are not read (DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's
+  `SecurityFilterChain`, ASP.NET's `FallbackPolicy`, `FastAPI(dependencies=…)`): a route they alone protect is
+  `"none"`.
+- `--lang=fr` (and `--lang=en`) chose nothing: only `--lang fr` was read, so the messages stayed in the project's
+  language, `DOC_KIT_LANG` or English. Both forms now work, `--help` included.
+- `doc-kit constructor` (or `toString`, `__proto__`: names every JavaScript object inherits) stopped on an unexpected
+  error (`module.run is not a function`), and `doc-kit help constructor` printed `cli.help.constructor`: both are an
+  unknown command now.
+- **A count is shown in the plural form of its number**, in English and French: 62 messages wrote "Type at least
+  1 more pages", "zone(s)", "file(s)", "dependency(ies)", "1 pages" in the site's footer, or "1 manquantes" in
+  French. Each one is a plural `{ one, other }` chosen by `n` (0 and 1 are singular in French), and a sentence
+  with several counts gives each its own counted noun (`cli.doctor.count.*`, `render.modules.count.*`,
+  `ui.footer.pages`…), as the build summary already did. Two plurals never received their number, so one form
+  showed whatever the count: `cli.context.written` ("3 coupe" in French) and `cli.sync.applied.summary` ("3 preuve
+  et 5 libellé"). `test/unit/plurals.test.mjs` keeps it so: no plural in brackets, no text message that shows its
+  count before a plural noun, every plural written in a call gets its `n`. The skill's own scripts
+  (`skill/doc-kit/i18n/`) have no plural forms yet. **For a project that overrides these texts** (`texts` in
+  `doc.config.mjs`): the count placeholders (`{pages}`, `{warnings}`, `{files}`…) now hold their noun too ("12
+  pages", not "12"); an override written for 0.4.1 that adds the noun itself shows it twice, so remove the noun
+  from the override.
 
 ### Changed
 
+- **Changed (breaking): `facts --network` sends nothing until names are listed** (ARCHITECTURE.md §3, §6.9;
+  SECURITY.md, Network). A package's name now leaves the machine only when `facts.network.allow` of
+  `doc.config.mjs` lists it, one entry a package: `"npm:<name>"`, compared exactly, or `"pip:<name>"`, compared as
+  PEP 503 normalises it; no wildcard. The list is empty by default: a project that ran `--network` before sends
+  nothing until it lists its packages. The lock files' proof and the second net stay behind the list: a listed name
+  that no lock proves public, or that a declaration makes private, is still never sent. The gate is the network
+  gateway's, so `dependencies` and `quality` are both held by it, before the run's answers are looked at. A direct
+  item the list keeps back gets `unlisted: true` (`exists`, `latest`, `majorsBehind` `null`); `quality`'s
+  `outdated` is `null` when no direct package could be asked, and the `::health` view shows "—" rather than 0, as
+  it now does for "not found in the registry" when no package was answered for. To build the list
+  without guessing, `facts --network` prints how many direct packages it kept back and how to list them, and
+  `--json` gives them as `network.candidates` — only names the proof and the second net let through, in the list's
+  syntax — to review with whoever owns the application. Each entry is validated (exit code 2, in English and
+  French): an unknown ecosystem, an empty name, a wildcard, a list that is not an array of strings. The skill's
+  `code-health` brief and SKILL.md tell the orchestrator to review the candidates with the user before listing any.
 - **The kit's test suite** (for its developers; RULES.md M4, M17):
   - Time is measured only through `test/tools/growth.mjs` (`assertLinear`, `linearAt`, the ReDoS harness), in
     dedicated `*-growth.test.mjs` files run alone. Every millisecond budget and home-made growth loop is gone:
@@ -54,9 +116,170 @@ entries between a project's `kit` range and the installed version.
   - The ReDoS check of a forbidden path's escapes (`capture forbiddenMatch (escapes)`) reads the input once, after a
     run of escapes a sixteenth of its length and every tricky escape: about seven times cheaper per input, still
     linear, where three copies and a run as long as the input took 30 to 100 s against its 60 s hang timeout.
+- **The CLI starts in about a sixth of the time** (ARCHITECTURE.md §4): `doc-kit --version` took 1.3 s, now 0.2 s
+  (Node alone: 0.08 s). The dispatcher imports only the module of the command that runs (`cli/registry.mjs`), not
+  all 30, and Playwright is imported where a browser is launched, no longer at the start of every command that
+  reaches the capture engine (`build`, `audit`, `sync`…); the hook `hooks install` writes, which runs `facts`
+  then `sync` after each `git pull`, saves it twice. The adapter loader moved from the capture session to
+  `engine/core/adapter-loader.mjs`: the coverage check, the facts and `sync` no longer import the capture session
+  (`engine/capture/session.mjs`).
+- **`doc-kit --help` lists every command**, in groups generated from the registry: `backlog`, `context`, `probe`,
+  `sync` and `translate` were missing, and `inventory`, `facts`, `inputs` and `bricks` were filed under
+  "Screenshots" (now "Read the application"). Each command's line names every option it declares (`init --target`,
+  `--languages`, `--spaces`, `capture --compare`, `--stale`, `--trace`, `--verify`, `skill install --hooks`… were
+  missing); a test keeps both true.
+- **The kit's repository and CI** (for its developers; `test/unit/repository.test.mjs` checks each point):
+  - `package.json` is `"private": true` until a publication is decided (a `files` list would then say what ships:
+    `npm pack` took 1,581 files, tests and studies included), and names its `repository`, `homepage`, `bugs`,
+    `keywords` and `author`. LICENSE names its copyright holder, Patrice COUEDEL, and so does the new AUTHORS file.
+  - A vulnerability, and a conduct report, go to GitHub's private vulnerability reporting (the repository's
+    **Security** tab, **Report a vulnerability**), answered within 7 days (SECURITY.md, CODE_OF_CONDUCT.md).
+  - The CI cancels a pull request's run when a new push replaces it, stops a job after 30 minutes, tests Node 24
+    beside 20 and 22 (three new checks, `tests (<os>, Node 24)`; the required check names are unchanged), and its
+    checkouts keep no token (`persist-credentials: false`), as do those of the examples in `ci/`. The examples
+    check out the kit's current release, `v0.4.1` instead of `v0.1.0`, moved at each release (RULES.md).
+  - RULES.fr.md has the rules RULES.md has (M17 was missing, and parts of S5 and M4); CONTRIBUTING.md
+    lists the six development dependencies and every check the CI requires, with its time. `cli/doc-kit.mjs` is
+    executable in git.
 
 ### Security
 
+- **`doc-kit --version` and `--help` ran the `doc.config.mjs` of the folder they were typed in**, or of a parent, to
+  find the language of the messages: typed in a cloned application that ships a documentation project, they ran
+  its code. `--version` and `--help` (`<command> --help` too) no longer import `doc.config.mjs`: the language is
+  read in its text (a literal `language`, or the first item of `languages`; a regular file only, 1 MB read at most). A
+  command that loads the project still runs its configuration, and so does `doc-kit` without a command (the guided
+  mode loads the project to tell the next step). This holds for the doc-kit you installed: `npx doc-kit` in a cloned
+  application runs the kit of its `node_modules` (SECURITY.md, `test/unit/cli-startup.test.mjs`).
+- **A public route is no longer reported as protected** (`facts --source api`, `screens`; SECURITY.md,
+  ARCHITECTURE.md §6.13). The built-in user guards matched `session`, `token` and `authenticated` anywhere in a
+  name: `Depends(get_session)` (the database session of FastAPI's tutorial), Laravel's `VerifyCsrfToken` and DRF's
+  `IsAuthenticatedOrReadOnly` (anonymous reads) made a route `auth: "user"`. A user guard is now known by its whole
+  name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`, `Authorize`…; on the last segment
+  of a dotted name), a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`; `scoped_session` is no
+  scope), and a guard that lets anonymous callers in (`…OrReadOnly`, `jwt_required(optional=True)`,
+  `IS_AUTHENTICATED_ANONYMOUSLY`) is neither, whatever `review.guards` says: such a route is `"unknown"`, never
+  `"user"`, nor is a negation (`!hasRole('BANNED')`). An expression is as weak as its weakest alternative:
+  `hasRole('ADMIN') or permitAll()` is `"unknown"`.
+  Names that only held a session or a token are now `"unknown"` (`requireSession`, `getSession`, `getToken`,
+  `tokenMiddleware`); `get_current_active_user`, `verify_jwt_in_request` and `require_login` are user guards, and so
+  remain Spring's `isFullyAuthenticated()` and `Secured(IS_AUTHENTICATED_FULLY)`, Symfony's
+  `IS_AUTHENTICATED_FULLY` and `IS_AUTHENTICATED_REMEMBERED`, NestJS's `AuthenticatedGuard` and Express's
+  `authenticateToken`. `review.guards` is unchanged (regular expressions). The classification is
+  engine/facts/guards.mjs, in the ReDoS harness.
+- Expressions: a negation in parentheses or called (`(!hasRole('BANNED'))`, `not(has_role("banned"))`), an
+  alternative after `or(` or on the next line (`hasRole('ADMIN') or(permitAll())`) and
+  `isAuthenticated() and !hasRole('BANNED')` came out `"role"`. An alternative is now as strong as the strongest of
+  the parts it requires all of (`and`, `&&`, `&`), read outside parentheses only, each negation none:
+  `isAuthenticated() and !hasRole('BANNED')` is `"user"`, the others `"unknown"`.
+- Flask: a `before_request` hook no longer makes a route `"user"` or `"role"` (a hook that did nothing but was
+  named `require_admin` made a public route `"role"`), nor guards it when it may deny nothing: a logging, timing or
+  loading hook (`g.user = …`, `pass`, `return None`) gives no guard. A hook that may deny a request (a guard
+  decorator under it, now read; `abort(`, `raise`, `redirect(`, a `return` of a value, or a call of a guard by its
+  whole name in its body, outside strings and comments) gives its routes the guard `before_request`, always
+  `"unknown"` whatever its name, its body or `review.guards`. The adapters' `api` hook is given the project's
+  `review.guards` patterns (`api({ sources, guards })`).
+- Next.js: a session lookup (`auth()`, `getServerSession()`) or a role word (`role`, `isAdmin`) in a route
+  handler's body made it `"user"` or `"role"`, whatever it returned (`const session = await auth(); return
+  Response.json(session)`, `db.role.findMany()`). Each is now the partial guard `auth (body)`, `role (body)`,
+  always `"unknown"`, whatever `review.guards` says.
+- Django REST framework: `permission_classes = [IsAuthenticated | ReadOnly]` came out `"user"` and
+  `[IsAdminUser | AllowAny]` `"role"`: the alternative was lost. An entry of several classes (`|`, `&`, `~`,
+  Python's `or`, `and`, `not`) is now one guard written with DRF's operators (`IsAuthenticated | ReadOnly`), as weak
+  as its weakest alternative, and a negation (`~IsAdminUser`) is none. `permissions.AllowAny` came out `"role"` (the
+  module's name): a class is now read by its own name (`AllowAny`).
+- Rails: `before_action :authenticate_user!, unless: :public_listing?` made every action `"user"`. A callback
+  under `if:` or `unless:` (or a skip under one) now gives the partial guard `authenticate_user! (if)`,
+  `"unknown"`, and a callback is read to the end of its statement: an `only:` or an `unless:` on the next line is no
+  longer missed (the other actions came out guarded). A callback declared again replaces the one of the same name,
+  as in Rails: a parent's `before_action :authenticate_user!` redeclared in a child with `unless:` or
+  `only: :destroy` left the other actions `"user"`.
+- FastAPI: an `APIRouter(…)` or an `include_router(…)` in a comment or a docstring
+  (`# router = APIRouter(dependencies=[Depends(get_current_user)])` after the real one) gave its guards to the
+  file's routes: it is now none.
+- A role word counts in the called name only: `Depends(admin_crud.get_db)`, Flask's `@admin_bp.paginate()` and
+  Express's `permissions.none` came out `"role"` (the module's or the object's name). A loader (`loadRoles`) names no
+  role, express-unless's `requireAdmin.unless(…)` guards some paths only (`"unknown"`), and a negation written after
+  the check (`hasRole('ADMIN') == false`, `!= true`, `permitAll() and!hasRole('BANNED')`) is none. Django's admin
+  site is the guard `AdminSite` (was `admin.site`, whose module names no role).
+- The promise is now written as it holds: a route may look less protected than it is, never more, except in known
+  cases the names do not tell — a per-request override that loosens a class rule (DRF's `get_permissions()`
+  returning `[AllowAny()]` under `[IsAdminUser]`), Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")`
+  under a class `@Secured("ROLE_ADMIN")`, and rare argument forms (Flask's `**{"optional": True}`,
+  `optional=False or True`) (SECURITY.md).
+- **The Git LFS exception accepts only the values Git LFS writes**, each for its own key and as the whole value
+  (`git-lfs clean -- %f`, `git-lfs smudge -- %f`, `git-lfs filter-process`, the last two also with `--skip`). A
+  value that merely started like one was taken for Git LFS, so a repository's configuration could have a read-only
+  git command run another program.
+- **More keys that name a program refuse git**: what git-lfs runs or writes to when its filters run
+  (`lfs.extension.<name>.clean`/`smudge`, `lfs.customtransfer.<name>.path`, `lfs.storage`), and the program that
+  checks a signature (`gpg.program`, `gpg.<format>.program`), which `git log` and `git show` run when
+  `log.showSignature` is set. git no longer starts git in a submodule (`diff.ignoreSubmodules=dirty`,
+  `diff.submodule=short`, `submodule.recurse=false`): a submodule's own configuration, which the kit does not read,
+  could name a filter that a read-only `git diff` ran. It never fetches what a partial clone lacks
+  (`GIT_NO_LAZY_FETCH=1`).
+- **The configuration is read as git reads it**: a line separator (U+2028, U+2029) in a value or a subsection no
+  longer hides a key; a value keeps any blank but spaces and tabs; and every git folder git may use is read — a
+  `.git` file's path and a `commondir` taken as git takes them, a bare repository, and what lies above a `.git` git
+  would skip (empty, without objects or refs).
+- **A program is never taken from the application, the documentation project or a `node_modules/.bin`**: when the
+  kit ran as an npm script of a documentation project inside the application, npm put the application's
+  `node_modules/.bin` first on the `PATH`, and a `git` there was run. This holds for git and for the tools of
+  `facts --tools` (a `knip` installed only in the application is no longer run), and the program started gets that
+  `PATH` too (what git starts in turn, `git-lfs` included). The folders are compared by their real paths too (links
+  and junctions followed, in any case on Windows): a `PATH` folder that reached the application, the current folder
+  or a `node_modules/.bin` through a link, macOS's `/var` included, was not left out.
+- **git runs with a cleaned environment**: no `GIT_*` variable of the environment reaches it (they could move the
+  repository read, add to or replace its configuration, or name a program), but those `inputs fetch` connects
+  with (`GIT_SSH_COMMAND`, `GIT_SSH`, `GIT_ASKPASS`, `GIT_SSL_CAINFO`, `GIT_SSL_CAPATH`); `GIT_TERMINAL_PROMPT=0`
+  everywhere. One launcher starts git and the external tools (`spawnHardened`, engine/util/safe-git.mjs), for the
+  commands and the engine alike; the tools get the same environment, and are not run in a repository whose
+  configuration names a program (a tool may start git there: `facts --tools` reports them `failed`, reason
+  `refused`, with a warning).
+- **`hooks install` writes only inside the repository or its git folder**, links followed: a `core.hooksPath` that
+  leads out of them, a hook that is a link out of them or leading nowhere, or a hard link, is refused
+  (`hooks.unsafeFolder`, exit code 3).
+- For the kit's developers: the rules of engine/util/safe-git.mjs have their mutants (`test/mutations/util-safe-git.mjs`,
+  RULES.md M16, 66 mutants), against `test/unit/safe-git.test.mjs`, which `npm run test:security` now runs too.
+- **No crafted file of the application blocks `facts` or `check secrets`** (RULES.md S5): twenty scanners took
+  four times as long, or more, for twice the input on a file built for it (a 2 KB file took seconds). They are now
+  linear, and find what they found on normal input:
+  - `security`: the line of each match comes from one index of the file (it was the text before it, sliced for
+    each); `cors.wildcardCredentials` sweeps its two sorted lists once (it compared every pair); `sql.concat`
+    walks the build lines once; `redirect.open` reads a call's arguments over 1,000 characters at most,
+    `jwt.noVerify` an algorithms list over 200; `auth.noRateLimit` looks for the word of a sign-in route once;
+    `secret.default` reads an interpolation up to its `}` or the next `${`.
+  - `db`: a Prisma model and a `CREATE TABLE` are read up to the last of their closers only; a SQLAlchemy class
+    ends at the next class or the end (never "newlines, then the end", tested at every character), its bases are
+    500 characters at most, a column's blanks those of its line. `env`: a destructuring of `process.env` is read
+    up to the next brace.
+  - `quality`: its function expressions no longer split a run of blanks two or three ways, a method is looked for
+    from the start of a word, a type annotation is 200 characters at most; the bodies are matched in one pass
+    (`closingBraces`), their branches counted by difference. A function header in a comment or a string is still
+    read as code to its brace, those reads bounded together by eight times the file.
+  - `check secrets`: `isUrlTemplate` searches the rest of a word once; the matches of one long token share it (a
+    chain of JWTs joined by dots was cubic); the text of a page blanks scripts, styles and tags left open without
+    reading to the end again from each.
+  - `sync`: `apiPathsIn` matches the braces of a text once and takes trailing slashes off in one pass;
+    `PROOF_REF` reads a file name up to its `:` once.
+  - `parseEnv` (masking), `pySpecifiers` (imports): no run of blanks read two ways, no blank line (nor carriage
+    return, nor U+2028, where a multiline `^` also starts) read again from each line start. A `from` without a
+    module (not Python) is no longer read as an empty one.
+  - `infra`: the YAML reader makes its lines one at a time and cuts each from the text when it reads it (it held an
+    object and a string for every line of the file until the end), and the Compose adapter builds no item past the
+    source's 5,000: on a Compose file of many volumes, the collector's work no longer grows faster than the file
+    (Node 22).
+  - A verified badge's text is 500 characters at most. The build's Content Security Policy looks for the inline
+    scripts of a page up to its last `</script>` only.
+- **`quality`, `env`, `db`, `agents` and `tests` read no source, schema, instruction or test file over 512 KB**, as
+  the other readers: one is listed in the facts file's `unreadable` (`tooLarge`) and reported by `doc-kit facts`.
+  `quality` still counts it among the files, and as a big one; `tests` among the test files.
+- **For the kit's developers**: `test/unit/redos-registration.test.mjs` fails when a regular expression that
+  `engine/facts`, `engine/check`, `engine/sync` or the masking export is not measured by the ReDoS harness. The
+  eight it found are registered, the expressions of `db`, `env`, `quality` and `imports` and the scanners above
+  as whole readers too, and the harness builds the crafted shapes
+  (`test/unit/scanners-growth.test.mjs` measures each scanner on them, `test/unit/scanners-linear.test.mjs` checks
+  the former forms against the new ones on random input).
 - **A redirect through another origin no longer reaches a `capture.forbidden` route** (SECURITY.md › Read-only
   captures have limits). The guard checked a navigation's redirects only until the first hop that left the
   application, then let the browser follow the rest: a sign-in round trip through the identity provider could come
@@ -133,6 +356,11 @@ entries between a project's `kit` range and the installed version.
   mutants `test/mutations/capture-guard.mjs`. Written as limits: a `WebTransport` session, which no launch flag
   turns off, and the end of an older chain of a frame that ends last, held (within the bounds) until the frame's next
   navigation or its page's closing.
+- **A dependency's licence is kept only as a licence's name** (`engine/facts/deps/licences.mjs`, AUDIT.md S8): a
+  package-lock.json entry's `license` was stored as written — an object, a licence's whole text, or a token-shaped
+  string a secret detector finds. It now goes through an allowlist: one line, 100 characters at most, the characters
+  of a licence name or an SPDX expression, nothing a secret detector finds; anything else is no licence. composer.lock
+  goes through the same one, and both say where the licence comes from (`licenseFrom: "lock"`).
 
 ## [0.4.1] - 2026-10-23
 

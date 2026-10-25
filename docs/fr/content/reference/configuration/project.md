@@ -100,12 +100,21 @@ construction du site. Voir [Suivre l'application](#/reference/cli/write-check~do
 |---|---|---|---|
 | `review` | objet · `{}` | `doc-kit probe` et les `auth`/`guards` de la source de faits `api` | |
 | `review.guards` | objet · `{}` | Les motifs de garde de rôle et d'utilisateur, côte à côte | `{ role: ["is_admin"] }` |
-| `review.guards.role` | liste d'expressions régulières (chaînes) · `[]` | Remplace le motif intégré de garde de rôle (`admin\|role\|permission\|scope\|owner\|super\|staff`) quand elle n'est pas vide | `["is_admin"]` |
-| `review.guards.user` | liste d'expressions régulières (chaînes) · `[]` | Remplace le motif intégré de garde d'utilisateur (`current_user\|authenticated\|login_required\|require_auth\|session\|token`) quand elle n'est pas vide | `["require_login"]` |
+| `review.guards.role` | liste d'expressions régulières (chaînes) · `[]` | Remplace les gardes de rôle intégrées (un mot du nom : `admin`, `role`, `permission`, `scope`, `owner`, `superuser`, `staff`…) quand elle n'est pas vide | `["is_admin"]` |
+| `review.guards.user` | liste d'expressions régulières (chaînes) · `[]` | Remplace les gardes d'utilisateur intégrées (des noms entiers : `get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`, `Authorize`… ; jamais une `session` ni un `token` seuls) quand elle n'est pas vide. Une garde qui laisse passer les appelants anonymes (`…OrReadOnly`, un utilisateur facultatif), une négation et une garde partielle (`auth (body)`, `authenticate_user! (if)`) ne comptent jamais | `["check_member"]` |
 | `review.params` | objet · `{}` | Nom de paramètre de chemin → valeur d'exemple, pour que `doc-kit probe` puisse remplir une route comme `/groups/{group_id}` ; une route dont un paramètre manque ici est sautée | `{ "group_id": "g1" }` |
 | `review.semgrep` | chemin ou `null` · `null` | Un dossier de règles semgrep local, relatif au projet ; sans lui, `doc-kit facts --tools` ne lance jamais semgrep (jamais `--config auto`, qui télécharge des règles) | `"security/semgrep-rules"` |
 
 Voir [Revues de sécurité et de maintenabilité](#/spaces/reviews).
+
+## Les faits
+
+| Clé | Type · défaut | Rôle | Exemple |
+|---|---|---|---|
+| `facts` | objet · `{}` | `doc-kit facts` | |
+| `facts.network.allow` | liste · `[]` | Les seuls paquets que `doc-kit facts --network` peut envoyer à leur registre public, une entrée par paquet : `"npm:<nom>"`, comparé exactement (`npm:React` n'est pas `react`), ou `"pip:<nom>"`, comparé comme PEP 503 le normalise (`pip:My_Lib` est `my-lib`) ; sans joker. Vide, rien n'est envoyé. Un nom listé qu'aucun fichier de verrouillage ne prouve public, ou qu'une déclaration rend privé, n'est toujours jamais envoyé. `doc-kit facts --network --json` donne les candidats (`network.candidates`) : relisez-les avant d'en lister un | `["npm:react", "npm:@types/node", "pip:fastapi"]` |
+
+Voir [Reprendre une application vibe-codée](#/spaces/takeover~lire-le-code-automatiquement-doc-kit-facts).
 
 ## Cartes de comportement
 

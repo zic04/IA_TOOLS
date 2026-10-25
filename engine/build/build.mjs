@@ -265,7 +265,11 @@ function renderTranslations(b, site, { toc, glossary, glossaryFile, sourceCaptur
       const { glossary: merged, problem } = translatedGlossary({ source: glossary, translated: translatedGlossaryRaw });
       langGlossary = merged;
       if (problem)
-        report(true, { kind: "translation", key: "translation.glossary.structure", vars: { lang, ...problem } });
+        report(true, {
+          kind: "translation",
+          key: "translation.glossary.structure",
+          vars: { lang, ...problem, n: problem.found },
+        });
     } else if (glossaryFile)
       report(true, { kind: "translation", key: "translation.missing", vars: { lang, file: GLOSSARY_FILE } });
 

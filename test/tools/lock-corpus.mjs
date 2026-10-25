@@ -14,7 +14,7 @@ import path from "node:path";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
 import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
 import { packageKey } from "../../engine/core/packages.mjs";
-import { sentName } from "./deps-apps.mjs";
+import { listEvery, sentName } from "./deps-apps.mjs";
 import { KIT_ROOT } from "./helpers.mjs";
 
 export const CORPUS = path.join(KIT_ROOT, "test", "fixtures", "locks");
@@ -60,7 +60,8 @@ export async function kitReading(app) {
   const items = collectDependencies(app, unreadable);
   const urls = [];
   await checkExistence(items, async (url) => (urls.push(url), { ok: true, status: 200, json: async () => ({}) }), {
-    registries: privateRegistries(app, { items, env: {} }),
+    // Every name read is listed (facts.network.allow): what keeps a name back is the proof and the second net alone.
+    registries: privateRegistries(app, { items, env: {}, allow: listEvery(items) }),
   });
   return {
     items: items.map(itemLine),

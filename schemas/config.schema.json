@@ -369,6 +369,28 @@
         "semgrep": { "type": ["string", "null"], "default": null, "description": "Local semgrep rules folder, relative to the project. Without it, `facts --tools` never runs semgrep (never --config auto, which downloads rules)." }
       }
     },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "description": "`doc-kit facts` (ARCHITECTURE.md §6.9).",
+      "properties": {
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "`facts --network` (ARCHITECTURE.md §6.9).",
+          "properties": {
+            "allow": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": [],
+              "description": "The only packages `facts --network` may send to their public registry, one an entry: \"npm:<name>\" (compared exactly) or \"pip:<name>\" (compared as PEP 503 normalises it); no wildcard. Empty: nothing is sent. A listed name the lock files do not prove public, or that a declaration makes private, is still never sent. Each entry is checked after this schema (networkAllowEcosystem, networkAllowName, networkAllowWildcard)."
+            }
+          }
+        }
+      }
+    },
     "infra": {
       "type": "object",
       "additionalProperties": false,

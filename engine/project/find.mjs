@@ -1,5 +1,6 @@
 // Finding the project (ARCHITECTURE.md §2.2): --project <dir>, otherwise doc.config.mjs in the current folder
-// or one of its parents. The kit itself is located from import.meta.url.
+// or one of its parents; and the language its configuration declares, read as text. The kit itself is located
+// from import.meta.url.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,4 +35,23 @@ export function findProject({ project, from = process.cwd() } = {}) {
     dir = parent;
   }
   throw new KitError(EXIT.USAGE, "project.notFound", { folder: path.resolve(from) });
+}
+
+// `language: "fr"`, or `languages: ["fr", …]` (its first item is the source language); the key may be quoted. One
+// optional `[` between two runs of spaces, never two runs side by side: linear (test/tools/redos-worker.mjs).
+const LANGUAGE_VALUE = /\blanguages?["']?\s*:\s*(?:\[\s*)?["']([a-z]{2})["']/;
+const LANGUAGE_KEY = /\blanguages?["']?\s*:/;
+
+/**
+ * The language a configuration declares, read in the text of its doc.config.mjs without running it (SECURITY.md:
+ * the CLI's first messages run nothing of the folder): the first value written as a literal. `undefined` when the
+ * text names neither key (the schema's default applies); `null` when the value is computed (unknown until the
+ * configuration is loaded).
+ * @param {string} text
+ * @returns {string|null|undefined}
+ */
+export function languageInConfig(text) {
+  const m = LANGUAGE_VALUE.exec(text);
+  if (m) return m[1];
+  return LANGUAGE_KEY.test(text) ? null : undefined;
 }

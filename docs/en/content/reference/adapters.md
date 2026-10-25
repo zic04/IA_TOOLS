@@ -73,9 +73,9 @@ Every authentication adapter also accepts `start` (`"/"`), `loginPattern`
 
 | Adapter | Reads | Of the files |
 |---|---|---|
-| `next` | The route handlers of the App Router (`route.ts`, one item per exported method) and of `pages/api`, with the session calls and role checks of each; the screens of the App Router (`page.tsx`) and of the Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
+| `next` | The route handlers of the App Router (`route.ts`, one item per exported method) and of `pages/api`, with the session calls and role words of each (`auth (body)`, always `unknown`: a lookup refuses an anonymous caller nothing); the screens of the App Router (`page.tsx`) and of the Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
 | `express` | Express, and the routers written like it (Fastify, Hono, Koa): `app.<method>("/path", …middleware, handler)` and `router.<method>(…)`, `.ws(…)`; the guards are the middleware's names | `.js`, `.ts`, `.mjs`, `.cjs` |
-| `fastapi` | The `@router.<method>("/path")` decorators, composed with `APIRouter(prefix=…)` and `include_router(…, prefix=…)`; the guards are the `Depends(…)` | `.py` |
+| `fastapi` | The `@router.<method>("/path")` decorators, composed with `APIRouter(prefix=…)` and `include_router(…, prefix=…)`; the guards are the `Depends(…)` and `Security(…)` of the handler, of its decorator (`dependencies=[…]`), of its router and of its inclusion, outside comments and strings | `.py` |
 | `nestjs` | `@Controller` and `@Get`… (`@All`: every method), under `setGlobalPrefix`; guards `@UseGuards`, `@Roles`, `@Public`, global guards (`useGlobalGuards`, `APP_GUARD`); hints of `@Query`, class-validator, `@Cron`, `@Interval` | `.ts` |
 | `angular` | Screens of the `Routes` arrays, `children`, `loadChildren` followed (an export, an NgModule, `'./x#M'`); guards `canActivate`, `canMatch`, `canLoad`, `canActivateChild` (for the children), `data.roles` | `.ts` |
 | `vue-router` | Screens of `createRouter({ routes })` and of route arrays (spread or imported), `children`; guards `beforeEnter`, a `requires…` or `auth` meta flag, `meta.roles`, `meta.permissions` | `.js`, `.mjs`, `.cjs`, `.ts`, `.vue` |
@@ -84,15 +84,26 @@ Every authentication adapter also accepts `start` (`"/"`), `loginPattern`
 | `aspnet` | Controllers (`[Route]`, `[HttpGet]`…, `[controller]`, `[action]`, a base class's route and guards) and minimal APIs (`MapGet`, `MapGroup`); guards `[Authorize]`, `[AllowAnonymous]`, `RequireAuthorization`; hints of LINQ, EF Core, `[FromQuery]`, DataAnnotations, Hangfire, Quartz | `.cs` |
 | `laravel` | `Route::get`… (`match`, `any`, `view`), `resource`, `resources`, `apiResource` (`only`, `except`), groups with their prefix and middleware, files mounted by `group(base_path(…))`, `routes/api.php` under `/api` (or `apiPrefix`); guards: the middleware, `can`; hints of Eloquent, query parameters, `validate` and FormRequest `rules()`, the scheduler | `.php` (not `.blade.php`) |
 | `symfony` | `#[Route]` and `@Route` (class prefix, methods); guards `#[IsGranted]`, `@IsGranted`, `#[Security]`, `denyAccessUnlessGranted`; hints of Doctrine, query parameters (`$request->query`, `#[MapQueryParameter]`), `#[Assert\…]` | `src/**/*.php` |
-| `django` | `path`, `re_path`, `url`, `include` (a module or a list), DRF routers, the admin site; guards: the view's decorators, `permission_classes`, mixins, `method_decorator` | `.py` |
-| `flask` | `@app.route`, `@bp.get`…, blueprints across files (a registration's `url_prefix` replaces the blueprint's own); guards: the decorators between the route and the function, `before_request` | `.py` |
+| `django` | `path`, `re_path`, `url`, `include` (a module or a list), DRF routers, the admin site (`AdminSite`); guards: the view's decorators, `permission_classes` (an alternative of classes, DRF's `\|` or Python's `or`, is one guard, as weak as its weakest; a negation, `~IsAdminUser`, is none), mixins, `method_decorator` | `.py` |
+| `flask` | `@app.route`, `@bp.get`…, blueprints across files (a registration's `url_prefix` replaces the blueprint's own); guards: the decorators between the route and the function, `before_request`, always `unknown`, for a `before_request` hook that may deny a request (a guard decorator under it, `abort(`, `raise`, `redirect(`, a `return` of a value, a guard called); a logging or loading hook is none; `optional=True` (`@jwt_required (optional=True)` too) lets anonymous callers in | `.py` |
 | `go` | net/http (`GET /x` patterns), gin, echo, chi, gorilla/mux with their groups; guards: the middleware, `Use`, guard-named wrappers; hints of `c.Query`, gorm `.Order`, `.Limit`, `.Offset`, SQL | `.go` |
-| `rails` | `config/routes.rb`: `resources`, `resource`, `namespace`, `scope`, `member`, `collection`, `match`…; guards: the controller's `before_action` (and its parents', `skip_before_action`), `load_and_authorize_resource`, Pundit `authorize`, `authenticate` blocks; hints of ActiveRecord, `validates` | `config/routes.rb`, `app/**/*.rb` |
+| `rails` | `config/routes.rb`: `resources`, `resource`, `namespace`, `scope`, `member`, `collection`, `match`…; guards: the controller's `before_action` (and its parents', `skip_before_action`; one under `if:` or `unless:` is `unknown`, `authenticate_user! (if)`), `load_and_authorize_resource`, Pundit `authorize`, `authenticate` blocks; hints of ActiveRecord, `validates` | `config/routes.rb`, `app/**/*.rb` |
 | `rust` | actix-web (`#[get]`, `web::scope`, `web::resource`, `.configure`) and axum (`Router::route`, `nest`, `merge`); guards: `wrap`, `layer`, `route_layer`, `from_fn` | `.rs` |
 
 The kit gives each one the text of its files: never a test, a generated file or a file over 512 KB. It classifies
-the access of a route from its guards with `review.guards` (`none`, `user`, `role`, `unknown`). Nothing of the
-application is ever run. `stacks.disabled` turns one off.
+the access of a route from its guards with `review.guards` (`none`, `user`, `role`, `unknown`): a guard by its whole
+name, never a part of another word ([Reviews](#/spaces/reviews)). The global rules of a framework are not read
+(DRF's `DEFAULT_PERMISSION_CLASSES`, Spring's `SecurityFilterChain`, ASP.NET's `FallbackPolicy`,
+`FastAPI(dependencies=…)`): a route they alone protect is `none`. A route may look less protected than it is, never
+more, except in these known cases, where the names do not tell and a route may look more protected than it is:
+
+- a per-request override that loosens a class rule: DRF's `get_permissions()` returning `[AllowAny()]` under a class
+  `permission_classes = [IsAdminUser]` (`role`);
+- Spring's method-level `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")` under a class `@Secured("ROLE_ADMIN")` (`role`);
+- rare argument forms, such as Flask's `@jwt_required(**{"optional": True})` or
+  `@jwt_required(optional=False or True)` (`user`).
+
+Nothing of the application is ever run. `stacks.disabled` turns one off.
 
 ## Infra adapters
 
@@ -198,7 +209,7 @@ export default {
 |---|---|
 | `files` | An expression on the path of a file in the application (forward slashes): the files it is given |
 | `marker` | Optional: an expression a file's text must match to be given (a cheap filter) |
-| `api({ sources })` | The routes: `{ method, route, file, line, guards }` (and `framework` when it differs from `name`) |
+| `api({ sources, guards })` | The routes: `{ method, route, file, line, guards }` (and `framework` when it differs from `name`); `guards` is the project's `review.guards` patterns (`role`, `user`, each with `test(name)`), for an adapter that keeps something only when it guards |
 | `screens({ sources })` | The screens: `{ route, file, line }`, with `guards` when the router declares them |
 | `behaviours(text, sink, file)` | The hints of one file: `sink.push({ family, signal, field?, value?, values?, via }, index)`; the kit keeps a field, a number or a short word only, through its whitelist |
 

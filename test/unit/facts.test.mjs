@@ -20,7 +20,7 @@ import { collectSecrets } from "../../engine/facts/secrets.mjs";
 import { collectTests } from "../../engine/facts/tests.mjs";
 import { runTool, runTools, TOOL_NAMES } from "../../engine/facts/tools.mjs";
 import { factsFile, relPath, listFiles, withoutDocProjects } from "../../engine/facts/common.mjs";
-import { loadAdapter } from "../../engine/capture/session.mjs";
+import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
 import { adapterTools } from "../../engine/check/coverage.mjs";
 
 /** A package-lock.json (v3) as npm writes it: each name's tarball from the registry given (npm's public one by default). */
@@ -56,12 +56,16 @@ async function cli(args, io = {}) {
   return { code, out, err };
 }
 
-/** A documentation project whose application is `appDir` (never written to). */
-function project(appDir) {
+/**
+ * A documentation project whose application is `appDir` (never written to); `allow`, the packages its configuration
+ * lists for `--network` (facts.network.allow), none by default.
+ */
+function project(appDir, allow) {
   const dir = tempDir("doc-kit-facts-");
+  const facts = allow ? `, facts: { network: { allow: ${JSON.stringify(allow)} } }` : "";
   fs.writeFileSync(
     path.join(dir, "doc.config.mjs"),
-    `export default { product: { name: "Acme Orders" }, app: { dir: ${JSON.stringify(appDir)} } };\n`,
+    `export default { product: { name: "Acme Orders" }, app: { dir: ${JSON.stringify(appDir)} }${facts} };\n`,
   );
   fs.mkdirSync(path.join(dir, "content"));
   fs.writeFileSync(path.join(dir, "content", "toc.json"), JSON.stringify({ title: "Acme Orders", sections: [] }));
@@ -96,6 +100,7 @@ describe("engine/facts sources on their fixtures", () => {
       dev: false,
       manifest: "package-lock.json",
       license: "MIT",
+      licenseFrom: "lock",
       public: true, // its `resolved` is npm's public registry: the proof --network needs
     });
     assert.equal(lock.scheduler.direct, false, "transitive package, absent from the lock's own root entry");
@@ -806,8 +811,8 @@ describe("doc-kit facts (CLI)", () => {
   after(() => {
     for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
   });
-  function mk(appDir) {
-    const d = project(appDir);
+  function mk(appDir, allow) {
+    const d = project(appDir, allow);
     dirs.push(d);
     return d;
   }
@@ -902,7 +907,7 @@ describe("doc-kit facts (CLI)", () => {
   });
 
   test("--network: adds `exists` only with the option, for dependencies only", async () => {
-    const dir = mk(app("next-app"));
+    const dir = mk(app("next-app"), ["npm:next", "npm:left-pad-pro"]);
     const fetchImpl = async (url) => ({
       ok: !url.includes("left-pad-pro"),
       status: url.includes("left-pad-pro") ? 404 : 200,
@@ -974,7 +979,8 @@ describe("doc-kit facts (CLI)", () => {
     const corp = (n) => (n.startsWith("@corp/") ? "https://npm.corp.internal" : "https://registry.npmjs.org");
     fs.writeFileSync(path.join(appDir, "web", "package-lock.json"), npmLock(["@corp/design", "react"], corp));
     fs.writeFileSync(path.join(appDir, "web", "uv.lock"), uvLock(["urllib3", "flask"]));
-    const dir = mk(appDir);
+    // Every name listed, the private one too: the list never lets out a name the second net keeps back.
+    const dir = mk(appDir, ["npm:@corp/design", "npm:react", "pip:urllib3", "pip:flask"]);
     const urls = [];
     const calls = [];
     const r = await cli(
@@ -1006,6 +1012,37 @@ describe("doc-kit facts (CLI)", () => {
     assert.ok(calls.some((c) => c[0] === "osv-scanner" && c.includes("--download-offline-databases")));
   });
 
+  test("--network: dependencies and quality ask each package once between them; the items carry latest and majorsBehind", async () => {
+    const appDir = tempDir("doc-kit-facts-once-app-");
+    dirs.push(appDir);
+    fs.writeFileSync(
+      path.join(appDir, "package.json"),
+      JSON.stringify({ name: "web", dependencies: { react: "^17.0.0", next: "^15.0.0" } }),
+    );
+    fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["react", "next"]));
+    const dir = mk(appDir, ["npm:react", "npm:next"]);
+    const urls = [];
+    const fetch = async (url) => (
+      urls.push(url),
+      { ok: true, status: 200, json: async () => ({ version: url.includes("/react/") ? "19.1.0" : "15.2.0" }) }
+    );
+    const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {
+      commit: () => null,
+      exec: () => null,
+      fetch,
+    });
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(
+      urls.sort(),
+      ["https://registry.npmjs.org/next/latest", "https://registry.npmjs.org/react/latest"],
+      "one request a package for the two sources",
+    );
+    const read = (source) => JSON.parse(fs.readFileSync(path.join(dir, "facts", `${source}.json`), "utf8"));
+    const react = read("dependencies").items.find((i) => i.name === "react" && i.manifest === "package.json");
+    assert.deepEqual([react.exists, react.latest, react.majorsBehind], [true, "19.1.0", 2]);
+    assert.equal(read("quality").summary.outdated, 2, "react and next, from the lock's 1.0.0: the shared answers");
+  });
+
   test("--network reads the person's own configuration (ctx.env): a scope declared only in ~/.npmrc is never sent", async () => {
     const appDir = tempDir("doc-kit-facts-userconf-app-");
     const home = tempDir("doc-kit-facts-userconf-home-");
@@ -1018,7 +1055,7 @@ describe("doc-kit facts (CLI)", () => {
     // A lock as a person whose ~/.npmrc names the corp registry gets: both from npm's public registry by mistake would
     // be no proof of privacy — the declaration in ~/.npmrc still keeps @corp/design back.
     fs.writeFileSync(path.join(appDir, "package-lock.json"), npmLock(["@corp/design", "react"]));
-    const dir = mk(appDir);
+    const dir = mk(appDir, ["npm:@corp/design", "npm:react"]);
     const urls = [];
     const r = await cli(["facts", "--project", dir, "--source", "dependencies", "--source", "quality", "--network"], {
       env: { HOME: home },

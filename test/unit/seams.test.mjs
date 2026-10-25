@@ -1,14 +1,15 @@
 // RULES.md M4: no real git and no browser in a unit or snapshot test. They go through the context seams (`exec`,
 // `commit`, `launch`, `chromium`); a real browser is for test/e2e/. Like layers.test.mjs, a test of the sources:
 // no file of test/unit or test/snapshot imports Playwright, launches a browser or starts git, outside the explicit
-// allow-list of test/tools/seams.mjs; no file of engine/ starts a process itself, outside its two git helpers that
-// take an `exec` (ENGINE_ALLOWED). The controls prove the matchers flag what they are meant to flag.
+// allow-list of test/tools/seams.mjs; no file of engine/ starts a process itself, outside its launcher
+// (engine/util/safe-git.mjs) and the git helpers that take an `exec` (ENGINE_ALLOWED). The controls prove the
+// matchers flag what they are meant to flag.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { KIT_ROOT } from "../tools/helpers.mjs";
-import { ALLOWED, ENGINE_ALLOWED, ENGINE_RULES, RULES, seamViolations } from "../tools/seams.mjs";
+import { ALLOWED, ENGINE_ALLOWED, ENGINE_LAUNCHER, ENGINE_RULES, RULES, seamViolations } from "../tools/seams.mjs";
 
 /** The .mjs files of a folder of the kit (`test/unit`, `engine`), relative to the kit, with /. */
 function sourcesOf(folder) {
@@ -29,7 +30,10 @@ test("positive control: the matcher flags a real git, Playwright, a launched bro
       "execFileSync('git', ['status'])",
       "await execFile(`git`, [])",
     ],
-    "the real process launcher (defaultExec)": ['defaultExec("git", ["ls-files"], { cwd });'],
+    "the real process launcher (defaultExec, spawnHardened)": [
+      'defaultExec("git", ["ls-files"], { cwd });',
+      'spawnHardened("git", ["ls-files"], { cwd });',
+    ],
     "Playwright imported": [
       'import { chromium } from "playwright";',
       "const pw = await import('playwright-core');",
@@ -86,12 +90,17 @@ test("the allow-list names files that exist and rules that exist, and every entr
       `${file}: known rules`,
     );
   }
-  // security.test.mjs really calls the real launcher: the exemption would otherwise be dead.
-  const text = fs.readFileSync(path.join(KIT_ROOT, "test/unit/security.test.mjs"), "utf8");
-  assert.ok(seamViolations(text).some((v) => v.rule === "the real process launcher (defaultExec)"));
+  // security.test.mjs and safe-git.test.mjs really call the real launcher: the exemption would otherwise be dead.
+  for (const file of ["test/unit/security.test.mjs", "test/unit/safe-git.test.mjs"]) {
+    const text = fs.readFileSync(path.join(KIT_ROOT, file), "utf8");
+    assert.ok(
+      seamViolations(text).some((v) => v.rule === "the real process launcher (defaultExec, spawnHardened)"),
+      file,
+    );
+  }
 });
 
-describe("the engine starts no process itself, outside its two git helpers with an exec seam", () => {
+describe("the engine starts no process itself, outside its launcher and its git helpers with an exec seam", () => {
   const [{ name }] = ENGINE_RULES;
   const flagged = (text) => seamViolations(text, ENGINE_RULES).map((v) => v.rule);
 
@@ -131,11 +140,12 @@ describe("the engine starts no process itself, outside its two git helpers with 
     assert.deepEqual(found, [], "take an `exec` (ctx.exec, cli/common.mjs) and call it, as engine/sync/git.mjs does");
   });
 
-  test("every allowed file still starts a process, and calls the exec it is given for git", () => {
+  test("every allowed file still starts a process, and calls the exec it is given for git (the launcher: its spawn seam)", () => {
     for (const file of Object.keys(ENGINE_ALLOWED)) {
       const text = fs.readFileSync(path.join(KIT_ROOT, file), "utf8");
       assert.ok(seamViolations(text, ENGINE_RULES).length > 0, `${file}: the exemption is still used`);
-      assert.match(text, /\bexec\("git",/, `${file}: the exec seam`);
+      if (file === ENGINE_LAUNCHER) assert.match(text, /\bspawn = spawnSync\b/, `${file}: the spawn seam`);
+      else assert.match(text, /\bexec\("git",/, `${file}: the exec seam`);
     }
   });
 });

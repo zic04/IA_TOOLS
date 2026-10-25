@@ -31,6 +31,7 @@ import { checkLanguageOption, mergeLanguageCapture } from "../../engine/build/la
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { shown } from "./connect.mjs";
 import { prompterOf } from "../common.mjs";
+import { numbers } from "../../engine/build/format.mjs";
 
 export const options = {
   plans: { type: "string" },
@@ -246,11 +247,12 @@ export async function run({ ctx, values, positionals }) {
     );
     if (compare) {
       const changed = r.compared.filter((c) => c.changed).length;
+      const { count } = numbers(ctx.i18n);
       ctx.print(
         ctx.t("cli.capture.compare.summary", {
-          unchanged: r.compared.length - changed,
-          changed,
-          failed: r.failed.length,
+          unchanged: count("cli.capture.count.unchanged", r.compared.length - changed),
+          changed: count("cli.capture.count.changed", changed),
+          failed: count("cli.capture.count.failed", r.failed.length),
         }),
       );
     }

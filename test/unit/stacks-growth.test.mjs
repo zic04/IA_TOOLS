@@ -411,7 +411,13 @@ describe("Django, Flask, Go, Rails and Rust on a crafted file (RULES.md S5)", ()
           ]),
         ),
       ["@bp.route(", "@bp.route('/a')\n", "@bp.get('/a')\n@login_required\n", "@a\n", "bp = Blueprint(", "def a("],
-      ["app.register_blueprint(bp, url_prefix='", "@bp.before_request\ndef a():\n", "x.register_blueprint(a.b)\n"],
+      [
+        "app.register_blueprint(bp, url_prefix='",
+        "@bp.before_request\ndef a():\n",
+        // A hook whose name is no guard: its decorators and the calls of its body are read.
+        "@bp.before_request\n@x\ndef a():\n    b.c(d()) # e()\n",
+        "x.register_blueprint(a.b)\n",
+      ],
     ],
     go: [
       (s) => goRoutes(s, "x.go").length + goBehaviours(s, createSink("x.go", s, [])),
@@ -501,7 +507,8 @@ describe("Django, Flask, Go, Rails and Rust on the shapes that multiply (RULES.m
           "app.py",
           "bp = Blueprint('b', __name__)\n" +
             lines(k, (i) => `app.register_blueprint(bp, url_prefix='/p${i}')\n`) +
-            lines(k, (i) => `@bp.before_request\ndef b${i}(): pass\n`) +
+            // Hooks that may deny a request: each one gives its guard to the blueprint's K routes, composed K times.
+            lines(k, (i) => `@bp.before_request\ndef h${i}(): abort(401)\n`) +
             lines(k, (i) => `@bp.route('/r${i}')\ndef f${i}(): pass\n`),
         ),
       flaskRoutes,

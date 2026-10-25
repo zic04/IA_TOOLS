@@ -22,10 +22,10 @@
 // Findings never print the value itself: only its first characters and its length.
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { sensitiveValues, GUID } from "../capture/masking.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { safeGitArgs, riskyGitConfig, resolveOnPath } from "../util/safe-git.mjs";
+import { spawnHardened } from "../util/safe-git.mjs";
+import { upToLast } from "../core/text.mjs";
 
 /** A placeholder, a variable name or a masked value: not a secret. */
 export const PLACEHOLDER =
@@ -48,17 +48,38 @@ export function isLocalAddress(value) {
   return LOCAL_HOST.test(host) || LOCAL_HOST.test(host.replace(/:\d{1,5}$/, ""));
 }
 
-/** Does a piece of text hold a URL template, a URL with {…} placeholders (https://tiles.example.org/{z}/{x}/{y}.png)? */
-export const isUrlTemplate = (text) => /[a-z][a-z0-9+.-]*:\/\/\S*\{[^{}\s]+\}/i.test(String(text));
+/** A URL's scheme and "://": 32 characters at most, so that a long run of them is not read again from each letter. */
+const URL_SCHEME = /[a-z][a-z0-9+.-]{0,31}:\/\//gi;
+const URL_PLACEHOLDER = /\{[^{}\s]+\}/;
+const BLANK = /\s/g;
 
-/** The token around a match: up to white space, quotes, backticks, brackets, parentheses, pipes or angle brackets. */
+/**
+ * Does a piece of text hold a URL template, a URL with {…} placeholders (https://tiles.example.org/{z}/{x}/{y}.png)?
+ * The rest of a word is searched once, after its first "://" (one after it in the same word reads less of it).
+ */
+export function isUrlTemplate(text) {
+  const s = String(text);
+  const scheme = new RegExp(URL_SCHEME.source, URL_SCHEME.flags);
+  for (let m = scheme.exec(s); m; m = scheme.exec(s)) {
+    const start = m.index + m[0].length;
+    BLANK.lastIndex = start;
+    const end = BLANK.exec(s)?.index ?? s.length;
+    if (URL_PLACEHOLDER.test(s.slice(start, end))) return true;
+    scheme.lastIndex = end;
+  }
+  return false;
+}
+
+/** What ends a token: white space, quotes, backticks, brackets, parentheses, pipes or angle brackets. */
+const TOKEN_STOP = /[\s"'`<>()[\]|]/;
+
+/** The token around a match: up to a TOKEN_STOP character on each side. */
 function tokenAround(text, start, end) {
-  const stop = /[\s"'`<>()[\]|]/;
   let a = start;
   let b = end;
-  while (a > 0 && !stop.test(text[a - 1])) a--;
-  while (b < text.length && !stop.test(text[b])) b++;
-  return text.slice(a, b);
+  while (a > 0 && !TOKEN_STOP.test(text[a - 1])) a--;
+  while (b < text.length && !TOKEN_STOP.test(text[b])) b++;
+  return { from: a, to: b, text: text.slice(a, b) };
 }
 
 /**
@@ -91,9 +112,13 @@ function allowMatchers(patterns = []) {
 export function ignoreRules(masking = {}) {
   const exclude = masking.exclude ? new RegExp(masking.exclude, "i") : null;
   const allow = allowMatchers(masking.allow || []);
+  // The matches of one token come one after the other (scanText gives them the same string): decided once.
+  let lastToken = null;
+  let lastTemplate = false;
+  const isTemplate = (t) => (t === lastToken ? lastTemplate : ((lastToken = t), (lastTemplate = isUrlTemplate(t))));
   return (value, token = value) => {
     if (isLocalAddress(value)) return "local";
-    if (isUrlTemplate(token)) return "template";
+    if (isTemplate(token)) return "template";
     if (exclude && exclude.test(value)) return "exclude";
     if (allow.some((re) => re.test(value))) return "allow";
     return null;
@@ -140,6 +165,18 @@ export const GENERIC = Object.freeze([
   { kind: "signedUrl", re: /[?&]sig=(?<v>[A-Za-z0-9%+/=]{20,})/g },
 ]);
 
+/**
+ * Whether a value detector of GENERIC finds something in a short text from an untrusted source (a version, a
+ * licence, a hint read in the code): the one test of the readers that keep such a text only when it holds no secret.
+ * @param {string} text
+ */
+export const looksSecret = (text) =>
+  GENERIC.some((d) => {
+    d.re.lastIndex = 0;
+    for (const m of text.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
+    return false;
+  });
+
 /** First characters and length of a value, never the value itself. */
 export function redact(value) {
   const v = String(value);
@@ -183,12 +220,22 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
     }
     return lo + 1;
   };
+  // The last token found: a match inside it with no stop character has the same one (not walked again, the same
+  // string given to `ignore`), so that many matches in one long token cost its length once.
+  let token = { from: 0, to: -1, text: "", whole: false };
+  const tokenOf = (m) => {
+    const end = m.index + m[0].length;
+    const whole = !TOKEN_STOP.test(m[0]);
+    if (!(whole && token.whole && m.index >= token.from && end <= token.to))
+      token = { ...tokenAround(text, m.index, end), whole };
+    return token.text;
+  };
   for (const d of list) {
     d.re.lastIndex = 0;
     for (const m of text.matchAll(new RegExp(d.re.source, d.re.flags.includes("g") ? d.re.flags : d.re.flags + "g"))) {
       if ((d.allow && d.allow.test(m[0])) || (d.accept && !d.accept(m))) continue;
       const value = m.groups?.v ?? m[0];
-      if (ignore(value.trim(), tokenAround(text, m.index, m.index + m[0].length))) continue;
+      if (ignore(value.trim(), tokenOf(m))) continue;
       out.push({
         kind: d.kind,
         preview: redact(value.trim()),
@@ -234,12 +281,26 @@ const htmlAttributes = (html) =>
     .filter((v) => v && !/^data:/i.test(v))
     .join("\n");
 
-const htmlText = (html) =>
-  String(html || "")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<wbr\s*\/?>/gi, "")
-    .replace(/<[^>]+>/g, " ")
+/**
+ * `html` with every match of `re` replaced by " ", searched only up to the end of the last `close` (upToLast): every
+ * match ends with one, so an element or a tag left open is not read to the end of the text again from each opening.
+ */
+function blankClosed(html, re, close) {
+  const closed = upToLast(html, close);
+  return closed.replace(re, " ") + html.slice(closed.length);
+}
+
+/** The text of a page's HTML: scripts, styles and tags blanked, entities decoded (RULES.md S5: linear). */
+export const htmlText = (html) =>
+  blankClosed(
+    blankClosed(
+      blankClosed(String(html || ""), /<script[\s\S]*?<\/script>/gi, /<\/script>/gi),
+      /<style[\s\S]*?<\/style>/gi,
+      /<\/style>/gi,
+    ).replace(/<wbr\s*\/?>/gi, ""),
+    /<[^>]+>/g,
+    />/g,
+  )
     .replace(/&nbsp;/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -291,22 +352,14 @@ export function isStorageState(text) {
  * Is a file tracked by git? (false when git is not available, refused, or the folder is not a repository)
  * @param {string} file
  * @param {{ exec?: import("../util/safe-git.mjs").Exec }} [o]   exec: the launcher of the context (`ctx.exec`),
- *   called as exec("git", args, { cwd }); without it, git is hardened and started here
+ *   called as exec("git", args, { cwd }); without it, the kit's own hardened launcher (`spawnHardened`)
  */
 export function trackedByGit(file, { exec } = {}) {
   const cwd = path.dirname(file);
   const args = ["ls-files", "--error-unmatch", "--", path.basename(file)];
   // null: git missing; a refused git answers status 128.
   if (exec) return exec("git", args, { cwd })?.status === 0;
-  if (riskyGitConfig(cwd).length) return false;
-  const bin = resolveOnPath("git", { exclude: [cwd] });
-  if (!bin) return false;
-  const r = spawnSync(bin, safeGitArgs(args), {
-    cwd,
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  return r.status === 0;
+  return spawnHardened("git", args, { cwd })?.status === 0;
 }
 
 /**

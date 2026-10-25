@@ -1,65 +1,17 @@
-// Adapters (ARCHITECTURE.md §5) and the sign-in session.
+// The sign-in session, and the authentication adapter that reads it (ARCHITECTURE.md §5; adapters are loaded by
+// engine/core/adapter-loader.mjs).
 //
 // Session: Playwright `storageState` (cookies + localStorage) written by `connect` in .doc-kit/session.json (or
 // <PREFIX>_SESSION / DOC_KIT_SESSION, relative to the project). It gives access to the application while it is
 // valid: a secret, never copied or committed; `connect --forget` deletes it.
-//
-// Authentication adapter: { name, options, browser: "chromium"|"chrome", detects?, none?, session(page, options,
-// tools) } where session() returns null (not signed in) or { who, details, expires }. `tools` = { appUrl,
-// isSignInUrl(url, appUrl, pattern) }. Every authentication adapter also accepts the common options below.
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { KIT_ROOT } from "../project/find.mjs";
 import { readEnv } from "../project/env.mjs";
-import { validate } from "../project/validate.mjs";
-import { KitError, EXIT } from "../project/errors.mjs";
-import { adaptersOf } from "../core/adapters.mjs";
+import { KitError, EXIT, firstLine } from "../project/errors.mjs";
+import { loadAdapter, LOGIN_PATTERN } from "../core/adapter-loader.mjs";
 import { launchBrowser } from "../project/browser.mjs";
-import { firstLine } from "./actions.mjs";
 import { TIMINGS } from "./timings.mjs";
 import { isLoopbackUrl } from "./plans.mjs";
-
-/** The kit's adapters of each family that is loaded by name (standard/adapters.json). */
-const BUILT_IN = Object.freeze(
-  Object.fromEntries(
-    ["auth", "coverage", "stack", "infra"].map((family) => [family, adaptersOf(family).map((a) => a.id)]),
-  ),
-);
-
-/** What an adapter of a family exports: the function it must have, as said by adapter.invalid. */
-const METHOD = Object.freeze({
-  auth: "session",
-  coverage: "inventory",
-  stack: "api|screens|behaviours",
-  infra: "infra",
-});
-
-/**
- * Whether an adapter's default export has the shape of its family: a stack adapter has `files` (an expression on
- * the relative path of a file), a `marker` (on its text) when it has one, and one of api, screens, behaviours.
- */
-function hasShape(kind, adapter) {
-  if (!adapter) return false;
-  if (kind !== "stack" && kind !== "infra") return typeof adapter[METHOD[kind]] === "function";
-  const hooks = kind === "stack" ? ["api", "screens", "behaviours"] : ["infra"];
-  return (
-    adapter.files instanceof RegExp &&
-    (adapter.marker === undefined || adapter.marker instanceof RegExp) &&
-    hooks.some((m) => typeof adapter[m] === "function")
-  );
-}
-
-export const LOGIN_PATTERN = "login|signin|sign-in|oauth|authorize";
-
-/** Options accepted by every authentication adapter (an adapter may change their defaults). */
-const COMMON_AUTH_OPTIONS = Object.freeze({
-  start: { type: "string", pattern: "^/", default: "/" },
-  loginPattern: { type: "string", minLength: 1, default: LOGIN_PATTERN },
-  browser: { enum: ["chromium", "chrome"] },
-});
-
-const CONFIG = "doc.config.mjs";
 
 // A loopback host (ARCHITECTURE.md §6.13): one definition, next to the application's addresses (plans.mjs).
 export { isLoopbackUrl };
@@ -77,57 +29,6 @@ export function isSignInUrl(url, appUrl, pattern = LOGIN_PATTERN) {
   }
   if (u.origin !== new URL(appUrl).origin) return true;
   return new RegExp(pattern, "i").test(u.pathname + u.search);
-}
-
-/**
- * Loads an adapter and validates its options (the configuration entry minus `adapter`).
- * @param {"auth"|"coverage"|"stack"|"infra"} kind
- * @param {object} spec        configuration entry: { adapter: "name" | "local:path", ...options }
- * @param {string} root        project root (local adapters are relative to it)
- * @param {string} where       path of the entry in the configuration, for messages ("auth", "coverage[0]")
- * @returns {Promise<{ name: string, adapter: object, options: object }>}
- */
-export async function loadAdapter(kind, spec, root, where) {
-  const name = spec.adapter;
-  let file;
-  if (name.startsWith("local:")) file = path.resolve(root, name.slice(6));
-  else if (BUILT_IN[kind].includes(name)) file = path.join(KIT_ROOT, "adapters", kind, `${name}.mjs`);
-  else throw new KitError(EXIT.USAGE, "adapter.unknown", { kind, name, known: BUILT_IN[kind].join(", ") });
-  if (!fs.existsSync(file)) throw new KitError(EXIT.USAGE, "adapter.missing", { kind, name, file });
-  let mod;
-  try {
-    mod = await import(pathToFileURL(file).href);
-  } catch (e) {
-    throw new KitError(EXIT.USAGE, "adapter.import", { kind, name, error: firstLine(e) }, { cause: e });
-  }
-  const adapter = mod.default;
-  if (!hasShape(kind, adapter)) throw new KitError(EXIT.USAGE, "adapter.invalid", { kind, name, method: METHOD[kind] });
-
-  const declared = { ...(kind === "auth" ? COMMON_AUTH_OPTIONS : {}), ...(adapter.options || {}) };
-  const required = [];
-  const properties = { adapter: { type: "string" } };
-  for (const [k, s] of Object.entries(declared)) {
-    const { required: isRequired, ...schema } = s;
-    if (isRequired) required.push(k);
-    properties[k] = schema;
-  }
-  const { value, errors } = validate(
-    spec,
-    { type: "object", additionalProperties: false, required, properties },
-    { applyDefaults: true },
-  );
-  if (errors.length)
-    throw new KitError(
-      EXIT.USAGE,
-      "config.invalid",
-      { file: CONFIG, n: errors.length },
-      {
-        details: errors.map((e) => ({ ...e, path: e.path === "(root)" ? where : `${where}.${e.path}` })),
-        prefix: CONFIG,
-      },
-    );
-  delete value.adapter;
-  return { name, adapter, options: value };
 }
 
 /** Authentication adapter of the project (config.auth). */
@@ -274,9 +175,9 @@ export async function connect({
     arm();
     let session = null;
     const open = () => context.pages().filter((p) => !p.isClosed());
+    const minutes = Math.round(timeout / 60_000);
     while (!session) {
-      if (Date.now() > deadline)
-        throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes: Math.round(timeout / 60_000) });
+      if (Date.now() > deadline) throw new KitError(EXIT.ENVIRONMENT, "connect.timeout", { minutes, n: minutes });
       if (!browser.isConnected() || !open().length) throw new KitError(EXIT.ENVIRONMENT, "connect.closed");
       await Promise.race([pending, sleep(poll)]);
       if (failed && !auth.adapter.detects) throw new KitError(EXIT.USAGE, "connect.noTerminal");

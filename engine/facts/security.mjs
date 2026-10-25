@@ -4,7 +4,8 @@
 //     expression passes through a sanitizer (severity then downgraded to "low").
 import fs from "node:fs";
 import path from "node:path";
-import { lineAt, balancedParens } from "./api.mjs";
+import { balancedParens } from "./api.mjs";
+import { textIndex } from "./behaviour-common.mjs";
 import { appFiles } from "./common.mjs";
 
 const BINARY_EXT = new Set([
@@ -23,10 +24,20 @@ const BINARY_EXT = new Set([
 ]);
 const MAX_SIZE = 2 * 1024 * 1024;
 
+/**
+ * The 1-based line of an index of `text`: its lines indexed on the first call, then a binary search for each — a
+ * file of many matches is never sliced again for each (RULES.md S5).
+ */
+function lineIndex(text) {
+  let index = null;
+  return (i) => (index ??= textIndex(text)).lineOf(i);
+}
+
 /** 1-based, de-duplicated, sorted lines of every match of `re` in `text`. */
 function matchLines(text, re) {
+  const line = lineIndex(text);
   const lines = new Set();
-  for (const m of text.matchAll(re)) lines.add(lineAt(text, m.index));
+  for (const m of text.matchAll(re)) lines.add(line(m.index));
   return [...lines].sort((a, b) => a - b);
 }
 
@@ -44,10 +55,14 @@ function sqlConcatLines(text) {
   for (let i = 0; i < lines.length; i++)
     if (SQL_KEYWORD.test(lines[i]) && STRING_BUILDING.test(lines[i])) buildLines.push(i);
   if (!buildLines.length) return [];
+  const line = lineIndex(text);
   const flagged = new Set();
+  // The calls and the build lines come in order: one cursor walks the build lines once, to the first one near.
+  let b = 0;
   for (const m of text.matchAll(SQL_SINK_CALL)) {
-    const callLine = lineAt(text, m.index) - 1;
-    if (buildLines.some((b) => Math.abs(b - callLine) <= SQL_LINE_WINDOW)) flagged.add(callLine + 1);
+    const callLine = line(m.index) - 1;
+    while (b < buildLines.length && buildLines[b] < callLine - SQL_LINE_WINDOW) b++;
+    if (b < buildLines.length && buildLines[b] <= callLine + SQL_LINE_WINDOW) flagged.add(callLine + 1);
   }
   return [...flagged].sort((a, b) => a - b);
 }
@@ -73,40 +88,58 @@ const CREDENTIALS_TRUE =
   /\bcredentials\s*[:=]\s*True\b|\bcredentials\s*:\s*true\b|allow_credentials\s*=\s*True\b|Access-Control-Allow-Credentials["']?\s*,\s*["']true["']/gi;
 const CORS_WINDOW = 400;
 
+/**
+ * Each pair within the window gives the line of its first index: an origin with credentials at or after it, and
+ * credentials with an origin after them. Both lists come sorted: one sweep of each, never every pair.
+ */
 function corsWildcardCredentialsLines(text) {
   const origins = [...text.matchAll(WILDCARD_ORIGIN)].map((m) => m.index);
   const creds = [...text.matchAll(CREDENTIALS_TRUE)].map((m) => m.index);
+  const line = lineIndex(text);
   const lines = new Set();
-  for (const o of origins)
-    for (const c of creds) if (Math.abs(o - c) <= CORS_WINDOW) lines.add(lineAt(text, Math.min(o, c)));
+  /** Each index of `firsts` with one of `seconds` from `after` characters on, within the window. */
+  const sweep = (firsts, seconds, after) => {
+    let j = 0;
+    for (const a of firsts) {
+      while (j < seconds.length && seconds[j] < a + after) j++;
+      if (j < seconds.length && seconds[j] <= a + CORS_WINDOW) lines.add(line(a));
+    }
+  };
+  sweep(origins, creds, 0);
+  sweep(creds, origins, 1);
   return [...lines].sort((a, b) => a - b);
 }
 
-// redirect.open: a redirect call whose argument reads a request parameter directly.
+// redirect.open: a redirect call whose argument reads a request parameter directly, within REDIRECT_WINDOW
+// characters of the call (a call never closed is not read to the end of the file from each one).
 const REDIRECT_CALL = /\b(?:res\.redirect|NextResponse\.redirect|RedirectResponse|redirect)\(/g;
 const PARAM_READ = /\breq(?:uest)?\.(?:query|args|GET)\b|searchParams\.get\(|query_params\[|query_params\.get\(/;
+const REDIRECT_WINDOW = 1000;
 
 function openRedirectLines(text) {
+  const line = lineIndex(text);
   const lines = new Set();
   for (const m of text.matchAll(REDIRECT_CALL)) {
-    const args = balancedParens(text, m.index + m[0].length - 1);
-    if (PARAM_READ.test(args)) lines.add(lineAt(text, m.index));
+    const args = balancedParens(text, m.index + m[0].length - 1, REDIRECT_WINDOW);
+    if (PARAM_READ.test(args)) lines.add(line(m.index));
   }
   return [...lines].sort((a, b) => a - b);
 }
 
 // auth.noRateLimit: a sign-in route (ARCHITECTURE.md §5 LOGIN_PATTERN) declared without a nearby rate-limit
-// decorator or middleware. Heuristic, severity "info".
+// decorator or middleware. Heuristic, severity "info". The word is looked for once, ahead (a string never closed
+// that repeats it is not read again from each).
 const SIGNIN_ROUTE =
-  /\b(?:get|post|put|patch|delete|route)\(\s*["'`]([^"'`]*(?:login|signin|sign-in|authorize)[^"'`]*)["'`]/gi;
+  /\b(?:get|post|put|patch|delete|route)\(\s*["'`](?=[^"'`]*?(?:login|signin|sign-in|authorize))([^"'`]*)["'`]/gi;
 const RATE_LIMIT_HINT = /rate[-_]?limit|throttle|limiter/i;
 const RATE_LIMIT_WINDOW = 200;
 
 function noRateLimitLines(text) {
+  const line = lineIndex(text);
   const lines = new Set();
   for (const m of text.matchAll(SIGNIN_ROUTE)) {
     const around = text.slice(Math.max(0, m.index - RATE_LIMIT_WINDOW), m.index + RATE_LIMIT_WINDOW);
-    if (!RATE_LIMIT_HINT.test(around)) lines.add(lineAt(text, m.index));
+    if (!RATE_LIMIT_HINT.test(around)) lines.add(line(m.index));
   }
   return [...lines].sort((a, b) => a - b);
 }
@@ -119,10 +152,11 @@ const SANITIZER_WINDOW = 200;
 
 /** `{ line, sanitized?, severity? }` for every match of `re`, de-duplicated by line (first match on a line wins). */
 function matchFindings(text, re) {
+  const lineOf = lineIndex(text);
   const seen = new Set();
   const out = [];
   for (const m of text.matchAll(re)) {
-    const line = lineAt(text, m.index);
+    const line = lineOf(m.index);
     if (seen.has(line)) continue;
     seen.add(line);
     const sanitized = SANITIZER_CALL.test(text.slice(m.index, m.index + SANITIZER_WINDOW));
@@ -139,7 +173,9 @@ function matchFindings(text, re) {
 const SECRET_IDENTIFIER = /\b(?:admin[a-z_]*|password\w*|passwd\w*|secret[a-z_]*|api[_-]?key\w*|token\w*)\s*[:=]\s*/gi;
 const QUOTED_VALUE = /^(?:"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`)/;
 const MASK_CHARS_ONLY = /^[•*x]+$/i;
-const SLICE_INTERPOLATION = /\$\{[^}]*\.(?:slice|substring|substr)\(/;
+// An interpolation is read up to its "}" or the next "${" (from which the same slice is found): a run of "${" never
+// closed is not read to the end of the value from each (RULES.md S5).
+const SLICE_INTERPOLATION = /\$\{(?:[^}$]|\$(?!\{))*\.(?:slice|substring|substr)\(/;
 const SLICE_CONCAT_AFTER = /^\s*\+\s*[\w.]+\.(?:slice|substring|substr)\(/;
 const COMMON_WORDS = new Set([
   "password",
@@ -186,6 +222,7 @@ const isMaskedDisplay = (value, after) =>
 const looksSecret = (value) => value.length >= 8 && !COMMON_WORDS.has(value.toLowerCase());
 
 function secretDefaultLines(text) {
+  const lineOf = lineIndex(text);
   const seen = new Set();
   const out = [];
   for (const m of text.matchAll(SECRET_IDENTIFIER)) {
@@ -194,7 +231,7 @@ function secretDefaultLines(text) {
     if (!q) continue;
     const value = q[1] ?? q[2] ?? q[3] ?? "";
     if (isMaskedDisplay(value, rest.slice(q[0].length)) || !looksSecret(value)) continue;
-    const line = lineAt(text, m.index);
+    const line = lineOf(m.index);
     if (seen.has(line)) continue;
     seen.add(line);
     out.push(line);
@@ -246,7 +283,9 @@ export const RULES = Object.freeze([
     rule: "jwt.noVerify",
     owasp: "A07:2021",
     severity: "high",
-    find: (t) => matchLines(t, /verify_signature["']?\s*[:=]\s*False\b|algorithms\s*[:=]\s*\[[^\]]*["']none["']/gi),
+    // A list of 200 characters at most: one never closed is not read to the end of the file from each.
+    find: (t) =>
+      matchLines(t, /verify_signature["']?\s*[:=]\s*False\b|algorithms\s*[:=]\s*\[[^\]]{0,200}["']none["']/gi),
   },
   { rule: "secret.default", owasp: "A07:2021", severity: "medium", find: secretDefaultLines },
   { rule: "auth.noRateLimit", owasp: "A07:2021", severity: "info", find: noRateLimitLines },

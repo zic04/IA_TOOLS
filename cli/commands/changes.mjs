@@ -11,7 +11,7 @@ import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
 import { diffFacts, changesMarkdown, recordChanges, DIFFS } from "../../engine/facts/changes.mjs";
 import { readProjectVersion } from "../../engine/project/version.mjs";
-import { WORK_DIR } from "./audit.mjs";
+import { WORK_DIR } from "../registry.mjs";
 
 export const options = {
   since: { type: "string" },

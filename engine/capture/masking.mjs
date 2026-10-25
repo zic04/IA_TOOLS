@@ -18,7 +18,9 @@ const SENSITIVE_KEY =
 const MIN_LENGTH = 7;
 
 /**
- * Entries of a .env text: KEY=value, `export KEY=value`, quoted values; comments and blank lines ignored.
+ * Entries of a .env text: KEY=value, `export KEY=value`, quoted values; comments and blank lines ignored. Linear
+ * (RULES.md S5): the value starts at its first character that is not a blank (never a run of blanks split two
+ * ways), and a comment at the first blank of its run.
  * @returns {Array<{ key: string, value: string, line: number }>}
  */
 export function parseEnv(text) {
@@ -26,11 +28,11 @@ export function parseEnv(text) {
   String(text)
     .split(/\r?\n/)
     .forEach((l, i) => {
-      const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*(.*)$/.exec(l);
+      const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*(\S.*)?$/.exec(l);
       if (!m) return;
-      let v = m[2].trim();
+      let v = (m[2] ?? "").trim();
       const q = /^(["'`])(.*)\1/.exec(v);
-      v = q ? q[2] : v.replace(/\s+#.*$/, "").trim();
+      v = q ? q[2] : v.replace(/(?<!\s)\s+#.*$/, "").trim();
       out.push({ key: m[1], value: v, line: i + 1 });
     });
   return out;

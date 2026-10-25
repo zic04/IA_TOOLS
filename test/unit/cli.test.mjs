@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { runCli, COMMANDS } from "../../cli/doc-kit.mjs";
+import { runCli } from "../../cli/doc-kit.mjs";
+import { COMMANDS } from "../../cli/registry.mjs";
 import { createContext, builtSite } from "../../cli/common.mjs";
 import { KIT_ROOT, DEMO, demoCopy, tempDir, dataOf } from "../tools/helpers.mjs";
 
@@ -68,6 +69,10 @@ describe("dispatching", () => {
     const unknown = await cli(["nope"]);
     assert.equal(unknown.code, 2);
     assert.match(unknown.err, /^✖ unknown command: nope\n {2}→ available commands: /);
+    // A name every object inherits is not a command announced for later.
+    const inherited = await cli(["constructor"]);
+    assert.equal(inherited.code, 2);
+    assert.match(inherited.err, /^✖ unknown command: constructor\n {2}→ available commands: /);
     // Every command of the contract is delivered.
     for (const c of [
       "init",
@@ -161,7 +166,7 @@ describe("build", () => {
       ]);
       assert.match(
         fr.out,
-        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma\nfr : 16 à jour · 0 en retard · 0 manquantes · 4 avertissements\n$/,
+        /^✔ .*site\.html-fr — 0,\d Mo · 11 pages · 2 captures · 5 éléments annotés · 1 schéma\n✔ .*site-use\.html-fr — 0,\d Mo · 3 pages · 2 captures · 5 éléments annotés · 0 schéma\n✔ .*site-product\.html-fr — 0,\d Mo · 4 pages · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-admin\.html-fr — 0,\d Mo · 1 page · 0 capture · 0 élément annoté · 0 schéma\n✔ .*site-develop\.html-fr — 0,\d Mo · 3 pages · 0 capture · 0 élément annoté · 1 schéma\nfr : 16 à jour · 0 en retard · 0 manquante · 4 avertissements\n$/,
       );
       const html = fs.readFileSync(out, "utf8");
       assert.match(html, /<meta name="generator" content="doc-kit \d+\.\d+\.\d+">/);

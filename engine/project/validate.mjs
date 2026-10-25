@@ -118,7 +118,8 @@ function check(v, rawSchema, path, ctx) {
     fail("enum", { values: schema.enum.map((x) => JSON.stringify(x)).join(", "), got: JSON.stringify(v) });
 
   if (typeof v === "string") {
-    if (schema.minLength != null && v.length < schema.minLength) fail("minLength", { min: schema.minLength });
+    if (schema.minLength != null && v.length < schema.minLength)
+      fail("minLength", { min: schema.minLength, n: schema.minLength });
     if (schema.pattern && !new RegExp(schema.pattern, "u").test(v))
       fail("pattern", { pattern: schema.pattern, got: v });
   }

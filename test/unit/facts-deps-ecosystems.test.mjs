@@ -19,6 +19,7 @@ import { PHP_PATTERNS } from "../../engine/facts/deps/php.mjs";
 import { GO_PATTERNS } from "../../engine/facts/deps/golang.mjs";
 import { RUBY_PATTERNS } from "../../engine/facts/deps/ruby.mjs";
 import { RUST_PATTERNS } from "../../engine/facts/deps/rust.mjs";
+import { LICENCE_PATTERNS } from "../../engine/facts/deps/licences.mjs";
 
 const DEPS = path.join(KIT_ROOT, "test", "fixtures", "deps");
 
@@ -251,11 +252,41 @@ describe("composer: composer.json and composer.lock", () => {
 
   test("composer.lock: packages and packages-dev, licenses joined, a path package local, never direct", () => {
     assert.deepEqual(itemsOf("composer", "composer.lock", "composer"), [
-      { name: "acme/billing", version: "dev-main", direct: false, dev: false, license: "proprietary", local: true },
-      { name: "guzzlehttp/guzzle", version: "7.8.1", direct: false, dev: false, license: "MIT" },
-      { name: "laravel/framework", version: "v10.40.0", direct: false, dev: false, license: "MIT" },
-      { name: "phpunit/phpunit", version: "10.5.5", direct: false, dev: true, license: "BSD-3-Clause" },
-      { name: "ramsey/uuid", version: "4.7.5", direct: false, dev: false, license: "MIT OR Apache-2.0" },
+      // licenseFrom "lock": the licence as composer.lock wrote it (deps/licences.mjs).
+      {
+        name: "acme/billing",
+        version: "dev-main",
+        direct: false,
+        dev: false,
+        license: "proprietary",
+        licenseFrom: "lock",
+        local: true,
+      },
+      { name: "guzzlehttp/guzzle", version: "7.8.1", direct: false, dev: false, license: "MIT", licenseFrom: "lock" },
+      {
+        name: "laravel/framework",
+        version: "v10.40.0",
+        direct: false,
+        dev: false,
+        license: "MIT",
+        licenseFrom: "lock",
+      },
+      {
+        name: "phpunit/phpunit",
+        version: "10.5.5",
+        direct: false,
+        dev: true,
+        license: "BSD-3-Clause",
+        licenseFrom: "lock",
+      },
+      {
+        name: "ramsey/uuid",
+        version: "4.7.5",
+        direct: false,
+        dev: false,
+        license: "MIT OR Apache-2.0",
+        licenseFrom: "lock",
+      },
     ]);
   });
 
@@ -424,7 +455,7 @@ describe("every ecosystem together", () => {
     assert.ok(items.length > 50);
     for (const item of items) {
       assert.equal(isPrivatePackage(item, registries), true, `${item.ecosystem}:${item.name}`);
-      await assert.rejects(client.exists(item));
+      await assert.rejects(client.describe(item));
     }
     assert.equal(calls, 0);
   });
@@ -441,6 +472,7 @@ describe("linear on what a crafted manifest holds (RULES.md S5)", () => {
       GO_PATTERNS,
       RUBY_PATTERNS,
       RUST_PATTERNS,
+      LICENCE_PATTERNS,
     ];
     const names = groups.flatMap((g) => Object.keys(g));
     assert.equal(new Set(names).size, names.length, "two readers name an expression alike");

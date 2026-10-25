@@ -76,9 +76,9 @@ Tout adaptateur d'authentification accepte aussi `start` (`"/"`), `loginPattern`
 
 | Adaptateur | Lit | Dans les fichiers |
 |---|---|---|
-| `next` | Les gestionnaires de route de l'App Router (`route.ts`, un élément par méthode exportée) et de `pages/api`, avec les appels de session et les contrôles de rôle de chacun ; les écrans de l'App Router (`page.tsx`) et du Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
+| `next` | Les gestionnaires de route de l'App Router (`route.ts`, un élément par méthode exportée) et de `pages/api`, avec les appels de session et les mots de rôle de chacun (`auth (body)`, toujours `unknown` : une recherche de session ne refuse rien à un appelant anonyme) ; les écrans de l'App Router (`page.tsx`) et du Pages Router | `app/`, `src/app/`, `pages/`, `src/pages/` |
 | `express` | Express, et les routeurs écrits comme lui (Fastify, Hono, Koa) : `app.<méthode>("/chemin", …middlewares, gestionnaire)` et `router.<méthode>(…)`, `.ws(…)` ; les gardes sont les noms des middlewares | `.js`, `.ts`, `.mjs`, `.cjs` |
-| `fastapi` | Les décorateurs `@router.<méthode>("/chemin")`, composés avec `APIRouter(prefix=…)` et `include_router(…, prefix=…)` ; les gardes sont les `Depends(…)` | `.py` |
+| `fastapi` | Les décorateurs `@router.<méthode>("/chemin")`, composés avec `APIRouter(prefix=…)` et `include_router(…, prefix=…)` ; les gardes sont les `Depends(…)` et `Security(…)` du gestionnaire, de son décorateur (`dependencies=[…]`), de son routeur et de son inclusion, hors commentaires et chaînes | `.py` |
 | `nestjs` | `@Controller` et `@Get`… (`@All` : toutes les méthodes), sous `setGlobalPrefix` ; gardes `@UseGuards`, `@Roles`, `@Public`, gardes globales (`useGlobalGuards`, `APP_GUARD`) ; indices de `@Query`, class-validator, `@Cron`, `@Interval` | `.ts` |
 | `angular` | Écrans des tableaux `Routes`, `children`, `loadChildren` suivis (un export, un NgModule, `'./x#M'`) ; gardes `canActivate`, `canMatch`, `canLoad`, `canActivateChild` (pour les enfants), `data.roles` | `.ts` |
 | `vue-router` | Écrans de `createRouter({ routes })` et des tableaux de routes (étalés ou importés), `children` ; gardes `beforeEnter`, un drapeau meta `requires…` ou `auth`, `meta.roles`, `meta.permissions` | `.js`, `.mjs`, `.cjs`, `.ts`, `.vue` |
@@ -87,15 +87,28 @@ Tout adaptateur d'authentification accepte aussi `start` (`"/"`), `loginPattern`
 | `aspnet` | Contrôleurs (`[Route]`, `[HttpGet]`…, `[controller]`, `[action]`, la route et les gardes d'une classe de base) et API minimales (`MapGet`, `MapGroup`) ; gardes `[Authorize]`, `[AllowAnonymous]`, `RequireAuthorization` ; indices de LINQ, EF Core, `[FromQuery]`, DataAnnotations, Hangfire, Quartz | `.cs` |
 | `laravel` | `Route::get`… (`match`, `any`, `view`), `resource`, `resources`, `apiResource` (`only`, `except`), groupes avec leur préfixe et leurs middlewares, fichiers montés par `group(base_path(…))`, `routes/api.php` sous `/api` (ou `apiPrefix`) ; gardes : les middlewares, `can` ; indices d'Eloquent, des paramètres de requête, de `validate` et des `rules()` d'un FormRequest, du planificateur | `.php` (pas `.blade.php`) |
 | `symfony` | `#[Route]` et `@Route` (préfixe de classe, méthodes) ; gardes `#[IsGranted]`, `@IsGranted`, `#[Security]`, `denyAccessUnlessGranted` ; indices de Doctrine, des paramètres de requête (`$request->query`, `#[MapQueryParameter]`), `#[Assert\…]` | `src/**/*.php` |
-| `django` | `path`, `re_path`, `url`, `include` (un module ou une liste), routeurs DRF, le site d'administration ; gardes : les décorateurs de la vue, `permission_classes`, les mixins, `method_decorator` | `.py` |
-| `flask` | `@app.route`, `@bp.get`…, blueprints répartis dans plusieurs fichiers (le `url_prefix` d'un enregistrement remplace celui du blueprint) ; gardes : les décorateurs entre la route et la fonction, `before_request` | `.py` |
+| `django` | `path`, `re_path`, `url`, `include` (un module ou une liste), routeurs DRF, le site d'administration (`AdminSite`) ; gardes : les décorateurs de la vue, `permission_classes` (une alternative de classes, le `\|` de DRF ou le `or` de Python, est une seule garde, aussi faible que la plus faible ; une négation, `~IsAdminUser`, n'en est pas une), les mixins, `method_decorator` | `.py` |
+| `flask` | `@app.route`, `@bp.get`…, blueprints répartis dans plusieurs fichiers (le `url_prefix` d'un enregistrement remplace celui du blueprint) ; gardes : les décorateurs entre la route et la fonction, `before_request`, toujours `unknown`, pour un hook `before_request` qui peut refuser une requête (un décorateur de garde sous lui, `abort(`, `raise`, `redirect(`, un `return` d'une valeur, une garde appelée) ; un hook de journalisation ou de chargement n'en est pas une ; `optional=True` (`@jwt_required (optional=True)` aussi) laisse passer les appelants anonymes | `.py` |
 | `go` | net/http (motifs `GET /x`), gin, echo, chi, gorilla/mux avec leurs groupes ; gardes : les middlewares, `Use`, les enveloppes nommées comme une garde ; indices de `c.Query`, gorm `.Order`, `.Limit`, `.Offset`, SQL | `.go` |
-| `rails` | `config/routes.rb` : `resources`, `resource`, `namespace`, `scope`, `member`, `collection`, `match`… ; gardes : les `before_action` du contrôleur (et de ses parents, `skip_before_action`), `load_and_authorize_resource`, `authorize` de Pundit, les blocs `authenticate` ; indices d'ActiveRecord, `validates` | `config/routes.rb`, `app/**/*.rb` |
+| `rails` | `config/routes.rb` : `resources`, `resource`, `namespace`, `scope`, `member`, `collection`, `match`… ; gardes : les `before_action` du contrôleur (et de ses parents, `skip_before_action` ; un `before_action` sous `if:` ou `unless:` est `unknown`, `authenticate_user! (if)`), `load_and_authorize_resource`, `authorize` de Pundit, les blocs `authenticate` ; indices d'ActiveRecord, `validates` | `config/routes.rb`, `app/**/*.rb` |
 | `rust` | actix-web (`#[get]`, `web::scope`, `web::resource`, `.configure`) et axum (`Router::route`, `nest`, `merge`) ; gardes : `wrap`, `layer`, `route_layer`, `from_fn` | `.rs` |
 
 Le kit donne à chacun le texte de ses fichiers : jamais un test, un fichier généré ou un fichier de plus de 512 Ko. Il
-classe l'accès d'une route d'après ses gardes avec `review.guards` (`none`, `user`, `role`, `unknown`). Rien de
-l'application n'est jamais exécuté. `stacks.disabled` en désactive un.
+classe l'accès d'une route d'après ses gardes avec `review.guards` (`none`, `user`, `role`, `unknown`) : une garde à
+son nom entier, jamais à une partie d'un autre mot ([Revues](#/spaces/reviews)). Les règles globales d'un framework
+ne sont pas lues (`DEFAULT_PERMISSION_CLASSES` de DRF, `SecurityFilterChain` de Spring, `FallbackPolicy` d'ASP.NET,
+`FastAPI(dependencies=…)`) : une route qu'elles seules protègent sort `none`. Une route peut paraître moins protégée
+qu'elle ne l'est, jamais plus, sauf dans ces cas connus, où les noms ne le disent pas et où une route peut paraître
+plus protégée qu'elle ne l'est :
+
+- une surcharge par requête qui assouplit une règle de classe : le `get_permissions()` de DRF qui renvoie
+  `[AllowAny()]` sous une classe `permission_classes = [IsAdminUser]` (`role`) ;
+- le `@Secured("IS_AUTHENTICATED_ANONYMOUSLY")` de Spring sur une méthode, sous un `@Secured("ROLE_ADMIN")` de
+  classe (`role`) ;
+- des formes d'arguments rares, comme `@jwt_required(**{"optional": True})` ou
+  `@jwt_required(optional=False or True)` de Flask (`user`).
+
+Rien de l'application n'est jamais exécuté. `stacks.disabled` en désactive un.
 
 ## Les adaptateurs d'infrastructure
 
@@ -204,7 +217,7 @@ export default {
 |---|---|
 | `files` | Une expression sur le chemin d'un fichier dans l'application (barres obliques) : les fichiers qu'il reçoit |
 | `marker` | Facultatif : une expression que le texte d'un fichier doit contenir pour être donné (un filtre peu coûteux) |
-| `api({ sources })` | Les routes : `{ method, route, file, line, guards }` (et `framework` s'il diffère de `name`) |
+| `api({ sources, guards })` | Les routes : `{ method, route, file, line, guards }` (et `framework` s'il diffère de `name`) ; `guards` sont les motifs `review.guards` du projet (`role`, `user`, chacun avec `test(name)`), pour un adaptateur qui ne retient une chose que quand elle protège |
 | `screens({ sources })` | Les écrans : `{ route, file, line }`, avec `guards` quand le routeur les déclare |
 | `behaviours(text, sink, file)` | Les indices d'un fichier : `sink.push({ family, signal, field?, value?, values?, via }, index)` ; le kit ne garde qu'un champ, un nombre ou un mot court, par sa liste blanche |
 

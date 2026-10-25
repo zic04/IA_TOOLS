@@ -22,7 +22,7 @@ import rails from "../../adapters/stack/rails.mjs";
 import rust from "../../adapters/stack/rust.mjs";
 import fs from "node:fs";
 import path from "node:path";
-import { loadAdapter } from "../capture/session.mjs";
+import { loadAdapter } from "../core/adapter-loader.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { readableFiles, infraFiles, readCode } from "./code-files.mjs";
 import { collectDependencies } from "./dependencies.mjs";
@@ -30,7 +30,7 @@ import { adaptersOf, detectedBy } from "../core/adapters.mjs";
 
 /**
  * @typedef {{ name: string, files: RegExp, marker?: RegExp, languages?: string[],
- *   api?: (p: { sources: Map<string, string> }) => object[],
+ *   api?: (p: { sources: Map<string, string>, guards?: import("./guards.mjs").GuardPatterns }) => object[],
  *   screens?: (p: { sources: Map<string, string> }) => object[],
  *   behaviours?: (text: string, sink: any, file: string) => void }} StackAdapter
  */

@@ -104,8 +104,10 @@
   "cli.init.notInteractive.help": "ajoutez --yes pour accepter les valeurs détectées (et --name, --lang, --url, --auth, --capture, --target pour les fixer)",
 
   "cli.doctor.title": "{name} {version} doctor — {folder}",
-  "cli.doctor.summary.ok": "{ok} OK · {warnings} avertissement(s) · {problems} problème(s) : prêt.",
-  "cli.doctor.summary.fail": "{ok} OK · {warnings} avertissement(s) · {problems} problème(s) à corriger (✖).",
+  "cli.doctor.summary.ok": "{ok} OK · {warnings} · {problems} : prêt.",
+  "cli.doctor.summary.fail": "{ok} OK · {warnings} · {problems} à corriger (✖).",
+  "cli.doctor.count.warnings": { "one": "{count} avertissement", "other": "{count} avertissements" },
+  "cli.doctor.count.problems": { "one": "{count} problème", "other": "{count} problèmes" },
   "cli.doctor.node.ok": "Node.js {version} (requis : {required})",
   "cli.doctor.node.fail": "Node.js {version} est trop ancien (requis : {required})",
   "cli.doctor.node.fail.help": "installez Node.js 20 ou plus récent (https://nodejs.org)",
@@ -218,7 +220,7 @@
     "one": "{n} jour",
     "other": "{n} jours"
   },
-  "cli.doctor.contrast.ok": "contrastes du thème : {n} paires au niveau WCAG (4,5 pour le texte, 3 pour les grands éléments)",
+  "cli.doctor.contrast.ok": { "one": "contrastes du thème : {n} paire au niveau WCAG (4,5 pour le texte, 3 pour les grands éléments)", "other": "contrastes du thème : {n} paires au niveau WCAG (4,5 pour le texte, 3 pour les grands éléments)" },
   "cli.doctor.contrast.fail": {
     "one": "{n} paire de couleurs sous le contraste WCAG : {list}",
     "other": "{n} paires de couleurs sous le contraste WCAG : {list}"
@@ -295,9 +297,9 @@
   "cli.upgrade.dryRun": "Rien n'a été écrit (simulation). Pour appliquer : {command} upgrade --apply",
   "cli.migration.0.1.0": "base du format de projet (aucun changement)",
 
-  "cli.skill.installed": "skill Claude Code installé dans {folder} ({n} fichiers, kit {kit})",
-  "cli.skill.updated": "skill Claude Code mis à jour dans {folder} ({n} fichiers, kit {kit})",
-  "cli.skill.agents": "types d'agent installés dans {folder} ({n} fichiers)",
+  "cli.skill.installed": { "one": "skill Claude Code installé dans {folder} ({n} fichier, kit {kit})", "other": "skill Claude Code installé dans {folder} ({n} fichiers, kit {kit})" },
+  "cli.skill.updated": { "one": "skill Claude Code mis à jour dans {folder} ({n} fichier, kit {kit})", "other": "skill Claude Code mis à jour dans {folder} ({n} fichiers, kit {kit})" },
+  "cli.skill.agents": { "one": "types d'agent installés dans {folder} ({n} fichier)", "other": "types d'agent installés dans {folder} ({n} fichiers)" },
   "cli.skill.restart": "Ouvrez une nouvelle session Claude Code pour le charger.",
   "cli.skill.action": "action inconnue : « {action} »",
   "cli.skill.action.help": "{command} skill install [--target <dossier des skills>] [--force] [--hooks [--settings <fichier>]]",

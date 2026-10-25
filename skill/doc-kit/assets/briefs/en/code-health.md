@@ -18,8 +18,11 @@ lists exactly what each check below is defending against.
 
 1. **The facts** (folder in Variables, written by `doc-kit facts`; the orchestrator ran it before this brief — if
    a source you need is missing, or older than the application's current commit, say so in your report instead
-   of inventing one): `api.json`, `dependencies.json` (`--network` adds `exists`), `agents.json`, `tests.json`,
-   `db.json`, `secrets.json`, `env.json`.
+   of inventing one): `api.json`, `dependencies.json` (each item's `license` says where it comes from,
+   `licenseFrom`: `lock`, `installed`, or `registry` — the latest version's, with `--network`; `--network` adds
+   `exists`, `latest` and `majorsBehind` to each direct dependency it may send — only those the user listed in
+   `facts.network.allow` —, `null` for one it keeps back: `unlisted`, `unproven` or `private`),
+   `agents.json`, `tests.json`, `db.json`, `secrets.json`, `env.json`.
 2. For the types that support it (`api-surface`, `dependencies`, `agent-instructions`), the orchestrator may
    already have run `doc-kit new <id> --prefill`: a table pre-filled from the facts, with a
    `<!-- doc-kit:prefill -->` marker above it. Complete the judgment columns (Authentication, Role, Tenant
@@ -39,8 +42,10 @@ lists exactly what each check below is defending against.
   projects); `## Public routes` (confirm each is public on purpose); `## Gaps` (every route with no confirmed
   auth check or no tenant filter, each a numbered candidate finding).
 - **`dependencies`**: `## In short`; `## Direct dependencies` (`::facts{source="dependencies"}`); `## Packages
-  that do not exist` (a direct dependency with `exists: false`, or one you cannot find in its registry by name
-  when the facts were produced without `--network` — say so rather than guessing); `## Licences` (copyleft or
+  that do not exist` (a direct dependency with `exists: false`; one the facts did not check — produced without
+  `--network`, or kept back: `unlisted`, `unproven`, `private` — is `[[unknown]]`: say so rather than guessing,
+  and never look a package's name up yourself, since only the names the user lists ever leave the machine);
+  `## Licences` (copyleft or
   missing, when it matters for a closed-source product); `## Out of date`; `## To check` (a fork published under
   the original name, a private package that only looks public).
 - **`agent-instructions`**: `## In short`; `## The files` (`::facts{source="agents"}`); `## Each rule` (one row
@@ -82,7 +87,9 @@ lists exactly what each check below is defending against.
 
 1. Pages written (words); routes, dependencies, rules or tests covered, by page.
 2. **Candidate findings**: severity — finding — proof (`file:line` or a named facts file) — suggested Decision.
-3. Facts that looked stale or missing, and what you could not confirm without them.
+3. Facts that looked stale or missing, and what you could not confirm without them — among them how many direct
+   dependencies carry `unlisted: true`, so that the orchestrator reviews the candidates with the user before
+   listing any (never edit `facts.network.allow` yourself).
 4. Errors in existing pages (file, sentence, proof); proposed glossary terms.
 
 ## Variables

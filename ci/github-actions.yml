@@ -15,17 +15,25 @@ on:
 permissions:
   contents: read
 
+# One run per workflow and ref: a new push to a pull request cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: tests (${{ matrix.os }}, Node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30 # a blocked test stops here, not after GitHub's 6 hours
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [20, 22]
+        node: [20, 22, 24]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false # no token left in .git/config for the steps that follow
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -71,6 +79,7 @@ jobs:
 # jobs:
 #   docs:
 #     runs-on: ubuntu-latest
+#     timeout-minutes: 30
 #     defaults:
 #       run:
 #         working-directory: app/docs/manual
@@ -78,16 +87,20 @@ jobs:
 #       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           path: app
+#           persist-credentials: false
 #
 #       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           repository: <owner>/doc-kit          # the kit's repository
-#           ref: v0.1.0                           # a tag: the version the project's `kit` range accepts
+#           # A release tag of the kit: the version the project's `kit` range accepts. Updated at each release of
+#           # the kit (RULES.md, before every release).
+#           ref: v0.4.1
 #           path: doc-kit
+#           persist-credentials: false
 #
 #       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
 #         with:
-#           node-version: 20
+#           node-version: 22
 #
 #       - name: Install the kit
 #         working-directory: doc-kit
@@ -149,6 +162,7 @@ jobs:
 # jobs:
 #   update:
 #     runs-on: ubuntu-latest
+#     timeout-minutes: 30
 #     defaults:
 #       run:
 #         working-directory: app/docs/manual
@@ -157,12 +171,14 @@ jobs:
 #         with:
 #           path: app
 #           fetch-depth: 0                   # sync, changes and the history need the git history
+#           persist-credentials: false       # the comment below uses GH_TOKEN, not the checkout's token
 #
 #       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 #         with:
 #           repository: <owner>/doc-kit
-#           ref: v0.1.0
+#           ref: v0.4.1                      # a release tag of the kit, updated at each release (as in (b))
 #           path: doc-kit
+#           persist-credentials: false
 #
 #       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
 #         with:
