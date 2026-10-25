@@ -206,6 +206,7 @@
     "noKit": "node <le kit>/cli/doc-kit.mjs",
     "empty": "une commande vide, ou un opérateur sans rien d'un côté",
     "newline": "plusieurs lignes : une seule commande par appel",
+    "nul": "un caractère NUL, que bash retire de ce qu'il lit : écrivez la commande sans lui",
     "quote": "un guillemet non fermé, ou une barre oblique inverse à la fin",
     "expansion": "une expansion du shell ($ ou un accent grave) : écrivez la valeur elle-même",
     "redirect": "une redirection : seules 2>&1 et >/dev/null sont admises ; un fichier s'écrit avec Write ou Edit",

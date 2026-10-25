@@ -140,6 +140,9 @@ const REFUSED = [
   ["ls [a]", "glob"],
   ["ls\nrm -rf /", "newline"],
   ["ls\r", "newline"],
+  // bash drops a NUL from what it reads: to it, the quotes below are escaped, and git push runs.
+  ["ls \\\0'; git push; ls \\\0'", "nul"],
+  ["ls\0", "nul"],
   ["echo 'unterminated", "quote"],
   ['echo "unterminated', "quote"],
   ["ls \\", "quote"],
@@ -799,6 +802,44 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("a process whose decision never comes refuses with 2: a module or the decision that never settles empties node's event loop", () => {
+    const root = tempDir("doc-kit-guard-hang-");
+    try {
+      const skill = path.join(root, "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      const script = path.join(skill, "scripts", "bash-guard.mjs");
+      const input = hookInput("ls -la", root);
+      // The positive controls: the copy lets ls through and refuses git push.
+      assert.equal(runGuard(input, script).status, 0, "ls goes through");
+      assert.equal(runGuard(hookInput("git push", root), script).status, 2, "git push is refused");
+      // node ends a process whose event loop is empty with 0 (its exit code unless set): a hook that never decided
+      // let the command through, silently.
+      const never = "await new Promise(() => {});\n";
+      const options =
+        "export class Refusal extends Error {}\nexport const READ_ONLY = {};\nexport const checkOptions = () => {};\n";
+      for (const [file, text] of [
+        ["bash-decision.mjs", `${never}export const guard = async () => 0;\n`],
+        ["bash-options.mjs", `${never}${options}`],
+        ["common.mjs", never],
+        ["bash-decision.mjs", "export const guard = () => new Promise(() => {});\n"],
+        ["bash-decision.mjs", "export const guard = () => ({ then() {} });\n"],
+        // An exit code of 0 set on the way is no decision either.
+        ["bash-decision.mjs", "process.exitCode = 0;\nexport const guard = () => new Promise(() => {});\n"],
+      ]) {
+        const module = path.join(skill, "scripts", file);
+        const saved = fs.readFileSync(module, "utf8");
+        fs.writeFileSync(module, text);
+        const r = runGuard(input, script);
+        fs.writeFileSync(module, saved);
+        assert.equal(r.status, 2, `${file}, ${text}: ${r.stderr}`);
+        assert.match(r.stderr, /the guard ended without a decision.*\n.*la garde s'est arrêtée sans décision/, text);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 /** The first `name` on the PATH (a test runs the hook command through the shell Claude Code runs it with). */
@@ -875,6 +916,61 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
     }
   });
 
+  test("a skill reached through a linked folder is named by its real path or by the one its hook was started from, never by a lookalike or a planted link", () => {
+    const root = tempDir("doc-kit-guard-linked-skill-");
+    try {
+      // Real paths on this side (macOS's temporary folder is under /var, itself a link to /private/var).
+      const real = path.join(fs.realpathSync(root), "real");
+      const skill = path.join(real, "skills", "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      // A junction on Windows, a symbolic link elsewhere: a linked ~/.claude, a dotfile manager's, macOS's /var.
+      fs.symlinkSync(real, path.join(root, "link"), "junction");
+      const linked = path.join(root, "link", "skills", "doc-kit");
+      // Folders an application or a text could plant: a prefix lookalike, and a link to the skill itself.
+      const prefix = path.join(real, "skills", "doc-kit2");
+      fs.cpSync(path.join(skill, "scripts"), path.join(prefix, "scripts"), { recursive: true });
+      fs.symlinkSync(skill, path.join(root, "planted"), "junction");
+      const hook = path.join(linked, "scripts", "bash-guard.mjs");
+      assert.notEqual(
+        fs.realpathSync(hook),
+        path.resolve(hook),
+        "the positive control: the hook's path goes through a link",
+      );
+      const brief = (/** @type {string} */ dir) => `node "${slash(path.join(dir, "scripts", "brief.mjs"))}" --list`;
+      const status = (/** @type {string} */ script, /** @type {string} */ command) => {
+        const r = exec(script, hookInput(command, root));
+        return r.status === 2 ? `2 ${r.stderr.split("\n")[0]}` : String(r.status);
+      };
+      const refused = /^2 ✖ doc-kit guard: command refused — node runs only the kit's CLI/;
+      // Started as its hook names it, through the link: the skill by that path (since the decision knew its real path
+      // alone, the agents' own commands were refused there) and by its real one.
+      assert.equal(status(hook, brief(linked)), "0", "the path the hook was started from");
+      assert.equal(status(hook, brief(skill)), "0", "the real path");
+      if (process.platform === "win32") {
+        const upper = path.join(root, "link", "SKILLS", "Doc-Kit");
+        assert.equal(status(hook, brief(upper)), "0", "NTFS: the same file up to the case of ASCII letters");
+      }
+      // The paths a command writes are never resolved: a lookalike folder, and a link to the skill an application
+      // could plant (and later point elsewhere), are other paths.
+      const kelvin = String.fromCharCode(0x212a);
+      for (const dir of [
+        path.join(root, "link", "skills", "doc-kit2"),
+        prefix,
+        path.join(root, "link", "skills", `doc-${kelvin}it`),
+        path.join(real, "skills", `doc-${kelvin}it`),
+        path.join(root, "planted"),
+      ])
+        assert.match(status(hook, brief(dir)), refused, dir);
+      // Started by its real path, the hook knows no link: the second form is the one its configuration gives, never
+      // one a command writes.
+      assert.equal(status(path.join(skill, "scripts", "bash-guard.mjs"), brief(skill)), "0");
+      assert.match(status(path.join(skill, "scripts", "bash-guard.mjs"), brief(linked)), refused);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("the hook's file exports nothing and always decides: however node is given it (a URL with a query, an import), it refuses", () => {
     const source = fs.readFileSync(GUARD, "utf8");
     assert.doesNotMatch(source, /^export\b/m, "the hook's file exports nothing: the tests import the decision's");
@@ -906,7 +1002,8 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       fs.mkdirSync(path.dirname(planted), { recursive: true });
       fs.writeFileSync(planted, "process.exit(42);\n");
       // The positive controls: on Windows, NTFS made another folder (the skill's own brief.mjs is untouched), whose
-      // file node runs; the skill's own script goes through.
+      // file node runs; the skill's own script goes through, by the path the hook was started from (on macOS, under
+      // /var, a link to /private/var: the skill's real path is another).
       const apart = fs.readdirSync(path.join(root, "skills")).length === 2;
       if (process.platform === "win32") assert.ok(apart, "NTFS keeps the lookalike folder apart");
       if (apart)

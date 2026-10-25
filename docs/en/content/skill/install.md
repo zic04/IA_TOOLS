@@ -45,7 +45,7 @@ an agent asks for is read first, and only these go through:
 | Allowed | Example |
 |---|---|
 | The kit's CLI, by its absolute path, from the documentation folder | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
-| The skill's scripts, by their absolute path (on Windows, with its drive: `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| The skill's scripts, by their absolute path: the skill's real one, or the one its hook names, through a link (on Windows, with its drive: `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
 | Read-only tools, with their reading options only | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, joined by a pipe, `&&` or `;` |
 
 Everything else is refused with its reason: `npx doc-kit`, `npm exec` and a bare `doc-kit` (they may run the
@@ -54,7 +54,7 @@ redirection to a file, an unquoted `*`, an option of a read-only tool that is no
 `rg --hostname-bin`, `find -exec`, `sort -o`…), and the doc-kit commands that are yours or the orchestrator's
 (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a
 comment planted in its code cannot make an agent run a program. The hook fails closed: a guard that cannot start or load
-(no `node`, a missing or damaged file) refuses the command; it is written in Claude Code's exec form (`command: node`,
+(no `node`, a missing or damaged file), or that never decides, refuses the command; it is written in Claude Code's exec form (`command: node`,
 `args`, `onFailure: block`), which needs no shell, and Claude Code 2.1.295 or later: an older one never runs the guard
 (`doctor` warns about it, SECURITY.md). The guard only refuses; what it lets through still asks for your permissions as
 usual. It bounds Bash only: an agent's writes, and the `doc.config.mjs` the kit loads where it runs (code, like a

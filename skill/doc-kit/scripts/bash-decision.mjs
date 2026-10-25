@@ -6,7 +6,8 @@
 //     node_modules/.bin up to the root — the application's, when the documentation sits inside it — or, with none,
 //     install one from the registry; never a command the orchestrator or the user runs (DOC_KIT_REFUSED), never
 //     `--plans` (capture plans are code);
-//   - `node <this skill>/scripts/<script>.mjs …`, the skill's own scripts (SKILL_SCRIPTS), by their absolute path;
+//   - `node <this skill>/scripts/<script>.mjs …`, the skill's own scripts (SKILL_SCRIPTS), by their absolute path: the
+//     skill's real one, or the one its hook was started from, through a link (skillFolders);
 //   - on Windows, a program's path has its drive, `C:/…`: Git Bash converts its own `/c/…` (and `~`) only sometimes;
 //     two paths are one file when they differ by the case of ASCII letters only (absolutePath);
 //   - read-only tools (READ_ONLY, bash-options.mjs), each with the options of its allowlist only;
@@ -21,9 +22,11 @@
 // regular expression — and reads no file. Nothing of the application is read or run. The guard only ever refuses:
 // what it lets through still goes through Claude Code's own permissions.
 // The hook's part (guard): Claude Code's input, { tool_name, tool_input: { command } }; a refusal is exit code 2, the
-// reason on stderr (Claude Code gives it to the agent), in DOC_KIT_LANG's language (English by default). Only Node's
+// reason on stderr (Claude Code gives it to the agent), in DOC_KIT_LANG's language (English by default); it resolves
+// the links of one path only, the one its hook was started from (skillFolders), never one a command writes. Only Node's
 // own modules and bash-options.mjs (which imports nothing) are imported statically: the skill's others (common.mjs,
 // its message files) are imported inside a try, so that one that cannot load refuses with 2.
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { READ_ONLY, Refusal, checkOptions } from "./bash-options.mjs";
@@ -159,6 +162,8 @@ const HANDLERS = new Map([
 function splitCommand(command, home) {
   const text = String(command);
   if (text.includes("\n") || text.includes("\r")) throw new Refusal("newline");
+  // bash drops a NUL from what it reads: `ls \<NUL>'; git push; ls \<NUL>'` is one ls to the guard, three commands to it.
+  if (text.includes("\0")) throw new Refusal("nul");
   /** @type {Lexer} */
   const lex = { text, i: 0, word: null, words: [], segments: [] };
   for (; lex.i < text.length; lex.i++) {
@@ -221,11 +226,12 @@ function checkDocKit(args) {
 }
 
 /** `node <script> …`: the kit's CLI (then checked as the kit's command line) or one of the skill's scripts, each by its
- * absolute path. */
+ * absolute path (the skill's folder by any of the forms opts.skillDir gives). */
 function checkNode(args, opts) {
   const [script] = args;
   const target = script && !script.startsWith("-") ? absolutePath(script, opts.windows) : "";
-  const is = (dir, file) => Boolean(target && dir) && target === absolutePath(`${dir}/${file}`, opts.windows);
+  const is = (dirs, file) =>
+    [dirs].flat().some((dir) => Boolean(target && dir) && target === absolutePath(`${dir}/${file}`, opts.windows));
   if (is(opts.kitDir, "cli/doc-kit.mjs")) return checkDocKit(args.slice(1));
   if (!SKILL_SCRIPTS.some((s) => is(opts.skillDir, `scripts/${s}`)))
     throw new Refusal("node", { scripts: SKILL_SCRIPTS.join(", ") });
@@ -255,7 +261,8 @@ function checkSegment({ argv, op }, index, opts) {
  * Whether the guard lets a Bash command through. Pure: it reads no file, and the folder the command runs in plays no
  * part (every program is named by its absolute path).
  * @param {string} command
- * @param {{ skillDir: string, kitDir?: string, home?: string, windows?: boolean }} opts
+ * @param {{ skillDir: string|string[], kitDir?: string, home?: string, windows?: boolean }} opts  skillDir: the skill's
+ *   folder, or the forms a command may name it by (the hook gives two, skillFolders)
  * @returns {{ allow: true } | { allow: false, key: string, vars: Record<string, string> }}
  */
 export function bashDecision(command, opts) {
@@ -317,6 +324,29 @@ function parsed(raw) {
   }
 }
 
+/**
+ * The skill's folder in the forms a command may name it by: the one node loaded it from (common.mjs SKILL_ROOT, its
+ * real path: node resolves the links of a module's path), and the folder of the path the hook was started from,
+ * process.argv[1], which the user's own hook configuration gives (`args: ["<skill>/scripts/bash-guard.mjs"]`, the path
+ * `skill install` wrote), through a link maybe: a linked ~/.claude, macOS's temporary folder under /var (a link to
+ * /private/var), a junction. That second form counts only when it leads to the first, links resolved: started any
+ * other way (an import, a test), the hook has no such path or another file's, and the skill its real path alone. The
+ * paths a command writes are never resolved: a folder that only looks like the skill's, or a link planted to it, is
+ * another path, refused.
+ * @param {string} loaded  @param {unknown} started  @param {boolean} windows
+ * @returns {string[]}
+ */
+function skillFolders(loaded, started, windows) {
+  if (typeof started !== "string" || !path.isAbsolute(started)) return [loaded];
+  const configured = path.dirname(path.dirname(started));
+  try {
+    const real = absolutePath(fs.realpathSync(loaded), windows);
+    return real && absolutePath(fs.realpathSync(configured), windows) === real ? [loaded, configured] : [loaded];
+  } catch {
+    return [loaded];
+  }
+}
+
 /** The decision on Claude Code's input, with the skill's messages and the kit's path (common.mjs). */
 function decide(raw, env, print, common) {
   common.useMessages("guard");
@@ -328,14 +358,15 @@ function decide(raw, env, print, common) {
   const input = parsed(raw);
   if (typeof input?.tool_name === "string" && input.tool_name !== "Bash") return 0;
   const command = input?.tool_input?.command;
+  const windows = process.platform === "win32";
   /** @type {{ allow: boolean, key?: string, vars?: Record<string, string> }} */
   const decision =
     typeof command === "string"
       ? bashDecision(command, {
-          skillDir: common.SKILL_ROOT,
+          skillDir: skillFolders(common.SKILL_ROOT, process.argv[1], windows),
           kitDir,
           home: env.HOME || env.USERPROFILE || os.homedir(),
-          windows: process.platform === "win32",
+          windows,
         })
       : { allow: false, key: "input" };
   if (decision.allow) return 0;

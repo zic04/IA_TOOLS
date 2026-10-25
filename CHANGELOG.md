@@ -357,6 +357,18 @@ entries between a project's `kit` range and the installed version.
     with 2 by itself, as does any answer of the decision other than 0. The agents' hook still names
     `bash-guard.mjs`, so a definition installed before starts the guard too. The briefs' placeholders and the filling
     of a template move from the skill's `common.mjs` to `placeholders.mjs` (RULES.md M5: both were at 600 lines).
+  - **The skill's folder by either of its paths**: node loads a module by its real path, so the guard knew the
+    skill's folder by that one alone, and refused the agents' commands that named its scripts by the path the hook
+    was started from, through a link (a linked `~/.claude`, a dotfile manager's, macOS's temporary folder under
+    `/var`, a link to `/private/var`). It takes either now: the real path, or the folder of the path node was started
+    from (`process.argv[1]`, which the hook's configuration gives), when that one leads to the real one. The paths a
+    command writes are never resolved: a lookalike folder, a `doc-kit2`, a link planted to the skill are still
+    refused. The kit has one path, the real one `skill install` writes in the skill and in its texts.
+  - **A decision that never comes is refused**: a module of the guard or the decision that never settled emptied
+    node's event loop, and node ended with 0, which let the command through. The hook's exit code is 2 from its first
+    line, only the decision's explicit 0 ends with 0, and its `beforeExit` refuses, in both languages.
+  - **A NUL character is refused**, as a second line is: bash drops it from what it reads, so
+    `ls \<NUL>'; git push; ls \<NUL>'` was one `ls` to the guard, and ran `git push`.
   - **On Windows, two paths name one file up to the case of their ASCII letters only**: the guard compared them in
     lower case, and `toLowerCase()` also folds letters NTFS keeps apart (U+212A, the Kelvin sign, to `k`; U+212B, the
     Angstrom sign, to `å`), so a lookalike folder's script could pass for the skill's. It folds `A`–`Z` only; any
@@ -369,7 +381,7 @@ entries between a project's `kit` range and the installed version.
     when it held `$` or a backquote, and bash read as another path when it held a quote.
   - **`skill install` replaces every placeholder in one pass**: one value is never read again for another
     placeholder, so a skills or kit folder whose name holds `{{KIT_CLI}}` keeps it, in the agents' hook and in
-    SKILL.md alike.
+    SKILL.md alike, and in the skill's scripts (a kit path whose JavaScript string holds `"{{KIT_CLI}}"`).
   - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
     `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
     (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one

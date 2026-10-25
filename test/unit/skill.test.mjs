@@ -207,6 +207,30 @@ describe("skill install", () => {
     }
   });
 
+  test("the scripts' placeholders are replaced in one pass too: a kit path ending in a quote and {{KIT_CLI}} stays the kit's", () => {
+    const root = tempDir("doc-kit-skill-once-");
+    try {
+      // Never created: the installer only writes the path. Its JSON string, "…/kit\"{{KIT_CLI}}", holds the scripts'
+      // form of a placeholder, "{{KIT_CLI}}", which a second pass would replace.
+      const kitRoot = path.join(root, 'kit"{{KIT_CLI}}');
+      const skills = path.join(root, "skills");
+      installSkill({ skills, kitRoot });
+      const kit = kitRoot.split(path.sep).join("/");
+      const source = fs.readFileSync(path.join(SKILL_SOURCE, "scripts", "common.mjs"), "utf8");
+      const installed = fs.readFileSync(path.join(skills, "doc-kit", "scripts", "common.mjs"), "utf8");
+      assert.equal(installed, source.split('"{{KIT_PATH}}"').join(JSON.stringify(kit)));
+      // The positive control: one placeholder after the other, the kit's command went into the kit's path.
+      const sequential = /** @type {Array<[string, string]>} */ ([
+        ["{{KIT_PATH}}", kit],
+        ["{{KIT_CLI}}", kitCli(kit)],
+      ]).reduce((text, [token, value]) => text.split(JSON.stringify(token)).join(JSON.stringify(value)), source);
+      assert.notEqual(sequential, installed);
+      assert.ok(sequential.includes(JSON.stringify(kitCli(kit))), "a second pass puts the kit's command in");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("a skill folder with a quote, a $ and a backquote: the analysis brief's check command passes the guard and names the skill's script", async () => {
     const root = tempDir("doc-kit-skill-quoted-");
     try {
@@ -225,7 +249,10 @@ describe("skill install", () => {
         .find((l) => l.includes('/analysis.mjs" check F-01'));
       assert.ok(line, "the brief's check line");
       const command = line.slice(line.indexOf('node "'), line.indexOf(" --project .") + " --project .".length);
-      const opts = { skillDir: dir, kitDir: "", windows: process.platform === "win32" };
+      // The brief names the skill's folder by its real path, the one node loaded placeholders.mjs from (on macOS, the
+      // temporary folder's /var is a link to /private/var).
+      const real = fs.realpathSync(dir);
+      const opts = { skillDir: real, kitDir: "", windows: process.platform === "win32" };
       assert.deepEqual(decision.bashDecision(command, opts), { allow: true }, command);
       // As bash reads it (the sh of the PATH, as the guard's tests run it), the command's script is the installed
       // skill's analysis.mjs.
@@ -238,7 +265,7 @@ describe("skill install", () => {
       assert.ok(SH, "sh is on the PATH");
       const sh = spawnSync(SH, ["-c", `printf '%s\\n' ${command.slice("node ".length)}`], { encoding: "utf8" });
       const script = sh.stdout.split("\n")[0];
-      const expected = path.join(dir, "scripts", "analysis.mjs");
+      const expected = path.join(real, "scripts", "analysis.mjs");
       assert.equal(script, process.platform === "win32" ? expected.split(path.sep).join("/") : expected);
       assert.ok(fs.existsSync(script), script);
     } finally {
