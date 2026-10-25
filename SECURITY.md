@@ -391,12 +391,17 @@ as untrusted input:
   entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
   the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
   so. A proof or a dependency through a link out of the application is outside whether its file exists there or
-  not (judged by where its nearest existing folder really is), and a link that leads nowhere is judged by its
-  target as written (32 links at most: a loop is outside too): neither the marking, the report nor `--since` tells
-  whether a file of the operator exists. Every real path of this confinement is compared exactly, case included
-  (`realpathSync.native` gives the case on disk): in a case-sensitive folder (WSL's, or one `fsutil` marks so), a
-  sibling `APP` of `app` is another folder, outside. The coverage report that `tests` reads by its fixed name
-  (`coverage/lcov.info`, `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private
+  not (judged by where its nearest existing folder really is, found by bisection: a path of thousands of missing
+  parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
+  link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
+  target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
+  the text cannot. Neither the marking, the report nor `--since` tells whether a file of the operator exists.
+  Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
+  one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
+  on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the
+  case as written, so a file of the application reached in another case may be judged outside: a false "outside",
+  never a file read outside. The coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
+  `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private
   declarations of the dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a
   requirements file…, read by their fixed names) follow links, as they read the operator's own configuration on
   purpose; only flags, scopes and names to keep off the network come out of them (whether a registry or an index is
@@ -404,9 +409,9 @@ as untrusted input:
 - limits of this confinement: a hard link cannot be told from the file itself (it is another name of the same file,
   with no target to follow), so a hard link in the application to a file outside it is read as a file of the
   application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
-  checked, then read: a folder of the application swapped for a link in between, by a process that changes the
-  application while the kit reads it, is not seen. Read an application received as an archive from a fresh clone,
-  and let nothing change it while the kit runs;
+  checked, then read: a file or a folder of the application swapped for a link in between, by a process that
+  changes the application while the kit reads it, is not seen. Read an application received as an archive from a
+  fresh clone, and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes

@@ -1579,56 +1579,63 @@ describe("engine/sync: a proof outside the application is never read", () => {
 
   // git reports the cited file renamed (`R100 old.js → j/util.js`) to a path through a junction out: the new file is
   // read only where it really is in the application (proofFile), never through the junction. Read, its line, one
-  // line down, would come back as a proof moved to j/util.js:2.
-  test("sync: a proof whose file git reports renamed through a junction out is never read there", async () => {
-    const fx = syncFixtureCopy();
-    const outside = path.join(path.dirname(fx.appDir), "outside");
-    const junction = path.join(fx.appDir, "j");
-    const id = "take-over/orders-api";
-    const line = 'export const leaked = "of the operator";';
-    try {
-      fs.mkdirSync(outside);
-      fs.writeFileSync(path.join(outside, "util.js"), "// moved\n" + line + "\n");
-      fs.symlinkSync(outside, junction, "junction");
-      const config = await syncConfig(fx.root);
-      fs.appendFileSync(path.join(fx.root, config.paths.content, "take-over", "orders-api.md"), "\nSee `old.js:1`.\n");
-      const toc = readToc(fx.root, config);
-      const inventory = await runCoverage({ root: fx.root, config });
-      const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
-      const reference = structuredClone((await markPages({ root: fx.root, config, toc, all: true, ...at })).reference);
-      reference.proofs["old.js:1"] = { hash: hashText(line), text: line };
-      const git = createGit(fakeExec({ changed: ["R100\told.js\tj/util.js"] }), fx.appDir);
-      const { result, reads } = await readsIn(outside, () =>
-        compareWithReference({
-          root: fx.root,
-          config,
-          toc,
-          reference,
-          since: null,
-          git,
-          inventory,
-          plans: [],
-          appDir: fx.appDir,
-          version: "1.0.0",
-          commit: "c0ffee",
-          factsDir: config.paths.facts,
-        }),
-      );
-      assert.deepEqual(reads, [], "nothing outside the application is read");
-      assert.deepEqual(
-        result.proofs.moved.filter((m) => m.page === id),
-        [],
-      );
-      assert.deepEqual(
-        result.proofs.broken.filter((b) => b.page === id).map((b) => [b.ref, b.reason]),
-        [["old.js:1", "fileDeleted"]],
-      );
-      assert.ok(!JSON.stringify(result).includes("j/util.js:2"), "never moved through the junction");
-    } finally {
-      unlinkJunction(junction);
-      fx.release();
-    }
-  });
+  // line down, would come back as a proof moved to j/util.js:2. Present outside or missing there, the same answer:
+  // the report never tells whether a file of the operator exists.
+  for (const state of ["present", "missing"])
+    test(`sync: a proof whose file git reports renamed through a junction out is never read there (the file ${state} outside)`, async () => {
+      const fx = syncFixtureCopy();
+      const outside = path.join(path.dirname(fx.appDir), "outside");
+      const junction = path.join(fx.appDir, "j");
+      const id = "take-over/orders-api";
+      const line = 'export const leaked = "of the operator";';
+      try {
+        fs.mkdirSync(outside);
+        if (state === "present") fs.writeFileSync(path.join(outside, "util.js"), "// moved\n" + line + "\n");
+        fs.symlinkSync(outside, junction, "junction");
+        const config = await syncConfig(fx.root);
+        fs.appendFileSync(
+          path.join(fx.root, config.paths.content, "take-over", "orders-api.md"),
+          "\nSee `old.js:1`.\n",
+        );
+        const toc = readToc(fx.root, config);
+        const inventory = await runCoverage({ root: fx.root, config });
+        const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+        const reference = structuredClone(
+          (await markPages({ root: fx.root, config, toc, all: true, ...at })).reference,
+        );
+        reference.proofs["old.js:1"] = { hash: hashText(line), text: line };
+        const git = createGit(fakeExec({ changed: ["R100\told.js\tj/util.js"] }), fx.appDir);
+        const { result, reads } = await readsIn(outside, () =>
+          compareWithReference({
+            root: fx.root,
+            config,
+            toc,
+            reference,
+            since: null,
+            git,
+            inventory,
+            plans: [],
+            appDir: fx.appDir,
+            version: "1.0.0",
+            commit: "c0ffee",
+            factsDir: config.paths.facts,
+          }),
+        );
+        assert.deepEqual(reads, [], "nothing outside the application is read");
+        assert.deepEqual(
+          result.proofs.moved.filter((m) => m.page === id),
+          [],
+        );
+        assert.deepEqual(
+          result.proofs.broken.filter((b) => b.page === id).map((b) => [b.ref, b.reason]),
+          [["old.js:1", "fileDeleted"]],
+        );
+        assert.ok(!JSON.stringify(result).includes("j/util.js:2"), "never moved through the junction");
+      } finally {
+        unlinkJunction(junction);
+        fx.release();
+      }
+    });
 
   // resolveProofFile's early "outside": a proof as written through a junction out is no file of the application, and
   // is never looked for by its end (a whole-segment suffix) among the files inside — present outside or missing there,
