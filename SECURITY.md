@@ -37,13 +37,17 @@ this file gives access to the application with the rights of the person who sign
   `.git-credentials`, `.htpasswd`, `credentials`, `credentials.json`, a Google OAuth `client_secret*.json`, a
   `kubeconfig`), Terraform state and variables (`*.tfstate`, `*.tfstate.backup`, `*.tfvars`), VPN profiles
   (`*.ovpn`), encrypted files (`*.gpg`) or the settings of an environment (`appsettings.*.json` and its `.bak` copy;
-  `appsettings.json` itself is copied). A session is told by its first 64 KB, never by reading the file whole: a file
-  that fits in them is parsed, a longer one is a session when it starts as one (an object whose first key is
-  `cookies` or `origins`) and its first 64 KB also hold the other key, or a first item of a session's shape (a cookie
-  with its `name`, `value` and `domain`; an origin with its `localStorage`), so a session holding megabytes of local
-  storage is left out too, and a data file that merely starts with a `cookies` list is not one. A session written in
-  another order, longer than 64 KB, is not recognised: keep sessions in `.doc-kit/`. Other names are copied: a
-  `.kube/config`, a key without its extension.
+  `appsettings.json` itself is copied). A JSON file of 5 MB at most is parsed whole: it is a session when its
+  top-level object holds a `cookies` and an `origins` list, in any order, or one of them alone whose first item has a
+  session's shape (a cookie with its `name`, `value` and `domain`, in any order; an origin with its
+  `localStorage`). A longer one is told by its first 64 KB: it starts as a session (an object whose first key is
+  `cookies` or `origins`), and the top-level keys of those 64 KB hold the other one (the depth of the JSON is
+  followed: a key of a nested object never counts), or its first item has a session's shape as Playwright writes it
+  (`name`, `value`, `domain` in that order; `origin`, `localStorage`). So a session holding megabytes of local
+  storage is left out too, and a data file that merely starts with a `cookies` list, even one whose items hold an
+  `origins` list, is not one. A session longer than 5 MB written in another order, its other key past its first
+  64 KB, is not recognised: keep sessions in `.doc-kit/`. Other names are copied: a `.kube/config`, a key without its
+  extension.
 - Never copy, show, attach or pass the file on — not in a ticket, not to a colleague, not to an agent, not to a CI
   pipeline. Delete it at the end of a campaign: `doc-kit connect --forget`. If it leaked, sign out of the application
   (or revoke the session on the identity provider) to invalidate it.
@@ -95,12 +99,15 @@ for a mere mention:
   (`SK` and 32 hexadecimal digits), Discord webhooks and Microsoft Teams incoming webhooks;
 - the value of an assignment to a secret's name, whatever the words before it: `SECRET_KEY`, `DB_PASSWORD`,
   `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`…, after `=`, `:`, `:=` or `=>`, quoted
-  or not. The value is read on the name's line, up to a character other than an ASCII letter, a digit or
+  or not, and the text of an XML element or setting named so, on one line (`<password>…</password>` in Maven's
+  `settings.xml`, `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`, a .NET `appSettings`). The value
+  is read on the name's line, up to a character other than an ASCII letter, a digit or
   `_-+/=.~!@#$%&*` (a blank, a quote, `,`, `:`, `;`, a bracket, a parenthesis…): it may hold the signs of a password
   (`Tr0ub4dor&3xQ!`) and the `~` of every Azure AD client secret, but a `&` that starts another URL parameter
   (`&user=`) ends it. It is a secret from 8 characters, in capitals (a base 32 key) or without a digit too, and from
   16 when made of letters only, or of words of letters joined by `-`, `_` or `.` (`correcthorsebatterystaple`; a
-  label's word, `"password": "Passwort"`, is shorter). A name merely starting so (`KEYBOARD`, `TOKENIZER`) is not one. For the key of anything else
+  label's word, `"password": "Passwort"`, is shorter); a number is one under a password's name only (`password`,
+  `passwd`, `pwd`, `pass`, `pw`, `passphrase`), from 8 digits (`DB_PASSWORD=73829164`). A name merely starting so (`KEYBOARD`, `TOKENIZER`) is not one. For the key of anything else
   (`STRIPE_KEY`, `CACHE_KEY`), the value must have 16 characters or more and look generated; a public name
   (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`) is never a secret's. The password of a connection string
   (`Password=`, `Pwd=`) is read inside one only (`Server=db;Password=…`): a lone `password = …` is an assignment;
@@ -114,19 +121,30 @@ for a mere mention:
   cloud sizes, versions, alphabets, hashes) nor in the kit's own documentation.
 
 Never a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `xxxx…`, `example`, `your…`, `change-me`,
-`replace-me`, `exemple`, `votre`, `motdepasse`…), a reference (`process.env.…`, `os.environ…`). Under a secret's name
-(or the key of anything), neither is a number nor a value of fewer than 5 different characters (`***-***-***`), nor,
-under a secret's name, a reference written as code: a variable's name in capitals with an underscore (`DB_PASSWORD_VALUE`), a sigil and a name
+`replace-me`, `exemple`, `votre`, `motdepasse`…), the default of a shell expansion (`${DB_PASSWORD:-postgres}`), a
+reference (`process.env.…`, `os.environ…`). Under a secret's name (or the key of anything), neither is a number
+(but 8 digits or more under a password's name) nor a value of fewer than 5 different characters (`***-***-***`), nor,
+under a secret's name, a reference written as code: a variable's name in capitals with an underscore, unquoted
+(`DB_PASSWORD_VALUE`), or quoted when it holds no digit, is wrapped in underscores or holds a secret's word
+(`"__REPLACE_AT_DEPLOY__"`, `"OPENAI_API_KEY"`; `"S3CR_ET99_ZQ"` is a value), a sigil and a name
 (`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a member
-(`config.jwt.secret`), a path (`/run/secrets/db`), a comparison (`token === …`); unquoted, a call or an index
+(`config.jwt.secret`) or members joined by `+` (`r.C0.ESC+r.C0.ESC`, minified code), a path (`/run/secrets/db`), a
+comparison (`token === …`); unquoted, a call or an index
 (`getPassword()`, `configuration["DbPassword"]`) and, under a name that is not in capitals (code rather than an
-environment file), a name in code of several words (`hashedPassword`, `new_password`); and a documentation's
-example, letters only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). For the entropy
+environment file), a name in code of several words (`hashedPassword`, `new_password`); unquoted after `:`, a CSS
+pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
+`.password:picture-in-picture{`) and, under a name in lower case ending in `secret` (a Helm value), a resource's name
+of lower-case words joined by `-`, `.` or `/` (`tlsSecret: wildcard-tls-certificate`); a documentation's example,
+letters only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). A name holding `existing` or
+`pull` points to a resource that holds the secret (`existingSecret`, `imagePullSecret`): it is not a secret's
+name, nor are `secretName` and `secretRef`, which end in another word. For the entropy
 fallback, never a hash (hexadecimal, `sha512-…`), the value of a hash, a nonce or an identifier (`integrity`,
 `pin-sha256`, `nonce`, `state`, `code_challenge`, `id`, `client_id`, `…_name`) or of a public name, nor a URL's
 query or fragment parameter whose name says nothing of a secret (`?list=`, `&fbclid=`, `&amp;gclid=`): one whose
 name ends in a secret's word, or in one a URL gives a secret (`sig`, `signature`, `token`, `key`, `secret`,
-`password`, `credential`, `session`, `sid`, `auth`, `code`), is read.
+`password`, `credential`, `session`, `sid`, `auth`), is read. An OAuth authorisation code (`?code=`) is not: it is
+used once, within minutes, and every provider's documentation shows one. A value two detectors find is reported
+once, by the first (a Google key in a URL's `key=`: `cloudKey`).
 
 Limits: the detectors are patterns and a measure, not a proof.
 
@@ -137,8 +155,15 @@ Limits: the detectors are patterns and a measure, not a proof.
 - Under a secret's name, a password passes when it is shorter than 8 characters (16 for letters only), holds a
   character the value stops at (a blank: `"correct horse battery staple"` is read as `correct`; `:`, `,`, `;`, a
   bracket, a parenthesis, `^`, `?`, a letter outside ASCII) before its 8th, is on the line after its name, or is
-  written like one of the references above: `MySecretPassword2024` unquoted under a name in lower case,
-  `my.pass.word` (a member), `supersecretpassword` (letters with a secret's word), `!Password` (a YAML tag).
+  written like one of the references above: `MySecretPassword2024` or `SummerHoliday2024` unquoted under a name
+  in lower case (`password: SummerHoliday2024`), `PROD_DB_PASS_2024` unquoted (a variable's name in capitals:
+  `SECRET=PROD_DB_PASS_2024`), `@dmin2024Prod` or `$ecretPa55w0rd` (a sigil and a name), `my.pass.word` (a
+  member), `supersecretpassword` (letters with a secret's word), `!Password` (a YAML tag), lower-case words joined by
+  `-` under a name in lower case ending in `secret` (a resource's name), or the default of a shell expansion. A
+  number of fewer than 8 digits, or under a token's or a secret's name, is not one.
+- On a command line, a password after a blank (`--password value`, `-p value`) is not looked for; `--password=value`
+  is. An XML element's text is read on one line, without a blank, 256 characters at most; a setting only as
+  `<add key="…" value="…">`, its key first.
 - Not looked for: a token after `Authorization: Bearer` or `Basic` (unless it has a known shape or is a JWT), a token
   as the user of a URL (`https://<token>@host`; a `user:password@` is found), a PEM key whose lines start with `> `
   or `// ` (quoted in a message or a comment), a PEM block cut before its `END` line, and an Azure AD client secret

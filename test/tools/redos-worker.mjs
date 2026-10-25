@@ -347,6 +347,16 @@ const SCANNER_SHAPES = [
   ["", "Private-Lines: 1\nA1"],
   ["", '"Zq8vN3kT6wP1xR4mY7bL'],
   ["", "A_KEY=Zq8vN3kT6wP1xR4mY7bL "],
+  // XML elements and settings named as a secret, never closed; a value as long as the text after one; CSS
+  // pseudo-classes and shell defaults after a secret's name; sums of members; JSON nested in a session's head.
+  ["", "<password>A1"],
+  ["<password>", "A1"],
+  ["<add key='", "a"],
+  ["", '<add key="ClearTextPassword" value="A1'],
+  ["", "#password:-webkit-a"],
+  ["", "${DB_PASSWORD:-a1b2c3d4"],
+  ["o.key=", "r.C0+"],
+  ['{"cookies": [', '{"origins": ["\\"x", '],
 ];
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */
 const CLOSER_TEXT = { prismaModel: "\n}", createTable: ");" };

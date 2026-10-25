@@ -112,15 +112,18 @@ et dans le **texte du site construit** (pages, introductions des sections, page 
   bloc PGP, une clé PuTTY), un JWT, le mot de passe d'une chaîne de connexion ou d'une URL, un jeton de cloud ou de
   service (AWS, GitHub, GitLab, npm, Slack, Google, Stripe, SendGrid, Hugging Face, DigitalOcean, Twilio…, les webhooks
   Discord et Teams), la valeur affectée à un nom de secret (`SECRET_KEY`, `DB_PASSWORD`, `GITHUB_TOKEN`, `dbPassword`… :
-  8 caractères ou plus, signes compris, 16 pour des lettres seules), la signature d'une URL signée ;
+  8 caractères ou plus, signes compris, 16 pour des lettres seules ; aussi le texte d'un élément ou d'un réglage XML
+  ainsi nommé, comme dans le `settings.xml` de Maven ou un `NuGet.Config`), la signature d'une URL signée ;
 - en dernier, une valeur d'apparence aléatoire sous tout autre nom, affectée ou entre guillemets (20 caractères ou
   plus, mêlant minuscules, majuscules et chiffres comme un jeton généré ; jamais un paramètre d'URL dont le nom ne dit
   rien d'un secret, comme `?list=` ou `?fbclid=`) : « valeur d'apparence aléatoire (forte entropie) ».
 
 Une simple mention n'est pas un secret : un texte de remplacement (`<password>`, `****`, `${SECRET}`, `example`,
 `exemple`, `motdepasse`, `change-me`, un nom de variable en capitales, une référence dans du code comme
-`process.env.…`, `$PASSWORD`, `config.password` ou `getPassword()`) est ignoré, de même qu'une empreinte, un nonce
-ou un identifiant pour les valeurs d'apparence aléatoire. Les détecteurs et leurs limites sont décrits dans
+`process.env.…`, `$PASSWORD`, `config.password` ou `getPassword()`, une valeur par défaut du shell comme
+`${DB_PASSWORD:-postgres}`) est ignoré, de même qu'un sélecteur CSS (`#password:-webkit-autofill`), le nom d'un secret
+Kubernetes dans des valeurs Helm (`existingSecret: db-credentials`), un code d'autorisation OAuth (`?code=`), et une
+empreinte, un nonce ou un identifiant pour les valeurs d'apparence aléatoire. Les détecteurs et leurs limites sont décrits dans
 SECURITY.md. Un constat indique où il se trouve, et seulement
 les premiers caractères et la longueur de la valeur. Le contrôle signale aussi un fichier de session trouvé hors de
 `.doc-kit/`, et un fichier de session suivi par git.

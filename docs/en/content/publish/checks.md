@@ -108,15 +108,18 @@ the built site** (pages, section introductions, home page, glossary) for:
   PuTTY key), a JWT, the password of a connection string or of a URL, a cloud or service token (AWS, GitHub, GitLab,
   npm, Slack, Google, Stripe, SendGrid, Hugging Face, DigitalOcean, Twilio…, Discord and Teams webhooks), the value
   assigned to a secret's name (`SECRET_KEY`, `DB_PASSWORD`, `GITHUB_TOKEN`, `dbPassword`…: 8 characters or more, signs
-  included, 16 for letters only), the signature of a signed URL;
+  included, 16 for letters only; also the text of an XML element or setting named so, as in Maven's `settings.xml` or
+  a `NuGet.Config`), the signature of a signed URL;
 - last, a random-looking value under any other name, assigned or quoted (20 characters or more, mixing lower case,
   upper case and digits as a generated token does; never a URL parameter whose name says nothing of a secret, such
   as `?list=` or `?fbclid=`): "random-looking value (high entropy)".
 
 A mere mention is not a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `example`, `exemple`,
 `motdepasse`, `change-me`, a variable name in capitals, a reference in code such as `process.env.…`, `$PASSWORD`,
-`config.password` or `getPassword()`) is ignored, and so are a hash, a nonce or an identifier for
-the random-looking values. The detectors and their limits are described in SECURITY.md. A finding shows where it is and only the first characters and
+`config.password` or `getPassword()`, a shell default such as `${DB_PASSWORD:-postgres}`) is ignored, and so are a CSS
+selector (`#password:-webkit-autofill`), the name of a Kubernetes secret in Helm values (`existingSecret:
+db-credentials`), an OAuth authorisation code (`?code=`), and a hash, a nonce or an identifier for the random-looking
+values. The detectors and their limits are described in SECURITY.md. A finding shows where it is and only the first characters and
 the length of the value. The check also reports a session file found outside `.doc-kit/`, and a session file tracked
 by git.
 

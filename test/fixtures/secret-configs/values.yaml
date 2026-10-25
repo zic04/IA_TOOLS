@@ -1,0 +1,47 @@
+# Helm values of an orders API: every secret lives in a Kubernetes Secret, named here.
+global:
+  imagePullSecrets:
+    - name: regcred
+  imagePullSecret: registry-credentials
+image:
+  repository: registry.acme.io/orders/api
+  tag: 1.4.2
+postgresql:
+  enabled: true
+  auth:
+    username: orders
+    existingSecret: postgresql-credentials
+    secretKeys:
+      adminPasswordKey: postgres-password
+      userPasswordKey: password
+redis:
+  auth:
+    existingSecret: orders-redis
+    existingSecretPasswordKey: redis-password
+ingress:
+  enabled: true
+  tls:
+    - secretName: orders-acme-io-tls
+      hosts:
+        - orders.acme.io
+  tlsSecret: wildcard-tls-certificate
+serviceAccount:
+  automountServiceAccountToken: false
+oauth2:
+  clientId: orders-api
+  clientSecretRef: orders-oauth-client
+  tokenUrl: https://login.acme.io/oauth2/token
+  tokenEndpointAuthMethod: client_secret_basic
+keycloak:
+  existingSecret: keycloak-admin-credentials
+  passwordSecretKey: admin-password
+grafana:
+  admin:
+    existingSecret: grafana-admin-credentials
+  adminPasswordSecret: grafana-admin-credentials
+externalSecrets:
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  secret: orders-db-credentials
+  type: kubernetes.io/basic-auth

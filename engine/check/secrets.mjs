@@ -8,11 +8,12 @@
 //   generic  actual secret VALUES only, never a mere mention: a private key holding key material (PEM, escaped in
 //            a JSON file, PGP, PuTTY; a "-----BEGIN PRIVATE KEY-----" line alone is documentation), a JWT, the
 //            password of a connection string or of a URL, a cloud or service token, the value of an assignment to a
-//            secret's name (SECRET_KEY, DB_PASSWORD…: any value of 8 characters or more, assignedPassword), the
-//            signature of a signed URL, and last a random-looking value under any name (entropy); placeholders
-//            ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse", "change-me", an UPPER_CASE
-//            variable name…) and references written as code ($DB_PASSWORD, config.password, getPassword()) are not
-//            values (engine/check/secret-values.mjs: GENERIC, re-exported here)
+//            secret's name (SECRET_KEY, DB_PASSWORD…: any value of 8 characters or more, assignedPassword) or of an
+//            XML element or setting named so, the signature of a signed URL, and last a random-looking value under
+//            any name (entropy); placeholders ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse",
+//            "change-me", an UPPER_CASE variable name, a shell default…) and references written as code
+//            ($DB_PASSWORD, config.password, getPassword()) are not values (engine/check/secret-values.mjs: GENERIC,
+//            re-exported here); a value two detectors find is reported once
 // Never reported (ignoreRules), whatever the detector:
 //   local      an address that means nothing outside the machine or the private network: 0.0.0.0, ::, loopback
 //              (localhost, 127.x, ::1), private and link-local ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x),
@@ -201,18 +202,24 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
       token = { ...tokenAround(text, m.index, end), whole };
     return token.text;
   };
-  // A fallback detector (entropy) runs last and only reports a line no other detector reported: one finding per
-  // secret, under its most precise kind.
+  // A fallback detector (entropy) runs last and only reports a line no other detector reported; another detector
+  // does not report a value one before it reported (a Google key as a key's assignment too): one finding per secret,
+  // under its most precise kind.
   const reported = new Set();
+  const values = new Set();
   for (const d of [...list.filter((x) => !x.fallback), ...list.filter((x) => x.fallback)]) {
     d.re.lastIndex = 0;
-    for (const m of text.matchAll(new RegExp(d.re.source, d.re.flags.includes("g") ? d.re.flags : d.re.flags + "g"))) {
+    const flags = [...new Set(`${d.re.flags}gd`)].join("");
+    for (const m of text.matchAll(new RegExp(d.re.source, flags))) {
       if ((d.allow && d.allow.test(m[0])) || (d.accept && !d.accept(m))) continue;
       const line = lineOf(m.index);
       if (d.fallback && reported.has(line)) continue;
+      const at = m.indices?.groups?.v?.[0] ?? m.index;
+      if (values.has(at)) continue;
       const value = m.groups?.v ?? m[0];
       if (ignore(value.trim(), tokenOf(m))) continue;
       if (!d.fallback) reported.add(line);
+      values.add(at);
       out.push({
         kind: d.kind,
         preview: redact(value.trim()),
@@ -315,11 +322,21 @@ const walk = (dir, filter, skip = new Set(["node_modules", ".git"])) => {
   });
 };
 
-/** Is this JSON text a Playwright storageState (a sign-in session)? */
+/** A cookie of a session (its name, value and domain, in any order); an origin with its local storage. */
+const isCookie = (c) => !!c && typeof c === "object" && "name" in c && "value" in c && "domain" in c;
+const isOrigin = (o) => !!o && typeof o === "object" && "origin" in o && Array.isArray(o.localStorage);
+
+/**
+ * Is this JSON text a sign-in session, a byte order mark before it or not: a Playwright storageState (`cookies` and
+ * `origins`, two lists), or a list of cookies or of origins of a session's shape alone (a cookie jar)?
+ */
 export function isStorageState(text) {
   try {
-    const j = JSON.parse(text);
-    return !!j && Array.isArray(j.cookies) && Array.isArray(j.origins);
+    const j = JSON.parse(String(text).replace(/^\uFEFF/, ""));
+    if (!j || typeof j !== "object" || Array.isArray(j)) return false;
+    const cookies = Array.isArray(j.cookies);
+    const origins = Array.isArray(j.origins);
+    return (cookies && origins) || (cookies && isCookie(j.cookies[0])) || (origins && isOrigin(j.origins[0]));
   } catch {
     return false;
   }
@@ -330,8 +347,42 @@ export function isStorageState(text) {
  * order mark too). Linear: anchored, blanks between fixed characters.
  */
 export const SESSION_HEAD = /^\s*\{\s*"(cookies|origins)"\s*:\s*\[\s*/;
-/** The other key of a storageState, holding an array, anywhere in the head. */
-const SESSION_OTHER_KEY = { cookies: /"origins"\s*:\s*\[/, origins: /"cookies"\s*:\s*\[/ };
+/** The other key of a storageState. */
+const OTHER_KEY = { cookies: "origins", origins: "cookies" };
+const BLANK_CHAR = new Set([" ", "\t", "\n", "\r", "\uFEFF"]);
+
+/**
+ * The keys of a JSON text's top-level object that hold an array, read in a head that may be cut anywhere: the depth
+ * of the JSON is followed, so that a key of a nested object (`{"cookies": [{"origins": [`) is never one. Linear: one
+ * pass over the characters, no expression (RULES.md S5).
+ * @param {string} head
+ * @returns {Set<string>}
+ */
+function topLevelArrayKeys(head) {
+  const keys = new Set();
+  let depth = 0;
+  /** The last string closed in the top-level object, until its ":"; then the key waiting for its value. */
+  let key = null;
+  let valueOf = null;
+  for (let i = 0; i < head.length; i++) {
+    const c = head[i];
+    if (c === '"') {
+      const start = i + 1;
+      for (i++; i < head.length && head[i] !== '"'; i++) if (head[i] === "\\") i++;
+      if (depth === 1) key = valueOf === null ? head.slice(start, i) : null;
+      valueOf = null;
+    } else if (c === ":" && depth === 1 && key !== null) {
+      valueOf = key;
+      key = null;
+    } else if (c === "[" || c === "{") {
+      if (depth === 1 && valueOf !== null && c === "[") keys.add(valueOf);
+      valueOf = null;
+      depth++;
+    } else if (c === "]" || c === "}") depth--;
+    else if (!BLANK_CHAR.has(c)) key = valueOf = null;
+  }
+  return keys;
+}
 /** A JSON string. Linear: a character or an escape, never both. */
 const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`;
 /** The first item of a storageState's list as Playwright writes it: a cookie (name, value, domain), an origin. */
@@ -341,35 +392,39 @@ const SESSION_ITEM = {
   ),
   origins: new RegExp(String.raw`^\{\s*"origin"\s*:\s*${JSON_STRING}\s*,\s*"localStorage"\s*:\s*\[`),
 };
-/** What is read of a file to tell a session: a session of local storage can weigh megabytes. */
+/** A file up to this size is parsed whole to tell a session (as `check secrets` read one before); a longer one by its head. */
+const SESSION_PARSE_BYTES = 5 * 1024 * 1024;
+/** What is read of a longer file: a session of local storage can weigh megabytes. */
 const SESSION_HEAD_BYTES = 64 * 1024;
 
 /**
- * Does a text start as a storageState (SESSION_HEAD), with a session's other key in it or a first item of a
- * session's shape (a cookie: `name`, `value`, `domain`; an origin: `origin`, `localStorage`)? A data file whose first
- * key is merely "cookies" or "origins" (`{"cookies": [{"id": 1, "flavour": …}]}`) is not one.
+ * Does a text start as a storageState (SESSION_HEAD), with a session's other key among the top-level keys of its head
+ * (topLevelArrayKeys: never a nested one) or a first item of a session's shape (a cookie: `name`, `value`, `domain`;
+ * an origin: `origin`, `localStorage`)? A data file whose first key is merely "cookies" or "origins"
+ * (`{"cookies": [{"id": 1, "flavour": …, "origins": […]}]}`) is not one.
  * @param {string} head
  */
 export function startsAsSession(head) {
   const m = SESSION_HEAD.exec(head);
   if (!m) return false;
   const first = /** @type {"cookies"|"origins"} */ (m[1]);
-  return SESSION_OTHER_KEY[first].test(head) || SESSION_ITEM[first].test(head.slice(m[0].length));
+  return SESSION_ITEM[first].test(head.slice(m[0].length)) || topLevelArrayKeys(head).has(OTHER_KEY[first]);
 }
 
 /**
- * Is a file a browser session (a storageState), whatever its size? Only its first 64 KB are read: a file that fits
- * in them is parsed, a longer one is a session when it starts as one (startsAsSession). False when it cannot be read.
+ * Is a file a browser session (a storageState), whatever its size? A file of 5 MB at most is parsed whole and decided
+ * on its top-level keys (isStorageState: a session written in any order); a longer one, on its first 64 KB, when it
+ * starts as one (startsAsSession). False when it cannot be read.
  * @param {string} file
  */
 export function isSessionFile(file) {
   let fd;
   try {
     fd = fs.openSync(file, "r");
-    const head = Buffer.alloc(SESSION_HEAD_BYTES + 1);
+    if (fs.fstatSync(fd).size <= SESSION_PARSE_BYTES) return isStorageState(fs.readFileSync(fd, "utf8"));
+    const head = Buffer.alloc(SESSION_HEAD_BYTES);
     const n = fs.readSync(fd, head, 0, head.length, 0);
-    const text = head.toString("utf8", 0, n);
-    return n <= SESSION_HEAD_BYTES ? isStorageState(text) : startsAsSession(text);
+    return startsAsSession(head.toString("utf8", 0, n));
   } catch {
     return false;
   } finally {

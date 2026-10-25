@@ -1,0 +1,25 @@
+/* The login form of a Vue or React application. */
+.login-form{display:grid;gap:12px;max-width:360px}
+#password:-webkit-autofill{box-shadow:0 0 0 30px #fff inset}
+.login-password:-webkit-autofill,.login-password:-webkit-autofill:hover{-webkit-text-fill-color:#000}
+input.password:-webkit-autofill:focus{transition:background-color 5000s ease-in-out 0s}
+.token:-webkit-any-link{color:inherit}
+.field-secret:-moz-ui-invalid{box-shadow:none}
+#password:-ms-input-placeholder{color:#999}
+.password::-ms-reveal{display:none}
+.password:nth-last-of-type(2){margin:0}
+.token:not(:last-child){margin-right:4px}
+.show-password:focus-visible{outline:2px solid var(--focus)}
+.password:picture-in-picture{opacity:.5}
+
+.password-field input:-webkit-autofill,
+.password-field input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+}
+.reset-password:visited {
+  color: purple;
+}
+:root {
+  --token-spacing-md: 16px;
+  --password-strength-strong: #2e7d32;
+}

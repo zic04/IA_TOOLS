@@ -328,6 +328,113 @@ describe("assignments to a secret's name", () => {
       assert.deepEqual(kinds(text), [], text.slice(0, 30));
   });
 
+  test("a CSS pseudo-class after a selector named as a secret is not a value; a value after a colon is", () => {
+    for (const text of [
+      "#password:-webkit-autofill{box-shadow:0 0 0 30px #fff inset}",
+      ".token:-webkit-any-link{color:inherit}",
+      ".field-secret:-moz-ui-invalid{box-shadow:none}",
+      "input.password:-webkit-autofill:focus{transition:none}",
+      ".password-field input.password:-webkit-autofill,",
+      ".password:picture-in-picture{opacity:.5}",
+    ])
+      assert.deepEqual(kinds(text), [], text);
+    const pw = "Kx9#" + "mQ2vL7pZ4";
+    assert.deepEqual(kinds(`db_password:${pw}`), ["assignment"]);
+    assert.deepEqual(kinds(`password: -${pw}`), ["assignment"], "a sign first, not a vendor's prefix");
+    assert.deepEqual(kinds(`password: -webkit-${pw}`), [], "a vendor's prefix");
+  });
+
+  test("a Helm value naming a resource (existingSecret, imagePullSecret, tlsSecret) is not a secret; a password is", () => {
+    for (const text of [
+      "existingSecret: postgresql-credentials",
+      '  existingSecret: "orders-api-secrets"',
+      "imagePullSecret: registry-credentials",
+      "tlsSecret: wildcard-tls-certificate",
+      "adminPasswordSecret: grafana-admin-credentials",
+      "secret: orders-db-credentials",
+      "secret: kubernetes.io/service-account-token",
+    ])
+      assert.deepEqual(kinds(text), [], text);
+    const pw = "Kx9#" + "mQ2vL7pZ4";
+    assert.deepEqual(kinds(`tlsSecret: ${pw}`), ["assignment"]);
+    assert.deepEqual(kinds(`existingSecret: ${pw}`), [], "the name of a reference: never a secret's");
+    // In capitals (an environment file), words are a passphrase; under a password's name too.
+    assert.deepEqual(kinds("JWT_SECRET=wildcard-tls-certificate"), ["assignment"]);
+    assert.deepEqual(kinds(`db_password: ${"correct-" + "horse-" + "battery"}`), ["assignment"]);
+    assert.deepEqual(kinds("tlsSecret: wildcard-tls-2024"), [], "a number as a word of its own");
+    assert.deepEqual(kinds("tlsSecret: wildcard-tls-2024x"), ["assignment"], "a digit mixed in a word");
+  });
+
+  test("a number is a password's value from 8 digits, never a token's or a price", () => {
+    const digits = "7382" + "9164";
+    assert.deepEqual(kinds(`DB_PASSWORD=${digits}`), ["assignment"]);
+    assert.deepEqual(kinds(`"pwd": "${digits}"`), ["assignment"]);
+    assert.deepEqual(kinds(`DB_PASSWORD=${digits.slice(0, 7)}`), [], "7 digits");
+    assert.deepEqual(kinds(`API_TOKEN=${digits}`), [], "a token's name: an identifier");
+    assert.deepEqual(kinds(`DB_PASSWORD=${digits}.5`), [], "not digits only");
+    assert.deepEqual(kinds("DB_PASSWORD=11111111"), [], "fewer than 5 different digits");
+  });
+
+  test("a variable's name in capitals is a reference unquoted; quoted, a value unless it reads as one", () => {
+    const caps = "S3CR_" + "ET99_ZQ";
+    assert.deepEqual(kinds(`{"password": "${caps}"}`), ["assignment"]);
+    assert.deepEqual(kinds(`password: '${caps}'`), ["assignment"]);
+    assert.deepEqual(kinds(`password: ${caps}`), [], "unquoted: a variable's name");
+    for (const text of [
+      '"Secret": "__REPLACE_AT_DEPLOY__"',
+      '"ApiKey": "OPENAI_API_KEY"',
+      '"password": "DB_PASSWORD_VALUE"',
+      '"token": "API_KEY_FROM_VAULT"',
+    ])
+      assert.deepEqual(kinds(text), [], text);
+  });
+
+  test("XML: a secret element (Maven's settings.xml) and a secret setting (NuGet): found; placeholders are not", () => {
+    const pw = "Kx9#" + "mQ2vL7pZ4";
+    assert.deepEqual(kinds(`<password>${pw}</password>`), ["assignment"]);
+    assert.deepEqual(kinds(`  <sonar.token>${pw}</sonar.token>`), ["assignment"]);
+    assert.deepEqual(kinds(`<add key="ClearTextPassword" value="${pw}" />`), ["assignment"]);
+    assert.deepEqual(kinds(`<add key='DbPassword' value='${pw}'/>`), ["assignment"]);
+    for (const text of [
+      "<password>${env.MAVEN_PASSWORD}</password>",
+      "<password>your-password</password>",
+      `<password>{${"COQLCE6DU6" + "GtcS5P="}}</password>`,
+      `<password>${pw}</passphrase>`,
+      `<username>${pw}</username>`,
+      '<add key="ClearTextPassword" value="%NUGET_PASSWORD%" />',
+      '<add key="DbPassword" value="$(DbPassword)" />',
+      `<add key="Username" value="${pw}" />`,
+    ])
+      assert.deepEqual(kinds(text), [], text);
+  });
+
+  test("the default of a shell expansion (${DB_PASSWORD:-postgres}) is a placeholder; the value it replaces is not", () => {
+    for (const text of [
+      "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}",
+      "password: ${DB_PASSWORD:-postgres}",
+      "REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_dev_pass}",
+      "- DB_PASSWORD=${DB_PASSWORD:=localdev1}",
+    ])
+      assert.deepEqual(kinds(text), [], text);
+    assert.deepEqual(kinds(`POSTGRES_PASSWORD: ${"Kx9#" + "mQ2vL7pZ4"}`), ["assignment"]);
+  });
+
+  test("a value of members joined by + (minified code) is an expression; a generated key is a value", () => {
+    assert.deepEqual(kinds("o.key=r.C0.ESC+r.C0.ESC"), []);
+    assert.deepEqual(kinds("case 13:o.key=e.altKey?r.C0.ESC+r.C0.CR:r.C0.CR"), []);
+    assert.deepEqual(kinds(`o.key=${generated}`), ["assignment"]);
+    assert.deepEqual(kinds(`o.key=${generated.slice(0, 10)}+${generated.slice(10)}`), ["assignment"]);
+  });
+
+  test("a value two detectors find is reported once, under the first: a Google key in a URL's key=", () => {
+    const key = "AI" + "za" + draw(35);
+    const maps = "https://maps.googleapis" + ".com/maps/api/js";
+    assert.deepEqual(kinds(`<script src="${maps}?key=${key}&callback=initMap"></script>`), ["cloudKey"]);
+    assert.deepEqual(kinds(`GOOGLE_API_KEY=${key}`), ["cloudKey"]);
+    // Two values on one line: each once.
+    assert.deepEqual(kinds(`${maps}?key=${key} and ${maps}?key=${"AI" + "za" + draw(35)}`), ["cloudKey", "cloudKey"]);
+  });
+
   test("a documentation placeholder, a variable and a number are not values", () => {
     for (const v of [
       "change-me-in-production-2024",
@@ -377,12 +484,26 @@ describe("the entropy fallback", () => {
     assert.deepEqual(kinds(`<a href="${youtube.replace("&", "&amp;")}">talk</a>`), []);
     assert.deepEqual(kinds(`https://shop.test/?fbclid=IwAR${token(57, B64URL)}`), []);
     assert.deepEqual(kinds(`https://shop.test/?utm_source=x&gclid=${token(40, B64URL)}`), []);
-    // A secret's name, or a name a URL gives a secret (a session, a code): found.
-    assert.deepEqual(kinds(`https://shop.test/cb?state=abc&code=${token(32, B64URL)}`), ["entropy"]);
+    // A secret's name, or a name a URL gives a secret (a session): found.
     assert.deepEqual(kinds(`https://shop.test/a?session=${token(32)}`), ["entropy"]);
+    assert.deepEqual(kinds(`https://shop.test/cb?state=abc&sid=${token(32, B64URL)}`), ["entropy"]);
     assert.deepEqual(kinds(`https://shop.test/a#access_token=${token(32)}`), ["assignment"]);
     // Outside a query, the same name is an assignment like any other.
     assert.deepEqual(kinds(`list=PL${token(32, B64URL)}`), ["entropy"]);
+  });
+
+  test("an OAuth authorisation code (?code=) is not a secret: used once, within minutes; the documentation shows one", () => {
+    // Google's and Microsoft's published examples, and a code of the same shape as a random token.
+    for (const text of [
+      `https://oauth2.example.com/auth?code=${"4/P7q7W91a-oMs" + "CeLvIaQm6bTrgtp7"}&scope=email`,
+      `https://localhost/myapp/?code=${"OAAABAAAAiL9Kn2Z27Uub" + "vWFPbm0gLWQJVzCTE9UkP3pSx1aXxUjq3n8b2JRLk4OxVXr"}&state=12345`,
+      `GET /callback?code=${token(24)}&state=abc HTTP/1.1`,
+      `<a href="https://app.test/cb?state=abc&amp;code=${token(32, B64URL)}">sign in</a>`,
+    ])
+      assert.deepEqual(kinds(text), [], text.slice(0, 40));
+    // The tokens a code is exchanged for are secrets.
+    assert.deepEqual(kinds(`https://app.test/cb#access_token=${token(32)}&token_type=Bearer`), ["assignment"]);
+    assert.deepEqual(kinds(`https://app.test/cb?state=abc&id_token=${token(32, B64URL)}`), ["assignment"]);
   });
 
   test("calibration: random tokens of 20 characters or more are found 85 times in 100, of 32 or more 95", () => {
@@ -479,6 +600,34 @@ describe("the entropy fallback", () => {
   });
 });
 
+describe("false positives that would fail a build", () => {
+  /** The files of a folder, at any depth, that `check secrets`, `pack` or `inputs ingest` would read. */
+  const filesOf = (root) =>
+    fs
+      .readdirSync(root, { recursive: true })
+      .map((f) => String(f))
+      .filter((f) => !/(?:^|[\\/])(?:node_modules|dist|\.doc-kit)(?:[\\/]|$)/.test(f))
+      .map((f) => path.join(root, f))
+      .filter((f) => fs.statSync(f).isFile() && /\.(md|json|mjs|js|svg|html|txt|ya?ml|css|xml|env|Config)$/.test(f));
+  const findings = (files) =>
+    files.flatMap((f) =>
+      scanText(fs.readFileSync(f, "utf8"), GENERIC).map((x) => `${path.relative(KIT_ROOT, f)}:${x.line} ${x.kind}`),
+    );
+
+  test("ten realistic configuration files hold no secret for any detector (Helm, CSS, docker-compose, .NET, .env…)", () => {
+    const dir = path.join(KIT_ROOT, "test", "fixtures", "secret-configs");
+    const files = filesOf(dir);
+    assert.equal(files.length, 10, files.join(", "));
+    assert.deepEqual(findings(files), []);
+  });
+
+  test("the kit's documentation, examples and templates hold no secret for any detector", () => {
+    const files = ["docs", "examples", "templates"].flatMap((r) => filesOf(path.join(KIT_ROOT, r)));
+    assert.ok(files.length > 300, `${files.length} files`);
+    assert.deepEqual(findings(files), []);
+  });
+});
+
 test("every kind the detectors report has its message in English and French", () => {
   for (const language of ["en", "fr"]) {
     const messages = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "i18n", language, "capture.json"), "utf8"));
@@ -553,6 +702,73 @@ describe("secret files (export, the sources of a feature)", () => {
       const origins = [{ origin: "https://app.test", localStorage: [{ name: "cache", value: "x".repeat(100_000) }] }];
       assert.equal(isSessionFile(write("state.json", { cookies: [], origins })), true);
       assert.equal(isSessionFile(write("origins-first.json", { origins, cookies: [] })), true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("up to 5 MB a file is parsed whole (SEC-12): a session in any key order is one, a nested origins list is not", () => {
+    const dir = tempDir("doc-kit-session-");
+    try {
+      const write = (name, text) => {
+        const file = path.join(dir, name);
+        fs.writeFileSync(file, text);
+        assert.ok(fs.statSync(file).size > 64 * 1024 && fs.statSync(file).size <= 5 * 1024 * 1024, name);
+        return file;
+      };
+      // A session of 171 KB whose cookies are written domain first (another tool), and one whose first cookie fills
+      // the first 64 KB: the head shows neither the other key nor a cookie of Playwright's order.
+      const cookies = Array.from({ length: 1500 }, (_, i) => ({
+        domain: "app.test",
+        name: `n${i}`,
+        value: "w".repeat(40),
+      }));
+      const otherOrder = JSON.stringify(
+        { cookies: [{ domain: "app.test", name: "sid", value: "v" }, ...cookies], origins: [] },
+        null,
+        2,
+      );
+      assert.equal(isSessionFile(write("other-order.json", otherOrder)), true);
+      const bigCookie = JSON.stringify({
+        cookies: [{ name: "a", value: "q".repeat(70_000), domain: "app.test" }],
+        origins: [],
+      });
+      assert.equal(isSessionFile(write("big-cookie.json", bigCookie)), true);
+      assert.equal(isSessionFile(write("bom.json", "\uFEFF" + bigCookie)), true, "a byte order mark first");
+      // Data of 251 KB that starts with a "cookies" list whose first item has an "origins" list: not a session.
+      const recipes = (extra) => [
+        { id: 0, flavour: "x", ingredients: [{ name: "cocoa", origins: ["CI", "GH"] }] },
+        ...Array.from({ length: 3000 }, (_, i) => ({ id: i + 1, flavour: "chocolate chip", grams: 30 + (i % 7) })),
+        ...extra,
+      ];
+      assert.equal(isSessionFile(write("bakery.json", JSON.stringify({ cookies: recipes([]) }, null, 2))), false);
+      const late = JSON.stringify({ cookies: recipes([{ id: -1, origins: [] }]) }, null, 2);
+      assert.equal(isSessionFile(write("bakery-late.json", late)), false);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("over 5 MB a file is told by its head, on its top-level keys only: a nested origins list is not the other key", () => {
+    const dir = tempDir("doc-kit-session-");
+    try {
+      const write = (name, text) => {
+        const file = path.join(dir, name);
+        fs.writeFileSync(file, text);
+        assert.ok(fs.statSync(file).size > 5 * 1024 * 1024, name);
+        return file;
+      };
+      const fill = "x".repeat(5 * 1024 * 1024);
+      // The other key at the top level, after a small list: a session holding megabytes of local storage.
+      const origins = [{ origin: "https://app.test", localStorage: [{ name: "cache", value: fill }] }];
+      const session = JSON.stringify({ cookies: [{ domain: "app.test", name: "sid", value: "v" }], origins });
+      assert.equal(isSessionFile(write("session.json", session)), true);
+      // The same key inside the first item: data.
+      const data = JSON.stringify({ cookies: [{ id: 0, origins: ["CI"], notes: fill }] });
+      assert.equal(isSessionFile(write("data.json", data)), false);
+      // Brackets inside a string, after an escaped quote, close nothing.
+      const escaped = JSON.stringify({ cookies: [{ id: 0, note: 'a "}]," word', origins: [] }], blob: fill });
+      assert.equal(isSessionFile(write("escaped.json", escaped)), false, "an escaped quote does not end the string");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -25,6 +25,8 @@ const nameParts = (name) =>
 const isPublic = (parts) => parts.includes("public") || parts.includes("publishable");
 /** The last word of a name that says its value is a secret. */
 const SECRET_WORDS = new Set(["secret", "token", "password", "passwd", "pwd", "pass", "pw", "passphrase", "apikey"]);
+/** Words of a name that points to a resource holding the secret (Helm's `existingSecret`, `imagePullSecret`). */
+const REFERENCE_WORDS = new Set(["existing", "pull"]);
 /** Words that make a name ending in "key" a secret's: `API_KEY`, `SECRET_KEY`, `accessKey`, `PRIVATE_KEY`… */
 const KEY_WORDS = new Set(["api", "secret", "access", "private", "client", "auth", "signing", "encryption", "master"]);
 
@@ -32,13 +34,14 @@ const KEY_WORDS = new Set(["api", "secret", "access", "private", "client", "auth
  * What a name says of its value: "secret" when its last word says so (`GITHUB_TOKEN`, `DB_PASSWORD`, `clientSecret`)
  * or it ends in "key" after a word that makes it one (`SECRET_KEY`, `aws_secret_access_key`, `apiKey`); "key" for the
  * key of anything else (`STRIPE_KEY`, `CACHE_KEY`, `sortKey`), whose value must look generated; null for a word merely
- * starting so (`KEYBOARD`, `TOKENIZER`), a public name and any other name.
+ * starting so (`KEYBOARD`, `TOKENIZER`), a public name, the name of a reference to a resource (`existingSecret`,
+ * `imagePullSecret`; `secretName`, `secretRef` end in another word) and any other name.
  * @returns {"secret"|"key"|null}
  */
 function secretName(name) {
   const parts = nameParts(name);
   const last = parts.at(-1);
-  if (isPublic(parts)) return null;
+  if (isPublic(parts) || parts.some((p) => REFERENCE_WORDS.has(p))) return null;
   if (SECRET_WORDS.has(last)) return "secret";
   if (last !== "key") return null;
   return parts.slice(0, -1).some((p) => KEY_WORDS.has(p)) ? "secret" : "key";
@@ -99,7 +102,11 @@ export function highEntropy(value, name = "") {
 const NUMBER = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i;
 /** Is a value assigned to the key of anything (`STRIPE_KEY`, `CACHE_KEY`, `sortKey`) a generated one? */
 const assignedKey = (name, value) =>
-  secretName(name) === "key" && looksRandom(value) && !NUMBER.test(value) && classChanges(value) >= RANDOM_CHANGES;
+  secretName(name) === "key" &&
+  looksRandom(value) &&
+  !NUMBER.test(value) &&
+  !members(value) &&
+  classChanges(value) >= RANDOM_CHANGES;
 
 /** The fewest characters of a password under a secret's name; of one made of letters only (a label's word is shorter). */
 const PASSWORD_MIN = 8;
@@ -108,12 +115,24 @@ const WORDS_MIN = 16;
 const WORDS = /^[A-Za-z]+(?:[-_.][A-Za-z]+)*$/;
 /** A name in capitals with an underscore (`DB_PASSWORD_VALUE`, `__TOKEN__`): a variable's, not a value. */
 const CONSTANT_NAME = /^_*[A-Z][A-Z\d]*(?:_+[A-Z\d]+)+_*$/;
+/**
+ * Is a value a variable's name in capitals with an underscore: unquoted always; quoted, when it holds no digit, is
+ * wrapped in underscores (`"__REPLACE_AT_DEPLOY__"`) or one of its words is a secret's (`"OPENAI_API_KEY"`), so that
+ * `"S3CR_ET99_ZQ"` is a value.
+ * @param {string} v
+ * @param {string} quote
+ */
+const constantName = (v, quote) =>
+  CONSTANT_NAME.test(v) &&
+  (!quote || !/\d/.test(v) || /^_|_$/.test(v) || nameParts(v).some((p) => SECRET_WORDS.has(p) || p === "key"));
 /** A sigil and a name: a shell, PHP, Windows, Ruby or Razor variable, a YAML alias (`$DB_PASSWORD`, `%DB_PASSWORD%`). */
 const SIGIL_NAME = /^[$@%*&]{1,2}[A-Za-z_][\w.]*[$@%]{0,2}$/;
 /** A YAML tag (`!ImportValue`, `!vault`, `!!binary`), or a negation in code (`!!user.password`). */
 const YAML_TAG = /^!{1,2}(?:[A-Za-z_]+|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)$/;
 /** A member of an object in code (`request.form.password`, `settings.SECRET_KEY`, `config.jwt.secret`). */
 const MEMBER = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/;
+/** Members, or a sum of members (`r.C0.ESC+r.C0.ESC`, minified code): an expression, not a value. */
+const members = (v) => v.split("+").every((p) => MEMBER.test(p));
 /** A path to a file holding the secret (`/run/secrets/db`, `~/.pgpass`, `./keys/app`). */
 const FILE_PATH = /^(?:~|\.{1,2})?(?:\/[A-Za-z_.][\w.-]*)+\/?$/;
 /** A name in code: an identifier of several words (`hashedPassword`, `new_password`, `oauth2Token`, `Token$1`). */
@@ -131,20 +150,59 @@ const codeName = (v) => {
 };
 
 /**
- * Is a value written as a reference, quoted or not: a PEM armour line (the private key detectors decide), a
- * comparison (`token === x`), code (`a&&b`), a variable's name in capitals, a sigil and a name, a YAML tag, a member,
- * a path?
+ * Is a value written as a reference: a PEM armour line (the private key detectors decide), a comparison
+ * (`token === x`), code (`a&&b`), a sigil and a name, a YAML tag, members, a path, a variable's name in capitals
+ * (constantName)?
  * @param {string} v
+ * @param {string} [quote]
  */
-const writtenAsReference = (v) =>
+const writtenAsReference = (v, quote = "") =>
   v.startsWith("-----") ||
   v[0] === "=" ||
   v.includes("&&") ||
-  CONSTANT_NAME.test(v) ||
+  constantName(v, quote) ||
   SIGIL_NAME.test(v) ||
   YAML_TAG.test(v) ||
-  MEMBER.test(v) ||
+  members(v) ||
   FILE_PATH.test(v);
+/** A vendor's CSS pseudo-class after a selector named as a secret (`#password:-webkit-autofill`, `.token:-moz-…`). */
+const VENDOR_PREFIX = /^-(?:webkit|moz|ms|o)-/i;
+/**
+ * A resource's name: lower-case words joined by `-`, `.` or `/`, a number as a word of its own (`orders-db-credentials`,
+ * `kubernetes.io/tls`, `orders-tls-2024`; `pa55-word` is not one).
+ */
+const RESOURCE_NAME = /^[a-z]+(?:[-./](?:[a-z]+|\d+))+$/;
+/** The last words of a password's name: a number is a value under them (`DB_PASSWORD=73829164`). */
+const PASSWORD_WORDS = new Set(["password", "passwd", "pwd", "pass", "pw", "passphrase"]);
+/** A number a password's name holds: digits only, 8 at least (a price, a size or a ratio is not one). */
+const NUMERIC_PASSWORD = /^\d{8,}$/;
+
+/**
+ * Is a value read after `:` not a value: a CSS pseudo-class (a vendor's, or one a rule's block follows:
+ * `.password:focus-visible{`), or, under a name in lower case ending in "secret" (a Helm value), a resource's name
+ * (`tlsSecret: wildcard-tls-certificate`)?
+ * @param {string} name
+ * @param {string} v
+ * @param {string|undefined} next   the character after the value
+ */
+const notAValueAfterColon = (name, v, next) =>
+  VENDOR_PREFIX.test(v) ||
+  next === "{" ||
+  (/[a-z]/.test(name) && nameParts(name).at(-1) === "secret" && RESOURCE_NAME.test(v));
+
+/**
+ * Is a value under a secret's name too plain to be its password: shorter than 8 characters, a placeholder, fewer than
+ * 5 different characters, a number (but 8 digits or more under a password's name), fewer than 16 letters, or letters
+ * only or capitals holding a secret's word (a documentation's example)?
+ * @param {string} name
+ * @param {string} v
+ */
+function tooPlain(name, v) {
+  if (v.length < PASSWORD_MIN || PLACEHOLDER.test(v) || new Set(v).size < 5) return true;
+  if (NUMBER.test(v) && !(PASSWORD_WORDS.has(nameParts(name).at(-1) ?? "") && NUMERIC_PASSWORD.test(v))) return true;
+  if (WORDS.test(v) && v.length < WORDS_MIN) return true;
+  return (WORDS.test(v) || !/[a-z]/.test(v)) && SECRET_WORD_IN.test(v);
+}
 
 /**
  * Is the value assigned to a secret's name (`DB_PASSWORD=`, `"clientSecret":`) a secret? Any value of 8 characters
@@ -152,20 +210,23 @@ const writtenAsReference = (v) =>
  * (a base 32 key), but never a placeholder, a number, a value of fewer than 5 different characters, or a reference:
  * a variable's name in capitals with an underscore, a sigil and a name (`$DB_PASSWORD`, `%DB_PASSWORD%`), a YAML tag, a
  * member (`config.password`), a path; unquoted, a call or an index (`getPassword()`, `config["password"]`) and, under
- * a name that is not in capitals (code, not an environment file), a name in code (`hashedPassword`, `new_password`).
- * @param {RegExpMatchArray} m   a match of the detector: groups n (the name), q (a quote), v (the value)
+ * a name that is not in capitals (code, not an environment file), a name in code (`hashedPassword`, `new_password`);
+ * after `:`, a CSS pseudo-class or a resource's name (notAValueAfterColon); the default of a shell expansion
+ * (`${DB_PASSWORD:-postgres}`). A number is a value under a password's name only (8 digits or more).
+ * @param {RegExpMatchArray} m   a match of the detector: groups n (the name), s (the separator), q (a quote, or `>` for
+ *   the text of an XML element), v (the value)
  */
 function assignedPassword(m) {
-  const { n: name, q: quote, v } = m.groups;
+  const { n: name, s: separator, q: quote, v } = m.groups;
   if (secretName(name) !== "secret") return false;
+  const input = m.input ?? "";
+  const at = m.index ?? 0;
   // A connection string's password is reported as one (connectionPassword), once.
   if (/^(?:password|pwd)$/i.test(name) && inConnectionString(m)) return false;
-  if (v.length < PASSWORD_MIN || PLACEHOLDER.test(v) || NUMBER.test(v) || new Set(v).size < 5) return false;
-  if (writtenAsReference(v)) return false;
-  if (WORDS.test(v) && v.length < WORDS_MIN) return false;
-  if ((WORDS.test(v) || !/[a-z]/.test(v)) && SECRET_WORD_IN.test(v)) return false;
+  if (tooPlain(name, v) || writtenAsReference(v, quote) || input.slice(Math.max(0, at - 2), at) === "${") return false;
   if (quote) return true;
-  const next = m.input?.[(m.index ?? 0) + m[0].length];
+  const next = input[at + m[0].length];
+  if (separator === ":" && notAValueAfterColon(name, v, next)) return false;
   return next !== "(" && next !== "[" && !(/[a-z]/.test(name) && codeName(v));
 }
 
@@ -195,9 +256,12 @@ const connectionPassword = (m) => {
   return inConnectionString(m) && !MEMBER.test(v) && !SIGIL_NAME.test(v) && !CALL.test(v);
 };
 
-/** The end of a URL parameter's name that says its value is a secret (`sig`, `access_token`, `X-Amz-Signature`). */
+/**
+ * The end of a URL parameter's name that says its value is a secret (`sig`, `access_token`, `X-Amz-Signature`). Not
+ * `code`: an OAuth authorisation code is used once, within minutes, and the documentation of every provider shows one.
+ */
 const URL_SECRET_NAME =
-  /(?:token|secret|password|passwd|pwd|pass|signature|sig|key|credentials?|bearer|jwt|session|sessionid|sid|auth|code)$/;
+  /(?:token|secret|password|passwd|pwd|pass|signature|sig|key|credentials?|bearer|jwt|session|sessionid|sid|auth)$/;
 /**
  * Is an entropy match the value of a URL's query or fragment parameter (`?list=…`, `&fbclid=…`, `&amp;si=…`) whose
  * name says nothing of a secret? Such values are identifiers (a playlist, a click, a share), not secrets.
@@ -307,7 +371,21 @@ export const GENERIC = Object.freeze([
     // bracket or a parenthesis: `DB_PASSWORD=`, `"clientSecret": "`, `password := "`, `'password' => '`. Its signs
     // include `~!@#$%&*`; a `&` that starts another parameter (`&user=`) ends it. Only a name ending in a secret's word
     // is matched, so that the value of another (`https://…#access_token=…`) never hides one.
-    re: /\b(?<n>[A-Za-z_][\w.-]{0,63})(?<=secret|token|passw(?:or)?d|passphrase|pwd|pass|pw|key)["']?[ \t]*(?::=|[:=]>?)[ \t]*(?<q>["'`]?)(?:base64:)?(?<v>(?:[\w\-+/=.~!@#$%*]|&(?![\w.-]*=)){8,})/gi,
+    re: /\b(?<n>[A-Za-z_][\w.-]{0,63})(?<=secret|token|passw(?:or)?d|passphrase|pwd|pass|pw|key)["']?[ \t]*(?<s>:=|[:=]>?)[ \t]*(?<q>["'`]?)(?:base64:)?(?<v>(?:[\w\-+/=.~!@#$%*]|&(?![\w.-]*=)){8,})/gi,
+    accept: assignedPassword,
+  },
+  {
+    kind: "assignment",
+    // The text of an XML element named as a secret, on one line, up to its closing tag (Maven's settings.xml:
+    // `<password>…</password>`). Linear: a name of 64 characters at most, a value of 256 that never holds a `<`.
+    re: /<(?<n>[A-Za-z_][\w.-]{0,63})(?<=secret|token|passw(?:or)?d|passphrase|pwd|pass|pw|key)(?<q>>)(?<v>[^<>\s]{8,256})<\/\k<n>>/gi,
+    accept: assignedPassword,
+  },
+  {
+    kind: "assignment",
+    // An XML setting named as a secret: `<add key="ClearTextPassword" value="…" />` (NuGet.Config), `<add
+    // key="DbPassword" value="…"/>` (a .NET appSettings). Linear: fixed words, a name of 64 characters at most.
+    re: /<add\s+key\s*=\s*["'](?<n>[\w.:-]{1,64})["']\s+value\s*=\s*(?<q>["'])(?<v>[^"'<>\r\n]{8,256})\k<q>/gi,
     accept: assignedPassword,
   },
   {
