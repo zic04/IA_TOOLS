@@ -29,9 +29,9 @@ than a one-off review.
   against the server/client boundary of the framework in use.
 - **A package that does not exist ("slopsquatting")** — an assistant invents a plausible package name that was
   never published; an attacker can register it later and ship anything. → `{{KIT_CLI}} facts --source dependencies
-  --network` checks each direct dependency against its public registry; list every `exists: false` on
-  `dependencies`'s "Packages that do not exist", and anything the facts could not check (no `--network`) as "to
-  confirm".
+  --network` checks each direct dependency `facts.network.allow` lists against its public registry; list every
+  `exists: false` on `dependencies`'s "Packages that do not exist", and anything the facts could not check (no
+  `--network`, or kept back: `unlisted`, `unproven`, `private`) as "to confirm".
 - **Code duplicated** — the same validation or calculation copied into three handlers instead of shared, each
   one drifting a little further from the others. → `code-map`'s "Duplicated or dead code"; cite each copy by
   `file:line`.

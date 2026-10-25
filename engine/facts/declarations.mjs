@@ -44,6 +44,7 @@ export const emptyRegistries = () => ({
   pipAll: false,
   names: new Set(),
   proven: new Set(),
+  allowed: new Set(),
 });
 
 /**

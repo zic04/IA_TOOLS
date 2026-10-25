@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { membersOf } from "../../engine/facts/deps/workspaces.mjs";
+import { metadataFields } from "../../engine/facts/deps/installed.mjs";
 import { collectDependencies, dependencyReader } from "../../engine/facts/dependencies.mjs";
 import { privateRegistries } from "../../engine/facts/network.mjs";
 import { linearAt, assertLinear } from "../tools/growth.mjs";
@@ -83,8 +84,9 @@ describe("a lock of many duplicates stays linear: a name from another place make
         return JSON.stringify({ lockfileVersion: 3, packages });
       },
       "the same name at two locations, the second from another registry",
-      // Larger: at 16 times 400 a lookup by a scan of every item (markLocal) still hides in the linear part.
-      1000,
+      // Larger: a lookup by a scan of every item (markLocal) hides in the reader's linear part up to 16 times 1,000
+      // (measured: ×3.7 then ×4.9 a step with that mutant); at 16 times 2,500 its step is past ×8.
+      2500,
     ],
     [
       "yarn.lock",
@@ -121,7 +123,10 @@ describe("a lock of many duplicates stays linear: a name from another place make
   ];
   for (const [file, shape, why, size = 400] of ROWS) {
     test(`${file}: ${why}`, () => {
-      const { n, found } = linearApp(file, { size, files: (count) => ({ [file]: shape(count) }) });
+      // The lock's own reader, alone: the steps collectDependencies adds after the readers (the installed copies'
+      // licences, linear in the items) would hide a reader's quadratic part in the linear one (test/tools/growth.mjs).
+      const read = (dir) => ({ items: dependencyReader(file.toLowerCase())(path.join(dir, file), file, []) });
+      const { n, found } = linearApp(file, { size, read, files: (count) => ({ [file]: shape(count) }) });
       assert.deepEqual(itemNames(found.items), sorted(names(n)), `${file}: every name read once`);
       assert.deepEqual(
         found.items.filter((i) => i.public || i.local !== true).map((i) => i.name),
@@ -351,5 +356,26 @@ describe("the readers of the manifests stay linear on what a crafted file holds 
       });
       assert.equal(at16.items[0].dev, unit.startsWith("group"), "the gems of the block are dev ones, or not");
     }
+  });
+});
+
+describe("a METADATA header is read in one pass (deps/installed.mjs)", () => {
+  test("one field folded over many lines: every line read once", () => {
+    const { n, found } = linearAt("a License folded over many lines", {
+      size: 20_000,
+      make: (k) => `Name: x\nLicense: MIT\n${"  and more\n".repeat(k)}\nbody`,
+      read: (text) => metadataFields(text),
+    });
+    assert.equal(found.license.split("\n").length, n + 1, "every folded line is part of the field");
+  });
+
+  test("many fields before the licence: each looked at once", () => {
+    const { n, found } = linearAt("many classifiers before the licence", {
+      size: 20_000,
+      make: (k) => `${"Classifier: Topic :: A\n".repeat(k)}License: MIT\n`,
+      read: (text) => metadataFields(text),
+    });
+    assert.equal(found.classifiers.length, n);
+    assert.equal(found.license, "MIT");
   });
 });

@@ -259,7 +259,7 @@ On Windows PowerShell, set the variables first: `$env:DELIVERIES_URL = "https://
 
 Fictional examples of the keys added by the standard of the spaces (ARCHITECTURE.md §6.1a, §6.9, §6.10, §6.11).
 None of them has a default that changes existing behaviour: a project that does not set them keeps building
-exactly as before.
+exactly as before (but `facts --network`, which sends nothing until `facts.network.allow` lists a package).
 
 ```js
 // content/toc.json declares the spaces; doc.config.mjs only configures their export and the facts/sync tooling.
@@ -276,6 +276,10 @@ export default defineConfig({
   // facts/<source>.json (doc-kit facts) and sync.json (doc-kit sync) live at the project root by default;
   // an older or larger project may want them elsewhere.
   paths: { content: "content", images: "images", diagrams: "diagrams", facts: "facts", sync: "." },
+
+  // The only packages `facts --network` may send to their public registry, one by one, no wildcard (default: none,
+  // so nothing is sent). Review the candidates first: `doc-kit facts --network --json` gives them (network.candidates).
+  facts: { network: { allow: ["npm:next", "npm:react", "pip:fastapi"] } },
 
   // sync --apply --labels only follows message files matched here (default: the next-app-router and
   // i18n-registry coverage adapters' own "messages" option, when they have one).
@@ -310,6 +314,7 @@ export default defineConfig({
 | `bricks.enabled` | The bricks of the project (`doc-kit bricks`): ids or presets (`facts`, `full`) | `null`: every brick |
 | `bricks.disabled` | Bricks or presets left out: they never run | `[]` |
 | `paths.facts` | Folder of `facts/<source>.json`, committed with the project | `"facts"` |
+| `facts.network.allow` | The only packages `facts --network` may send: `"npm:<name>"` (exact), `"pip:<name>"` (PEP 503), no wildcard; a listed name the lock files do not prove public, or that a declaration makes private, is still never sent | `[]`: nothing is sent |
 | `paths.sync` | Folder of `sync.json`, committed with the project | the project root (`"."`) |
 | `sync.labels` | Message files `sync --apply --labels` is allowed to touch | the coverage adapters' own `messages` |
 | `capture.compareThreshold` | `capture --compare`: ratio of changed pixels above which the image is replaced (0 to 1) | `0.005` |

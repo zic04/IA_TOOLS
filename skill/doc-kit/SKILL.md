@@ -180,6 +180,10 @@ Before any agent runs: `{{KIT_CLI}} init`, `{{KIT_CLI}} inputs fetch` and `{{KIT
 named sources (`{{KIT_CLI}} inputs` shows their state), then `{{KIT_CLI}} facts [--network] [--tools]` reads the application's code and
 writes `facts/*.json` (dependencies, stack, env, api, screens, db, infra, behaviours, agents, secrets, security, quality, tests, modules, history — `{{KIT_PATH}}/ARCHITECTURE.md` §6.9), committed with
 the project. No LLM call, no judgment: a fact is a fact, not yet a finding. `doctor` must be green first.
+`--network` sends only the packages `facts.network.allow` lists in `doc.config.mjs` (nothing by default): run
+`{{KIT_CLI}} facts --network --json` once, show the user its `network.candidates` (never a private or unproven name),
+and list in `facts.network.allow` only those they agree to send — never a name of your own choosing, and never
+before that review; then run `--network` again.
 
 ### 2 · Inventory by the reviewer
 One `doc-kit-reviewer` agent (read-only, "very thorough"), brief `inventory`, reads `.doc-kit/inventory.json`
@@ -294,7 +298,8 @@ Checklist `{{KIT_PATH}}/standard/delivery.md`. Maintenance: see the cycle below.
 
 ## The update cycle (after an application release)
 
-- `{{KIT_CLI}} facts [--network]`: refresh the deterministic facts (zero tokens);
+- `{{KIT_CLI}} facts [--network]`: refresh the deterministic facts (zero tokens); new unlisted candidates
+  (`network.candidates`) are reviewed with the user before any is listed;
 - `{{KIT_CLI}} sync`: report: proofs moved/broken, labels changed, pages to review by priority, stale captures,
   new/removed coverage, never-marked pages;
 - `{{KIT_CLI}} sync --apply [--labels] --auto-intact`: mechanical fixes only (moved proofs, label replacements), and

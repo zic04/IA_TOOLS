@@ -89,7 +89,7 @@ limitation de débit qui déclenche une vraie alerte, un corps de réponse qui c
 client. Le kit préfère qu'on la vérifie sur une copie locale ou une démo préparée, comme chaque capture d'écran
 ([Démo ou production : capturer sans risque](#/capture/safety)) — les sources de faits (`api`, `security`,
 `quality`) n'ont pas cette restriction, puisqu'elles ne font que lire des fichiers ; seul `--network` joint un
-registre public, avec les seuls noms des paquets publics.
+registre public, avec les seuls noms des paquets publics que vous listez (`facts.network.allow`).
 
 ## Pièges et écarts constatés
 

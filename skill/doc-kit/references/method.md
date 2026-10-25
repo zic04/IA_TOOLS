@@ -102,6 +102,8 @@ terminal, once the user agreed). `doctor` shows the target and warns while `capt
   with the documentation project. It calls no LLM: a fact is what a pattern matched, not yet a judgment. This is
   the deterministic, zero-token half of phase 2 and the main input of phase 8's `code-health` and
   `access-ownership`; it costs nothing to run again after every later code change (phase "The update cycle").
+  `--network` sends only what `facts.network.allow` lists (nothing by default): review `network.candidates`
+  (`{{KIT_CLI}} facts --network --json`) with the user before listing any.
 
 ### No-screenshot mode
 
