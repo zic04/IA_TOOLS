@@ -1840,6 +1840,47 @@ describe("engine/sync: a dependency file outside the application is never read",
     assert.equal(fileInside(app, "up/missing.txt", io), "outside", "the same, missing");
   });
 
+  // M3: the limit of links followed (MAX_LINKS, 32) at its boundary. A chain of broken links, each to the next, the
+  // last to a missing file inside: the chain of 32 is followed to its end (inside), one more is a loop as far as the
+  // code can tell (outside). The same chains over a last link that leaves the application are outside at any length.
+  for (const [count, expected] of [
+    [1, null],
+    [31, null],
+    [32, null],
+    [33, "outside"],
+    [34, "outside"],
+  ])
+    test(`fileInside on a fake file system: a chain of ${count} broken links ending inside is ${expected ?? "inside"}`, () => {
+      const srv = path.resolve("/srv");
+      const app = path.join(srv, "app");
+      const at = (...parts) => path.join(app, ...parts);
+      const real = { [srv]: srv, [app]: app, [at("lib")]: at("lib") };
+      const links = {};
+      for (let i = 0; i < count; i++) links[at(`l${i}`)] = i === count - 1 ? at("lib", "missing.txt") : at(`l${i + 1}`);
+      const missing = (p) => Object.assign(new Error(`ENOENT: ${p}`), { code: "ENOENT" });
+      const io = {
+        realpathSync: {
+          native: (p) => {
+            if (Object.hasOwn(real, p)) return real[p];
+            throw missing(p);
+          },
+        },
+        statSync: (p) => ({ isFile: () => p.endsWith(".txt") }),
+        lstatSync: (p) => {
+          if (!Object.hasOwn(real, p) && !Object.hasOwn(links, p)) throw missing(p);
+          return { isSymbolicLink: () => Object.hasOwn(links, p) };
+        },
+        readlinkSync: (p) => {
+          if (Object.hasOwn(links, p)) return links[p];
+          throw Object.assign(new Error(`EINVAL: ${p}`), { code: "EINVAL" });
+        },
+      };
+      assert.equal(fileInside(app, "l0", io), expected);
+      // Minimal pair: the same chain, its last link leaving the application, is outside whatever its length.
+      links[at(`l${count - 1}`)] = path.join(srv, "x", "missing.txt");
+      assert.equal(fileInside(app, "l0", io), "outside", "a chain that leaves the application");
+    });
+
   test("sync --mark <page> --sources ../shared/money.ts, then --check: exit code 0 and the warning; never read nor recorded", async () => {
     const fx = syncFixtureCopy();
     const shared = path.join(path.dirname(fx.appDir), "shared");
