@@ -345,6 +345,13 @@ entries between a project's `kit` range and the installed version.
     Claude Code's shell for hooks on Windows without Git Bash, it does not parse). This form needs Claude Code
     2.1.295 or later: an older one runs `node` alone and the guard never runs. `doctor` warns when the `claude` it
     finds on the `PATH` (through the kit's safe lookup) is older; with none found, it says nothing.
+  - **The guard under a linked folder is the guard**: node runs its script by its real path, links resolved, and the
+    guard compared it with the path it was given: under a link (a linked `~/.claude`, macOS's temporary folder under
+    `/var`, a junction on Windows) it took itself for an imported module, read nothing, ended with 0, and every
+    command went through. It compares both paths with their links resolved.
+  - **A backslash separates folders on Windows only**: the kit's command the briefs give (`{{KIT_CLI}}`) and the
+    guard's messages name turned a Linux or macOS folder's `\` into `/`, another path than the kit's, which the guard
+    then refused; it is kept there, as `skill install` keeps it, and so is the skill's `{{scriptsDir}}`.
   - **The read-only tools take the options of an allowlist, tool by tool**: a list of the dangerous ones missed
     `rg --hostname-bin=<program> --hyperlink-format=… --color=always`, which runs the program. An option not listed
     (an abbreviation included) is refused, a value given as the next word never starts with `-`, and `uniq` takes one

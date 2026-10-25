@@ -403,16 +403,20 @@ treats them as data on every path an agent takes:
   - **It fails closed**: Claude Code blocks a command on exit code 2, so input it cannot read, a skill file that cannot
     load (a corrupt message file: the guard imports the skill's modules inside a try) and an unexpected error are
     refused with 2; and, through `onFailure: block`, Claude Code counts as 2 what the guard cannot catch: a missing or
-    broken script (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout.
+    broken script (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout. Under a linked
+    folder too (a linked `~/.claude`, macOS's temporary folder under `/var`): node runs its script by its real path,
+    and the guard knows it is the hook by both paths with their links resolved (compared as given, it took itself for
+    an imported module and let every command through). On Linux and macOS, node loads no ES module from under a
+    folder whose name holds a backslash: there the guard cannot start (exit code 1), and `onFailure: block` refuses.
   - It only ever refuses: what it lets through still goes through Claude Code's own permissions
     (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; a table, per read-only tool, of the
     options agents use and of the ones that run a program or write a file, through the decision and the real hook
     process, and a property: an option not listed is always refused; the Windows path forms; a real hook process run
     from `<app>/docs/manual`, with a `node_modules/.bin/doc-kit` planted in the application, refuses every form that
     reaches that bin and lets through the kit's own, which never runs it; the hook started as the exec form starts it,
-    from a folder whose name holds quotes, `$`, a backquote and `;`, with a missing script and without `node`; a
-    corrupt message file and a module that throws; the agent definitions that name it. The ReDoS harness measures
-    it).
+    from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
+    and without `node`; a corrupt message file and a module that throws; the agent definitions that name it. The
+    ReDoS harness measures it).
 - **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
   agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
   "<kit>/cli/doc-kit.mjs"` (and `brief.mjs`, filling a brief, with the same command): the agents run the one form the

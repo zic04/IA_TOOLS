@@ -178,6 +178,10 @@ describe("skill install", () => {
       assert.ok(kitCli(dir).startsWith('node "') && kitCli(dir).endsWith('/cli/doc-kit.mjs"'), dir);
     }
     assert.equal(kitCli('/a"b/$HOME/x/`id`'), 'node "/a\\"b/\\$HOME/x/\\`id\\`/cli/doc-kit.mjs"');
+    // A POSIX folder's backslash is a character of its name: the installer keeps it (slash splits on path.sep), and so
+    // do the briefs; on Windows it is a separator, a forward slash in both.
+    assert.equal(kitCommand(String.raw`/opt/a\b`, { windows: false }), kitCli(String.raw`/opt/a\b`));
+    assert.equal(kitCommand(String.raw`C:\Tools\kit`, { windows: true }), kitCli("C:/Tools/kit"));
     // brief.mjs fills {{KIT_CLI}} with the kit the guard knows (never one a documentation project names).
     const dir = tempDir("doc-kit-skill-cli-");
     try {

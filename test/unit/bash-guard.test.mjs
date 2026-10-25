@@ -499,12 +499,27 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
   });
 
   test("the kit's command line is quoted for bash: a path with a space, a quote or a dollar sign is still the kit", () => {
-    for (const kitDir of ["/opt/my kit", '/opt/a"b', "/opt/$HOME", "/opt/a`b"]) {
+    for (const kitDir of ["/opt/my kit", '/opt/a"b', "/opt/$HOME", "/opt/a`b", String.raw`/opt/a\b`]) {
       const opts = { ...POSIX, kitDir };
-      assert.deepEqual(bashDecision(`${kitCommand(kitDir)} build`, opts), { allow: true }, kitDir);
+      assert.deepEqual(bashDecision(`${kitCommand(kitDir, { windows: false })} build`, opts), { allow: true }, kitDir);
       assert.equal(/** @type {any} */ (bashDecision(`${KIT} build`, opts)).key, "node", kitDir);
     }
     assert.equal(kitCommand(""), "");
+  });
+
+  test("a backslash separates folders on Windows only: on POSIX it is a character of the kit's folder name", () => {
+    const odd = String.raw`/opt/a\b`;
+    assert.equal(kitCommand(odd, { windows: false }), String.raw`node "/opt/a\\b/cli/doc-kit.mjs"`);
+    // The positive control: turned into a slash, as the command was on every machine, it names another file than the
+    // kit's, which the guard refuses (and the briefs would have given the agents).
+    const turned = kitCommand(odd, { windows: true });
+    assert.equal(turned, 'node "/opt/a/b/cli/doc-kit.mjs"');
+    assert.equal(/** @type {any} */ (bashDecision(`${turned} build`, { ...POSIX, kitDir: odd })).key, "node");
+    // On Windows, the drive form with forward slashes, which the guard knows for the kit.
+    const win = { skillDir: "C:/Users/Me/.claude/skills/doc-kit", kitDir: String.raw`C:\Tools\doc-kit`, windows: true };
+    const drive = kitCommand(win.kitDir, { windows: true });
+    assert.equal(drive, 'node "C:/Tools/doc-kit/cli/doc-kit.mjs"');
+    assert.deepEqual(bashDecision(`${drive} build`, win), { allow: true });
   });
 
   test("the lists name real things: the skill's scripts exist, each refused doc-kit command is a command", () => {
@@ -701,7 +716,7 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
   test("no shell reads the guard's path: under a folder whose name holds quotes, a dollar sign, a backquote, a semicolon, it is the guard", () => {
     const root = tempDir("doc-kit-guard-exec-");
     try {
-      const name = process.platform === "win32" ? "sk ill's $HOME `x`; a&b" : 'sk ill\'s "$HOME" `x`; a&b \\ c';
+      const name = process.platform === "win32" ? "sk ill's $HOME `x`; a&b" : 'sk ill\'s "$HOME" `x`; a&b';
       const skill = path.join(root, name, "doc-kit");
       for (const dir of ["scripts", "i18n"])
         fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
@@ -714,6 +729,43 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       // reaches the guard (the shell expands $HOME and the backquotes): every command would be refused, or worse.
       const shellForm = sh(`node "${script}" || exit 2`, hookInput("ls -la", root));
       assert.notEqual(shellForm.status, 0, shellForm.stderr);
+      // On POSIX a backslash is a character of a name, and node loads no ES module from under such a folder (its file
+      // URL holds `%5C`, which node's module loader refuses): the guard cannot start there, it ends with 1, and
+      // `onFailure: block` refuses. Whether node loads it or not, the command never goes through.
+      if (process.platform !== "win32") {
+        const odd = path.join(root, String.raw`a \ b`, "doc-kit");
+        for (const dir of ["scripts", "i18n"])
+          fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(odd, dir), { recursive: true });
+        const blocked = exec(path.join(odd, "scripts", "bash-guard.mjs"), hookInput("git push", root));
+        assert.notEqual(blocked.status, 0, blocked.stderr);
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a guard reached through a linked folder is the guard: node runs its script by its real path (a linked ~/.claude, macOS's /var)", () => {
+    const root = tempDir("doc-kit-guard-link-");
+    try {
+      const skill = path.join(root, "real", "doc-kit");
+      for (const dir of ["scripts", "i18n"])
+        fs.cpSync(path.join(SKILL_SOURCE, dir), path.join(skill, dir), { recursive: true });
+      // A junction on Windows (no privilege needed); the type is ignored elsewhere: a link to a folder.
+      fs.symlinkSync(path.join(root, "real"), path.join(root, "link"), "junction");
+      const linked = path.join(root, "link", "doc-kit", "scripts", "bash-guard.mjs");
+      assert.notEqual(
+        fs.realpathSync(linked),
+        path.resolve(linked),
+        "the positive control: the path goes through a link",
+      );
+      // Compared as given with import.meta.url (the real path), the linked guard took itself for an imported module:
+      // it read nothing, ended with 0, and every command went through.
+      for (const script of [path.join(skill, "scripts", "bash-guard.mjs"), linked]) {
+        const refused = exec(script, hookInput("git push", root));
+        assert.equal(refused.status, 2, `${script}: ${refused.stderr}`);
+        assert.match(refused.stderr, /command refused — git is not allowed/);
+        assert.equal(exec(script, hookInput("ls -la", root)).status, 0, `${script}: ls goes through`);
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

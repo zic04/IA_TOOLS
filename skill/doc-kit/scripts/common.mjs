@@ -72,10 +72,8 @@ const isKitRoot = (dir) =>
     fs.existsSync(path.join(dir, f)),
   );
 
-/**
- * The kit's location: the path written at install time, else the source tree that contains this skill,
- * else a `file:` dependency of the documentation project (how a project depends on the kit).
- */
+/** The kit's location: the path written at install time, else the source tree that contains this skill, else a
+ * `file:` dependency of the documentation project (how a project depends on the kit). */
 export function kitPath(docDir) {
   if (!INSTALLED_KIT.startsWith("{{") && isKitRoot(INSTALLED_KIT)) return INSTALLED_KIT;
   const sourceTree = path.resolve(SKILL_ROOT, "..", "..");
@@ -98,14 +96,14 @@ export function kitPath(docDir) {
 
 /**
  * The command that runs the kit's CLI by its path, `node "<kit>/cli/doc-kit.mjs"` (the path escaped for bash's double
- * quotes): what the briefs give the agents ({{KIT_CLI}}), what `skill install` writes in SKILL.md, the references and
- * the agent definitions, and the only form the agents' guard lets through (scripts/bash-guard.mjs). Never `npx
- * doc-kit`: npx runs the first doc-kit it finds in a node_modules/.bin up to the root, the application's when the
- * documentation sits inside it. "" without a kit.
+ * quotes): {{KIT_CLI}} of the briefs and of the texts `skill install` writes, the only form the agents' guard lets
+ * through (scripts/bash-guard.mjs). Never `npx doc-kit`: npx runs the first doc-kit of a node_modules/.bin up to the
+ * root, the application's when the documentation sits inside it. "" without a kit.
  * @param {string} dir  the kit's folder
+ * @param {{ windows?: boolean }} [machine]  a backslash separates folders on Windows only: elsewhere, a name holds it
  */
-export function kitCommand(dir) {
-  return dir ? `node "${slash(dir).replace(/["$`\\]/g, "\\$&")}/cli/doc-kit.mjs"` : "";
+export function kitCommand(dir, { windows = process.platform === "win32" } = {}) {
+  return dir ? `node "${machinePath(dir, windows).replace(/["$`\\]/g, "\\$&")}/cli/doc-kit.mjs"` : "";
 }
 
 /** Documentation folder: --project, else the first folder that holds doc.config.mjs, walking up from the current one. */
@@ -225,7 +223,9 @@ export function today() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-const slash = (p) => p.replace(/\\/g, "/");
+const slash = (p) => p.replace(/\\/g, "/"); // a path the configuration writes, whatever machine it was written on
+/** A path of this machine with forward slashes: a backslash separates folders on Windows only (a POSIX name's own). */
+const machinePath = (p, windows = process.platform === "win32") => (windows ? String(p).split("\\").join("/") : p);
 
 // Option of each built-in coverage adapter that points into the application (adapters/coverage/<name>.mjs of the kit).
 const SOURCE_OPTIONS = ["app", "file", "source", "base"];
@@ -341,7 +341,7 @@ export function baseVariables(docDir, config, briefLanguage, env = process.env) 
     factsDir: slash(config.paths?.facts ?? "facts"),
     featuresFile: featuresFileOf(config),
     // The analyses of the features (ARCHITECTURE.md §6.11a): the skill's scripts, the project's kinds of behaviour.
-    scriptsDir: slash(path.join(SKILL_ROOT, "scripts")),
+    scriptsDir: machinePath(path.join(SKILL_ROOT, "scripts")),
     behavioursFile: typeof config.behaviours?.file === "string" ? slash(config.behaviours.file) : "",
     targetsFile: "captures/targets.mjs",
     guideFile: "WRITING-GUIDE.md",

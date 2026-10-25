@@ -29,6 +29,7 @@
 // cannot start, or ends with another code) the agents' `onFailure: block` refuses.
 // Only Node's own modules are imported here: the skill's (common.mjs, its message files) are imported by the hook,
 // inside a try.
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -580,7 +581,10 @@ function decide(raw, env, print, common) {
   return 2;
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+/** A path with its links resolved, as node runs its script (a linked ~/.claude, macOS's /var → /private/var). */
+const real = (/** @type {string} */ p) => (fs.existsSync(p) ? fs.realpathSync(p) : path.resolve(p));
+// Both resolved: as given, a guard under a link took itself for an imported module and let every command through.
+const isMain = Boolean(process.argv[1]) && real(process.argv[1]) === real(fileURLToPath(import.meta.url));
 if (isMain) {
   const refuse = () => {
     process.stderr.write(FAILED.crash);
