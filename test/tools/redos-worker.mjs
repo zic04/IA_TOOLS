@@ -23,11 +23,14 @@ import { TEST_FILE } from "../../engine/facts/tests.mjs";
 import { QUALITY_PATTERNS, functionsOf } from "../../engine/facts/quality.mjs";
 import { IMPORT_PATTERNS, pySpecifiers } from "../../engine/facts/imports.mjs";
 import { apiPathsIn } from "../../engine/sync/api-links.mjs";
+import { ROUTE_PARAMETER } from "../../engine/sync/reference.mjs";
 import { PROOF_REF, extractProofs } from "../../engine/sync/proofs.mjs";
-import { LABEL_PATTERNS, replaceLabel, citedLabels } from "../../engine/sync/labels.mjs";
+import { LABEL_PATTERNS, labelReader } from "../../engine/sync/labels.mjs";
 import { proseOf } from "../../engine/sync/prose.mjs";
+import { shownText, rendersAsBefore } from "../../engine/sync/html-text.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { INLINE_SCRIPT, SCRIPT_END } from "../../engine/build/csp.mjs";
+import { PARAGRAPH_END } from "../../engine/build/markdown.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import {
   DECLARATION_PATTERNS,
@@ -351,6 +354,15 @@ const PROSE_OPENINGS = [
   ...["", "```\n", "~~~\n", "<!--", "<a\n", "- a\n\n    ", "# a\n    ", "> ```\n", "- ```\n", "1.      "],
   ...["`", "``", "<div>\n", '<a b="', "<a b='", "x <!--", "\\`", "> - ", "<pre>\n", "<script>\n", "> [a]: "],
 ];
+/** What opens a part of a rendered page (engine/sync/html-text.mjs): a tag and its quoted values, a comment, a raw
+ * element (a script, a text field), a code block, a declaration, a character reference; put before an input. */
+const HTML_OPENINGS = [
+  ...["", "<a ", '<a b="', "<a b='", "<a b=", "<!--", "<!-", "<!", "<?", "</", "</a ", "<script>", "<textarea>"],
+  ...["<pre>", "<code>", "&", "&#", "&#x", "<plaintext>", "<!-- --!", "<p>x</p><wbr>"],
+];
+/** A label reader whose renderer reads the Markdown as HTML (no Marked here: the kit's own parts, measured alone),
+ * fresh at each run so that no page is read from its cache. */
+const htmlLabels = () => labelReader((markdown) => markdown);
 /** The text of each closer of DB_CLOSERS, put after an input by the db checks. */
 const CLOSER_TEXT = { prismaModel: "\n}", createTable: ");" };
 const KNOWN = new Set(PREFIXES.flatMap((p) => UNITS.map((u) => JSON.stringify([p, u]))));
@@ -882,12 +894,31 @@ export const CHECKS = [
   ...patternChecks("imports", IMPORT_PATTERNS),
   ["imports pySpecifiers", (s) => pySpecifiers(s).length + pySpecifiers(`from ${s}`).length],
   ["sync apiPathsIn", (s) => apiPathsIn(s).length + apiPathsIn(`"/a/${s}`).length],
-  ...patternChecks("sync", { PROOF_REF }),
+  ...patternChecks("sync", { PROOF_REF, ROUTE_PARAMETER }),
   ["sync extractProofs", (s) => extractProofs(s).length + extractProofs(`\`${s}:1\` [[verified ${s}`).length],
   // The labels `--apply --labels` rewrites, on a page: its protected parts and its contexts, then the reader whole.
   ...patternChecks("sync labels", LABEL_PATTERNS),
-  ["sync replaceLabel", (s) => replaceLabel(s, "No", "Non").n + replaceLabel(`**${s}`, "a", "b").n],
-  ["sync citedLabels", (s) => citedLabels({ a: "No", b: "aa" }, [{ id: "p", markdown: s }]).length],
+  [
+    "sync replaceLabel",
+    (s) => htmlLabels().replaceLabel(s, "No", "Non").n + htmlLabels().replaceLabel(`**${s}`, "a", "b").n,
+  ],
+  ["sync citedLabels", (s) => htmlLabels().citedLabels({ a: "No", b: "aa" }, [{ id: "p", markdown: s }]).length],
+  // A rendered page: the text it shows, from every kind of opening; a rewrite checked against it, the label renamed in
+  // some places and kept in others (every reading of the text followed, a few at a time).
+  ["sync shownText", (s) => HTML_OPENINGS.reduce((n, p) => n + shownText(p + s).text.length, 0)],
+  // Many comments, each closed one way or the other: the next closing of each kind is searched once.
+  [
+    "sync shownText comments",
+    (s) => shownText(s.split("").join("<!-- --!>")).text.length + shownText(s.split("").join("<!-- -->")).text.length,
+  ],
+  // Where the kit's renderer looks for a directive to cut a paragraph: up to a blank line.
+  ...patternChecks("markdown", { PARAGRAPH_END }),
+  [
+    "sync rendersAsBefore",
+    (s) =>
+      Number(rendersAsBefore(`<p>${s}</p>`, `<p>${s.split("a").join("ab")}</p>`, ["a"], "ab")) +
+      Number(rendersAsBefore(`<p>No ${s} No</p>`, `<p>Non ${s} No</p>`, ["No", "No "], "Non")),
+  ],
   // What is never text (code blocks, comments, tags over several lines), from every kind of opening.
   ["sync proseOf", (s) => PROSE_OPENINGS.reduce((n, p) => n + proseOf(p + s).length, 0)],
   ["masking parseEnv", (s) => parseEnv(s).length + parseEnv(`A=${s}`).length],

@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
-import { KIT_ROOT, tempDir, noExec } from "../tools/helpers.mjs";
+import { KIT_ROOT, tempDir, noExec, syncLabels } from "../tools/helpers.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
 import { hashText, hashPlanEntry, stableStringify, hashFile } from "../../engine/core/hash.mjs";
@@ -17,7 +17,8 @@ import { routeFiles, matchRoute } from "../../engine/sync/routes.mjs";
 import { resolveImports } from "../../engine/facts/imports.mjs";
 import { pageDependencies, writtenPages, captureIds } from "../../engine/sync/dependencies.mjs";
 import { extractProofs, recordProof, locateProof, rewriteProof, PROOF_REF } from "../../engine/sync/proofs.mjs";
-import { citedLabels, citesLabel, replaceLabel, flattenMessages, labelFiles } from "../../engine/sync/labels.mjs";
+import { flattenMessages, labelFiles, labelReader } from "../../engine/sync/labels.mjs";
+import { shownText, rendersAsBefore } from "../../engine/sync/html-text.mjs";
 import { readSyncReference, writeSyncReference, markPages, versionBehind } from "../../engine/sync/reference.mjs";
 import { compareWithReference, renderReport, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
 import { applyReport, pagesToRestamp } from "../../engine/sync/apply.mjs";
@@ -27,10 +28,13 @@ import { validate } from "../../engine/project/validate.mjs";
 import { readSchema } from "../../engine/project/load.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { PROOF } from "../../engine/audit/audit.mjs";
-import { createMarkdownEngine } from "../../engine/build/markdown.mjs";
+import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 import { rng } from "../tools/fuzz/prng.mjs";
 
 const FIXTURES = path.join(KIT_ROOT, "test", "fixtures");
+/** The labels read through the kit's renderer, as the CLI reads them (engine/build/sync-renderer.mjs). */
+const labels = syncLabels();
+const { citedLabels, citesLabel, replaceLabel } = labels;
 
 /** A fresh copy of sync-docs + sync-app, side by side (doc.config.mjs's app.dir: "../sync-app"). */
 function syncFixtureCopy() {
@@ -685,8 +689,9 @@ describe("engine/sync/labels.mjs", () => {
     assert.equal(replaceLabel("[[menu Open the menu]]", "menu", "list").text, "[[menu Open the list]]");
   });
 
-  // What is never text (ARCHITECTURE.md §6.10 §2.8): a label there is neither rewritten nor cited. Each pair: the same
-  // quote inside the block, then outside it.
+  // What is never text (ARCHITECTURE.md §6.10 §2.8): a label there is neither cited (the rendered page does not show
+  // it) nor rewritten — the candidates read in the Markdown (engine/sync/prose.mjs) agree with the rendered page, so
+  // that nothing is left to update by hand. Each pair: the same quote inside the block, then outside it.
   test("replaceLabel, citesLabel: never in a code block, a comment or a tag over several lines (minimal pairs)", () => {
     const never = (md) => {
       assert.deepEqual(replaceLabel(md, "Approve", "Validate"), { text: md, n: 0 }, md);
@@ -717,39 +722,33 @@ describe("engine/sync/labels.mjs", () => {
     never('<!-- "Approve" -->');
     never('<!--\nthe "Approve" button\n-->');
     never('<!-- never closed "Approve"');
-    never('<button\n  title="Approve">');
     replaced('<!-- x --> "Approve"', '<!-- x --> "Validate"');
     replaced('<button>\n"Approve"\n</button>', '<button>\n"Validate"\n</button>');
     replaced('a < b\n"Approve" > c', 'a < b\n"Validate" > c'); // no tag name: no tag
     replaced('<button\n\n"Approve">', '<button\n\n"Validate">'); // a tag never spans a blank line
+    // A tag over several lines is no text, and its title is a tooltip the page shows: cited, never rewritten.
+    const tag = '<button\n  title="Approve">';
+    assert.deepEqual(replaceLabel(tag, "Approve", "Validate"), { text: tag, n: 0 });
+    assert.equal(citesLabel(tag, "Approve"), true);
     // The kit's renderer reads no front matter: a leading --- is a thematic break, and what follows is text.
-    replaced('---\ntitle: "Approve"\n---\n', '---\ntitle: "Validate"\n---\n');
     replaced('---\n\n"Approve"\n\n---\n', '---\n\n"Validate"\n\n---\n');
   });
 
-  // What the site shows is what Marked, the kit's renderer, renders as text (ARCHITECTURE.md §6.10): each case is
-  // rendered by the kit's own engine, and a label is cited exactly where the rendered page shows it — outside a code
-  // block, an HTML comment and a tag's attributes. A code span is found before a comment or a tag, a fence closes with
-  // the blockquote or the list item it sits in, a comment opened in a paragraph and never closed there is text.
-  const engine = createMarkdownEngine({
-    ...{ captures: {}, exists: () => false, read: () => "", report: () => {}, t: (k) => k, icon: () => "" },
-  });
-  /** Whether the page, rendered by the kit, shows "Approve" as text: comments (`<!-->` is an empty one; the others to
-   * their `-->`, else to the end, as a browser reads them), code blocks, scripts, style sheets and tags left out, a
-   * code span and a `<pre>` written as HTML kept. */
-  const shown = (md) =>
-    /\bApprove\b/.test(
-      engine
-        .render(md, "p")
-        .html.replace(/<!---?>/g, " ")
-        .replace(/<!--[\s\S]*?(?:-->|$)/g, " ")
-        .replace(/<pre><code[^>]*>[\s\S]*?<\/code><\/pre>/g, " ")
-        .replace(/<(script|style)[\s>][\s\S]*?(?:<\/\1>|$)/gi, " ")
-        .replace(/<[^>]*>/g, " "),
-    );
-
-  test("citesLabel: a label is cited exactly where the kit's renderer shows it (compared with Marked, case by case)", () => {
+  // What the site shows (ARCHITECTURE.md §6.10): the page rendered by the kit's renderer (engine/build/sync-renderer.mjs:
+  // Marked and the kit's extensions), its text outside a code block, a comment, a script, a style sheet and a text
+  // field, the alternative texts and titles of its elements; a label there is cited, as a whole word — an element's
+  // edge ends a word. Cases where reading the Markdown alone went wrong, kept as the renderer reads them.
+  test("citesLabel: a label is cited where the page, rendered by the kit's renderer, shows it as text (case by case)", () => {
     const cases = [
+      // B1: an emphasis written with underscores is no part of the word (`_Approve_` renders <em>Approve</em>); an
+      // underscore inside a word is (no emphasis there).
+      ["Click _Approve_ to continue.", true],
+      ["Click __Approve__, then *Approve*.", true],
+      ["x_Approve_", false],
+      ["snake_Approve_case", false],
+      // An element's edge ends a word: a code span then bold shows two words.
+      ["`Approve`**Approve**", true],
+      ["xApprove", false],
       // A code span is found first: what it holds opens no comment and no tag.
       ["To hide text, start with `<!--`.\n\nThen click **Approve**.\n", true],
       ["`<!--` then **Approve** -->", true],
@@ -772,10 +771,16 @@ describe("engine/sync/labels.mjs", () => {
       ["<!-- open\n\nThen **Approve**", false],
       ["a <!-- b\nApprove --> c", false],
       ["<!-- a --> **Approve**", true],
-      // A tag as Marked reads one: a name, attributes, ">"; anything else is text.
+      ["<!-- a --!> **Approve**", true],
+      // A tag as Marked reads one: a name, attributes, ">"; anything else is text. A tag's title is shown, as a tooltip.
       ["If a <b then\nclick **Approve** -> done.", true],
-      ['<button\n  title="Approve">', false],
+      ['<button\n  title="Approve">', true],
+      ['<a\nhref="Approve">x</a>', false],
       ['<a\nhref="x">**Approve**</a>', true],
+      // The alternative text of an image and the title of a link are shown; a target is not.
+      ["![Approve](approve.png)", true],
+      ['[the list](orders.md "Approve")', true],
+      ["[the list](Approve.md)", false],
       // Indented code, in a blockquote and a list item too; five columns after a marker, or after an empty item.
       [">     **Approve**", false],
       [">\t**Approve**", true],
@@ -796,37 +801,289 @@ describe("engine/sync/labels.mjs", () => {
       ["The arrow <!-- is odd.\n\nThen click **Approve**, and -->", true],
       ["a <!--> **Approve** -->", true],
       ["\\<!-- **Approve** -->", true],
-      // <pre>, <textarea>, <script> and <style> run to their closing tag, blank lines included: shown as they are, or
-      // never (a script, a style sheet).
+      // <pre>, <textarea>, <script> and <style> run to their closing tag, blank lines included, and none of them is
+      // text the page shows: a code block written as HTML, a text field, a script, a style sheet.
       ["<pre>\nx\n\n```\n</pre>\n\nClick **Approve**.\n", true],
-      ["<pre>\n\nApprove\n</pre>", true],
+      ["<pre>\n\nApprove\n</pre>", false],
+      ["<textarea>\nApprove\n\n</textarea>", false],
       ["<style>\n.a::after { content: 'Approve' }\n\n</style>", false],
       ["<script>\nlet x = 'Approve';\n\nrun();\n</script>\n\n**Approve**", true],
       ["<script>\nlet x = 'Approve';\n\nrun();\n</script>", false],
       // Marked closes a fence on a line that starts with its own opening run: ```~~ closes ```.
       ["```\nx\n```~~\n**Approve**", true],
       ["`a` <!-- **Approve** --> `b`", false],
+      // The kit's directives: a screenshot's and a diagram's titles are shown, as is a screen's legend.
+      ['::capture{id="orders" title="Approve"}', true],
+      ['::diagram{id="flow" title="Approve"}', true],
+      [':::screen{capture="orders" title="Orders"}\n1. **Approve** the order\n:::', true],
     ];
-    for (const [md, visible] of cases) {
-      assert.equal(shown(md), visible, `the renderer: ${JSON.stringify(md)}`);
-      assert.equal(citesLabel(md, "Approve"), visible, JSON.stringify(md));
-    }
+    for (const [md, visible] of cases) assert.equal(citesLabel(md, "Approve"), visible, JSON.stringify(md));
+    // A phrase runs on through inline elements and a line end in a paragraph (the page shows one space), never from one
+    // block into the next; a character reference is the character it names.
+    assert.equal(citesLabel("Click **Approve** all.", "Approve all"), true);
+    assert.equal(citesLabel("Click **Approve\nall**.", "Approve all"), true);
+    assert.equal(citesLabel("Approve <!-- c --> all", "Approve all"), true, "a comment shows nothing");
+    assert.equal(citesLabel("[Approve ](x) all", "Approve all"), true, "two blanks across a link's edge show one");
+    assert.equal(citesLabel("Click Approve\n\nall.", "Approve all"), false);
+    assert.equal(citesLabel("- Approve\n- all", "Approve all"), false);
+    assert.equal(citesLabel("Click **Save & close**.", "Save & close"), true);
+    assert.equal(
+      citesLabel("Click **Approve all**.", "Approve  all"),
+      true,
+      "the label's own blanks as the page shows them",
+    );
   });
 
-  // Never a signal lost (property, seeded): pages built of pieces of Markdown that open, close and nest what is never
-  // text; wherever the rendered page shows the label, citesLabel sees it. (The other way, a label cited that the page
-  // does not show, is only a signal too many.)
-  test("citesLabel (property, seeded): wherever the kit's renderer shows a label, it is cited", () => {
-    const random = rng(0x5ee);
-    const pieces = [
-      ...["**Approve**", "Approve", "`Approve`", '"Approve"', "`", "``", "```", "~~~", "<!--", "-->", "<b", "<b>"],
-      ...[">", '<a\nhref="x">', "\n", "\n", "\n\n", "> ", "- ", "1. ", "    ", "  ", "# ", "---", "x", "y z", "\\"],
-      ...["[x]", "[Approve]", "](u)", "'", "=", '<span title="Approve">', "</span>", "\t", "<div>"],
-    ];
-    for (let c = 0; c < 1500; c++) {
-      const md = Array.from({ length: random.int(10) + 1 }, () => random.pick(pieces)).join("");
-      if (shown(md)) assert.equal(citesLabel(md, "Approve"), true, JSON.stringify(md));
+  /**
+   * An independent reading of a rendered page, for the property below (expressions, not engine/sync/html-text.mjs and
+   * its tree of elements): its comments, tags and the texts between them, left to right — a comment that opens in a
+   * tag's name is part of the tag, a tag never closed runs to the end, as a browser drops it. `shows`: whether the page
+   * shows "Approve" as a word — a tag as a word's edge, a comment as nothing, or in an `alt` or a `title` —, what may
+   * not be text left out generously (a code block, a script, a style sheet or a text field to its own end tag, else to
+   * the end; a code block in a code block, a table in a code block, whose cells an end tag never leaves): a signal it
+   * sees is one the page surely shows. `corrupted`: the page rewritten, each "Validate" turned back into "Approve", must
+   * be the page before to the byte; and no "Validate" may sit where the page surely shows no text — in a comment, a
+   * tag, the text right inside a code block, a script, a style sheet or a text field — or in a code span that is not
+   * the label.
+   */
+  const MARKUP = /<!---?>|<!--[\s\S]*?(?:--!?>|$)|<\/?[A-Za-z][^>]*(?:>|$)/g;
+  const MAYBE_HIDDEN = ["pre", "script", "style", "textarea"];
+  const RAW = ["script", "style", "textarea"];
+  const SCOPE = ["table", "td", "th", "caption", "template", "object", "marquee", "applet"];
+  const WHOLE = /(?<![\p{L}\p{N}\p{M}\p{Pc}])Approve(?![\p{L}\p{N}\p{M}\p{Pc}])/u;
+  const decoded = (s) =>
+    s.replace(/&(amp|lt|gt|quot|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[e]);
+  function partsOf(html) {
+    const parts = [];
+    let last = 0;
+    for (const m of html.matchAll(MARKUP)) {
+      parts.push({ text: html.slice(last, m.index) });
+      if (m[0].startsWith("<!--")) parts.push({ comment: m[0] });
+      else parts.push({ tag: m[0], name: /^<\/?([^\s/>]+)/.exec(m[0])[1].toLowerCase(), closing: m[0][1] === "/" });
+      last = m.index + m[0].length;
     }
+    parts.push({ text: html.slice(last) });
+    return parts;
+  }
+  const shows = (html) => {
+    const texts = [""];
+    const open = [];
+    for (const p of partsOf(html)) {
+      if (p.comment !== undefined) continue;
+      if (p.text !== undefined) {
+        if (!open.length) texts[0] += p.text;
+      } else if (open.length) {
+        if (p.closing && p.name === open.at(-1)) open.pop();
+        else if (!p.closing && !RAW.includes(open.at(-1)) && [...SCOPE, "pre"].includes(p.name)) open.push(p.name);
+      } else {
+        texts[0] += "\u0001";
+        if (MAYBE_HIDDEN.includes(p.name) && !p.closing) open.push(p.name);
+        else texts.push(...[...p.tag.matchAll(/\s(?:alt|title)="([^"]*)"/g)].map((m) => m[1]));
+      }
+    }
+    return texts.some((s) => WHOLE.test(decoded(s)));
+  };
+  const corrupted = (before, after) => {
+    if (after.replaceAll("Validate", "Approve") !== before) return true;
+    const parts = partsOf(after);
+    const hidden = parts.filter((p, i) => i > 0 && MAYBE_HIDDEN.includes(parts[i - 1].name) && !parts[i - 1].closing);
+    if (
+      [...parts.filter((p) => p.text === undefined), ...hidden].some((p) =>
+        (p.tag ?? p.comment ?? p.text).includes("Validate"),
+      )
+    )
+      return true;
+    if (
+      [...after.matchAll(/<code>([^<]*)<\/code>/g)].some((m) => m[1].includes("Validate") && m[1].trim() !== "Validate")
+    )
+      return true;
+    return !inContexts(parts);
+  };
+  /**
+   * Whether each "Validate" of a rewritten page sits where --apply --labels may write it: in bold (`<strong>`, `<b>`,
+   * however nested), a badge (`<kbd>`, `<span class="puce…">`), a code span, or between quotes of its line (the text
+   * since the last block tag, inline tags left out).
+   */
+  function inContexts(parts) {
+    const open = [];
+    let line = [];
+    const lines = [];
+    for (const p of parts) {
+      if (p.text !== undefined) {
+        line.push({ text: p.text, bold: open.length > 0 });
+        continue;
+      }
+      if (p.comment !== undefined) continue;
+      const inline = /^(?:a|b|code|em|i|kbd|s|span|strong|del|sub|sup|u)$/.test(p.name);
+      if (!inline) (lines.push(line), (line = []));
+      const context = ["strong", "b", "kbd", "code"].includes(p.name) || /class="(?:puce|ref-)/.test(p.tag);
+      if (p.closing && open.at(-1) === p.name) open.pop();
+      else if (!p.closing && context) open.push(p.name);
+    }
+    lines.push(line);
+    return lines.every((parts) => {
+      const text = parts.map((p) => p.text).join("");
+      let at = 0;
+      return parts.every((p) => {
+        const start = at;
+        at += p.text.length;
+        if (p.bold) return true;
+        return [...p.text.matchAll(/Validate/g)].every((m) => {
+          const i = start + m.index;
+          const [left, right] = [decoded(text.slice(0, i)), decoded(text.slice(i + 8))];
+          const quoted = left.split('"').length % 2 === 0 && right.includes('"');
+          return quoted || /«[^»]*$/.test(left) || /“[^”]*$/.test(left);
+        });
+      });
+    });
+  }
+  const pageHtml = createSyncRenderer({ root: KIT_ROOT, config: {} });
+
+  // The promise, by construction (property, seeded): pages built of pieces of Markdown that open, close and nest what
+  // is never text — emphasis with `_` and `__`, tables, thematic breaks and Setext headings, HTML blocks in quotes and
+  // lists, `#word`, links, images, directives. Wherever the rendered page shows the label, it is cited (no signal
+  // lost); every rewrite --apply --labels keeps renders as the page did but for the label (no page corrupted), and the
+  // page it leaves cites the old label wherever it still shows it.
+  test("citesLabel, replaceLabel (property, seeded): never a signal lost, never a page corrupted", () => {
+    const random = rng(0x5ee5);
+    const pieces = [
+      ...["Approve", "**Approve**", "__Approve__", "_Approve_", "*Approve*", "`Approve`", '"Approve"', "«Approve»"],
+      ...["[[menu Approve]]", "[Approve]", "[Approve]: u\n", "Approve all", "**Approve all**", "#Approve", "# ", "## "],
+      ...["\n", "\n", "\n", "\n\n", "\n\n", "> ", "> ", "- ", "- ", "1. ", "* ", "    ", "  ", "\t", "> - ", "- > "],
+      ...["| a | b |\n|---|---|\n", "| **Approve** | x |\n", "\n---\n", "***\n", "\n===\n", "---", "===", "x\n---\n"],
+      ...["_", "__", "*", "**", "~~", "`", "``", "```", "~~~", "<!--", "-->", "x", "y z", "\\", "&amp;", "'", "="],
+      ...["<div>", "</div>", "<span>", "</span>", "> <div>\n", "- <div>\n", "> <!--\n", "<pre>", "</pre>", "<b", "<b>"],
+      ...['<span title="Approve">', "![Approve](i.png)", '[x](u "Approve")', "](u)", "https://h/Approve", "www.h."],
+      ...[
+        ':::screen{capture="c" title="Approve"}\n',
+        ":::\n",
+        '::capture{id="c" title="Approve"}\n',
+        "[[verified a.ts:1]]",
+      ],
+    ];
+    const seen = { pages: 0, cited: 0, rewritten: 0, byHand: 0 };
+    for (let c = 0; c < 4000; c++) {
+      const md = Array.from({ length: random.int(12) + 1 }, () => random.pick(pieces)).join("");
+      const before = pageHtml(md);
+      seen.pages++;
+      if (shows(before)) assert.equal(citesLabel(md, "Approve"), true, `a signal lost: ${JSON.stringify(md)}`);
+      if (citesLabel(md, "Approve")) seen.cited++;
+      const r = replaceLabel(md, "Approve", "Validate");
+      if (r.byHand) seen.byHand++;
+      if (!r.n) {
+        assert.equal(r.text, md, "a page refused is left as it is");
+        continue;
+      }
+      seen.rewritten++;
+      const after = pageHtml(r.text);
+      assert.equal(
+        corrupted(before, after),
+        false,
+        `a page corrupted: ${JSON.stringify(md)} → ${JSON.stringify(r.text)}`,
+      );
+      if (shows(after))
+        assert.equal(citesLabel(r.text, "Approve", "Validate"), true, `lost: ${JSON.stringify(r.text)}`);
+    }
+    // Not a property of nothing: most pages cite the label, and many are rewritten.
+    assert.ok(seen.cited > seen.pages / 2 && seen.rewritten > seen.pages / 4, JSON.stringify(seen));
+  });
+
+  // B3: rewrites the Markdown reading proposed where the rendered page is not the label's text — a code block in a
+  // list item in a blockquote, an address the renderer links (after a letter too), a heading whose anchor follows its
+  // text. Each is refused, the page left as it is, to update by hand (its label still cited, so still pending).
+  test("replaceLabel: a rewrite the rendered page refuses leaves the page as it is, to update by hand (B3)", () => {
+    const byHand = (md, from = "Approve", to = "Validate") => {
+      assert.deepEqual(replaceLabel(md, from, to), { text: md, n: 0, byHand: true }, md);
+    };
+    byHand("1. >        \\**Approve all**", "Approve all", "Validate all"); // indented code, not text
+    byHand("\nxApprovewww.h.**Approve**"); // the address runs on into the bold: its target would change
+    byHand(">[Approve]>_https://h/[Approve**Approve all**Approve\\n", "Approve all", "Validate all");
+    byHand("## The **Approve** button"); // the heading's anchor (#the-approve-button) would change
+    byHand('---\ntitle: "Approve"\n---\n'); // no front matter: a Setext heading, its anchor too
+    // The page already says the new value across an element's edge: the old one inside it is no label to rename.
+    byHand("Open **Approval chain** history, then **Approval chain**.\n", "Approval chain", "Approval chain history");
+    assert.equal(citesLabel("## The **Approve** button", "Approve"), true, "still cited: its signal stays");
+    // Where the reading and the page agree, the rewrite is kept, even beside a refused place's look-alike.
+    assert.equal(replaceLabel("The **Approve** button.\n", "Approve", "Validate").text, "The **Validate** button.\n");
+    // A label written across a line end is the label the page shows: rewritten, the page checked as it shows it.
+    assert.deepEqual(replaceLabel("Open the **Approval\nchain** link.", "Approval chain", "Approval chain history"), {
+      text: "Open the **Approval chain history** link.",
+      n: 1,
+    });
+    assert.equal(replaceLabel("Click `Approval\nchain`.", "Approval chain", "Approvals").text, "Click `Approvals`.");
+    assert.deepEqual(
+      replaceLabel("**Approval chain\nhistory**", "Approval chain", "Approval chain history"),
+      { text: "**Approval chain\nhistory**", n: 0 },
+      "the page holds the new value across a line end: nothing to rewrite",
+    );
+  });
+
+  // The Markdown reading agrees with the renderer on what is never text, so that these pages are left as they are
+  // without being sent to be updated by hand — each pair kills a mutant of engine/sync/prose.mjs that survived the
+  // review: the depth of a fence's blockquote, an HTML block ended by a blank line, `<textarea>` read to its closing
+  // tag, a comment opened on a later line of an HTML block, a closing fence indented four columns, a deeper `>` that
+  // starts code, a tag alone that cannot interrupt a paragraph, a link definition in a list item.
+  test("replaceLabel: the candidates agree with the rendered page — nothing left to update by hand (minimal pairs)", () => {
+    const never = (md) => assert.deepEqual(replaceLabel(md, "Approve", "Validate"), { text: md, n: 0 }, md);
+    const replaced = (md, expected) =>
+      assert.deepEqual(replaceLabel(md, "Approve", "Validate"), { text: expected, n: 1 }, md);
+    never("> ```\n> > ```\n> **Approve**\n> ```"); // a "> " in the fence's code is code, not a deeper fence
+    replaced("> ```\n> x\n> ```\n> **Approve**", "> ```\n> x\n> ```\n> **Validate**");
+    never("<div>\n\n```\n**Approve**"); // the HTML block ends at the blank line: a fence opens after it
+    replaced("<div>\n\n**Approve**", "<div>\n\n**Validate**");
+    replaced("<textarea>\n\n```\n</textarea>\n\n**Approve**", "<textarea>\n\n```\n</textarea>\n\n**Validate**");
+    never("<textarea>\n**Approve**\n</textarea>");
+    never("<pre>\n**Approve**\n</pre>");
+    never("<div>\nx <!-- a\n\n**Approve**\n-->"); // a comment opened in an HTML block runs on after it
+    replaced("<div>\nx <!-- a -->\n\n**Approve**", "<div>\nx <!-- a -->\n\n**Validate**");
+    never("```\n    ```\n**Approve**\n```"); // four columns: no closing fence
+    replaced("```\n   ```\n**Approve**", "```\n   ```\n**Validate**");
+    never("x\n>     **Approve**"); // a blockquote that opens starts its own code
+    replaced("x\n>    **Approve**", "x\n>    **Validate**");
+    never("x\n<span>\n```\n**Approve**"); // a tag alone cannot interrupt a paragraph: the fence opens
+    replaced("x\n<span>\n**Approve**", "x\n<span>\n**Validate**"); // the paragraph goes on: bold
+    never('- [x]: u "Approve"\n- [x]'); // a link definition in a list item: its title is the link's
+    // A `**` left alone is no bold, even with one on the next line: what runs between them is a sentence.
+    never("Compute 5 ** 2 here.\nThen Approve the **order**.\n");
+    replaced(
+      "Compute 5 ** 2 here.\nThen **Approve** the order.\n",
+      "Compute 5 ** 2 here.\nThen **Validate** the order.\n",
+    );
+    replaced('- [x] "Approve"\n- [x]', '- [x] "Validate"\n- [x]');
+  });
+
+  // Every label is looked for in every page: each page is rendered once a run, whatever the number of labels, the pages
+  // read last kept, up to the reader's bound (labelReader's cache).
+  test("labelReader: a page rendered once a run; the pages read last kept, the oldest left past the bound (LRU)", () => {
+    const rendered = [];
+    const reader = (cacheChars) =>
+      labelReader(
+        (md) => {
+          rendered.push(md);
+          return `<p>${md}</p>`;
+        },
+        { cacheChars },
+      );
+    const flat = Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`k${i}`, `Label ${i}`]));
+    const pages = ["Click **Label 7**.", "Then **Label 9**.", "Nothing."].map((markdown, i) => ({
+      id: `p${i}`,
+      markdown,
+    }));
+    assert.deepEqual(
+      reader(1 << 20)
+        .citedLabels(flat, pages)
+        .map((l) => [l.key, l.pages]),
+      [
+        ["k7", ["p0"]],
+        ["k9", ["p1"]],
+      ],
+    );
+    assert.equal(rendered.length, 3, "three pages, fifty labels: three renderings");
+    rendered.length = 0;
+    const lru = reader(8);
+    for (const md of ["aaaa", "bbbb", "aaaa", "cccc", "aaaa", "bbbb"]) lru.citesLabel(md, "x");
+    // "aaaa" read again is kept as the latest: "cccc" (12 characters, past 8) leaves the oldest, "bbbb".
+    assert.deepEqual(rendered, ["aaaa", "bbbb", "cccc", "bbbb"]);
   });
 
   test("proseOf: a fence's info string with a backtick is no fence; leaving a list after a blank line resets its indentation (minimal pairs)", () => {
@@ -1009,6 +1266,7 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
 
   test("marks every written page; the file conforms to the schema, keys sorted, declared accumulated", async () => {
     const { reference, warnings } = await markPages({
+      labels,
       root: fx.root,
       config,
       toc,
@@ -1033,6 +1291,7 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
 
     // --sources accumulates onto the page it marks.
     const { reference: ref2 } = await markPages({
+      labels,
       root: fx.root,
       config,
       toc,
@@ -1057,6 +1316,7 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
     await assert.rejects(
       () =>
         markPages({
+          labels,
           root: fx.root,
           config,
           toc,
@@ -1077,6 +1337,7 @@ describe("engine/sync/reference.mjs: markPages + writeSyncReference/readSyncRefe
     page.id = "use/orders"; // unchanged, but we'll temporarily break the app side instead
     const noAppDir = { ...config, app: { ...config.app, dir: "../does-not-exist" } };
     const { warnings } = await markPages({
+      labels,
       root: fx.root,
       config: noAppDir,
       toc,
@@ -1100,6 +1361,7 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     const toc = readToc(fx.root, config);
     const inventory = await runCoverage({ root: fx.root, config });
     const { reference } = await markPages({
+      labels,
       root: fx.root,
       config,
       toc,
@@ -1112,6 +1374,7 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     });
     const compare = (overrides = {}) =>
       compareWithReference({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1250,7 +1513,7 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
       assert.deepEqual(r.unreadableLabels, ["../sync-app/messages/en.json"]);
       const md = renderReport(r, createI18n({ language: "en" }).t);
       assert.equal(md.match(/cannot be read/g)?.length, 1, md);
-      assert.equal(checkFails(r), false, "a warning, as a truncated closure is");
+      assert.equal(checkFails(r), true, "a signal the CI would not see otherwise: --check fails");
       // A file deleted is not one that cannot be read: its keys are gone.
       fs.rmSync(path.join(fx.appDir, "messages/en.json"));
       const gone = await compare();
@@ -1339,6 +1602,7 @@ describe("engine/sync/report.mjs: compareWithReference", () => {
     const { fx, config, toc, inventory, reference } = await freshSetup();
     try {
       const r = await compareWithReference({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1384,6 +1648,7 @@ describe("engine/sync/apply.mjs", () => {
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
       const { reference } = await markPages({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1406,6 +1671,7 @@ describe("engine/sync/apply.mjs", () => {
       fs.writeFileSync(messages, JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
 
       const report = await compareWithReference({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1419,7 +1685,7 @@ describe("engine/sync/apply.mjs", () => {
         commit: "c0ffee",
         factsDir: config.paths.facts,
       });
-      const applied = applyReport({ root: fx.root, config, toc, report, withLabels: true });
+      const applied = applyReport({ labels, root: fx.root, config, toc, report, withLabels: true });
       assert.ok(applied.changed.includes("content/use/orders.md"));
       assert.equal(applied.rewritten.proofs, 1);
       assert.equal(applied.rewritten.labels, 1);
@@ -1429,6 +1695,7 @@ describe("engine/sync/apply.mjs", () => {
       assert.doesNotMatch(text, /\*\*Approve\*\*/);
 
       const report2 = await compareWithReference({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1455,6 +1722,7 @@ describe("engine/sync/apply.mjs", () => {
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
       const { reference } = await markPages({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1470,6 +1738,7 @@ describe("engine/sync/apply.mjs", () => {
         JSON.stringify({ orders: { approve: "Validate", new: "New order" } }),
       );
       const report = await compareWithReference({
+        labels,
         root: fx.root,
         config,
         toc,
@@ -1483,7 +1752,7 @@ describe("engine/sync/apply.mjs", () => {
         commit: "c0ffee",
         factsDir: config.paths.facts,
       });
-      const applied = applyReport({ root: fx.root, config, toc, report, withLabels: false });
+      const applied = applyReport({ labels, root: fx.root, config, toc, report, withLabels: false });
       assert.deepEqual(applied.changed, []);
       assert.equal(applied.rewritten.labels, 0);
     } finally {
@@ -1701,6 +1970,88 @@ describe("CLI `sync`", () => {
     }
   });
 
+  // The new signal: a page whose rewrite the rendered page refuses is left as it is, said to be updated by hand — in
+  // the output, sync.md and the JSON, in English and in French —, its label still pending, and never restamped.
+  test("--apply --labels via the CLI: a page to update by hand is left as it is, said so, and never restamped", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      const orders = path.join(fx.root, "content/use/orders.md");
+      // The label in a heading: rewritten, the heading's anchor would change with it.
+      fs.writeFileSync(orders, fs.readFileSync(orders, "utf8").replace("## Each action", "## The **Approve** action"));
+      const io = { commit: () => "c0ffee" };
+      await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], io);
+      const messages = path.join(fx.appDir, "messages/en.json");
+      fs.writeFileSync(messages, JSON.stringify({ orders: { approve: "Validate", new: "New order" } }));
+      const before = fs.readFileSync(orders, "utf8");
+      const r = await cli(["sync", "--apply", "--labels", "--project", fx.root], io);
+      assert.equal(r.code, 0, r.err);
+      assert.equal(fs.readFileSync(orders, "utf8"), before, "the page is left as it is");
+      assert.match(
+        r.out,
+        /⚠ \[use\/orders\] “Approve” → “Validate” \(\.\.\/sync-app\/messages\/en\.json “orders\.approve”\): to update by hand/,
+      );
+      assert.match(r.out, /1 label to update by hand/);
+      const md = fs.readFileSync(path.join(fx.root, ".doc-kit/sync.md"), "utf8");
+      assert.match(md, /\[use\/orders\] “Approve” → “Validate”.*to update by hand/);
+      const json = JSON.parse((await cli(["sync", "--apply", "--labels", "--json", "--project", fx.root], io)).out);
+      assert.deepEqual(json.byHand, [
+        {
+          page: "use/orders",
+          file: "../sync-app/messages/en.json",
+          key: "orders.approve",
+          old: "Approve",
+          new: "Validate",
+        },
+      ]);
+      assert.deepEqual(
+        json.labels.map((l) => [l.key, l.pages]),
+        [["orders.approve", ["use/orders"]]],
+        "its label still pending",
+      );
+      assert.ok(!json.unchanged.includes("use/orders"), "never restamped while it waits for a hand");
+      assert.equal(
+        JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8")).labels["../sync-app/messages/en.json"][
+          "orders.approve"
+        ],
+        "Approve",
+      );
+      const fr = await cli(["sync", "--apply", "--labels", "--lang", "fr", "--project", fx.root], io);
+      assert.match(fr.out, /\[use\/orders\] « Approve » → « Validate » .*: à mettre à jour à la main/);
+      assert.match(fr.out, /1 libellé à mettre à jour à la main/);
+      assert.equal((await cli(["sync", "--check", "--project", fx.root], io)).code, 1, "--check sees it");
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("pagesToRestamp: never a page to update by hand, even with --labels", () => {
+    const report = {
+      proofs: { moved: [], broken: [] },
+      labels: [{ old: "Approve", new: "Validate", pages: ["a", "b"] }],
+      captures: [],
+      review: [],
+      removed: [],
+      unchanged: ["c"],
+      unmarked: [],
+    };
+    assert.deepEqual(pagesToRestamp(report, { withLabels: true }).restamp.sort(), ["a", "b", "c"]);
+    assert.deepEqual(pagesToRestamp(report, { withLabels: true, byHand: [{ page: "b" }] }).restamp.sort(), ["a", "c"]);
+  });
+
+  // When the renderer fails on a page, its Markdown whole is read as the text it shows: every label it holds is cited
+  // (never a signal lost), and nothing is rewritten in it.
+  test("labelReader: a page the renderer fails on cites every label it holds, and is never rewritten", () => {
+    const labels = labelReader(() => {
+      throw new Error("a renderer that fails");
+    });
+    assert.equal(labels.citesLabel("```\n**Approve**\n```", "Approve"), true);
+    assert.deepEqual(labels.replaceLabel("**Approve**", "Approve", "Validate"), {
+      text: "**Approve**",
+      n: 0,
+      byHand: true,
+    });
+  });
+
   test("--apply --auto-intact: a probably intact page is marked without an agent; without --apply → exit code 2", async () => {
     const fx = syncFixtureCopy();
     try {
@@ -1747,6 +2098,29 @@ describe("CLI `sync`", () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // A message file that cannot be read hides every label of it from the comparison: the summary says so, in English
+  // and in French, and --check fails — a signal the CI would not see otherwise.
+  test("--check with a message file that is not valid JSON: the warning, in both languages, and exit code 1", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], { commit: () => "c0ffee" });
+      const io = { commit: () => "c0ffee" };
+      assert.equal((await cli(["sync", "--check", "--project", fx.root], io)).code, 0, "nothing pending yet");
+      fs.writeFileSync(path.join(fx.appDir, "messages/en.json"), "{ not json");
+      const r = await cli(["sync", "--check", "--project", fx.root], io);
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.match(r.out, /⚠ \.\.\/sync-app\/messages\/en\.json cannot be read \(not valid JSON\)/);
+      assert.match(r.out, /the documentation is behind|✖/);
+      const fr = await cli(["sync", "--check", "--lang", "fr", "--project", fx.root], io);
+      assert.equal(fr.code, 1);
+      assert.match(fr.out, /⚠ \.\.\/sync-app\/messages\/en\.json ne peut pas être lu \(JSON invalide\)/);
+      const json = JSON.parse((await cli(["sync", "--check", "--json", "--project", fx.root], io)).out);
+      assert.deepEqual(json.unreadableLabels, ["../sync-app/messages/en.json"]);
+    } finally {
+      fx.release();
+    }
+  });
 });
 
 // ARCHITECTURE.md §6.10: marking merges into sync.json, never replaces it — a signal pending on a page stays until
@@ -1760,13 +2134,14 @@ describe("marking merges: a pending signal stays until its own page is marked", 
     const config = await syncConfig(fx.root);
     const toc = readToc(fx.root, config);
     const at = async (commit, extra) => ({
-      ...{ root: fx.root, config, toc, date: "2026-10-02", commit, version: "1.0.0", plans: [] },
+      ...{ root: fx.root, config, toc, date: "2026-10-02", commit, version: "1.0.0", plans: [], labels },
       inventory: await runCoverage({ root: fx.root, config }),
       ...extra,
     });
     const { reference } = await markPages(await at("c1", { all: true }));
     const compare = async (ref, extra = {}) =>
       compareWithReference({
+        labels,
         ...{ root: fx.root, config, toc, reference: ref, since: null, git: null, plans: [], appDir: fx.appDir },
         ...{ version: "1.0.0", commit: "c2", factsDir: config.paths.facts },
         inventory: await runCoverage({ root: fx.root, config }),
@@ -1999,6 +2374,32 @@ describe("marking merges: a pending signal stays until its own page is marked", 
     } finally {
       fx.release();
     }
+  });
+
+  // B2: a route's static prefix stands for the route's own number of segments, each static one as written —
+  // `/invoices/2026/edit` documents `/invoices/[id]/edit`, never `/invoices/[id]` (a deeper path is another screen).
+  test("marking a page acknowledges a dynamic route only with its number of segments (minimal pairs)", async () => {
+    const documented = async (citation) => {
+      const { fx, reference, at, compare } = await marked();
+      try {
+        for (const route of ["invoices/[id]", "invoices/[id]/edit", "invoices/[id]/view", "docs/[...slug]"])
+          addRoute(fx, route);
+        const page = path.join(fx.root, "content/use/orders.md");
+        fs.appendFileSync(page, `\nSee \`${citation}\`.\n`);
+        const before = (await compare(reference)).new.map((n) => n.id);
+        const { reference: next } = await markPages(await at("c2", { pages: ["use/orders"], reference }));
+        const after = new Set((await compare(next)).new.map((n) => n.id));
+        return before.filter((id) => !after.has(id)).sort();
+      } finally {
+        fx.release();
+      }
+    };
+    assert.deepEqual(await documented("/invoices/2026"), ["/invoices/[id]"]);
+    assert.deepEqual(await documented("/invoices/2026/edit"), ["/invoices/[id]/edit"]);
+    assert.deepEqual(await documented("/invoices/2026/view."), ["/invoices/[id]/view"]);
+    assert.deepEqual(await documented("/invoices/2026/edit/history"), [], "deeper than every route");
+    assert.deepEqual(await documented("/invoices/2026/delete"), [], "another static segment");
+    assert.deepEqual(await documented("/docs/a/b/c"), ["/docs/[...slug]"], "a catch-all: one segment or more");
   });
 
   test("sync --apply's own rewrite is never an edit, nor a final newline; a page edited by hand stays edited", async () => {
@@ -2248,10 +2649,11 @@ describe("engine/sync/report.mjs: a file reached only through the page's proofs"
         const toc = readToc(fx.root, config);
         const inventory = await runCoverage({ root: fx.root, config });
         const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
-        const { reference } = await markPages({ root: fx.root, config, toc, all: true, ...at });
+        const { reference } = await markPages({ labels, root: fx.root, config, toc, all: true, ...at });
         // A line added at the end of the file: its cited line 1 is intact.
         fs.appendFileSync(path.join(fx.appDir, "app", "orders", "page.tsx"), "// one more line\n");
         const r = await compareWithReference({
+          labels,
           root: fx.root,
           config,
           toc,
@@ -2299,5 +2701,104 @@ describe("a verified claim badge is a proof (sync and audit)", () => {
     );
     assert.ok(PROOF.test("[[verified lib/orders.ts:42]]") && PROOF.test("[[verifie seuil lib/c.ts:3]]"));
     assert.ok(!PROOF.test("[[verified the manager approves]]"), "a badge without a source is a claim, not a proof");
+  });
+});
+
+describe("engine/sync/html-text.mjs (the rendered page, read as a browser reads it)", () => {
+  const text = (html) => shownText(html).text;
+
+  test("shownText: text runs and the alt and title of elements; never a code block, a comment, a script, a field", () => {
+    assert.equal(text("<p>Click <strong>Approve</strong> all.</p>"), "\nClick Approve all.\n");
+    assert.equal(
+      text('<p><img src="a.png" alt="Approve"><a href="Orders.md" title="Open">x</a></p>'),
+      "\nx\n\nApprove\nOpen",
+    );
+    for (const hidden of [
+      "<pre><code>Approve</code></pre>",
+      "<!-- Approve -->",
+      "<!-- Approve --!>",
+      "<script>if (a<b) x('Approve')</script>",
+      "<style>a::after{content:'Approve'}</style>",
+      "<textarea>Approve</textarea>",
+      "<template>Approve</template>",
+      "<!-- never closed Approve",
+      '<b title="x',
+    ])
+      assert.ok(!text(hidden).includes("Approve"), hidden);
+    // `<!-->` and `<!--->` are empty comments; `--!>` closes one; a script runs to its own closing tag only.
+    assert.equal(text("<!-->Approve"), "Approve");
+    assert.equal(text("<!--->Approve"), "Approve");
+    assert.equal(text("<!-- a --!>Approve"), "Approve");
+    assert.equal(text("<script>a</b>b</SCRIPT >Approve"), "\n\nApprove");
+    // References are read, blanks collapsed; a `<` that opens no tag is text.
+    assert.equal(text("<p>R&amp;D&#39;s &#x2019;  a\n\tb &bogus; a < b</p>"), "\nR&D's ’ a b &bogus; a < b\n");
+    // A `>` in a quoted value does not end the tag.
+    assert.equal(text(`<span title='a>b' data-x="Approve">x</span>`), "x\na>b");
+  });
+
+  test("shownText: the elements open, as a browser's tree builder keeps them (end tags, scope, paragraphs)", () => {
+    // An end tag closes what was opened inside it: a <pre> left open in a blockquote, an item, a cell.
+    assert.match(text("<blockquote><pre></blockquote>\n<p>Approve</p>"), /Approve/);
+    assert.match(text("<ul><li><pre></li><li>Approve</li></ul>"), /Approve/);
+    assert.match(text("<table><tr><td><pre> x</td></tr><tr><td>Approve</td></tr></table>"), /Approve/);
+    // ...unless a scope boundary stands above it: a </div> inside a cell closes nothing outside it.
+    assert.doesNotMatch(text("<pre><table><tr><td></pre>x</td></tr></table>Approve"), /Approve/);
+    // A block's start tag closes an open paragraph: a <pre> opened in one stays open after its </p>.
+    assert.doesNotMatch(text("<p>text <pre> more</p>\n<p>Approve</p>"), /Approve/);
+    // An element's edge ends a word; a block ends a phrase.
+    const { text: t, breaks } = shownText("<p><code>Approve</code><strong>Approve</strong></p>");
+    assert.equal(t, "\nApproveApprove\n");
+    assert.deepEqual([...breaks], [1, 8, 15]);
+  });
+
+  test("rendersAsBefore: only the label's text renamed, somewhere, and nothing else (minimal pairs)", () => {
+    const ok = (before, after, forms = ["Approve"], value = "Validate") =>
+      assert.equal(rendersAsBefore(before, after, forms, value), true, `${before} → ${after}`);
+    const refused = (before, after, forms = ["Approve"], value = "Validate") =>
+      assert.equal(rendersAsBefore(before, after, forms, value), false, `${before} → ${after}`);
+    const b = (s) => `<p><strong>${s}</strong></p>`;
+    ok("<p><strong>Approve</strong> it</p>", "<p><strong>Validate</strong> it</p>");
+    ok(b("Approve, then Approve."), b("Approve, then Validate.")); // some kept
+    refused(b("Approve"), b("Approve")); // nothing renamed: nothing to keep
+    refused(b("Approve"), b("Validate!")); // more than the label
+    refused(b("Approves"), b("Validates")); // never inside a word
+    refused('<a href="Approve.md">x</a>', '<a href="Validate.md">x</a>'); // a target
+    refused('<h2 id="approve">Approve</h2>', '<h2 id="validate">Validate</h2>'); // an anchor
+    refused("<pre><code>Approve</code></pre>", "<pre><code>Validate</code></pre>"); // a code block
+    refused("<pre><strong>Approve</strong></pre>", "<pre><strong>Validate</strong></pre>"); // even in bold
+    refused("<!-- Approve -->", "<!-- Validate -->"); // a comment
+    refused(b("Approve"), "<p><strong><em>Validate</em></strong></p>"); // the structure
+    // Only in a context --apply --labels rewrites, as the page shows it: bold, a badge, between quotes of one line —
+    // never in a sentence (a `**` left alone does not make one bold), nor between two quoted parts.
+    refused("<p>Then Approve the <strong>order</strong>.</p>", "<p>Then Validate the <strong>order</strong>.</p>");
+    ok('<p><span class="puce menu">Approve</span></p>', '<p><span class="puce menu">Validate</span></p>');
+    ok("<p>Press <kbd>Approve</kbd></p>", "<p>Press <kbd>Validate</kbd></p>");
+    ok("<p>Click &quot;Approve&quot; now</p>", "<p>Click &quot;Validate&quot; now</p>");
+    ok('<p>"Click <a href="x">Approve</a> now"</p>', '<p>"Click <a href="x">Validate</a> now"</p>');
+    ok("<p>«Approve» and “Approve”</p>", "<p>«Validate» and “Validate”</p>");
+    refused('<p>"a" Approve "b"</p>', '<p>"a" Validate "b"</p>');
+    refused("<p>«a» Approve «b»</p>", "<p>«a» Validate «b»</p>");
+    refused('<p>"Approve</p><p>x"</p>', '<p>"Validate</p><p>x"</p>', undefined, undefined); // quotes of two blocks
+    // A code span only when it is the label itself.
+    ok("<p><code>Approve</code></p>", "<p><code>Validate</code></p>");
+    refused("<p><code>run Approve</code></p>", "<p><code>run Validate</code></p>");
+    // As the page shows it: references read, blanks collapsed (a label written across a line end).
+    ok(b("Approval\nchain"), b("Approval chain history"), ["Approval chain"], "Approval chain history");
+    ok(b("R&amp;D"), b("Research"), ["R&D"], "Research");
+    // A new value that holds the old one, renamed in one place and already there in another: both readings followed;
+    // where the page holds the new value, across an element's edge too, the old one inside it is never renamed.
+    ok(
+      b("Approval chain and Approval chain history"),
+      b("Approval chain history and Approval chain history"),
+      ["Approval chain"],
+      "Approval chain history",
+    );
+    refused(
+      "<p>Open <strong>Approval chain</strong> history</p>",
+      "<p>Open <strong>Approval chain history</strong> history</p>",
+      ["Approval chain"],
+      "Approval chain history",
+    );
+    ok(b("Approve all, Approve all"), b("Approve, Approve all"), ["Approve all"], "Approve");
   });
 });

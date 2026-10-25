@@ -11,7 +11,7 @@ import { wholeIndexes } from "../core/text.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, pageCiteText } from "./dependencies.mjs";
 import { recordProof } from "./proofs.mjs";
-import { citedLabels, citesLabel, labelFiles, readFlatLabels } from "./labels.mjs";
+import { labelFiles, readFlatLabels } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
 const SYNC_FILE = "sync.json";
@@ -125,10 +125,11 @@ export const versionBehind = (reference, version, writtenIds) =>
  * it — that page has its signal still; a page that holds the new value there does not cite the old one inside it —
  * and otherwise takes its current value (dropped when it left its file, or the file is gone). A file that cannot be
  * read keeps what was recorded. `everyPage` (`--mark --all`): a key no written page cites any more is dropped.
+ * @param {import("./labels.mjs").LabelReader} labels
  */
-function mergeLabels(recorded, files, written, acknowledged, everyPage) {
+function mergeLabels(recorded, files, written, acknowledged, everyPage, labels) {
   const out = {};
-  const cited = (value, pages, now = null) => pages.some((p) => citesLabel(p.markdown, value, now));
+  const cited = (value, pages, now = null) => pages.some((p) => labels.citesLabel(p.markdown, value, now));
   const notAcknowledged = written.filter((p) => !acknowledged.includes(p));
   for (const { file, flat, followed } of files) {
     const entries = { ...(recorded?.[file] || {}) };
@@ -138,7 +139,7 @@ function mergeLabels(recorded, files, written, acknowledged, everyPage) {
           if (typeof flat[key] === "string") entries[key] = flat[key];
           else delete entries[key];
       if (followed)
-        for (const { key, value } of citedLabels(flat, written)) if (!(key in entries)) entries[key] = value;
+        for (const { key, value } of labels.citedLabels(flat, written)) if (!(key in entries)) entries[key] = value;
     }
     if (everyPage) for (const [key, value] of Object.entries(entries)) if (!cited(value, written)) delete entries[key];
     if (Object.keys(entries).length) out[file] = entries;
@@ -168,11 +169,59 @@ function routeEndsAt(text, i) {
   return j >= text.length || ROUTE_END.test(text[j]);
 }
 
+/** A segment of a route that stands for any one (`[id]`, `:id`, `{id}`), or, with `...`, `*` or `+`, for one or more
+ * (`[...slug]`, `[[...slug]]`, `:slug*`, `{...slug}`). */
+export const ROUTE_PARAMETER = /^(?:\[\[?(\.\.\.)?[^\]/]+\]\]?|:[a-z_]\w*([*+?])?|\{(\.\.\.)?[^}/]+\})$/;
+
+/**
+ * The segments a route's static prefix stands for (`/invoices/` of `/invoices/[id]/edit`: any one, then "edit"), read
+ * in the first of the item's forms that goes on from it with a parameter: "one" for any segment, "many" for one or
+ * more, a static segment as written. One segment when no form says.
+ */
+function segmentsAfter(item, prefix) {
+  for (const m of item.match || []) {
+    const form = normalize(String(m ?? "")).trim();
+    const rest = form.slice(prefix.length).split("/");
+    if (form.length <= prefix.length || !form.startsWith(prefix) || !rest.some((s) => ROUTE_PARAMETER.test(s)))
+      continue;
+    return rest.map((s) => {
+      const p = ROUTE_PARAMETER.exec(s);
+      if (!p) return s;
+      return p[1] || p[3] || p[2] === "*" || p[2] === "+" ? "many" : "one";
+    });
+  }
+  return ["one"];
+}
+
+/** The end of the path segment that starts at `i` in `text`: its next "/", ROUTE_END, or the end. */
+function segmentEnd(text, i) {
+  let j = i;
+  while (j < text.length && text[j] !== "/" && !ROUTE_END.test(text[j])) j++;
+  return j;
+}
+
+/** Whether the path cited in `text` from `at` on is made of `segments` (segmentsAfter) and ends where the last one does
+ * (routeEndsAt; a catch-all goes on with anything below it). */
+function pathAt(text, at, segments) {
+  let i = at;
+  for (let k = 0; k < segments.length; k++) {
+    let end = segmentEnd(text, i);
+    if (segments[k] === "many") return end > i;
+    const last = k === segments.length - 1;
+    if (last) while (end > i && ROUTE_STOP.test(text[end - 1])) end--;
+    if (end === i || (segments[k] !== "one" && text.slice(i, end) !== segments[k])) return false;
+    if (last) return routeEndsAt(text, end);
+    if (text[end] !== "/") return false;
+    i = end + 1;
+  }
+  return false;
+}
+
 /**
  * Whether a marked page's text (normalised) documents an item: one of its forms as a whole; a route (a form with a
  * "/") made of whole segments — `/detail` is not in `/orders/detail`, nor `/ord` in `/orders` — and ending where its
- * last segment does (routeEndsAt). A form that ends with "/" (the static prefix of `/orders/[id]`) goes on with a
- * segment.
+ * last segment does (routeEndsAt). A form that ends with "/" (the static prefix of `/orders/[id]`) goes on with the
+ * route's own segments (segmentsAfter): `/invoices/2026/edit` documents `/invoices/[id]/edit`, never `/invoices/[id]`.
  */
 function documents(item, text) {
   return (item.match || []).some((m) => {
@@ -181,9 +230,10 @@ function documents(item, text) {
     const stem = prefix ? form.slice(0, -1) : form;
     if (!stem) return false;
     const route = stem.includes("/");
+    const segments = prefix ? segmentsAfter(item, form) : null;
     return wholeIndexes(text, stem).some((i) => {
       const end = i + stem.length;
-      return prefix ? text[end] === "/" && !routeEndsAt(text, end) : !route || routeEndsAt(text, end);
+      return prefix ? text[end] === "/" && pathAt(text, end + 1, segments) : !route || routeEndsAt(text, end);
     });
   });
 }
@@ -244,6 +294,7 @@ function mergeCaptures(recorded, plans, cited, restamp) {
  * @param {object} p.inventory        result of runCoverage({ root, config })
  * @param {object[]} [p.plans]        loaded capture plan entries (engine/capture/plans.mjs, loadPlans().captures)
  * @param {object|null} p.reference   the current sync.json, or null
+ * @param {import("./labels.mjs").LabelReader} p.labels   the labels read through the kit's renderer (labelReader)
  * @returns {Promise<{ reference: object, warnings: Array<{ key: string, vars: object }> }>}
  */
 export async function markPages({
@@ -260,6 +311,7 @@ export async function markPages({
   inventory,
   plans = [],
   reference,
+  labels,
 }) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
@@ -286,15 +338,8 @@ export async function markPages({
     const prevDeclared = reference?.pages?.[id]?.declared || [];
     const declared = sources.length ? [...new Set([...prevDeclared, ...sources])] : prevDeclared;
     const deps = await pageDependencies({
-      root,
-      config,
-      toc,
-      pageId: id,
-      inventory,
-      tools,
-      factsDir: config.paths.facts,
-      plans,
-      declared,
+      ...{ root, config, toc, inventory, tools, plans, declared },
+      ...{ pageId: id, factsDir: config.paths.facts },
     });
 
     const files = hashFiles(root, appDir, deps.files);
@@ -320,12 +365,13 @@ export async function markPages({
   // and a label no written page cites any more is dropped.
   const everyPage = targets.length === writtenIds.size && !restamp;
   const marked = restamp ? [] : written.filter((p) => targets.includes(p.id));
+  const flatFiles = allFlatLabels(root, config, reference?.labels);
   const ref = {
     generator: generatorTag(),
     app: { commit, version, date },
     pages: newPages,
     proofs: newProofs,
-    labels: mergeLabels(reference?.labels, allFlatLabels(root, config, reference?.labels), written, marked, everyPage),
+    labels: mergeLabels(reference?.labels, flatFiles, written, marked, everyPage, labels),
     inventory:
       !reference || everyPage ? inventoryIds(inventory) : mergeInventory(reference.inventory, inventory, marked),
     captures: mergeCaptures(reference?.captures, plans, cited, restamp),

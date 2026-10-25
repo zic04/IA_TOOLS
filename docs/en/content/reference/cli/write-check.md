@@ -147,12 +147,12 @@ and one `.doc-kit/sync/<page>.diff` per page to review.
 |---|---|
 | `--since <ref>` | Compares the files behind each page with this git commit instead of `sync.json`: only `review` and `unchanged` are reported (the adapters are not re-run at that commit, and proofs, labels, screenshots and edits need `sync.json`); never with `--mark` or `--apply` |
 | `--apply` | Rewrites a moved proof's `file:line` reference in the page; then restamps the marked pages left unchanged (never a page nobody marked) |
-| `--labels` | With `--apply`: also replaces a label's old value by its new one, as a whole word, only inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes — never in plain prose, another code span (even in bold or quotes), a directive's attributes, a link's target, a bare address, a label that names a link definition, a code block, an HTML comment or tag; a new value that holds the old one is replaced once |
+| `--labels` | With `--apply`: also replaces a label's old value by its new one, as a whole word, only inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes — never in plain prose, another code span (even in bold or quotes), a directive's attributes, a link's target, a bare address, a label that names a link definition, a code block, an HTML comment or tag; a new value that holds the old one is replaced once. Each rewrite is checked on the page as the kit renders it: one that would change anything but the label's text (a heading's anchor, a link, code) leaves the page as it is, reported to update by hand, its label still pending |
 | `--mark <page…>` | Records these pages as checked now (the page ids follow the option), merged into `sync.json`: only what they document is acknowledged |
 | `--all` | With `--mark`: every written page, the whole inventory acknowledged, and a label no page quotes any more dropped |
 | `--sources <file[:lines]…>` | With `--mark` of a single page: declared dependencies, repeatable |
 | `--date YYYY-MM-DD` | Date written by `--mark`, instead of today's (reproducible runs) |
-| `--check` | Exit code 1 when any category but `unchanged`, `edited` and `unmarked` is not empty: a CI gate that a project can adopt page by page |
+| `--check` | Exit code 1 when any category but `unchanged`, `edited` and `unmarked` is not empty, or a messages file cannot be read: a CI gate that a project can adopt page by page |
 | `--estimate` | The cost of updating the pages to review, one `doc-kit-writer` agent per page, priced from `llm.prices` |
 
 Without `app.dir`, exit code 2. A page not written yet cannot be marked (exit code 1). Once a page is marked, its

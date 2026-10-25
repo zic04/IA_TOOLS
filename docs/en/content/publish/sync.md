@@ -28,7 +28,8 @@ marked still quotes its old value — and so does a label whose messages file th
 A page acknowledges an element only when it names it whole: `/detail` is not in `/orders/detail`, nor `/ord` in
 `/orders`, and `/invoices-export`, `/invoices.csv` or `/invoices/2026` do not name `/invoices` — a route ends
 before a blank, a quote, a bracket, a backquote, `?`, `#` or sentence punctuation (`/invoices.`); `/invoices/2026`
-names `/invoices/[id]`. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves
+names `/invoices/[id]`, and `/invoices/2026/edit` names `/invoices/[id]/edit`, never `/invoices/[id]` — a dynamic
+route is named with its own number of segments. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves
 `sync.json` at the next marking. With no page written — a table of contents that cannot be read — a marking is
 refused (exit code 1) and `sync.json` is left as it is: nothing pending is acknowledged. Each page's diff is taken
 from its own commit.
@@ -74,14 +75,19 @@ goes further: it replaces an old message value with its new one, as a whole word
 never inside ordinary prose, where a human sentence depends on the old wording, nor in any other code span (even
 in bold or between quotes: `` **`getByRole('link', { name: 'Approve' })`** `` stays as it is), a directive's
 attributes, a link's target, a bare address (`https://…`), or a label between brackets that names a link definition
-(`[Approve]` with `[Approve]: approve.md`). A new value that holds the old one
-(`Approval chain` → `Approval chain history`) is replaced once: run it again, nothing changes. A code block (fenced or indented), an HTML comment and a
-tag spread over several lines are not text at all: a label there is neither replaced nor read as quoted — read as
-the site's renderer reads them, so a code span such as `` `<!--` `` opens no comment, and a fence closes with the
-blockquote or list item it sits in. There is no front matter: a page that starts with `---` starts with a rule.
-`é` written as one character or as `e` and an accent is the same label. Nothing here ever touches prose: a page
-whose subject changed still needs a person, and a page nobody marked is never marked by `--apply`, even one whose
-label it rewrote.
+(`[Approve]` with `[Approve]: approve.md`). A label in bold written across a line end (`**Approval\nchain**`) is
+replaced too. A new value that holds the old one (`Approval chain` → `Approval chain history`) is replaced once: run
+it again, nothing changes. `é` written as one character or as `e` and an accent is the same label.
+
+**Every rewrite is checked on the page as the site renders it.** The page is rendered by the kit's own renderer
+before and after: the rewrite is kept only when the page after is the page before with the label renamed in its
+text, and nothing else — the same links and their targets, the same anchors, the same code blocks and comments —,
+and only where the rendered page shows the label in bold, a badge, between quotes or as a code span of its own.
+Otherwise the page is left as it is and reported **to update by hand**: a label in a heading, say, whose anchor
+would change with it. Its label stays pending until someone updates it. So `--apply --labels` never damages a page
+and never clears a signal: where the reading of the Markdown that proposes the rewrites differs from the renderer, the
+page is only sent to be updated by hand. Nothing here ever touches prose: a page whose subject changed still needs a
+person, and a page nobody marked is never marked by `--apply`, even one whose label it rewrote.
 
 What `--apply` rewrites in a page it leaves to review is no edit by hand: that page is not reported `edited` for
 it — nor for a final newline added or removed, a BOM or CRLF line ends.
@@ -93,7 +99,8 @@ doc-kit sync --check
 ```
 
 Exit code 1 as soon as any category but `unchanged`, `edited` and `unmarked` is not empty — "the documentation is behind the
-application". `unmarked` only warns, so a project can adopt `sync` one page at a time instead of marking every page
+application" —, or a messages file cannot be read (not valid JSON): none of its labels is compared then, which the CI
+would not see otherwise. `unmarked` only warns, so a project can adopt `sync` one page at a time instead of marking every page
 at once.
 
 ## Comparing with a commit instead of the reference
@@ -132,10 +139,19 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > Dependencies, proofs and labels are all read from the application's code: configure `app.dir` first
 > ([Project, version and sign-in keys](#/reference/configuration/project)).
 
-> [!NOTE] A label stuck to the text, in a script written without spaces, is not seen
-> `保存をクリック` does not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the
-> label apart — `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's
-> length times the label's.
+> [!NOTE] A page quotes a label where the site shows it
+> A label is quoted where the page, rendered by the kit's own renderer, shows it as text: `_Approve_` quotes
+> `Approve` (an emphasis, shown without its underscores), a link's title or an image's text does too, a code block,
+> an HTML comment, a script, a style sheet or a text field never does, nor a link's target. `保存をクリック` does
+> not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the label apart —
+> `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's length times
+> the label's.
+
+> [!NOTE] When `--labels` leaves a page to update by hand
+> The places to rewrite are found by reading the Markdown, close to how the renderer reads it but not as it does:
+> a blockquote opened on a list item's own line (`- > …`), a comment never closed inside a blockquote or a list
+> item, or raw HTML the reading does not follow may be read otherwise. The check on the rendered page catches every
+> such case: the page is left as it is, reported to update by hand, its label still pending — never damaged.
 
 > [!NOTE] Two labels with the same value, a screenshot on several pages
 > Two message keys with the same value cannot be told apart: a page that quotes it is listed — and rewritten by

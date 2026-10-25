@@ -95,6 +95,14 @@ describe("wholeIndexes: a needle as a whole word (ARCHITECTURE.md §6.10)", () =
     assert.deepEqual(wholeIndexes("😀No", "No"), [2]);
     assert.deepEqual(wholeIndexes("No😀", "No"), [0]);
   });
+
+  // The edges of the elements of a rendered page (engine/sync/html-text.mjs): a word ends there whatever follows.
+  test("a break ends a word whatever follows it: `<code>No</code><b>No</b>` shows two", () => {
+    assert.deepEqual(wholeIndexes("NoNo", "No"), []);
+    assert.deepEqual(wholeIndexes("NoNo", "No", new Set([2])), [0, 2]);
+    assert.deepEqual(wholeIndexes("xNoy", "No", new Set([1])), [], "a break before it only");
+    assert.deepEqual(wholeIndexes("xNoy", "No", new Set([1, 3])), [1]);
+  });
 });
 
 describe("numbers: the numbers of the CLI summaries", () => {

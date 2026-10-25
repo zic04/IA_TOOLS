@@ -315,7 +315,7 @@ Then, **only for the pages still flagged** (none left: the cycle ends here, no a
   triage says `deepen`, and phase 5b's `depth` and `deepen` apply.
 
 Then `doc-kit check all`, and `doc-kit build`. `sync --check` gates CI (exit 1 on anything but
-`unchanged`/`edited`/`unmarked`; a new element no page documents stays `new` until `sync --mark --all`). `doc-kit stats --since <version>` shows what the update cost, per step and per model.
+`unchanged`/`edited`/`unmarked`, and on a messages file that cannot be read; a new element no page documents stays `new` until `sync --mark --all`). `doc-kit stats --since <version>` shows what the update cost, per step and per model.
 
 ## The economical conduct
 

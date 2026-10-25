@@ -135,6 +135,20 @@ const RE_BADGE = new RegExp(`^\\[\\[(${alternatives(BADGES)})\\s+([^\\n]+?)\\]\\
 // Claim badges (§6.9): the text after the kind is optional ([[verified]] alone, or [[verified lib/orders.ts:42]]).
 const RE_CLAIM = new RegExp(`^\\[\\[(${alternatives(CLAIMS)})(?:\\s+([^\\n]+?))?\\]\\](?!\\])`);
 
+/** A blank line: a paragraph never runs past one. Linear: a class, then a line end (RULES.md S5). */
+export const PARAGRAPH_END = /\n[ \t]*\n/;
+
+/**
+ * Where a block extension that opens a line (`re`, multiline) may start in `src`, for Marked to cut the paragraph it is
+ * about to read there. Looked for before the first blank line only: a paragraph never runs past one, and a directive
+ * further on starts a block of its own. Searched to the end, each paragraph read the rest of the page again: a long
+ * page rendered in quadratic time (ARCHITECTURE.md §6.10, `sync` renders every page).
+ */
+function startInParagraph(src, re) {
+  const end = src.search(PARAGRAPH_END);
+  return (end === -1 ? src : src.slice(0, end + 1)).match(re)?.index;
+}
+
 function attributes(s) {
   const a = attrs(s);
   for (const [fr, en] of Object.entries(ATTRIBUTES)) if (fr in a && !(en in a)) a[en] = a[fr];
@@ -227,7 +241,7 @@ export function createMarkdownEngine({
   const directiveExtension = {
     name: "directive",
     level: "block",
-    start: (src) => src.match(/^::(?!:)/m)?.index,
+    start: (src) => startInParagraph(src, /^::(?!:)/m),
     tokenizer(src) {
       const m = RE_DIRECTIVE.exec(src);
       if (m) return { type: "directive", raw: m[0], kind: DIRECTIVES[m[1]], a: attributes(m[2]) };
@@ -290,7 +304,7 @@ export function createMarkdownEngine({
   const containerExtension = {
     name: "container",
     level: "block",
-    start: (src) => src.match(/^:::/m)?.index,
+    start: (src) => startInParagraph(src, /^:::/m),
     tokenizer(src) {
       const m = RE_CONTAINER.exec(src);
       if (!m) return;
@@ -329,10 +343,11 @@ export function createMarkdownEngine({
     },
   };
 
+  // No `start` for the badges and the claims: Marked's text stops before every "[", so each "[[" is tried where it
+  // opens; one looked for ahead of each piece of text read the rest of the paragraph again (quadratic on a long one).
   const badgeExtension = {
     name: "badge",
     level: "inline",
-    start: (src) => src.indexOf("[["),
     tokenizer(src) {
       const m = RE_BADGE.exec(src);
       if (m) return { type: "badge", raw: m[0], kind: BADGES[m[1]], value: m[2].trim() };
@@ -362,7 +377,6 @@ export function createMarkdownEngine({
   const claimExtension = {
     name: "claim",
     level: "inline",
-    start: (src) => src.indexOf("[["),
     tokenizer(src) {
       const m = RE_CLAIM.exec(src);
       if (m) return { type: "claim", raw: m[0], kind: CLAIMS[m[1]], value: (m[2] || "").trim() };

@@ -31,7 +31,8 @@ l'application a supprimé le fichier de messages (`→ null`). Une page n'acquit
 entier : `/detail` n'est pas dans `/orders/detail`, ni `/ord` dans `/orders`, et `/invoices-export`,
 `/invoices.csv` ou `/invoices/2026` ne nomment pas `/invoices` — une route se termine avant un blanc, un guillemet,
 un crochet, un accent grave, `?`, `#` ou une ponctuation de phrase (`/invoices.`) ; `/invoices/2026` nomme
-`/invoices/[id]`. `--mark --all` retire aussi un libellé qu'aucune page ne cite plus ; une page qui n'est plus écrite
+`/invoices/[id]`, et `/invoices/2026/edit` nomme `/invoices/[id]/edit`, jamais `/invoices/[id]` — une route
+dynamique se nomme avec son propre nombre de segments. `--mark --all` retire aussi un libellé qu'aucune page ne cite plus ; une page qui n'est plus écrite
 quitte `sync.json` au marquage suivant. Sans aucune page écrite — une table des matières illisible — un marquage
 est refusé (code de sortie 1) et `sync.json` reste tel quel : rien de ce qui reste à faire n'est acquitté. Le diff
 de chaque page part de son propre commit.
@@ -78,15 +79,20 @@ lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose 
 de l'ancienne formulation, ni dans un autre code en ligne (même en gras ou entre guillemets :
 `` **`getByRole('link', { name: 'Approve' })`** `` reste tel quel), les attributs d'une directive, la cible d'un
 lien, une adresse nue (`https://…`), ou un libellé entre crochets qui nomme une définition de lien (`[Approve]` avec
-`[Approve]: approve.md`). Une nouvelle valeur qui contient l'ancienne
-(`Approval chain` → `Approval chain history`) n'est remplacée qu'une fois : relancé, il ne change plus rien. Un bloc de code (délimité ou indenté), un
-commentaire HTML et une balise étalée sur plusieurs lignes ne sont pas du texte : un libellé qui s'y trouve n'est ni
-remplacé ni lu comme cité — lus comme le moteur de rendu du site les lit : du code en ligne comme `` `<!--` ``
-n'ouvre aucun commentaire, et un bloc délimité se ferme avec la citation ou l'élément de liste qui le contient. Il
-n'y a pas d'en-tête YAML : une page qui commence par `---` commence par un filet. `é` écrit en un caractère ou en
-`e` suivi d'un accent est le même libellé. Rien ici ne touche jamais la prose : une page dont le sujet a changé a
-toujours besoin d'une personne, et une page que personne n'a marquée n'est jamais marquée par `--apply`, même
-celle dont il a réécrit un libellé.
+`[Approve]: approve.md`). Un libellé en gras écrit sur deux lignes (`**Approval\nchain**`) est remplacé lui aussi.
+Une nouvelle valeur qui contient l'ancienne (`Approval chain` → `Approval chain history`) n'est remplacée qu'une
+fois : relancé, il ne change plus rien. `é` écrit en un caractère ou en `e` suivi d'un accent est le même libellé.
+
+**Chaque réécriture est vérifiée sur la page telle que le site la rend.** La page est rendue par le moteur de rendu
+du kit avant et après : la réécriture n'est gardée que si la page d'après est la page d'avant avec le libellé
+renommé dans son texte, et rien d'autre — les mêmes liens et leurs cibles, les mêmes ancres, les mêmes blocs de
+code et commentaires —, et seulement là où la page rendue montre le libellé en gras, dans un badge, entre
+guillemets ou en code en ligne à lui seul. Sinon la page est laissée telle quelle et signalée **à mettre à jour à la main** : un libellé
+dans un titre, par exemple, dont l'ancre changerait avec lui. Son libellé reste en attente jusqu'à ce que quelqu'un
+le mette à jour. Ainsi `--apply --labels` n'abîme jamais une page et n'efface jamais un signal : là où la lecture du
+Markdown qui propose les réécritures diffère du moteur de rendu, la page est seulement envoyée à mettre à jour à la
+main. Rien ici ne touche jamais la prose : une page dont le sujet a changé a toujours besoin d'une personne, et une
+page que personne n'a marquée n'est jamais marquée par `--apply`, même celle dont il a réécrit un libellé.
 
 Ce que `--apply` réécrit dans une page qu'il laisse à relire n'est pas une retouche à la main : cette page n'est
 pas signalée `edited` pour autant — ni pour un saut de ligne final ajouté ou retiré, un BOM ou des fins de ligne
@@ -99,7 +105,8 @@ doc-kit sync --check
 ```
 
 Code de sortie 1 dès qu'une catégorie autre que `unchanged`, `edited` et `unmarked` n'est pas vide — « la documentation est
-en retard sur l'application ». `unmarked` ne fait qu'avertir, pour qu'un projet puisse adopter `sync` page par
+en retard sur l'application » —, ou qu'un fichier de messages ne peut pas être lu (JSON invalide) : aucun de ses
+libellés n'est alors comparé, ce que l'intégration continue ne verrait pas autrement. `unmarked` ne fait qu'avertir, pour qu'un projet puisse adopter `sync` page par
 page plutôt que de tout marquer d'un coup.
 
 ## Comparer avec un commit plutôt qu'avec la référence
@@ -139,10 +146,20 @@ construction.
 > Dépendances, preuves et libellés sont tous lus dans le code de l'application : configurez d'abord `app.dir`
 > ([Clés du projet, de la version et de la connexion](#/reference/configuration/project)).
 
-> [!NOTE] Un libellé collé au texte, dans une écriture sans espaces, n'est pas vu
+> [!NOTE] Une page cite un libellé là où le site le montre
+> Un libellé est cité là où la page, rendue par le moteur de rendu du kit, le montre comme texte : `_Approve_` cite
+> `Approve` (une emphase, montrée sans ses soulignés), le titre d'un lien ou le texte d'une image aussi ; un bloc de
+> code, un commentaire HTML, un script, une feuille de style ou un champ de texte jamais, ni la cible d'un lien.
 > `保存をクリック` ne cite pas `保存` : une lettre le suit, comme `Approved` ne cite pas `Approve`. Détachez le
 > libellé — `**保存**をクリック` — pour qu'il soit suivi. Chercher un libellé très long est plus lent : jusqu'à la
 > longueur de la page fois celle du libellé.
+
+> [!NOTE] Quand `--labels` laisse une page à mettre à jour à la main
+> Les endroits à réécrire sont trouvés en lisant le Markdown, au plus près de la lecture du moteur de rendu mais
+> pas exactement comme lui : une citation ouverte sur la ligne même d'un élément de liste (`- > …`), un commentaire
+> jamais fermé dans une citation ou un élément de liste, ou du HTML brut que cette lecture ne suit pas peuvent être
+> lus autrement. La vérification sur la page rendue rattrape chacun de ces cas : la page est laissée telle quelle,
+> signalée à mettre à jour à la main, son libellé toujours en attente — jamais abîmée.
 
 > [!NOTE] Deux libellés de même valeur, une capture sur plusieurs pages
 > Deux clés de message de même valeur ne se distinguent pas : une page qui la cite est listée — et réécrite par

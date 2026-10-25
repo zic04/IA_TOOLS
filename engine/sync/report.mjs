@@ -6,7 +6,7 @@ import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText } from "./dependencies.mjs";
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
-import { citesLabel, readFlatLabels } from "./labels.mjs";
+import { readFlatLabels } from "./labels.mjs";
 import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
@@ -130,8 +130,9 @@ function allLabelValues(reference) {
 
 /** `labels`: no page attribution is stored, so this is computed once, globally — every written page still citing
  * a recorded value that changed (or whose key disappeared), where it does not hold the new value. A message file that
- * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then. */
-function labelChanges(root, reference, written) {
+ * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then.
+ * @param {import("./labels.mjs").LabelReader} labels */
+function labelChanges(root, reference, written, labels) {
   const out = [];
   const unreadable = [];
   for (const [file, entries] of Object.entries(reference?.labels || {})) {
@@ -144,7 +145,7 @@ function labelChanges(root, reference, written) {
     for (const [key, oldValue] of Object.entries(entries)) {
       const newValue = flatNow[key] ?? null;
       if (newValue === oldValue) continue;
-      const pages = written.filter((p) => citesLabel(p.markdown, oldValue, newValue)).map((p) => p.id);
+      const pages = written.filter((p) => labels.citesLabel(p.markdown, oldValue, newValue)).map((p) => p.id);
       if (pages.length) out.push({ file, key, old: oldValue, new: newValue, pages });
     }
   }
@@ -214,6 +215,8 @@ function translationChanges(root, config, toc) {
  * @property {string[]} [truncated]
  * @property {string[]} [unreadableLabels]  message files that are not valid JSON: their labels are not compared
  * @property {boolean} [gitAvailable]
+ * @property {Array<{ page: string, file: string, key: string, old: string, new: string }>} [byHand]  after
+ *   `--apply --labels`: the label rewrites refused, each page left as it is (applyReport().byHand)
  */
 
 /**
@@ -231,6 +234,7 @@ function translationChanges(root, config, toc) {
  * @param {string} p.version           documented version, now
  * @param {string|null} p.commit       application HEAD, now
  * @param {string} p.factsDir          projRel facts folder
+ * @param {import("./labels.mjs").LabelReader} p.labels   the labels read through the kit's renderer (labelReader)
  * @returns {Promise<SyncReport>}
  */
 export async function compareWithReference({
@@ -246,6 +250,7 @@ export async function compareWithReference({
   version,
   commit,
   factsDir,
+  labels,
 }) {
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
@@ -263,7 +268,7 @@ export async function compareWithReference({
 
   const { labels: labelsOut, unreadable } = since
     ? { labels: [], unreadable: [] }
-    : labelChanges(root, reference, written);
+    : labelChanges(root, reference, written, labels);
   const pagesWithLabelIssue = new Set(labelsOut.flatMap((l) => l.pages));
   const labelValues = allLabelValues(reference);
 
@@ -458,6 +463,7 @@ export function renderReport(report, t) {
   cat("removed", report.removed.length);
   cat("unchanged", report.unchanged.length);
   if (edited.length) cat("edited", edited.length);
+  if (report.byHand?.length) cat("byHand", report.byHand.length);
   cat("unmarked", report.unmarked.length);
   // Translations (ARCHITECTURE.md §6.12): never affects --check (checkFails), only `translate status --check` does.
   if (report.translations?.length) {
@@ -489,6 +495,7 @@ export function renderReport(report, t) {
   for (const n of report.new) lines.push(`- ${t(n.suggest ? "cli.sync.new.item" : "cli.sync.new.noSuggest", n)}`);
   for (const r of report.removed) lines.push(`- ${t("cli.sync.removed.item", { ...r, pages: r.pages.join(", ") })}`);
   for (const page of edited) lines.push(`- ${t("cli.sync.edited.page", { page })}`);
+  for (const b of report.byHand || []) lines.push(`- ${t("cli.sync.byHand.item", b)}`);
   lines.push(...notesOf(report, t).map((note) => `- ${note}`));
   return lines.join("\n") + "\n";
 }
@@ -523,9 +530,11 @@ export function writeReportFiles({ root, report, diffs = new Map(), t }) {
   }
 }
 
-/** Exit code 1 (ARCHITECTURE.md §6.10, "--check") on any category but `unchanged`, `edited` and `unmarked`. */
+/** Exit code 1 (ARCHITECTURE.md §6.10, "--check") on any category but `unchanged`, `edited` and `unmarked`, and on a
+ * message file that cannot be read: its labels are not compared, a signal the CI would not see otherwise. */
 export function checkFails(report) {
   return !!(
+    report.unreadableLabels?.length ||
     report.proofs.moved.length ||
     report.proofs.broken.length ||
     report.labels.length ||

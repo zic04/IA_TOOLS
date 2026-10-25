@@ -246,6 +246,8 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
     assert.ok(!ref.inventory["glob/Routes"].includes("invoices.html"), "never documented, never acknowledged");
 
     // ─── 9. Apply the labels, twice: each page says the new label once, and the signal is gone ───────────────
+    // features/rules writes it twice, once across a line end (`**Approval\nchain**`): the page shows the label there
+    // too, and both are rewritten — the page checked by the renderer, as it shows them.
     const quoting = ["features/approve-order", "features/rules", "features/roles"];
     const said = () =>
       quoting.map((p) => {
@@ -259,7 +261,7 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
         said(),
         [
           [7, false],
-          [1, false],
+          [2, false],
           [2, false],
         ],
         `run ${run}`,

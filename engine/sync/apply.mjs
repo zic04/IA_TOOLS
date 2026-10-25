@@ -1,10 +1,11 @@
 // `sync --apply [--labels]` (ARCHITECTURE.md §6.10 §2.8): mechanical fixes only, never prose. Rewrites moved
 // proofs (the exact "file:from(-to)" reference inside their code span) and, with `--labels`, replaces an old
-// label value by its new one, only inside the five allowed contexts (bold, code spans, badges, quotes).
+// label value by its new one, only inside the allowed contexts (bold, a code span that is the label, badges, quotes),
+// and only when the page then renders as it did but for the label (engine/sync/labels.mjs, labelReader): otherwise
+// the page is left as it is, to update by hand.
 import fs from "node:fs";
 import path from "node:path";
 import { extractProofs, rewriteProof } from "./proofs.mjs";
-import { replaceLabel } from "./labels.mjs";
 import { findPageEntry } from "./dependencies.mjs";
 import { isEdited, pageSource } from "./reference.mjs";
 
@@ -18,18 +19,21 @@ function pageFile(root, config, toc, pageId) {
  * The pages `sync --apply` restamps (ARCHITECTURE.md §6.10): the unchanged ones, the ones whose only changes it has
  * just applied, and, with `autoIntact` (ETUDE-CAPTURES.md §7, G1), the probably intact ones — shared files whose diff
  * touches nothing the page cites, or files it reaches only through proofs that still hold. Never a page something
- * else is pending on (a broken proof, a capture, a label not applied, a removed item it cites), nor one edited by
- * hand since it was marked: that edit has not been checked. A page nobody marked is never marked here, even one
- * whose label it rewrote: it stays `unmarked`.
+ * else is pending on (a broken proof, a capture, a label not applied — without `--labels`, or left to update by hand
+ * —, a removed item it cites), nor one edited by hand since it was marked: that edit has not been checked. A page
+ * nobody marked is never marked here, even one whose label it rewrote: it stays `unmarked`.
  * @param {object} report   a SyncReport, computed before the fixes were applied
+ * @param {{ withLabels?: boolean, autoIntact?: boolean, byHand?: Array<{ page: string }> }} [o]
+ *   byHand: applyReport().byHand, the label rewrites refused
  * @returns {{ restamp: string[], intact: string[] }}
  */
-export function pagesToRestamp(report, { withLabels = false, autoIntact = false } = {}) {
+export function pagesToRestamp(report, { withLabels = false, autoIntact = false, byHand = [] } = {}) {
   const labelPages = report.labels.flatMap((l) => l.pages);
   const pending = new Set([
     ...report.proofs.broken.map((b) => b.page),
     ...report.captures.flatMap((c) => c.pages),
     ...(withLabels ? [] : labelPages),
+    ...byHand.map((b) => b.page),
     ...(report.edited || []),
   ]);
   const anyIssue = new Set([...pending, ...report.review.map((r) => r.page), ...(report.unmarked || [])]);
@@ -47,6 +51,27 @@ export function pagesToRestamp(report, { withLabels = false, autoIntact = false 
 }
 
 /**
+ * A page's Markdown with its changed labels rewritten, one after the other (labelReader's replaceLabel, each checked
+ * on the rendered page): `n` the labels rewritten, `byHand` the ones whose rewrite the page refused.
+ * @param {string} text
+ * @param {Array<{ file: string, key: string, old: string, new: string }>} changes
+ * @param {import("./labels.mjs").LabelReader} labels
+ */
+function relabel(text, changes, labels) {
+  let n = 0;
+  const byHand = [];
+  for (const l of changes) {
+    const r = labels.replaceLabel(text, l.old, l.new);
+    if (r.byHand) byHand.push(l);
+    if (r.n > 0) {
+      text = r.text;
+      n++;
+    }
+  }
+  return { text, n, byHand };
+}
+
+/**
  * Applies the mechanical fixes of a report.
  * @param {object} p
  * @param {string} p.root
@@ -55,13 +80,17 @@ export function pagesToRestamp(report, { withLabels = false, autoIntact = false 
  * @param {object} p.report       a SyncReport (engine/sync/report.mjs)
  * @param {string[]} [p.pages]    limits the fix to these page ids; default: every page the report touches
  * @param {boolean} [p.withLabels]
+ * @param {import("./labels.mjs").LabelReader} [p.labels]   the labels read through the kit's renderer (with withLabels)
  * @returns {{ changed: string[], rewritten: { proofs: number, labels: number },
- *   rewrites: Array<{ page: string, before: string, after: string }> }}  changed: projRel Markdown files; rewrites: each
- *   page written, its Markdown before and after
+ *   rewrites: Array<{ page: string, before: string, after: string }>,
+ *   byHand: Array<{ page: string, file: string, key: string, old: string, new: string }> }}  changed: projRel Markdown
+ *   files; rewrites: each page written, its Markdown before and after; byHand: the label rewrites refused, the page
+ *   left as it is for them (it would render differently beyond the label)
  */
-export function applyReport({ root, config, toc, report, pages, withLabels = false }) {
+export function applyReport({ root, config, toc, report, pages, withLabels = false, labels }) {
   const changed = new Set();
   const rewrites = [];
+  const byHand = [];
   let proofsRewritten = 0;
   let labelsRewritten = 0;
 
@@ -96,13 +125,10 @@ export function applyReport({ root, config, toc, report, pages, withLabels = fal
       proofsRewritten++;
     }
 
-    for (const l of labelsByPage.get(pageId) || []) {
-      const r = replaceLabel(text, l.old, l.new);
-      if (r.n > 0) {
-        text = r.text;
-        labelsRewritten++;
-      }
-    }
+    const relabelled = relabel(text, labelsByPage.get(pageId) || [], labels);
+    text = relabelled.text;
+    labelsRewritten += relabelled.n;
+    byHand.push(...relabelled.byHand.map((l) => ({ page: pageId, file: l.file, key: l.key, old: l.old, new: l.new })));
 
     if (text !== original) {
       fs.writeFileSync(abs, crlf && !text.includes("\r\n") ? text.replace(/\n/g, "\r\n") : text);
@@ -111,7 +137,7 @@ export function applyReport({ root, config, toc, report, pages, withLabels = fal
     }
   }
 
-  return { changed: [...changed], rewritten: { proofs: proofsRewritten, labels: labelsRewritten }, rewrites };
+  return { changed: [...changed], rewritten: { proofs: proofsRewritten, labels: labelsRewritten }, rewrites, byHand };
 }
 
 /**

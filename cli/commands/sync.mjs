@@ -13,6 +13,8 @@ import { readSyncReference, writeSyncReference, markPages, pageCommit } from "..
 import { compareWithReference, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
 import { applyReport, pagesToRestamp, followRewrites } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
+import { labelReader } from "../../engine/sync/labels.mjs";
+import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
 import { readToc } from "../../engine/audit/audit.mjs";
@@ -81,12 +83,16 @@ export async function run({ ctx, values, positionals = [] }) {
   const version = readProjectVersion(root, config.version);
   const commit = ctx.commit(appDir);
   const date = values.date || new Date().toISOString().slice(0, 10);
+  // The labels a page cites, and the rewrites of --apply --labels, read in the page as the kit's renderer renders it
+  // (ARCHITECTURE.md §6.10): the engine of sync is given the renderer, as it is given exec.
+  const labels = labelReader(createSyncRenderer({ root, config }));
 
-  if (marking) return runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages });
-  return runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values });
+  if (marking)
+    return runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages, labels });
+  return runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values, labels });
 }
 
-async function runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages }) {
+async function runMark({ ctx, root, config, toc, inventory, plans, version, commit, date, values, pages, labels }) {
   const { reference } = readSyncReference(root, config);
   const { reference: next, warnings } = await markPages({
     root,
@@ -101,6 +107,7 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
     inventory,
     plans,
     reference,
+    labels,
   });
   writeSyncReference(root, config, next);
   const marked = values.all ? Object.keys(next.pages) : pages;
@@ -114,7 +121,7 @@ async function runMark({ ctx, root, config, toc, inventory, plans, version, comm
   return EXIT.OK;
 }
 
-async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values }) {
+async function runReport({ ctx, root, config, toc, inventory, plans, version, commit, appDir, git, values, labels }) {
   const { reference } = readSyncReference(root, config);
   const since = values.since ?? null;
   if (since !== null && !isSafeRef(since))
@@ -132,7 +139,7 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
    */
   const compare = async (ref) => {
     const r = await compareWithReference({
-      ...{ root, config, toc, reference: ref, since, git, inventory, plans, appDir, version, commit },
+      ...{ root, config, toc, reference: ref, since, git, inventory, plans, appDir, version, commit, labels },
       factsDir: config.paths.facts,
     });
     return values.estimate
@@ -153,6 +160,7 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
       values,
       report,
       compare,
+      labels,
     });
 
   // Each page's diff from the commit it was checked at (pageCommit), or from --since.
@@ -204,6 +212,7 @@ function printSummary(ctx, report, since) {
   line("removed", report.removed.length);
   line("unchanged", report.unchanged.length);
   if (report.edited.length) line("edited", report.edited.length);
+  if (report.byHand?.length) line("byHand", report.byHand.length);
   line("unmarked", report.unmarked.length);
   if (report.estimate)
     ctx.print(
@@ -223,10 +232,13 @@ function printSummary(ctx, report, since) {
  * pages it rewrote keep a fingerprint of their new text (followRewrites), the pages left with nothing pending are
  * restamped — and the report again, when the reference changed.
  */
-async function applyAndRestamp({ ctx, root, config, toc, inventory, plans, version, commit, values, report, compare }) {
-  const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels });
+async function applyAndRestamp(p) {
+  const { ctx, root, config, toc, inventory, plans, version, commit, values, report, compare, labels } = p;
+  const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels, labels });
+  const { byHand } = applied;
   if (!ctx.json) {
     for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
+    for (const b of byHand) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t("cli.sync.byHand.item", b)}`);
     if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
     else {
       const { count } = numbers(ctx.i18n);
@@ -241,10 +253,12 @@ async function applyAndRestamp({ ctx, root, config, toc, inventory, plans, versi
   }
 
   const autoIntact = !!values["auto-intact"];
-  const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact });
+  const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact, byHand });
   if (autoIntact && !ctx.json)
     ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
-  if (!restamp.length && !applied.rewrites.length) return report;
+  // The rewrites refused stay in the report that follows: each page to update by hand, its label still pending.
+  const withByHand = (r) => (byHand.length ? { ...r, byHand } : r);
+  if (!restamp.length && !applied.rewrites.length) return withByHand(report);
   const before = followRewrites(readSyncReference(root, config).reference, applied.rewrites);
   const next = restamp.length
     ? (
@@ -252,12 +266,13 @@ async function applyAndRestamp({ ctx, root, config, toc, inventory, plans, versi
           ...{ root, config, toc, pages: restamp, restamp: true, commit, version, inventory, plans },
           date: before?.app?.date || new Date().toISOString().slice(0, 10),
           reference: before,
+          labels,
         })
       ).reference
     : before;
-  if (!next) return report;
+  if (!next) return withByHand(report);
   writeSyncReference(root, config, next);
-  return compare(next);
+  return withByHand(await compare(next));
 }
 
 /** engine/context/context.mjs (lot V7) is used when present, to measure a page's real context size; while it

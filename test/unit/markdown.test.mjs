@@ -20,6 +20,23 @@ const CAPTURES = {
 };
 
 describe("directives ::", () => {
+  // A directive or a container that opens a line cuts the paragraph above it, as before the search for it was bounded
+  // to the paragraph (startInParagraph): the paragraph's own lines are searched, never the rest of the page.
+  test("a directive or a container on a line of a paragraph cuts it; one after a blank line opens its own block", () => {
+    const { render } = testEngine({ captures: CAPTURES });
+    for (const md of [
+      'Text above.\n::capture{id="plain" title="A screen"}\n',
+      'Text above.\n\n::capture{id="plain" title="A screen"}\n',
+      'Text above.\nmore text.\n\n\nAnother.\n::capture{id="plain" title="A screen"}\n',
+    ]) {
+      const { html } = render(md);
+      assert.match(html, /<\/p>\s*<figure class="ecran" data-capture="plain"/, md);
+      assert.doesNotMatch(html, /<p>[^<]*::capture/, md);
+    }
+    const steps = render("Before the steps.\n:::steps\n1. One\n:::\n").html;
+    assert.match(steps, /<p>Before the steps\.<\/p>\s*<ol class="etapes">/);
+  });
+
   test("::capture renders a figure with the image and an Enlarge button", () => {
     const { render, engine, reports } = testEngine({ captures: CAPTURES });
     const r = render('::capture{id="plain" title="A screen"}\n');
@@ -145,6 +162,23 @@ describe("badges [[…]]", () => {
     assert.equal(p("[[status 0]]"), '<p><span class="puce statut" style="--c:var(--st-0)">0 · paid</span></p>');
     assert.equal(p("[[statut x]]"), '<p><span class="puce statut" style="--c:#123456">Ex</span></p>');
     assert.equal(p("[[status Draft]]"), '<p><span class="puce statut" style="--c:var(--line-strong)">Draft</span></p>');
+  });
+
+  // A badge is tried where its "[[" opens, wherever that is in a line: Marked's text stops before every "[", so no
+  // search ahead is needed (none is made: on a long paragraph, it read the rest of it again for each piece of text).
+  test("a badge right after text, a bracket, inside bold or after many inline elements", () => {
+    const { render } = testEngine({});
+    const p = (s) => render(s).html.trim();
+    const menu = '<span class="puce menu">A</span>';
+    assert.equal(p("Open[[menu A]]"), `<p>Open${menu}</p>`);
+    assert.equal(p("[[[menu A]]"), `<p>[${menu}</p>`);
+    assert.equal(p("[x] [[menu A]] y"), `<p>[x] ${menu} y</p>`);
+    assert.equal(p("**[[menu A]]**"), `<p><strong>${menu}</strong></p>`);
+    assert.equal(p(`${"*a* `b` ".repeat(50)}[[menu A]]`).split(menu).length, 2);
+    assert.match(
+      p("See [[verified lib/a.ts:4]]."),
+      /<span class="puce affirmation verifie"[^>]*>.*<code>lib\/a\.ts:4<\/code><\/span>\./,
+    );
   });
 
   test("statusColour: token, hexadecimal, var()", () => {

@@ -355,10 +355,11 @@ What to run after an application release, so the documentation catches up withou
    `probablyIntact`), captures from a changed route, new or removed coverage elements, pages never marked.
 3. `doc-kit sync --apply [--labels]`: the mechanical fixes only (a moved proof's line number, a changed label,
    both only inside bold text, code spans and badges) — never prose; restamps the pages left otherwise
-   unchanged.
+   unchanged. A label rewrite the rendered page would refuse (a label in a heading, whose anchor would change) is
+   left to update by hand: the page stays listed under `labels`.
 4. `doc-kit capture --stale --compare`: retakes only the captures `sync` flagged; a capture under the pixel
    threshold keeps its old image (no binary diff for git), only its zone file updates.
-5. For every page still listed under `review` or `captures`: `doc-kit context <page> --update` writes its
+5. For every page still listed under `review`, `captures` or `labels`: `doc-kit context <page> --update` writes its
    context file with, in addition to the usual content, why it was flagged, its diff, and its captures'
    before/after sheets.
 6. **Triage** (`doc-kit-triage`, haiku, read-only, brief `triage`): one decision per page from its `--update`
@@ -377,7 +378,7 @@ What to run after an application release, so the documentation catches up withou
     what fell stale from the pages the cycle just touched (`sync`'s own report reminds of it too, category
     "translations"); batch the pages that need a translation the same way as phase 8b.
 8. `doc-kit check all`, then `doc-kit build` (strict); `doc-kit sync --check` gates CI (exit code 1 on anything
-   but `unchanged`/`edited`/`unmarked`; a new element no page documents stays `new` until `sync --mark --all`). `node scripts/usage.mjs report` against the cycle's estimate.
+   but `unchanged`/`edited`/`unmarked`, and on a messages file that cannot be read; a new element no page documents stays `new` until `sync --mark --all`). `node scripts/usage.mjs report` against the cycle's estimate.
 
 A facts file older than the application's current commit is reported stale by `sync`'s summary: re-run step 1
 before trusting `code-health`'s next read of it.

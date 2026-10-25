@@ -36,13 +36,15 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
-- **`doc-kit sync`: marking a page no longer clears the signals of the others, and `--apply --labels` rewrites a
-  label only where it is text** (ARCHITECTURE.md §6.10). Marking merges into `sync.json` instead of rebuilding it.
+- **`doc-kit sync`: marking a page no longer clears the signals of the others, and labels follow the page as the
+  kit renders it — `--apply --labels` never corrupts a page, never clears a signal** (ARCHITECTURE.md §6.10). Marking merges into `sync.json` instead of rebuilding it.
   A recorded label keeps its value, and stays reported, while a page that is not being marked still quotes it —
   also when its key or its whole messages file is gone (`→ null`); `--mark --all` drops a label no page quotes any
   more. A marking acknowledges only the new or removed elements its pages document, named whole and in whole route
   segments: `/detail` is not in `/orders/detail`, nor `/ord` in `/orders`, and `/invoices-export`,
-  `/invoices.csv` or `/invoices/2026` do not document `/invoices` (`/invoices/2026` documents `/invoices/[id]`);
+  `/invoices.csv` or `/invoices/2026` do not document `/invoices` (`/invoices/2026` documents `/invoices/[id]`,
+  and `/invoices/2026/edit` documents `/invoices/[id]/edit`, never `/invoices/[id]`: a dynamic route is named with
+  its own segments);
   `--mark --all` acknowledges the whole inventory — and, with no page written (a table of contents that cannot be
   read), is refused (exit code 1, `sync.json` left as it is) instead of acknowledging everything pending. Each page
   records the commit it was checked at, and its diff is taken from there (an older `sync.json` falls back to
@@ -54,18 +56,34 @@ entries between a project's `kit` range and the installed version.
   `unmarked`) and never restamped by `--apply` or `--auto-intact`; what `--apply` itself rewrote, a final
   newline, a BOM or CRLF line ends are no edit. `--apply --labels` replaces a label as a whole word, in any script
   and in either Unicode form (`é` as one character or as `e` and an accent), only in bold, quotes, badges and a
-  code span that is the label itself — never in another code span, even in bold or between quotes, a directive's
-  attributes, a link's target, a bare address, a link definition or a label between brackets that names one, an
-  HTML tag or comment, a verified badge or a code block; a new value that holds the old one (`Approval chain` →
-  `Approval chain history`) is replaced once, and the page then quotes the new value only. A label is quoted where
-  the site shows it, the page read as the kit's renderer, Marked, reads it: a code span first (`` `<!--` `` hides
-  nothing), a fence closed with the blockquote or list item it sits in, `<pre>`, `<script>` and `<style>` read to
-  their closing tag, a comment that never closes in its paragraph read as text, and no front matter (the renderer
-  has none: a leading `---` is a rule). A messages file that is not valid JSON gives one warning, never every key
-  reported gone. Known limits: a label stuck to the text in a script written without spaces (`保存をクリック`) is
-  not seen; finding a very long label costs up to the page's length times its own; two keys with the same value
-  cannot be told apart; a screenshot shown by several pages is acknowledged by marking one of them. A scenario
-  test plays the real sequence on `examples/demo-app` → `demo-app-v2`.
+  code span that is the label itself (bold and typographic quotes across a line end too) — never in another code
+  span, even in bold or between quotes, a directive's attributes, a link's target, a bare address, a link
+  definition or a label between brackets that names one, an HTML tag or comment, a verified badge or a code block;
+  a new value that holds the old one (`Approval chain` → `Approval chain history`) is replaced once, and the page
+  then quotes the new value only. Both now follow the kit's own renderer, Marked with the kit's extensions, which
+  the CLI gives to `sync` (`engine/build/sync-renderer.mjs`; `engine/sync` comes before the build): a label is
+  quoted where the rendered page shows it as text — outside code blocks, comments, scripts, style sheets and text
+  fields, with the `alt` and `title` of its elements, blanks as the page shows them — so `_Approve_` quotes
+  `Approve` (it was missed) and `**Approval\nchain**` quotes `Approval chain`; each rewrite of `--apply --labels` is
+  kept only when the page renders as it did but for the label's text — the same links, anchors, code and
+  comments — else the page is left as it is and reported to update by hand (`byHand`, in English and French), its
+  label still pending (a label in a heading, whose anchor would change, is one). By construction, no page is
+  corrupted and no signal lost: the reading of the Markdown that proposes the rewrites (`engine/sync/prose.mjs`)
+  can only send a page to be updated by hand where it reads it otherwise than Marked — a blockquote opened on a
+  list item's own line (`- > …`), a comment never closed inside a blockquote or a list item, raw HTML it does not
+  follow. A messages file that is not valid JSON gives one warning, never every key reported gone, and fails
+  `--check` (a signal the CI would not see otherwise). Known limits: a label stuck to the text in a script written
+  without spaces (`保存をクリック`) is not seen; finding a very long label costs up to the page's length times its
+  own; a formatting element left open in raw HTML (a `<code>` never closed) is read as closed at the end of its
+  block; two keys with the same value cannot be told apart; a screenshot shown by several pages is acknowledged by
+  marking one of them. A scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`, and a
+  seeded property renders thousands of pages to check both promises.
+- **The Markdown renderer reads a long page in linear time** (ARCHITECTURE.md §6.6, §6.10): to cut a paragraph before
+  a `::directive` or a `:::container` that opens one of its lines, the engine looked for one in the whole rest of the
+  page, once per paragraph, and for a `[[badge]]` in the rest of a paragraph, once per piece of text; it now looks in
+  that paragraph only, up to its blank line, and never ahead for a badge (Marked's text stops before every `[`) —
+  the same page, rendered in linear time instead of quadratic (a page of 25,000 paragraphs took 8 s, one paragraph
+  of 64,000 inline elements 2 s), for the build as for `sync`.
 - **One order of versions and one reading of ranges, npm's** (`engine/project/semver.mjs`), where four functions
   gave four answers. The `kit` range of `doc.config.mjs` is read as npm reads one: `>1.2` is `>=1.3.0` (it was
   `>1.2.0`), `>= 1.2.3` with a space is accepted (it was refused), hyphen ranges and `~>` are read. Pre-releases are

@@ -1,7 +1,10 @@
-// What the site shows as text, in a page's Markdown (ARCHITECTURE.md §6.10): the page read as Marked, the kit's
-// renderer, reads it — its blocks line by line (code, comments and HTML blocks, and where a paragraph ends), then its
-// inline parts (code spans, comments, tags) — with what is never text blanked, so that a label there is neither cited
-// nor rewritten (engine/sync/labels.mjs). Pure, and linear in the page (RULES.md S5).
+// Where `--apply --labels` looks for the label to rewrite, in a page's Markdown (ARCHITECTURE.md §6.10): the page read
+// close to how Marked, the kit's renderer, reads it — its blocks line by line (code, comments and HTML blocks, and
+// where a paragraph ends), then its inline parts (code spans, comments, tags) — with what is never text blanked, so
+// that no rewrite is proposed there (engine/sync/labels.mjs). This reading only proposes: every rewrite is checked on
+// the page rendered by the renderer itself, so a place it reads differently sends the page to be updated by hand,
+// never corrupts it; and what a page cites is read in the rendered page, never here. Pure, and linear in the page
+// (RULES.md S5).
 
 /** A code fence (``` or ~~~) after its indentation; its closing line. Linear: no class overlaps the next one (RULES.md
  * S5). */
@@ -22,8 +25,8 @@ const BLOCK_TAGS =
   "menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|" +
   "tr|track|ul";
 const HTML_BLOCK = new RegExp(`^ {0,3}</?(?:${BLOCK_TAGS})(?: |/?>|\\r?$)`, "i");
-/** A line that opens an HTML block running to its closing tag, blank lines included (CommonMark's type 1): what it holds
- * is shown as it is (`<pre>`, `<textarea>`), or never (`<script>`, `<style>`). */
+/** A line that opens an HTML block running to its closing tag, blank lines included (CommonMark's type 1): what it
+ * holds is never text the page shows (a code block, a text field, a script, a style sheet). */
 const RAW_BLOCK = /^ {0,3}<(script|pre|style|textarea)(?:[\s>]|$)/i;
 
 /** The columns of a line's indentation, a tab to the next multiple of four. */
@@ -109,12 +112,11 @@ function rawFrom(s, line, from) {
   return line;
 }
 
-/** A line of an HTML block that runs to its closing tag (RAW_BLOCK), from `from` on: kept as it is, or blanked for a
- * script or a style sheet, up to that tag. */
+/** A line of an HTML block that runs to its closing tag (RAW_BLOCK), from `from` on: blanked up to that tag. */
 function rawBlockLine(s, line, from) {
   const close = line.toLowerCase().indexOf(s.raw.close, from);
   const end = close === -1 ? line.length : close + s.raw.close.length;
-  const text = s.raw.hidden ? line.slice(0, from) + blank(line.slice(from, end)) + line.slice(end) : line;
+  const text = line.slice(0, from) + blank(line.slice(from, end)) + line.slice(end);
   if (close !== -1) {
     s.raw = null;
     s.canStartCode = true;
@@ -127,7 +129,7 @@ function rawBlockLine(s, line, from) {
 function htmlOpening(s, line, rest, inParagraph) {
   const raw = RAW_BLOCK.exec(rest);
   if (raw) {
-    s.raw = { close: `</${raw[1].toLowerCase()}>`, hidden: /^(?:script|style)$/i.test(raw[1]) };
+    s.raw = { close: `</${raw[1].toLowerCase()}>` };
     return { ...rawBlockLine(s, line, line.length - rest.length + raw[0].lastIndexOf("<")), cut: true };
   }
   if (!HTML_BLOCK.test(rest) && (inParagraph || !tagAlone(rest))) return null;

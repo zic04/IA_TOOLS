@@ -135,16 +135,22 @@ const pointAt = (text, i) => (i < text.length ? String.fromCodePoint(text.codePo
 
 /**
  * Where `needle` appears in `text` as a whole: no word character right before or after it (WORD_CHAR: "No" is not
- * in "Note", "Noé", "No_x", "éNo"). Left to right, never overlapping. Shared by the whole ids of coverage and the
- * labels of sync (ARCHITECTURE.md §6.10).
+ * in "Note", "Noé", "No_x", "éNo"), or a break there (`breaks`: the indexes where a word ends whatever follows — the
+ * edge of an element in a rendered page). Left to right, never overlapping. Shared by the whole ids of coverage and
+ * the labels of sync (ARCHITECTURE.md §6.10).
+ * @param {string} text
+ * @param {string} needle
+ * @param {Set<number>|null} [breaks]
  * @returns {number[]}
  */
-export function wholeIndexes(text, needle) {
+export function wholeIndexes(text, needle, breaks = null) {
   const out = [];
   if (!needle) return out;
   for (let i = text.indexOf(needle); i !== -1;) {
     const end = i + needle.length;
-    const whole = !WORD_CHAR.test(pointBefore(text, i)) && !WORD_CHAR.test(pointAt(text, end));
+    const whole =
+      (!!breaks?.has(i) || !WORD_CHAR.test(pointBefore(text, i))) &&
+      (!!breaks?.has(end) || !WORD_CHAR.test(pointAt(text, end)));
     if (whole) out.push(i);
     i = text.indexOf(needle, whole ? end : i + 1);
   }
