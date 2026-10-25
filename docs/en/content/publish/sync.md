@@ -24,7 +24,10 @@ topic group (the other pages a `counterpart` joins) and declared `sources`. `syn
 Marking merges into `sync.json`, it never rebuilds it: `--mark <page…>` records those pages and the commit they
 were checked at, and acknowledges only what they document. A new route stays `new` until a marked page cites it
 or `--mark --all` acknowledges the whole inventory; a renamed label stays reported while a page that was not
-marked still quotes its old value. Each page's diff is taken from its own commit.
+marked still quotes its old value — and so does a label whose messages file the application deleted (`→ null`).
+A page acknowledges an element only when it names it whole: `/detail` is not in `/orders/detail`, nor `/ord` in
+`/orders`. `--mark --all` also drops a label no page quotes any more; a page no longer written leaves `sync.json`
+at the next marking. Each page's diff is taken from its own commit.
 
 ## Reading the report
 
@@ -64,8 +67,13 @@ doc-kit sync --apply --labels
 unchanged — without clearing anything still pending: a screenshot to retake, a new element, a label. `--labels`
 goes further: it replaces an old message value with its new one, as a whole word (`No` is never replaced inside
 `Note`), but **only** inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes —
-never inside ordinary prose, where a human sentence depends on the old wording, nor in a directive's attributes or
-a link's target. Nothing here ever touches prose: a page whose subject changed still needs a person.
+never inside ordinary prose, where a human sentence depends on the old wording, nor in a directive's attributes or a
+link's target. A code block (fenced or indented), an HTML comment, a tag spread over several lines and the front
+matter are not text at all: a label there is neither replaced nor read as quoted. `é` written as one character or as `e` and an accent is the
+same label. Nothing here ever touches prose: a page whose subject changed still needs a person.
+
+What `--apply` rewrites in a page it leaves to review is no edit by hand: that page is not reported `edited` for
+it — nor for a final newline added or removed, a BOM or CRLF line ends.
 
 ## A gate for continuous integration: `--check`
 
@@ -110,6 +118,11 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > [!WARNING] Without `app.dir`, `sync` cannot run
 > Dependencies, proofs and labels are all read from the application's code: configure `app.dir` first
 > ([Project, version and sign-in keys](#/reference/configuration/project)).
+
+> [!NOTE] A label stuck to the text, in a script written without spaces, is not seen
+> `保存をクリック` does not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the
+> label apart — `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's
+> length times the label's.
 
 > [!NOTE] git is only ever read
 > `--since`, and the commit shown by a stale facts file, come from `git show` and `git diff` in the application —

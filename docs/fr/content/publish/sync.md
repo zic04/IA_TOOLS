@@ -26,8 +26,11 @@ documentation**, comme `facts/*.json`.
 Marquer fusionne dans `sync.json`, sans jamais le reconstruire : `--mark <page…>` enregistre ces pages et le
 commit sur lequel elles ont été vérifiées, et n'acquitte que ce qu'elles documentent. Une nouvelle route reste
 `new` tant qu'aucune page marquée ne la cite ou que `--mark --all` n'acquitte tout l'inventaire ; un libellé
-renommé reste signalé tant qu'une page non marquée cite encore son ancienne valeur. Le diff de chaque page part
-de son propre commit.
+renommé reste signalé tant qu'une page non marquée cite encore son ancienne valeur — de même qu'un libellé dont
+l'application a supprimé le fichier de messages (`→ null`). Une page n'acquitte un élément que si elle le nomme en
+entier : `/detail` n'est pas dans `/orders/detail`, ni `/ord` dans `/orders`. `--mark --all` retire aussi un
+libellé qu'aucune page ne cite plus ; une page qui n'est plus écrite quitte `sync.json` au marquage suivant. Le
+diff de chaque page part de son propre commit.
 
 ## Lire le rapport
 
@@ -66,10 +69,16 @@ doc-kit sync --apply --labels
 `--apply` réécrit le `fichier:ligne` d'une preuve déplacée partout où elle est citée, et retamponne chaque page
 que l'exécution laisse inchangée — sans effacer ce qui reste à faire : une capture à reprendre, un nouvel élément,
 un libellé. `--labels` va plus loin : il remplace l'ancienne valeur d'un message par la nouvelle, en mot entier
-(`No` n'est jamais remplacé dans `Note`), mais **seulement** dans `**gras**`, un bloc de code qui est le libellé
+(`No` n'est jamais remplacé dans `Note`), mais **seulement** dans `**gras**`, du code en ligne qui est le libellé
 lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose ordinaire, où une phrase humaine dépend
-de l'ancienne formulation, ni dans les attributs d'une directive ou la cible d'un lien. Rien ici ne touche jamais
-la prose : une page dont le sujet a changé a toujours besoin d'une personne.
+de l'ancienne formulation, ni dans les attributs d'une directive ou la cible d'un lien. Un bloc de code (délimité ou
+indenté), un commentaire HTML, une balise étalée sur plusieurs lignes et l'en-tête YAML ne sont pas du texte : un
+libellé qui s'y trouve n'est ni remplacé ni lu comme cité. `é` écrit en un caractère ou en `e` suivi d'un accent est le même libellé. Rien
+ici ne touche jamais la prose : une page dont le sujet a changé a toujours besoin d'une personne.
+
+Ce que `--apply` réécrit dans une page qu'il laisse à relire n'est pas une retouche à la main : cette page n'est
+pas signalée `edited` pour autant — ni pour un saut de ligne final ajouté ou retiré, un BOM ou des fins de ligne
+CRLF.
 
 ## Une barrière pour l'intégration continue : `--check`
 
@@ -115,6 +124,11 @@ construction.
 > [!ATTENTION] Sans `app.dir`, `sync` ne peut pas s'exécuter
 > Dépendances, preuves et libellés sont tous lus dans le code de l'application : configurez d'abord `app.dir`
 > ([Clés du projet, de la version et de la connexion](#/reference/configuration/project)).
+
+> [!NOTE] Un libellé collé au texte, dans une écriture sans espaces, n'est pas vu
+> `保存をクリック` ne cite pas `保存` : une lettre le suit, comme `Approved` ne cite pas `Approve`. Détachez le
+> libellé — `**保存**をクリック` — pour qu'il soit suivi. Chercher un libellé très long est plus lent : jusqu'à la
+> longueur de la page fois celle du libellé.
 
 > [!NOTE] git n'est jamais qu'en lecture
 > `--since`, et le commit affiché par un fichier de faits périmé, viennent de `git show` et `git diff` dans

@@ -6,7 +6,8 @@ import path from "node:path";
 import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
+import { adapterTools, normalize } from "../check/coverage.mjs";
+import { wholeIndexes } from "../core/text.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, pageCiteText } from "./dependencies.mjs";
 import { recordProof } from "./proofs.mjs";
@@ -69,11 +70,19 @@ export function writeSyncReference(root, config, ref) {
 /** "file[:from[-to]]" → the file part, for a declared source. */
 const declaredFile = (s) => /^(.+?)(?::\d+(?:-\d+)?)?$/.exec(s)[1];
 
-/** Every message file of the project, flattened ({ [key]: value }); null for an unreadable or missing one. */
-function allFlatLabels(root, config) {
-  // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
-  // concatenate onto root instead of using as is.
-  return labelFiles(root, config).map((f) => [f, readFlatLabels(path.resolve(root, f))]);
+/**
+ * Every message file followed now (`labelFiles`) or recorded before, flattened: `{}` for one that no longer exists
+ * (its keys are gone), null for one that cannot be read; `followed`: still one of `labelFiles`.
+ * @returns {Array<{ file: string, flat: object|null, followed: boolean }>}
+ */
+function allFlatLabels(root, config, recorded) {
+  const followed = new Set(labelFiles(root, config));
+  return [...new Set([...followed, ...Object.keys(recorded || {})])].sort().map((file) => {
+    // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
+    // concatenate onto root instead of using as is.
+    const abs = path.resolve(root, file);
+    return { file, flat: fs.existsSync(abs) ? readFlatLabels(abs) : {}, followed: followed.has(file) };
+  });
 }
 
 /**
@@ -85,28 +94,53 @@ export function pageCommit(reference, id) {
   return page && "commit" in page ? page.commit : (reference?.app?.commit ?? null);
 }
 
-/** Whether the documentation was checked against another version than `version`: the last marking, or a page. */
-export const versionBehind = (reference, version) =>
-  reference.app.version !== version || Object.values(reference.pages || {}).some((p) => p.version !== version);
+/** The text without the line ends that close it. */
+function withoutFinalLineEnds(text) {
+  let end = text.length;
+  while (end > 0 && (text[end - 1] === "\n" || text[end - 1] === "\r")) end--;
+  return text.slice(0, end);
+}
+
+/**
+ * The fingerprint of a page's Markdown (`source`, ARCHITECTURE.md §6.10): hashText (a BOM and CRLF ignored) of the
+ * text without its final line ends, so that an editor adding or dropping the last newline edits nothing.
+ */
+export const pageSource = (markdown) => hashText(withoutFinalLineEnds(markdown));
+
+/** Whether a marked page's Markdown is no longer the one marked (`source`; an older sync.json hashed it whole). */
+export const isEdited = (recorded, markdown) =>
+  !!recorded?.source && recorded.source !== pageSource(markdown) && recorded.source !== hashText(markdown);
+
+/**
+ * Whether the documentation was checked against another version than `version`: the last marking, or one of the
+ * pages still written (`writtenIds`; a page removed since is not waited for).
+ */
+export const versionBehind = (reference, version, writtenIds) =>
+  reference.app.version !== version ||
+  Object.entries(reference.pages || {}).some(([id, p]) => writtenIds.has(id) && p.version !== version);
 
 /**
  * The labels after a marking: merged, never rebuilt (ARCHITECTURE.md §6.10). A key no written page cited yet is
  * added when one cites it; a recorded key keeps its value while a page that is not being acknowledged still cites
- * it — that page has its signal still — and otherwise takes its current value (dropped when it left its file). A
- * file that cannot be read keeps what was recorded.
+ * it — that page has its signal still — and otherwise takes its current value (dropped when it left its file, or
+ * the file is gone). A file that cannot be read keeps what was recorded. `everyPage` (`--mark --all`): a key no
+ * written page cites any more is dropped.
  */
-function mergeLabels(recorded, files, written, acknowledged) {
+function mergeLabels(recorded, files, written, acknowledged, everyPage) {
   const out = {};
-  const stillCited = (value) => written.some((p) => !acknowledged.has(p.id) && citesLabel(p.markdown, value));
-  for (const [file, flat] of files) {
+  const cited = (value, pages) => pages.some((p) => citesLabel(p.markdown, value));
+  const notAcknowledged = written.filter((p) => !acknowledged.includes(p));
+  for (const { file, flat, followed } of files) {
     const entries = { ...(recorded?.[file] || {}) };
     if (flat) {
       for (const [key, value] of Object.entries(entries))
-        if (flat[key] !== value && !stillCited(value))
+        if (flat[key] !== value && !cited(value, notAcknowledged))
           if (typeof flat[key] === "string") entries[key] = flat[key];
           else delete entries[key];
-      for (const { key, value } of citedLabels(flat, written)) if (!(key in entries)) entries[key] = value;
+      if (followed)
+        for (const { key, value } of citedLabels(flat, written)) if (!(key in entries)) entries[key] = value;
     }
+    if (everyPage) for (const [key, value] of Object.entries(entries)) if (!cited(value, written)) delete entries[key];
     if (Object.keys(entries).length) out[file] = entries;
   }
   return out;
@@ -120,6 +154,20 @@ function inventoryIds(inventory) {
   return out;
 }
 
+/**
+ * Whether a marked page's text (normalised) documents an item: one of its forms as a whole, made of whole route
+ * segments (`/detail` is not in `/orders/detail`, nor `/ord` in `/orders`); a form that ends with "/" (the static
+ * prefix of `/orders/[id]`) goes on with any segment.
+ */
+function documents(item, text) {
+  return (item.match || []).some((m) => {
+    const form = normalize(String(m ?? "")).trim();
+    const prefix = form.length > 1 && form.endsWith("/");
+    const stem = prefix ? form.slice(0, -1) : form;
+    return !!stem && wholeIndexes(text, stem).some((i) => !prefix || text[i + stem.length] === "/");
+  });
+}
+
 /** The recorded inventory, plus the items the marked pages document now: marking a page acknowledges only those. */
 function mergeInventory(recorded, inventory, marked) {
   const out = structuredClone(recorded || {});
@@ -128,7 +176,7 @@ function mergeInventory(recorded, inventory, marked) {
     for (const f of a.families || []) {
       const key = `${a.adapter}/${f.name}`;
       const ids = new Set(out[key] || []);
-      for (const item of f.items) if (texts.some((text) => isCovered(item, text))) ids.add(item.id);
+      for (const item of f.items) if (texts.some((text) => documents(item, text))) ids.add(item.id);
       if (ids.size) out[key] = [...ids];
     }
   return out;
@@ -159,7 +207,8 @@ function mergeCaptures(recorded, plans, cited, restamp) {
  * marked page, its dependencies, its proofs and the commit it was checked at, and merges the rest into the
  * reference (mergeLabels; the inventory items the marked pages document, the whole inventory when every page is
  * marked; the capture plan hashes used by the marked pages). Pages already in the reference but not marked now are
- * kept as they are. A restamp (`sync --apply`) acknowledges nothing pending: no label, no inventory item, no capture.
+ * kept as they are, unless they are no longer written. A restamp (`sync --apply`) acknowledges nothing pending: no
+ * label, no inventory item, no capture.
  * @param {object} p
  * @param {string} p.root
  * @param {object} p.config
@@ -199,9 +248,12 @@ export async function markPages({
   const warnings = [];
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const tools = adapterTools(root);
-  // A page of an older sync.json was checked at app.commit: kept as its own before app is rewritten.
+  // A page of an older sync.json was checked at app.commit: kept as its own before app is rewritten. A page no longer
+  // written is dropped — none while no page is written at all: an unreadable table of contents forgets nothing.
   const newPages = Object.fromEntries(
-    Object.entries(reference?.pages || {}).map(([id, p]) => [id, { commit: pageCommit(reference, id), ...p }]),
+    Object.entries(reference?.pages || {})
+      .filter(([id]) => writtenIds.has(id) || !writtenIds.size)
+      .map(([id, p]) => [id, { commit: pageCommit(reference, id), ...p }]),
   );
   const newProofs = { ...(reference?.proofs || {}) };
 
@@ -232,7 +284,7 @@ export async function markPages({
       verified: date,
       version,
       commit,
-      source: hashText(page.markdown),
+      source: pageSource(page.markdown),
       files,
       declared,
       captures: deps.captures,
@@ -240,19 +292,18 @@ export async function markPages({
   }
 
   const cited = new Set(targets.flatMap((id) => newPages[id].captures));
-  // The project's inventory is acknowledged as a whole only by a person who marks every page (or the first marking).
-  const everyPage = targets.length === writtenIds.size;
+  // Acknowledged as a whole only by a person who marks every page (or the first marking): the project's inventory;
+  // and a label no written page cites any more is dropped.
+  const everyPage = targets.length === writtenIds.size && !restamp;
   const marked = restamp ? [] : written.filter((p) => targets.includes(p.id));
   const ref = {
     generator: generatorTag(),
     app: { commit, version, date },
     pages: newPages,
     proofs: newProofs,
-    labels: mergeLabels(reference?.labels, allFlatLabels(root, config), written, new Set(marked.map((p) => p.id))),
+    labels: mergeLabels(reference?.labels, allFlatLabels(root, config, reference?.labels), written, marked, everyPage),
     inventory:
-      !reference || (everyPage && !restamp)
-        ? inventoryIds(inventory)
-        : mergeInventory(reference.inventory, inventory, marked),
+      !reference || everyPage ? inventoryIds(inventory) : mergeInventory(reference.inventory, inventory, marked),
     captures: mergeCaptures(reference?.captures, plans, cited, restamp),
   };
   return { reference: ref, warnings };

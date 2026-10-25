@@ -36,18 +36,25 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
-- **`doc-kit sync` never loses a signal and never corrupts a page** (ARCHITECTURE.md §6.10). Marking merges into
-  `sync.json` instead of rebuilding it: marking one page no longer drops a renamed label that other pages still
-  quote, nor acknowledges every new or removed element of the project (only those the marked pages document;
-  `--mark --all` acknowledges the whole inventory). `--apply` restamps the unchanged pages without clearing a
-  screenshot to retake, a new element or a label, so `capture --stale` still selects what changed. The page's
-  recorded Markdown fingerprint is read back: a page edited by hand since it was marked is reported (`edited`, a
-  warning like `unmarked`) and never restamped by `--apply` or `--auto-intact`. Each page records the commit it was
-  checked at, and its diff is taken from there (an older `sync.json` falls back to `app.commit`, no migration); the
-  guided mode offers `sync` while any page was checked against another version. `--apply --labels` replaces a label
-  as a whole word only, in any script (`No` is never replaced inside `Note` or `None`), never in a directive's
-  attributes, a link's target, a verified badge or longer code; labels are cited as whole words too. A scenario test
-  plays the real sequence on `examples/demo-app` → `demo-app-v2`.
+- **`doc-kit sync`: marking a page no longer clears the signals of the others, and `--apply --labels` rewrites a
+  label only where it is text** (ARCHITECTURE.md §6.10). Marking merges into `sync.json` instead of rebuilding it.
+  A recorded label keeps its value, and stays reported, while a page that is not being marked still quotes it —
+  also when its key or its whole messages file is gone (`→ null`); `--mark --all` drops a label no page quotes any
+  more. A marking acknowledges only the new or removed elements its pages document, named whole and in whole route
+  segments (`/detail` is not in `/orders/detail`, nor `/ord` in `/orders`); `--mark --all` acknowledges the whole
+  inventory. Each page records the commit it was checked at, and its diff is taken from there (an older `sync.json`
+  falls back to `app.commit`, no migration). A page no longer written leaves `sync.json` at the next marking, and
+  the guided mode offers `sync` while a page still written was checked against another version. `--apply`
+  restamps the unchanged pages without clearing a screenshot to retake, a new element or a label, so `capture
+  --stale` still selects what changed. A page edited by hand since it was marked is reported (`edited`, a warning
+  like `unmarked`) and never restamped by `--apply` or `--auto-intact`; what `--apply` itself rewrote, a final
+  newline, a BOM or CRLF line ends are no edit. `--apply --labels` replaces a label as a whole word, in any script
+  and in either Unicode form (`é` as one character or as `e` and an accent), only in bold, quotes, badges and a
+  code span that is the label itself — never in a directive's attributes, a link's target or definition, an HTML
+  tag or comment, a verified badge, a code block (fenced or indented) or the front matter; in a code block, a
+  comment, a tag over several lines or the front matter, a label is not counted as quoted either. Known limits: a label stuck to the text in a script written without spaces
+  (`保存をクリック`) is not seen, and finding a very long label costs up to the page's length times its own. A
+  scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`.
 - **`doc-kit new` in a multilingual project** adds the same entry, at the same place, to every translated table of
   contents (`translations/<l>/toc.json`), its texts left to translate: a new page no longer stops every build with
   `translation.toc.structure`. A translated table of contents that is not valid JSON, or already out of step there
@@ -96,6 +103,9 @@ entries between a project's `kit` range and the installed version.
 
 ### Changed
 
+- **An id matched whole is no longer cited by a longer name** (ARCHITECTURE.md §5): `whole: true` (the `features`
+  adapter's ids) now ends at an underscore or a combining mark too, as `sync`'s labels do (`wholeIndexes`,
+  `engine/core/text.mjs`): `F-01_draft` no longer covers `F-01` (it did), nor `F-01` followed by an accent.
 - **Changed (breaking): `facts --network` sends nothing until names are listed** (ARCHITECTURE.md §3, §6.9;
   SECURITY.md, Network). A package's name now leaves the machine only when `facts.network.allow` of
   `doc.config.mjs` lists it, one entry a package: `"npm:<name>"`, compared exactly, or `"pip:<name>"`, compared as

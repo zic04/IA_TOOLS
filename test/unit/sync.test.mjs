@@ -17,8 +17,8 @@ import { routeFiles, matchRoute } from "../../engine/sync/routes.mjs";
 import { resolveImports } from "../../engine/facts/imports.mjs";
 import { pageDependencies, writtenPages, captureIds } from "../../engine/sync/dependencies.mjs";
 import { extractProofs, recordProof, locateProof, rewriteProof, PROOF_REF } from "../../engine/sync/proofs.mjs";
-import { citedLabels, replaceLabel, flattenMessages, labelFiles } from "../../engine/sync/labels.mjs";
-import { readSyncReference, writeSyncReference, markPages } from "../../engine/sync/reference.mjs";
+import { citedLabels, citesLabel, replaceLabel, flattenMessages, labelFiles } from "../../engine/sync/labels.mjs";
+import { readSyncReference, writeSyncReference, markPages, versionBehind } from "../../engine/sync/reference.mjs";
 import { compareWithReference, renderReport, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
 import { applyReport } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
@@ -651,6 +651,9 @@ describe("engine/sync/labels.mjs", () => {
     assert.equal(replaceLabel("**Да**", "Да", "Нет").text, "**Нет**");
     same("**Café** **No_entry** **No2**", "Cafe", "Bistro");
     same("**No_entry** **No2** **éNo**", "No", "Non");
+    // A letter outside the first plane (two UTF-16 units) continues a word too; an emoji does not.
+    same("**\u{1D400}No** **No\u{1D400}** **\u{20000}No**", "No", "Non");
+    assert.equal(replaceLabel("**\u{1F600}No**", "No", "Non").text, "**\u{1F600}Non**");
     // Punctuation and spaces end a word.
     assert.equal(replaceLabel("**Save, then No.** «No»", "No", "Non").text, "**Save, then Non.** «Non»");
   });
@@ -660,6 +663,8 @@ describe("engine/sync/labels.mjs", () => {
     same(':::screen{capture="orders-list" title="Orders"}');
     same('::capture{id="Orders"} :::ecran{titre="Orders"}');
     same('[the list](orders.md "Orders")');
+    same('[orders]: orders.md "Orders"');
+    same('   [orders]: <orders.md> "Orders"');
     same('<a title="Orders">');
     same("[[verified lib/Orders.ts:4]]");
     same('`getOrders("Orders")`');
@@ -671,6 +676,68 @@ describe("engine/sync/labels.mjs", () => {
     );
     // A badge's kind is never a label: the text after it is.
     assert.equal(replaceLabel("[[menu Open the menu]]", "menu", "list").text, "[[menu Open the list]]");
+  });
+
+  // What is never text (ARCHITECTURE.md §6.10 §2.8): a label there is neither rewritten nor cited. Each pair: the same
+  // quote inside the block, then outside it.
+  test("replaceLabel, citesLabel: never in a code block, a comment, a tag over several lines or the front matter (minimal pairs)", () => {
+    const never = (md) => {
+      assert.deepEqual(replaceLabel(md, "Approve", "Validate"), { text: md, n: 0 }, md);
+      assert.equal(citesLabel(md, "Approve"), false, md);
+    };
+    const replaced = (md, expected) => {
+      assert.deepEqual(replaceLabel(md, "Approve", "Validate"), { text: expected, n: 1 }, md);
+      assert.equal(citesLabel(md, "Approve"), true, md);
+    };
+    // Fenced code: ``` or ~~~, to the closing fence of the same character, at least as long; then text again.
+    never('```\nclick "Approve"\n```');
+    never("~~~ text\n**Approve**\n~~~");
+    never('````md\n```\n"Approve"\n```\n````');
+    never('1. Click:\n   ```\n   "Approve"\n   ```');
+    never('> ```\n> "Approve"\n> ```');
+    never('```\n"Approve"'); // never closed: to the end
+    replaced('```\nx\n```\nclick "Approve"', '```\nx\n```\nclick "Validate"');
+    replaced('~~~\nx\n```\n~~~\n"Approve"', '~~~\nx\n```\n~~~\n"Validate"');
+    replaced("Use ```Approve``` here", "Use ```Validate``` here"); // three backticks inside a line: no fence
+    // Indented code: four columns after a blank line, a heading or the start; beyond the content of a list item.
+    never('Click it.\n\n    "Approve"');
+    never('# Title\n    "Approve"');
+    never('- Click:\n\n      "Approve"');
+    replaced('Click it\n    "Approve"', 'Click it\n    "Validate"'); // a paragraph goes on: no code
+    replaced('1. Click it.\n\n    The "Approve" button', '1. Click it.\n\n    The "Validate" button'); // the item's text
+    replaced('    x\n\n"Approve"', '    x\n\n"Validate"');
+    // HTML comments, on one line or several; tags over several lines.
+    never('<!-- "Approve" -->');
+    never('<!--\nthe "Approve" button\n-->');
+    never('<!-- never closed "Approve"');
+    never('<button\n  title="Approve">');
+    replaced('<!-- x --> "Approve"', '<!-- x --> "Validate"');
+    replaced('<button>\n"Approve"\n</button>', '<button>\n"Validate"\n</button>');
+    replaced('a < b\n"Approve" > c', 'a < b\n"Validate" > c'); // no tag name: no tag
+    replaced('<button\n\n"Approve">', '<button\n\n"Validate">'); // a tag never spans a blank line
+    // The front matter: an opening --- followed by a key, up to its ---.
+    never('---\ntitle: "Approve"\n---\n');
+    replaced('---\ntitle: x\n---\n"Approve"', '---\ntitle: x\n---\n"Validate"');
+    replaced('---\n\n"Approve"\n\n---\n', '---\n\n"Validate"\n\n---\n'); // a thematic break is no front matter
+  });
+
+  test("replaceLabel, citesLabel: a label composed (NFC) or decomposed (NFD) is the same label", () => {
+    const nfc = "Approuvé";
+    const nfd = "Approuvé";
+    for (const [md, label] of [
+      [`**${nfd}**`, nfc],
+      [`**${nfc}**`, nfd],
+      [`\`${nfd}\``, nfc],
+    ]) {
+      assert.equal(citesLabel(md, label), true, JSON.stringify(md));
+      assert.equal(replaceLabel(md, label, "Validé").n, 1, JSON.stringify(md));
+    }
+    assert.equal(replaceLabel(`**${nfd}** and «${nfc}»`, nfc, "Validé").text, "**Validé** and «Validé»");
+    // Still a whole word in either form: "Approuvé" is not in "Approuvées".
+    assert.equal(citesLabel(`**${nfd}es**`, nfc), false);
+    assert.deepEqual(citedLabels({ "x.ok": nfc }, [{ id: "p", markdown: `Click **${nfd}**.` }]), [
+      { key: "x.ok", value: nfc, pages: ["p"] },
+    ]);
   });
 
   test("replaceLabel (property, seeded): every word but the label itself comes out unchanged, and so does every protected part", () => {
@@ -1416,6 +1483,141 @@ describe("marking merges: a pending signal stays until its own page is marked", 
     }
   });
 
+  test("a label no written page cites any more is dropped by --mark --all, never by marking one page", async () => {
+    const { fx, reference, at } = await marked();
+    try {
+      assert.equal(reference.labels[LABELS]["orders.approve"], "Approve");
+      const orders = path.join(fx.root, "content/use/orders.md");
+      fs.writeFileSync(orders, fs.readFileSync(orders, "utf8").replaceAll("**Approve**", "**Accept**"));
+      const { reference: one } = await markPages(await at("c2", { pages: ["use/orders"], reference }));
+      assert.equal(one.labels[LABELS]?.["orders.approve"], "Approve");
+      const { reference: all } = await markPages(await at("c2", { all: true, reference: one }));
+      assert.deepEqual(all.labels, {}, "cited nowhere: nothing to follow");
+      fs.writeFileSync(orders, fs.readFileSync(orders, "utf8").replace("**Accept**", "**Approve**"));
+      const { reference: again } = await markPages(await at("c2", { pages: ["use/orders"], reference: all }));
+      assert.equal(again.labels[LABELS]["orders.approve"], "Approve", "cited again: followed again");
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("a message file no longer followed gains no label; what was recorded of it is merged until it is gone", async () => {
+    const { fx, reference, at } = await marked();
+    try {
+      const fr = "../sync-app/messages/fr.json";
+      fs.writeFileSync(path.join(fx.appDir, "messages/fr.json"), JSON.stringify({ orders: { approve: "Approuver" } }));
+      fs.writeFileSync(
+        path.join(fx.appDir, "messages/en.json"),
+        JSON.stringify({ orders: { approve: "Approve", reject: "Reject" } }),
+      );
+      fs.appendFileSync(path.join(fx.root, "content/use/orders.md"), "\n**Reject** or **Approuver** it.\n");
+      const { config } = await at("c2");
+      const followFr = { ...config, sync: { labels: [fr] } };
+      const { reference: next } = await markPages(
+        await at("c2", { config: followFr, pages: ["use/orders"], reference }),
+      );
+      assert.deepEqual(next.labels, {
+        [LABELS]: { "orders.approve": "Approve" },
+        [fr]: { "orders.approve": "Approuver" },
+      });
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("a page no longer written leaves sync.json at the next marking, and the version it was checked at with it", async () => {
+    const { fx, reference, at } = await marked();
+    try {
+      const ids = ["take-over/orders-api", "use/orders", "use/orders/detail"];
+      assert.deepEqual(Object.keys(reference.pages).sort(), ids);
+      fs.rmSync(path.join(fx.root, "content/take-over/orders-api.md"));
+      const { reference: next } = await markPages(await at("c2", { all: true, reference, version: "2.0.0" }));
+      assert.deepEqual(Object.keys(next.pages).sort(), ids.slice(1));
+      assert.equal(versionBehind(next, "2.0.0", new Set(ids.slice(1))), false, "nothing left to follow");
+      // A table of contents that cannot be read writes no page: none is forgotten.
+      const { reference: kept } = await markPages(await at("c2", { all: true, reference, toc: { sections: [] } }));
+      assert.deepEqual(Object.keys(kept.pages).sort(), ids);
+    } finally {
+      fx.release();
+    }
+    // Only the pages still written count: one removed since, checked at another version, keeps nothing behind.
+    const ref = { app: { version: "2.0.0" }, pages: { gone: { version: "1.0.0" }, kept: { version: "2.0.0" } } };
+    assert.equal(versionBehind(ref, "2.0.0", new Set(["kept"])), false);
+    assert.equal(versionBehind(ref, "2.0.0", new Set(["kept", "gone"])), true);
+    assert.equal(versionBehind(ref, "3.0.0", new Set(["kept"])), true, "the last marking's version");
+  });
+
+  test("marking a page acknowledges an item only as whole route segments: /detail is not in /orders/detail", async () => {
+    const { fx, reference, at, compare } = await marked();
+    try {
+      addRoute(fx, "detail");
+      addRoute(fx, "ord");
+      addRoute(fx, "invoices/[id]");
+      const newIds = async (ref) => (await compare(ref)).new.map((n) => n.id).sort();
+      const { reference: one } = await markPages(await at("c2", { pages: ["use/orders/detail"], reference }));
+      assert.deepEqual(await newIds(one), ["/detail", "/invoices/[id]", "/ord"], "use/orders/detail documents none");
+      fs.appendFileSync(path.join(fx.root, "content/use/orders/detail.md"), "\nThe same screen: `/detail`.\n");
+      fs.appendFileSync(path.join(fx.root, "content/use/orders.md"), "\nAn invoice: `/invoices/42`.\n");
+      const { reference: two } = await markPages(
+        await at("c2", { pages: ["use/orders/detail", "use/orders"], reference: one }),
+      );
+      assert.deepEqual(await newIds(two), ["/ord"], "a static prefix goes on with any segment");
+    } finally {
+      fx.release();
+    }
+  });
+
+  test("sync --apply's own rewrite is never an edit, nor a final newline; a page edited by hand stays edited", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      assert.equal((await mark(fx, ["--all"], { commit: () => "c1" })).code, 0);
+      const io = { commit: () => "c2" };
+      const report = async () => JSON.parse((await cli(["sync", "--json", "--project", fx.root], io)).out);
+      const code = path.join(fx.appDir, "lib/orders.ts");
+      fs.writeFileSync(code, "// a\n// b\n" + fs.readFileSync(code, "utf8"));
+      const before = await report();
+      assert.deepEqual(
+        before.proofs.moved.map((m) => [m.page, m.newRef]),
+        [["use/orders", "lib/orders.ts:44"]],
+      );
+      assert.ok(
+        before.review.some((r) => r.page === "use/orders"),
+        "still to review: not restamped",
+      );
+      assert.equal((await cli(["sync", "--apply", "--project", fx.root], io)).code, 0);
+      const orders = path.join(fx.root, "content/use/orders.md");
+      assert.match(fs.readFileSync(orders, "utf8"), /`lib\/orders\.ts:44`/);
+      const after = await report();
+      assert.deepEqual(after.edited, [], "the proof --apply rewrote is no edit");
+      assert.ok(!after.unchanged.includes("use/orders"));
+      // A final newline, CRLF and a BOM are no edit; a line is.
+      const api = path.join(fx.root, "content/take-over/orders-api.md");
+      fs.appendFileSync(api, "\n\n");
+      const detail = path.join(fx.root, "content/use/orders/detail.md");
+      fs.writeFileSync(detail, "﻿" + fs.readFileSync(detail, "utf8").replace(/\n/g, "\r\n"));
+      assert.deepEqual((await report()).edited, []);
+      fs.appendFileSync(api, "One more line.\n");
+      assert.deepEqual((await report()).edited, ["take-over/orders-api"]);
+      // A page edited by hand, then rewritten by --apply: the edit is still to check.
+      assert.equal((await mark(fx, ["--mark", "use/orders"], io)).code, 0);
+      fs.appendFileSync(orders, "\nA line added by hand.\n");
+      fs.writeFileSync(code, "// c\n" + fs.readFileSync(code, "utf8"));
+      assert.deepEqual(
+        (await report()).proofs.moved.map((m) => m.newRef),
+        ["lib/orders.ts:45"],
+      );
+      assert.equal((await cli(["sync", "--apply", "--project", fx.root], io)).code, 0);
+      assert.deepEqual((await report()).edited, ["take-over/orders-api", "use/orders"]);
+      // The fingerprint of an older sync.json, the whole text hashed: still the page marked.
+      const ref = syncJson(fx);
+      ref.pages["take-over/orders-api"].source = hashText(fs.readFileSync(api, "utf8"));
+      fs.writeFileSync(path.join(fx.root, "sync.json"), JSON.stringify(ref));
+      assert.deepEqual((await report()).edited, ["use/orders"]);
+    } finally {
+      fx.release();
+    }
+  });
+
   test("sync --apply restamps the unchanged pages without clearing a capture to retake or a new item", async () => {
     const plan = (caption) =>
       `export const CAPTURES = ${JSON.stringify([{ id: "orders-list", route: "/orders", zones: [{ text: "Today", caption }] }])};\n`;
@@ -1425,7 +1627,7 @@ describe("marking merges: a pending signal stays until its own page is marked", 
       fs.writeFileSync(path.join(fx.root, "captures", "plans", "use.mjs"), plan("Summary"));
       fs.appendFileSync(
         path.join(fx.root, "content/use/orders.md"),
-        '\n:::screen{capture="orders-list"}\n1. **Filters**\n:::\n',
+        '\n:::screen{capture="orders-list"}\n1. **Filters**\n:::\n\nIts customers: `/customers`.\n',
       );
       assert.equal((await mark(fx, ["--all"], { commit: () => "c1" })).code, 0);
       fs.writeFileSync(path.join(fx.root, "captures", "plans", "use.mjs"), plan("Today's orders"));

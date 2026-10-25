@@ -151,9 +151,9 @@ nouveaux ou disparus des adaptateurs de couverture. Il écrit `.doc-kit/sync.md`
 |---|---|
 | `--since <réf>` | Compare avec ce commit git plutôt qu'avec `sync.json` ; `new` et `removed` sont toujours vides (les adaptateurs ne sont pas relancés à ce commit) |
 | `--apply` | Réécrit la référence `fichier:ligne` d'une preuve déplacée dans la page ; retamponne ensuite les pages inchangées |
-| `--labels` | Avec `--apply` : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, uniquement dans `**gras**`, les blocs de code, les badges `[[menu …]]` et les guillemets — jamais dans la prose |
+| `--labels` | Avec `--apply` : remplace aussi l'ancienne valeur d'un libellé par la nouvelle, en mot entier, uniquement dans `**gras**`, du code en ligne qui est le libellé lui-même, les badges `[[menu …]]` et les guillemets — jamais dans la prose, les attributs d'une directive, la cible d'un lien, un bloc de code, un commentaire ou une balise HTML, ni l'en-tête YAML |
 | `--mark <page…>` | Enregistre ces pages comme vérifiées maintenant (les identifiants de page suivent l'option), fusionnées dans `sync.json` : seul ce qu'elles documentent est acquitté |
-| `--all` | Avec `--mark` : toutes les pages écrites, et tout l'inventaire acquitté |
+| `--all` | Avec `--mark` : toutes les pages écrites, tout l'inventaire acquitté, et retiré un libellé qu'aucune page ne cite plus |
 | `--sources <fichier[:lignes]…>` | Avec `--mark` d'une seule page : dépendances déclarées, répétable |
 | `--date AAAA-MM-JJ` | Date écrite par `--mark`, au lieu d'aujourd'hui (exécutions reproductibles) |
 | `--check` | Code de sortie 1 si une catégorie autre que `unchanged`, `edited` et `unmarked` n'est pas vide : une barrière de CI qu'un projet peut adopter page par page |

@@ -6,6 +6,7 @@ import path from "node:path";
 import { extractProofs, rewriteProof } from "./proofs.mjs";
 import { replaceLabel } from "./labels.mjs";
 import { findPageEntry } from "./dependencies.mjs";
+import { isEdited, pageSource } from "./reference.mjs";
 
 /** Absolute Markdown file of a page (toc `file` override, else `<id>.md`). */
 function pageFile(root, config, toc, pageId) {
@@ -53,10 +54,13 @@ export function pagesToRestamp(report, { withLabels = false, autoIntact = false 
  * @param {object} p.report       a SyncReport (engine/sync/report.mjs)
  * @param {string[]} [p.pages]    limits the fix to these page ids; default: every page the report touches
  * @param {boolean} [p.withLabels]
- * @returns {{ changed: string[], rewritten: { proofs: number, labels: number } }}  changed: projRel Markdown files
+ * @returns {{ changed: string[], rewritten: { proofs: number, labels: number },
+ *   rewrites: Array<{ page: string, before: string, after: string }> }}  changed: projRel Markdown files; rewrites: each
+ *   page written, its Markdown before and after
  */
 export function applyReport({ root, config, toc, report, pages, withLabels = false }) {
   const changed = new Set();
+  const rewrites = [];
   let proofsRewritten = 0;
   let labelsRewritten = 0;
 
@@ -102,8 +106,25 @@ export function applyReport({ root, config, toc, report, pages, withLabels = fal
     if (text !== original) {
       fs.writeFileSync(abs, crlf && !text.includes("\r\n") ? text.replace(/\n/g, "\r\n") : text);
       changed.add(path.relative(root, abs).split(path.sep).join("/"));
+      rewrites.push({ page: pageId, before: original, after: text });
     }
   }
 
-  return { changed: [...changed], rewritten: { proofs: proofsRewritten, labels: labelsRewritten } };
+  return { changed: [...changed], rewritten: { proofs: proofsRewritten, labels: labelsRewritten }, rewrites };
+}
+
+/**
+ * The reference once `--apply` has rewritten pages (ARCHITECTURE.md §6.10): a rewritten page that was not edited by
+ * hand records the fingerprint of what `--apply` wrote, so that its own fix never reads as an edit (`edited`); one
+ * edited by hand before keeps its recorded fingerprint, and stays edited.
+ * @param {object|null} reference                                   sync.json, or null
+ * @param {Array<{ page: string, before: string, after: string }>} rewrites  applyReport().rewrites
+ */
+export function followRewrites(reference, rewrites) {
+  if (!reference) return reference;
+  const pages = { ...reference.pages };
+  for (const { page, before, after } of rewrites)
+    if (pages[page]?.source && !isEdited(pages[page], before))
+      pages[page] = { ...pages[page], source: pageSource(after) };
+  return { ...reference, pages };
 }

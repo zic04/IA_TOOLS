@@ -115,6 +115,16 @@ describe("situation", () => {
         }),
       );
       assert.equal((await detectSituation({ project: dir, env: {} })).step, "sync", "use/settings: 1.3.0 ≠ 1.4.0");
+      // A page removed from the documentation since its marking is not waited for.
+      fs.writeFileSync(
+        path.join(dir, "sync.json"),
+        JSON.stringify({
+          generator: "doc-kit 0.1.0",
+          app: { commit: null, version: "1.4.0", date: "2026-10-01" },
+          pages: { "use/orders": page("1.4.0"), "use/removed": page("1.3.0") },
+        }),
+      );
+      assert.equal((await detectSituation({ project: dir, env: {} })).step, "menu", "use/removed is no page any more");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

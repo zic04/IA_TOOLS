@@ -1,8 +1,8 @@
 // `doc-kit sync` played as people use it (ARCHITECTURE.md §6.10), not one function at a time: the reference built on
 // examples/demo-app, the application changed to examples/demo-app-v2, a report, `--apply`, one page marked, a report
-// again, a label renamed, another page marked. At each step, the exact list of signals: a signal pending on a page
-// stays until that page is marked — never cleared by marking another one, nor by `--apply`'s restamp. No real git:
-// the `exec` and `commit` seams of the context answer for it (RULES.md M4), commit by commit.
+// again, a label renamed, another page marked, the messages file deleted. At each step, the exact list of signals: a
+// signal pending on a page stays until that page is marked — never cleared by marking another one, nor by `--apply`'s
+// restamp. No real git: the `exec` and `commit` seams of the context answer for it (RULES.md M4), commit by commit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -238,6 +238,30 @@ test("demo-app → demo-app-v2: compare, apply, mark one page, compare, rename a
     );
     assert.equal(ref.labels["../app/public/messages/en.json"]["orders.approvalLink"], "Approval chain");
     assert.ok(!ref.inventory["glob/Routes"].includes("invoices.html"), "never documented, never acknowledged");
+
+    // ─── 9. The application drops its messages file: the label its pages quote is gone ────────────────────────
+    state.head = "c4";
+    fs.rmSync(messages);
+    const gone = { ...AFTER_SETTINGS, labels: [`orders.approvalLink: Approval chain → null ${LABEL_PAGES}`] };
+    assert.deepEqual(signals(await report()), gone);
+
+    // ─── 10. Mark a page that does not quote it: the pages that do keep their signal ─────────────────────────
+    r = await cli("sync", "--mark", "maintain/architecture", "--date", "2026-10-05");
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(signals(await report()), gone);
+    assert.equal(syncJson().labels["../app/public/messages/en.json"]["orders.approvalLink"], "Approval chain");
+
+    // ─── 11. Mark the pages that quote it: acknowledged, and nothing left to follow in that file ──────────────
+    const quoting = ["features/approve-order", "features/rules", "features/roles"];
+    r = await cli("sync", "--mark", ...quoting, "--date", "2026-10-05");
+    assert.equal(r.code, 0, r.err);
+    assert.deepEqual(signals(await report()), {
+      ...AFTER_SETTINGS,
+      labels: [],
+      review: AFTER_SETTINGS.review.filter((x) => x !== "features/approve-order direct"),
+      unchanged: [...AFTER_SETTINGS.unchanged, ...quoting].sort(),
+    });
+    assert.deepEqual(syncJson().labels, {});
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -11,7 +11,7 @@ import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
 import { readSyncReference, writeSyncReference, markPages, pageCommit } from "../../engine/sync/reference.mjs";
 import { compareWithReference, writeReportFiles, checkFails } from "../../engine/sync/report.mjs";
-import { applyReport, pagesToRestamp } from "../../engine/sync/apply.mjs";
+import { applyReport, pagesToRestamp, followRewrites } from "../../engine/sync/apply.mjs";
 import { estimateUpdate } from "../../engine/sync/estimate.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
 import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
@@ -122,78 +122,35 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return values.check ? EXIT.CHECK : EXIT.OK;
   }
 
-  /** @type {import("../../engine/sync/report.mjs").SyncReport & { estimate?: any }} */
-  let report = await compareWithReference({
-    root,
-    config,
-    toc,
-    reference,
-    since,
-    git,
-    inventory,
-    plans,
-    appDir,
-    version,
-    commit,
-    factsDir: config.paths.facts,
-  });
-
-  if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
-
-  if (values.apply) {
-    const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels });
-    if (!ctx.json) {
-      for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
-      if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
-      else {
-        const { count } = numbers(ctx.i18n);
-        ctx.print(
-          ctx.t("cli.sync.applied.summary", {
-            proofs: count("cli.sync.count.proofs", applied.rewritten.proofs),
-            labels: count("cli.sync.count.labels", applied.rewritten.labels),
-            pages: count("cli.build.count.pages", applied.changed.length),
-          }),
-        );
-      }
-    }
-
-    const autoIntact = !!values["auto-intact"];
-    const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact });
-    if (autoIntact && !ctx.json)
-      ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
-    if (restamp.length) {
-      const { reference: before } = readSyncReference(root, config);
-      const { reference: next } = await markPages({
-        root,
-        config,
-        toc,
-        pages: restamp,
-        restamp: true,
-        date: before?.app?.date || new Date().toISOString().slice(0, 10),
-        commit,
-        version,
-        inventory,
-        plans,
-        reference: before,
-      });
-      writeSyncReference(root, config, next);
-      report = await compareWithReference({
-        root,
-        config,
-        toc,
-        reference: next,
-        since,
-        git,
-        inventory,
-        plans,
-        appDir,
-        version,
-        commit,
-        factsDir: config.paths.facts,
-      });
-      if (values.estimate) report.estimate = await buildEstimate({ root, config, toc, report, inventory, plans });
-    }
-  }
+  /**
+   * The report against a reference (sync.json, or the one `--apply` leaves).
+   * @param {object|null} ref
+   * @returns {Promise<import("../../engine/sync/report.mjs").SyncReport & { estimate?: any }>}
+   */
+  const compare = async (ref) => {
+    const r = await compareWithReference({
+      ...{ root, config, toc, reference: ref, since, git, inventory, plans, appDir, version, commit },
+      factsDir: config.paths.facts,
+    });
+    return values.estimate
+      ? { ...r, estimate: await buildEstimate({ root, config, toc, report: r, inventory, plans }) }
+      : r;
+  };
+  let report = await compare(reference);
+  if (values.apply)
+    report = await applyAndRestamp({
+      ctx,
+      root,
+      config,
+      toc,
+      inventory,
+      plans,
+      version,
+      commit,
+      values,
+      report,
+      compare,
+    });
 
   // Each page's diff from the commit it was checked at (pageCommit), or from --since.
   const diffs = new Map();
@@ -252,6 +209,48 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
     return failed ? EXIT.CHECK : EXIT.OK;
   }
   return EXIT.OK;
+}
+
+/**
+ * `--apply` (ARCHITECTURE.md §6.10): the mechanical fixes of the report, then the reference that follows them — the
+ * pages it rewrote keep a fingerprint of their new text (followRewrites), the pages left with nothing pending are
+ * restamped — and the report again, when the reference changed.
+ */
+async function applyAndRestamp({ ctx, root, config, toc, inventory, plans, version, commit, values, report, compare }) {
+  const applied = applyReport({ root, config, toc, report, withLabels: !!values.labels });
+  if (!ctx.json) {
+    for (const file of applied.changed) ctx.print(ctx.t("cli.sync.applied.file", { file }));
+    if (!applied.changed.length) ctx.print(ctx.t("cli.sync.applied.none"));
+    else {
+      const { count } = numbers(ctx.i18n);
+      ctx.print(
+        ctx.t("cli.sync.applied.summary", {
+          proofs: count("cli.sync.count.proofs", applied.rewritten.proofs),
+          labels: count("cli.sync.count.labels", applied.rewritten.labels),
+          pages: count("cli.build.count.pages", applied.changed.length),
+        }),
+      );
+    }
+  }
+
+  const autoIntact = !!values["auto-intact"];
+  const { restamp, intact } = pagesToRestamp(report, { withLabels: !!values.labels, autoIntact });
+  if (autoIntact && !ctx.json)
+    ctx.print(ctx.t("cli.sync.autoIntact", { n: intact.length, pages: intact.join(", ") || "—" }));
+  if (!restamp.length && !applied.rewrites.length) return report;
+  const before = followRewrites(readSyncReference(root, config).reference, applied.rewrites);
+  const next = restamp.length
+    ? (
+        await markPages({
+          ...{ root, config, toc, pages: restamp, restamp: true, commit, version, inventory, plans },
+          date: before?.app?.date || new Date().toISOString().slice(0, 10),
+          reference: before,
+        })
+      ).reference
+    : before;
+  if (!next) return report;
+  writeSyncReference(root, config, next);
+  return compare(next);
 }
 
 /** engine/context/context.mjs (lot V7) is used when present, to measure a page's real context size; while it

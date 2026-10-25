@@ -7,7 +7,7 @@ import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText } from "./dependencies.mjs";
 import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
 import { citesLabel, readFlatLabels } from "./labels.mjs";
-import { pageCommit } from "./reference.mjs";
+import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
 import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
@@ -268,7 +268,7 @@ export async function compareWithReference({
     // The commit this page was checked at (an older sync.json: the global one), for its renames and its diff.
     const refCommit = since || pageCommit(reference, id);
     // Its own Markdown, edited since it was marked: reported, never counted unchanged (so never restamped).
-    const isEdited = !!recorded?.source && hashText(page.markdown) !== recorded.source;
+    const isEdited = editedSince(recorded, page.markdown);
     if (isEdited) edited.push(id);
     const declared = recorded?.declared || [];
     const deps = await pageDependencies({ root, config, toc, pageId: id, inventory, tools, factsDir, plans, declared });

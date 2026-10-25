@@ -162,7 +162,9 @@ export async function pageDependencies({
   const entry = findPageEntry(toc, pageId) || { id: pageId };
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const file = `${config.paths.content}/${entry.file || `${pageId}.md`}`;
-  const markdown = readCached(path.join(root, file)) ?? "";
+  // The page's own Markdown is read again, never cached: `sync --apply` rewrites it within the run.
+  const pageAbs = path.join(root, file);
+  const markdown = fs.existsSync(pageAbs) ? fs.readFileSync(pageAbs, "utf8") : "";
   const coverageAdapters = await loadCoverageAdapters(root, config);
 
   // A feature sheet: the routes of its feature (features.json) with its own.

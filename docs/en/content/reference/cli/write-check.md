@@ -147,9 +147,9 @@ and one `.doc-kit/sync/<page>.diff` per page to review.
 |---|---|
 | `--since <ref>` | Compares with this git commit instead of `sync.json`; `new` and `removed` are always empty (the adapters are not re-run at that commit) |
 | `--apply` | Rewrites a moved proof's `file:line` reference in the page; then restamps the pages left unchanged |
-| `--labels` | With `--apply`: also replaces a label's old value by its new one, only inside `**bold**`, code spans, `[[menu …]]` badges and quotes — never in plain prose |
+| `--labels` | With `--apply`: also replaces a label's old value by its new one, as a whole word, only inside `**bold**`, a code span that is the label itself, `[[menu …]]` badges and quotes — never in plain prose, a directive's attributes, a link's target, a code block, an HTML comment or tag, or the front matter |
 | `--mark <page…>` | Records these pages as checked now (the page ids follow the option), merged into `sync.json`: only what they document is acknowledged |
-| `--all` | With `--mark`: every written page, and the whole inventory acknowledged |
+| `--all` | With `--mark`: every written page, the whole inventory acknowledged, and a label no page quotes any more dropped |
 | `--sources <file[:lines]…>` | With `--mark` of a single page: declared dependencies, repeatable |
 | `--date YYYY-MM-DD` | Date written by `--mark`, instead of today's (reproducible runs) |
 | `--check` | Exit code 1 when any category but `unchanged`, `edited` and `unmarked` is not empty: a CI gate that a project can adopt page by page |

@@ -3,7 +3,7 @@
 // is a change of the site or of the CLI, so each behaviour is pinned.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { esc, attrs, plainText, slug, normalize, escapeRegex } from "../../engine/core/text.mjs";
+import { esc, attrs, plainText, slug, normalize, escapeRegex, wholeIndexes } from "../../engine/core/text.mjs";
 import { numbers } from "../../engine/build/format.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 
@@ -72,6 +72,25 @@ describe("normalize and escapeRegex", () => {
     const text = "a.b*c+d?e^f${g}(h)|i[j]\\k";
     assert.ok(new RegExp(`^${escapeRegex(text)}$`).test(text));
     assert.ok(!new RegExp(escapeRegex("a.b")).test("axb"));
+  });
+});
+
+describe("wholeIndexes: a needle as a whole word (ARCHITECTURE.md §6.10)", () => {
+  test("no word character of any script right before or after it; left to right, never overlapping", () => {
+    assert.deepEqual(wholeIndexes("No Note No_x éNo No2 No", "No"), [0, 21]);
+    assert.deepEqual(wholeIndexes("No,No.No", "No"), [0, 3, 6]);
+    assert.deepEqual(wholeIndexes("aaaa", "aa"), [], "each candidate is inside a longer word");
+    assert.deepEqual(wholeIndexes("x", ""), []);
+  });
+
+  // A letter outside the first plane is two UTF-16 units: the one before the needle is read as a pair, a letter.
+  test("a letter written as a surrogate pair continues the word; an emoji does not", () => {
+    for (const letter of ["𝐀", "𠀀", "𐐀"]) {
+      assert.deepEqual(wholeIndexes(`${letter}No`, "No"), [], `${letter} before`);
+      assert.deepEqual(wholeIndexes(`No${letter}`, "No"), [], `${letter} after`);
+    }
+    assert.deepEqual(wholeIndexes("😀No", "No"), [2]);
+    assert.deepEqual(wholeIndexes("No😀", "No"), [0]);
   });
 });
 
