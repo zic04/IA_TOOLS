@@ -361,8 +361,12 @@ describe("the readers of the manifests stay linear on what a crafted file holds 
 
 describe("a METADATA header is read in one pass (deps/installed.mjs)", () => {
   test("one field folded over many lines: every line read once", () => {
+    // Larger: at 20,000 a GitHub Windows runner measured ×4.0 (3 ms) then ×10.1 (27 ms), the collector's jump once
+    // the field, then a chain of every line, outgrew the young generation (it is one slice now, deps/installed.mjs).
+    // At 80,000 the step past MEASURABLE_MS on those runners compares 1,280,000 lines with 320,000, not 320,000 with
+    // 80,000 lines read in 3 ms.
     const { n, found } = linearAt("a License folded over many lines", {
-      size: 20_000,
+      size: 80_000,
       make: (k) => `Name: x\nLicense: MIT\n${"  and more\n".repeat(k)}\nbody`,
       read: (text) => metadataFields(text),
     });

@@ -243,23 +243,151 @@ export function forbiddenMatchers(patterns = []) {
   });
 }
 
+/** The "." and ".." segments of a path resolved as a server does (RFC 3986 §5.2.4), never above the root. */
+function withoutDotSegments(p) {
+  const segments = p.split("/");
+  const out = [];
+  segments.forEach((s, i) => {
+    const last = i === segments.length - 1;
+    if (s === "." || s === "..") {
+      if (s === ".." && out.length > 1) out.pop();
+      if (last) out.push("");
+    } else out.push(s);
+  });
+  return out.join("/") || "/";
+}
+
+/** A path without its path parameters (`;jsessionid=…` at the end of a segment, read apart by Java servers). */
+const withoutParameters = (p) => p.replace(/;[^/]*/g, "");
+
+/** A segment without its trailing dots and spaces (a loop, linear on any segment); "." and ".." are kept. */
+function trimmedSegment(s) {
+  if (s === "." || s === "..") return s;
+  let end = s.length;
+  while (end > 0 && (s[end - 1] === "." || s[end - 1] === " ")) end--;
+  return s.slice(0, end);
+}
+
+/** A path with each segment's trailing dots and spaces dropped, as IIS does (Windows reads `approval.` as `approval`). */
+const withoutTrailingDots = (p) => p.split("/").map(trimmedSegment).join("/");
+
 /**
- * Forms of a path a server may treat as the same route: as written, percent-decoded (%2F, %61…), with repeated
- * slashes collapsed and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
+ * A path with each run of percent escapes decoded on its own (%61, %2F%2e…): a malformed escape (%zz) is left as
+ * written and leaves the others decoded; a run that is not UTF-8 (%FF) has its ASCII escapes decoded, the others
+ * left as written.
+ */
+const decodeEscapes = (p) =>
+  p.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run.replace(/%[0-7][0-9A-Fa-f]/g, (e) => String.fromCharCode(parseInt(e.slice(1), 16)));
+    }
+  });
+
+/**
+ * Forms of a path a server may treat as the same route: as written, percent-decoded once or twice (%2F, %2e, %61…;
+ * %252e, for a proxy that decodes before the server does), its backslashes read as slashes (IIS, ASP.NET), without
+ * its path parameters (dropped before decoding, as Tomcat does, and after: `%3B`), with repeated slashes collapsed,
+ * with its dot segments resolved, with each segment's trailing dots and spaces dropped (IIS: `approval.`,
+ * `approval%20`, `approval%2e`) and without a trailing slash. A forbidden pattern is tested on each (SECURITY.md).
+ * Every combination of these steps, one step at a time on the distinct forms of the step before (`expand`): a step
+ * that changes nothing costs nothing further.
  */
 function pathForms(p) {
-  let decoded = p;
-  try {
-    decoded = decodeURIComponent(p);
-  } catch {
-    // malformed escape: the path as written
-  }
-  const forms = new Set();
-  for (const f of [p, decoded]) {
-    const collapsed = f.replace(/\/{2,}/g, "/");
-    for (const g of [f, collapsed, collapsed.length > 1 ? collapsed.replace(/\/$/, "") : collapsed]) forms.add(g);
-  }
+  let forms = new Set([p, withoutParameters(p)]);
+  forms = expand(forms, (x) => {
+    const once = decodeEscapes(x);
+    return [x, once, decodeEscapes(once)];
+  });
+  forms = expand(forms, (x) => [x, x.replace(/\\/g, "/")]);
+  forms = expand(forms, (x) => [x, withoutParameters(x)]);
+  forms = expand(forms, (x) => {
+    const collapsed = x.replace(/\/{2,}/g, "/");
+    return [x, collapsed, withoutDotSegments(x), withoutDotSegments(collapsed)];
+  });
+  forms = expand(forms, (x) => [x, withoutTrailingDots(x)]);
+  forms = expand(forms, (x) => (x.length > 1 ? [x, x.replace(/\/$/, "")] : [x]));
   return [...forms];
+}
+
+/** The distinct results of `step` on each form. */
+function expand(forms, step) {
+  const out = new Set();
+  for (const form of forms) for (const next of step(form)) out.add(next);
+  return out;
+}
+
+/**
+ * A path as the kit reports it (a refused or blocked request, a forbidden route shown): without its path parameters,
+ * which may hold a session id (`;jsessionid=…`, S7). A query string is never part of it.
+ */
+export const shownPath = (pathname) => withoutParameters(pathname);
+
+/**
+ * An address as the kit reports it (a sign-in page, a bot challenge): its origin and its path without parameters
+ * (`shownPath`), never its query string, its fragment or its credentials, which may hold a session id, a sign-in
+ * state or a code (S7). An address with no host (about:blank, data:) is shown by its scheme only.
+ * @param {string|URL} url
+ */
+export function shownUrl(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return "";
+  }
+  if (u.host) return `${u.protocol}//${u.host}${shownPath(u.pathname)}`;
+  return u.protocol === "about:" ? `about:${shownPath(u.pathname)}` : u.protocol;
+}
+
+/**
+ * Is this address on the loopback interface (ARCHITECTURE.md §6.13), by any of the names a browser or Node.js
+ * reaches it by: localhost and *.localhost, 127.0.0.0/8, 0.0.0.0 (this host), [::1], [::] and the IPv4-mapped
+ * forms of 127.x and 0.0.0.0 (`[::ffff:127.0.0.1]`, which a URL writes `[::ffff:7f00:1]`), with or without a
+ * trailing dot. The one definition of the kit: the application's addresses (applicationKey), the local network
+ * access of the capture guard, `probe` and `doctor`.
+ * @param {string|URL} url
+ */
+export function isLoopbackUrl(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  const host = u.hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "")
+    .toLowerCase();
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    /^127(?:\.\d{1,3}){3}$/.test(host) ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "::" ||
+    /^::ffff:(?:7f[0-9a-f]{2}:[0-9a-f]{1,4}|0:0)$/.test(host)
+  );
+}
+
+/**
+ * The application an address belongs to, for capture.forbidden: its host and port, whatever its scheme (an http
+ * application that its server upgrades to https stays the application), without a trailing dot, and every loopback
+ * name (isLoopbackUrl) one host. null for an address off the web, or that cannot be read.
+ * @param {string|URL} url
+ * @returns {string|null}
+ */
+export function applicationKey(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const host = u.hostname.replace(/\.$/, "");
+  return `${isLoopbackUrl(u) ? "loopback" : host}:${u.port}`;
 }
 
 /** The forbidden pattern matched by a route (its path only, in any of its forms), or null. */

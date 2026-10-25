@@ -144,6 +144,11 @@ describe("capture on production", () => {
       );
       assert.equal(calls.length, 1);
       assert.equal(calls[0].headless, true);
+      assert.deepEqual(
+        calls[0].args,
+        ["--disable-blink-features=FetchLaterAPI,SharedWorker"],
+        "a guarded run: fetchLater and SharedWorker off",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
