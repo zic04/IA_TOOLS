@@ -150,6 +150,8 @@ construction.
 > Un libellé est cité là où la page, rendue par le moteur de rendu du kit, le montre comme texte : `_Approve_` cite
 > `Approve` (une emphase, montrée sans ses soulignés), le titre d'un lien ou le texte d'une image aussi ; un bloc de
 > code, un commentaire HTML, un script, une feuille de style ou un champ de texte jamais, ni la cible d'un lien.
+> Une référence de caractère est le caractère qu'elle nomme : `**R&eacute;gler**` cite `Régler`, comme
+> `**Régler**`.
 > `保存をクリック` ne cite pas `保存` : une lettre le suit, comme `Approved` ne cite pas `Approve`. Détachez le
 > libellé — `**保存**をクリック` — pour qu'il soit suivi. Chercher un libellé très long est plus lent : jusqu'à la
 > longueur de la page fois celle du libellé.
@@ -158,8 +160,17 @@ construction.
 > Les endroits à réécrire sont trouvés en lisant le Markdown, au plus près de la lecture du moteur de rendu mais
 > pas exactement comme lui : une citation ouverte sur la ligne même d'un élément de liste (`- > …`), un commentaire
 > jamais fermé dans une citation ou un élément de liste, ou du HTML brut que cette lecture ne suit pas peuvent être
-> lus autrement. La vérification sur la page rendue rattrape chacun de ces cas : la page est laissée telle quelle,
-> signalée à mettre à jour à la main, son libellé toujours en attente — jamais abîmée.
+> lus autrement. La vérification sur la page rendue rattrape chacun de ces cas — telle qu'elle lit la page rendue,
+> avec une limite : un élément de mise en forme laissé ouvert en HTML brut (un `<code>` jamais fermé) est lu fermé
+> à la fin de son bloc, là où un navigateur le rouvre. La page est laissée telle quelle, signalée à mettre à jour
+> à la main, son libellé toujours en attente — jamais abîmée.
+
+> [!NOTE] Quelques formes que Marked rend lentement
+> Le kit lit une page en temps linéaire, mais Marked lui-même non, sur quelques formes répétées sur des dizaines de
+> milliers de caractères : des marques d'emphase jamais fermées (`*a *a *a …`), `x <!-- a --!> ` encore et
+> encore, des lignes qui alternent avec des lignes de citation, ou un paragraphe coupé par beaucoup de lignes `::`
+> sans ligne vide. Une telle page prend des secondes — des minutes pour les plus longues — à être rendue, pour
+> `sync` comme pour `build`.
 
 > [!NOTE] Deux libellés de même valeur, une capture sur plusieurs pages
 > Deux clés de message de même valeur ne se distinguent pas : une page qui la cite est listée — et réécrite par

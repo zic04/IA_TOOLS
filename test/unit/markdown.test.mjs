@@ -36,6 +36,22 @@ describe("directives ::", () => {
     }
     const steps = render("Before the steps.\n:::steps\n1. One\n:::\n").html;
     assert.match(steps, /<p>Before the steps\.<\/p>\s*<ol class="etapes">/);
+    // The paragraph is Marked's own: past a heading that ends it, a directive opens its own block after the heading.
+    const cut = render('Text.\n# Head\n::capture{id="plain" title="A screen"}\n').html;
+    assert.match(cut, /<p>Text\.<\/p>\s*<h2 id="head">.*<\/h2>\s*<figure class="ecran" data-capture="plain"/s);
+  });
+
+  // The pair pinned (CHANGELOG): a paragraph, then a line that opens like a raw HTML block ("<pre", "<script", "<style",
+  // "<textarea") that no HTML block takes. Marked ends the paragraph there and reads the line as a paragraph of its own,
+  // a directive further on or not; before the search was bounded to the paragraph, a directive anywhere further on
+  // joined the two.
+  test("a paragraph cut by a line no HTML block takes: the same paragraphs, a directive further on or not", () => {
+    const { render } = testEngine({ captures: CAPTURES });
+    const paragraphs = (html) => html.match(/<p>[\s\S]*?<\/p>/g);
+    const text = "Some text\n<preview>hello</preview>\n";
+    const alone = paragraphs(render(text).html);
+    assert.deepEqual(alone, ["<p>Some text</p>", "<p><preview>hello</preview></p>"]);
+    assert.deepEqual(paragraphs(render(text + '\n::capture{id="plain" title="A screen"}\n').html), alone);
   });
 
   test("::capture renders a figure with the image and an Enlarge button", () => {
@@ -205,6 +221,17 @@ describe("badges [[…]]", () => {
     );
   });
 
+  // A badge's text runs to its "]]" on its line, never over the opening of another badge or claim: one never closed
+  // leaves the next one its own badge (and is read once, not again to the line's end for each opening).
+  test("a badge's text: brackets in it, never over another opening; the blanks after its kind", () => {
+    const { render } = testEngine({});
+    const p = (s) => render(s).html.trim();
+    assert.equal(p("[[route /docs/[[...slug]]]]"), '<p><span class="puce route">/docs/[[...slug]]</span></p>');
+    assert.equal(p("[[menu A [[menu B]]"), '<p>[[menu A <span class="puce menu">B</span></p>');
+    assert.equal(p("[[menu    A › B]]"), '<p><span class="puce menu">A › B</span></p>');
+    assert.match(p("[[verified a [[menu B]]"), /^<p>\[\[verified a <span class="puce menu">B<\/span><\/p>$/);
+  });
+
   test("statusColour: token, hexadecimal, var()", () => {
     assert.equal(statusColour("st-2"), "var(--st-2)");
     assert.equal(statusColour("#abc"), "#abc");
@@ -286,11 +313,17 @@ describe("headings, anchors, links, tables, long code", () => {
     for (const html of [heading, card]) assert.doesNotMatch(html, / onmouseover="/, html);
   });
 
-  test("de-duplicated slugs (-2, then -2-2), without accents", () => {
+  test("de-duplicated slugs (-2, then -3: a counter per slug), without accents", () => {
     const r = testEngine().render("## Écran\n\n### Écran\n\n### Écran\n");
     assert.deepEqual(
       r.toc.map((x) => x.id),
-      ["ecran", "ecran-2", "ecran-2-2"],
+      ["ecran", "ecran-2", "ecran-3"],
+    );
+    // A title whose slug a numbered one took: the next number free.
+    const taken = testEngine().render("## A\n\n## A 2\n\n## A\n\n## A 2\n");
+    assert.deepEqual(
+      taken.toc.map((x) => x.id),
+      ["a", "a-2", "a-3", "a-2-2"],
     );
   });
 

@@ -63,27 +63,45 @@ entries between a project's `kit` range and the installed version.
   then quotes the new value only. Both now follow the kit's own renderer, Marked with the kit's extensions, which
   the CLI gives to `sync` (`engine/build/sync-renderer.mjs`; `engine/sync` comes before the build): a label is
   quoted where the rendered page shows it as text — outside code blocks, comments, scripts, style sheets and text
-  fields, with the `alt` and `title` of its elements, blanks as the page shows them — so `_Approve_` quotes
-  `Approve` (it was missed) and `**Approval\nchain**` quotes `Approval chain`; each rewrite of `--apply --labels` is
-  kept only when the page renders as it did but for the label's text — the same links, anchors, code and
+  fields, with the `alt` and `title` of its elements, blanks as the page shows them, every character reference of
+  HTML as a browser reads it (`**R&eacute;gler**` quotes `Régler`, `&rsquo;`, `&mdash;` and `&Tab;` too), an inline
+  element such as `<nobr>` or `<button>` running a phrase on, all that follows a `<plaintext>` shown — so
+  `_Approve_` quotes `Approve` (it was missed) and `**Approval\nchain**` quotes `Approval chain`; each rewrite of
+  `--apply --labels` is kept only when the page renders as it did but for the label's text, the label whole as the
+  page shows it (`**Approve<!-- note -->d**` shows `Approved`, never renamed) — the same links, anchors, code and
   comments — else the page is left as it is and reported to update by hand (`byHand`, in English and French), its
   label still pending (a label in a heading, whose anchor would change, is one). By construction, no page is
   corrupted and no signal lost: the reading of the Markdown that proposes the rewrites (`engine/sync/prose.mjs`)
   can only send a page to be updated by hand where it reads it otherwise than Marked — a blockquote opened on a
   list item's own line (`- > …`), a comment never closed inside a blockquote or a list item, raw HTML it does not
   follow. A messages file that is not valid JSON gives one warning, never every key reported gone, and fails
-  `--check` (a signal the CI would not see otherwise). Known limits: a label stuck to the text in a script written
+  `--check` (a signal the CI would not see otherwise) — one that was never valid since the first marking, or a new
+  one under a `sync.labels` glob, too: every file followed is read, not only the recorded ones, and the marking
+  says so as well. Known limits: a label stuck to the text in a script written
   without spaces (`保存をクリック`) is not seen; finding a very long label costs up to the page's length times its
   own; a formatting element left open in raw HTML (a `<code>` never closed) is read as closed at the end of its
   block; two keys with the same value cannot be told apart; a screenshot shown by several pages is acknowledged by
-  marking one of them. A scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`, and a
+  marking one of them; an element hidden by its attributes (`hidden`, a closed `<dialog>`) is read as shown. A scenario test plays the real sequence on `examples/demo-app` → `demo-app-v2`, and a
   seeded property renders thousands of pages to check both promises.
 - **The Markdown renderer reads a long page in linear time** (ARCHITECTURE.md §6.6, §6.10): to cut a paragraph before
   a `::directive` or a `:::container` that opens one of its lines, the engine looked for one in the whole rest of the
   page, once per paragraph, and for a `[[badge]]` in the rest of a paragraph, once per piece of text; it now looks in
-  that paragraph only, up to its blank line, and never ahead for a badge (Marked's text stops before every `[`) —
-  the same page, rendered in linear time instead of quadratic (a page of 25,000 paragraphs took 8 s, one paragraph
-  of 64,000 inline elements 2 s), for the build as for `sync`.
+  that paragraph only, as Marked's own rule reads it, line by line and up to the first line that opens one, and
+  never ahead for a badge (Marked's text stops before every `[`); a badge's text never runs over the opening of
+  another one, and headings of one title are numbered by a counter — rendered in linear time instead of quadratic
+  (a page of 25,000 paragraphs took 8 s, one paragraph of 64,000 inline elements 2 s, 3,200 headings `## Approve`
+  38 s in `sync`), for the build as for `sync`. Three outputs change: a paragraph followed by a line that ends it
+  for Marked but that no block of it takes (`<preview>`, which opens like `<pre`; a table's head whose cells do not
+  match) is now two paragraphs whatever follows, as Marked renders it alone — a directive anywhere further on joined
+  them (`markdown.test.mjs` pins the pair); the third heading of one title is anchored `-3`, the fourth `-4` (they
+  were `-2-2`, `-2-2-2`: the demo's third `Example`); `[[menu A [[menu B]]` shows the badge `B` (the text of the
+  first ran over it). Still slow, in Marked itself: a few shapes repeated over tens of thousands of characters
+  (emphasis marks never closed, `x <!-- a --!> ` again and again, lines alternating with quote lines, a paragraph
+  cut by many `::` lines with no blank line), ARCHITECTURE.md §6.10.
+- **`sync`'s reading of a rendered page is fast on Node.js 20 too**: on V8 11, an object spread followed by a field
+  takes a slow path, some twenty times an object literal, and `shownText` built every token of a page that way
+  (107 s on the ReDoS harness's comment runs, against 12 s on Node.js 24, past its hang detector); its tokens are
+  now object literals.
 - **One order of versions and one reading of ranges, npm's** (`engine/project/semver.mjs`), where four functions
   gave four answers. The `kit` range of `doc.config.mjs` is read as npm reads one: `>1.2` is `>=1.3.0` (it was
   `>1.2.0`), `>= 1.2.3` with a space is accepted (it was refused), hyphen ranges and `~>` are read. Pre-releases are

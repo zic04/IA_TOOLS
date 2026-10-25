@@ -833,6 +833,12 @@ describe("engine/sync/labels.mjs", () => {
       true,
       "the label's own blanks as the page shows them",
     );
+    // Any name of HTML's list, which Marked leaves to the browser: `&eacute;` is cited as `é` is.
+    assert.equal(citesLabel("Click **R&eacute;gler**.", "Régler"), citesLabel("Click **Régler**.", "Régler"));
+    assert.equal(citesLabel("Click **R&eacute;gler**.", "Régler"), true);
+    assert.equal(citesLabel("Click **Don&rsquo;t save**.", "Don’t save"), true);
+    assert.equal(citesLabel("Click **Save &mdash; draft**.", "Save — draft"), true);
+    assert.equal(citesLabel("Approval&Tab;chain", "Approval chain"), true);
   });
 
   /**
@@ -2118,6 +2124,38 @@ describe("CLI `sync`", () => {
       assert.match(fr.out, /⚠ \.\.\/sync-app\/messages\/en\.json ne peut pas être lu \(JSON invalide\)/);
       const json = JSON.parse((await cli(["sync", "--check", "--json", "--project", fx.root], io)).out);
       assert.deepEqual(json.unreadableLabels, ["../sync-app/messages/en.json"]);
+    } finally {
+      fx.release();
+    }
+  });
+
+  // Not valid JSON at the first marking (or a new file under a sync.labels glob): nothing of it is recorded, so the
+  // file is read as one followed now — said at the marking, and --check fails until it reads again.
+  test("a message file that is not valid JSON at the first marking: said then, and --check fails, in both languages", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      const io = { commit: () => "c0ffee" };
+      const messages = path.join(fx.appDir, "messages/en.json");
+      const valid = fs.readFileSync(messages, "utf8");
+      fs.writeFileSync(messages, "{ not json");
+      const mark = await cli(["sync", "--all", "--date", "2026-10-02", "--project", fx.root], io);
+      assert.equal(mark.code, 0, mark.out + mark.err);
+      assert.match(mark.out, /⚠ \.\.\/sync-app\/messages\/en\.json cannot be read \(not valid JSON\)/);
+      const markFr = await cli(["sync", "--all", "--lang", "fr", "--date", "2026-10-02", "--project", fx.root], io);
+      assert.match(markFr.out, /⚠ \.\.\/sync-app\/messages\/en\.json ne peut pas être lu \(JSON invalide\)/);
+      const r = await cli(["sync", "--check", "--project", fx.root], io);
+      assert.equal(r.code, 1, r.out + r.err);
+      assert.match(r.out, /⚠ \.\.\/sync-app\/messages\/en\.json cannot be read \(not valid JSON\)/);
+      const fr = await cli(["sync", "--check", "--lang", "fr", "--project", fx.root], io);
+      assert.equal(fr.code, 1);
+      assert.match(fr.out, /⚠ \.\.\/sync-app\/messages\/en\.json ne peut pas être lu \(JSON invalide\)/);
+      const json = JSON.parse((await cli(["sync", "--check", "--json", "--project", fx.root], io)).out);
+      assert.deepEqual(json.unreadableLabels, ["../sync-app/messages/en.json"]);
+      // Valid again: its labels are learnt at the next marking, and nothing is pending.
+      fs.writeFileSync(messages, valid);
+      const again = await cli(["sync", "--all", "--date", "2026-10-03", "--project", fx.root], io);
+      assert.doesNotMatch(again.out, /cannot be read/);
+      assert.equal((await cli(["sync", "--check", "--project", fx.root], io)).code, 0);
     } finally {
       fx.release();
     }
@@ -3557,5 +3595,38 @@ describe("engine/sync/html-text.mjs (the rendered page, read as a browser reads 
       "Approval chain history",
     );
     ok(b("Approve all, Approve all"), b("Approve, Approve all"), ["Approve all"], "Approve");
+    // Whole as the page shows it, across the runs a comment joins: "Approve<!-- -->d" shows "Approved".
+    refused(b("Approve<!-- note -->d"), b("Validate<!-- note -->d"));
+    ok(b("Approve<!-- note --> d"), b("Validate<!-- note --> d"));
+  });
+
+  test("shownText: every character reference of HTML, as a browser reads it (minimal pairs)", () => {
+    // A name of HTML's list shows its character, as the character itself does.
+    assert.equal(text("<strong>R&eacute;gler</strong>"), text("<strong>Régler</strong>"));
+    for (const [html, shown] of [
+      ["Don&rsquo;t save", "Don’t save"],
+      ["Save &mdash; draft", "Save — draft"],
+      ["Approval&Tab;chain", "Approval chain"],
+      ["&laquo;&nbsp;Approve&nbsp;&raquo;", "« Approve »"],
+      ["&NotEqualTilde;", "≂̸"],
+      // Legacy names need no semicolon, the longest one there is read (`&notit;` is `&not` then "it;").
+      ["&eacute &copy2026 &notit; &notin;", "é ©2026 ¬it; ∉"],
+      // Numeric ones need none either; 0x80–0x9F as windows-1252; none, a surrogate, or past Unicode: U+FFFD.
+      ["&#65&#x42;&#128;&#0;&#xD800;&#x110000;", "AB€���"],
+      // What opens no reference is text.
+      ["&bogus; & a &#; &#x;", "&bogus; & a &#; &#x;"],
+    ])
+      assert.equal(text(html), shown, html);
+    // In an attribute's value, a legacy name followed by "=", a letter or a digit is no reference.
+    assert.equal(text('<img alt="?a=1&copy=2 &copy; &copy x">'), "\n?a=1&copy=2 © © x");
+  });
+
+  test("shownText: inline elements run a phrase on; a <plaintext> shows the rest as text", () => {
+    for (const inline of ["nobr", "button", "big"])
+      assert.equal(text(`<p>Approval <${inline}>chain</${inline}></p>`), "\nApproval chain\n", inline);
+    assert.equal(text("<p>Approval <div>chain</div></p>"), "\nApproval \nchain\n\n", "a block ends the phrase");
+    assert.equal(text("<p>a</p><plaintext>Approve</p>"), "\na\n\nApprove</p>");
+    for (const hidden of ["<xmp>Approve</xmp>", "<listing>Approve</listing>", "<noscript>Approve</noscript>"])
+      assert.ok(!text(hidden).includes("Approve"), hidden);
   });
 });

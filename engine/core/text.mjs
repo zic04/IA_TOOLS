@@ -140,6 +140,12 @@ function pointBefore(text, i) {
 /** The code point that starts at `i`, "" at the end. */
 const pointAt = (text, i) => (i < text.length ? String.fromCodePoint(text.codePointAt(i)) : "");
 
+/** Whether the part of `text` from `i` to `end` is whole there: no word character right before or after it, or a
+ * break there (wholeIndexes). */
+export const wholeAt = (text, i, end, breaks = null) =>
+  (!!breaks?.has(i) || !WORD_CHAR.test(pointBefore(text, i))) &&
+  (!!breaks?.has(end) || !WORD_CHAR.test(pointAt(text, end)));
+
 /**
  * Where `needle` appears in `text` as a whole: no word character right before or after it (WORD_CHAR: "No" is not
  * in "Note", "Noé", "No_x", "éNo"), or a break there (`breaks`: the indexes where a word ends whatever follows — the
@@ -155,9 +161,7 @@ export function wholeIndexes(text, needle, breaks = null) {
   if (!needle) return out;
   for (let i = text.indexOf(needle); i !== -1;) {
     const end = i + needle.length;
-    const whole =
-      (!!breaks?.has(i) || !WORD_CHAR.test(pointBefore(text, i))) &&
-      (!!breaks?.has(end) || !WORD_CHAR.test(pointAt(text, end)));
+    const whole = wholeAt(text, i, end, breaks);
     if (whole) out.push(i);
     i = text.indexOf(needle, whole ? end : i + 1);
   }

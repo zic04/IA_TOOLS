@@ -383,6 +383,8 @@ export async function markPages({
   const everyPage = targets.length === writtenIds.size && !restamp;
   const marked = restamp ? [] : written.filter((p) => targets.includes(p.id));
   const flatFiles = allFlatLabels(root, config, reference?.labels);
+  // A message file that cannot be read is said at the marking too: what was recorded of it is kept, nothing is learnt.
+  for (const { file, flat } of flatFiles) if (!flat) warnings.push({ key: "sync.labelsUnreadable", vars: { file } });
   const ref = {
     generator: generatorTag(),
     app: { commit, version, date },

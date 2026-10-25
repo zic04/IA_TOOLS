@@ -3,20 +3,23 @@
 // rewrite only when the page renders as it did but for the label's text (rendersAsBefore). The HTML is read the way
 // a browser's tokenizer reads it — text, tags and their attributes, comments, the raw text of a script — in one pass,
 // each character read once, with no regular expression (RULES.md S5).
-import { wholeIndexes } from "../core/text.mjs";
-import { decodeEntities } from "../core/xml.mjs";
+import { wholeAt, wholeIndexes } from "../core/text.mjs";
+import { decodeHtml } from "../core/html-references.mjs";
 
 /** Elements whose content is raw text up to their closing tag, never shown as text here: a script, a style sheet, a
- * text field, a title, a frame's fallback (the raw text and escapable raw text elements of HTML). */
+ * text field, a title, a frame's fallback, what shows only without scripts (`noscript`), and `xmp`, a code block like
+ * `pre` (ARCHITECTURE.md §6.10) — the raw text and escapable raw text elements of HTML. After a `<plaintext>`, the
+ * rest of the page is text, shown. */
 const RAW = new Set(["script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes", "noscript"]);
 /** Elements whose text is never shown as text (a code block, a template), counted while they are open. */
 const HIDING = ["pre", "listing", "template"];
 /** Inline elements: their text runs on with the text around them (`<strong>Approve</strong> all` reads
- * "Approve all"). Any other tag ends a run, as a block or a line break does on the page. */
+ * "Approve all", `Approval <nobr>chain</nobr>` "Approval chain"). Any other tag ends a run, as a block or a line
+ * break does on the page. */
 const INLINE = new Set(
   (
-    "a abbr b bdi bdo cite code data del dfn em font i img ins kbd label mark q s samp small span strike strong sub " +
-    "sup time tt u var"
+    "a abbr b bdi bdo big button cite code data del dfn em font i img ins kbd label mark nobr q s samp small span " +
+    "strike strong sub sup time tt u var"
   ).split(" "),
 );
 /** The attributes whose text the site shows: an image's text, a tooltip. */
@@ -182,10 +185,14 @@ function htmlTokens(html) {
         ? { type: "tag", name: markup.name, closing: markup.closing, attributes: markup.attributes, raw }
         : { type: "other", raw },
     );
-    if (markup.type === "tag" && !markup.closing && (RAW.has(markup.name) || markup.name === "plaintext")) {
-      const rawTo = markup.name === "plaintext" ? html.length : rawEnd(html, i, markup.name);
+    if (markup.type === "tag" && !markup.closing && RAW.has(markup.name)) {
+      const rawTo = rawEnd(html, i, markup.name);
       if (rawTo > i) tokens.push({ type: "other", raw: html.slice(i, rawTo) });
       i = rawTo;
+    } else if (markup.type === "tag" && !markup.closing && markup.name === "plaintext") {
+      // Everything after a <plaintext> is shown as text, its tags too.
+      if (i < html.length) tokens.push({ type: "text", raw: html.slice(i) });
+      i = html.length;
     }
   }
   flush();
@@ -261,9 +268,10 @@ function placed(tokens) {
   });
 }
 
-/** A text of the HTML with its character references read: XML's (`&amp;`, `&#39;`, `&#x2019;`, engine/core/xml.mjs)
- * and `&nbsp;`. */
-const decode = (text) => decodeEntities(text.includes("&nbsp;") ? text.replaceAll("&nbsp;", "\u00a0") : text);
+/** A text of the HTML with its character references read as a browser reads them: every name of HTML's list
+ * (`&eacute;`, `&rsquo;`, `&nbsp;`, the legacy ones without their semicolon), decimal and hexadecimal references
+ * (engine/core/html-references.mjs). `attribute`: an attribute's value. */
+const decode = (text, attribute = false) => decodeHtml(text, attribute);
 
 /** Each run of blanks (space, tab, line end, form feed) as one space, as a browser shows a text. */
 export function collapse(text) {
@@ -296,7 +304,7 @@ function readShown(tokens) {
       if (INLINE.has(token.name)) breaks.add(text.length);
       else [text, last] = [text + "\n", "\n"];
       for (const [name, value] of token.attributes)
-        if (SHOWN_ATTRIBUTES.has(name)) attributes.push(collapse(decode(value)));
+        if (SHOWN_ATTRIBUTES.has(name)) attributes.push(collapse(decode(value, true)));
     } else if (token.type === "text" && token.place !== "hidden") {
       const run = collapse(decode(token.raw));
       const merged = run[0] === " " && last === " ";
@@ -425,6 +433,22 @@ function codeRenamed(before, after, forms, value) {
 }
 
 /**
+ * The places of `form` in the text run `run`, shown at `at` in the shown text (readShown), where the page shows it
+ * whole: its ends judged in the shown text, across a comment that joins two runs (`**Approve<!-- -->d**` shows
+ * "Approved"), at the edges of inline elements (`shown.breaks`), as shownText cites it. Left to right, never
+ * overlapping (wholeIndexes).
+ */
+function wholePlaces(run, form, shown, at) {
+  const out = [];
+  for (let i = run.indexOf(form); i !== -1;) {
+    const whole = wholeAt(shown.text, at + i, at + i + form.length, shown.breaks);
+    if (whole) out.push(i);
+    i = run.indexOf(form, whole ? i + form.length : i + 1);
+  }
+  return out;
+}
+
+/**
  * Whether the page rendered `after` is the page rendered `before` with the label (`forms`: its forms as written)
  * renamed `value` in its text, and nothing else (ARCHITECTURE.md §6.10, `--apply --labels`): the same tags with the
  * same attributes (the targets of its links, its anchors, the titles of its images), the same comments and code
@@ -457,7 +481,7 @@ export function rendersAsBefore(before, after, forms, value) {
     const allowed = (i, length) =>
       !held.contains(at + i, at + i + length) && (x.inContext || quotes.inside(at + i, at + i + length));
     const places = shownForms
-      .flatMap((f) => wholeIndexes(from, f).map((i) => [i, f.length]))
+      .flatMap((f) => wholePlaces(from, f, shown, at).map((i) => [i, f.length]))
       .sort((p, q) => p[0] - q[0]);
     const ok =
       x.place === "code"

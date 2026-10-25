@@ -142,7 +142,8 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > [!NOTE] A page quotes a label where the site shows it
 > A label is quoted where the page, rendered by the kit's own renderer, shows it as text: `_Approve_` quotes
 > `Approve` (an emphasis, shown without its underscores), a link's title or an image's text does too, a code block,
-> an HTML comment, a script, a style sheet or a text field never does, nor a link's target. `保存をクリック` does
+> an HTML comment, a script, a style sheet or a text field never does, nor a link's target. A character reference
+> is the character it names: `**R&eacute;gler**` quotes `Régler`, as `**Régler**` does. `保存をクリック` does
 > not quote `保存`: a letter follows it, as `Approved` does not quote `Approve`. Set the label apart —
 > `**保存**をクリック` — to have it followed. Finding a very long label is slower: up to the page's length times
 > the label's.
@@ -150,8 +151,16 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > [!NOTE] When `--labels` leaves a page to update by hand
 > The places to rewrite are found by reading the Markdown, close to how the renderer reads it but not as it does:
 > a blockquote opened on a list item's own line (`- > …`), a comment never closed inside a blockquote or a list
-> item, or raw HTML the reading does not follow may be read otherwise. The check on the rendered page catches every
-> such case: the page is left as it is, reported to update by hand, its label still pending — never damaged.
+> item, or raw HTML the reading does not follow may be read otherwise. The check on the rendered page catches each
+> of these cases — as it reads the rendered page, with one limit: a formatting element left open in raw HTML (a
+> `<code>` never closed) is read as closed at the end of its block, where a browser opens it again. The page is
+> left as it is, reported to update by hand, its label still pending — never damaged.
+
+> [!NOTE] A few shapes Marked renders slowly
+> The kit reads a page in linear time, but Marked itself does not on a few shapes repeated over tens of thousands
+> of characters: emphasis marks never closed (`*a *a *a …`), `x <!-- a --!> ` again and again, lines alternating
+> with quote lines, or a paragraph cut by many `::` lines with no blank line. Such a page takes seconds — minutes
+> for the longest — to render, for `sync` as for `build`.
 
 > [!NOTE] Two labels with the same value, a screenshot on several pages
 > Two message keys with the same value cannot be told apart: a page that quotes it is listed — and rewritten by

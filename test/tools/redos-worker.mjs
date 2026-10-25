@@ -30,9 +30,10 @@ import { PROOF_REF, extractProofs } from "../../engine/sync/proofs.mjs";
 import { LABEL_PATTERNS, labelReader } from "../../engine/sync/labels.mjs";
 import { proseOf } from "../../engine/sync/prose.mjs";
 import { shownText, rendersAsBefore } from "../../engine/sync/html-text.mjs";
+import { decodeHtml } from "../../engine/core/html-references.mjs";
 import { parseEnv } from "../../engine/capture/masking.mjs";
 import { INLINE_SCRIPT, SCRIPT_END } from "../../engine/build/csp.mjs";
-import { PARAGRAPH_END } from "../../engine/build/markdown.mjs";
+import { BADGE_PATTERNS } from "../../engine/build/markdown.mjs";
 import { NETWORK_PATTERNS, LOCAL_SPEC } from "../../engine/facts/network.mjs";
 import {
   DECLARATION_PATTERNS,
@@ -414,6 +415,9 @@ const HTML_OPENINGS = [
   ...["", "<a ", '<a b="', "<a b='", "<a b=", "<!--", "<!-", "<!", "<?", "</", "</a ", "<script>", "<textarea>"],
   ...["<pre>", "<code>", "&", "&#", "&#x", "<plaintext>", "<!-- --!", "<p>x</p><wbr>"],
 ];
+/** What opens a character reference of HTML (engine/core/html-references.mjs): an ampersand, a numeric one, a legacy
+ * name (read without its semicolon), the longest name less its last letter; put before an input. */
+const REFERENCE_OPENINGS = ["", "&", "&#", "&#x", "&not", "&eacute", "&CounterClockwiseContourIntegra"];
 /** A label reader whose renderer reads the Markdown as HTML (no Marked here: the kit's own parts, measured alone),
  * fresh at each run so that no page is read from its cache. */
 const htmlLabels = () => labelReader((markdown) => markdown);
@@ -985,13 +989,27 @@ export const CHECKS = [
   // A rendered page: the text it shows, from every kind of opening; a rewrite checked against it, the label renamed in
   // some places and kept in others (every reading of the text followed, a few at a time).
   ["sync shownText", (s) => HTML_OPENINGS.reduce((n, p) => n + shownText(p + s).text.length, 0)],
+  // The references of a page's text and of an attribute's value, after each kind of opening.
+  [
+    "html references",
+    (s) => REFERENCE_OPENINGS.reduce((n, p) => n + decodeHtml(p + s).length + decodeHtml(p + s, true).length, 0),
+  ],
   // Many comments, each closed one way or the other: the next closing of each kind is searched once.
   [
     "sync shownText comments",
     (s) => shownText(s.split("").join("<!-- --!>")).text.length + shownText(s.split("").join("<!-- -->")).text.length,
   ],
-  // Where the kit's renderer looks for a directive to cut a paragraph: up to a blank line.
-  ...patternChecks("markdown", { PARAGRAPH_END }),
+  // The badges and claims of the kit's renderer, tried as Marked tries them: at each "[" of a text, after each kind
+  // of opening (a badge, a claim, a code of keys).
+  ...Object.entries(BADGE_PATTERNS).map(([n, re]) => [
+    `markdown ${n}`,
+    (s) =>
+      ["", "[[menu ", "[[verified ", "[[key "].reduce((count, p) => {
+        const text = p + s;
+        for (let i = text.indexOf("["); i !== -1; i = text.indexOf("[", i + 1)) if (re.test(text.slice(i))) count++;
+        return count;
+      }, 0),
+  ]),
   [
     "sync rendersAsBefore",
     (s) =>

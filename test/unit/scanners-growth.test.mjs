@@ -271,6 +271,40 @@ describe("the labels of the pages (engine/sync/labels.mjs)", () => {
     assert.equal(page.split("<p>").length - 1, 6400);
   });
 
+  // A paragraph ended by a heading, a rule or a fence, with no blank line: a directive is looked for in Marked's own
+  // paragraph only, line by line (it was looked for up to the next blank line, the rest of the page here).
+  test("the kit's renderer: paragraphs ended by a heading, a rule or a fence, never by a blank line", () => {
+    const render = createSyncRenderer({ root: KIT_ROOT, config: {} });
+    for (const [label, unit, tag] of [
+      ["renderer paragraphs cut by headings", (i) => `Some text.\n# Head ${i}\n`, "<h2"],
+      ["renderer paragraphs cut by rules", () => "Some text.\n***\n", "<hr>"],
+      ["renderer paragraphs cut by fences", () => "Some text.\n~~~\nx\n~~~\n", "<pre>"],
+    ]) {
+      const { found, n } = linearN(label, 300, (k) => Array.from({ length: k }, (_, i) => unit(i)).join(""), render);
+      assert.equal(found.split(tag).length - 1, n, label);
+    }
+  });
+
+  // One title again and again: a counter per slug (a suffix added again and again made each anchor longer than the one
+  // before); a badge never closed on a line, again and again: its text never runs over the next opening.
+  test("the kit's renderer: one heading repeated, and badges and claims opened on one line, never closed", () => {
+    const render = createSyncRenderer({ root: KIT_ROOT, config: {} });
+    const repeated = linearN(
+      "renderer one heading repeated",
+      100,
+      (k) => "## Parameters\n\nText.\n\n".repeat(k),
+      render,
+    );
+    assert.ok(repeated.found.includes(`id="parameters-${repeated.n}"`));
+    for (const [label, unit] of [
+      ["renderer badges opened", "[[menu "],
+      ["renderer claims opened", "[[verified a "],
+    ])
+      assert.ok(linear(label, 300, (k) => unit.repeat(k), render).startsWith("<p>[["), label);
+    const blanks = linear("renderer blanks after a badge's kind", 2000, (k) => "[[menu" + " ".repeat(k) + "x", render);
+    assert.ok(blanks.startsWith("<p>[[menu"), "never closed: text");
+  });
+
   test("replaceLabel, citesLabel: one page of thousands of paragraphs, rewritten and checked", () => {
     const paragraph = "Click **Approve**, then «Approve» — the `Approve` button.\n\n";
     const { found, n } = linearN(

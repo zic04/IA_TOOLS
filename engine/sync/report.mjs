@@ -6,7 +6,7 @@ import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText, dependencyFile } from "./dependencies.mjs";
 import { extractProofs, locateProof, proofFile, PROOF_REF } from "./proofs.mjs";
-import { readFlatLabels } from "./labels.mjs";
+import { labelFiles, readFlatLabels } from "./labels.mjs";
 import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
@@ -156,12 +156,16 @@ function allLabelValues(reference) {
 
 /** `labels`: no page attribution is stored, so this is computed once, globally — every written page still citing
  * a recorded value that changed (or whose key disappeared), where it does not hold the new value. A message file that
- * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then.
+ * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then. Every file followed
+ * now (labelFiles) is read too, not only the recorded ones: one that could not be read when the documentation was
+ * marked has nothing recorded, and would never be said otherwise.
  * @param {import("./labels.mjs").LabelReader} labels */
-function labelChanges(root, reference, written, labels) {
+function labelChanges(root, config, reference, written, labels) {
   const out = [];
   const unreadable = [];
-  for (const [file, entries] of Object.entries(reference?.labels || {})) {
+  const recorded = reference?.labels || {};
+  for (const file of [...new Set([...Object.keys(recorded), ...labelFiles(root, config)])].sort()) {
+    const entries = recorded[file] || {};
     // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
     const flatNow = readFlatLabels(path.resolve(root, file));
     if (!flatNow) {
@@ -296,7 +300,7 @@ export async function compareWithReference({
 
   const { labels: labelsOut, unreadable } = since
     ? { labels: [], unreadable: [] }
-    : labelChanges(root, reference, written, labels);
+    : labelChanges(root, config, reference, written, labels);
   const pagesWithLabelIssue = new Set(labelsOut.flatMap((l) => l.pages));
   const labelValues = allLabelValues(reference);
 
