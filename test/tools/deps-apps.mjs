@@ -7,12 +7,13 @@
 //   unproven  a name no lock proves (a manifest alone, a lock that proves nothing): kept back, `unproven: true`;
 //   local     an item a manifest or a lock took from elsewhere than a public registry (`local: true`);
 //   private   a name the second net keeps back (a place, an own name, a declaration): `private: true`;
+//   listed    a name the configuration lists (`facts.network.allow`, "npm:react"); any other is `unlisted: true`;
 //   sent      the names `--network` asks a registry for, as "npm react" or "pip fastapi".
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { collectDependencies } from "../../engine/facts/dependencies.mjs";
-import { checkExistence, privateRegistries } from "../../engine/facts/network.mjs";
+import { checkExistence, networkCandidates, privateRegistries } from "../../engine/facts/network.mjs";
 import { tempDir } from "./helpers.mjs";
 
 /** Writes `files` (relative path → text, a Buffer written as its bytes, or JSON) under a new folder; its path. */
@@ -35,25 +36,46 @@ export async function withApp(files, fn) {
   }
 }
 
-/** The `ecosystem name` of a URL the gateway requested (npm's encoded name decoded, PyPI's JSON URL). */
+/**
+ * The `ecosystem name` of a URL the gateway requested (npm's latest version's document, its encoded name decoded;
+ * PyPI's JSON URL); any other URL is `? <url>`.
+ */
 export function sentName(url) {
-  const npm = "https://registry.npmjs.org/";
-  if (url.startsWith(npm)) return `npm ${decodeURIComponent(url.slice(npm.length))}`;
+  const npm = /^https:\/\/registry\.npmjs\.org\/([^/]+)\/latest$/.exec(url);
+  if (npm) return `npm ${decodeURIComponent(npm[1])}`;
   const pip = /^https:\/\/pypi\.org\/pypi\/([^/]+)\/json$/.exec(url);
   return pip ? `pip ${pip[1]}` : `? ${url}`;
 }
 
 /**
- * What `--network` does for an application made of `files`: `sent`, the names it asks a registry for (sorted);
- * `kept`, why each other direct name stays back ("private" before "unproven" when manifests disagree); `items`, the
- * items read; `unreadable`, the files that could not be read; `urls`, the requests as made.
- * `proof`: "locks" (as it is: only what a lock proves) or "all" (every item marked proven: what keeps a name back is
- * then the second net alone). `env`: the person's variables (none by default); `home`: files written in a home folder
- * given as HOME and USERPROFILE.
- * @param {Record<string, unknown>} files
- * @param {{ proof?: "locks"|"all", env?: Record<string, string>, home?: Record<string, unknown> }} [options]
+ * Every name of `items` as the configuration would list it (`facts.network.allow`): "npm:<name>", "pip:<name>" — the
+ * other ecosystems have no registry `--network` asks.
+ * @param {Array<{ name: string, ecosystem: string }>} items
  */
-export async function network(files, { proof = "locks", env = {}, home } = {}) {
+export const listEvery = (items) =>
+  items.filter((i) => i.ecosystem === "npm" || i.ecosystem === "pip").map((i) => `${i.ecosystem}:${i.name}`);
+
+/** Why a direct item was kept back: the strongest reason first, when manifests disagree. */
+const REASONS = ["private", "unproven", "unlisted"];
+
+/**
+ * What `--network` does for an application made of `files`: `sent`, the names it asks a registry for (sorted);
+ * `kept`, why each other direct name stays back ("private" before "unproven" before "unlisted" when manifests
+ * disagree); `items`, the items read; `unreadable`, the files that could not be read; `urls`, the requests as made.
+ * `proof`: "locks" (as it is: only what a lock proves) or "all" (every item marked proven: what keeps a name back is
+ * then the second net alone). `allow`: the configuration's list (`facts.network.allow`), or "every" (the default: every
+ * name read is listed, so that what keeps a name back is the proof and the second net, the nets these tests are about;
+ * the list itself: facts-network-allow.test.mjs). `env`: the person's variables (none by default); `home`: files
+ * written in a home folder given as HOME and USERPROFILE. `answer(url)`: what the spy registry answers (by default a
+ * 200 with no body).
+ * @param {Record<string, unknown>} files
+ * @param {{ proof?: "locks"|"all", allow?: "every"|string[], env?: Record<string, string>,
+ *   home?: Record<string, unknown>, answer?: (url: string) => unknown }} [options]
+ */
+export async function network(
+  files,
+  { proof = "locks", allow = "every", env = {}, home, answer = () => ({ ok: true, status: 200 }) } = {},
+) {
   const homeDir = home ? app(home) : null;
   try {
     return await withApp(files, async (dir) => {
@@ -61,17 +83,19 @@ export async function network(files, { proof = "locks", env = {}, home } = {}) {
       const items = collectDependencies(dir, unreadable);
       const judged = proof === "all" ? items.map((i) => ({ ...i, public: true })) : items;
       const fullEnv = homeDir ? { HOME: homeDir, USERPROFILE: homeDir, ...env } : env;
+      const listed = allow === "every" ? listEvery(items) : allow;
+      const registries = privateRegistries(dir, { items: judged, env: fullEnv, allow: listed });
       const urls = [];
-      const out = await checkExistence(judged, async (url) => (urls.push(url), { ok: true, status: 200 }), {
-        registries: privateRegistries(dir, { items: judged, env: fullEnv }),
-      });
+      const out = await checkExistence(judged, async (url) => (urls.push(url), answer(url)), { registries });
       const kept = {};
       for (const item of out) {
-        if (!item.private && !item.unproven) continue;
+        const reason = REASONS.find((r) => item[r]);
+        if (!reason) continue;
         const key = `${item.ecosystem} ${item.name}`;
-        if (kept[key] !== "private") kept[key] = item.private ? "private" : "unproven";
+        if (!kept[key] || REASONS.indexOf(reason) < REASONS.indexOf(kept[key])) kept[key] = reason;
       }
-      return { sent: [...new Set(urls.map(sentName))].sort(), kept, items, out, unreadable, urls };
+      const candidates = networkCandidates(judged, registries);
+      return { sent: [...new Set(urls.map(sentName))].sort(), kept, items, out, unreadable, urls, candidates };
     });
   } finally {
     if (homeDir) fs.rmSync(homeDir, { recursive: true, force: true });

@@ -5,6 +5,7 @@ import { readText, readJson, readBeside } from "./read.mjs";
 import { withVia } from "./graph.mjs";
 import { workspaceFolders } from "./workspaces.mjs";
 import { LOCAL_SPEC } from "../network.mjs";
+import { npmLicence } from "./licences.mjs";
 
 /**
  * What tells an npm package that is not from a public registry (`local: true`, never sent by network.mjs). The
@@ -448,6 +449,8 @@ function fromLockPackages(packages, manifest, abs) {
       continue;
     }
     graph.set(m[1], dependsOn(info));
+    // Its licence as the lock wrote it, through the licences' allowlist (deps/licences.mjs): a text, never an object.
+    const license = npmLicence(info);
     const item = {
       name: m[1],
       version: info.version,
@@ -455,7 +458,7 @@ function fromLockPackages(packages, manifest, abs) {
       direct: direct.has(m[1]),
       dev: !!info.dev || devOnly(declared, m[1]),
       manifest,
-      ...(info.license ? { license: info.license } : {}),
+      ...(license ? { license, licenseFrom: "lock" } : {}),
       ...(local ? { local } : {}),
     };
     out.push(item);

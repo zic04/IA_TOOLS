@@ -2,9 +2,10 @@
 // with the function that collects it. The CLI (cli/commands/facts.mjs) and, later, the bricks read this list; a new
 // source is one entry here (and its module), never a new branch in a command.
 // `collect` receives the seams of the run: the application folder, `exec` (external programs, git), `fetch` (only
-// with --network), the configuration, `network` — null, or `{ registries }`: what is private and never sent
-// (AUDIT.md S13, engine/facts/network.mjs) — and `stacks` and `infra`, the stack and infra adapters of the run
-// (engine/facts/stacks.mjs, infra.mjs; the kit's when not given).
+// with --network), the configuration, `network` — null, or `{ registries, answers }`: what is private and never sent
+// (AUDIT.md S13, engine/facts/network.mjs), and the registries' answers of the run, by package, shared by the sources
+// (one request a package between `dependencies` and `quality`) — and `stacks` and `infra`, the stack and infra
+// adapters of the run (engine/facts/stacks.mjs, infra.mjs; the kit's when not given).
 import { collectDependencies } from "./dependencies.mjs";
 import { collectEnv } from "./env.mjs";
 import { collectApi, collectScreens } from "./api.mjs";
@@ -25,7 +26,8 @@ import { checkExistence } from "./network.mjs";
  * @typedef {{ appDir: string,
  *   exec: (bin: string, args: string[], options?: any) => ({ status: any, stdout: any, stderr?: any }|null),
  *   fetch?: (url: string, options?: any) => Promise<any>, config: any,
- *   network: { registries: ReturnType<typeof import("./network.mjs").privateRegistries> }|null,
+ *   network: { registries: ReturnType<typeof import("./network.mjs").privateRegistries>,
+ *     answers?: Map<string, Promise<any>> }|null,
  *   stacks?: readonly import("./stacks.mjs").StackAdapter[], infra?: readonly import("./infra.mjs").InfraAdapter[] }} Seams
  * @typedef {{ items: Array<object>, extra?: object, unreadable?: Array<{ file: string, reason: string }> }} Collected
  */
@@ -43,9 +45,11 @@ const FACT_SOURCES = Object.freeze([
     async collect({ appDir, fetch, network }) {
       const unreadable = [];
       const items = collectDependencies(appDir, unreadable);
-      // --network: does each direct, public dependency exist in its registry (never a private name).
+      // --network: what each direct, public dependency's registry says of it (never a private name).
       return {
-        items: network ? await checkExistence(items, fetch, { registries: network.registries }) : items,
+        items: network
+          ? await checkExistence(items, fetch, { registries: network.registries, answers: network.answers })
+          : items,
         unreadable,
       };
     },
@@ -73,6 +77,7 @@ const FACT_SOURCES = Object.freeze([
         fetch: network ? fetch : undefined,
         dependencies: collectDependencies(appDir),
         registries: network?.registries,
+        answers: network?.answers,
       });
       return { items, extra: { summary }, unreadable };
     },

@@ -216,7 +216,7 @@ function gateway({ items, out, urls, gateway: errors }) {
       if (o !== i) return { id: "I3", detail: `a non-direct item changed: ${i.name}` };
       continue;
     }
-    const flags = [o.private === true, o.unproven === true].filter(Boolean).length;
+    const flags = [o.private === true, o.unproven === true, o.unlisted === true].filter(Boolean).length;
     if (flags > 1 || (flags === 1 && o.exists !== null) || (flags === 0 && o.exists !== true))
       return {
         id: "I3",

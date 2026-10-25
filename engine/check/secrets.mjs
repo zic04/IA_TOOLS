@@ -136,6 +136,18 @@ const BUILT_IN_RULES = ignoreRules();
 export const SECRET_FILE =
   /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|\.htpasswd|credentials(\.json)?|client_secret(_[\w.-]+)?\.json|kubeconfig(\.ya?ml)?|appsettings\..+\.json(\.bak)?|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p8|p12|pfx|jks|keystore|kdbx|ppk|ovpn|gpg|kubeconfig|tfvars|tfvars\.json|tfstate|tfstate\.backup))$/i;
 
+/**
+ * Whether a value detector of GENERIC finds something in a short text from an untrusted source (a version, a
+ * licence, a hint read in the code): the one test of the readers that keep such a text only when it holds no secret.
+ * @param {string} text
+ */
+export const looksSecret = (text) =>
+  GENERIC.some((d) => {
+    d.re.lastIndex = 0;
+    for (const m of text.matchAll(d.re)) if (!d.accept || d.accept(m)) return true;
+    return false;
+  });
+
 /** First characters and length of a value, never the value itself. */
 export function redact(value) {
   const v = String(value);
