@@ -247,11 +247,14 @@ La route accepte tout utilisateur connecté, de n'importe quelle région ([[veri
 appelants passent bien par elle d'abord est [[inconnu]].
 ```
 
-Une source inconnue (`facts.missing`) ou une colonne qu'aucun élément ne possède (`facts.column`) fait échouer un
-build strict ; lancez d'abord `doc-kit facts`. [Commandes : écrire et vérifier](#/reference/cli/write-check~doc-kit-facts)
-liste les sept sources. Les dix types de pages de reprise ([Les gabarits de page](#/write/page-templates)) sont
-construits autour de ces deux syntaxes : [Exemple · Surface d'API](#/examples/api-surface), [Exemple ·
-Dépendances](#/examples/dependencies) et les autres exemples de la reprise les montrent dans une vraie page.
+Une source qui n'est pas le nom d'un fichier de faits (`facts.source` : minuscules, chiffres et tirets, jamais un
+chemin), une source inconnue (`facts.missing` : lancez d'abord `doc-kit facts`) ou une colonne qu'aucun élément ne
+possède (`facts.column`) fait échouer un build strict, tout comme un `::schema` dont l'`id` n'est pas le nom d'un
+fichier SVG de `diagrams/` (`diagram.id`, la même règle). [Commandes : écrire et
+vérifier](#/reference/cli/write-check~doc-kit-facts) liste les sept sources. Les dix types de pages de reprise
+([Les gabarits de page](#/write/page-templates)) sont construits autour de ces deux syntaxes : [Exemple · Surface
+d'API](#/examples/api-surface), [Exemple · Dépendances](#/examples/dependencies) et les autres exemples de la
+reprise les montrent dans une vraie page.
 
 ## Liens
 

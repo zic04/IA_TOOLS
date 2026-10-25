@@ -5,7 +5,7 @@
 // engine/build/c4-deployment.mjs, from facts/infra.json). A missing facts file is a strict
 // `facts.missing`; an empty view says so in the page. One function per directive, chosen through RENDERERS: a new
 // view drawn from the facts is one more entry, never a new branch in the Markdown engine.
-import { esc } from "../core/text.mjs";
+import { esc, isPlainName } from "../core/text.mjs";
 import { renderErd } from "./erd.mjs";
 import { renderModules, renderHotspots, renderHealth, limitOf } from "./developer.mjs";
 import { systemModel, renderC4 } from "./c4.mjs";
@@ -99,6 +99,11 @@ function factsCell(value) {
 /** ::facts{source columns}: a table of the items of facts/<source>.json. */
 function factsTable(env, tk) {
   const source = tk.a.source || "";
+  // The name of a facts file, never a path: "../../x" would read a JSON file outside the project.
+  if (source && !isPlainName(source)) {
+    env.signal(true, "facts.source", { source });
+    return "";
+  }
   const data = source ? readFactsFile(env, source) : null;
   if (!data) {
     env.signal(true, "facts.missing", { source, file: `${env.paths.facts}/${source}.json` });

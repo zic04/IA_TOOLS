@@ -4,6 +4,7 @@
 //   coverage: [{ adapter: "fastapi", app: "../../backend", exclude: ["^GET /health$"] }]
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
 import { fastapiRoutes } from "../stack/fastapi.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
 
 export default {
   name: "fastapi",
@@ -16,10 +17,11 @@ export default {
     if (!tools.exists(options.app)) return { available: false, reason: "notFound", vars: { path: options.app } };
     const files = tools.walk(options.app).filter((f) => f.endsWith(".py"));
     const sources = new Map(files.map((f) => [f, tools.read(`${options.app}/${f}`)]));
-    const items = fastapiRoutes(sources).map((r) => ({
-      id: `${r.method} ${r.route}`,
-      match: routeMatches(r.route).map((x) => `${r.method} ${x}`),
-    }));
+    const items = fastapiRoutes(sources).map((r) => {
+      // A segment that looks like a key or a token is "…", as the `api` facts write it (RULES.md S7).
+      const route = routeWithoutSecrets(r.route);
+      return { id: `${r.method} ${route}`, match: routeMatches(route).map((x) => `${r.method} ${x}`) };
+    });
     return { available: true, families: [{ name: options.family, items: excludeItems(items, options.exclude) }] };
   },
 };

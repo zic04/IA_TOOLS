@@ -2,11 +2,10 @@
 // own files (never a value — only where a pattern was found).
 //   item: { rule, file, line, severity, owasp, sanitized? }  sanitized: true only for an xss.* finding whose
 //     expression passes through a sanitizer (severity then downgraded to "low").
-import fs from "node:fs";
 import path from "node:path";
 import { balancedParens } from "./api.mjs";
 import { textIndex } from "./behaviour-common.mjs";
-import { appFiles } from "./common.mjs";
+import { appFiles, confinedReader } from "./common.mjs";
 
 const BINARY_EXT = new Set([
   ".png",
@@ -293,29 +292,19 @@ export const RULES = Object.freeze([
 
 /**
  * The `security` source: deterministic OWASP Top 10 2021 heuristics (ARCHITECTURE.md §6.13), over the files
- * tracked by git (else every file but the usual build and dependency folders). Never a value.
+ * tracked by git (else every file but the usual build and dependency folders), never through a link out of the
+ * application (confinedReader). Never a value.
  * @param {string} appDir
  * @param {(bin: string, args: string[], options?: object) => {status,stdout}|null} [exec]  test seam of §4
  * @returns {Array<{rule,file,line,severity,owasp}>} sorted by file, then line, then rule
  */
 export function collectSecurity(appDir, exec) {
   const items = [];
+  const read = confinedReader(appDir, { maxSize: MAX_SIZE });
   for (const rel of appFiles(appDir, { exec })) {
     if (BINARY_EXT.has(path.extname(rel).toLowerCase())) continue;
-    const abs = path.join(appDir, rel);
-    let stat;
-    try {
-      stat = fs.statSync(abs);
-    } catch {
-      continue;
-    }
-    if (!stat.isFile() || stat.size > MAX_SIZE) continue;
-    let text;
-    try {
-      text = fs.readFileSync(abs, "utf8");
-    } catch {
-      continue;
-    }
+    const text = read(rel);
+    if (text === null) continue;
     for (const { rule, owasp, severity, find } of RULES)
       for (const entry of find(text)) {
         const e = typeof entry === "object" ? entry : { line: entry };

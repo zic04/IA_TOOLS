@@ -17,7 +17,7 @@
 // The generated markup (CSS classes, data-* attributes) is the historical one: app.js, style.css and the
 // equivalence tests depend on it.
 import { Marked } from "marked";
-import { esc, attrs, plainText, slug } from "../core/text.mjs";
+import { esc, attrs, plainText, slug, isPlainName } from "../core/text.mjs";
 import { renderUsage, USAGE_VIEWS } from "../stats/render.mjs";
 import { createFactDirectives } from "./fact-directives.mjs";
 import { createProductBlocks, PRODUCT_CONTAINERS, PRODUCT_ATTRIBUTES } from "./markdown-product.mjs";
@@ -227,6 +227,27 @@ export function createMarkdownEngine({
     };
   }
 
+  /** ::diagram{id title}: the SVG file of the diagrams folder inlined, without its XML prologue. */
+  function diagramFigure(tk) {
+    // The name of an SVG file of the diagrams folder, never a path: "../.." would read outside the project.
+    const id = tk.a.id ?? "";
+    if (!isPlainName(id)) {
+      signal(true, "diagram.id", { id });
+      return "";
+    }
+    const f = `${paths.diagrams}/${id}.svg`;
+    if (!exists(f)) {
+      signal(true, "diagram.notFound", { file: f });
+      return "";
+    }
+    usedDiagrams.add(id);
+    ctx.used.diagrams.add(id);
+    const svg = read(f)
+      .replace(/<\?xml[^>]*>/, "")
+      .trim();
+    return `<figure class="schema">${svg}${tk.a.title ? `<figcaption>${esc(tk.a.title)}</figcaption>` : ""}</figure>`;
+  }
+
   function zonesHtml(c) {
     return (c.zones || [])
       .map(
@@ -266,19 +287,7 @@ export function createMarkdownEngine({
         }
         return renderUsage(usage, view, { t, esc, prices: llm.prices || {}, currency: llm.currency || null, locale });
       }
-      if (tk.kind === "diagram") {
-        const f = `${paths.diagrams}/${tk.a.id}.svg`;
-        if (!exists(f)) {
-          signal(true, "diagram.notFound", { file: f });
-          return "";
-        }
-        usedDiagrams.add(tk.a.id);
-        ctx.used.diagrams.add(tk.a.id);
-        const svg = read(f)
-          .replace(/<\?xml[^>]*>/, "")
-          .trim();
-        return `<figure class="schema">${svg}${tk.a.title ? `<figcaption>${esc(tk.a.title)}</figcaption>` : ""}</figure>`;
-      }
+      if (tk.kind === "diagram") return diagramFigure(tk);
       if (tk.kind === "capture") {
         const img = captureImage(tk.a.id, tk.a.title);
         if (!img.ok) return img.html;
@@ -399,7 +408,7 @@ export function createMarkdownEngine({
         ctx.slugs.add(id);
         ctx.toc.push({ id, title: plainText(html), level: Math.max(2, depth) });
         const n = Math.max(2, depth);
-        return `<h${n} id="${id}">${html}<a class="ancre" href="#/${ctx.pageId}~${id}" aria-label="${esc(t("render.sectionLink"))}">#</a></h${n}>\n`;
+        return `<h${n} id="${id}">${html}<a class="ancre" href="#/${esc(ctx.pageId)}~${id}" aria-label="${esc(t("render.sectionLink"))}">#</a></h${n}>\n`;
       },
       link({ href }) {
         if (href && href.startsWith("#/")) ctx.links.push(href);

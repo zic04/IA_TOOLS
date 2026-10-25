@@ -9,6 +9,7 @@
 //   from the `route.ts|js` files of the same `app` folder: no change to the page family when it is left out.
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
 import { nextRouteMethods } from "../stack/next.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
 
 const PAGE = /(^|\/)page\.(tsx|ts|jsx|js|mdx)$/;
 const ROUTE_HANDLER = /(^|\/)route\.(ts|js|tsx|jsx)$/;
@@ -37,19 +38,22 @@ export default {
   async inventory({ options, tools }) {
     if (!tools.exists(options.app)) return { available: false, reason: "notFound", vars: { path: options.app } };
     const files = tools.walk(options.app);
+    // A segment that looks like a key or a token is "…", as the `screens` and `api` facts write it (RULES.md S7).
     const routes = new Set(
       files
         .filter((f) => PAGE.test(f))
         .map(routeOf)
-        .filter((r) => r !== null),
+        .filter((r) => r !== null)
+        .map(routeWithoutSecrets),
     );
     const items = [...routes].sort().map((id) => ({ id, match: routeMatches(id) }));
     const families = [{ name: options.family, items: excludeItems(items, options.exclude) }];
     if (options.api) {
       const apiItems = [];
       for (const f of files.filter((f) => ROUTE_HANDLER.test(f))) {
-        const route = routeOf(f);
-        if (route === null) continue;
+        const found = routeOf(f);
+        if (found === null) continue;
+        const route = routeWithoutSecrets(found);
         const source = tools.read(`${options.app}/${f}`);
         for (const method of nextRouteMethods(source))
           apiItems.push({ id: `${method} ${route}`, match: routeMatches(route).map((r) => `${method} ${r}`) });

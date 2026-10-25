@@ -1,0 +1,9 @@
+<settings>
+  <servers>
+    <server>
+      <id>nexus</id>
+      <username>deploy</username>
+      <password>Nexus2024Deploy</password>
+    </server>
+  </servers>
+</settings>

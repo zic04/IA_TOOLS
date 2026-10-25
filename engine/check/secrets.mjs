@@ -5,11 +5,16 @@
 //            user or secret (the values masked in the screenshots)
 //   guid     GUIDs, when masking.guid is true (the nil GUID 00000000-… is allowed)
 //   pattern  the masking.patterns expressions
-//   generic  actual secret VALUES only, never a mere mention: a PEM private key block holding base64 key
-//            material (a "-----BEGIN PRIVATE KEY-----" line alone is documentation), a JWT, the password of a
-//            connection string or of a URL, a cloud access key, the value of a key/token/password assignment, the
-//            signature of a signed URL; placeholders ("<password>", "****", "${SECRET}", "example", "exemple",
-//            "motdepasse", an UPPER_CASE variable name…) are not values
+//   generic  actual secret VALUES only, never a mere mention: a private key holding key material (PEM, escaped in
+//            a JSON file, PGP, PuTTY; a "-----BEGIN PRIVATE KEY-----" line alone is documentation), a JWT, the
+//            password of a connection string or of a URL, a cloud or service token, the value of an assignment to a
+//            secret's name (SECRET_KEY, DB_PASSWORD…: any value of 8 characters or more, assignedPassword) or of an
+//            XML element or setting named so, the signature of a signed URL, then the two value rules of 0.4.1 as a
+//            floor (what it found is still found), and last a random-looking value under any name (entropy);
+//            placeholders ("<password>", "****", "${SECRET}", "example", "exemple", "motdepasse",
+//            "change-me", an UPPER_CASE variable name, a shell default…) and references written as code
+//            ($DB_PASSWORD, config.password, getPassword()) are not values (engine/check/secret-values.mjs: GENERIC,
+//            re-exported here); a value two detectors find is reported once
 // Never reported (ignoreRules), whatever the detector:
 //   local      an address that means nothing outside the machine or the private network: 0.0.0.0, ::, loopback
 //              (localhost, 127.x, ::1), private and link-local ranges (10.x, 172.16-31.x, 192.168.x, 169.254.x),
@@ -26,10 +31,9 @@ import { sensitiveValues, GUID } from "../capture/masking.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
 import { spawnHardened } from "../util/safe-git.mjs";
 import { upToLast } from "../core/text.mjs";
+import { PLACEHOLDER, GENERIC, looksRandom, highEntropy } from "./secret-values.mjs";
 
-/** A placeholder, a variable name or a masked value: not a secret. */
-export const PLACEHOLDER =
-  /^(?:x+|\*+|•+|\.+|0+|_+|-+)$|example|exemple|placeholder|your|votre|changeme|masked|redacted|dummy|sample|mot[-_ ]?de[-_ ]?passe|[<>{}]|\$\(|\.\.\.|…|process\.env|import\.meta|os\.environ/i;
+export { PLACEHOLDER, GENERIC, looksRandom, highEntropy };
 
 /** Hosts that mean nothing outside the machine or the private network. */
 const LOCAL_HOST =
@@ -125,45 +129,14 @@ export function ignoreRules(masking = {}) {
   };
 }
 const BUILT_IN_RULES = ignoreRules();
-const VARIABLE_NAME = /^[A-Z][A-Z0-9_]*$/;
-const isValue = (v) => !!v && !PLACEHOLDER.test(v) && !VARIABLE_NAME.test(v);
-/** Files never exported nor read for a page, at any depth: environment files, keys and certificates, tool credentials. */
+/**
+ * Files never exported nor read for a page, at any depth: environment files, keys and certificates (`*.p8` too),
+ * tool credentials (`.htpasswd`, a Google OAuth `client_secret*.json`, a `kubeconfig`), Terraform state and variables
+ * (`*.tfvars`), PuTTY keys, VPN profiles, encrypted files, the settings of an environment (appsettings.*.json, and
+ * its `.bak` copy).
+ */
 export const SECRET_FILE =
-  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p12|pfx|jks|keystore|kdbx))$/i;
-
-/** A value that looks generated (letters and digits, varied), not a word: a key, a token. */
-export const looksRandom = (v) => isValue(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && new Set(v).size > 5;
-
-/** Value detectors: `re` (group `v` = the value, else the whole match) and an optional `accept(match)`. */
-export const GENERIC = Object.freeze([
-  {
-    kind: "privateKey",
-    re: /-----BEGIN ([A-Z0-9 ]*?)PRIVATE KEY-----[ \t]*\r?\n(?<v>(?:[ \t]*(?:(?:[A-Za-z0-9+/=]+|[A-Za-z-]+:[^\n]*)[ \t]*)?\r?\n)+?)[ \t]*-----END \1PRIVATE KEY-----/g,
-    accept: (m) => m.groups.v.replace(/^[A-Za-z-]+:.*$/gm, "").replace(/\s/g, "").length >= 40,
-  },
-  { kind: "jwt", re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
-  {
-    kind: "connectionString",
-    re: /\b(?:AccountKey|SharedAccessKey|Password|Pwd)\s*=\s*(?<v>[^;\s"'`]{6,})/gi,
-    accept: (m) => isValue(m.groups.v),
-  },
-  {
-    kind: "credentialsUrl",
-    // A scheme of 32 characters at most: from each word of "a-a-a…", never a run to the end of the text.
-    re: /\b[a-z][a-z0-9+.-]{0,31}:\/\/[^\s:@/"'<>`]+:(?<v>[^\s@/"'`]{3,})@[^\s"'<>`]+/gi,
-    accept: (m) => isValue(m.groups.v) && !/^pass(word)?$/i.test(m.groups.v),
-  },
-  {
-    kind: "cloudKey",
-    re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{36,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bsk-[A-Za-z0-9_-]{20,}|\bAIza[0-9A-Za-z_-]{35}\b|\b[sr]k_(?:live|test)_[0-9A-Za-z]{16,}\b|\bwhsec_[0-9A-Za-z]{24,}\b/g,
-  },
-  {
-    kind: "assignment",
-    re: /\b(?:api[_-]?key|secret|token|password|passwd|client[_-]?secret|access[_-]?key)\b["']?\s*[:=]\s*["']?(?<v>[A-Za-z0-9_\-+/=.]{16,})/gi,
-    accept: (m) => looksRandom(m.groups.v),
-  },
-  { kind: "signedUrl", re: /[?&]sig=(?<v>[A-Za-z0-9%+/=]{20,})/g },
-]);
+  /^(\.env(\..*)?|\.envrc|\.npmrc|\.pypirc|\.netrc|\.git-credentials|\.htpasswd|credentials(\.json)?|client_secret(_[\w.-]+)?\.json|kubeconfig(\.ya?ml)?|appsettings\..+\.json(\.bak)?|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|.*\.(pem|key|p8|p12|pfx|jks|keystore|kdbx|ppk|ovpn|gpg|kubeconfig|tfvars|tfvars\.json|tfstate|tfstate\.backup))$/i;
 
 /**
  * Whether a value detector of GENERIC finds something in a short text from an untrusted source (a version, a
@@ -230,16 +203,28 @@ export function scanText(text, list, ignore = BUILT_IN_RULES) {
       token = { ...tokenAround(text, m.index, end), whole };
     return token.text;
   };
-  for (const d of list) {
+  // A fallback detector (entropy) runs last and only reports a line no other detector reported; another detector
+  // does not report a value one before it reported (a Google key as a key's assignment too): one finding per secret,
+  // under its most precise kind.
+  const reported = new Set();
+  const values = new Set();
+  for (const d of [...list.filter((x) => !x.fallback), ...list.filter((x) => x.fallback)]) {
     d.re.lastIndex = 0;
-    for (const m of text.matchAll(new RegExp(d.re.source, d.re.flags.includes("g") ? d.re.flags : d.re.flags + "g"))) {
+    const flags = [...new Set(`${d.re.flags}gd`)].join("");
+    for (const m of text.matchAll(new RegExp(d.re.source, flags))) {
       if ((d.allow && d.allow.test(m[0])) || (d.accept && !d.accept(m))) continue;
+      const line = lineOf(m.index);
+      if (d.fallback && reported.has(line)) continue;
+      const at = m.indices?.groups?.v?.[0] ?? m.index;
+      if (values.has(at)) continue;
       const value = m.groups?.v ?? m[0];
       if (ignore(value.trim(), tokenOf(m))) continue;
+      if (!d.fallback) reported.add(line);
+      values.add(at);
       out.push({
         kind: d.kind,
         preview: redact(value.trim()),
-        line: lineOf(m.index),
+        line,
         ...(d.key ? { key: d.key, file: d.file } : {}),
       });
     }
@@ -338,13 +323,113 @@ const walk = (dir, filter, skip = new Set(["node_modules", ".git"])) => {
   });
 };
 
-/** Is this JSON text a Playwright storageState (a sign-in session)? */
+/** A cookie of a session (its name, value and domain, in any order); an origin with its local storage. */
+const isCookie = (c) => !!c && typeof c === "object" && "name" in c && "value" in c && "domain" in c;
+const isOrigin = (o) => !!o && typeof o === "object" && "origin" in o && Array.isArray(o.localStorage);
+
+/**
+ * Is this JSON text a sign-in session, a byte order mark before it or not: a Playwright storageState (`cookies` and
+ * `origins`, two lists), or a list of cookies or of origins of a session's shape alone (a cookie jar)?
+ */
 export function isStorageState(text) {
   try {
-    const j = JSON.parse(text);
-    return !!j && Array.isArray(j.cookies) && Array.isArray(j.origins);
+    const j = JSON.parse(String(text).replace(/^\uFEFF/, ""));
+    if (!j || typeof j !== "object" || Array.isArray(j)) return false;
+    const cookies = Array.isArray(j.cookies);
+    const origins = Array.isArray(j.origins);
+    return (cookies && origins) || (cookies && isCookie(j.cookies[0])) || (origins && isOrigin(j.origins[0]));
   } catch {
     return false;
+  }
+}
+
+/**
+ * How a storageState starts: an object whose first key, "cookies" or "origins", holds an array (`\s` takes a byte
+ * order mark too). Linear: anchored, blanks between fixed characters.
+ */
+export const SESSION_HEAD = /^\s*\{\s*"(cookies|origins)"\s*:\s*\[\s*/;
+/** The other key of a storageState. */
+const OTHER_KEY = { cookies: "origins", origins: "cookies" };
+const BLANK_CHAR = new Set([" ", "\t", "\n", "\r", "\uFEFF"]);
+
+/**
+ * The keys of a JSON text's top-level object that hold an array, read in a head that may be cut anywhere: the depth
+ * of the JSON is followed, so that a key of a nested object (`{"cookies": [{"origins": [`) is never one. Linear: one
+ * pass over the characters, no expression (RULES.md S5).
+ * @param {string} head
+ * @returns {Set<string>}
+ */
+function topLevelArrayKeys(head) {
+  const keys = new Set();
+  let depth = 0;
+  /** The last string closed in the top-level object, until its ":"; then the key waiting for its value. */
+  let key = null;
+  let valueOf = null;
+  for (let i = 0; i < head.length; i++) {
+    const c = head[i];
+    if (c === '"') {
+      const start = i + 1;
+      for (i++; i < head.length && head[i] !== '"'; i++) if (head[i] === "\\") i++;
+      if (depth === 1) key = valueOf === null ? head.slice(start, i) : null;
+      valueOf = null;
+    } else if (c === ":" && depth === 1 && key !== null) {
+      valueOf = key;
+      key = null;
+    } else if (c === "[" || c === "{") {
+      if (depth === 1 && valueOf !== null && c === "[") keys.add(valueOf);
+      valueOf = null;
+      depth++;
+    } else if (c === "]" || c === "}") depth--;
+    else if (!BLANK_CHAR.has(c)) key = valueOf = null;
+  }
+  return keys;
+}
+/** A JSON string. Linear: a character or an escape, never both. */
+const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`;
+/** The first item of a storageState's list as Playwright writes it: a cookie (name, value, domain), an origin. */
+const SESSION_ITEM = {
+  cookies: new RegExp(
+    String.raw`^\{\s*"name"\s*:\s*${JSON_STRING}\s*,\s*"value"\s*:\s*${JSON_STRING}\s*,\s*"domain"\s*:`,
+  ),
+  origins: new RegExp(String.raw`^\{\s*"origin"\s*:\s*${JSON_STRING}\s*,\s*"localStorage"\s*:\s*\[`),
+};
+/** A file up to this size is parsed whole to tell a session (as `check secrets` read one before); a longer one by its head. */
+const SESSION_PARSE_BYTES = 5 * 1024 * 1024;
+/** What is read of a longer file: a session of local storage can weigh megabytes. */
+const SESSION_HEAD_BYTES = 64 * 1024;
+
+/**
+ * Does a text start as a storageState (SESSION_HEAD), with a session's other key among the top-level keys of its head
+ * (topLevelArrayKeys: never a nested one) or a first item of a session's shape (a cookie: `name`, `value`, `domain`;
+ * an origin: `origin`, `localStorage`)? A data file whose first key is merely "cookies" or "origins"
+ * (`{"cookies": [{"id": 1, "flavour": …, "origins": […]}]}`) is not one.
+ * @param {string} head
+ */
+export function startsAsSession(head) {
+  const m = SESSION_HEAD.exec(head);
+  if (!m) return false;
+  const first = /** @type {"cookies"|"origins"} */ (m[1]);
+  return SESSION_ITEM[first].test(head.slice(m[0].length)) || topLevelArrayKeys(head).has(OTHER_KEY[first]);
+}
+
+/**
+ * Is a file a browser session (a storageState), whatever its size? A file of 5 MB at most is parsed whole and decided
+ * on its top-level keys (isStorageState: a session written in any order); a longer one, on its first 64 KB, when it
+ * starts as one (startsAsSession). False when it cannot be read.
+ * @param {string} file
+ */
+export function isSessionFile(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, "r");
+    if (fs.fstatSync(fd).size <= SESSION_PARSE_BYTES) return isStorageState(fs.readFileSync(fd, "utf8"));
+    const head = Buffer.alloc(SESSION_HEAD_BYTES);
+    const n = fs.readSync(fd, head, 0, head.length, 0);
+    return startsAsSession(head.toString("utf8", 0, n));
+  } catch {
+    return false;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
   }
 }
 
@@ -408,10 +493,8 @@ export function checkSecrets({ root, config, data, session, tracked = trackedByG
 
   const sessionDir = path.dirname(session);
   const skip = new Set(["node_modules", ".git", "dist"]);
-  for (const f of walk(root, (n) => n.endsWith(".json"), skip)) {
-    if (path.dirname(f) === sessionDir || fs.statSync(f).size > 5_000_000) continue;
-    if (isStorageState(fs.readFileSync(f, "utf8"))) findings.push({ where: rel(f), kind: "sessionOutside" });
-  }
+  for (const f of walk(root, (n) => n.endsWith(".json"), skip))
+    if (path.dirname(f) !== sessionDir && isSessionFile(f)) findings.push({ where: rel(f), kind: "sessionOutside" });
   if (fs.existsSync(session) && tracked(session)) findings.push({ where: rel(session), kind: "sessionTracked" });
   return { findings, files: files.length, places: places.length, ignored };
 }

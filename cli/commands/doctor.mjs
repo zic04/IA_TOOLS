@@ -210,6 +210,8 @@ async function diagnose(ctx, { network = false } = {}) {
     command: BRAND.command,
   });
 
+  claudeCheck(ctx, add);
+
   // ─── Project ───────────────────────────────────────────────────────────────
   let found = null;
   try {
@@ -227,6 +229,24 @@ async function diagnose(ctx, { network = false } = {}) {
   const code = failed.length ? Math.max(...failed.map((c) => FAILURE[c.category])) : EXIT.OK;
   // Precedence: environment (3) > configuration (2) > project (1).
   return { project: found?.root ?? null, checks, code };
+}
+
+/** The first Claude Code that knows the agents' hook as the skill writes it: the exec form (`args`) and `onFailure:
+ * block` (SECURITY.md). An older one runs `node` alone, and the guard never runs. */
+const CLAUDE_MIN = "2.1.295";
+
+/**
+ * Claude Code, when a `claude` is on the PATH (the context's launcher: the trusted folders only, never the project's,
+ * the application's or a node_modules/.bin): its version against CLAUDE_MIN. Nothing at all when none is found, or
+ * when it gives no version.
+ */
+function claudeCheck(ctx, add) {
+  const r = ctx.exec("claude", ["--version"], { timeout: 15000 });
+  const version = r?.status === 0 ? r.stdout.split(/\s+/).find((w) => w.includes(".") && satisfies(w, "*")) : null;
+  if (!version) return;
+  const vars = { version, min: CLAUDE_MIN };
+  if (satisfies(version, `>=${CLAUDE_MIN}`)) add("claude", "ok", "env", "cli.doctor.claude.ok", vars);
+  else add("claude", "warn", "env", "cli.doctor.claude.old", vars);
 }
 
 async function projectChecks(ctx, { root, configFile }, add, { network }) {

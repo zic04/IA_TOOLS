@@ -30,10 +30,25 @@ this file gives access to the application with the rights of the person who sign
   single rename. Windows ignores that mode: there the file takes the rights of its folder, so keep the project in a
   folder only you can read (your user profile).
 - `doc-kit doctor` reports a session file tracked by git; `doc-kit check secrets` reports a session file found
-  anywhere else in the project, or tracked by git.
+  anywhere else in the project, whatever its size (one over 5 MB is told by its first 64 KB, as `export` tells it
+  below), or tracked by git.
 - `doc-kit export` never copies a `.doc-kit/` folder (at any depth), the file named by `<PREFIX>_SESSION` /
   `DOC_KIT_SESSION`, any JSON file that is a browser session, environment files (`.env*`, `.envrc`), keys and
-  certificates (`*.pem`, `*.key`, `*.p12`, `id_rsa`…) or tool credentials (`.npmrc`, `.netrc`, `.git-credentials`).
+  certificates (`*.pem`, `*.key`, `*.p8`, `*.p12`, `*.ppk`, `id_rsa`…), tool credentials (`.npmrc`, `.netrc`,
+  `.git-credentials`, `.htpasswd`, `credentials`, `credentials.json`, a Google OAuth `client_secret*.json`, a
+  `kubeconfig`), Terraform state and variables (`*.tfstate`, `*.tfstate.backup`, `*.tfvars`), VPN profiles
+  (`*.ovpn`), encrypted files (`*.gpg`) or the settings of an environment (`appsettings.*.json` and its `.bak` copy;
+  `appsettings.json` itself is copied). A JSON file of 5 MB at most is parsed whole: it is a session when its
+  top-level object holds a `cookies` and an `origins` list, in any order, or one of them alone whose first item has a
+  session's shape (a cookie with its `name`, `value` and `domain`, in any order; an origin with its
+  `localStorage`). A longer one is told by its first 64 KB: it starts as a session (an object whose first key is
+  `cookies` or `origins`), and the top-level keys of those 64 KB hold the other one (the depth of the JSON is
+  followed: a key of a nested object never counts), or its first item has a session's shape as Playwright writes it
+  (`name`, `value`, `domain` in that order; `origin`, `localStorage`). So a session holding megabytes of local
+  storage is left out too, and a data file that merely starts with a `cookies` list, even one whose items hold an
+  `origins` list, is not one. A session longer than 5 MB written in another order, its other key past its first
+  64 KB, is not recognised: keep sessions in `.doc-kit/`. Other names are copied: a `.kube/config`, a key without its
+  extension.
 - Never copy, show, attach or pass the file on — not in a ticket, not to a colleague, not to an agent, not to a CI
   pipeline. Delete it at the end of a campaign: `doc-kit connect --forget`. If it leaked, sign out of the application
   (or revoke the session on the identity provider) to invalidate it.
@@ -179,6 +194,147 @@ that exist only in production (an address, an index name, a partly displayed key
 root, it cannot change text drawn inside an image, a canvas or an SVG drawn as an image, and `doc-kit check secrets`
 reads text only, never images. **Review every image** before delivering a site.
 
+### The secret detectors have limits
+
+`doc-kit check secrets` blocks the build, and its detectors (`engine/check/secrets.mjs`) also filter `pack`,
+`backlog export` and `inputs ingest`, and give the `secrets` facts of an application. They look for values, never
+for a mere mention:
+
+- private keys holding key material: PEM blocks (PKCS#8, RSA, EC, OpenSSH, encrypted ones), a PEM block escaped on one
+  line in a JSON file (the `private_key` of a service account), PGP private key blocks, the private lines of a PuTTY
+  key; a JWT; the password of a connection string or of a URL;
+- the tokens of known services, by their shape: AWS access key IDs, GitHub (classic and fine-grained), GitLab
+  (personal, runner and runner registration, deploy and pipeline trigger tokens), npm, Slack (tokens, app tokens,
+  incoming webhooks), Google API keys and OAuth client secrets, OpenAI-style `sk-` keys, Stripe keys and webhook
+  secrets, SendGrid (`SG.`), Hugging Face (`hf_`), DigitalOcean (`dop_v1_`, `doo_v1_`, `dor_v1_`), Twilio API keys
+  (`SK` and 32 hexadecimal digits), Discord webhooks and Microsoft Teams incoming webhooks;
+- the value of an assignment to a secret's name, whatever the words before it: `SECRET_KEY`, `DB_PASSWORD`,
+  `GITHUB_TOKEN`, `aws_secret_access_key`, `dbPassword`, `"client-secret":`…, or a secret's word glued to a name in
+  capitals (`PGPASSWORD`, `MYSQLPASSWORD`, `VAULTTOKEN`), after `=`, `:`, `:=` or `=>`, quoted
+  or not, and the text of an XML element or setting named so, on one line (`<password>…</password>` in Maven's
+  `settings.xml`, `<add key="ClearTextPassword" value="…" />` in a `NuGet.Config`, a .NET `appSettings`). The value
+  is read on the name's line, up to a character other than an ASCII letter, a digit or
+  `_-+/=.~!@#$%&*` (a blank, a quote, `,`, `:`, `;`, a bracket, a parenthesis…): it may hold the signs of a password
+  (`Tr0ub4dor&3xQ!`) and the `~` of every Azure AD client secret, but a `&` that starts another URL parameter
+  (`&user=`) ends it. It is a secret from 8 characters, in capitals (a base 32 key) or without a digit too, and from
+  16 when made of letters only, or of words of letters joined by `-`, `_` or `.` (`correcthorsebatterystaple`; a
+  label's word, `"password": "Passwort"`, is shorter); a number is one under a password's name only (`password`,
+  `passwd`, `pwd`, `pass`, `pw`, `passphrase`), from 8 digits (`DB_PASSWORD=73829164`). A name merely starting so (`KEYBOARD`, `TOKENIZER`) is not one. For the key of anything else
+  (`STRIPE_KEY`, `CACHE_KEY`), the value must have 16 characters or more and look generated; a public name
+  (`publicKey`, `PublicKeyToken`, `NEXT_PUBLIC_…`) is never a secret's. The password of a connection string
+  (`Password=` or `Pwd=` written as a word, its value unquoted) is a connection string's next to another pair, after a
+  `;` or a blank (`Server=db;Password=…`, `Password=…;Server=db`, a libpq DSN `host=db user=app password=…
+  dbname=orders`), whatever its value, in capitals too (`Password=ORDERS2024PROD;`), but a placeholder or a variable's
+  name in capitals with an underscore; a lone `password = …` is an assignment (and the floor below reads it from 6
+  characters), and so is `password:` or a quoted value next to a pair;
+- the signature of a signed URL (`sig=`, `Sig=`, `X-Amz-Signature=`…, in any case), but a mask as the whole value
+  (`Sig=XXXX…`; a placeholder's word inside a signature does not hide it);
+- the floor: the two value rules of 0.4.1 run after the detectors above, reading the text as they read it, so that
+  what 0.4.1 reported is still reported (`test/unit/secret-recall.test.mjs` checks a table of such lines and eleven
+  realistic files holding secrets): one of the words `password`, `passwd`, `secret`, `token`, `api_key` (`api-key`,
+  `apikey`), `client_secret` or `access_key`, written as a word (`db.password`, `x-api-key`, `--password`; not
+  `DB_PASSWORD`), then `:` or `=` and a value of 16 characters or more of letters, digits and `_-+/=.` holding a digit
+  and a letter, on the name's line or the next (`password:` then `  Summer2024Winter99`); and `Password=` or `Pwd=`,
+  written as a word, then a value of 6 characters or more up to a blank, a quote or a `;` (`password=postgres`,
+  `--password=Summer2024Winter`, `password=$ecretPa55w0rd`). What they find is reported whatever the exceptions
+  below say, with only these, each decided on the whole value, never on a part of it, and, but for `change-me` and
+  `replace-me`, which may end in a number (`replace-me-with-a-real-key-2024`), never for a value holding a number of
+  two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
+  and `password=PROD_DB_PASS_2024,` are reported):
+  - a shell's or Windows' variable: a sigil and a name in capitals whose words are joined by `_`, or that names a
+    secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`, `$PGPASSWORD`; `$PRODPASS` is a password);
+  - in a line written as code, that is with the `;`, `,` or `)` of code after the value, or a blank before it and a
+    name in lower case first (`Password = model.Password;`, `password = request.form.password`; not
+    `password=model.Password` nor `password=GetPassword()`, as a properties file or a command line writes a password,
+    nor `password = Root.Secret`): a member that names a secret's field; a call of a name of several words or of
+    members, whose arguments are names in lower case, members or quoted texts (`Password = GetPassword();`,
+    `password = config.get("db")`; `Welcome(user)`, `SuperSecret(1)` and `SummerFun(Beach)` are passwords); an index
+    by a quoted key (`Password = configuration["DbPassword"];`); with nothing after it but what ends a value as
+    0.4.1 read it (a blank, `;`, a quote), `,` or `)` (`HappyDays(x)!`, `Pass.Word(1)#Kx!q` are passwords);
+  - a placeholder: 0.4.1's, and `change-me` or `replace-me` as the whole value, words and a number last after it
+    (`password=change-me`, `secret: replace-me-with-a-real-key-2024`; `Replacement2024!`, `Exchange-Me2024`,
+    `Change-Me-2024` and `change-meXYZ2024` are passwords); a mask or a variable's name in capitals before the `,` or
+    `)` of code (`password=********,`, `connect(password=DB_PASSWORD_VALUE, user=USER)`).
+
+  The password of a URL (`credentialsUrl`) is read as 0.4.1 read it, with its placeholders only
+  (`postgres://app:change-me@db/orders` is reported, `your-password` is not), and 0.4.1's `?sig=` and
+  `&sig=` whatever their value (`?sig=XXXX…` too);
+- last, a fallback by entropy: a value assigned to any name, or quoted, of 20 to 256 characters, holding lower case,
+  upper case and digits, whose kind of character (lower case, upper case, digit) changes from one letter or digit to
+  the next at least 45 times in 100, as in a random token (a name made of words and numbers changes far less), and
+  whose Shannon entropy reaches log2(length) − 0.6 bits per character, at most 4.2. It reports only a line no other
+  detector reported. Calibrated by `test/unit/secret-detectors.test.mjs`: it finds about 89 random tokens in 100 of
+  20 to 28 characters and 97 in 100 of 32 or more, and nothing in a corpus of harmless values (names in code, paths,
+  cloud sizes, versions, alphabets, hashes) nor in the kit's own documentation.
+
+Never a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `xxxx…`, `example`, `your…`, `exemple`, `votre`,
+`motdepasse`…, and `change-me` or `replace-me` as the whole value), the default of a shell expansion
+(`${DB_PASSWORD:-postgres}`), a reference (`process.env.…`, `os.environ…`). Under a secret's name (or the key of
+anything), neither is a number (but 8 digits or more under a password's name) nor a value of fewer than 5 different
+characters (`***-***-***`), nor, under a secret's name, a reference written as code: a variable's name in capitals with
+an underscore, unquoted (`DB_PASSWORD_VALUE`), or quoted when it holds no digit, is wrapped in underscores or holds a
+secret's word (`"__REPLACE_AT_DEPLOY__"`, `"OPENAI_API_KEY"`; `"S3CR_ET99_ZQ"` is a value), a sigil and a name
+(`$DB_PASSWORD`, `%DB_PASSWORD%`, `@password`, a YAML alias `*password`), a YAML tag (`!ImportValue`), a path
+(`/run/secrets/db`), a comparison (`token === …`); unquoted, a member (`config.jwt.secret`) or members joined by `+`
+(`r.C0.ESC+r.C0.ESC`, minified code), a call or an index (`getPassword()`, `configuration["DbPassword"]`) and, under a
+name that is not in capitals (code rather than an environment file), a name in code of several words (`hashedPassword`,
+`new_password`): a value holding a number of two digits or more is neither a member nor a name in code
+(`password: SummerHoliday2024`, `password: Summer2024.Winter99` and `ya29.…` are values); unquoted after `:`, a CSS
+pseudo-class (a vendor's: `#password:-webkit-autofill`, `.token:-moz-ui-invalid`, or one a block follows:
+`.password:picture-in-picture{`) and, under a name in lower case ending in `secret` (a Helm value), a resource's name of
+lower-case words joined by `-`, `.` or `/` (`tlsSecret: wildcard-tls-certificate`); a documentation's example, letters
+only or in capitals holding a secret's word (`mysecretpassword`, `MYTOKEN1`). A name holding `existing` or `pull` points
+to a resource that holds the secret (`existingSecret`, `imagePullSecret`): it is not a secret's name, nor are
+`secretName` and `secretRef`, which end in another word. For the entropy fallback, never a hash (hexadecimal,
+`sha512-…`), the value of a hash, a nonce or an identifier (`integrity`, `pin-sha256`, `nonce`, `state`,
+`code_challenge`, `id`, `client_id`, `…_name`) or of a public name, nor a URL's query or fragment parameter whose name
+says nothing of a secret (`?list=`, `&fbclid=`, `&amp;gclid=`): one whose name ends in a secret's word, or in one a URL
+gives a secret (`sig`, `signature`, `token`, `key`, `secret`, `password`, `credential`, `session`, `sid`, `auth`), is
+read. An OAuth authorisation code (`?code=`) is not: it is used once, within minutes, and every provider's documentation
+shows one. A value two detectors find is reported once, by the first (a Google key in a URL's `key=`: `cloudKey`). These
+exceptions never hide what the floor finds (above).
+
+Limits: the detectors are patterns and a measure, not a proof.
+
+- A secret of an unknown shape under a name that does not say so passes when it is short (under 20 characters), of
+  one case or without digits (a password made of words, a base 32 or hexadecimal key: only an assignment to a
+  secret's name finds it), longer than 256 characters, not assigned nor quoted (a word alone in a sentence or a table
+  cell), or the value of a URL parameter whose name says nothing of a secret.
+- Under a secret's name, a password passes when it is shorter than 8 characters (16 for letters only), holds a
+  character the value stops at (a blank: `"correct horse battery staple"` is read as `correct`; `:`, `,`, `;`, a
+  bracket, a parenthesis, `^`, `?`, a letter outside ASCII) before its 8th, is on the line after its name, or is
+  written like one of the references above: a name in code with one digit at most unquoted under a name in lower
+  case (`db_password: OrdersProdValue1`), `PROD_DB_PASS_2024` unquoted (a variable's name in capitals:
+  `SECRET=PROD_DB_PASS_2024`), `@dmin2024Prod` or `$ecretPa55w0rd` (a sigil and a name), `my.pass.word` (a
+  member), `supersecretpassword` (letters with a secret's word), `!Password` (a YAML tag), lower-case words joined by
+  `-` under a name in lower case ending in `secret` (a resource's name), or the default of a shell expansion. A
+  number of fewer than 8 digits, or under a token's or a secret's name, is not one. The floor finds some of them
+  all the same (after `Password=` or `Pwd=` from 6 characters; after one of 0.4.1's words, 16 characters or more
+  holding a digit), as 0.4.1 did.
+- The floor leaves out a password written exactly as a reference in a line written as code (above):
+  `Password = Root.Secret;`, `password = my.secret`, `Password = Get.Token(x);`,
+  `connect(password=Hello["x"], user=USER)`. A line cannot tell such a password from a reference of the same
+  shape, and the detectors do not know whether a file is code or configuration (`scanText` reads a text, never its
+  file's name): left out, as in code, where a reference is far more common than a password written so. 0.4.1
+  reported them.
+- A secret's word glued to a name in lower case (`pgpassword=`, `dbpassword:`) is not a secret's name, nor is a name
+  of more than 128 characters (only the floor reads one, by its last word), nor a setting written without `=` or `:`
+  (Redis' `requirepass Orders2024Prod`).
+- On a command line, a password after a blank (`--password value`, `-p value`) is not looked for; `--password=value`
+  is. An XML element's text is read on one line, without a blank, 256 characters at most; a setting only as
+  `<add key="…" value="…">`, its key first.
+- Not looked for: a token after `Authorization: Bearer` or `Basic` (unless it has a known shape or is a JWT), a token
+  as the user of a URL (`https://<token>@host`; a `user:password@` is found), a PEM key whose lines start with `> `
+  or `// ` (quoted in a message or a comment), a PEM block cut before its `END` line, and an Azure AD client secret
+  under a name that does not say so.
+- About one random token in ten of 20 to 28 characters looks too regular to the entropy fallback, and one in thirty
+  of 32 or more.
+- A random value that is not a secret can be reported: a test fixture, data encoded in base 64, an identifier made of
+  short words and digits (`dnsAlpnH3JobWonWithoutRace`), a public token under a secret's name (a coverage badge's
+  `?token=`). Set a value known to be public aside with `masking.allow`.
+- Lines are the unit: one detector's finding hides the fallback's on the same line, and a filter (`pack`, `backlog
+  export`, `inputs ingest`) replaces the whole line.
+
 ### Content and configuration are code
 
 - `doc.config.mjs`, capture plans, setup scripts and local adapters are JavaScript modules run with your rights.
@@ -195,6 +351,12 @@ reads text only, never images. **Review every image** before delivering a site.
 - Markdown pages may contain HTML, and SVG diagrams are inlined as they are: the build does not sanitise them (only
   the logo and the icons are checked). Review documentation contributions like code, and never build content from
   an untrusted source.
+- What the kit itself writes from the content is escaped. A section or page id of the table of contents is
+  lower-case segments of `a-z`, `0-9`, `-` and `_` separated by `/` (the toc schema refuses another, and the error
+  names it), and the site escapes every id it writes into a link or an attribute all the same. `::facts{source}` and
+  `::diagram{id}` name a file of the project by a plain name (`a-z`, `0-9`, `-`): a path (`../..`, `a/b`) is a build
+  error (`facts.source`, `diagram.id`), and nothing is read; `sync` takes such a `::facts` table for no dependency of
+  the page, and neither reads nor hashes the file it names (nor one an older `sync.json` recorded).
 - The generated site carries a Content Security Policy (a `<meta>` in its `<head>`): only its own inline scripts
   run, each allowed by its hash; images and fonts must be embedded; no request, frame, form or `<base>` is allowed.
   A script, an `onclick=`, a `javascript:` link, an iframe or an external image written in a page is refused by the
@@ -279,7 +441,16 @@ as untrusted input:
   heuristic, which masks a random token of 32 characters or more of the usual shapes (base62, base64url,
   hexadecimal, a-z0-9) 999 times in 1,000 and a shorter one, or one of letters only, about 99 times in 100, and keeps
   the words of a route (`GetUserProfileByIdV2`, `k8s-cluster-node-pools`, `how-to-set-up-a-new-account`) and its
-  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked;
+  parameters — a single word of twenty letters or more, or one with five consonants in a row, is masked. The kit's
+  coverage adapters that read routes (`fastapi`, `next-app-router`, `openapi`, `react-router`) mask their ids and
+  forms the same way, and so does `glob` for a segment of a file's path (the file's name judged without its
+  extension, so `OrderSummaryCard.tsx` and `GetUserProfileByIdV2.tsx` are kept; its forms rendered from the masked
+  path), so a coverage report or the audit never shows a segment that `facts` masks; `sync` compares a route's files
+  masked the same way, and finds the files of a masked route. Limits of that masking: the masked names of one folder
+  share one id (`db/migrate/…` for migrations named by a timestamp, `alembic/versions/…`, files named by a UUID or a
+  hash, the hashed assets of `public/`), covered and followed together; and an ordinary name that reads as no words
+  is masked as well (`XMLHttpRequestInterceptor.ts`, `OrderSummary.test.tsx.snap`) — a loss of detail, never a
+  secret shown;
 - the access of a route (`auth`) never says more than the names of its guards (engine/facts/guards.mjs): a guard is
   a user guard by its whole name (`get_current_user`, `login_required`, `IsAuthenticated`, `auth:sanctum`,
   `Authorize`…) and a role guard by one of its words (`require_admin`, `hasRole('ADMIN')`), never by a part of
@@ -360,6 +531,46 @@ as untrusted input:
   junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent;
+- the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
+  (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
+  (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
+  finding of their reports comes from a link to a file of the operator (`~/.aws/credentials`);
+- the imports of a page's code (the closure of `sync` and of the context of a page, two levels for a feature sheet)
+  and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
+  the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
+  and a dependency of a page outside the application (a route's file reached through a link) is named in its
+  context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
+  when its report compares it: one through `../` or a link out of the application is never read, its first line
+  never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). So is
+  every dependency file of a page, by one helper (`dependencyFile`) for the marking, the report, `--since` and the
+  page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
+  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
+  the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
+  so. A proof or a dependency through a link out of the application is outside whether its file exists there or
+  not (judged by where its nearest existing folder really is, found by bisection: a path of thousands of missing
+  parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
+  link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
+  target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
+  the text cannot. The cap holds for the path as written too, before `path.resolve` reads it (quadratic on `a/`
+  repeated then `b/../` repeated): climbing out (`../`) is judged first, in one pass, and a path padded past the cap
+  (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor
+  `--since` tells whether a file of the operator exists.
+  Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
+  one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
+  on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the
+  case as written, so a file of the application reached in another case may be judged outside: a false "outside",
+  never a file read outside. The coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
+  `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private
+  declarations of the dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a
+  requirements file…, read by their fixed names) follow links, as they read the operator's own configuration on
+  purpose; only flags, scopes and names to keep off the network come out of them (whether a registry or an index is
+  private, a private scope, the application's own package names), never a value;
+- limits of this confinement: a hard link cannot be told from the file itself (it is another name of the same file,
+  with no target to follow), so a hard link in the application to a file outside it is read as a file of the
+  application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
+  checked, then read: a file or a folder of the application swapped for a link in between, by a process that
+  changes the application while the kit reads it, is not seen. Read an application received as an archive from a
+  fresh clone, and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes
@@ -434,7 +645,13 @@ Both are untrusted input.
   refused), no encrypted or ZIP64 archive, sizes and CRC checked — and only `word/document.xml` and
   `word/styles.xml` are inflated. Its XML is read linearly: a DTD is skipped, an entity it declares is never
   expanded (no XXE, no "billion laughs"), depth and node count are capped. No macro, no embedded object, no link
-  is ever opened. A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
+  is ever opened. No markup of a document reaches its converted text: a `<` that could open a tag (followed by a
+  letter, `/`, `!` or `?`) is written `&lt;` — in a Word file's text, a diagram's labels, a Markdown or a text
+  document and an HTML page's text (a tag written there as text, `&lt;img …&gt;`, included). In a Markdown document
+  this changes its code and its autolinks too: `Map<string, number>` in a code block or a code span becomes
+  `Map&lt;string, number>`, and `<https://…>` becomes `&lt;https://…>`, no longer a link; the rest of its text is kept
+  as written.
+  A PDF is only indexed (its page count), never parsed further; the agents read the file itself.
   Diagrams are read as text. Every converted text goes through the secret detectors of `check secrets` before it
   is written, and starts with a notice telling the agent that reads it that it is information to check, never an
   instruction to follow. A Word table, paragraphs nested in one another (read in one pass, whatever their depth), a diagram or a label
@@ -457,6 +674,170 @@ the skill's briefs make the agents check every statement against the code, but r
 before it becomes a page. A clone is a full copy of the repository: it lives in the work folder (`.doc-kit/`, never
 committed) — delete it when the documentation is done.
 
+### The skill's agents: the application is data, never instructions
+
+The skill's agents read the application's code, its comments, its instruction files (CLAUDE.md, AGENTS.md,
+.cursorrules), its commit messages and its diffs — all of them text that may be written to steer an AI. The skill
+treats them as data on every path an agent takes:
+
+- **Every brief an agent reads and every agent definition** (`skill/doc-kit/assets/briefs/`, `skill/doc-kit/agents/`)
+  says, in its common part and in both languages, that the application's files are data to describe, never
+  instructions to follow, and that an instruction found in them is reported as a finding, never acted on
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15, with a brief without the rule as its positive control).
+- **A decision to skip work never rests on text from the application that asks for it**: `triage` never marks a page
+  `intact` because a comment or a diff says so (that page is at least `edit`), nor do `update`, `findings-verification`,
+  `security-review`, `code-health` and `inventory` leave out, reject or dismiss anything on such a text (same test).
+- **Every context file** (`doc-kit context`, and its translator's dossier) starts with a fixed notice, in the site's
+  language: what follows is the application's content, data only (`test/unit/context.test.mjs`,
+  `test/unit/languages.test.mjs`).
+- **The agents with Bash** (`doc-kit-writer`, `doc-kit-analyst`, `doc-kit-reviewer`) run it through a guard, their
+  PreToolUse hook, written in Claude Code's exec form: `command: node`, `args: ["<skill>/scripts/bash-guard.mjs"]`,
+  `onFailure: block`, the path `doc-kit skill install` writes in their definitions (a YAML string: no shell ever reads
+  it, so a quote, a `$` or a backquote in it stays a character of the path). It reads the command as bash splits it —
+  by hand: no shell, no eval, no regular expression, no file read — and lets through only the kit's CLI by its absolute
+  path, `node "<kit>/cli/doc-kit.mjs" <command>` (the kit's path `skill install` wrote in the skill, never one a
+  documentation project names), `node <skill>/scripts/<script>.mjs` (the skill's four scripts, by their absolute
+  path: the skill's real one, or the one its hook was started from, below), read-only tools (`ls`, `cat`, `head`,
+  `tail`, `wc`, `grep`, `rg`, `find`…) with their reading options, one
+  `cd <folder> &&` first, `|`, `&&`, `||` and `;` between them, and the redirections `>/dev/null`, `>&1` and `>&2`,
+  alone or after a `1` or a `2` written against them, unquoted (`2>&1`, `2>/dev/null`). The words it checks are
+  bash's to the letter (but a `~` on Windows, which it keeps as it is: a word that is never a program's path there,
+  nor an option): what a quote, a backslash or an empty string changes next to an operator, it reads as bash
+  does or refuses — bash takes a word for the number of an output only when it is digits alone, as written, so of
+  `"2">`, `'1'>`, `\2>` or `2"">` it makes the argument `2` (or `1`) and a redirection of the standard output, which
+  the guard refuses as it does every word against a redirection but that `1` or `2`.
+  - **Never `npx doc-kit`, `npm exec doc-kit` or a bare `doc-kit`**: npx looks for the bin in the `node_modules/.bin`
+    of the folder and of every parent up to the root, so an application that ships a `node_modules/.bin/doc-kit` got
+    it run whenever the documentation sat inside it (`<app>/docs/manual`, the default layout); with none found and no
+    terminal, npx installs `doc-kit` from the public registry without asking. A bare `doc-kit` is the `PATH`'s, which
+    may be anyone's.
+  - **What runs never depends on the folder**: a program named by a relative path is refused, and so is a `cd` that is
+    not the first command or not followed by `&&` — in a pipeline it runs in a subshell, after `||` it is skipped, and
+    bash runs what follows in the folder it started in.
+  - **On Windows, a program's path has its drive** (`C:/…` or `C:\…`), which Git Bash hands to node as it is. Git
+    Bash's own form, `/c/…` (and `~`, which is `/c/Users/…` there), is refused: Git Bash converts it to `C:/…` only
+    when the word holds none of `'`, a backquote, `*`, `?`, `[`, `]`, `:`, `;`, `/~` or `@@`, and never under
+    `MSYS_NO_PATHCONV`; otherwise node reads `/c/…` as `C:\c\…`, so `node "/c/<kit>/cli/x'/../doc-kit.mjs"` looked
+    like the kit to the guard and ran a file outside it. Two paths name one file when they differ by the case of ASCII
+    letters only, as NTFS reads them by default: the guard folds `A`–`Z`, character by character, never with
+    `toLowerCase()`, which folds letters NTFS keeps apart too (U+212A, the Kelvin sign, to `k`; U+212B, the Angstrom
+    sign, to `å`), so that a lookalike folder's script passed for the skill's. Any other difference of case is another
+    path, refused. A folder NTFS was told to read case by case (`fsutil file setCaseSensitiveInfo`; one WSL creates)
+    holds `CLI` beside `cli`, two folders the guard takes for one: in the kit's or the skill's folder, or in any folder
+    above it that reads case by case (a parent WSL made), what can write in that folder can make the second —
+    `DOC-KIT` beside `doc-kit` in such a `skills` folder —, whose script then passes for the skill's (an agent's Write
+    is not the guard's, below). Keep the folders that lead to the kit and to the skill read case-insensitively
+    (`fsutil file queryCaseSensitiveInfo <folder>`).
+  - **The skill's folder has two paths, the kit's one.** node loads a module by its real path, links resolved: that is
+    the skill's folder the guard is sure of. Its hook is started by the path its configuration gives (`args`, the path
+    `skill install` wrote), which may go through a link — a linked `~/.claude`, a dotfile manager's, macOS's
+    temporary folder under `/var` (a link to `/private/var`), a junction — and so may the agents' commands. The guard
+    takes either: the real path, and the folder of the path node was started from (`process.argv[1]`), when that one
+    leads to the real one, links resolved; each is compared as above (on Windows, its drive, ASCII letters folded).
+    The paths a command writes are never resolved: a folder that only looks like the skill's (`doc-kit2`, a Kelvin
+    sign for the `k`) or a link planted to it is another path, refused, and a hook started by the real path knows no
+    link. The kit has the one path `skill install` writes in the skill and in its texts alike, its real path. A limit,
+    which fails closed: a hook started by a Windows 8.3 short path (`C:\PROGRA~1\…`) knows the skill by that short form
+    only (node keeps it in the module's path, and the guard expands no short name), so it refuses the commands that
+    name the skill by its long form.
+  - **The read-only tools take the options of an allowlist, tool by tool** (`READ_ONLY_SPECS`): an option not listed
+    — a new one, an abbreviation getopt would accept, another spelling — is refused, so no option that runs a program
+    or writes a file can slip through. A list of the dangerous ones did: `rg --hostname-bin=<program>
+    --hyperlink-format=… --color=always` ran the program while only `--pre` was refused. Left out, among others: rg's
+    `--pre`, `--pre-glob`, `--hostname-bin`, `--hyperlink-format`, `-z` (it runs decompression programs),
+    `--ignore-file`, `-f`; find's `-exec`, `-execdir`, `-ok`, `-okdir`, `-delete`, `-fprint*`, `-fls`; sort's `-o`,
+    `-T`, `--compress-program`; `tail -f`, and its old forms that follow the file too (`tail +1f`, `tail -n +1f`): of
+    a word that starts with `+`, tail, sort and uniq take a plain `+N` only, and `-n`, `-c` take a number; every option
+    that reads its list of files or patterns from a file. A value given as the next word never starts with `-`
+    (whatever a tool makes of the option before it, such a word is checked as an option), and uniq takes one file
+    name at most (it writes to its second), every word from its first file name on counted as one, as a getopt that
+    stops at the first operand reads them (GNU's under `POSIXLY_CORRECT` takes the `-c` of `uniq a -c` for the second).
+  - It refuses git, npm, any other program or path, a variable, a command substitution and the other expansions
+    (`$'…'`, `$"…"`, `$((…))`, braces, a `~` that starts a word other than `~` or `~/` — `~+`, `~-`, `~user` —, and
+    one right after `=` or `:`, where bash expands it in a word that looks like an assignment, `x=~`), any other
+    redirection (to or from a file, `&>`, `|&`, `>|`, `<>`, a here-string, `>&-`, a process substitution) and one
+    right after a quoted or escaped word (above), a background job, a subshell, an unquoted wildcard, a second line, a NUL character (bash
+    drops it from what it reads:
+    `ls \<NUL>'; git push; ls \<NUL>'` was one `ls` to the guard, and ran `git push`), the doc-kit commands that run
+    something else or
+    belong to the orchestrator or the user (`bricks`, `connect`, `demo`, `dev`, `facts`, `hooks`, `init`, `inputs`,
+    `open`, `probe`, `record`, `skill`, `upgrade`), and `--plans` (capture plans are code).
+  - **It fails closed**: Claude Code blocks a command on exit code 2, so input it cannot read, a skill file that cannot
+    load (a corrupt message file, its decision's module missing or throwing: the hook imports nothing before it runs,
+    and loads the skill's modules inside a try), an answer of the decision other than 0, and an unexpected error are
+    refused with 2; and, through `onFailure: block`, Claude Code counts as 2 what the guard cannot catch: the hook's
+    own file missing or broken (node's exit code 1), no `node` on the `PATH` (the hook cannot start), a timeout. A
+    decision that never comes is refused too: a module of the guard or the decision that never settles leaves node's
+    event loop empty, and node then ends with 0 — the command ran; the hook's exit code is 2 from its first line, only
+    the decision's explicit 0 ends with 0, and node's `beforeExit`, which comes only when no decision ended the
+    process, refuses with 2 and says so (a module that ends the process itself, `process.exit()` without a code, or
+    takes `beforeExit` away, ends with that first 2, without a word). The
+    hook's file,
+    `scripts/bash-guard.mjs`, exports nothing and checks nothing of how node was started: however node is given it
+    (its path, through a linked folder — a linked `~/.claude`, macOS's temporary folder under `/var`, a junction —, a
+    file URL with a query, an import), it reads its input, decides and exits; the decision reads `process.argv[1]` for
+    the skill's second path only (above), never to choose whether to decide. The decision is
+    `scripts/bash-decision.mjs`'s, with the read-only tools' allowlists of `scripts/bash-options.mjs`, which the tests
+    import (a guard that checked whether it was the program node ran, wrong under a link or a URL, ended with 0 and
+    let every command through). On Linux and macOS, node loads no ES module from under a folder whose name holds a
+    backslash: there the guard cannot start (exit code 1), `onFailure: block` refuses, and the agents get no Bash.
+  - It only ever refuses: what it lets through still goes through Claude Code's own permissions
+    (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; the words of quotes, escapes and empty
+    strings next to an operator, the guard's against a real `sh`'s, which hands a program the argument `2` of
+    `"2">&1`; a table, per read-only tool, of the
+    options agents use and of the ones that run a program or write a file, through the decision and the real hook
+    process, and a property: an option not listed is always refused; the Windows path forms, a lookalike folder
+    (U+212A) refused by the decision and by the real hook process, and a property: every character that lower-cases
+    onto a letter of the kit's or the skill's path, other than that letter's ASCII case, is refused; the hook's file
+    started through a file URL with a query and through an import, which still refuses; a real hook process run
+    from `<app>/docs/manual`, with a `node_modules/.bin/doc-kit` planted in the application, refuses every form that
+    reaches that bin and lets through the kit's own, which never runs it; the hook started as the exec form starts it,
+    from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
+    and without `node`; the skill reached through a linked folder, its scripts let through by the path the hook was
+    started from and by the real one, a `doc-kit2`, a lookalike and a planted link refused, and the linked path
+    refused to a hook started by the real one; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles, and one that ends the process without a code or takes node's `beforeExit` away, which only the exit code set on the hook's first line refuses; the agent definitions that name it. The
+    ReDoS harness measures it).
+- **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
+  agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
+  "<kit>/cli/doc-kit.mjs"` (and `brief.mjs`, filling a brief, with the same command): the agents run the one form the
+  guard lets through, and the orchestrator, which no guard bounds, no longer runs npx either
+  (`test/unit/skill-briefs.test.mjs`, RULES.md M15: no `npx doc-kit`, no bare `doc-kit` command, with both as its
+  positive control; `test/unit/skill.test.mjs`: the installed texts, the filled briefs and the installed guard agree).
+  `{{scriptsDir}}`, the skill's scripts folder in the analysis brief's `node "{{scriptsDir}}/analysis.mjs" check …`,
+  is escaped for bash's double quotes as the kit's path in `{{KIT_CLI}}` is, and `skill install` replaces every
+  placeholder in one pass, so a folder whose name holds one keeps it (`test/unit/skill.test.mjs`: a skill folder with
+  a quote, `$` and a backquote gives a check the guard lets through and bash reads as the skill's script; a backslash,
+  on both machines' settings; skills and kit folders named after the placeholders, and a kit path whose JavaScript
+  string holds the scripts' form of one, `"{{KIT_CLI}}"`).
+
+Limits: the briefs and the notices are words an agent may still not follow, and the guard is not a sandbox. What it
+does not bound:
+
+- **Bash only.** An agent's Edit and Write are bounded by its brief and Claude Code's permissions, not by the guard:
+  an agent steered to write a file can write one the kit then runs — a capture plan is a JavaScript module that
+  `doc-kit capture` imports, and `doc.config.mjs` is one every command loads.
+- **A planted configuration is still read.** The guard names the program, not what the kit reads: the kit and the
+  skill's scripts load the `doc.config.mjs` of the folder they run in (or of a parent), or of `--project`, and that
+  file is code. `cd <any folder> && <kit> build` and `<kit> build --project <any folder>` go through, so a
+  `doc.config.mjs` the application ships still runs if an agent is steered to it. The guard no longer checks that a
+  folder holds a `doc.config.mjs`: that told nothing of whose it is (`cd docs && npx doc-kit build --project ../evil`
+  passed it). Review a `doc.config.mjs` you did not write before running the kit on it.
+- **Reads are not bounded to the project.** A read-only tool reads any file the operator can: `cat ~/.ssh/id_rsa`,
+  `cat /proc/self/environ` and `grep -r TOKEN ~` pass the guard, so an agent steered to it can read the operator's
+  keys, tokens and environment. Its Edit and Write are not guarded either (above), so what it read may end up in a
+  page; `doc-kit check secrets` is then the remaining net (`pack` and `backlog export` run its detectors too), and it
+  reads patterns (a secret of an unknown shape passes). Keep Claude Code's permission prompts on for the agents'
+  Bash, and refuse a read outside the project.
+- **The hook itself.** It needs Claude Code 2.1.295 or later, the first that knows the exec form of hooks (`args`) and
+  `onFailure`; `doctor` warns when the `claude` on the `PATH` is older. An older one ignores both and runs `node` alone
+  through its shell: node reads the hook's input as a script and fails, a failure that does not block, so the guard does
+  not run — update Claude Code. The exec form needs no shell: written as a command line, the hook would need bash or sh,
+  which Claude Code uses for hooks except on Windows without Git Bash, where it uses PowerShell, in which `|| exit 2`
+  does not parse (the hook would fail without blocking) and a path's `\$` is no escape. An agent definition edited after
+  installation may have lost its hook (`doctor` reports it as modified).
+
+Keep Claude Code's permission prompts on for the agents' writes outside the documentation folder.
+
 ### Files for the next AI (`pack`)
 
 `doc-kit pack` writes `llms.txt`, `llms-full.txt`, `AGENTS.md` and `CLAUDE.md` in the documentation project, never
@@ -465,8 +846,9 @@ files, parsed as JSON and never run. `AGENTS.md` names environment variables, ne
 through the secret detectors of `check secrets`: a line where one fires is replaced by a notice and reported (exit
 code 1), so a secret pasted in a page never reaches the pack.
 
-Limits: the detectors are patterns. A secret they do not recognise (a short password, a token of an unknown
-shape) passes. Review the files before handing them to an agent, and `AGENTS.md` before committing it.
+Limits: those of the secret detectors (above). A secret they do not recognise (a short password, a token of an
+unknown shape that does not look random) passes. Review the files before handing them to an agent, and `AGENTS.md`
+before committing it.
 
 ### The backlog export (`backlog export`)
 

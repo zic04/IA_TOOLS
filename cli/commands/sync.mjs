@@ -196,7 +196,8 @@ async function runReport({ ctx, root, config, toc, inventory, plans, version, co
   return EXIT.OK;
 }
 
-/** The report's summary, as text: one line per category, then the estimate when one was asked for. */
+/** The report's summary, as text: one line per category, what could not be checked, then the estimate when one was
+ * asked for. */
 function printSummary(ctx, report, since) {
   ctx.print(ctx.t("cli.sync.written", { folder: ".doc-kit" }));
   if (since) ctx.print(ctx.paint.dim(ctx.t("cli.sync.sinceNoInventory")));
@@ -214,6 +215,8 @@ function printSummary(ctx, report, since) {
   if (report.edited.length) line("edited", report.edited.length);
   if (report.byHand?.length) line("byHand", report.byHand.length);
   line("unmarked", report.unmarked.length);
+  // What could not be checked: a file outside the application, never read (sync.dependencyOutside, sync.proofOutside).
+  for (const w of report.warnings || []) ctx.print(`${ctx.paint.warn("⚠")} ${ctx.t(`cli.${w.key}`, w.vars)}`);
   if (report.estimate)
     ctx.print(
       ctx.t("cli.estimate.total", { input: report.estimate.total.input, output: report.estimate.total.output }) +

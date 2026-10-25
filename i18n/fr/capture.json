@@ -168,6 +168,7 @@
   "cli.check.secrets.kind.cloudKey": "clé d'accès ou jeton",
   "cli.check.secrets.kind.assignment": "valeur d'une clé, d'un jeton ou d'un mot de passe",
   "cli.check.secrets.kind.signedUrl": "signature d'une URL signée",
+  "cli.check.secrets.kind.entropy": "valeur d'apparence aléatoire (forte entropie)",
   "cli.check.secrets.sessionOutside": "fichier de session hors du dossier de session : {file}",
   "cli.check.secrets.sessionOutside.help": "supprimez-le : une session donne accès à l'application ({command} connect la range dans {dir})",
   "cli.check.secrets.sessionTracked": "le fichier de session est suivi par git : {file}",

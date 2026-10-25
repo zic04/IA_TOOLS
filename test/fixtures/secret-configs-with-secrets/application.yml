@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/orders
+    username: orders
+    password: Orders2024Prod
+  rabbitmq:
+    username: orders
+    password: guest2024
+app:
+  security:
+    secret: ChangeIt2024Now
+    token: Bearer2024Token99

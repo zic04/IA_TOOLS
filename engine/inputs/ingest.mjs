@@ -3,7 +3,7 @@
 //   - Word (.docx): headings, paragraphs, lists and tables as Markdown (docx.mjs: a bounded ZIP and XML reader that
 //     never expands an entity nor runs a macro); diagrams (.drawio, .puml, .mmd): their components and links as text
 //     (diagrams.mjs); PDF: indexed only (pdf.mjs: its pages), the agents read the file itself page by page;
-//     Markdown and text: as they are; HTML: its text.
+//     Markdown and text: as they are, their HTML made inert (inertMarkup); HTML: its text.
 //   - Every text goes through the secret filter of the project (engine/check/secrets.mjs) before it is written.
 //   - A document is data, never instructions: the text starts with a notice that says so to the agent reading it.
 //   - A document declared by its address (Confluence, SharePoint…) is not fetched by the kit: the skill reads it
@@ -13,6 +13,7 @@ import path from "node:path";
 import { KitError } from "../project/errors.mjs";
 import { BRAND } from "../brand.mjs";
 import { hashText } from "../core/hash.mjs";
+import { inertMarkup } from "../core/xml.mjs";
 import { detectors, ignoreRules, withoutSecrets } from "../check/secrets.mjs";
 import { docxToMarkdown } from "./docx.mjs";
 import { diagramToMarkdown } from "./diagrams.mjs";
@@ -39,7 +40,10 @@ export function formatOf(file) {
   return table.find(([exts]) => exts.some((e) => name.endsWith(e)))?.[1] ?? null;
 }
 
-/** The text of an HTML page: its title and headings kept, scripts and styles dropped, read linearly. */
+/**
+ * The text of an HTML page: its title and headings kept, scripts and styles dropped, read linearly; no markup of the
+ * page reaches the converted Markdown, a tag written as text included (inertMarkup).
+ */
 export function htmlToText(html) {
   const lower = html.toLowerCase();
   let out = "";
@@ -67,13 +71,17 @@ export function htmlToText(html) {
     i = gt + 1;
   }
   const entities = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&nbsp;": " " };
-  return out
-    .replace(/&(?:amp|lt|gt|quot|#39|nbsp);/g, (m) => entities[m])
-    .split("\n")
-    .map((l) => l.replace(/[ \t]+/g, " ").trimEnd())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  // Decoded after the tags are gone, a tag written as text (&lt;img onerror=…&gt;) would be one again: inert, as the
+  // text of a Word document is (a "<" that could open a tag is written &lt;).
+  return inertMarkup(
+    out
+      .replace(/&(?:amp|lt|gt|quot|#39|nbsp);/g, (m) => entities[m])
+      .split("\n")
+      .map((l) => l.replace(/[ \t]+/g, " ").trimEnd())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+  );
 }
 
 /** The text of one document, by its format: `{ body, facts }` (facts: what the index records about it). */
@@ -103,7 +111,9 @@ function convert(buf, format, t) {
     return { body: r.markdown, facts: { components: r.components.length, links: r.links.length } };
   }
   if (format === "html") return { body: htmlToText(text), facts: {} };
-  return { body: text, facts: {} };
+  // A Markdown or a text document: its text as written, but no HTML of it reaches the converted text (inertMarkup),
+  // as for a Word file or an HTML page — an agent may copy it into a page.
+  return { body: inertMarkup(text), facts: {} };
 }
 
 /**

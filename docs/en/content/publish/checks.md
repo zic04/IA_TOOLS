@@ -104,13 +104,35 @@ the built site** (pages, section introductions, home page, glossary) for:
 
 - the values of the `masking.env` files whose key looks sensitive, the GUIDs (except `00000000-0000-0000-0000-000000000000`)
   and the `masking.patterns`;
-- actual secret values: a private key block with its key material, a JWT, the password of a connection string or of a
-  URL, a cloud access key, the value of a key, token or password assignment, the signature of a signed URL.
+- actual secret values: a private key with its key material (a PEM block, one escaped in a JSON file, a PGP block, a
+  PuTTY key), a JWT, the password of a connection string or of a URL, a cloud or service token (AWS, GitHub, GitLab,
+  npm, Slack, Google, Stripe, SendGrid, Hugging Face, DigitalOcean, Twilio…, Discord and Teams webhooks), the value
+  assigned to a secret's name (`SECRET_KEY`, `DB_PASSWORD`, `GITHUB_TOKEN`, `dbPassword`, `PGPASSWORD`…: 8 characters
+  or more, signs included, 16 for letters only, 6 after a lone `password=` or `pwd=`; also the text of an XML
+  element or setting named so, as in Maven's `settings.xml` or a `NuGet.Config`), the signature of a signed URL;
+- last, a random-looking value under any other name, assigned or quoted (20 characters or more, mixing lower case,
+  upper case and digits as a generated token does; never a URL parameter whose name says nothing of a secret, such
+  as `?list=` or `?fbclid=`): "random-looking value (high entropy)".
 
-A mere mention is not a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `example`, `exemple`,
-`motdepasse`, a variable name in capitals) is ignored. A finding shows where it is and only the first characters and
-the length of the value. The check also reports a session file found outside `.doc-kit/`, and a session file tracked
-by git.
+What version 0.4.1 found is still found, but a reference in code and a placeholder, each as the whole value. A
+reference never holds a number of two digits or more; `change-me` and `replace-me` may end in one
+(`replace-me-with-a-real-key-2024`). Left out are a shell's or Windows' variable in capitals (`PASSWORD=$DB_PASSWORD`),
+a member, a call or an index in a line written as code (`Password = model.Password;`, `Password = GetPassword();`,
+`password = request.form.password`; not after a `password=` without a blank, as a properties file writes it),
+`change-me` and `replace-me`, and a mask before the `,` of code (`password=********,`). A password written exactly as
+such a reference in a line of code (`Password = Root.Secret;`) is left out too, as the line cannot tell it from a
+reference of the same shape; so is one written with a blank and in lower case first in a properties, INI or YAML file
+(`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`), which reads as code: SECURITY.md lists
+these limits.
+
+A mere mention is not a secret: a placeholder (`<password>`, `****`, `${SECRET}`, `example`, `exemple`, `motdepasse`,
+`change-me`, a variable name in capitals, a reference in code such as `process.env.…`, `$PASSWORD`,
+`password = config.password` or `password = getPassword()`, a shell default such as `${DB_PASSWORD:-postgres}`) is
+ignored, and so are a CSS selector (`#password:-webkit-autofill`), the name of a Kubernetes secret in Helm values
+(`existingSecret: db-credentials`), an OAuth authorisation code (`?code=`), and a hash, a nonce or an identifier for the
+random-looking values. The detectors and their limits are described in SECURITY.md. A finding shows where it is and only
+the first characters and the length of the value. The check also reports a session file found outside `.doc-kit/`, and a
+session file tracked by git.
 
 Never reported either, whatever found them:
 

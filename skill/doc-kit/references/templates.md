@@ -2,10 +2,10 @@
 
 The authoritative detail is in the kit: `{{KIT_PATH}}/standard/templates.md` (explanations), `{{KIT_PATH}}/
 standard/templates.json` (the first 13 types) and its fragments `{{KIT_PATH}}/standard/templates/business.json`
-(the business page types, Product space, ARCHITECTURE.md §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json`
-(the takeover dossier's types, ARCHITECTURE.md §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
-models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `doc-kit new <id> --template <type>` lays one
-down, and `--prefill` fills its main table from `doc-kit facts` for the types that support it (below).
+(the business page types, Product space, `{{KIT_PATH}}/ARCHITECTURE.md` §6.8) and `{{KIT_PATH}}/standard/templates/takeover.json`
+(the takeover dossier's types, `{{KIT_PATH}}/ARCHITECTURE.md` §6.9) — sections, required sections, maximum length, model, example, in English and French. Page
+models live in `{{KIT_PATH}}/templates/pages/<language>/<type>.md`; `{{KIT_CLI}} new <id> --template <type>` lays one
+down, and `--prefill` fills its main table from `{{KIT_CLI}} facts` for the types that support it (below).
 
 The template is declared in the toc (`template` field of the page). The build then checks that each required section
 is present: a `##` heading that **starts with** its label or an alias (case and accents ignored). A warning with
@@ -50,7 +50,7 @@ checks…"); French models have the same sections in the same order. The list of
 | `variables` | In short · To check | 2,200 |
 | `resources` | In short · Compute · Data · Secrets · Monitoring · Backup · What the application uses outside this group | 2,200 |
 
-## Business page types: the Product space (ARCHITECTURE.md §6.8)
+## Business page types: the Product space (`{{KIT_PATH}}/ARCHITECTURE.md` §6.8)
 
 No `file:line` here: a business page in a space read without the code (Use, Product) that cites one gets the
 warning `business.technical` (move the detail to its `counterpart` in the Develop space). Identifiers: `F-01`… for a feature (`feature` field of the page), `BR-01`… (`RG-01`
@@ -66,13 +66,13 @@ in French) for a rule, defined once with `:::rule`/`:::regle` and cited elsewher
 | `process` | a business process end to end | In short · Who takes part · The steps · What happens on its own, and what waits for someone (required); The states, Deadlines, When it goes wrong, Features involved (optional) | 2,200 | `process/order-to-cash` |
 | `release-notes` | what changed, for the business reader | In short · Latest version (required); Earlier versions (optional) | 3,000 | `process/release-notes` |
 
-## Takeover dossier types (ARCHITECTURE.md §6.9)
+## Takeover dossier types (`{{KIT_PATH}}/ARCHITECTURE.md` §6.9)
 
 The dossier a team needs to take over an application, especially one written largely by AI assistants
 ("vibe-coded"): `references/pitfalls.md` lists exactly what each type is defending against. With spaces,
 `access-ownership` and `runbook` go to the Operate part of the Administer space, the others to the Develop space. Every claim is
-`file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `doc-kit facts` feeds these pages
-(one JSON file per source, `facts/<source>.json`); `doc-kit new <id> --prefill` fills the main table of
+`file:line`, or a fact-file reference, or marked `[[deduced]]`/`[[unknown]]`. `{{KIT_CLI}} facts` feeds these pages
+(one JSON file per source, `facts/<source>.json`); `{{KIT_CLI}} new <id> --prefill` fills the main table of
 `api-surface`, `data-model`, `dependencies` and `agent-instructions` (also `variables` of the 13 original types)
 from the matching facts source.
 

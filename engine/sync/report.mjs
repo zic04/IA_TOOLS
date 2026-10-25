@@ -4,8 +4,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText } from "./dependencies.mjs";
-import { extractProofs, locateProof, PROOF_REF } from "./proofs.mjs";
+import { pageDependencies, writtenPages, classifyMissingFile, pageCiteText, dependencyFile } from "./dependencies.mjs";
+import { extractProofs, locateProof, proofFile, PROOF_REF } from "./proofs.mjs";
 import { readFlatLabels } from "./labels.mjs";
 import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
@@ -20,7 +20,6 @@ import { translatableFiles, translationState, readSources } from "../core/transl
  */
 export const DIRECT_VIAS = Object.freeze(["api", "declared", "sources", "feature"]);
 
-const safeRead = (p) => (p && fs.existsSync(p) ? fs.readFileSync(p, "utf8") : null);
 /** A fresh (non-global) test of the PROOF_REF family, for one code span. */
 const isProofSpan = (span) => new RegExp(PROOF_REF.source).test(span);
 
@@ -33,10 +32,6 @@ function commonSegments(a, b) {
   while (n < x.length && n < y.length && x[n] === y[n]) n++;
   return n;
 }
-
-/** Absolute path of a dependency file ("doc:<path>" for a facts file, else relative to app.dir), or null. */
-const absOf = (root, appDir, p) =>
-  p.startsWith("doc:") ? path.join(root, p.slice(4)) : appDir ? path.join(appDir, p) : null;
 
 /** The tokens a page "names" (ARCHITECTURE.md §2.6, probablyIntact): cited label values, code span contents
  * and their identifiers (proofs excluded), its routes, and the texts of [[menu/perm/route]] badges. */
@@ -86,15 +81,46 @@ function priorityOf({ reasons: all, page, git, refCommit, labelValues }) {
 }
 
 /** The content of a dependency file as it was at `since`/`refCommit` ("doc:" facts files are not versioned
- * by the application's git: read as they are now), or null when it cannot be known. */
-function hashAtRef({ git, since, p, appDir, root }) {
-  if (p.startsWith("doc:")) {
-    const a = path.join(root, p.slice(4));
-    return fs.existsSync(a) ? hashText(fs.readFileSync(a)) : null;
-  }
-  if (!git) return null;
+ * by the application's git: read as they are now), or null when it cannot be known — or must not be: a file outside
+ * the application (dependencyFile, as the marking and the report judge it) is never shown by git either. */
+function hashAtRef({ git, since, p, root, factsDir, appDir }) {
+  const where = dependencyFile(root, factsDir, appDir, p);
+  if (p.startsWith("doc:")) return where ? hashText(fs.readFileSync(where)) : null;
+  if (!git || where === "outside") return null;
   const text = git.show(since, p);
   return text === null ? null : hashText(text);
+}
+
+/**
+ * The dependency files of a page that changed (ARCHITECTURE.md §6.10, review): each recorded hash — in sync.json, or
+ * at `since` (hashAtRef) — against the file now, "modified" or "deleted". Read only where the marking reads
+ * (dependencyFile): a file outside the application (`../`, a link or a junction followed), now a dependency or one an
+ * older sync.json recorded, is never read nor counted deleted; `warnings` gets sync.dependencyOutside for it.
+ * @param {{ id: string, deps: import("./dependencies.mjs").PageDependencies, recorded: any, since: string|null,
+ *   git: any, root: string, factsDir: string, appDir: string|null, warnings: Array<{ key: string, vars: object }> }} p
+ * @returns {Array<{ path: string, kind: "direct"|"shared", change: string, proofsIntact?: boolean }>}
+ */
+function fileReasons({ id, deps, recorded, since, git, root, factsDir, appDir, warnings }) {
+  const recordedFiles = since
+    ? Object.fromEntries(
+        deps.files
+          .map((f) => [f.path, hashAtRef({ git, since, p: f.path, root, factsDir, appDir })])
+          .filter(([, h]) => h !== null),
+      )
+    : recorded?.files || {};
+  const paths = new Set([...deps.files.map((f) => f.path), ...Object.keys(recordedFiles)]);
+  const where = new Map([...paths].map((p) => [p, dependencyFile(root, factsDir, appDir, p)]));
+  for (const [p, w] of where)
+    if (w === "outside") warnings.push({ key: "sync.dependencyOutside", vars: { page: id, path: p } });
+  const reasons = [];
+  for (const [p, oldHash] of Object.entries(recordedFiles)) {
+    const a = where.get(p);
+    if (a === "outside") continue;
+    const kind = deps.files.find((f) => f.path === p)?.kind ?? classifyMissingFile(p, deps);
+    if (!a) reasons.push({ path: p, kind, change: "deleted" });
+    else if (hashText(fs.readFileSync(a)) !== oldHash) reasons.push({ path: p, kind, change: "modified" });
+  }
+  return reasons;
 }
 
 /** The version recorded in a capture's zone file (images/zones/<id>.json), or null. */
@@ -215,6 +241,8 @@ function translationChanges(root, config, toc) {
  * @property {string[]} [truncated]
  * @property {string[]} [unreadableLabels]  message files that are not valid JSON: their labels are not compared
  * @property {boolean} [gitAvailable]
+ * @property {Array<{ key: string, vars: object }>} [warnings]  what could not be checked: a file outside the
+ *   application, never read (sync.dependencyOutside, sync.proofOutside)
  * @property {Array<{ page: string, file: string, key: string, old: string, new: string }>} [byHand]  after
  *   `--apply --labels`: the label rewrites refused, each page left as it is (applyReport().byHand)
  */
@@ -274,6 +302,8 @@ export async function compareWithReference({
 
   const markedIds = since ? [...writtenIds] : Object.keys(reference?.pages || {});
   const truncated = [];
+  /** @type {Array<{ key: string, vars: object }>} */
+  const warnings = [];
 
   for (const id of markedIds) {
     if (!writtenIds.has(id)) continue;
@@ -289,23 +319,7 @@ export async function compareWithReference({
     if (deps.truncated) truncated.push(id);
 
     // ─── Review: dependency hashes, against the reference OR against `since` (read via git show) ────────────
-    /** @type {Array<{ path: string, kind: "direct"|"shared", change: string, proofsIntact?: boolean }>} */
-    const reasons = [];
-    const recordedFiles = since
-      ? Object.fromEntries(
-          deps.files
-            .map((f) => [f.path, hashAtRef({ git, since, p: f.path, appDir, root })])
-            .filter(([, h]) => h !== null),
-        )
-      : recorded?.files || {};
-    for (const [p, oldHash] of Object.entries(recordedFiles)) {
-      const a = absOf(root, appDir, p);
-      const exists = !!a && fs.existsSync(a);
-      const current = deps.files.find((f) => f.path === p);
-      const kind = current?.kind ?? classifyMissingFile(p, deps);
-      if (!exists) reasons.push({ path: p, kind, change: "deleted" });
-      else if (hashText(fs.readFileSync(a)) !== oldHash) reasons.push({ path: p, kind, change: "modified" });
-    }
+    const reasons = fileReasons({ id, deps, recorded, since, git, root, factsDir, appDir, warnings });
 
     // ─── Proofs: re-extracted from the current Markdown, matched against the recorded ones ───────────────────
     let hadProofIssue = false;
@@ -315,18 +329,23 @@ export async function compareWithReference({
     for (const proof of pageProofs) {
       const recordedProof = refProofs[proof.ref];
       if (!recordedProof) continue;
-      const proofFile = proof.path || proof.file;
-      const currentAbs = appDir ? path.join(appDir, proofFile) : null;
-      const renamed =
-        appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === proofFile) : null;
-      const current =
-        currentAbs && fs.existsSync(currentAbs)
-          ? fs.readFileSync(currentAbs, "utf8")
-          : renamed
-            ? safeRead(path.join(appDir, renamed.path))
-            : null;
+      const cited = proof.path || proof.file;
+      // Read only in the application (proofFile, as markPages does): one an older sync.json recorded outside it
+      // (`../`, a link or a junction followed) is never read again, and is said so.
+      const where = appDir ? proofFile(appDir, proof) : null;
+      if (where === "outside") {
+        warnings.push({ key: "sync.proofOutside", vars: { page: id, ref: proof.ref } });
+        continue;
+      }
+      const renamed = appDir && git ? git.changed(refCommit)?.find((c) => c.status === "R" && c.from === cited) : null;
+      const renamedReal = renamed ? proofFile(appDir, { file: renamed.path }) : null;
+      const current = where
+        ? fs.readFileSync(where, "utf8")
+        : renamedReal && renamedReal !== "outside"
+          ? fs.readFileSync(renamedReal, "utf8")
+          : null;
       const r = locateProof({ current, renamedTo: renamed?.path ?? null, recorded: recordedProof, proof });
-      if (r.status !== "intact") proofIssueFiles.add(proofFile);
+      if (r.status !== "intact") proofIssueFiles.add(cited);
       if (r.status === "moved") {
         hadProofIssue = true;
         const newRef = r.newTo !== r.newFrom ? `${r.newFile}:${r.newFrom}-${r.newTo}` : `${r.newFile}:${r.newFrom}`;
@@ -438,6 +457,9 @@ export async function compareWithReference({
     truncated,
     unreadableLabels: unreadable,
     gitAvailable,
+    // Extra too: what the report could not check, each a message key of cli.<key> (sync.proofOutside,
+    // sync.dependencyOutside).
+    warnings,
   };
 }
 
@@ -501,12 +523,13 @@ export function renderReport(report, t) {
 }
 
 /** What the report cannot tell, last: facts behind the application, a closure cut short, a message file that cannot be
- * read, no git to see a rename. */
+ * read, a file outside the application never read (warnings), no git to see a rename. */
 function notesOf(report, t) {
   const notes = [];
   if (report.facts.stale.length) notes.push(t("cli.sync.factsStale", { sources: report.facts.stale.join(", ") }));
   for (const page of report.truncated || []) notes.push(t("cli.sync.truncated", { page }));
   for (const file of report.unreadableLabels || []) notes.push(t("cli.sync.labelsUnreadable", { file }));
+  for (const w of report.warnings || []) notes.push(t(`cli.${w.key}`, w.vars));
   if (!report.gitAvailable && report.review.some((r) => r.reasons.some((x) => x.change === "deleted")))
     notes.push(t("cli.sync.noGit"));
   return notes;

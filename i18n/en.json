@@ -16,6 +16,8 @@
   "cli.build.capture.hasZones.help": "replace ::capture with a :::screen block whose numbered list explains each zone",
   "cli.build.capture.notFound": "[{page}] screenshot not found: “{id}”",
   "cli.build.capture.notFound.help": "produce it with {command} capture, or fix the identifier",
+  "cli.build.diagram.id": "[{page}] diagram identifier refused: “{id}”",
+  "cli.build.diagram.id.help": "a diagram is named after its SVG file in the diagrams folder: lower-case letters, digits and hyphens (flow, data-model), never a path",
   "cli.build.diagram.notFound": "[{page}] diagram not found: {file}",
   "cli.build.diagram.notFound.help": "add the SVG file or fix the identifier",
   "cli.build.failed": {

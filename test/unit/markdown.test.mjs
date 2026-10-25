@@ -4,6 +4,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { testEngine } from "../tools/helpers.mjs";
 import { statusColour } from "../../engine/build/markdown.mjs";
+import { createI18n } from "../../engine/i18n.mjs";
 
 const CAPTURES = {
   screen: {
@@ -78,6 +79,29 @@ describe("directives ::", () => {
     const { render, reports } = testEngine();
     assert.equal(render('::diagram{id="x"}\n').html, "");
     assert.equal(reports[0].key, "diagram.notFound");
+  });
+
+  test("::diagram{id} that is not a plain name (a path that climbs, a slash): diagram.id, never read", () => {
+    for (const id of ["../..", "../../etc/passwd", "sub/flow", "flow.svg", "Flow", "a\\b", ""]) {
+      const files = { [`diagrams/${id}.svg`]: "<svg></svg>" };
+      const { render, reports, engine } = testEngine({ files });
+      assert.equal(render(`::diagram{id="${id}"}\n`).html, "", id);
+      assert.deepEqual(
+        reports.map((r) => [r.strict, r.key, r.vars.id]),
+        [[true, "diagram.id", id]],
+        id,
+      );
+      assert.equal(engine.usedDiagrams.size, 0, id);
+    }
+    // The build error names the page and the identifier, in English and in French; so does the one of ::facts.
+    for (const language of ["en", "fr"]) {
+      const { t } = createI18n({ language });
+      for (const key of ["cli.build.diagram.id", "cli.build.facts.source"]) {
+        const text = t(key, { page: "use/start", id: "../..", source: "../.." });
+        assert.ok(text.includes("use/start") && text.includes("../.."), `${language} ${key}: ${text}`);
+        assert.notEqual(t(`${key}.help`), `${key}.help`, `${language} ${key}.help`);
+      }
+    }
   });
 
   test("::before-after and ::avant-apres", () => {
@@ -249,6 +273,17 @@ describe("headings, anchors, links, tables, long code", () => {
       { id: "one", title: "One", level: 2 },
       { id: "two-three", title: "Two three", level: 2 },
     ]);
+  });
+
+  // RULES.md S9: the toc schema refuses such an id (project.test.mjs); the render escapes it all the same.
+  test("a hostile page id is escaped in the anchor links of a heading and of a card", () => {
+    const hostile = 'p/x" onmouseover="alert(1)';
+    const { render } = testEngine();
+    const heading = render("## One\n", hostile).html;
+    assert.match(heading, /href="#\/p\/x&quot; onmouseover=&quot;alert\(1\)~one"/);
+    const card = render(':::rule{id="BR-1" title="T"}\nx\n:::', hostile).html;
+    assert.match(card, /href="#\/p\/x&quot; onmouseover=&quot;alert\(1\)~br-1"/);
+    for (const html of [heading, card]) assert.doesNotMatch(html, / onmouseover="/, html);
   });
 
   test("de-duplicated slugs (-2, then -2-2), without accents", () => {

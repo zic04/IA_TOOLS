@@ -14,6 +14,8 @@ import {
   HTML_ATTRIBUTE,
   PLACEHOLDER,
   SECRET_FILE,
+  SESSION_HEAD,
+  startsAsSession,
   scanText,
   isUrlTemplate,
   htmlText,
@@ -89,7 +91,7 @@ import { PY_PATTERNS, pyBehaviours } from "../../engine/facts/behaviour-py.mjs";
 import { SCHEMA_PATTERNS, schemaBehaviours } from "../../engine/facts/behaviour-schemas.mjs";
 import { OPENAPI_FILE, OPENAPI_YAML, openapiBehaviours } from "../../engine/facts/openapi.mjs";
 import { sameRoute, apiHandlers } from "../../engine/sync/feature-files.mjs";
-import { plainLines } from "../../engine/core/text.mjs";
+import { plainLines, isPlainName } from "../../engine/core/text.mjs";
 import { isCovered } from "../../engine/check/coverage.mjs";
 import { markdownText, wikiText } from "../../engine/backlog/markup.mjs";
 import { csvFile } from "../../engine/backlog/csv.mjs";
@@ -104,6 +106,7 @@ import { KitError } from "../../engine/project/errors.mjs";
 import { languageInConfig } from "../../engine/project/find.mjs";
 import { codeInText, safeProofPath } from "../../skill/doc-kit/scripts/analysis-model.mjs";
 import { modelName } from "../../skill/doc-kit/scripts/transcript-usage.mjs";
+import { bashDecision } from "../../skill/doc-kit/scripts/bash-decision.mjs";
 import { growthOf as measureGrowth } from "./growth.mjs";
 import { FRONT_UNITS, FRONT_SHAPES, SPRING_SHAPES, ASPNET_SHAPES, PY_UNITS } from "./stack-shapes.mjs";
 import { wordsOf, mentionsOf, hostsOf, tracesOf, loadTechnologies } from "../../engine/inputs/reconcile.mjs";
@@ -170,13 +173,31 @@ const PREFIXES = [
   "@@x\t",
   "-----BEGIN PRIVATE KEY-----\n",
   "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: x\n",
+  "-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: x\n\n",
+  // A key on one line, its line ends escaped (a JSON key file); the private lines of a PuTTY key.
+  "-----BEGIN PRIVATE " + "KEY-----\\n",
+  "Private-Lines: 1\n",
+  "github_pat_",
+  "hooks.slack.com/services/T0a1b2/B0a1b2/",
   "eyJ",
   "eyJabcdefgh.eyJ",
   "Password=",
   "https://u:",
   "?sig=",
+  "&Sig=",
   "secret = ",
   "api_key: ",
+  // A compound name; a quoted value (the entropy fallback).
+  "DB_PASSWORD=",
+  'x = "',
+  // The floor (0.4.1's rules) and the connection strings: a glued name, a DSN's pair before, a value on the next
+  // line, a lone password in code before a call, an index, a member.
+  "PGPASSWORD=",
+  "host=db password=",
+  "password:\n  ",
+  "Password = a.b(",
+  'Password = c["',
+  "f(password=",
   "verify=",
   "app.get(",
   "@app.get(",
@@ -347,6 +368,39 @@ const SCANNER_SHAPES = [
   ["", "[[verified a"],
   ["", "a:\r"],
   ["", "<script "],
+  // Keys on one line never ended, and quoted random values one after the other (the secret detectors).
+  ["", "-----BEGIN PRIVATE " + "KEY-----\\nA"],
+  ["", "Private-Lines: 1\nA1"],
+  ["", '"Zq8vN3kT6wP1xR4mY7bL'],
+  ["", "A_KEY=Zq8vN3kT6wP1xR4mY7bL "],
+  // XML elements and settings named as a secret, never closed; a value as long as the text after one; CSS
+  // pseudo-classes and shell defaults after a secret's name; sums of members; JSON nested in a session's head.
+  ["", "<password>A1"],
+  ["<password>", "A1"],
+  ["<add key='", "a"],
+  ["", '<add key="ClearTextPassword" value="A1'],
+  ["", "#password:-webkit-a"],
+  ["", "${DB_PASSWORD:-a1b2c3d4"],
+  ["o.key=", "r.C0+"],
+  // Runs of name characters that never reach a separator (a name is read from the start of its run only), pairs of a
+  // DSN one after the other, values ended by the commas and parentheses of code.
+  ["", "a."],
+  ["", "a--"],
+  ["", "1.a-"],
+  ["", "a=b password=c1d2e3 "],
+  ["password=a", ",)"],
+  // A reference in code read as the whole value: calls one after the other, a call's arguments and blanks never
+  // closed, a quoted key never closed, sigils; an instruction to replace the value followed by words.
+  ["", "password = a.b(c, "],
+  ["password = a.b(", " "],
+  ["password = a.b(", '"x", '],
+  ["password = a.b(c", ", d"],
+  ["password = a.b(c", ", d.e"],
+  ["t.password=n(", "e.a,"],
+  ['password = c["', "a"],
+  ["", "password=$A_B "],
+  ["password=change-me", "-a"],
+  ['{"cookies": [', '{"origins": ["\\"x", '],
 ];
 /** What opens a part of a page that is never text, or one read before it (engine/sync/prose.mjs, proseOf: a code
  * span, a fence in a blockquote or a list item, an HTML block, a tag's quoted value), put before an input. */
@@ -807,6 +861,8 @@ export const CHECKS = [
   ["inputs diagram mermaid flowchart", (s) => diagramToMarkdown(`graph TD\n${s}`, "mermaid")],
   ["inputs diagram mermaid C4", (s) => diagramToMarkdown(`C4Context\n${s}`, "mermaid")],
   ["inputs pdfIndex", (s) => pdfIndex(Buffer.from(`%PDF-1.7\n${s}`, "latin1"))],
+  // The name a directive gives a file of the project (::facts{source}, ::diagram{id}), written by an agent.
+  ["build isPlainName", (s) => isPlainName(s) || isPlainName(`a-${s}`)],
   // An HTML document of the sources, and the addresses and names of inputs.json.
   ["inputs htmlToText", (s) => htmlToText(s)],
   ["inputs htmlToText (in a page)", (s) => htmlToText(`<html><body><h1>${s}</h1><p>${s}</p><script>${s}`)],
@@ -855,6 +911,14 @@ export const CHECKS = [
   ["analysis safeProofPath", (s) => safeProofPath(s)],
   // The model a Claude Code transcript names (skill/doc-kit/scripts/transcript-usage.mjs).
   ["transcript modelName", (s) => modelName(s)],
+  // A command an agent asks its Bash for, read as bash splits it by the guard of the skill's agents (bash-decision.mjs):
+  // quotes, escapes and operators of any length, each word checked once.
+  [
+    "bash guard bashDecision",
+    (s) =>
+      [s, `ls ${s} '${s}' "${s}" && cat ${s}`].filter((c) => bashDecision(c, { skillDir: "/s", kitDir: "/k" }).allow)
+        .length,
+  ],
   // The texts of an ingested DAT (engine/inputs/reconcile.mjs).
   ["reconcile wordsOf", (s) => wordsOf(s).length],
   ["reconcile mentionsOf", (s) => mentionsOf(s, loadTechnologies()).size],
@@ -878,7 +942,22 @@ export const CHECKS = [
     (s) => htmlText(s).length + htmlText(`<p>${s}</p><script>${s}`).length + htmlText(`${s}</script></style>>`).length,
   ],
   ["check secrets PLACEHOLDER", (s) => PLACEHOLDER.test(s)],
-  ["check secrets SECRET_FILE", (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`)],
+  [
+    "check secrets SECRET_FILE",
+    (s) => SECRET_FILE.test(s) || SECRET_FILE.test(`.env.${s}`) || SECRET_FILE.test(`appsettings.${s}`),
+  ],
+  ["check secrets SESSION_HEAD", (s) => SESSION_HEAD.test(s) || SESSION_HEAD.test(`{"cookies"${s}`)],
+  // A session told by its head: the other key anywhere in it, or a first item of a session's shape (a cookie's
+  // strings, an origin's), on a text that starts as one.
+  [
+    "check secrets startsAsSession",
+    (s) =>
+      startsAsSession(s) ||
+      startsAsSession(`{"cookies": [${s}`) ||
+      startsAsSession(`{"cookies": [{"name": "${s}`) ||
+      startsAsSession(`{"cookies": [{"name": "a", "value": "${s}", "domain": ${s}`) ||
+      startsAsSession(`{"origins": [{"origin": "${s}", "localStorage": [${s}`),
+  ],
   // The paths of the application: an agent's instructions, a test file (a long name in a folder they look for).
   ...AGENT_FILES.map((re, i) => [`agents file ${i}`, (s) => re.test(s) || re.test(`.claude/${s}`)]),
   ["tests TEST_FILE", (s) => TEST_FILE.test(s) || TEST_FILE.test(`tests/${s}`)],

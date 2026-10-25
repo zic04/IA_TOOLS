@@ -5,6 +5,7 @@
 // its static prefix.
 //   coverage: [{ adapter: "react-router", file: "../../frontend/src/App.tsx", prefix: "/admin/", exclude: ["^/$", "^/admin$"] }]
 import { routeMatches, excludeItems } from "../../engine/check/coverage.mjs";
+import { routeWithoutSecrets } from "../../engine/facts/behaviour-common.mjs";
 
 export default {
   name: "react-router",
@@ -26,7 +27,8 @@ export default {
       for (const m of tools.read(f).matchAll(re)) {
         const p = (m.groups?.path ?? m[1] ?? "").trim();
         if (!p) continue;
-        routes.add(p.startsWith("/") ? p : (prefix + p).replace(/\/{2,}/g, "/"));
+        // A segment that looks like a key or a token is "…", as the `screens` facts write it (RULES.md S7).
+        routes.add(routeWithoutSecrets(p.startsWith("/") ? p : (prefix + p).replace(/\/{2,}/g, "/")));
       }
     const items = [...routes].sort().map((id) => ({ id, match: routeMatches(id) }));
     return { available: true, families: [{ name: options.family, items: excludeItems(items, options.exclude) }] };

@@ -162,6 +162,14 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > `--since`, and the commit shown by a stale facts file, come from `git show` and `git diff` in the application —
 > never a write. Without git, the report still runs; it only loses what git would have added.
 
+> [!NOTE] A file outside the application is never read
+> A proof (`file:line`) or a dependency of a page whose file lies outside `app.dir` — through `../`, or through a
+> link or a junction, whether that file exists or not — is never read, hashed nor recorded: the warning
+> `sync.proofOutside` (proof not recorded) or `sync.dependencyOutside` (dependency not followed) says so, at marking
+> and in every report. Two limits: a hard link is another name of the same file, so one in the application to a
+> file outside is read as a file of the application; and a path is checked, then read, so a file or a folder
+> replaced by a link in between, by a process that changes the application while `sync` runs, is not seen.
+
 ## Further reading
 
 - [Commands: write and check](#/reference/cli/write-check~doc-kit-sync): every option, in full.

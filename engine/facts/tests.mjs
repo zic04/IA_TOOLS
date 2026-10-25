@@ -3,9 +3,7 @@
 //   item: { file, tests }, plus summary: { files, tests, coverage? }, and `unreadable` ({ file, reason }) when a
 //   coverage report is there but cannot be read (the coverage is then unknown, not absent: AUDIT.md M14), or a test
 //   file is over 512 KB or cannot be read (counted in `files`, its tests unknown).
-import fs from "node:fs";
-import path from "node:path";
-import { listFiles } from "./common.mjs";
+import { listFiles, confinedReader } from "./common.mjs";
 import { readListed } from "./code-files.mjs";
 
 // Exported: reused by `quality` (ARCHITECTURE.md §6.13) to exclude test files from its maintainability measures.
@@ -15,28 +13,29 @@ const TEST_CALL = /\bit\(|\btest\(|\bdef test_/g;
 
 /**
  * Line coverage percentage (0-100, one decimal) from an lcov, istanbul or Cobertura report, or null. A report that
- * cannot be parsed is listed in `unreadable`.
+ * cannot be parsed is listed in `unreadable`. A report is read whole, but only in the application, links followed
+ * (confinedReader, SECURITY.md): one that leads out of it is not there.
  */
 function readCoverage(appDir, unreadable) {
-  const lcov = path.join(appDir, "coverage", "lcov.info");
-  if (fs.existsSync(lcov)) {
-    const text = fs.readFileSync(lcov, "utf8");
+  const read = confinedReader(appDir, { maxSize: Infinity });
+  const text = read("coverage/lcov.info");
+  if (text !== null) {
     const sum = (re) => [...text.matchAll(re)].reduce((a, m) => a + Number(m[1]), 0);
     const found = sum(/^LF:(\d+)/gm);
     return found ? Math.round((sum(/^LH:(\d+)/gm) / found) * 1000) / 10 : null;
   }
-  const summary = path.join(appDir, "coverage", "coverage-summary.json");
-  if (fs.existsSync(summary)) {
+  const summary = read("coverage/coverage-summary.json");
+  if (summary !== null) {
     try {
-      return JSON.parse(fs.readFileSync(summary, "utf8")).total?.lines?.pct ?? null;
+      return JSON.parse(summary).total?.lines?.pct ?? null;
     } catch {
       unreadable.push({ file: "coverage/coverage-summary.json", reason: "json" });
       return null;
     }
   }
-  const xml = path.join(appDir, "coverage.xml");
-  if (fs.existsSync(xml)) {
-    const m = /line-rate="([\d.]+)"/.exec(fs.readFileSync(xml, "utf8"));
+  const xml = read("coverage.xml");
+  if (xml !== null) {
+    const m = /line-rate="([\d.]+)"/.exec(xml);
     return m ? Math.round(Number(m[1]) * 1000) / 10 : null;
   }
   return null;

@@ -9,8 +9,8 @@ import { KitError, EXIT } from "../project/errors.mjs";
 import { adapterTools, normalize } from "../check/coverage.mjs";
 import { wholeIndexes } from "../core/text.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
-import { pageDependencies, writtenPages, pageCiteText } from "./dependencies.mjs";
-import { recordProof } from "./proofs.mjs";
+import { pageDependencies, writtenPages, pageCiteText, dependencyFile } from "./dependencies.mjs";
+import { recordProof, proofFile } from "./proofs.mjs";
 import { labelFiles, readFlatLabels } from "./labels.mjs";
 import { generatorTag } from "../brand.mjs";
 
@@ -252,12 +252,22 @@ function mergeInventory(recorded, inventory, marked) {
   return out;
 }
 
-/** The hashes of a page's dependency files that exist ("doc:<path>" in the project, the others in app.dir). */
-function hashFiles(root, appDir, deps) {
+/**
+ * The hashes of a page's dependency files that exist, each read only where the report reads it again
+ * (dependencyFile: a "doc:" facts file in the project, the others where they really are in app.dir). One outside the
+ * application (`../`, a link or a junction followed) is never read nor recorded, and is said so: `warnings` gets
+ * sync.dependencyOutside for it.
+ * @param {{ root: string, factsDir: string, appDir: string|null, page: string, deps: Array<{ path: string }>,
+ *   warnings: Array<{ key: string, vars: object }> }} p
+ * @returns {Record<string, string>}
+ */
+function hashFiles({ root, factsDir, appDir, page, deps, warnings }) {
+  /** @type {Record<string, string>} */
   const files = {};
   for (const f of deps) {
-    const abs = f.path.startsWith("doc:") ? path.join(root, f.path.slice(4)) : appDir && path.join(appDir, f.path);
-    if (abs && fs.existsSync(abs)) files[f.path] = hashText(fs.readFileSync(abs));
+    const abs = dependencyFile(root, factsDir, appDir, f.path);
+    if (abs === "outside") warnings.push({ key: "sync.dependencyOutside", vars: { page, path: f.path } });
+    else if (abs) files[f.path] = hashText(fs.readFileSync(abs));
   }
   return files;
 }
@@ -342,11 +352,18 @@ export async function markPages({
       ...{ pageId: id, factsDir: config.paths.facts },
     });
 
-    const files = hashFiles(root, appDir, deps.files);
+    const files = hashFiles({ root, factsDir: config.paths.facts, appDir, page: id, deps: deps.files, warnings });
     for (const proof of deps.proofs) {
       const recorded = appDir ? recordProof(appDir, proof) : null;
       if (recorded) newProofs[proof.ref] = recorded;
-      else warnings.push({ key: "sync.proofUnresolved", vars: { page: id, ref: proof.ref } });
+      else {
+        // A file outside the application (`../`, a link or a junction followed) is never read, and is said so.
+        const outside = appDir !== null && proofFile(appDir, proof) === "outside";
+        warnings.push({
+          key: outside ? "sync.proofOutside" : "sync.proofUnresolved",
+          vars: { page: id, ref: proof.ref },
+        });
+      }
     }
 
     newPages[id] = {

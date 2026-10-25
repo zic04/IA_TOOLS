@@ -167,6 +167,26 @@ export const routeWithoutSecrets = (route) =>
     )
     .join("/");
 
+/** A file's extension, after its last dot: one to eight letters or digits (tsx, md, snap; never a token's length). */
+const isExtension = (ext) =>
+  ext.length >= 1 && ext.length <= 8 && [...ext].every((c) => isDigit(c) || isUpper(c) || isLower(c));
+
+/**
+ * A file's path (relative, forward slashes) as routeWithoutSecrets writes a route, but its name judged without its
+ * extension: `.tsx` reads as no word, so `OrderSummaryCard.tsx` would not read as a whole. A name is "…", its extension
+ * with it, when the rest of it looks like a key or a token, or when a detector of the kit finds one in the whole name
+ * (one written across the dot). What follows a last dot and is no extension (`config.Zq8v…`) is judged with the name.
+ * @param {string} file
+ */
+export function fileWithoutSecrets(file) {
+  const slash = file.lastIndexOf("/");
+  const name = file.slice(slash + 1);
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 && isExtension(name.slice(dot + 1)) ? name.slice(0, dot) : name;
+  const masked = (name.length >= 10 && looksSecret(name)) || routeWithoutSecrets(stem) !== stem;
+  return routeWithoutSecrets(file.slice(0, slash + 1)) + (masked ? "…" : name);
+}
+
 /** A field name kept as written, or undefined. */
 export const safeField = (s) => (typeof s === "string" && FIELD.test(s) && !unsafe(s) ? s : undefined);
 

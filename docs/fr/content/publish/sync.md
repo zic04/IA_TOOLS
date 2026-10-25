@@ -171,6 +171,15 @@ construction.
 > l'application — jamais une écriture. Sans git, le rapport s'exécute encore ; il perd seulement ce que git aurait
 > ajouté.
 
+> [!NOTE] Un fichier hors de l'application n'est jamais lu
+> Une preuve (`fichier:ligne`) ou une dépendance d'une page dont le fichier est hors de `app.dir` — par `../`, ou par
+> un lien ou une jonction, que ce fichier existe ou non — n'est jamais lue, hachée ni enregistrée : l'avertissement
+> `sync.proofOutside` (preuve non enregistrée) ou `sync.dependencyOutside` (dépendance non suivie) le dit, au
+> marquage comme dans chaque rapport. Deux limites : un lien physique (hard link) est un autre nom du même fichier,
+> donc un lien physique dans l'application vers un fichier extérieur est lu comme un fichier de l'application ; et
+> un chemin est vérifié, puis lu, donc un fichier ou un dossier remplacé par un lien entre les deux, par un processus
+> qui modifie l'application pendant que `sync` s'exécute, n'est pas vu.
+
 ## Pour aller plus loin
 
 - [Commandes : rédiger et vérifier](#/reference/cli/write-check~doc-kit-sync) : chaque option, en détail.

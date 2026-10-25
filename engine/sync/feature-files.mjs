@@ -8,6 +8,7 @@ import path from "node:path";
 import { readFeatures, featuresFileOf } from "../core/features.mjs";
 import { kindsOfHints } from "../core/behaviours.mjs";
 import { SECRET_FILE } from "../check/secrets.mjs";
+import { realInside, realPathOf } from "../core/confine.mjs";
 import { resolveImports } from "../facts/imports.mjs";
 
 /** The entry of the features file (features.json) of a page that is a feature sheet (its `feature` field), or null. */
@@ -27,31 +28,22 @@ export function featureOf(root, config, entry) {
  * @param {(pattern: string) => string[]} glob   relative to app.dir
  */
 export function safeSources(appDir, patterns, glob) {
-  let base;
-  try {
-    base = fs.realpathSync.native(path.resolve(appDir));
-  } catch {
-    return [];
-  }
+  const base = realPathOf(appDir);
+  if (!base) return [];
   const out = [];
   for (const pattern of patterns || []) {
     const p = String(pattern).replaceAll("\\", "/");
     if (p.startsWith("/") || p.includes(":") || p.split("/").includes("..")) continue;
     for (const f of glob(p)) {
       if (String(f).includes(":")) continue;
+      // Where the file really is and its real name, as the system gives them (links and junctions followed, a short
+      // name or another case resolved): inside the application only.
+      const real = realInside(base, path.resolve(appDir, f));
+      if (!real || SECRET_FILE.test(path.basename(f)) || SECRET_FILE.test(path.basename(real))) continue;
       try {
-        // Where the file really is and its real name, as the system gives them (realpathSync.native: links and
-        // junctions followed, a short name or another case resolved): inside the application only.
-        const real = fs.realpathSync.native(path.resolve(appDir, f));
-        if (
-          !real.startsWith(base + path.sep) ||
-          SECRET_FILE.test(path.basename(f)) ||
-          SECRET_FILE.test(path.basename(real))
-        )
-          continue;
         if (fs.statSync(real).isFile() && !out.includes(f)) out.push(f);
       } catch {
-        // gone between the glob and now, or a broken link: left out
+        // gone between the glob and now: left out
       }
     }
   }

@@ -118,6 +118,32 @@ describe("resolveJs", () => {
     }
   });
 
+  // A `paths` key is a prefix, at most one `*`, and a suffix, as TypeScript reads it: every other character literal,
+  // never a quantifier of a regular expression built from the key (RULES.md S5; the growth in imports-growth.test.mjs).
+  test("tsconfig paths key: one * at most, every other character literal; a key with two * matches nothing", () => {
+    const dir = withFiles({ "src/x.ts": "", "src/b.ts": "", "lib/x.ts": "" });
+    try {
+      const resolve = (key, spec) =>
+        resolveJs(spec, "app/page.tsx", dir, { baseUrl: ".", paths: { [key]: ["./src/*"] } });
+      // A minimal pair: one `*`, prefix and suffix around it; a second `*` (invalid for TypeScript): no match.
+      assert.equal(resolve("@*/x", "@b/x"), "src/b.ts");
+      assert.equal(resolve("@*a*/x", "@b/x"), null, "two *: an invalid key");
+      // `?`, `+`, `.` and the rest are characters of the key: `@a?/*` is not `@/*` with an optional `a`.
+      assert.equal(resolve("@a?/*", "@a?/x"), "src/x.ts");
+      assert.equal(resolve("@a?/*", "@/x"), null);
+      assert.equal(resolve("@a+/*", "@aa/x"), null);
+      assert.equal(resolve("@.x/*", "@ax/x"), null);
+      // A key without `*` is the whole specifier; the prefix and the suffix never overlap.
+      const exact = (key, spec) =>
+        resolveJs(spec, "app/page.tsx", dir, { baseUrl: ".", paths: { [key]: ["./lib/x"] } });
+      assert.equal(exact("@lib", "@lib"), "lib/x.ts");
+      assert.equal(exact("@lib", "@lib/y"), null);
+      assert.equal(resolve("@a*a", "@a"), null, "the prefix and the suffix share no character");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("ignored extensions (css, svg, json…) are never resolved; a bare package with no alias match is null", () => {
     const dir = withFiles({ "a/style.css": "" });
     try {
@@ -204,6 +230,81 @@ describe("resolveImports: folders never traversed", () => {
       assert.ok(![...files].some((f) => f.includes("node_modules")));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// SECURITY.md, confinement: an import is resolved, and then read (the import closure of `sync`, the page context,
+// the `modules` facts), only when where it really is (links and junctions followed) is in the application. A junction
+// needs no privilege on Windows; a folder link elsewhere.
+describe("imports never resolved through a link out of the application", () => {
+  /** An application with `j`, a junction to a folder outside it, and `lib`, a folder of its own. */
+  function linkedApp() {
+    const dir = tempDir("doc-kit-imports-link-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    const put = (file, text) => {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, text);
+    };
+    put(path.join(outside, "util.js"), 'import "./more.js";\nexport const leaked = "of the operator";\n');
+    put(path.join(outside, "more.js"), "export const more = 1;\n");
+    put(path.join(outside, "util.py"), "LEAKED = 1\n");
+    put(path.join(outside, "tsconfig.json"), JSON.stringify({ compilerOptions: { paths: { "@x/*": ["./*"] } } }));
+    put(path.join(outside, "page.js"), 'import "@x/more";\nimport "../lib/local.js";\n');
+    put(path.join(app, "lib", "local.js"), "export const local = 1;\n");
+    put(path.join(app, "lib", "helper.py"), "HELPER = 1\n");
+    put(
+      path.join(app, "main.js"),
+      'import { leaked } from "./j/util.js";\nimport { local } from "./lib/local.js";\nimport "@/util";\n',
+    );
+    put(path.join(app, "main.py"), "import j.util\nimport lib.helper\n");
+    put(path.join(app, "tsconfig.json"), JSON.stringify({ compilerOptions: { paths: { "@/*": ["./j/*"] } } }));
+    const junction = path.join(app, "j");
+    const release = () => {
+      // The junction first, on its own: removing the folder must never walk into what it points to.
+      try {
+        fs.unlinkSync(junction);
+      } catch {
+        if (fs.existsSync(junction)) fs.rmdirSync(junction);
+      }
+      fs.rmSync(dir, { recursive: true, force: true });
+    };
+    try {
+      fs.symlinkSync(outside, junction, "junction");
+    } catch (e) {
+      release();
+      throw e;
+    }
+    return { app, release };
+  }
+
+  test("a relative import, a tsconfig alias and a Python module through a junction: never; the import beside: yes", () => {
+    const { app, release } = linkedApp();
+    try {
+      const tsconfig = loadTsconfig(app, "main.js");
+      assert.equal(resolveJs("./j/util.js", "main.js", app, tsconfig), null, "a relative import");
+      assert.equal(resolveJs("@/util", "main.js", app, tsconfig), null, "a tsconfig alias");
+      assert.equal(resolveJs("./lib/local.js", "main.js", app, tsconfig), "lib/local.js");
+      assert.equal(resolvePy({ module: "j.util", level: 0 }, "main.py", app), null, "a Python module");
+      assert.equal(resolvePy({ module: "util", level: 1 }, "j/page.py", app), null, "a relative Python module");
+      assert.equal(resolvePy({ module: "lib.helper", level: 0 }, "main.py", app), "lib/helper.py");
+      // The closure: the file beside is followed, nothing behind the junction is resolved, read or followed.
+      assert.deepEqual([...resolveImports({ appDir: app, files: ["main.js"] }).files].sort(), [
+        "lib/local.js",
+        "main.js",
+      ]);
+      assert.deepEqual([...resolveImports({ appDir: app, files: ["main.py"] }).files].sort(), [
+        "lib/helper.py",
+        "main.py",
+      ]);
+      // A starting file behind the junction (a route's file) is never read: its imports, even one that comes back
+      // into the application (../lib/local.js), are not followed.
+      assert.deepEqual([...resolveImports({ appDir: app, files: ["j/page.js"] }).files], ["j/page.js"]);
+      // A tsconfig.json behind the junction is never read either.
+      assert.equal(loadTsconfig(app, "j/page.js")?.paths["@x/*"], undefined);
+    } finally {
+      release();
     }
   });
 });

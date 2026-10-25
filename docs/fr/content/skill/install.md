@@ -31,8 +31,40 @@ doc-kit skill install
 
 La commande copie le dossier `skill/doc-kit/` du kit dans `<dossier des skills>/doc-kit`, et remplace `{{KIT_PATH}}`
 par le chemin absolu du kit dans `SKILL.md`, `references/*.md` et `scripts/*.mjs` : le skill sait où se trouvent le
-kit, son standard et ses gabarits. Le dossier des skills est `--target`, sinon `$CLAUDE_CONFIG_DIR/skills`, sinon
+kit, son standard et ses gabarits. Elle y remplace aussi `{{KIT_CLI}}`, comme dans les fichiers des agents, par la
+commande qui lance le kit par ce chemin, `node "<kit>/cli/doc-kit.mjs"` : le skill et ses agents lancent le kit que
+vous avez installé, jamais `npx doc-kit`, qui lance le premier doc-kit qu'il trouve dans un `node_modules/.bin`
+jusqu'à la racine — celui de l'application, quand votre documentation est dedans. Le dossier des skills est `--target`, sinon `$CLAUDE_CONFIG_DIR/skills`, sinon
 `~/.claude/skills`.
+
+Elle écrit aussi les quatre types d'agents (`doc-kit-triage`, `doc-kit-writer`, `doc-kit-analyst`,
+`doc-kit-reviewer`) dans le dossier des agents voisin du dossier des skills, avec le chemin du skill installé à la
+place de `{{SKILL_PATH}}`. Les trois qui ont Bash nomment la **garde** du skill comme hook PreToolUse
+(`scripts/bash-guard.mjs`) : chaque commande Bash qu'un tel agent demande est lue d'abord, et seules celles-ci
+passent :
+
+| Permis | Exemple |
+|---|---|
+| Le CLI du kit, par son chemin absolu, depuis le dossier de la documentation | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
+| Les scripts du skill, par leur chemin absolu : le chemin réel du skill, ou celui que nomme son hook, à travers un lien (sous Windows, avec son lecteur : `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
+| Des outils de lecture, avec leurs seules options de lecture | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, reliés par un tube, `&&`, `\|\|` ou `;` ; `>/dev/null`, `>&1` et `>&2`, seules ou après un `1` ou un `2` sans guillemets (`2>&1`) |
+
+Tout le reste est refusé, avec sa raison : `npx doc-kit`, `npm exec` et un `doc-kit` nu (ils peuvent lancer celui de
+l'application), un programme par un chemin relatif, un `cd` ailleurs qu'en premier, git, npm, tout autre programme,
+`$(…)` et les autres expansions (`~+`, `~utilisateur`, `x=~`…), toute autre redirection (vers un fichier, `&>`,
+`<<<`…) et celle qui suit un mot entre guillemets ou échappé (bash lit `"2">/dev/null` comme un argument `2` et une
+redirection de la sortie), un `*` sans guillemets, une option d'un outil de lecture absente de sa liste
+(`rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), et les commandes de doc-kit qui sont les vôtres ou celles
+de l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les fichiers de l'application sont des
+données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un agent.
+Le hook échoue fermé : une garde qui ne peut pas démarrer ou se charger (pas de `node`, un fichier absent ou abîmé),
+ou qui ne décide jamais, refuse la commande ; il est écrit sous la forme exec de Claude Code (`command: node`, `args`, `onFailure: block`), qui
+n'a besoin d'aucun shell, mais de Claude Code 2.1.295 ou plus récent : un plus ancien ne lance jamais la garde (`doctor`
+le signale, SECURITY.md). Lancé par un chemin court 8.3 de Windows (`C:\PROGRA~1\…`), le hook ne connaît le skill que
+sous cette forme courte et refuse les commandes qui le nomment sous sa forme longue : il échoue fermé. La garde ne fait que refuser ; ce qu'elle laisse passer demande toujours vos autorisations,
+comme d'habitude. Elle ne borne que Bash : les écritures d'un agent, et le `doc.config.mjs` que le kit charge là où il
+tourne (du code, comme un plan de capture), ne sont pas de son ressort — relisez une configuration que vous n'avez pas
+écrite avant d'y lancer le kit.
 
 ## Étape 2 — Le charger dans Claude Code
 
@@ -78,6 +110,19 @@ annotées, un dossier d'architecture, des parcours de bout en bout, un diagnosti
 > [!NOTE] Un kit par skill
 > Le skill installé pointe vers un seul dossier de kit. Déplacer le kit, ou utiliser une autre copie, demande une
 > nouvelle installation ; `doctor` le signale.
+
+> [!ATTENTION] Sous Linux et macOS, un dossier des skills dont le chemin contient une barre oblique inverse
+> Là, une barre oblique inverse est un caractère du nom d'un dossier, et node ne charge aucun module placé sous un tel
+> dossier : la garde ne peut pas démarrer, `onFailure: block` refuse chaque commande, et les agents n'ont plus de Bash
+> du tout. Installez le skill dans un dossier qui n'en contient pas (`doc-kit skill install --target <dossier>`). Sous
+> Windows, une barre oblique inverse sépare les dossiers : rien n'y change.
+
+> [!ATTENTION] La garde n'est pas un bac à sable
+> Elle ne borne que le Bash des agents. Ce qu'un agent écrit est borné par son brief et vos autorisations, et un plan
+> de capture est un module JavaScript que `doc-kit capture` exécute. Elle tient pour dossier de documentation tout
+> dossier qui porte un `doc.config.mjs` : relisez un tel fichier si l'application en livre un. Une définition d'agent
+> modifiée à la main a pu perdre sa garde : `doctor` la signale comme modifiée, et `doc-kit skill install` la
+> rétablit.
 
 ## Droits requis
 
