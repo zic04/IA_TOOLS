@@ -27,7 +27,7 @@ import { KitError, EXIT } from "../project/errors.mjs";
 import { readableFiles, infraFiles, readCode } from "./code-files.mjs";
 import { collectDependencies } from "./dependencies.mjs";
 import { adaptersOf, detectedBy } from "../core/adapters.mjs";
-import { realPathOf } from "../core/confine.mjs";
+import { realPathOf, within } from "../core/confine.mjs";
 
 /**
  * @typedef {{ name: string, files: RegExp, marker?: RegExp, languages?: string[],
@@ -55,9 +55,6 @@ export const BUILT_IN_STACKS = Object.freeze([
   rails,
   rust,
 ]);
-
-/** Whether a real path is a folder or inside it. */
-const within = (real, dir) => real === dir || real.startsWith(dir + path.sep);
 
 /**
  * The stack adapters of a run: the kit's but those of `config.stacks.disabled` (an id the kit does not know is an

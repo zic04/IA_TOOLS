@@ -82,6 +82,10 @@ describe("the secrets and security sources never read through a link out of the 
       [at("twin")]: path.resolve("/srv/app-other/x.js"), // a folder that starts with the same name
       [at("linked", "credentials")]: path.resolve("/home/me/.aws/credentials"), // through a junction
       [at("self")]: app, // the folder itself
+      // A sibling folder in another case, APP beside app in a case-sensitive folder (WSL's, or one fsutil marks so):
+      // another folder, read neither as written nor through a junction to it.
+      [path.resolve("/srv/APP/x.js")]: path.resolve("/srv/APP/x.js"),
+      [at("upper", "x.js")]: path.resolve("/srv/APP/x.js"),
     };
     const opened = [];
     const io = {
@@ -106,6 +110,8 @@ describe("the secrets and security sources never read through a link out of the 
       "big.js",
       "missing.js",
       "../app-other/x.js",
+      "../APP/x.js",
+      "upper/x.js",
     ])
       assert.equal(read(rel), null, rel);
     assert.deepEqual(opened, [at("inside.js"), at("sub", "ok.js")], "only the two files inside were opened");

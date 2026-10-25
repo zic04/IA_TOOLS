@@ -306,7 +306,8 @@ entries between a project's `kit` range and the installed version.
   (`~/.aws/credentials`) was scanned, and its report told what kind of secret the machine held. A file is now read
   only when its real path (links and junctions followed) is in the application, the confinement of a page's
   `sources` (`engine/core/confine.mjs`, now the one helper of `sources`, `inputs reconcile` and the project's
-  adapters).
+  adapters), real paths compared exactly, case included: in a case-sensitive folder (WSL's, or one `fsutil` marks
+  so), `APP` beside `app` is another folder.
 - **The imports of a page's code are never followed through a link out of the application** (SECURITY.md): an
   import resolved through a junction to a folder outside (`./j/util.js`, a `tsconfig.json` alias, a Python module)
   joined the page's dependencies, and its context gave an agent up to 200 lines of that file. An import, a
@@ -327,7 +328,9 @@ entries between a project's `kit` range and the installed version.
   a page was never unchanged again. One helper (`dependencyFile`, engine/sync/dependencies.mjs, on `fileInside` of
   engine/core/confine.mjs, which `proofFile` uses too) now serves the marking, the report, `--since` (never `git
   show`n) and those reads: a dependency outside the application is never read, hashed nor recorded, never counted
-  deleted, and the warning `sync.dependencyOutside` says so, at marking and in every report.
+  deleted, and the warning `sync.dependencyOutside` says so, at marking and in every report. Present there or missing
+  (a link that leads nowhere judged by its target as written), a file outside gets the same answer, a proof too
+  (`sync.proofOutside`, never `fileDeleted`): no report tells which files of the operator exist.
 - **A `paths` key of a `tsconfig.json` is matched as TypeScript reads it** (RULES.md S5): only its first `*` was a
   wildcard, the next ones and a `?` quantifiers of a regular expression built from the key (`@*a*a*a*a*a*b` took
   52 s on a specifier of 100 characters). A key is now a prefix, at most one `*` and a suffix, compared as text; a

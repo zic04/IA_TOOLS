@@ -15,7 +15,7 @@ import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
 import { isPlainName } from "../core/text.mjs";
-import { fileInside } from "../core/confine.mjs";
+import { fileInside, within } from "../core/confine.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -81,8 +81,9 @@ function docFile(root, factsDir, ref) {
  * The file of a dependency of a page, for whatever reads or hashes it — the marking, the report, `--since` and the
  * page's own files read here (M6, SECURITY.md): a "doc:" facts file (docFile) when it exists; else, relative to
  * app.dir, its real path only where it really is a file of the application (fileInside, links and junctions followed).
- * "outside" when it climbs out of the application (`../`) or really lies outside it (a link, a junction): never read,
- * hashed nor recorded, and never "deleted" either. Null when there is no such file, or no app.dir.
+ * "outside" when it climbs out of the application (`../`) or lies outside it, present there or missing (a link, a
+ * junction): never read, hashed nor recorded, and never "deleted" either. Null when there is no such file, or no
+ * app.dir.
  * @param {string} root
  * @param {string} factsDir   config.paths.facts
  * @param {string|null} appDir
@@ -155,7 +156,7 @@ function toAppRel(root, appDir, projRel) {
   if (!appDir) return null;
   const abs = path.resolve(root, projRel);
   const base = path.resolve(appDir);
-  if (abs !== base && !abs.startsWith(base + path.sep)) return null;
+  if (!within(abs, base)) return null;
   return relPath(appDir, abs);
 }
 

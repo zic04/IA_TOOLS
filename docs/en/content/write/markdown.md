@@ -239,11 +239,13 @@ The route accepts any signed-in user, from any region ([[verified lib/orders.ts:
 actually goes through it first is [[unknown]].
 ```
 
-An unknown source (`facts.missing`) or a column that none of the items has (`facts.column`) fails a strict build;
-run `doc-kit facts` first. [Commands: write and check](#/reference/cli/write-check~doc-kit-facts) lists the seven
-sources. The ten takeover page types ([Page templates](#/write/page-templates)) are built around these two pieces
-of syntax: [Example · API surface](#/examples/api-surface), [Example · Dependencies](#/examples/dependencies) and
-the other takeover examples show them in a real page.
+A source that is not the name of a facts file (`facts.source`: lower-case letters, digits and hyphens, never a
+path), an unknown source (`facts.missing`: run `doc-kit facts` first) or a column that none of the items has
+(`facts.column`) fails a strict build, and so does a `::diagram` whose `id` is not the name of an SVG file of
+`diagrams/` (`diagram.id`, the same rule). [Commands: write and check](#/reference/cli/write-check~doc-kit-facts)
+lists the seven sources. The ten takeover page types ([Page templates](#/write/page-templates)) are built around
+these two pieces of syntax: [Example · API surface](#/examples/api-surface), [Example ·
+Dependencies](#/examples/dependencies) and the other takeover examples show them in a real page.
 
 ## Links
 

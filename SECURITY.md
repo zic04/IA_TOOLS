@@ -280,13 +280,17 @@ as untrusted input:
   page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
   entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
   the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
-  so. The
-  coverage report that `tests` reads by its fixed name (`coverage/lcov.info`,
-  `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private declarations of the
-  dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a requirements file…,
-  read by their fixed names) follow links, as they read the operator's own configuration on purpose; only flags,
-  scopes and names to keep off the network come out of them (whether a registry or an index is private, a private
-  scope, the application's own package names), never a value;
+  so. A proof or a dependency through a link out of the application is outside whether its file exists there or
+  not (judged by where its nearest existing folder really is), and a link that leads nowhere is judged by its
+  target as written (32 links at most: a loop is outside too): neither the marking, the report nor `--since` tells
+  whether a file of the operator exists. Every real path of this confinement is compared exactly, case included
+  (`realpathSync.native` gives the case on disk): in a case-sensitive folder (WSL's, or one `fsutil` marks so), a
+  sibling `APP` of `app` is another folder, outside. The coverage report that `tests` reads by its fixed name
+  (`coverage/lcov.info`, `coverage/coverage-summary.json`, `coverage.xml`) is confined the same way. The private
+  declarations of the dependency readers (`.npmrc`, `.yarnrc.yml`, `bunfig.toml`, `pyproject.toml`, `pip.conf`, a
+  requirements file…, read by their fixed names) follow links, as they read the operator's own configuration on
+  purpose; only flags, scopes and names to keep off the network come out of them (whether a registry or an index is
+  private, a private scope, the application's own package names), never a value;
 - limits of this confinement: a hard link cannot be told from the file itself (it is another name of the same file,
   with no target to follow), so a hard link in the application to a file outside it is read as a file of the
   application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is

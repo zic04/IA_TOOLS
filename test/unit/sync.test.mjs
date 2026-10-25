@@ -1457,7 +1457,8 @@ describe("engine/sync: a proof outside the application is never read", () => {
       fs.symlinkSync(outside, junction, "junction");
       const config = await syncConfig(fx.root);
       const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
-      fs.appendFileSync(page, "\nSee `j/util.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
+      // j/missing.js:1 next to j/util.js:1: the same reason whether the file outside exists or not.
+      fs.appendFileSync(page, "\nSee `j/util.js:1`, `j/missing.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
       const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
@@ -1472,7 +1473,7 @@ describe("engine/sync: a proof outside the application is never read", () => {
         hash: hashText("export const threshold = 10000;"),
         text: "export const threshold = 10000;",
       });
-      for (const ref of ["j/util.js:1", "../outside/util.js:1"]) {
+      for (const ref of ["j/util.js:1", "j/missing.js:1", "../outside/util.js:1"]) {
         assert.equal(reference.proofs[ref], undefined, `${ref}: not recorded`);
         assert.ok(
           warnings.some(
@@ -1481,9 +1482,13 @@ describe("engine/sync: a proof outside the application is never read", () => {
           `${ref}: its reason given`,
         );
       }
+      assert.ok(
+        !warnings.some((w) => w.key === "sync.proofUnresolved" && w.vars.ref.startsWith("j/")),
+        "never missing",
+      );
       assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
       const files = Object.keys(reference.pages["take-over/orders-api"].files);
-      assert.ok(files.includes("lib/orders.ts") && !files.some((f) => f.includes("util.js")), files.join(", "));
+      assert.ok(files.includes("lib/orders.ts") && !files.some((f) => /util\.js|^j\//.test(f)), files.join(", "));
     } finally {
       // The junction first, on its own: removing the folder must never walk into what it points to.
       try {
@@ -1509,12 +1514,13 @@ describe("engine/sync: a proof outside the application is never read", () => {
       fs.symlinkSync(outside, junction, "junction");
       const config = await syncConfig(fx.root);
       const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
-      fs.appendFileSync(page, "\nSee `j/util.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
+      // j/missing.js:1 next to j/util.js:1: never `fileDeleted` for the one whose file outside does not exist.
+      fs.appendFileSync(page, "\nSee `j/util.js:1`, `j/missing.js:1`, `../outside/util.js:1` and `lib/orders.ts:1`.\n");
       const toc = readToc(fx.root, config);
       const inventory = await runCoverage({ root: fx.root, config });
       const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
       const { reference } = await markPages({ root: fx.root, config, toc, all: true, ...at });
-      const refs = ["j/util.js:1", "../outside/util.js:1"];
+      const refs = ["j/util.js:1", "j/missing.js:1", "../outside/util.js:1"];
       for (const ref of refs) reference.proofs[ref] = { hash: hashText(line), text: line };
       for (const f of ["j/util.js", "../outside/util.js"]) reference.pages[id].files[f] = hashText(line + "\n");
       writeSyncReference(fx.root, config, reference);
@@ -1568,6 +1574,90 @@ describe("engine/sync: a proof outside the application is never read", () => {
         if (fs.existsSync(junction)) fs.rmdirSync(junction);
       }
       fx.release();
+    }
+  });
+
+  // git reports the cited file renamed (`R100 old.js → j/util.js`) to a path through a junction out: the new file is
+  // read only where it really is in the application (proofFile), never through the junction. Read, its line, one
+  // line down, would come back as a proof moved to j/util.js:2.
+  test("sync: a proof whose file git reports renamed through a junction out is never read there", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "j");
+    const id = "take-over/orders-api";
+    const line = 'export const leaked = "of the operator";';
+    try {
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "util.js"), "// moved\n" + line + "\n");
+      fs.symlinkSync(outside, junction, "junction");
+      const config = await syncConfig(fx.root);
+      fs.appendFileSync(path.join(fx.root, config.paths.content, "take-over", "orders-api.md"), "\nSee `old.js:1`.\n");
+      const toc = readToc(fx.root, config);
+      const inventory = await runCoverage({ root: fx.root, config });
+      const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", inventory, plans: [] };
+      const reference = structuredClone((await markPages({ root: fx.root, config, toc, all: true, ...at })).reference);
+      reference.proofs["old.js:1"] = { hash: hashText(line), text: line };
+      const git = createGit(fakeExec({ changed: ["R100\told.js\tj/util.js"] }), fx.appDir);
+      const { result, reads } = await readsIn(outside, () =>
+        compareWithReference({
+          root: fx.root,
+          config,
+          toc,
+          reference,
+          since: null,
+          git,
+          inventory,
+          plans: [],
+          appDir: fx.appDir,
+          version: "1.0.0",
+          commit: "c0ffee",
+          factsDir: config.paths.facts,
+        }),
+      );
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.deepEqual(
+        result.proofs.moved.filter((m) => m.page === id),
+        [],
+      );
+      assert.deepEqual(
+        result.proofs.broken.filter((b) => b.page === id).map((b) => [b.ref, b.reason]),
+        [["old.js:1", "fileDeleted"]],
+      );
+      assert.ok(!JSON.stringify(result).includes("j/util.js:2"), "never moved through the junction");
+    } finally {
+      unlinkJunction(junction);
+      fx.release();
+    }
+  });
+
+  // resolveProofFile's early "outside": a proof as written through a junction out is no file of the application, and
+  // is never looked for by its end (a whole-segment suffix) among the files inside — present outside or missing there,
+  // the same answer; nor does it become the proof's path, a dependency of the page.
+  test("extractProofs with appDir: a proof through a junction out resolves to no file, never to a file inside that ends like it", () => {
+    const dir = tempDir("doc-kit-proof-suffix-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    const junction = path.join(app, "j");
+    try {
+      fs.mkdirSync(path.join(app, "sub", "j"), { recursive: true });
+      fs.mkdirSync(path.join(app, "sub", "k"), { recursive: true });
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "x.js"), "outside\n");
+      for (const f of ["j/x.js", "j/y.js", "k/w.js"]) fs.writeFileSync(path.join(app, "sub", f), "inside\n");
+      fs.symlinkSync(outside, junction, "junction");
+      const proofs = extractProofs("See `j/x.js:1`, `j/y.js:1` and `k/w.js:1`.", { appDir: app });
+      assert.deepEqual(
+        proofs.map((p) => [p.ref, p.path]),
+        [
+          ["j/x.js:1", null],
+          ["j/y.js:1", null],
+          ["k/w.js:1", "sub/k/w.js"],
+        ],
+        "a short path is still found by its end inside; one through the junction out never is",
+      );
+    } finally {
+      unlinkJunction(junction);
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });
@@ -1643,7 +1733,9 @@ describe("engine/sync: a dependency file outside the application is never read",
   test("fileInside (engine/core/confine.mjs): a file of the folder, or outside as written or once links are followed", () => {
     const dir = tempDir("doc-kit-inside-");
     const app = path.join(dir, "app");
-    const junctions = [path.join(app, "j"), path.join(app, "in")];
+    // A junction out, one in, and two that lead nowhere: one to a folder outside that is missing, one inside.
+    const junctions = ["j", "in", "gone-out", "gone-in"].map((n) => path.join(app, n));
+    const alias = path.join(dir, "alias"); // beside the application, a junction back to it
     try {
       fs.mkdirSync(path.join(app, "lib"), { recursive: true });
       fs.mkdirSync(path.join(dir, "outside"));
@@ -1651,6 +1743,9 @@ describe("engine/sync: a dependency file outside the application is never read",
       fs.writeFileSync(path.join(dir, "outside", "b.ts"), "export const b = 1;\n");
       fs.symlinkSync(path.join(dir, "outside"), junctions[0], "junction");
       fs.symlinkSync(path.join(app, "lib"), junctions[1], "junction");
+      fs.symlinkSync(path.join(dir, "gone"), junctions[2], "junction");
+      fs.symlinkSync(path.join(app, "lib", "gone"), junctions[3], "junction");
+      fs.symlinkSync(app, alias, "junction");
       const real = fs.realpathSync.native(path.join(app, "lib", "a.ts"));
       // Minimal pairs: the same file, or the same name, one step apart.
       assert.equal(fileInside(app, "lib/a.ts"), real);
@@ -1659,13 +1754,90 @@ describe("engine/sync: a dependency file outside the application is never read",
       assert.equal(fileInside(app, "j/b.ts"), "outside", "a junction to a folder outside");
       assert.equal(fileInside(app, "../outside/b.ts"), "outside", "climbs out, the file exists");
       assert.equal(fileInside(app, "../outside/missing.ts"), "outside", "climbs out, even missing");
+      assert.equal(fileInside(app, "../alias/lib/a.ts"), "outside", "climbs out as written, even back in by a link");
       assert.equal(fileInside(app, "lib/missing.ts"), null, "missing inside");
       assert.equal(fileInside(app, "lib"), null, "a folder");
       assert.equal(fileInside(app, "j"), "outside", "a folder outside");
+      // Whether a file outside exists is never told (SECURITY.md): missing through the junction out is outside too.
+      assert.equal(fileInside(app, "j/missing.ts"), "outside", "a junction to a folder outside, the file missing");
+      assert.equal(fileInside(app, "j/deeper/missing.ts"), "outside", "missing two levels down");
+      assert.equal(fileInside(app, "in/missing.ts"), null, "a junction to a folder inside, the file missing");
+      // A junction that leads nowhere: judged by where its target, as written, lies.
+      assert.equal(fileInside(app, "gone-out/x.ts"), "outside", "under a broken junction out");
+      assert.equal(fileInside(app, "gone-out"), "outside", "a broken junction out");
+      assert.equal(fileInside(app, "gone-in/x.ts"), null, "under a broken junction inside");
+      assert.equal(fileInside(app, "gone-in"), null, "a broken junction inside");
     } finally {
-      for (const j of junctions) unlinkJunction(j);
+      for (const j of [...junctions, alias]) unlinkJunction(j);
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  // A file link needs a privilege on Windows (developer mode), and a sibling folder that differs from the application's
+  // by its case only needs a case-sensitive folder (WSL's, or one fsutil marks so): a fake file system checks both on
+  // every system — never a silent skip.
+  test("fileInside on a fake file system: a broken file link judged by its target, a loop never followed, another case another folder", () => {
+    const srv = path.resolve("/srv");
+    const app = path.join(srv, "app");
+    const at = (...parts) => path.join(app, ...parts);
+    const upper = path.join(srv, "APP"); // beside app, in a case-sensitive folder: another folder
+    /** What realpathSync.native gives (links resolved, the case on disk); a path it does not know does not exist. */
+    const real = {
+      [srv]: srv,
+      [app]: app,
+      [at("lib")]: at("lib"),
+      [at("a.txt")]: at("a.txt"),
+      [upper]: upper,
+      [path.join(upper, "secret.txt")]: path.join(upper, "secret.txt"),
+      [at("up")]: upper, // a junction to APP
+      [at("up", "secret.txt")]: path.join(upper, "secret.txt"),
+      [path.join(srv, "x")]: path.join(srv, "x"),
+      [path.join(srv, "x", "y")]: path.join(srv, "x", "y"),
+      [at("out")]: path.join(srv, "x", "y"), // a junction to a folder outside
+    };
+    /** The links, their targets as written; those that lead nowhere are not in `real`. */
+    const links = {
+      [at("up")]: upper,
+      [at("out")]: path.join(srv, "x", "y"),
+      [at("broken-out.txt")]: "../outside/missing.txt",
+      [at("broken-in.txt")]: "lib/missing.txt",
+      [at("out", "broken.txt")]: "../z/missing.txt", // from /srv/x/y, not from app/out: /srv/x/z
+      [at("nowhere.txt")]: path.resolve("/nowhere/missing.txt"), // no part of it exists, not even the root
+      [at("loop-a")]: at("loop-b"),
+      [at("loop-b")]: at("loop-a"),
+    };
+    const missing = (p) => Object.assign(new Error(`ENOENT: ${p}`), { code: "ENOENT" });
+    const io = {
+      realpathSync: {
+        native: (p) => {
+          if (Object.hasOwn(real, p)) return real[p];
+          throw missing(p);
+        },
+      },
+      statSync: (p) => ({ isFile: () => p.endsWith(".txt") }),
+      lstatSync: (p) => {
+        if (!Object.hasOwn(real, p) && !Object.hasOwn(links, p)) throw missing(p);
+        return { isSymbolicLink: () => Object.hasOwn(links, p) };
+      },
+      readlinkSync: (p) => {
+        if (Object.hasOwn(links, p)) return links[p];
+        throw Object.assign(new Error(`EINVAL: ${p}`), { code: "EINVAL" });
+      },
+    };
+    assert.equal(fileInside(app, "a.txt", io), at("a.txt"));
+    // Minimal pairs: a broken link out, and one inside.
+    assert.equal(fileInside(app, "broken-out.txt", io), "outside", "a broken file link out");
+    assert.equal(fileInside(app, "broken-in.txt", io), null, "a broken file link inside");
+    // A broken link's target is read from the folder the link really is in: as written from app/out, it would be
+    // app/z/missing.txt, inside.
+    assert.equal(fileInside(app, "out/broken.txt", io), "outside", "a broken link in a folder outside");
+    assert.equal(fileInside(app, "nowhere.txt", io), "outside", "a broken link to where nothing exists");
+    assert.equal(fileInside(app, "loop-a", io), "outside", "a loop of links: never followed");
+    // Another case is another folder (compared exactly, as realpathSync.native gives the case on disk).
+    assert.equal(fileInside(app, "../APP/secret.txt", io), "outside", "a sibling in another case, as written");
+    assert.equal(fileInside(app, "../APP/missing.txt", io), "outside", "the same, missing");
+    assert.equal(fileInside(app, "up/secret.txt", io), "outside", "through a junction to it");
+    assert.equal(fileInside(app, "up/missing.txt", io), "outside", "the same, missing");
   });
 
   test("sync --mark <page> --sources ../shared/money.ts, then --check: exit code 0 and the warning; never read nor recorded", async () => {
@@ -1713,7 +1885,9 @@ describe("engine/sync: a dependency file outside the application is never read",
     const outside = path.join(path.dirname(fx.appDir), "outside");
     const junction = path.join(fx.appDir, "j");
     const id = "take-over/orders-api";
-    const declared = ["../outside/util.js", "j/util.js"];
+    // A minimal pair through the junction: j/util.js exists outside, j/missing.js does not — the same answer for both,
+    // so the report never tells whether a file of the operator exists (`deleted` for one, the warning for the other).
+    const declared = ["../outside/util.js", "j/missing.js", "j/util.js"];
     try {
       fs.mkdirSync(outside);
       fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
@@ -1789,6 +1963,49 @@ describe("engine/sync: a dependency file outside the application is never read",
       assert.deepEqual(outsideWarnings(result.since.warnings, id), ["../outside/util.js"]);
     } finally {
       fx.release();
+    }
+  });
+
+  // Through a junction out, the file present or missing there: the same answer, so neither the marking nor `--since`
+  // (a `git show` of the missing file) tells whether a file of the operator exists.
+  test("the `file` of a facts/api.json item through a junction, present or missing: never shown by git with --since", async () => {
+    const id = "use/orders/detail";
+    for (const file of ["j/util.js", "j/missing.js"]) {
+      const fx = syncFixtureCopy();
+      const outside = path.join(path.dirname(fx.appDir), "outside");
+      const junction = path.join(fx.appDir, "j");
+      try {
+        fs.mkdirSync(outside);
+        fs.writeFileSync(path.join(outside, "util.js"), 'export const leaked = "of the operator";\n');
+        fs.symlinkSync(outside, junction, "junction");
+        const config = await syncConfig(fx.root);
+        const apiFile = path.join(fx.root, config.paths.facts, "api.json");
+        const api = JSON.parse(fs.readFileSync(apiFile, "utf8"));
+        for (const item of api.items) item.file = file;
+        fs.writeFileSync(apiFile, JSON.stringify(api));
+        fs.appendFileSync(path.join(fx.appDir, "app", "orders", "[id]", "page.tsx"), "fetch(`/api/orders/1`);\n");
+        const toc = readToc(fx.root, config);
+        const inventory = await runCoverage({ root: fx.root, config });
+        const shown = [];
+        const exec = (bin, args) => {
+          if (args[0] === "show") shown.push(args.at(-1));
+          return fakeExec({ showFiles: { [`c0ffee:${file}`]: "export const leaked = 1;\n" } })(bin, args);
+        };
+        const { result, reads } = await readsIn(outside, async () => {
+          const marked = await markPages({ root: fx.root, config, toc, all: true, inventory, reference: null, ...at });
+          const since = { since: "c0ffee", git: createGit(exec, fx.appDir) };
+          return { marked, since: await report(fx, config, toc, inventory, marked.reference, since) };
+        });
+        assert.ok(!shown.some((s) => s.includes("j/")), `${file}: never shown by git: ${shown.join(", ")}`);
+        assert.deepEqual(reads, [], `${file}: nothing outside the application is read`);
+        assert.deepEqual(outsideWarnings(result.marked.warnings, id), [file], file);
+        const reasons = result.since.review.find((r) => r.page === id)?.reasons ?? [];
+        assert.ok(!reasons.some((r) => r.path.startsWith("j/")), JSON.stringify(reasons));
+        assert.deepEqual(outsideWarnings(result.since.warnings, id), [file], file);
+      } finally {
+        unlinkJunction(junction);
+        fx.release();
+      }
     }
   });
 

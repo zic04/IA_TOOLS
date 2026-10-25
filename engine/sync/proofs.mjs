@@ -65,12 +65,14 @@ const appFilesCache = new Map();
  * (`tokens-table.tsx:42` after `frontend/src/components/admin/tokens-table.tsx`), or a path relative to a sub-project
  * (`app/routers/tokens.py` in `api/`): the path as written when it exists, else the one file of the application
  * whose path ends with it (a whole-segment suffix), else null — two candidates are never guessed between. A path
- * as written that really lies outside the application (`../`, a link or a junction followed: proofFile) is none.
+ * as written that lies outside the application (`../`, a link or a junction followed: proofFile), present there or
+ * missing, is none, and is never looked for by its end inside: the answer never tells whether a file outside exists.
  * The application's files are listed once per folder (listFiles: no node_modules, no documentation project, no link).
  */
 export function resolveProofFile(appDir, file) {
   const clean = file.replace(/\\/g, "/").replace(/^\.\//, "");
   const written = proofFile(appDir, { file: clean });
+  // Neither `clean` (the proof's path, a dependency of the page) nor a file inside that ends like it.
   if (written === "outside") return null;
   if (written) return clean;
   if (!appFilesCache.has(appDir)) appFilesCache.set(appDir, listFiles(appDir));
@@ -80,8 +82,9 @@ export function resolveProofFile(appDir, file) {
 
 /**
  * The file a proof cites (`proof.path` when it was resolved, extractProofs with appDir, else as written): its real
- * path when it is a file of the application; "outside" when it climbs out of it (`../`) or really lies outside it (a
- * link or a junction followed, SECURITY.md: never read); null when there is no such file (fileInside).
+ * path when it is a file of the application; "outside" when it climbs out of it (`../`) or lies outside it, present
+ * there or missing (a link or a junction followed, SECURITY.md: never read); null when there is no such file
+ * (fileInside).
  * @param {string} appDir
  * @param {{ file: string, path?: string|null }} proof
  * @returns {string|null}

@@ -54,7 +54,7 @@ La page d'accueil est `content/home.md` ; chaque section peut avoir une introduc
 
 | Champ | Obligatoire | Rôle |
 |---|---|---|
-| `id` | oui | Adresse de la page (`#/utiliser/commandes`) et fichier `content/<id>.md` ; ni espace, ni `~`, ni `#` |
+| `id` | oui | Adresse de la page (`#/utiliser/commandes`) et fichier `content/<id>.md` : des segments de minuscules, de chiffres, de `-` et de `_` (`[a-z0-9_-]`, qui ne commencent jamais par `-` ni par `_`), séparés par `/` |
 | `title` | oui | Titre de la page ; le fichier Markdown n'a pas de titre `#` |
 | `menuTitle` | non | Libellé plus court dans le menu |
 | `summary` | non | Une phrase, affichée sous le titre, dans la vue d'ensemble de la section et dans la recherche |
