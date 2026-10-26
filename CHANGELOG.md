@@ -8,12 +8,60 @@ entries between a project's `kit` range and the installed version.
 
 ### Fixed
 
+- **The agents' guard is compared with bash, not sh** (`test/unit/bash-guard.test.mjs`, SECURITY.md): Claude Code
+  runs the agents' commands with bash, and `sh` is bash in POSIX mode (or dash), which keeps the `~` of `x=~`. The
+  test of the guard's words against a real shell's runs the first `bash` on the `PATH`, and on Windows Git Bash's
+  (beside `git`, as Claude Code finds it; never a `bash.exe` of Windows' own folders, which starts WSL), reading no
+  start-up file and never in POSIX mode; it says so (`t.diagnostic`) and compares nothing where there is no bash. Its
+  forms now hold `x=~`, `x=~/a`, `x=a:~` and `PATH=a:~/b`, which bash expands and the guard refuses, `a:~`, which bash
+  keeps and the guard refuses all the same (it never decides what looks like an assignment), and their quoted forms.
+  The `sh` the other tests of that group run (the hook's shell form, the planted bin) is found the same way, beside
+  `git` on Windows (`<Git>/bin/sh.exe`) whatever shell runs the tests: one missing from the `PATH` made the group
+  throw, and none of its tests ran. Where no `sh` exists at all, the step that runs it says so (`t.diagnostic`) and
+  the rest of the test runs: a test that fails only because of the developer's shell is no test of the kit. The
+  lookup is one helper, `findShell` (`test/tools/helpers.mjs`), which `test/unit/skill.test.mjs` uses too: its bash
+  reading of the analysis brief's check command asserted an `sh` on the `PATH`, and failed from PowerShell.
 - **SECURITY.md and the checks page of the docs say exactly what the secret detectors and the capture guard do.**
   `change-me` and `replace-me` may end in a number after words only (`replace-me-with-a-real-key-2024`;
   `password=change-me-2024` is reported). The floor's limit names its properties, INI and YAML lines written with a
   blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
   left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
   within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
+
+### Security
+
+- **The agents' guard refuses a device as a read-only tool's operand** (SECURITY.md): `cat /dev/zero`, `tail
+  /dev/zero`, `grep x /dev/zero` and `head -c 1 /dev/urandom` went through, and reading a device never ends, as `tail
+  -f` does not. Every word of a read-only tool from its first operand on (find's start paths among them; a value
+  given to an option before it, `grep -e /dev/zero app`, is none, nor grep's or rg's first operand when it can only be
+  their pattern — no option gives it (`-e`, `--regexp`) or lists files (rg's `--files`) — nor the operands of a tool
+  that opens none, `tr`, `echo`, `basename`, `dirname`, `pwd`) is refused, with its reason (`device`, in
+  English and French), when it names a path under `/dev/` other than `/dev/null`: by any
+  spelling (`//dev/zero`, `/dev/./zero`, `/usr/../dev/zero`; `/DEV/zero`, which macOS's volume reads as `/dev` by
+  default), climbing to it (`../../dev/zero`, which reaches it from any folder deep enough), or read from the folder a
+  first `cd` moved to (`cd / && cat dev/zero`) as well as from the one the line started in; that `cd` takes a folder,
+  never an option (`cd -` goes to `$OLDPWD`, `cd --` home: refused). On Windows also Git Bash's own `/dev`
+  (`/dev/clipboard`), a backslash for a slash, the device namespace (`\\.\`, `\\?\`, `\??\`, with either slash, a
+  `cd` into it too) and the reserved names as a path's last part (`CON`, `NUL`, `nul.txt`, `C:/x/aux.md`, `COM1:`,
+  `CONIN$`), which a Windows program (rg) opens as the device. The words are read in one pass, never through
+  `path.posix.normalize` (its time grows as the square of a long `../../…`), and the ReDoS harness measures it;
+  `checkOptions` (`scripts/bash-options.mjs`) returns the words the tool opens as paths (its pattern, and the words a
+  tool that opens none is given, left out). A link to a device, a named pipe, a file of `/proc` or `/sys` and Git
+  Bash's own folder named by its Windows path still pass: the guard reads no file (SECURITY.md, its limits).
+- **On Windows, the agents' guard refuses a network path** (SECURITY.md): a read-only tool given a UNC path opened a
+  share of another machine, which receives the user's Windows credentials (NTLM). Every word the device rule checks
+  (find's start paths among them) and a `cd`'s folder are refused, with their reason (`network`, in English and
+  French), when they start with two slashes, either way round (`\\host\share`, `//host/share`, `//host`, `//`, Git
+  Bash's root of the network), reach one through the device namespace (`\\?\UNC\…`, `\\.\UNC\…`, `\??\UNC\…`), or
+  name Git Bash's `/proc` or a path under it, by any spelling or climb: `/proc/sys` is Windows' object namespace and a
+  way to a share (`/proc/sys/.../UNC/…`, `\Device\Mup`), and `/proc/self/root`, `/proc/<pid>/root` and
+  `/proc/cygdrive` lead back to it; Git Bash reads Git's own folder by its Windows path as its root, so a part named
+  `proc` in a drive path, or after a `cd` to one, is refused too. A `cd`'s folder is checked as a path (a tool given
+  no operand reads it), and
+  `realpath --relative-to`/`--relative-base` resolves the folder it is given, so a share there is refused too. On
+  Linux and macOS, `//x` is the root's `x` and `/proc` the kernel's: local, read as usual. A pattern of grep or rg is
+  no path (`grep -rn '// TODO' app`; after grep's `-C`, its number attached, `-C3`). A drive letter mapped to a share,
+  or a link to one, still passes (SECURITY.md, its limits).
 
 ## [0.4.2] - 2026-10-25
 

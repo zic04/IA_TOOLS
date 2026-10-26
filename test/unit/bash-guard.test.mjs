@@ -29,7 +29,7 @@ import {
 import { READ_ONLY_SPECS } from "../../skill/doc-kit/scripts/bash-options.mjs";
 import * as common from "../../skill/doc-kit/scripts/common.mjs";
 import { SKILL_SOURCE } from "../../cli/commands/skill.mjs";
-import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, findShell, tempDir } from "../tools/helpers.mjs";
 
 const { AGENT_TYPES, kitCommand } = common;
 const GUARD = path.join(SKILL_SOURCE, "scripts", "bash-guard.mjs");
@@ -80,6 +80,11 @@ const ALLOWED = [
   "grep -e \"|\" -e ';' -e \\; -e \\& -e \\> a.txt",
   "ls \\~ '~' ''~ a~ a/~ ~/docs ''#x \\#y",
   "echo ! x!",
+  // The positive controls of the device rows: /dev/null, /dev itself listed, a folder named dev that does not climb to
+  // the root, a cd to /dev with nothing read under it.
+  "grep -rn x app 2>/dev/null | head -5 >/dev/null; cat /dev/null",
+  "cd /dev && ls",
+  "cd docs && cat dev/notes.md",
 ];
 
 /** [command, the reason it is refused] */
@@ -223,6 +228,18 @@ const REFUSED = [
   [`cd docs || ${KIT} build`, "cd"],
   ["cd docs | cat", "cd"],
   ["cd a b && ls", "cd"],
+  // A device never ends: read from the folder a first cd moves to, and from the one the line started in (a cd that
+  // fails, then ||, runs the next command there).
+  ["cd /dev && cat zero", "device"],
+  ["cd / && head dev/urandom", "device"],
+  ["cd /work/app && cat ../../dev/zero", "device"],
+  ["cd ../../../../.. && cat dev/zero", "device"],
+  ["cd /dev/fd && cat 0", "device"],
+  ["cd /Dev && cat zero", "device"],
+  // `cd -` goes to $OLDPWD and `cd --` home: no folder the guard can read the next paths from.
+  ["cd - && cat zero", "cd"],
+  ["cd -- && cat zero", "cd"],
+  ["cd /a/b/c/d/e/f/g/h && ls || cat ../../../../../dev/zero", "device"],
 ];
 
 /**
@@ -371,6 +388,146 @@ const OPTION_ROWS = [
 ];
 
 /**
+ * A device as a read-only tool's operand: reading /dev/zero, /dev/urandom or a terminal never ends, as `tail -f` does
+ * not. [command, null] goes through, [command, "device", path] is refused and names the path. Every tool has its row
+ * (a tool that reads no file too: the rule is the operand's, whatever the tool does with it), find's start paths
+ * among them; /dev/null is the one device let through.
+ * @type {Array<[string, string|null, string?]>}
+ */
+const DEVICE_ROWS = [
+  ["cat /dev/zero", "device", "/dev/zero"],
+  ["cat -n /dev/null /dev/urandom", "device", "/dev/urandom"],
+  ["cat -- /dev/zero", "device", "/dev/zero"],
+  ["head -c 1 /dev/urandom", "device", "/dev/urandom"],
+  ["head /dev/zero", "device", "/dev/zero"],
+  ["tail /dev/zero", "device", "/dev/zero"],
+  ["tail -n +5 /dev/random", "device", "/dev/random"],
+  ["grep x /dev/zero", "device", "/dev/zero"],
+  ["grep -c x a.txt /dev/tty", "device", "/dev/tty"],
+  ["rg x /dev/zero", "device", "/dev/zero"],
+  ["wc -c /dev/urandom", "device", "/dev/urandom"],
+  ["find /dev/zero -name x", "device", "/dev/zero"],
+  ["find app /dev/fd -name x", "device", "/dev/fd"],
+  ["diff /dev/zero a.md", "device", "/dev/zero"],
+  ["du /dev/zero", "device", "/dev/zero"],
+  ["stat /dev/tty", "device", "/dev/tty"],
+  ["ls -l /dev/zero", "device", "/dev/zero"],
+  ["realpath /dev/stdin", "device", "/dev/stdin"],
+  ["realpath --relative-to=/dev/zero .", "device", "/dev/zero"],
+  ["realpath --relative-base /dev/zero x", "device", "/dev/zero"],
+  ["cut -c1 /dev/zero", "device", "/dev/zero"],
+  ["sort -n /dev/zero", "device", "/dev/zero"],
+  ["uniq -c /dev/zero", "device", "/dev/zero"],
+  // grep's -C/--context is optional on BSD (`grep -C x /dev/zero`: x the pattern, /dev/zero a file): the guard never
+  // takes the next word for it, so /dev/zero stays an operand it checks.
+  ["grep --context x /dev/zero", "device", "/dev/zero"],
+  ["grep -C x /dev/zero", "device", "/dev/zero"],
+  ["grep -C2 x /dev/zero", "device", "/dev/zero"],
+  // The tools that open no operand (echo, basename, dirname, tr, pwd): a device among their words is no file they read.
+  ["echo /dev/zero", null],
+  ["basename /dev/zero", null],
+  ["dirname /dev/zero", null],
+  ["tr -d x /dev/zero", null],
+  ["pwd /dev/zero", null],
+  ["tr '/' '\\\\'", null],
+  // Its spellings: quoted, slashes doubled, dots, a climb from any folder (past the root, `..` stays there), the home
+  // folder, a word after an option the tool reads as an operand.
+  ["cat '/dev/zero'", "device", "/dev/zero"],
+  ['cat "/dev/"zero', "device", "/dev/zero"],
+  ["cat //dev/zero", "device", "//dev/zero"],
+  ["cat /dev//zero", "device", "/dev//zero"],
+  ["cat /dev/./zero", "device", "/dev/./zero"],
+  ["cat /./dev/zero", "device", "/./dev/zero"],
+  ["cat /usr/../dev/zero", "device", "/usr/../dev/zero"],
+  ["cat /../dev/zero", "device", "/../dev/zero"],
+  ["cat /dev/null/../zero", "device", "/dev/null/../zero"],
+  ["cat /dev/fd/0", "device", "/dev/fd/0"],
+  ["cat ../../../../../../../../../../../../dev/zero", "device", "../../../../../../../../../../../../dev/zero"],
+  ["cat ./../dev/zero", "device", "./../dev/zero"],
+  ["cat ~/../../dev/zero", "device", "/home/me/../../dev/zero"],
+  // macOS's volume reads names case by case only when it was made so: by default /DEV is /dev, and its devices.
+  ["cat /DEV/zero", "device", "/DEV/zero"],
+  ["head -c 1 /Dev/urandom", "device", "/Dev/urandom"],
+  ["cat ../../DEV/zero", "device", "../../DEV/zero"],
+  ["head a.md -c 1 /dev/zero", "device", "/dev/zero"],
+  // grep's and rg's first operand is a file when an option gives the pattern, or when rg lists files.
+  ["grep -e x /dev/zero", "device", "/dev/zero"],
+  ["grep -c --regexp=x /dev/zero", "device", "/dev/zero"],
+  ["grep x -e y /dev/zero", "device", "/dev/zero"],
+  ["grep -- -e /dev/zero", "device", "/dev/zero"],
+  ["rg --files /dev/zero", "device", "/dev/zero"],
+  ["rg -ie x /dev/zero", "device", "/dev/zero"],
+  // The positive controls: /dev/null, /dev and its listing, a pattern (given to -e, or grep's and rg's first operand,
+  // which they never open), a folder named dev that does not climb to the root (the one of the folder the command runs
+  // in, the application's).
+  ["cat /dev/null", null],
+  ["head -c 1 /dev/null", null],
+  ["grep -c x /dev/null", null],
+  ["ls /dev", null],
+  ["ls -la /dev/", null],
+  ["find /dev -maxdepth 1 -name null", null],
+  ["grep -rn -e /dev/urandom app", null],
+  ["rg -e /dev/zero app", null],
+  ["grep -rn /dev/urandom src", null],
+  ["rg -n -- /dev/shm src", null],
+  // grep -C with the next word: GNU reads it as the count, so /dev/null is the pattern; the guard checks it anyway, and
+  // it is allowed. A realpath --relative-to on an ordinary folder.
+  ["grep -C 2 x app", null],
+  ["realpath --relative-to=docs app", null],
+  ["cat dev/zero", null],
+  ["cat app/dev/notes.md", null],
+  ["ls ../../dev", null],
+];
+
+/** grep's and rg's first operand is their pattern: a row of every tool gives them one before the path it checks. */
+const lead = (/** @type {string} */ name) => (name === "grep" || name === "rg" ? `${name} x` : name);
+/** Whether a tool opens its operands as files (its spec's `reads`, true by default): echo, tr… open none. */
+const reads = (/** @type {string} */ name) => READ_ONLY_SPECS[name][1]?.reads !== false;
+
+/**
+ * On Windows, a network path (UNC) as a read-only tool's operand, find's start path or a cd's folder: opening it
+ * contacts another machine, with the user's Windows credentials. Every form, with either slash; on Linux and macOS
+ * `//x` is the root's `x`, a path like any other.
+ */
+const UNC_FORMS = [
+  "//host/share/x",
+  "'\\\\host\\share\\x'",
+  "'\\\\host'",
+  "//host",
+  "'\\\\?\\UNC\\host\\share\\x'",
+  "'//?/unc/host/share'",
+  "'\\\\.\\UNC\\host\\share'",
+  "'\\??\\UNC\\host\\share'",
+  "///host/share",
+  "'/\\host\\share'",
+];
+/** A form as the tool receives it: its quotes taken away. @param {string} form */
+const unquoted = (form) => (form.startsWith("'") ? form.slice(1, -1) : form);
+/** [command, the path refused] — a cd into a share, and the other paths of a line after one. */
+const UNC_CD = [
+  ["cd //host/share && ls", "//host/share"],
+  ["cd '\\\\host\\share' && cat x", "\\\\host\\share"],
+  ["cd // && cat host/share/x", "//"],
+  ["cd '\\\\?\\UNC\\host\\share' && ls", "\\\\?\\UNC\\host\\share"],
+  ["ls && cat //host/share/x", "//host/share/x"],
+  ["find //host/share -name x", "//host/share"],
+  ["find . '\\\\host\\share' -name x", "\\\\host\\share"],
+];
+/** The positive controls, on Windows too: this machine's paths, relative and absolute, and a pattern of grep and rg. */
+const LOCAL_PATHS = [
+  "cat a/b.md ./c.md ../d.md",
+  "cat C:/work/app/a.md 'C:\\work\\app\\b.md' /c/work/app/c.md /tmp/x",
+  "ls / /c",
+  "ls \\\\x",
+  "cd C:/work/app && cat ../x.md",
+  "cd /c/work && ls",
+  "grep -rn '// TODO' app",
+  "rg -n '//go:build' .",
+  "grep -rn -e '//host/share' app",
+  "rg '\\\\host\\share' app",
+];
+
+/**
  * A tool's allowlist as its spec writes it (READ_ONLY_SPECS, read here on its own): each option — a short `-x`, a long
  * `--name`, a word of find's — with what it takes ("flag", "value", "optional"), `--help` and `--version` included.
  * @param {string} name
@@ -382,6 +539,7 @@ function listed(name) {
   let numbers = false;
   for (const item of `${spec} --help --version`.split(" ")) {
     if (item === "-NUM") numbers = true;
+    else if (item.endsWith("[=N]")) kinds.set(item.slice(0, -4), "number-optional");
     else if (item.endsWith("[=]")) kinds.set(item.slice(0, -3), "optional");
     else if (item.endsWith("=N")) kinds.set(item.slice(0, -2), "number");
     else if (item.endsWith("=")) kinds.set(item.slice(0, -1), "value");
@@ -470,9 +628,14 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
             ? [`${item} x`]
             : kind === "optional"
               ? [`${item} x`, `${item}=v x`]
-              : item.startsWith("--") || words
-                ? [`${item} ${v} x`, ...(words ? [] : [`${item}=${v} x`])]
-                : [`${item} ${v} x`, `${item}${v} x`];
+              : kind === "number-optional"
+                ? // a number attached only (the next word is never its value); alone it is a flag.
+                  item.startsWith("--")
+                  ? [`${item}=5 x`, `${item} x`]
+                  : [`${item}5 x`, `${item} x`]
+                : item.startsWith("--") || words
+                  ? [`${item} ${v} x`, ...(words ? [] : [`${item}=${v} x`])]
+                  : [`${item} ${v} x`, `${item}${v} x`];
         for (const f of forms) assert.deepEqual(bashDecision(`${name} ${f}`, POSIX), { allow: true }, `${name} ${f}`);
       }
       if (words) continue;
@@ -490,6 +653,71 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
       }
     }
     assert.ok(refused > 1000, `refused options generated: ${refused}`);
+  });
+
+  test("a device is never a read-only tool's operand: every tool, find's start paths, every spelling; /dev/null goes through", () => {
+    for (const [command, key, device] of DEVICE_ROWS) {
+      const d = bashDecision(command, POSIX);
+      if (key === null) assert.deepEqual(d, { allow: true }, command);
+      else assert.deepEqual(d, { allow: false, key, vars: { name: command.split(" ")[0], path: device } }, command);
+    }
+    // Every reading tool has a device row; a tool that opens no operand (echo, tr…) has an allowed one.
+    for (const name of Object.keys(READ_ONLY_SPECS))
+      assert.ok(
+        DEVICE_ROWS.some(([c, key]) => c.startsWith(`${name} `) && (reads(name) ? key === "device" : key === null)),
+        `${name}: a row of DEVICE_ROWS`,
+      );
+    // Minimal pairs, tool by tool: the same command goes through with /dev/null, and is refused with a device; a tool
+    // that opens no operand lets a device through, as it reads none.
+    for (const name of Object.keys(READ_ONLY_SPECS)) {
+      assert.deepEqual(bashDecision(`${lead(name)} /dev/null`, POSIX), { allow: true }, `${name} /dev/null`);
+      for (const device of [
+        "/dev/zero",
+        "/dev/urandom",
+        "/dev/tty",
+        "/dev/stdin",
+        "//dev/zero",
+        "../../../../dev/zero",
+      ])
+        assert.deepEqual(
+          bashDecision(`${lead(name)} ${device}`, POSIX),
+          reads(name) ? { allow: false, key: "device", vars: { name, path: device } } : { allow: true },
+          `${name} ${device}`,
+        );
+    }
+  });
+
+  test("property: an operand is refused as a device exactly when, from some folder below the root and outside /dev, it names a path under /dev/ (in any case) other than /dev/null — alone, or after the folder of a cd", () => {
+    const next = generator(20261026);
+    const SEGMENTS = ["..", "..", ".", "", "dev", "dev", "DEV", "zero", "null", "a"];
+    const word = () => {
+      const parts = [];
+      for (let j = 1 + next(8); j > 0; j--) parts.push(SEGMENTS[next(SEGMENTS.length)]);
+      return parts.join("/");
+    };
+    // The folders a command may start in: below the root, outside /dev, and deeper than the most `..` a word holds.
+    const starts = Array.from({ length: 10 }, (_, depth) => `/w${"/a".repeat(depth)}`);
+    // Under /dev/, its name in any case (macOS's volume, by default), /dev/null aside.
+    const device = (/** @type {string} */ p) => {
+      const [, top, ...rest] = p.split("/");
+      return top.toLowerCase() === "dev" && rest.length > 0 && !(rest.length === 1 && rest[0] === "null");
+    };
+    const verdict = (/** @type {boolean} */ refused, /** @type {string} */ operand) =>
+      refused ? { allow: false, key: "device", vars: { name: "cat", path: operand } } : { allow: true };
+    let refused = 0;
+    let allowed = 0;
+    for (let k = 0; k < 4000; k++) {
+      const [folder, operand] = [word(), word()];
+      const alone = starts.some((start) => device(path.posix.resolve(start, operand)));
+      assert.deepEqual(bashDecision(`cat '${operand}'`, POSIX), verdict(alone, operand), operand);
+      // After `cd <folder> &&`: read from that folder, and from the one the line started in.
+      const moved = alone || starts.some((start) => device(path.posix.resolve(start, folder, operand)));
+      const command = `cd '${folder}' && cat '${operand}'`;
+      assert.deepEqual(bashDecision(command, POSIX), verdict(moved, operand), command);
+      if (moved) refused++;
+      else allowed++;
+    }
+    assert.ok(refused > 500 && allowed > 500, `refused ${refused}, allowed ${allowed}`);
   });
 
   test("the folder plays no part: the same command is decided the same wherever it runs", () => {
@@ -547,6 +775,141 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     }
     // On a POSIX machine, ~ is the home folder the guard is given.
     assert.deepEqual(bashDecision("node ~/.claude/skills/doc-kit/scripts/usage.mjs report", POSIX), { allow: true });
+  });
+
+  test("Windows: a device is refused by Git Bash's /dev/, with backslashes, in Windows' device namespace and by its reserved names; a file whose name only starts like one goes through", () => {
+    const win = { skillDir: "C:/Users/Me/.claude/skills/doc-kit", kitDir: "C:/Tools/doc-kit", windows: true };
+    for (const [command, device] of [
+      // Git Bash reads its own /dev/zero, /dev/urandom, /dev/clipboard (what the user copied)…, and a backslash as a
+      // slash.
+      ["cat /dev/zero", "/dev/zero"],
+      ["head -c 1 /dev/urandom", "/dev/urandom"],
+      ["cat /dev/clipboard", "/dev/clipboard"],
+      ["cat '/dev\\zero'", "/dev\\zero"],
+      ["cat /c/../dev/zero", "/c/../dev/zero"],
+      // ~ stays as it is there (Git Bash's /c/Users/Me): a climb from it is a climb.
+      ["cat ~/../../../dev/zero", "~/../../../dev/zero"],
+      ["cd /dev && cat zero", "zero"],
+      // Windows' device namespace, with either slash.
+      ["rg x '\\\\.\\CON'", "\\\\.\\CON"],
+      ["cat //./PhysicalDrive0", "//./PhysicalDrive0"],
+      ["cat '//?/GLOBALROOT/Device/Null'", "//?/GLOBALROOT/Device/Null"],
+      ["cat '\\\\?\\GLOBALROOT\\Device\\Null'", "\\\\?\\GLOBALROOT\\Device\\Null"],
+      ["cat '\\??\\C:\\x'", "\\??\\C:\\x"],
+      ["cat '/??/C:/x'", "/??/C:/x"],
+      // A reserved name, in any case, with an extension, a drive, a folder, a stream or trailing spaces: the device.
+      ["rg x CON", "CON"],
+      ["rg x nul", "nul"],
+      ["rg x Com1", "Com1"],
+      ["rg x lpt\u00b9", "lpt\u00b9"],
+      ["rg x 'CONIN$'", "CONIN$"],
+      ["rg x C:/work/app/aux.txt", "C:/work/app/aux.txt"],
+      ["rg x 'C:\\work\\PRN'", "C:\\work\\PRN"],
+      ["rg x C:NUL", "C:NUL"],
+      ["rg x con:", "con:"],
+      ["rg x 'CON .md'", "CON .md"],
+      ["find CON -name x", "CON"],
+      ["cd C:/work && rg x NUL", "NUL"],
+      // The device namespace is no folder to read from: `cd \\.\ && cat PhysicalDrive0` reads a disk.
+      ["cd //./ && cat PhysicalDrive0", "//./"],
+      ["cd '\\\\.\\C:' && ls", "\\\\.\\C:"],
+      ["cd '/??/C:' && ls", "/??/C:"],
+    ]) {
+      const d = /** @type {any} */ (bashDecision(command, win));
+      assert.equal(d.key, "device", command);
+      assert.equal(d.vars.path, device, command);
+    }
+    // The positive controls: /dev/null; names that only start like a device's; a reserved name as a folder; C:/dev, a
+    // folder of the drive (Git Bash's /dev is under its own folder).
+    for (const command of [
+      "cat /dev/null",
+      "rg x console.md",
+      "rg x nullable.ts connect.ts",
+      "rg x com10 lpt",
+      "rg x C:/work/CON/x.md",
+      "cat C:/dev/zero",
+      "cat dev/zero",
+    ])
+      assert.deepEqual(bashDecision(command, win), { allow: true }, command);
+    // On POSIX, those names are files like any other.
+    for (const command of ["rg x CON", "cat aux.c", "cat nul", "cat 'CONIN$'"])
+      assert.deepEqual(bashDecision(command, POSIX), { allow: true }, command);
+  });
+
+  test("Windows: a network path (UNC) is never a read-only tool's operand, find's start path or a cd's folder: every form, every tool; this machine's paths go through", () => {
+    const win = { skillDir: "C:/Users/Me/.claude/skills/doc-kit", kitDir: "C:/Tools/doc-kit", windows: true };
+    const refused = (/** @type {string} */ name, /** @type {string} */ unc) => ({
+      allow: false,
+      key: "network",
+      vars: { name, path: unc },
+    });
+    // Every form, as every tool's operand (grep's and rg's after their pattern). A tool that opens no operand (echo,
+    // tr…) reads no share: its words go through.
+    for (const form of UNC_FORMS)
+      for (const name of Object.keys(READ_ONLY_SPECS)) {
+        const command = `${lead(name)} ${form}`;
+        assert.deepEqual(
+          bashDecision(command, win),
+          reads(name) ? refused(name, unquoted(form)) : { allow: true },
+          command,
+        );
+        // On Linux and macOS, `//x` is the root's `x`, and a backslash a character of a name.
+        assert.deepEqual(bashDecision(command, POSIX), { allow: true }, `POSIX: ${command}`);
+      }
+    // realpath's --relative-to is a path it opens: a share there is refused.
+    assert.deepEqual(bashDecision("realpath --relative-to=//host/share .", win), refused("realpath", "//host/share"));
+    assert.deepEqual(bashDecision("realpath --relative-to=//host/share .", POSIX), { allow: true });
+    // Git Bash's /proc holds /proc/sys, Windows' object namespace, a way to a share (\Device\Mup) and to devices, and
+    // links back to the root that lead there again (/proc/self/root, /proc/<pid>/root, /proc/cygdrive): on Windows,
+    // every path under /proc is refused — an operand, a path-option's value, and a cd's folder (a tool given no operand
+    // reads the folder itself).
+    for (const [command, name, path] of [
+      ["cat /proc/sys/Device/Mup/host/share/x", "cat", "/proc/sys/Device/Mup/host/share/x"],
+      ["ls /proc/sys/DosDevices/UNC/host/share", "ls", "/proc/sys/DosDevices/UNC/host/share"],
+      ["cat '/proc/sys/GLOBAL??/UNC/host/share'", "cat", "/proc/sys/GLOBAL??/UNC/host/share"],
+      ["cat /PROC/sys/x", "cat", "/PROC/sys/x"],
+      ["cat '\\proc\\sys\\x'", "cat", "\\proc\\sys\\x"],
+      ["cat /proc/self/root/proc/sys/Device/Mup/h/s", "cat", "/proc/self/root/proc/sys/Device/Mup/h/s"],
+      ["cat /proc/1/root/proc/sys/Device/Mup/h/s", "cat", "/proc/1/root/proc/sys/Device/Mup/h/s"],
+      ["cat /proc/cygdrive/proc/sys/Device/Mup/h/s", "cat", "/proc/cygdrive/proc/sys/Device/Mup/h/s"],
+      ["cat ../../../../proc/sys/x", "cat", "../../../../proc/sys/x"],
+      ["realpath --relative-to=/proc/self/root/proc/sys/x .", "realpath", "/proc/self/root/proc/sys/x"],
+      ["cd /proc && ls sys/Device/Mup/h/s", "cd", "/proc"],
+      ["cd /proc/sys/Device/Mup/host/share && ls", "cd", "/proc/sys/Device/Mup/host/share"],
+      ["cd /proc/sys/Device/Mup/host/share && grep -rn x", "cd", "/proc/sys/Device/Mup/host/share"],
+      ["cd ../../../../proc/sys/Device/Mup/h/s && du -s", "cd", "../../../../proc/sys/Device/Mup/h/s"],
+      ["cd '\\proc\\sys\\Device\\Mup\\h\\s' && ls", "cd", "\\proc\\sys\\Device\\Mup\\h\\s"],
+      ["cd /PROC/SYS/DosDevices/UNC/h/s && wc -l", "cd", "/PROC/SYS/DosDevices/UNC/h/s"],
+      ["cd /proc/self/root/proc/sys/Device/Mup/h/s && ls", "cd", "/proc/self/root/proc/sys/Device/Mup/h/s"],
+      // Git's own folder, named by its Windows path (or its 8.3 short name), is Git Bash's root: its proc is /proc. The
+      // guard cannot tell it from another folder: a part named proc in a drive path, or after a cd to one, is refused.
+      ['cd "C:/Program Files/Git" && cat proc/sys/Device/Mup/h/s', "cat", "proc/sys/Device/Mup/h/s"],
+      ["cd c:/progra~1/git && cat proc/sys/x", "cat", "proc/sys/x"],
+      ['cd "C:/Program Files/Git/usr" && cat ../proc/sys/x', "cat", "../proc/sys/x"],
+      ['cd "C:/Program Files" && ls Git/proc', "ls", "Git/proc"],
+      ['cd "C:/Program Files/Git/proc" && ls', "cd", "C:/Program Files/Git/proc"],
+      ['cat "C:/Program Files/Git/proc/sys/x"', "cat", "C:/Program Files/Git/proc/sys/x"],
+    ]) {
+      assert.deepEqual(bashDecision(command, win), refused(name, path), command);
+      assert.deepEqual(bashDecision(command, POSIX), { allow: true }, `POSIX: ${command}`); // /proc is readable there
+    }
+    // The positive controls: a folder named proc that does not climb to the root, nor sits in a drive path; a cd to a
+    // drive path and its other folders; Git Bash's /c/… form, which it never reads as its root.
+    for (const command of [
+      "cat proc/sys/x",
+      "cd app/proc && ls",
+      "cd C:/work/app && grep -rn x src",
+      "cd /c/work/app && cat proc/x",
+      'cat "C:/work/app/src/x.c"',
+    ])
+      assert.deepEqual(bashDecision(command, win), { allow: true }, command);
+    // A cd into a share, find's start paths, a share after another command.
+    for (const [command, unc] of UNC_CD) {
+      const name = command.startsWith("cd ") ? "cd" : command.startsWith("ls && cat") ? "cat" : "find";
+      assert.deepEqual(bashDecision(command, win), refused(name, unc), command);
+    }
+    // The positive controls: this machine's paths, relative and absolute, in every form Git Bash reads; a pattern.
+    for (const command of LOCAL_PATHS) assert.deepEqual(bashDecision(command, win), { allow: true }, command);
   });
 
   test("Windows: a path is the kit's or a skill script's up to the case of its ASCII letters only: a lookalike letter is another file", () => {
@@ -659,7 +1022,8 @@ describe("bashDecision (pure): what the agents' Bash may run", () => {
     const read = (l) => JSON.parse(fs.readFileSync(path.join(SKILL_SOURCE, "i18n", `${l}.json`), "utf8")).guard;
     const [en, fr] = [read("en"), read("fr")];
     assert.deepEqual(Object.keys(fr).sort(), Object.keys(en).sort());
-    const reasons = new Set([...REFUSED, ...OPTION_ROWS].map(([, key]) => key).filter(Boolean));
+    const reasons = new Set([...REFUSED, ...OPTION_ROWS, ...DEVICE_ROWS].map(([, key]) => key).filter(Boolean));
+    reasons.add("network"); // the Windows table's (UNC_FORMS, UNC_CD)
     for (const key of reasons) assert.ok(en[key] && fr[key], key);
     const framing = ["refused", "allowed", "input", "noKit"];
     for (const key of Object.keys(en))
@@ -770,9 +1134,10 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
     assert.equal(runGuard("{").status, 2);
   });
 
-  test("the real hook process decides the read-only tools' options as the table does: 0 lets through, 2 refuses and names the option", async () => {
+  test("the real hook process decides the read-only tools' options, devices and network paths as the tables do: 0 lets through, 2 refuses and names the option or the path", async () => {
     const next = generator(7);
-    // The table, and options no tool lists (the property's kind), through the process Claude Code starts.
+    // The tables, and options no tool lists (the property's kind), through the process Claude Code starts (on
+    // Windows too: Git Bash has its /dev).
     const unknown = Object.keys(READ_ONLY_SPECS).map((name) => {
       let body = "";
       for (let j = 4 + next(8); j > 0; j--) body += "abcdefghijklmnopqrstuvwxyz"[next(26)];
@@ -782,7 +1147,24 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
         `--x${body}=C:/app/evil`,
       ]);
     });
-    const rows = [...OPTION_ROWS, ...unknown];
+    // The home folder is the hook's (HOME): the row through ~ names the path with this machine's.
+    const devices = DEVICE_ROWS.filter(([command]) => !command.includes("~"));
+    // A network path: every tool once, every form once, the cd rows; refused on Windows, a path on Linux and macOS.
+    const unc = process.platform === "win32" ? "network" : null;
+    /** @type {Array<[string, string|null, string?]>} */
+    const network = [
+      ...Object.keys(READ_ONLY_SPECS)
+        .filter(reads)
+        .map((name) => [`${lead(name)} //host/share/x`, "//host/share/x"]),
+      ...UNC_FORMS.map((form) => [`cat ${form}`, unquoted(form)]),
+      ...UNC_CD.filter(([command]) => !command.startsWith("ls ")),
+      ["realpath --relative-to=//host/share .", "//host/share"],
+      ["cat /proc/sys/Device/Mup/host/share/x", "/proc/sys/Device/Mup/host/share/x"],
+      ["cat /proc/self/root/proc/sys/Device/Mup/h/s", "/proc/self/root/proc/sys/Device/Mup/h/s"],
+      ["cd /proc/sys/Device/Mup/host/share && ls", "/proc/sys/Device/Mup/host/share"],
+    ].map(([command, path]) => [command, unc, unc === null ? undefined : path]);
+    const local = LOCAL_PATHS.map((command) => /** @type {[string, null]} */ ([command, null]));
+    const rows = [...OPTION_ROWS, ...devices, ...network, ...local, ...unknown];
     const results = await hookProcesses(rows.map(([command]) => command));
     rows.forEach(([command, key, option], i) => {
       const { code, stderr } = results[i];
@@ -919,23 +1301,26 @@ describe("the hook (guard): Claude Code's input, the exit code, the message", ()
   });
 });
 
-/** The first `name` on the PATH (a test runs the hook command through the shell Claude Code runs it with). */
-function onPath(name) {
-  const names = process.platform === "win32" ? [`${name}.exe`, name] : [name];
-  for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean))
-    for (const n of names) if (fs.existsSync(path.join(dir, n))) return path.join(dir, n);
-  throw new Error(`${name} is not on the PATH`);
-}
-
 describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
-  const SH = onPath("sh");
-  const sh = (line, input, env = {}) =>
-    spawnSync(SH, ["-c", line], { input, encoding: "utf8", env: { ...process.env, DOC_KIT_LANG: "en", ...env } });
+  // Never a throw here when a machine has no sh: a describe that throws runs none of its tests.
+  const SH = findShell("sh");
+  const sh = (/** @type {string} */ line, /** @type {string} */ input, env = {}) =>
+    spawnSync(/** @type {string} */ (SH), ["-c", line], {
+      input,
+      encoding: "utf8",
+      env: { ...process.env, DOC_KIT_LANG: "en", ...env },
+    });
   /** As Claude Code starts an exec-form hook: `command` (node) looked up on the PATH, `args` as they are, no shell. */
   const exec = (script, input, env = {}) =>
     spawnSync("node", [script], { input, encoding: "utf8", env: { ...process.env, DOC_KIT_LANG: "en", ...env } });
 
-  test("the guard reads a command's words as a real shell does, or refuses it: quotes, escapes and empty strings next to an operator", () => {
+  test("the guard reads a command's words as real bash does, or refuses it: quotes, escapes and empty strings next to an operator, a ~ after = or :", (t) => {
+    // bash, as Claude Code runs the agents' commands: sh is bash in POSIX mode (or dash), which keeps the ~ of x=~.
+    const BASH = findShell("bash");
+    if (BASH === null) {
+      t.diagnostic("no bash on this machine (nor Git Bash on Windows): the guard's words are not compared with bash's");
+      return;
+    }
     const home = "/home/me";
     const B = "\\";
     /** [what follows the command's name, the guard's refusal (null: it reads the shell's words), the shell's words] */
@@ -970,6 +1355,16 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       // ~: the home folder at the start of a word, alone or before /; a character anywhere else.
       ["~ ~/x", null, [home, `${home}/x`]],
       [`${B}~ '~' ''~ a~ a/~`, null, ["~", "~", "~", "a~", "a/~"]],
+      // bash expands a ~ after the = or a : of a word that looks like an assignment, even an argument (sh, in POSIX
+      // mode, does not): the guard refuses it. It refuses a:~ too, which bash keeps (no assignment): it never decides
+      // what looks like one.
+      ["x=~", "expansion", [`x=${home}`]],
+      ["x=~/a", "expansion", [`x=${home}/a`]],
+      ["x=a:~", "expansion", [`x=a:${home}`]],
+      ["PATH=a:~/b", "expansion", [`PATH=a:${home}/b`]],
+      ["a:~", "expansion", ["a:~"]],
+      // The positive controls: quoted or escaped, the same characters are the word bash hands the program.
+      [`'x=~' x=${B}~ "a:~"`, null, ["x=~", "x=~", "a:~"]],
     ];
     const dir = tempDir("doc-kit-guard-words-");
     try {
@@ -980,11 +1375,12 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
         ...FORMS.map(([form]) => `p ${form}`),
         "",
       ].join("\n");
-      const r = spawnSync(SH, [], {
-        input: script,
-        encoding: "utf8",
-        env: { ...process.env, HOME: home, OUT: out, MSYS_NO_PATHCONV: "1" },
-      });
+      // bash itself, never in POSIX mode, and reading no start-up file.
+      const env = { ...process.env, HOME: home, OUT: out, MSYS_NO_PATHCONV: "1" };
+      delete env.POSIXLY_CORRECT;
+      delete env.BASH_ENV;
+      delete env.ENV;
+      const r = spawnSync(BASH, ["--norc", "--noprofile"], { input: script, encoding: "utf8", env });
       assert.equal(r.status, 0, r.stderr);
       const lines = fs.readFileSync(out, "utf8").split("\n").slice(0, -1);
       assert.equal(lines.length, FORMS.length, r.stderr);
@@ -1005,7 +1401,7 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
     }
   });
 
-  test("no shell reads the guard's path: under a folder whose name holds quotes, a dollar sign, a backquote, a semicolon, it is the guard", () => {
+  test("no shell reads the guard's path: under a folder whose name holds quotes, a dollar sign, a backquote, a semicolon, it is the guard", (t) => {
     const root = tempDir("doc-kit-guard-exec-");
     try {
       const name = process.platform === "win32" ? "sk ill's $HOME `x`; a&b" : 'sk ill\'s "$HOME" `x`; a&b';
@@ -1019,8 +1415,11 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       assert.match(refused.stderr, /command refused — git is not allowed/);
       // The positive control: the shell form, `node "<path>" || exit 2`, with the same path written as it is, never
       // reaches the guard (the shell expands $HOME and the backquotes): every command would be refused, or worse.
-      const shellForm = sh(`node "${script}" || exit 2`, hookInput("ls -la", root));
-      assert.notEqual(shellForm.status, 0, shellForm.stderr);
+      if (SH === null) t.diagnostic("no sh on this machine (nor Git's on Windows): the shell form is not run");
+      else {
+        const shellForm = sh(`node "${script}" || exit 2`, hookInput("ls -la", root));
+        assert.notEqual(shellForm.status, 0, shellForm.stderr);
+      }
       // On POSIX a backslash is a character of a name, and node loads no ES module from under such a folder (its file
       // URL holds `%5C`, which node's module loader refuses): the guard cannot start there, it ends with 1, and
       // `onFailure: block` refuses. Whether node loads it or not, the command never goes through.
@@ -1185,7 +1584,7 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
     }
   });
 
-  test("a doc-kit the application ships in a parent node_modules/.bin is never run: every form that reaches it is refused, the kit's own runs", () => {
+  test("a doc-kit the application ships in a parent node_modules/.bin is never run: every form that reaches it is refused, the kit's own runs", (t) => {
     const root = tempDir("doc-kit-guard-app-");
     try {
       // The application, its planted bins (npx's lookup goes up to /), and its documentation inside it.
@@ -1208,9 +1607,12 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       fs.writeFileSync(path.join(docs, "doc.config.mjs"), "export default {};\n");
       const env = { PATH: `${bin}${path.delimiter}${process.env.PATH}` };
       // The positive control: called by its name, with the application's bin on the PATH, the planted bin runs.
-      sh("doc-kit --version", "", env);
-      assert.ok(fs.existsSync(marker), "the planted bin runs when its name is looked up");
-      fs.rmSync(marker);
+      if (SH === null) t.diagnostic("no sh on this machine (nor Git's on Windows): the bins are not run, only decided");
+      else {
+        sh("doc-kit --version", "", env);
+        assert.ok(fs.existsSync(marker), "the planted bin runs when its name is looked up");
+        fs.rmSync(marker);
+      }
 
       for (const command of [
         "npx doc-kit --version",
@@ -1229,13 +1631,12 @@ describe("the hook in Claude Code's exec form, and the agent's Bash", () => {
       // The kit by its path goes through, and running it (as the agent's Bash would) never touches the planted bin.
       const allowed = `${THIS_KIT} --version`;
       assert.equal(runGuard(hookInput(allowed, docs), GUARD, env).status, 0, allowed);
-      const ran = spawnSync(SH, ["-c", `cd "${slash(docs)}" && ${allowed}`], {
-        encoding: "utf8",
-        env: { ...process.env, ...env },
-      });
-      assert.equal(ran.status, 0, ran.stderr);
-      const { version } = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "package.json"), "utf8"));
-      assert.equal(ran.stdout.trim(), `doc-kit ${version}`, "the kit's own CLI answered");
+      if (SH !== null) {
+        const ran = sh(`cd "${slash(docs)}" && ${allowed}`, "", env);
+        assert.equal(ran.status, 0, ran.stderr);
+        const { version } = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "package.json"), "utf8"));
+        assert.equal(ran.stdout.trim(), `doc-kit ${version}`, "the kit's own CLI answered");
+      }
       assert.ok(!fs.existsSync(marker), "the planted bin never ran");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

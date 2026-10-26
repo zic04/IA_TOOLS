@@ -700,7 +700,7 @@ treats them as data on every path an agent takes:
   path, `node "<kit>/cli/doc-kit.mjs" <command>` (the kit's path `skill install` wrote in the skill, never one a
   documentation project names), `node <skill>/scripts/<script>.mjs` (the skill's four scripts, by their absolute
   path: the skill's real one, or the one its hook was started from, below), read-only tools (`ls`, `cat`, `head`,
-  `tail`, `wc`, `grep`, `rg`, `find`…) with their reading options, one
+  `tail`, `wc`, `grep`, `rg`, `find`…) with their reading options and never a device among their operands, one
   `cd <folder> &&` first, `|`, `&&`, `||` and `;` between them, and the redirections `>/dev/null`, `>&1` and `>&2`,
   alone or after a `1` or a `2` written against them, unquoted (`2>&1`, `2>/dev/null`). The words it checks are
   bash's to the letter (but a `~` on Windows, which it keeps as it is: a word that is never a program's path there,
@@ -754,6 +754,43 @@ treats them as data on every path an agent takes:
     (whatever a tool makes of the option before it, such a word is checked as an option), and uniq takes one file
     name at most (it writes to its second), every word from its first file name on counted as one, as a getopt that
     stops at the first operand reads them (GNU's under `POSIXLY_CORRECT` takes the `-c` of `uniq a -c` for the second).
+  - **A device is never a read-only tool's operand**, `/dev/null` aside: reading `/dev/zero`, `/dev/urandom`,
+    `/dev/random` or a terminal never ends, as `tail -f` does not (`cat /dev/zero`, `tail /dev/zero`, `grep x
+    /dev/zero`, `head -c 1 /dev/urandom` went through). Every word of a tool from its first operand on (find's start
+    paths among them; a value given to an option before it, `grep -e /dev/zero app`, is no operand, nor grep's or rg's
+    first operand when it can only be their pattern — no option gives the pattern (`-e`, as a short option of a group
+    too, `--regexp`) and none lists files (rg's `--files`); nor the operands of a tool that opens none, `tr`, `echo`,
+    `basename`, `dirname`, `pwd` (their words are sets, strings or ignored)), whatever the tool does with it, is
+    refused when it names a path under `/dev/`: by any
+    spelling (`//dev/zero`, `/dev/./zero`, `/usr/../dev/zero`, a backslash for a slash, as Git Bash reads it; `dev` in
+    any case, as macOS's volume reads `/DEV` by default), or climbing to it (`../../dev/zero`: past the root `..`
+    stays there, so it reaches `/dev` from any folder deep enough), read from the folder the line started in and from
+    the one a first `cd` moved to (`cd / && cat dev/zero`; a `cd` that fails, then `||`, runs the next command where
+    the line started). That `cd` takes a folder, never an option: `cd -` goes to `$OLDPWD` and `cd --` home, where the
+    guard could not read the next paths. The words are read as they are written, in one pass (Node's
+    `path.posix.normalize` takes a time that grows as the square of a long `../../…`). On Windows, Git Bash's own
+    `/dev` (`/dev/zero`, `/dev/clipboard`) is refused the same way, and so are Windows' device namespace (`\\.\`,
+    `\\?\`, `\??\`, with either slash: `//./PhysicalDrive0`, a `cd` into it too) and its reserved names as a path's last
+    part, whatever its case, extension, drive or folder (`CON`, `NUL`, `nul.txt`, `C:/x/aux.md`, `COM1:`, `CONIN$`,
+    `LPT¹`): a Windows program (rg) opens the device there, Git Bash's own tools a file of that name; on Linux and
+    macOS those names are files like any other.
+  - **On Windows, a network path is never a read-only tool's operand nor a `cd`'s folder**: opening `\\host\share\x`
+    contacts another machine, with the user's Windows credentials, which it may keep (NTLM). Every word the rule above
+    checks, and the folder of a `cd`, is refused (`network`) when it starts with two slashes, either way round
+    (`\\host\share`, `//host/share`, `//host`, `//`, Git Bash's root of the network: `cd // && cat host/share/x`),
+    goes through the device namespace to one (`\\?\UNC\…`, `\\.\UNC\…`, `\??\UNC\…`), or names Git Bash's `/proc` or a
+    path under it, by any spelling or climb, from the root or the folder of a `cd`: `/proc/sys` is Windows' object
+    namespace, a way to a share (`/proc/sys/.../UNC/…`, `\Device\Mup`), and `/proc/self/root`, `/proc/<pid>/root` and
+    `/proc/cygdrive` lead back to the root and to it again. Git Bash also reads its own folder, named by its Windows
+    path (`cd "C:/Program Files/Git"`, an 8.3 short name too), as its root: the guard cannot tell that folder from
+    another, so a part named `proc` in a drive path, or in a relative one after a `cd` to a drive path, is refused
+    (`cd "C:/Program Files/Git" && cat proc/sys/…`; at worst a folder of the application named proc, which its `/c/…`
+    form still reads). A `cd`'s folder is checked as a path too: a tool given no
+    operand reads it (`cd /proc/sys/Device/Mup/host/share && ls`). `realpath --relative-to`/`--relative-base` resolves
+    the folder it is given, a path it opens, so a share there is refused too. On Linux and macOS `//x` is the root's
+    `x` and `/proc` the kernel's: local, read as usual. A pattern of grep or rg is no path (`grep -rn '// TODO' app`
+    goes through); after grep's `-C`, write its number attached (`-C3`): the next word is never taken for it, as BSD
+    grep reads it, so `grep -C 3 '// TODO'` checks `// TODO` as a path.
   - It refuses git, npm, any other program or path, a variable, a command substitution and the other expansions
     (`$'…'`, `$"…"`, `$((…))`, braces, a `~` that starts a word other than `~` or `~/` — `~+`, `~-`, `~user` —, and
     one right after `=` or `:`, where bash expands it in a word that looks like an assignment, `x=~`), any other
@@ -785,10 +822,20 @@ treats them as data on every path an agent takes:
     backslash: there the guard cannot start (exit code 1), `onFailure: block` refuses, and the agents get no Bash.
   - It only ever refuses: what it lets through still goes through Claude Code's own permissions
     (`test/unit/bash-guard.test.mjs`: a table of allowed and refused commands; the words of quotes, escapes and empty
-    strings next to an operator, the guard's against a real `sh`'s, which hands a program the argument `2` of
-    `"2">&1`; a table, per read-only tool, of the
+    strings next to an operator, and of a `~` after `=` or `:`, the guard's against real bash's — the shell Claude Code
+    runs the agents' commands with, Git Bash's on Windows; `sh` is bash in POSIX mode, or dash, which keeps the `~` of
+    `x=~` —, which hands a program the argument `2` of `"2">&1` and expands `x=~` and `x=a:~` (the test says so and
+    compares nothing on a machine without bash); a table, per read-only tool, of the
     options agents use and of the ones that run a program or write a file, through the decision and the real hook
-    process, and a property: an option not listed is always refused; the Windows path forms, a lookalike folder
+    process, and a property: an option not listed is always refused; a table of devices, a row for each read-only tool
+    and for find's start paths, through the decision and the real hook process, a pair per tool (`/dev/null` goes
+    through, a device is refused), a property (an operand is refused exactly when, from some folder below the root and
+    outside `/dev`, alone or after a `cd`, it names a path under `/dev/`, in any case, other than `/dev/null`), and
+    Windows' forms; grep's and rg's pattern let through, and their first operand checked when an option gives the
+    pattern; on Windows, every form of a network path as every read-only tool's operand, find's start path and a
+    `cd`'s folder, refused by the decision and by the real hook process (on Linux and macOS, the same words go
+    through), and this machine's paths, relative and absolute, let through; the Windows path
+    forms, a lookalike folder
     (U+212A) refused by the decision and by the real hook process, and a property: every character that lower-cases
     onto a letter of the kit's or the skill's path, other than that letter's ASCII case, is refused; the hook's file
     started through a file URL with a query and through an import, which still refuses; a real hook process run
@@ -797,7 +844,9 @@ treats them as data on every path an agent takes:
     from a folder whose name holds quotes, `$`, a backquote and `;`, through a linked folder, with a missing script
     and without `node`; the skill reached through a linked folder, its scripts let through by the path the hook was
     started from and by the real one, a `doc-kit2`, a lookalike and a planted link refused, and the linked path
-    refused to a hook started by the real one; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles, and one that ends the process without a code or takes node's `beforeExit` away, which only the exit code set on the hook's first line refuses; the agent definitions that name it. The
+    refused to a hook started by the real one — the shells these tests run (bash, and `sh` for the hook's shell form
+    and the planted bin) found on the `PATH` or beside Git on Windows, whatever shell runs the tests, and only where
+    none exists the step that needs it says so (`t.diagnostic`) and the rest runs; a corrupt message file, a module that throws, the decision's module missing or throwing, a decision that answers anything but 0, a module or a decision that never settles, and one that ends the process without a code or takes node's `beforeExit` away, which only the exit code set on the hook's first line refuses; the agent definitions that name it. The
     ReDoS harness measures it).
 - **Every skill text gives the kit by its path**: SKILL.md, the references, the briefs (in English and French) and the
   agent definitions write the kit's commands `{{KIT_CLI}} <command>`, which `skill install` replaces with `node
@@ -830,6 +879,17 @@ does not bound:
   page; `doc-kit check secrets` is then the remaining net (`pack` and `backlog export` run its detectors too), and it
   reads patterns (a secret of an unknown shape passes). Keep Claude Code's permission prompts on for the agents'
   Bash, and refuse a read outside the project.
+- **A device by another name.** The guard reads no file, so it knows a device by its path's words only: a link to one
+  (a link the application ships, `docs/data.txt` to `/dev/zero`, or a folder linked to `/`), a named pipe, a file of
+  `/proc` or `/sys` (`/proc/self/root/dev/zero`, `/sys/kernel/tracing/trace_pipe`), a relative `dev/…` read from the
+  root without a `cd` that says so, a `cd` that the user's `CDPATH` sends elsewhere (`cd dev`), and Git Bash's own
+  folder named by its Windows path (`cd "C:/Program Files/Git" && cat dev/zero`: Git Bash's root) pass it, and so does
+  a device the kit's or the skill's scripts are given. Claude Code's time limit on a Bash command ends such a read.
+- **A share by another name.** On Windows, the guard knows a network path by its words only (two leading slashes,
+  the device namespace's `UNC`, Git Bash's `/proc`): a drive letter mapped to a share (`Z:/x`), a link or a junction
+  to one (an application may ship a link), a relative `proc/…` read from the root without a `cd` that says so, and a
+  network path the kit's or the skill's scripts are given pass it. Keep the documentation and the application on this
+  machine's drives.
 - **The hook itself.** It needs Claude Code 2.1.295 or later, the first that knows the exec form of hooks (`args`) and
   `onFailure`; `doctor` warns when the `claude` on the `PATH` is older. An older one ignores both and runs `node` alone
   through its shell: node reads the hook's input as a script and fails, a failure that does not block, so the guard does

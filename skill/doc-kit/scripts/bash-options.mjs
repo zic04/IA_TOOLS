@@ -1,6 +1,6 @@
 // The read-only tools the agents' Bash guard lets through (bash-decision.mjs), and the options each may take: an
-// allowlist, read word by word as getopt reads it — no shell, no eval, no regular expression, no file read. It
-// imports nothing.
+// allowlist, read word by word as getopt reads it — no shell, no eval, no regular expression, no file read — and the
+// words each takes as its operands. It imports nothing.
 
 /** Why the guard refuses a command: a message key of the skill's `guard` section (i18n/<lang>.json), its variables. */
 export class Refusal extends Error {
@@ -17,6 +17,9 @@ const FLAG = 0; // nothing: `--count`, `-c`
 const VALUE = 1; // a value: `--max-count=5` or `--max-count 5`, `-m5` or `-m 5`
 const OPTIONAL = 2; // a value only after `=`: `--color`, `--color=never`
 const NUMBER = 3; // a value that is a number: `-n 20`, `-n+5`, `--lines=-5`
+const NUMBER_OPTIONAL = 4; // a number, attached only: `-C2`, `--context=2` — never the next word (grep's -C is optional
+// on BSD/macOS: of `grep -C 2 x` BSD makes `2` the pattern; the guard never takes the next word for it, so the word
+// after it stays an operand, checked as a path).
 
 /** A number, `+` or `-` before it at most: `20`, `+5`, `-5`. @param {string} v */
 const isNumber = (v) => {
@@ -35,6 +38,8 @@ const isNumber = (v) => {
  *             optional one (`--name=v` only);
  *   -x=N      (or --name=N) an option whose value is a number, `+` or `-` before it at most: never GNU tail's old
  *             `-n +1f`, which follows the file and never ends;
+ *   -x[=N]    (or --name[=N]) a number, attached only (`-C2`, `--context=2`): an option optional on one platform and
+ *             required on another (grep's `-C`), so the guard never takes the next word for it;
  *   -NUM      a number as an option (`head -20`).
  * find's are whole words (`-name=` takes one value). `--help` and `--version` are every tool's. A value given as the
  * next word never starts with `-`: a word that starts with `-` is always checked as an option, whatever a tool makes of
@@ -42,12 +47,15 @@ const isNumber = (v) => {
  * or reads a list of files, patterns or rules from a file (`-f`, `--ignore-file`, `--files0-from`): what a tool reads
  * is named on the line. `operands`: the most words a tool takes from its first operand on (uniq writes to its second);
  * `plus`: a word that starts with `+` is a plain `+N` only (tail's, sort's and uniq's old syntax: `tail +1f` follows the
- * file and never ends).
- * @type {Record<string, [string, { operands?: number, words?: boolean, plus?: boolean }?]>}
+ * file and never ends). `reads` (default true): the tool opens its operands as files — false for tools that open none
+ * (`echo`, `basename`, `dirname`, `tr`, `pwd`), whose operands checkPath never sees. `pattern`: the tool's first
+ * operand is a pattern, not a file (`grep`, `rg`), unless an option gives the pattern (`-e`, `--regexp`) or lists files
+ * (rg `--files`). `pathOpts`: long options whose value is a path the tool opens (`realpath --relative-to`).
+ * @type {Record<string, [string, { operands?: number, words?: boolean, plus?: boolean, reads?: boolean, pattern?: boolean, pathOpts?: string[] }?]>}
  */
 export const READ_ONLY_SPECS = Object.freeze({
-  // The current folder, as the shell keeps it or with its links resolved.
-  pwd: ["-L -P"],
+  // The current folder, as the shell keeps it or with its links resolved: its operands are ignored, never opened.
+  pwd: ["-L -P", { reads: false }],
   // What it lists (-a -A -d -R -L), the details (-l -h -i -s -n -g -o -F -p --full-time), the order (-t -S -r -X -v
   // -U -c -u --sort=) and the layout (-1 -C -x -m -G --color[=] --group-directories-first): it prints, nothing else.
   ls: [
@@ -70,12 +78,13 @@ export const READ_ONLY_SPECS = Object.freeze({
   // context (-A -B -C), how many (-m), where (-r -R --include --exclude --exclude-dir), binary files (-a -I
   // --binary-files): it prints, nothing else. Never -f/--file or --exclude-from (a list read from a file).
   grep: [
-    "-e= -i -w -x -v -E -F -G -P -n -c -l -L -o -h -H -s -q -b -T -a -I -r -R -A= -B= -C= -m= --regexp= --ignore-case" +
+    "-e= -i -w -x -v -E -F -G -P -n -c -l -L -o -h -H -s -q -b -T -a -I -r -R -A= -B= -C[=N] -m= --regexp= --ignore-case" +
       " --no-ignore-case --word-regexp --line-regexp --invert-match --extended-regexp --fixed-strings --basic-regexp" +
       " --perl-regexp --line-number --count --files-with-matches --files-without-match --only-matching" +
       " --no-filename --with-filename --no-messages --quiet --silent --byte-offset --initial-tab --text --recursive" +
-      " --dereference-recursive --after-context= --before-context= --context= --max-count= --include= --exclude=" +
+      " --dereference-recursive --after-context= --before-context= --context[=N] --max-count= --include= --exclude=" +
       " --exclude-dir= --binary-files= --color[=] --colour[=]",
+    { pattern: true },
   ],
   // The same for ripgrep, with its file filters (-g -t -T -u -d --hidden --no-ignore --files) and its output formats
   // (--json --vimgrep --heading -p). Never --pre, --pre-glob or --hostname-bin (they run a program), -z/--search-zip
@@ -89,6 +98,7 @@ export const READ_ONLY_SPECS = Object.freeze({
       " --vimgrep --json --heading --no-heading --stats --trim --files --type-list --passthru --no-messages" +
       " --no-config --glob-case-insensitive --after-context= --before-context= --context= --max-count= --glob=" +
       " --iglob= --type= --type-not= --max-depth= --max-columns= --max-filesize= --sort= --sortr= --color=",
+    { pattern: true },
   ],
   // Which files it lists (-name -iname -path -ipath -type, the depth), combined (-not -and -or -a -o, -prune to skip a
   // folder), printed (-print). Never -exec, -execdir, -ok, -okdir (they run a program), -delete, -fprint*, -fls (they
@@ -111,22 +121,24 @@ export const READ_ONLY_SPECS = Object.freeze({
   ],
   // What it prints of a file, and in what format.
   stat: ["-L -t -c= --dereference --terse --format= --printf="],
-  // What it prints: without its newline, its escapes read or not.
-  echo: ["-n -e -E"],
+  // What it prints: without its newline, its escapes read or not. It opens nothing (its words are what it prints).
+  echo: ["-n -e -E", { reads: false }],
   // Parts of a name: no file is read.
-  basename: ["-a -s= -z --multiple --suffix= --zero"],
-  dirname: ["-z --zero"],
+  basename: ["-a -s= -z --multiple --suffix= --zero", { reads: false }],
+  dirname: ["-z --zero", { reads: false }],
+  // It resolves the paths it is given, and the folder of --relative-to/--relative-base (a path it opens).
   realpath: [
     "-e -m -s -q -L -P -z --canonicalize-existing --canonicalize-missing --no-symlinks --strip --quiet --logical" +
       " --physical --zero --relative-to= --relative-base=",
+    { pathOpts: ["relative-to", "relative-base"] },
   ],
   // Which fields or characters it keeps, and their separators.
   cut: [
     "-d= -f= -c= -b= -s -n --delimiter= --fields= --characters= --bytes= --only-delimited --complement" +
       " --output-delimiter=",
   ],
-  // Which characters it changes or deletes (it reads its input only).
-  tr: ["-d -s -c -C -t --delete --squeeze-repeats --complement --truncate-set1"],
+  // Which characters it changes or deletes (it reads its input only; its operands are SET1 and SET2, never files).
+  tr: ["-d -s -c -C -t --delete --squeeze-repeats --complement --truncate-set1", { reads: false }],
   // The order and the keys. Never -o/--output (it writes), -T (a folder it writes in), --compress-program (it runs
   // one), --files0-from, --random-source.
   sort: [
@@ -146,27 +158,37 @@ export const READ_ONLY_SPECS = Object.freeze({
 /**
  * A tool's spec, read once: its short options, its long options (find: its words), what each takes.
  * @param {string} spec
- * @param {{ operands?: number, words?: boolean, plus?: boolean }} [more]
+ * @param {{ operands?: number, words?: boolean, plus?: boolean, reads?: boolean, pattern?: boolean, pathOpts?: string[] }} [more]
  */
-function toolOptions(spec, { operands = Infinity, words = false, plus = false } = {}) {
+function toolOptions(
+  spec,
+  { operands = Infinity, words = false, plus = false, reads = true, pattern = false, pathOpts = [] } = {},
+) {
   /** @type {Map<string, number>} */
   const short = new Map();
   /** @type {Map<string, number>} */
   const long = new Map();
   let numbers = false;
   for (const item of `${spec} --help --version`.split(" ")) {
-    const optional = item.endsWith("[=]");
-    const number = item.endsWith("=N");
-    const valued = item.endsWith("=");
-    const name = item.slice(0, item.length - (optional ? 3 : number ? 2 : valued ? 1 : 0));
-    const takes = optional ? OPTIONAL : number ? NUMBER : valued ? VALUE : FLAG;
+    // The suffix tells the kind and how many characters to strip: `[=N]` a number attached only, `[=]` a value only
+    // after `=`, `=N` a number, `=` a value, else a flag.
+    const [takes, cut] = item.endsWith("[=N]")
+      ? [NUMBER_OPTIONAL, 4]
+      : item.endsWith("[=]")
+        ? [OPTIONAL, 3]
+        : item.endsWith("=N")
+          ? [NUMBER, 2]
+          : item.endsWith("=")
+            ? [VALUE, 1]
+            : [FLAG, 0];
+    const name = item.slice(0, item.length - cut);
     if (item === "-NUM") numbers = true;
     // find: the whole word, `-name`.
     else if (words) long.set(name, takes);
     else if (name.startsWith("--")) long.set(name.slice(2), takes);
     else short.set(name.slice(1), takes);
   }
-  return Object.freeze({ short, long, numbers, operands, words, plus });
+  return Object.freeze({ short, long, numbers, operands, words, plus, reads, pattern, pathOpts: new Set(pathOpts) });
 }
 
 /** The read-only tools and their allowlists. */
@@ -192,8 +214,9 @@ function optionTakes(name, tool, a) {
   };
   /** What an option that takes `takes` gives: `attached`, its value in the word itself (undefined: none). */
   const after = (/** @type {number} */ takes, /** @type {string|undefined} */ attached) => {
-    if (takes === NUMBER && attached !== undefined && !isNumber(attached))
+    if ((takes === NUMBER || takes === NUMBER_OPTIONAL) && attached !== undefined && !isNumber(attached))
       throw new Refusal("number", { name, option: a, value: attached });
+    // A number-optional option (grep's -C) never takes the next word: attached only.
     if (attached !== undefined || (takes !== VALUE && takes !== NUMBER)) return NONE;
     return takes === NUMBER ? NEXT_NUMBER : NEXT;
   };
@@ -208,13 +231,57 @@ function optionTakes(name, tool, a) {
     return after(takes, eq < 0 ? undefined : a.slice(eq + 1));
   }
   if (tool.numbers && isNumber(a)) return NONE; // head -20
-  // Short options, grouped: each one listed; one that takes a value takes the rest of the word, or the next word.
+  // Short options, grouped: each one listed; one that takes a value takes the rest of the word, or the next word (a
+  // number-optional one, the rest of the word only: it never consumes the next).
   for (let j = 1; j < a.length; j++) {
     const takes = tool.short.get(a[j]);
     if (takes === undefined) refuse(`-${a[j]}`);
-    if (takes === VALUE || takes === NUMBER) return after(takes, j + 1 < a.length ? a.slice(j + 1) : undefined);
+    if (takes === VALUE || takes === NUMBER || takes === NUMBER_OPTIONAL)
+      return after(takes, j + 1 < a.length ? a.slice(j + 1) : undefined);
   }
   return NONE;
+}
+
+/** The base of a long option, before its `=`: `--relative-to=x` → `relative-to`. @param {string} a */
+const longBase = (a) => a.slice(2, a.indexOf("=") < 0 ? undefined : a.indexOf("="));
+
+/**
+ * For a pattern tool (grep, rg), whether the option `a` supplies the pattern (`-e`, `--regexp`) or lists files
+ * (rg `--files`): then the first operand is a file, not the pattern. In a short group `-e` counts (a value-taking
+ * option before it takes the rest of the word, so the reading stops there — `e` inside a value, `-tvue`, is no `-e`).
+ * @param {ReturnType<typeof toolOptions>} tool @param {string} a
+ */
+function givesPattern(tool, a) {
+  if (a.startsWith("--")) return ["regexp", "files"].includes(longBase(a));
+  for (let j = 1; j < a.length; j++) {
+    if (a[j] === "e") return true;
+    const takes = tool.short.get(a[j]);
+    if (takes === VALUE || takes === NUMBER || takes === NUMBER_OPTIONAL) break;
+  }
+  return false;
+}
+
+/**
+ * One option word, `args[i]`, read and checked: its value (attached or the next word) never starts with `-` (and is a
+ * number where the option takes one). Notes on `state` whether it gives grep's or rg's pattern, and the value of a
+ * path-option. Returns the index of the last word it consumed (the next word, when it took one).
+ * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string[]} args  @param {number} i
+ * @param {{ patternGiven: boolean, pathValues: string[] }} state
+ */
+function readOption(name, tool, args, i, state) {
+  const a = args[i];
+  if (tool.pattern && givesPattern(tool, a)) state.patternGiven = true;
+  const pathOpt = a.startsWith("--") && tool.pathOpts.has(longBase(a));
+  const takes = optionTakes(name, tool, a);
+  if (takes === NONE || i + 1 >= args.length) {
+    if (pathOpt && a.includes("=")) state.pathValues.push(a.slice(a.indexOf("=") + 1));
+    return i;
+  }
+  const value = args[i + 1];
+  if (value.startsWith("-")) throw new Refusal("optionValue", { name, option: a, value });
+  if (takes === NEXT_NUMBER && !isNumber(value)) throw new Refusal("number", { name, option: a, value });
+  if (pathOpt) state.pathValues.push(value);
+  return i + 1;
 }
 
 /**
@@ -224,10 +291,18 @@ function optionTakes(name, tool, a) {
  * option may come after an operand, and after `--` every word is an operand (not for find, whose expression goes on);
  * as a getopt that stops at the first operand reads them (GNU's under POSIXLY_CORRECT), every word from the first
  * operand on is one: the operands are counted so, never fewer than GNU's reading counts (`uniq a -c` writes to `-c`).
+ * Returns the words the tool opens as filesystem paths, for bash-decision.mjs to refuse a device or a network path
+ * among them: every operand from the first on (find's start paths among them), unless the tool opens none (`reads`:
+ * `tr`, `echo`…) or its first operand is a pattern (`pattern`: grep, rg — kept a file only when an option gives the
+ * pattern, `-e`/`--regexp`, or lists files, rg `--files`), plus the value of every path-option (`pathOpts`,
+ * `realpath --relative-to`). An option's value after the first operand stays among them: it is checked as a path too,
+ * at worst an over-refusal, never a device let through.
  * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string[]} args
+ * @returns {string[]}
  */
 export function checkOptions(name, tool, args) {
   let first = -1; // the first operand
+  const state = { patternGiven: false, pathValues: /** @type {string[]} */ ([]) };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "--" && !tool.words) {
@@ -240,12 +315,11 @@ export function checkOptions(name, tool, args) {
       if (first < 0) first = i;
       continue;
     }
-    const takes = optionTakes(name, tool, a);
-    if (takes === NONE || i + 1 >= args.length) continue;
-    const value = args[++i];
-    if (value.startsWith("-")) throw new Refusal("optionValue", { name, option: a, value });
-    if (takes === NEXT_NUMBER && !isNumber(value)) throw new Refusal("number", { name, option: a, value });
+    i = readOption(name, tool, args, i, state);
   }
-  const operands = first < 0 ? 0 : args.length - first;
-  if (operands > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
+  const operands = first < 0 ? [] : args.slice(first);
+  if (operands.length > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
+  if (!tool.reads) return state.pathValues;
+  const opened = tool.pattern && !state.patternGiven ? operands.slice(1) : operands;
+  return [...opened, ...state.pathValues];
 }

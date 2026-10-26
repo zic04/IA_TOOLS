@@ -923,6 +923,27 @@ export const CHECKS = [
       [s, `ls ${s} '${s}' "${s}" && cat ${s}`].filter((c) => bashDecision(c, { skillDir: "/s", kitDir: "/k" }).allow)
         .length,
   ],
+  // Its devices and network paths among a read-only tool's operands (checkPath): a first cd's deep folder and many
+  // operands that climb out of it, each operand read once (the folder's parts never copied), and one long climb
+  // (path.posix.normalize grows as its square), on both machines' readings.
+  [
+    "bash guard devices",
+    (s) => {
+      const n = Math.ceil(s.length / 8);
+      const commands = [
+        `cd '${s}' && cat '${s}' ../${s}`,
+        `cd /${"a/".repeat(n)} && cat${" ../../b".repeat(n)} ${"../".repeat(n + 1)}dev/x`,
+        `cat ${"../".repeat(s.length)}dev/x`,
+        // A network path (on Windows) after a pattern, and the words that may give one.
+        `grep '${s}' -c ${s} '//${s}'`,
+      ];
+      return [false, true].reduce(
+        (k, windows) =>
+          k + commands.filter((c) => bashDecision(c, { skillDir: "/s", kitDir: "/k", windows }).allow).length,
+        0,
+      );
+    },
+  ],
   // The texts of an ingested DAT (engine/inputs/reconcile.mjs).
   ["reconcile wordsOf", (s) => wordsOf(s).length],
   ["reconcile mentionsOf", (s) => mentionsOf(s, loadTechnologies()).size],
