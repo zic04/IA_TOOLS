@@ -55,7 +55,6 @@ entries between a project's `kit` range and the installed version.
   `path.resolve` on 12,000 paths under both systems' rules, a growth test), its names counted, never kept, past the
   cap.
 
-
 ## [0.4.2] - 2026-10-25
 
 ### Added
