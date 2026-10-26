@@ -2,7 +2,7 @@
 // read, flattening nested JSON to dotted keys, which entries a written page cites — where the page, rendered by the
 // kit's renderer, shows them as text — and how `--apply --labels` rewrites them: in the only contexts it is allowed
 // to, then kept only when the page renders as it did but for the label.
-import { projectTools } from "../check/coverage.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { wholeIndexes } from "../core/text.mjs";
 import { blank, blankRanges, readMarkdown } from "./prose.mjs";
 import { collapse, isBlank, rendersAsBefore, shownText } from "./html-text.mjs";

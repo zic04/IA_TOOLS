@@ -10,7 +10,7 @@ import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { isSafeRef } from "../../engine/util/safe-git.mjs";
 import { diffFacts, changesMarkdown, recordChanges, DIFFS } from "../../engine/facts/changes.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { WORK_DIR } from "../registry.mjs";
 
 export const options = {
@@ -44,7 +44,7 @@ export async function run({ ctx, values }) {
     after[source] = fs.existsSync(file) ? parse(fs.readFileSync(file, "utf8")) : null;
   }
   const changes = diffFacts(before, after);
-  const until = readProjectVersion(root, config.version);
+  const until = projectVersion(root, config);
   const markdown = changesMarkdown(changes, { t: ctx.t, since, until });
   const work = path.join(root, WORK_DIR);
   fs.mkdirSync(work, { recursive: true });

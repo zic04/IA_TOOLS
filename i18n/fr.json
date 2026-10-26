@@ -180,6 +180,8 @@
   "cli.view.jsErrors": "ERREURS JS : {errors}",
   "cli.view.noTour": "pas de visite guidée sur {page} : la page n'a aucun écran annoté (:::ecran)",
   "cli.view.noTour.help": "retirez --tour, ou choisissez une page qui a un écran annoté",
+  "cli.write.throughLink": "{file} est dans l’application derrière un lien ou une jonction, en est un, ou est un fichier qui a d’autres noms (un lien physique) : le kit n’y écrit rien",
+  "cli.write.throughLink.help": "écrivez-le dans un dossier de l’application elle-même, ou retirez le lien ; le kit n’écrit jamais à travers un lien, pour ne jamais écrire hors de l’application",
   "home.eyebrow": "Documentation officielle · v{version}",
   "home.featured": "Commencer ici",
   "home.gettingStarted": "Prise en main",

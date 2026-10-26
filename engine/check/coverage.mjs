@@ -6,107 +6,15 @@
 //   config.coverage: [{ adapter: "next-app-router", app: "../../app" }, { adapter: "local:adapters/x.mjs", … }]
 // An adapter that cannot find what it inventories (the application is not next to the documentation) answers
 // { available: false, reason }: its check is skipped, not failed.
-import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../core/adapter-loader.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
-import { globRegex } from "../core/glob.mjs";
+import { adapterTools, projectTools } from "../core/project-tools.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";
 import { wholeIndexes } from "../core/text.mjs";
-import { pathJudge } from "../core/confine.mjs";
-
-const SKIP = new Set(["node_modules", ".git"]);
-
-/**
- * @typedef {import("../core/confine.mjs").JudgeIo & { existsSync: (p: string) => boolean,
- *   readFileSync: (p: string, encoding: "utf8") => string,
- *   readdirSync: (p: string, o: { withFileTypes: true }) => Array<{ name: string, isDirectory(): boolean,
- *   isFile(): boolean }> }} ToolsIo   what the tools ask of the file system
- */
 
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
 export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
-
-/**
- * Tools given to the adapters; every path is relative to the project root (the documentation folder).
- *   resolve(p) · exists(p) · read(p) · json(p) · walk(dir) → relative file paths (forward slashes) ·
- *   glob(pattern, base = ".") → files of `base` matching the pattern · i18nKey(object, "a.b.c") → value
- * A walk never goes into a link or a junction. With `appDir` (the application's folder, absolute: untrusted,
- * SECURITY.md), a path that lies in it (entryInto: as written in any case, or through a folder whose real path is
- * the application's) is reached through its folders only, never a link or a junction, and is no link itself
- * (linkFree), checked before anything is asked of it: a walk starts there, a file is read or said to exist only so
- * — a junction in the application to a folder outside lists nothing, reads nothing, does not exist. Elsewhere (the
- * documentation project when it is not in the application, a folder the configuration names beside it), a path is
- * taken as written. The tools keep one judge for their life (pathJudge): no path of the application is asked of the
- * system twice, and a file or a folder their own walk listed (it went into folders only) is never judged again — an
- * adapter walks its folder then reads each file the walk listed. `io` is the file system (a test gives its own).
- * @param {string} root
- * @param {{ appDir?: string|null, io?: ToolsIo }} [o]
- */
-export function adapterTools(root, { appDir = null, io = fs } = {}) {
-  const P = io.path ?? path;
-  const resolve = (p) => P.resolve(root, p);
-  const judge = pathJudge(io);
-  /** What a walk entered or listed, by absolute path: reached by the rule already, never judged again. */
-  const walked = new Map();
-  /** Whether `abs` is reached as the rule above says (`folder`: as a folder). */
-  const reached = (abs, folder) => {
-    const seen = walked.get(abs);
-    if (seen === "dir" || (seen === "file" && !folder)) return true;
-    const entry = appDir ? judge.entryInto(appDir, abs) : null;
-    return !entry || judge.linkFree(entry.top, entry.names, { folder });
-  };
-  const read = (p) => {
-    if (!reached(resolve(p), false))
-      throw Object.assign(new Error(`ENOENT: ${p} is reached through a link in the application`), { code: "ENOENT" });
-    return io.readFileSync(resolve(p), "utf8");
-  };
-  const walk = (dir) => {
-    const base = resolve(dir);
-    if (!reached(base, true) || !io.existsSync(base)) return [];
-    const out = [];
-    const visit = (d, rel) => {
-      walked.set(d, "dir");
-      for (const e of io.readdirSync(d, { withFileTypes: true })) {
-        if (SKIP.has(e.name)) continue;
-        const r = rel ? `${rel}/${e.name}` : e.name;
-        if (e.isDirectory()) visit(P.join(d, e.name), r);
-        else if (e.isFile()) {
-          out.push(r);
-          walked.set(P.join(d, e.name), "file");
-        }
-      }
-    };
-    visit(base, "");
-    return out.sort();
-  };
-  return {
-    resolve,
-    exists: (p) => reached(resolve(p), false) && io.existsSync(resolve(p)),
-    read,
-    json: (p) => JSON.parse(read(p)),
-    walk,
-    glob: (pattern, base = ".") => {
-      const re = globRegex(pattern.replace(/^\.\//, ""));
-      return walk(base).filter((f) => re.test(f));
-    },
-    i18nKey: (object, key) => {
-      if (object && Object.prototype.hasOwnProperty.call(object, key)) return object[key];
-      return String(key)
-        .split(".")
-        .reduce((o, k) => (o == null || typeof o !== "object" ? undefined : o[k]), object);
-    },
-  };
-}
-
-/**
- * The tools of the coverage adapters and of sync for a documentation project: adapterTools of its root, every path
- * in its application (`app.dir`) reached without a link.
- * @param {string} root
- * @param {{ app?: { dir?: string|null } }} config
- */
-export const projectTools = (root, config) =>
-  adapterTools(root, { appDir: config.app?.dir ? path.resolve(root, config.app.dir) : null });
 
 /**
  * The forms under which a route may be cited: as is, with :param, {param} or [param], and the static prefix

@@ -10,7 +10,7 @@ import path from "node:path";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
 import { safeValue, safeValues, safeField, createSink, paramSignal } from "../../engine/facts/behaviour-common.mjs";
 import { readFeatures } from "../../engine/core/features.mjs";
-import { adapterTools } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { kindsOfHints } from "../../engine/core/behaviours.mjs";
 import { apiHandlers, behaviourLines, candidateKinds } from "../../engine/sync/feature-files.mjs";
 import { candidateFeatures, mergeFeatures } from "../../cli/commands/inventory.mjs";

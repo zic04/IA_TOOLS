@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../core/adapter-loader.mjs";
-import { adapterTools } from "../check/coverage.mjs";
+import { adapterTools } from "../core/project-tools.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
 import { relPath, factsItems } from "../facts/common.mjs";
 import { routeFiles, matchRoute } from "./routes.mjs";

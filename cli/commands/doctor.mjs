@@ -25,6 +25,7 @@ import { isLoopbackUrl } from "../../engine/capture/session.mjs";
 import { envEntries } from "../../engine/capture/masking.mjs";
 import { isLocalAddress } from "../../engine/check/secrets.mjs";
 import { describeProblem } from "../common.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { numbers } from "../../engine/build/format.mjs";
 import {
@@ -88,6 +89,7 @@ const CHANGELOG_VERSION = /^#{1,3}\s*\[?v?(\d+\.\d+\.\d+[\w.+-]*)/m;
  * @returns {{ file: string, version: string }|null}  file relative to the project root
  */
 function otherVersion(root, config, documented) {
+  const tools = projectTools(root, config); // never through a link or a junction of the application (SECURITY.md)
   const versionFile = config.version.file ? path.resolve(root, config.version.file) : null;
   const folders = [
     config.app.dir ? path.resolve(root, config.app.dir) : null,
@@ -99,8 +101,14 @@ function otherVersion(root, config, documented) {
       ["CHANGELOG.md", CHANGELOG_VERSION],
     ])) {
       const file = path.join(folder, name);
-      if (file === versionFile || !fs.existsSync(file) || !fs.statSync(file).isFile()) continue;
-      const version = pattern.exec(fs.readFileSync(file, "utf8"))?.[1];
+      if (file === versionFile || !tools.exists(file)) continue;
+      let text;
+      try {
+        text = tools.read(file);
+      } catch {
+        continue; // a folder, or unreadable
+      }
+      const version = pattern.exec(text)?.[1];
       if (version && version !== documented) return { file: slash(path.relative(root, file)), version };
     }
   }
@@ -341,14 +349,16 @@ async function projectChecks(ctx, { root, configFile }, add, { network }) {
 
   // Version file.
   if (config.version.file) {
-    const f = path.resolve(root, config.version.file);
-    if (!fs.existsSync(f))
+    // Read with the project's tools, as every command reads it (projectVersion): behind a link or a junction of the
+    // application, not there.
+    const tools = projectTools(root, config);
+    if (!tools.exists(config.version.file))
       add("version", "warn", "project", "cli.doctor.version.missing", {
         file: config.version.file,
         fallback: config.version.fallback,
       });
     else {
-      const m = new RegExp(config.version.pattern).exec(fs.readFileSync(f, "utf8"));
+      const m = new RegExp(config.version.pattern).exec(tools.read(config.version.file));
       // A version never incremented (0.0.0, 1.0.0) while the application says otherwise elsewhere: ⚠, not ✔.
       const other = m && m[1] && FROZEN_VERSIONS.has(m[1]) ? otherVersion(root, config, m[1]) : null;
       if (other)

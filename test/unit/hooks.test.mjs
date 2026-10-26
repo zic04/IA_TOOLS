@@ -135,6 +135,32 @@ describe("hooks", () => {
       assert.equal(fs.readFileSync(path.join(outside, "profile"), "utf8"), "#!/bin/sh\n");
       fs.rmSync(path.join(repo, ".git", "hooks", "post-merge"));
 
+      // Inside the repository, the one rule of a write into the application (assertWritable): never through a link
+      // or a junction, even one that stays inside it, nor onto one → write.throughLink, exit code 2.
+      const unlink = (p) => {
+        try {
+          fs.unlinkSync(p);
+        } catch {
+          fs.rmdirSync(p);
+        }
+      };
+      fs.mkdirSync(path.join(repo, "real-hooks"));
+      link(path.join(repo, "real-hooks"), path.join(repo, "inlink"));
+      const through = await install("inlink");
+      assert.equal(through.code, 2, "a folder of the repository that is a link inside it");
+      assert.match(through.err, /lies in the application behind a link or a junction/);
+      assert.equal((await install("inlink/sub")).code, 2, "a folder under such a link, not created yet");
+      fs.mkdirSync(path.join(repo, "hooks2"));
+      link(path.join(repo, "real-hooks"), path.join(repo, "hooks2", "post-merge"));
+      const onto = await install("hooks2");
+      assert.equal(onto.code, 2, `a hook that is a link inside the repository: ${onto.err}`);
+      unlink(path.join(repo, "hooks2", "post-merge"));
+      assert.deepEqual(written(path.join(repo, "real-hooks")), [], "nothing written through them");
+      assert.ok(!fs.existsSync(path.join(repo, "real-hooks", "sub")));
+      unlink(path.join(repo, "inlink"));
+      assert.equal((await install("real-hooks")).code, 0, "the folder itself");
+      assert.deepEqual(written(path.join(repo, "real-hooks")), HOOKS);
+
       // The minimal pairs: inside the repository (husky's .husky), or the hooks of a worktree in its common git folder.
       assert.equal((await install(".husky")).code, 0);
       assert.deepEqual(written(path.join(repo, ".husky")), HOOKS);

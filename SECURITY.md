@@ -413,7 +413,9 @@ as untrusted input:
   left out;
 - `hooks install` writes only into a hooks folder inside the repository or its git folder (for a worktree, the main
   repository's), links followed: a `core.hooksPath` that leads out of them, a hook that is a link out of them or
-  leading nowhere, or a hook that is a hard link, is refused;
+  leading nowhere, or a hook that is a hard link, is refused (exit code 3). Inside them, it writes by the rule of every
+  write of the kit into the application (below): a hooks folder reached through a link or a junction that stays
+  inside, or a hook that is one, is refused too (`write.throughLink`, exit code 2);
 - every expression and every loop that scans the application's files stays linear (a crafted file cannot block
   `facts` or `check secrets`), and is tested for it: the ReDoS test runs each on adversarial inputs — the shapes
   that once made one quadratic among them: an occurrence repeated, a construct left open, a long run — and
@@ -534,27 +536,36 @@ as untrusted input:
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent. A glob never walks into a link or a junction, nor through one before its first `*` (`linked/**`): the names
   of a folder outside are never listed;
-- the tools the coverage adapters, `sync` and `context` are given (`projectTools`) reach a path in the application
-  through its folders only, never a link or a junction, and never take a link for a file (`linkFree`): a walk or a
-  glob from a folder behind a junction lists nothing, a file behind one is not there and is never read. So a message
+- the tools the coverage adapters, `sync`, `context` and the commands are given (`projectTools`,
+  engine/core/project-tools.mjs) reach a path in the application through its folders only, never a link or a
+  junction, and never take a link for a file (`linkFree`): a walk or a glob from a folder behind a junction lists
+  nothing, a file behind one is not there and is never read. So a message
   file of `sync.labels` (or the `messages` of an `i18n-registry` adapter) behind a junction of the application to a
   folder outside is neither listed, read, compared nor recorded in `sync.json`, nor given to an agent by `context`; a
   routes folder that is such a junction is not found (`notFound`), its files' names never listed; the features file
-  (the `file` of the `features` adapter) and the version file (`version.file`), which `sync` and `context` read
-  with these tools too, are not there: no feature, the version's fallback. A link that stays inside the application
-  is not followed by these tools either — the files a page depends on (its `sources`, its proofs, its dependency
-  files, below) are judged where they really are, links followed, and read only inside the application. A path is
-  in the application when it is written under `app.dir`, in any case, or goes through a folder whose real path is
+  (the `file` of the `features` adapter), which `sync`, `context` and `inventory --features` read with these
+  tools too, is not there: no feature; so is the version file (`version.file`), which every command reads with them
+  (`projectVersion`: `build`, `audit`, `capture`, `check`, `changes`, `doctor`, `export`, `sync`, `context`, the
+  CLI's usage record and guided menu): the version's fallback, nothing of the file shown. A link that stays inside
+  the application is not followed by these tools either — the files a page depends on (its `sources`, its proofs,
+  its dependency files, below) are judged where they really are, links followed, and read only inside the
+  application. Every write of the kit into the application follows the same rule (`assertWritable`,
+  engine/core/project-tools.mjs): `inventory --features --write` and `hooks install` write a file only where it and
+  each folder on its way are reached through folders, none of them nor the file a link or a junction — even one that
+  stays inside —, nor a file with other names (a hard link: a write changes them all, wherever they are); a folder
+  not there yet is made by the kit. Otherwise the command stops before writing anything: `write.throughLink`, exit
+  code 2. A path is in the application when it is written under `app.dir`, in any case, or goes through a folder whose real path is
   the application's (a short name such as `APPLIC~1`, `/private/var` for `/var`, a link to the application). A
   deep path is judged in a few calls (a run of folders without a link is one whose real path is its path as
   written), and a file the tools' own walk listed is not judged again: a folder thousands deep costs no more than its
   walk. Limits: a link of your own configuration's, outside the application, to one of its folders below its root
   (`docs/m` → `../app/messages`) is not recognised, and a path through it is taken as written — do not point the
-  configuration into the application through such a link; the other commands (`build`, `audit`, `capture`, `check`,
-  `changes`, `export`) read the version file as written, and `inventory --features` reads and writes the features
-  file as written — keep both out of a link of the application; nor is the application written as a share or a mapped
-  drive on Windows (`\\localhost\C$\app` for `C:\app`, or the reverse), which `realpathSync.native` does not map
-  back to its drive's path: write `app.dir` and the configuration's paths into the application the same way;
+  configuration into the application through such a link; the documentation project's own files (its pages,
+  `.doc-kit/`, `sync.json`, the site built, the folders of `paths`) are written where its configuration names them,
+  even when the project lies inside the application (`app.dir: ".."`) — keep no link among them; nor is the
+  application written as a share or a mapped drive on Windows (`\\localhost\C$\app` for `C:\app`, or the reverse),
+  which `realpathSync.native` does not map back to its drive's path: write `app.dir` and the configuration's paths
+  into the application the same way;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
   (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no

@@ -67,8 +67,8 @@ export function realInside(realBase, target, io = fs) {
 }
 
 /**
- * @typedef {RealPathIo & { lstatSync: (p: string) => { isSymbolicLink(): boolean, isDirectory(): boolean } }} JudgeIo
- *   what pathJudge asks of the file system
+ * @typedef {RealPathIo & { lstatSync: (p: string) => { isSymbolicLink(): boolean, isDirectory(): boolean,
+ *   nlink?: number } }} JudgeIo   what pathJudge asks of the file system
  * @typedef {{ io: JudgeIo, P: import("node:path").PlatformPath, reals: Map<string, { real: string|null, gone: boolean }>,
  *   kinds: Map<string, "dir"|"link"|"other"|null> }} Memo   what a judge learnt: real paths, kinds of entries (lstat)
  */
@@ -95,7 +95,40 @@ export function pathJudge(io = fs) {
     linkFree: (top, names, { folder = false } = {}) => judgeLinkFree(memo, top, names, folder),
     /** @param {string} dir @param {string} abs */
     entryInto: (dir, abs) => judgeEntryInto(memo, dir, abs),
+    /** @param {string} dir @param {string} abs @param {{ folder?: boolean }} [o] */
+    writable: (dir, abs, { folder = false } = {}) => judgeWritable(memo, dir, abs, folder),
   };
+}
+
+/**
+ * Whether the kit may write `abs` — a file, a folder with `folder` — when it lies in the folder `dir` (entryInto): by
+ * the rule of linkFree, each part there is a folder, never a link or a junction (lstat: never followed), and the last
+ * is no link either nor, a file, one with other names (a hard link: a write changes them all, wherever they are); a
+ * part not there yet, and what is below it, is made by the kit. Null when `abs` does not lie in `dir`: not judged.
+ * @param {Memo} memo
+ * @param {string} dir
+ * @param {string} abs
+ * @param {boolean} folder
+ * @returns {boolean|null}
+ */
+function judgeWritable(memo, dir, abs, folder) {
+  const entry = judgeEntryInto(memo, dir, abs);
+  if (!entry) return null;
+  let at = entry.top;
+  for (let i = 0; i < entry.names.length; i++) {
+    at = memo.P.join(at, entry.names[i]);
+    const kind = kindOf(memo, at);
+    if (kind === null) return true;
+    const last = i === entry.names.length - 1;
+    if (kind === "link" || ((!last || folder) && kind !== "dir") || (last && !folder && kind === "dir")) return false;
+  }
+  if (!entry.names.length) return folder; // the folder itself
+  if (folder) return true;
+  try {
+    return (memo.io.lstatSync(at).nlink ?? 1) === 1;
+  } catch {
+    return false;
+  }
 }
 
 /**

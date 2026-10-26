@@ -6,14 +6,15 @@
 // exit code 2.
 import fs from "node:fs";
 import path from "node:path";
-import { runCoverage, projectTools } from "../../engine/check/coverage.mjs";
+import { runCoverage } from "../../engine/check/coverage.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { pageDependencies, findPageEntry } from "../../engine/sync/dependencies.mjs";
 import { labelFiles, readFlatLabels } from "../../engine/sync/labels.mjs";
 import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { loadPageTemplates, contextBudgetOf } from "../../engine/core/page-templates.mjs";
 import { readFeatures, featuresFileOf } from "../../engine/core/features.mjs";
 import { featureOf } from "../../engine/sync/feature-files.mjs";
@@ -152,7 +153,7 @@ export async function run({ ctx, values, positionals }) {
   const templates = loadPageTemplates();
 
   const product = config.product?.name ?? null;
-  const version = readProjectVersion(root, config.version, tools);
+  const version = projectVersion(root, config);
 
   const registry = behaviourKinds(ctx, root, config, tools);
 

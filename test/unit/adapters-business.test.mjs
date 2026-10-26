@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../../engine/core/adapter-loader.mjs";
-import { adapterTools, runCoverage } from "../../engine/check/coverage.mjs";
+import { runCoverage } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 
 let root;

@@ -36,7 +36,7 @@ entries between a project's `kit` range and the installed version.
   `i18n-registry` adapter, engine/sync/labels.mjs): with `messages/` a junction to a folder outside the application,
   `sync` read the JSON there (the marking, the report, the `i18n-registry` adapter) and `context` gave its values to
   an agent; a value a page cites was recorded in `sync.json`. The tools of the coverage adapters, `sync` and `context`
-  (`projectTools`, engine/check/coverage.mjs) now reach a path in the application through its folders only, never a
+  (`projectTools`, engine/core/project-tools.mjs) now reach a path in the application through its folders only, never a
   link or a junction, and never take a link for a file (`linkFree`, engine/core/confine.mjs): a glob never lists a
   file behind one, a file named whole behind one is not there, never read. A path is in the application when it is
   written under `app.dir` in any case, or goes through a folder whose real path is the application's (a short name,
@@ -47,16 +47,24 @@ entries between a project's `kit` range and the installed version.
   walk listed is not judged again — the same answers as judging each folder (a property test against it on 1,600
   random file systems, growth tests): `check coverage` on a chain of folders 800 deep takes 1.3 s (1.7 s on 0.4.2,
   without the rule), where judging each path folder by folder, each `lstat` given the whole path, took 32 s.
-- **The features file and the version file behind a junction of the application are never read** by `sync` and
-  `context` (`readFeatures`, engine/core/features.mjs; `readProjectVersion`, engine/project/version.mjs): with the
-  `file` of the `features` adapter, or `version.file`, behind a junction to a folder outside, `sync --mark`, the
-  report and `context` read them as written — the feature's routes and sources became its sheet's dependencies, the
-  version was recorded in `sync.json` and given to an agent. They are now read with the project's tools
-  (`projectTools`), as the `features` adapter reads its file: not there, no feature, the version's fallback; so is
-  the version the CLI reads for its usage record and its guided menu. A `file` written as an absolute path is
-  resolved, as the adapter resolves it, no longer joined to the project's root. Not yet the other commands: `build`,
-  `audit`, `capture`, `check`, `changes` and `export` read the version file as written, and `inventory --features`
-  the features file (a limit written in SECURITY.md).
+- **The features file and the version file behind a junction of the application are never read**, by any command
+  (`readFeatures`, engine/core/features.mjs; `projectVersion`, engine/core/project-tools.mjs): with the `file` of the
+  `features` adapter, or `version.file`, behind a junction to a folder outside, `sync --mark`, the report and
+  `context` read them as written — the feature's routes and sources became its sheet's dependencies, the version was
+  recorded in `sync.json` and given to an agent —, and `build`, `audit`, `capture`, `check`, `changes`, `doctor` and
+  `export` read the version file so (`build` put it into the site). They are now read with the project's tools
+  (`projectTools`), as the `features` adapter reads its file: not there, no feature, the version's fallback; one
+  reader of the version for every command and the CLI's own reads (its usage record, its guided menu). A `file`
+  written as an absolute path is resolved, as the adapter resolves it, no longer joined to the project's root.
+- **The kit never writes into the application through a link or a junction** (`assertWritable`,
+  engine/core/project-tools.mjs): `inventory --features --write` wrote the features file as written, so through a
+  junction of the application it wrote a folder outside (`--force` rewrote a file there). Every write of the kit into
+  the application now follows the rule of its tools: the file and each folder on its way reached through folders,
+  none of them nor the file a link or a junction — even one that stays inside —, nor a file with other names (a hard
+  link); otherwise `write.throughLink` (en, fr), exit code 2, before anything is written. `hooks install`, which
+  already refused a hooks folder or a hook leading out of the repository (links followed), refuses one reached
+  through a link inside it too. The tools move to engine/core/project-tools.mjs, which check, capture, sync and build
+  all use (RULES.md M14).
 - **A `sources` glob no longer lists a folder outside the application through a junction** (`globFiles`,
   engine/sync/dependencies.mjs): `linked/**/*.ts`, `linked` a junction or a link to a folder outside, had the walk
   list that folder's names (none of its files kept, none read). The fixed part of a glob is now entered as the walk

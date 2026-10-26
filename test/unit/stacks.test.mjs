@@ -28,7 +28,7 @@ import { SPRING_PATTERNS } from "../../adapters/stack/spring.mjs";
 import { VUE_ROUTER_PATTERNS } from "../../adapters/stack/vue-router.mjs";
 import { unreadPart } from "../../engine/context/unread-section.mjs";
 import factsAdapter from "../../adapters/coverage/facts.mjs";
-import { adapterTools } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { matrixPages } from "../tools/adapters-matrix.mjs";
 

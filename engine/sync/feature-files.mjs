@@ -9,7 +9,7 @@ import { readFeatures, featuresFileOf } from "../core/features.mjs";
 import { kindsOfHints } from "../core/behaviours.mjs";
 import { SECRET_FILE } from "../check/secrets.mjs";
 import { realInside, realPathOf } from "../core/confine.mjs";
-import { projectTools } from "../check/coverage.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { resolveImports } from "../facts/imports.mjs";
 
 /**

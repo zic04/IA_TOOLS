@@ -17,7 +17,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { entryInto, fileInside, linkFree } from "../../engine/core/confine.mjs";
-import { adapterTools } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { linearAt } from "../tools/growth.mjs";
 
 const srv = path.resolve("/srv");

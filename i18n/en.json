@@ -180,6 +180,8 @@
   "cli.view.jsErrors": "JS ERRORS: {errors}",
   "cli.view.noTour": "no guided tour on {page}: the page has no annotated screen (:::screen)",
   "cli.view.noTour.help": "drop --tour, or pick a page with an annotated screen",
+  "cli.write.throughLink": "{file} lies in the application behind a link or a junction, is one, or is a file with other names (a hard link): the kit writes nothing there",
+  "cli.write.throughLink.help": "write it into a folder of the application itself, or remove the link; the kit never writes through one, so that it never writes outside the application",
   "home.eyebrow": "Official documentation · v{version}",
   "home.featured": "Start here",
   "home.gettingStarted": "Getting started",

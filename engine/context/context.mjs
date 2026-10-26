@@ -133,7 +133,7 @@ export function glossaryFor(glossary, texts) {
  * @param {boolean} [p.update]
  * @param {number} [p.budget]        default 16000 (ARCHITECTURE.md §6.11)
  * @param {string|null} [p.product]  config.product.name, shown in the header (null: omitted)
- * @param {string|null} [p.version]  the documented version (readProjectVersion of engine/build/build.mjs), shown in the header (null: omitted)
+ * @param {string|null} [p.version]  the documented version (projectVersion, engine/core/project-tools.mjs), shown in the header (null: omitted)
  * @param {{ registry: import("../core/behaviours.mjs").BehaviourRegistry|null, feature?: any }} [p.behaviours]
  *   the kinds of behaviour cards, and the page's feature in features.json (engine/sync/feature-files.mjs): with
  *   them, the behaviour hints of facts/behaviours.json and, for a feature sheet, the cards to write (§6.8a)

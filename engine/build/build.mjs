@@ -31,7 +31,7 @@ import { readSchema } from "../project/load.mjs";
 import { KIT_ROOT } from "../project/find.mjs";
 import { TOC_FILE, GLOSSARY_FILE } from "../project/toc.mjs";
 import { generatorTag } from "../brand.mjs";
-import { readProjectVersion } from "../project/version.mjs";
+import { projectVersion } from "../core/project-tools.mjs";
 import { readSyncReference } from "../sync/reference.mjs";
 import { readUsage, USAGE_DIR } from "../stats/usage.mjs";
 import { readChanges } from "../facts/changes.mjs";
@@ -119,7 +119,7 @@ export function build({ project, config, options = {} }) {
 
   // Sync reference (ARCHITECTURE.md §6.10): which pages were marked as checked, and against which version —
   // common to every language (translations are never read by sync).
-  const version = readProjectVersion(root, config.version);
+  const version = projectVersion(root, config);
   const { reference: syncRef, problem: syncProblem } = readSyncReference(root, config);
   if (syncProblem) report(false, { kind: "sync", ...syncProblem });
   const site = {

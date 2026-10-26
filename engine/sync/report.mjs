@@ -10,7 +10,8 @@ import { labelFiles, readFlatLabels } from "./labels.mjs";
 import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
-import { projectTools, normalize, isCovered } from "../check/coverage.mjs";
+import { normalize, isCovered } from "../check/coverage.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
 
 /**

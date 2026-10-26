@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { KIT_ROOT, CONFIG_FILE } from "../../engine/project/find.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { declaredSpaceIds, spaceOutput } from "../../engine/build/spaces.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { BRAND } from "../../engine/brand.mjs";
@@ -134,7 +134,7 @@ export function exportProject({
         : "export.outside.other",
     vars: { key: w.key, path: w.path },
   }));
-  const version = readProjectVersion(root, config.version);
+  const version = projectVersion(root, config);
   const output = path.resolve(root, config.output);
   if (withDist && !fs.existsSync(output))
     warnings.push({ key: "export.noDist", vars: { file: slash(path.relative(root, output)), command: BRAND.command } });

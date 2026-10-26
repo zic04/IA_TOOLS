@@ -18,7 +18,7 @@ import { behaviourRegistry } from "../../engine/core/behaviours.mjs";
 import { safeSources } from "../../engine/sync/feature-files.mjs";
 import { DIRECT_VIAS } from "../../engine/sync/report.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
-import { projectTools } from "../../engine/check/coverage.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { behaviourParts } from "../../engine/context/behaviours-section.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
