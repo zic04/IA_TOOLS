@@ -2,8 +2,7 @@
 // read, flattening nested JSON to dotted keys, which entries a written page cites — where the page, rendered by the
 // kit's renderer, shows them as text — and how `--apply --labels` rewrites them: in the only contexts it is allowed
 // to, then kept only when the page renders as it did but for the label.
-import fs from "node:fs";
-import { adapterTools } from "../check/coverage.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { wholeIndexes } from "../core/text.mjs";
 import { blank, blankRanges, readMarkdown } from "./prose.mjs";
 import { collapse, isBlank, rendersAsBefore, shownText } from "./html-text.mjs";
@@ -19,11 +18,16 @@ export function flattenMessages(json, prefix = "") {
   return out;
 }
 
-/** A message file, flattened: {} when it is missing (its keys are gone), null when it is not valid JSON (nothing is
- * known of its labels then). */
-export function readFlatLabels(abs) {
+/**
+ * A message file (relative to the project, `projectTools`: one in the application is read only when it is reached
+ * without a link, SECURITY.md), flattened: {} when it is missing or reached through a link or a junction (its keys
+ * are gone: what lies behind it is never read), null when it is not valid JSON (nothing is known of its labels then).
+ * @param {ReturnType<typeof projectTools>} tools
+ * @param {string} file
+ */
+export function readFlatLabels(tools, file) {
   try {
-    return fs.existsSync(abs) ? flattenMessages(JSON.parse(fs.readFileSync(abs, "utf8"))) : {};
+    return tools.exists(file) ? flattenMessages(tools.json(file)) : {};
   } catch {
     return null;
   }
@@ -45,11 +49,14 @@ function globProjRel(tools, pattern) {
 /**
  * Message files whose labels are followed (ARCHITECTURE.md §6.10): `config.sync.labels` (globs relative to the
  * project; a pattern without "*" is kept as is when it exists), else the `messages` of every `i18n-registry`
- * coverage adapter.
+ * coverage adapter. In the application, a glob starts its walk only where it is reached without a link, never goes
+ * into one, and a file named whole is one only so (projectTools): a junction there to a folder outside is never listed.
+ * @param {string} root
+ * @param {object} config
+ * @param {ReturnType<typeof projectTools>} [tools]
  * @returns {string[]} projRel, sorted
  */
-export function labelFiles(root, config) {
-  const tools = adapterTools(root);
+export function labelFiles(root, config, tools = projectTools(root, config)) {
   const patterns = config.sync?.labels || [];
   if (patterns.length) {
     const out = new Set();

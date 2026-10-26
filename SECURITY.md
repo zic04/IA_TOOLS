@@ -413,7 +413,9 @@ as untrusted input:
   left out;
 - `hooks install` writes only into a hooks folder inside the repository or its git folder (for a worktree, the main
   repository's), links followed: a `core.hooksPath` that leads out of them, a hook that is a link out of them or
-  leading nowhere, or a hook that is a hard link, is refused;
+  leading nowhere, or a hook that is a hard link, is refused (exit code 3). Inside them, it writes by the rule of every
+  write of the kit into the application (below): a hooks folder reached through a link or a junction that stays
+  inside, or a hook that is one, is refused too (`write.throughLink`, exit code 2);
 - every expression and every loop that scans the application's files stays linear (a crafted file cannot block
   `facts` or `check secrets`), and is tested for it: the ReDoS test runs each on adversarial inputs — the shapes
   that once made one quadratic among them: an occurrence repeated, a construct left open, a long run — and
@@ -532,7 +534,38 @@ as untrusted input:
   `.env::$DATA`) is left out, and so is what is not a file in `app.dir` once links are followed (a symbolic link, a
   junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
-  agent;
+  agent. A glob never walks into a link or a junction, nor through one before its first `*` (`linked/**`): the names
+  of a folder outside are never listed;
+- the tools the coverage adapters, `sync`, `context` and the commands are given (`projectTools`,
+  engine/core/project-tools.mjs) reach a path in the application through its folders only, never a link or a
+  junction, and never take a link for a file (`linkFree`): a walk or a glob from a folder behind a junction lists
+  nothing, a file behind one is not there and is never read. So a message
+  file of `sync.labels` (or the `messages` of an `i18n-registry` adapter) behind a junction of the application to a
+  folder outside is neither listed, read, compared nor recorded in `sync.json`, nor given to an agent by `context`; a
+  routes folder that is such a junction is not found (`notFound`), its files' names never listed; the features file
+  (the `file` of the `features` adapter), which `sync`, `context` and `inventory --features` read with these
+  tools too, is not there: no feature; so is the version file (`version.file`), which every command reads with them
+  (`projectVersion`: `build`, `audit`, `capture`, `check`, `changes`, `doctor`, `export`, `sync`, `context`, the
+  CLI's usage record and guided menu): the version's fallback, nothing of the file shown. A link that stays inside
+  the application is not followed by these tools either — the files a page depends on (its `sources`, its proofs,
+  its dependency files, below) are judged where they really are, links followed, and read only inside the
+  application. Every write of the kit into the application follows the same rule (`assertWritable`,
+  engine/core/project-tools.mjs): `inventory --features --write` and `hooks install` write a file only where it and
+  each folder on its way are reached through folders, none of them nor the file a link or a junction — even one that
+  stays inside —, nor a file with other names (a hard link: a write changes them all, wherever they are); a folder
+  not there yet is made by the kit. Otherwise the command stops before writing anything: `write.throughLink`, exit
+  code 2. A path is in the application when it is written under `app.dir`, in any case, or goes through a folder whose real path is
+  the application's (a short name such as `APPLIC~1`, `/private/var` for `/var`, a link to the application). A
+  deep path is judged in a few calls (a run of folders without a link is one whose real path is its path as
+  written), and a file the tools' own walk listed is not judged again: a folder thousands deep costs no more than its
+  walk. Limits: a link of your own configuration's, outside the application, to one of its folders below its root
+  (`docs/m` → `../app/messages`) is not recognised, and a path through it is taken as written — do not point the
+  configuration into the application through such a link; the documentation project's own files (its pages,
+  `.doc-kit/`, `sync.json`, the site built, the folders of `paths`) are written where its configuration names them,
+  even when the project lies inside the application (`app.dir: ".."`) — keep no link among them; nor is the
+  application written as a share or a mapped drive on Windows (`\\localhost\C$\app` for `C:\app`, or the reverse),
+  which `realpathSync.native` does not map back to its drive's path: write `app.dir` and the configuration's paths
+  into the application the same way;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
   (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
@@ -540,23 +573,26 @@ as untrusted input:
 - the imports of a page's code (the closure of `sync` and of the context of a page, two levels for a feature sheet)
   and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
   the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
-  and a dependency of a page outside the application (a route's file reached through a link) is named in its
-  context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
+  and a dependency of a page outside the application (a declared source through a link) is named in its context,
+  never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
   when its report compares it: one through `../` or a link out of the application is never read, its first line
   never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). So is
   every dependency file of a page, by one helper (`dependencyFile`) for the marking, the report, `--since` and the
   page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
-  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
-  the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
-  so. A proof or a dependency through a link out of the application is outside whether its file exists there or
-  not (judged by where its nearest existing folder really is, found by bisection: a path of thousands of missing
-  parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
-  link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
-  target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
-  the text cannot. The cap holds for the path as written too, before `path.resolve` reads it (quadratic on `a/`
-  repeated then `b/../` repeated): climbing out (`../`) is judged first, in one pass, and a path padded past the cap
-  (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor
-  `--since` tells whether a file of the operator exists.
+  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file an older `sync.json` hashed, through a
+  junction that lies outside the application, is never read, hashed nor shown by git, never counted deleted, and
+  `sync.dependencyOutside` says so. A proof or a dependency through a link out of the application is outside whether its file exists there or
+  not (judged by where its nearest existing folder really is, found by bisection, a root asked apart — Windows'
+  realpath fails on `\\?\C:\` and resolves `\\?\C:\Users` —: a path of thousands of missing parts costs a few calls,
+  and one longer than 32,767 characters, Windows' limit, is missing without any), and a link that leads nowhere is
+  judged by its target as written (a share under the device prefix, `\\?\UNC\host\share\x`, as `\\host\share\x`; 32
+  links at most: a loop is outside too), except a target with a `..` after a name (`j/../x`), which is outside: the
+  system takes that `..` from wherever `j` leads, the text cannot. The cap holds for the path as written too, but
+  climbing out (`../`) is judged first, outside whatever its length: the path is joined in one pass, never by
+  `path.resolve` (quadratic on `a/` repeated then `b/../` repeated, or on a long name then `b/../` repeated), and a
+  path padded past the cap (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor `--since` tells whether a file of the operator exists.
+  A broken link written as another device path of Windows (`\\?\GLOBALROOT\Device\…`) may be judged outside where
+  it leads inside: a false "outside", never a file read outside.
   Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
   one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
   on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the
@@ -571,8 +607,9 @@ as untrusted input:
   with no target to follow), so a hard link in the application to a file outside it is read as a file of the
   application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
   checked, then read: a file or a folder of the application swapped for a link in between, by a process that
-  changes the application while the kit reads it, is not seen. Read an application received as an archive from a
-  fresh clone, and let nothing change it while the kit runs;
+  changes the application while the kit reads it, is not seen — the tools of the adapters, `sync` and `context`
+  keep what they learnt of each folder for their run, so "in between" spans it. Read an application received as an
+  archive from a fresh clone, and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes

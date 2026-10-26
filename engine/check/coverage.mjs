@@ -6,59 +6,15 @@
 //   config.coverage: [{ adapter: "next-app-router", app: "../../app" }, { adapter: "local:adapters/x.mjs", … }]
 // An adapter that cannot find what it inventories (the application is not next to the documentation) answers
 // { available: false, reason }: its check is skipped, not failed.
-import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter } from "../core/adapter-loader.mjs";
 import { countGuidance } from "../core/page-templates.mjs";
-import { globRegex } from "../core/glob.mjs";
+import { adapterTools, projectTools } from "../core/project-tools.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";
 import { wholeIndexes } from "../core/text.mjs";
 
-const SKIP = new Set(["node_modules", ".git"]);
-
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
 export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
-
-/**
- * Tools given to the adapters; every path is relative to the project root (the documentation folder).
- *   resolve(p) · exists(p) · read(p) · json(p) · walk(dir) → relative file paths (forward slashes) ·
- *   glob(pattern, base = ".") → files of `base` matching the pattern · i18nKey(object, "a.b.c") → value
- */
-export function adapterTools(root) {
-  const resolve = (p) => path.resolve(root, p);
-  const walk = (dir) => {
-    const base = resolve(dir);
-    if (!fs.existsSync(base)) return [];
-    const out = [];
-    const visit = (d, rel) => {
-      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-        if (SKIP.has(e.name)) continue;
-        const r = rel ? `${rel}/${e.name}` : e.name;
-        if (e.isDirectory()) visit(path.join(d, e.name), r);
-        else if (e.isFile()) out.push(r);
-      }
-    };
-    visit(base, "");
-    return out.sort();
-  };
-  return {
-    resolve,
-    exists: (p) => fs.existsSync(resolve(p)),
-    read: (p) => fs.readFileSync(resolve(p), "utf8"),
-    json: (p) => JSON.parse(fs.readFileSync(resolve(p), "utf8")),
-    walk,
-    glob: (pattern, base = ".") => {
-      const re = globRegex(pattern.replace(/^\.\//, ""));
-      return walk(base).filter((f) => re.test(f));
-    },
-    i18nKey: (object, key) => {
-      if (object && Object.prototype.hasOwnProperty.call(object, key)) return object[key];
-      return String(key)
-        .split(".")
-        .reduce((o, k) => (o == null || typeof o !== "object" ? undefined : o[k]), object);
-    },
-  };
-}
 
 /**
  * The forms under which a route may be cited: as is, with :param, {param} or [param], and the static prefix
@@ -170,7 +126,7 @@ export function excludeItems(items, exclude = []) {
  */
 export async function runCoverage({ root, config }) {
   const { text, planned } = documentationTexts(root, config.paths.content);
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const adapters = [];
   for (const [i, spec] of config.coverage.entries()) {
     const { name, adapter, options } = await loadAdapter("coverage", spec, root, `coverage[${i}]`);

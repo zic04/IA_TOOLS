@@ -10,6 +10,7 @@ import path from "node:path";
 import { collectBehaviours } from "../../engine/facts/behaviours.mjs";
 import { safeValue, safeValues, safeField, createSink, paramSignal } from "../../engine/facts/behaviour-common.mjs";
 import { readFeatures } from "../../engine/core/features.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { kindsOfHints } from "../../engine/core/behaviours.mjs";
 import { apiHandlers, behaviourLines, candidateKinds } from "../../engine/sync/feature-files.mjs";
 import { candidateFeatures, mergeFeatures } from "../../cli/commands/inventory.mjs";
@@ -230,22 +231,22 @@ describe("the code of a feature sheet (features.json, engine/sync/feature-files.
   test("readFeatures: by id; a file that does not follow the schema gives none, and says where", () => {
     const dir = tempDir("doc-kit-features-");
     try {
-      assert.deepEqual(readFeatures(dir), { features: new Map(), problem: null });
+      assert.deepEqual(readFeatures(adapterTools(dir)), { features: new Map(), problem: null });
       fs.writeFileSync(
         path.join(dir, "features.json"),
         JSON.stringify([{ id: "F-01", sources: ["lib/**"], behaviours: ["search"] }]),
       );
-      assert.deepEqual(readFeatures(dir).features.get("F-01").sources, ["lib/**"]);
+      assert.deepEqual(readFeatures(adapterTools(dir)).features.get("F-01").sources, ["lib/**"]);
       fs.writeFileSync(path.join(dir, "features.json"), JSON.stringify([{ id: "F-02", behaviours: ["Search!"] }]));
       // A new modification time: the cache reads the file again.
       const later = new Date(Date.now() + 5000);
       fs.utimesSync(path.join(dir, "features.json"), later, later);
-      const r = readFeatures(dir);
+      const r = readFeatures(adapterTools(dir));
       assert.equal(r.features.size, 0);
       assert.equal(r.problem.key, "features.invalid");
       assert.match(r.problem.vars.at, /behaviours/);
       fs.writeFileSync(path.join(dir, "features.json"), "{ not json");
-      assert.deepEqual(readFeatures(dir).problem, {
+      assert.deepEqual(readFeatures(adapterTools(dir)).problem, {
         key: "features.invalid",
         vars: { file: "features.json", at: "(root)" },
       });

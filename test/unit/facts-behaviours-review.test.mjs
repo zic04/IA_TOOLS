@@ -18,6 +18,7 @@ import { behaviourRegistry } from "../../engine/core/behaviours.mjs";
 import { safeSources } from "../../engine/sync/feature-files.mjs";
 import { DIRECT_VIAS } from "../../engine/sync/report.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { behaviourParts } from "../../engine/context/behaviours-section.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
@@ -266,6 +267,71 @@ describe("the code of a feature sheet", () => {
     }
   });
 
+  test("sources: a glob never walks through a link or a junction, so never lists a folder outside", async (t) => {
+    // The walk of a glob (adapterTools.walk, the route readers' too) never goes into a link or a junction it meets;
+    // the fixed part of a `sources` glob (before its first `*`) is entered by the same rule, one part at a time: a
+    // junction there to a folder outside would have the walk list that folder's names, though no file of it is kept.
+    const dir = tempDir("doc-kit-behaviours-glob-link-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    const links = [path.join(app, "linked"), path.join(app, "lib", "deeper"), path.join(app, "alias")];
+    const made = [];
+    try {
+      fs.mkdirSync(path.join(app, "lib", "sub"), { recursive: true });
+      fs.mkdirSync(path.join(outside, "inner"), { recursive: true });
+      fs.writeFileSync(path.join(outside, "notes.txt"), "OUTSIDE=1");
+      fs.writeFileSync(path.join(outside, "inner", "more.txt"), "x");
+      fs.writeFileSync(path.join(app, "lib", "a.txt"), "x");
+      fs.writeFileSync(path.join(app, "lib", "sub", "b.txt"), "x");
+      const type = process.platform === "win32" ? "junction" : "dir";
+      // Out of the application at its top and below a folder of it; one that stays in it, never followed either.
+      for (const [link, target] of [
+        [links[0], outside],
+        [links[1], outside],
+        [links[2], path.join(app, "lib")],
+      ]) {
+        fs.symlinkSync(target, link, type);
+        made.push(link);
+      }
+      const docs = path.join(dir, "docs");
+      fs.mkdirSync(path.join(docs, "content"), { recursive: true });
+      const sources = ["linked/**/*.txt", "linked/*.txt", "linked/inner/*.txt", "lib/deeper/**", "alias/**/*.txt"];
+      const dependencies = async (globs) => {
+        const page = { id: "p", title: "P", sources: globs };
+        return pageDependencies({
+          root: docs,
+          config: { app: { dir: "../app" }, paths: { content: "content" }, coverage: [] },
+          toc: { sections: [{ id: "s", title: "S", groups: [{ id: "g", title: "G", pages: [page] }] }] },
+          pageId: "p",
+          inventory: { adapters: [] },
+          tools: {},
+          factsDir: "facts",
+        });
+      };
+      const spy = t.mock.method(fs, "readdirSync");
+      const listed = () => spy.mock.calls.splice(0).map((c) => path.resolve(String(c.arguments[0])));
+      const through = (p) => links.some((l) => p === l || p.startsWith(l + path.sep));
+      const none = await dependencies(sources);
+      assert.deepEqual(listed().filter(through), [], "no folder listed through a link or a junction");
+      assert.deepEqual(none.files, []);
+      // The minimal pair: the same globs through the application's own folders walk them, and find their files.
+      const inside = await dependencies(["lib/**/*.txt", "lib/sub/*.txt", "**/*.txt"]);
+      assert.deepEqual(inside.files.map((f) => f.path).sort(), ["lib/a.txt", "lib/sub/b.txt"]);
+      const walked = listed();
+      assert.ok(walked.includes(path.join(app, "lib", "sub")), "the folders of the application are walked");
+      assert.deepEqual(walked.filter(through), [], "never through a link, from the top either");
+    } finally {
+      // The links first, on their own: removing the folder must never walk into what they point to.
+      for (const link of made.reverse())
+        try {
+          fs.unlinkSync(link);
+        } catch {
+          fs.rmdirSync(link);
+        }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("sync trusts a feature's own code as direct, never its imports (DIRECT_VIAS)", () => {
     assert.ok(DIRECT_VIAS.includes("feature"));
     assert.ok(!DIRECT_VIAS.includes("feature-import"));
@@ -357,7 +423,7 @@ describe("the code of a feature sheet", () => {
         toc,
         pageId: "features/track-orders",
         inventory: { adapters: [] },
-        tools: {},
+        tools: projectTools(docs, config),
         factsDir: config.paths.facts,
       });
       const by = Object.fromEntries(deps.files.map((f) => [f.path, f]));

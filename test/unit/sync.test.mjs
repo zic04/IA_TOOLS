@@ -10,7 +10,8 @@ import { pathToFileURL } from "node:url";
 import { runCli } from "../../cli/doc-kit.mjs";
 import { KIT_ROOT, tempDir, noExec, syncLabels } from "../tools/helpers.mjs";
 import { prepareConfig } from "../../engine/project/load.mjs";
-import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
+import { runCoverage } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { hashText, hashPlanEntry, stableStringify, hashFile } from "../../engine/core/hash.mjs";
 import { createGit } from "../../engine/sync/git.mjs";
 import { routeFiles, matchRoute } from "../../engine/sync/routes.mjs";
@@ -2843,6 +2844,38 @@ describe("engine/sync: a proof outside the application is never read", () => {
     }
   });
 
+  test("markPages: a proof padded with ./ past 32,767 characters names no file (sync.proofUnresolved); at the cap, recorded", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      const config = await syncConfig(fx.root);
+      const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
+      // The path fileInside is given is the proof's file without its first `./`: 32,767 characters, then 32,769.
+      const atCap = "./".repeat(16378) + "lib/orders.ts:1";
+      const over = "./".repeat(16379) + "lib/orders.ts:1";
+      assert.equal(atCap.length - "./".length - ":1".length, 32767);
+      fs.appendFileSync(page, `\nSee \`${atCap}\` and \`${over}\`.\n`);
+      const { reference, warnings } = await markPages({
+        labels,
+        root: fx.root,
+        config,
+        toc: readToc(fx.root, config),
+        pages: ["take-over/orders-api"],
+        date: "2026-10-02",
+        commit: "c0ffee",
+        version: "1.0.0",
+        inventory: await runCoverage({ root: fx.root, config }),
+        plans: [],
+      });
+      const said = (ref) => warnings.filter((w) => w.vars.ref === ref).map((w) => w.key);
+      assert.deepEqual(reference.proofs[atCap]?.text, "export const threshold = 10000;", "at the cap: recorded");
+      assert.deepEqual(said(atCap), []);
+      assert.equal(reference.proofs[over], undefined, "past it: not recorded");
+      assert.deepEqual(said(over), ["sync.proofUnresolved"], "missing, never outside");
+    } finally {
+      fx.release();
+    }
+  });
+
   // An older sync.json (0.4.1) recorded such a proof, and hashed its file as a dependency of the page: the report
   // reads neither again. The outside line moves after marking: read, it would come back as a moved proof.
   test("sync and --check: a proof an older sync.json recorded through a junction or ../ is never read; the proof beside is", async () => {
@@ -3429,10 +3462,14 @@ describe("engine/sync: a dependency file outside the application is never read",
     }
   });
 
-  test("a routes folder that is a junction: its files never read (nor for the API paths they call), the pages unchanged", async () => {
+  // The coverage adapter's folder is that junction: the adapter's tools (adapterTools with the application's folder)
+  // never reach it, so it is not found, its files never listed nor read — not even their names come out — and the
+  // route given to the pages names none of them: nothing to hash, nothing to say outside.
+  test("a routes folder that is a junction: never listed nor read (nor for the API paths they call), the pages unchanged", async () => {
     const fx = syncFixtureCopy();
     const outside = path.join(path.dirname(fx.appDir), "outside");
     const junction = path.join(fx.appDir, "app");
+    const listed = mock.method(fs, "readdirSync");
     try {
       fs.mkdirSync(outside);
       fs.renameSync(junction, path.join(outside, "app"));
@@ -3443,8 +3480,9 @@ describe("engine/sync: a dependency file outside the application is never read",
       fs.symlinkSync(path.join(outside, "app"), junction, "junction");
       const config = await syncConfig(fx.root);
       const toc = readToc(fx.root, config);
-      const inventory = await runCoverage({ root: fx.root, config });
+      listed.mock.resetCalls();
       const { result, reads } = await readsIn(outside, async () => {
+        const inventory = await runCoverage({ root: fx.root, config });
         const marked = await markPages({
           labels,
           root: fx.root,
@@ -3455,22 +3493,151 @@ describe("engine/sync: a dependency file outside the application is never read",
           reference: null,
           ...at,
         });
-        return { marked, after: await report(fx, config, toc, inventory, marked.reference) };
+        return { inventory, marked, after: await report(fx, config, toc, inventory, marked.reference) };
       });
+      const through = listed.mock.calls
+        .map((c) => path.resolve(String(c.arguments[0])))
+        .filter((p) => p === junction || p.startsWith(junction + path.sep));
       assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.deepEqual(through, [], "nothing listed through the junction");
+      const routes = result.inventory.adapters.find((a) => a.adapter === "next-app-router");
+      assert.deepEqual([routes.available, routes.reason], [false, "notFound"], "the adapter does not find its folder");
       const { reference, warnings } = result.marked;
-      const expected = {
-        "use/orders": ["app/layout.tsx", "app/orders/page.tsx"],
-        "use/orders/detail": ["app/layout.tsx", "app/orders/[id]/page.tsx"],
-      };
-      for (const [id, files] of Object.entries(expected)) {
-        assert.deepEqual(outsideWarnings(warnings, id), files, id);
+      for (const id of ["use/orders", "use/orders/detail"]) {
         assert.ok(!Object.keys(reference.pages[id].files).some((f) => f.startsWith("app/")), `${id}: no hash recorded`);
+        assert.deepEqual(outsideWarnings(warnings, id), [], `${id}: no file of it named`);
         assert.ok(!result.after.review.some((r) => r.page === id), JSON.stringify(result.after.review));
         assert.ok(result.after.unchanged.includes(id), `${id} unchanged`);
-        assert.deepEqual(outsideWarnings(result.after.warnings, id), files, id);
+        assert.deepEqual(outsideWarnings(result.after.warnings, id), [], `${id}: none in the report either`);
       }
       assert.ok(!JSON.stringify(reference).includes("of the operator"), "no outside text in sync.json");
+    } finally {
+      listed.mock.restore();
+      unlinkJunction(junction);
+      fx.release();
+    }
+  });
+});
+
+// SECURITY.md, confinement: a message file is read where it really is. One in the application through a link or a
+// junction (`messages/` a junction to a folder outside) is never listed by a glob of sync.labels, never read when it is
+// named whole, nor by the i18n-registry adapter whose `messages` it is: its labels are neither compared nor recorded.
+describe("engine/sync: a message file outside the application is never read", () => {
+  const at = { date: "2026-10-02", commit: "c0ffee", version: "1.0.0", plans: [] };
+  test("a junction at messages/: never read, its label never recorded; the message file beside, in the application, is", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "messages");
+    try {
+      fs.mkdirSync(outside);
+      fs.renameSync(junction, path.join(outside, "messages"));
+      const messages = { orders: { approve: "Approve", new: "New order", secret: "Covert Value" } };
+      fs.writeFileSync(path.join(outside, "messages", "en.json"), JSON.stringify(messages));
+      fs.symlinkSync(path.join(outside, "messages"), junction, "junction");
+      // The minimal pair: the same kind of file, in a folder of the application.
+      fs.mkdirSync(path.join(fx.appDir, "locales"));
+      fs.writeFileSync(
+        path.join(fx.appDir, "locales", "en.json"),
+        JSON.stringify({ orders: { plain: "Plain Value" } }),
+      );
+      const config = await syncConfig(fx.root);
+      // A glob through the junction, the same file named whole, and the folder beside.
+      config.sync.labels = [
+        "../sync-app/messages/*.json",
+        "../sync-app/messages/en.json",
+        "../sync-app/locales/*.json",
+      ];
+      const page = path.join(fx.root, config.paths.content, "use", "orders.md");
+      fs.appendFileSync(page, "\nClick **Covert Value**, then **Plain Value**.\n");
+      const toc = readToc(fx.root, config);
+      const { result, reads } = await readsIn(outside, async () => {
+        const inventory = await runCoverage({ root: fx.root, config });
+        const marked = await markPages({
+          labels,
+          root: fx.root,
+          config,
+          toc,
+          all: true,
+          inventory,
+          reference: null,
+          ...at,
+        });
+        const after = await compareWithReference({
+          ...{ labels, root: fx.root, config, toc, reference: marked.reference, since: null, inventory, plans: [] },
+          ...{ git: createGit(() => null, fx.appDir), appDir: fx.appDir, version: "1.0.0", commit: "c0ffee" },
+          factsDir: config.paths.facts,
+        });
+        return { inventory, marked, after };
+      });
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.deepEqual(
+        labelFiles(fx.root, config),
+        ["../sync-app/locales/en.json"],
+        "only the file beside is followed",
+      );
+      const recorded = result.marked.reference.labels;
+      assert.deepEqual(recorded, { "../sync-app/locales/en.json": { "orders.plain": "Plain Value" } });
+      assert.ok(!JSON.stringify(result.marked.reference).includes("Covert Value"), "no outside value in sync.json");
+      assert.deepEqual(result.after.labels, []);
+      // The registry whose messages lie behind the junction does not find them: never read either.
+      const registry = result.inventory.adapters.find((a) => a.adapter === "i18n-registry");
+      assert.deepEqual([registry.available, registry.reason], [false, "notFound"]);
+    } finally {
+      unlinkJunction(junction);
+      fx.release();
+    }
+  });
+
+  // Without sync.labels, the files followed are the i18n-registry adapters' `messages`, listed as the configuration
+  // names them: the reading alone keeps the junction out (readFlatLabels). An older sync.json that recorded labels of
+  // that file: they are gone, never replaced by what lies outside.
+  test("the i18n-registry's messages behind a junction, an older sync.json's labels of it: never read, its keys gone", async () => {
+    const fx = syncFixtureCopy();
+    const outside = path.join(path.dirname(fx.appDir), "outside");
+    const junction = path.join(fx.appDir, "messages");
+    const file = "../sync-app/messages/en.json";
+    try {
+      fs.mkdirSync(outside);
+      fs.renameSync(junction, path.join(outside, "messages"));
+      const messages = { orders: { approve: "Covert Approve", new: "Covert New" } };
+      fs.writeFileSync(path.join(outside, "messages", "en.json"), JSON.stringify(messages));
+      fs.symlinkSync(path.join(outside, "messages"), junction, "junction");
+      const config = await syncConfig(fx.root);
+      config.sync.labels = []; // the default: the adapters' messages
+      assert.deepEqual(labelFiles(fx.root, config), [file], "followed as the configuration names it");
+      const page = path.join(fx.root, config.paths.content, "use", "orders.md");
+      fs.appendFileSync(page, "\nClick **Covert Approve**.\n");
+      const toc = readToc(fx.root, config);
+      const older = { app: { commit: "0ld", version: "0.9.0", date: "2026-09-01" }, pages: {}, proofs: {} };
+      older.labels = { [file]: { "orders.approve": "Approve" } };
+      const { result, reads } = await readsIn(outside, async () => {
+        const inventory = await runCoverage({ root: fx.root, config });
+        const marked = await markPages({
+          labels,
+          root: fx.root,
+          config,
+          toc,
+          all: true,
+          inventory,
+          reference: older,
+          ...at,
+        });
+        const after = await compareWithReference({
+          ...{ labels, root: fx.root, config, toc, reference: older, since: null, inventory, plans: [] },
+          ...{ git: createGit(() => null, fx.appDir), appDir: fx.appDir, version: "1.0.0", commit: "c0ffee" },
+          factsDir: config.paths.facts,
+        });
+        return { marked, after };
+      });
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.equal(result.marked.reference.labels[file], undefined, "nothing of it recorded");
+      assert.ok(!JSON.stringify(result.marked.reference).includes("Covert"), "no outside value in sync.json");
+      // The report: the recorded label's key is gone (never its value outside), and the file is no unreadable one.
+      assert.deepEqual(
+        result.after.labels.map((l) => [l.file, l.key, l.old, l.new]),
+        [[file, "orders.approve", "Approve", null]],
+      );
+      assert.deepEqual(result.after.unreadableLabels, []);
     } finally {
       unlinkJunction(junction);
       fx.release();
@@ -3629,4 +3796,76 @@ describe("engine/sync/html-text.mjs (the rendered page, read as a browser reads 
     for (const hidden of ["<xmp>Approve</xmp>", "<listing>Approve</listing>", "<noscript>Approve</noscript>"])
       assert.ok(!text(hidden).includes("Approve"), hidden);
   });
+});
+
+// SECURITY.md, confinement: the features file (the `file` of the `features` coverage adapter) and the version file
+// (`version.file`) are read with the project's tools (projectTools), as the adapters read: in the application, only
+// where they are reached through its folders. Behind a junction of the application to a folder outside, neither is
+// read by `sync --mark`, the report nor `context`: the feature is unknown (its code no dependency of its sheet), the
+// version the fallback. The minimal pair: the same files in a folder of the application are read, and count.
+describe("CLI: the features and version files outside the application are never read", () => {
+  for (const behind of [false, true])
+    test(
+      behind
+        ? "behind a junction of the application: never read by sync --mark, the report nor context"
+        : "in a folder of the application: read by sync --mark, the report and context (the minimal pair)",
+      async () => {
+        const fx = syncFixtureCopy();
+        const outside = path.join(path.dirname(fx.appDir), "outside");
+        const feat = path.join(fx.appDir, "feat");
+        try {
+          const configFile = path.join(fx.root, "doc.config.mjs");
+          const text = fs.readFileSync(configFile, "utf8");
+          const changed = text
+            .replace(
+              '  app: { dir: "../sync-app" },',
+              '  app: { dir: "../sync-app" },\n  version: { file: "../sync-app/feat/package.json" },',
+            )
+            .replace(
+              "  ],\n  sync:",
+              '    { adapter: "features", file: "../sync-app/feat/features.json" },\n  ],\n  sync:',
+            );
+          assert.equal(changed.split("feat/").length, 3, "the features and version files configured");
+          fs.writeFileSync(configFile, changed);
+          // use/orders/detail is the sheet of F-01, whose code is backend/api/deps.py.
+          const tocFile = path.join(fx.root, "content", "toc.json");
+          const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
+          toc.sections[0].groups[0].pages[1].feature = "F-01";
+          fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
+          const folder = behind ? path.join(outside, "feat") : feat;
+          fs.mkdirSync(folder, { recursive: true });
+          const features = [{ id: "F-01", title: "The title of F-01", sources: ["backend/api/deps.py"] }];
+          fs.writeFileSync(path.join(folder, "features.json"), JSON.stringify(features));
+          fs.writeFileSync(path.join(folder, "package.json"), JSON.stringify({ version: "9.9.9" }));
+          if (behind) fs.symlinkSync(folder, feat, "junction");
+          const io = { commit: () => "c0ffee" };
+          const { result, reads } = await readsIn(folder, async () => ({
+            mark: await cli(["sync", "--mark", "--all", "--date", "2026-10-02", "--project", fx.root], io),
+            report: await cli(["sync", "--json", "--project", fx.root], io),
+            context: await cli(["context", "use/orders/detail", "--project", fx.root], io),
+          }));
+          assert.equal(result.mark.code, 0, result.mark.out + result.mark.err);
+          assert.equal(result.context.code, 0, result.context.out + result.context.err);
+          const report = JSON.parse(result.report.out);
+          const reference = JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8"));
+          const files = Object.keys(reference.pages["use/orders/detail"].files);
+          const context = fs.readFileSync(path.join(fx.root, ".doc-kit", "context", "use__orders__detail.md"), "utf8");
+          if (behind) {
+            assert.deepEqual(reads, [], "nothing outside the application is read");
+            assert.ok(!files.includes("backend/api/deps.py"), "the feature is unknown: its code is no dependency");
+            assert.equal(reference.app.version, "0.0.0", "the version is the fallback");
+            assert.ok(!context.includes("backend/api/deps.py") && !context.includes("9.9.9"), "nothing of it given");
+            assert.ok(!JSON.stringify(report).includes("The title of F-01") && !context.includes("The title of F-01"));
+          } else {
+            assert.deepEqual([...new Set(reads)].sort(), ["features.json", "package.json"], "both read");
+            assert.ok(files.includes("backend/api/deps.py"), "the feature's code is a dependency of its sheet");
+            assert.equal(reference.app.version, "9.9.9");
+            assert.ok(context.includes("backend/api/deps.py") && context.includes("9.9.9"), "given to the agent");
+          }
+        } finally {
+          if (behind) unlinkJunction(feat);
+          fx.release();
+        }
+      },
+    );
 });

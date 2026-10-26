@@ -15,7 +15,7 @@ import { KitError, EXIT } from "../engine/project/errors.mjs";
 import { findProject } from "../engine/project/find.mjs";
 import { BRAND } from "../engine/brand.mjs";
 import { reloadConfig, sessionInfo, captureCount } from "../engine/dev/environment.mjs";
-import { readProjectVersion } from "../engine/project/version.mjs";
+import { projectVersion } from "../engine/core/project-tools.mjs";
 import { createTimer, usageFolder, appendUsage } from "../engine/stats/usage.mjs";
 import { readToc } from "../engine/project/toc.mjs";
 
@@ -176,7 +176,8 @@ async function recordUsage(ctx, name) {
   try {
     const dir = usageFolder(ctx.project.root, ctx.env);
     if (!dir) return;
-    const version = readProjectVersion(ctx.project.root, ctx.config.version);
+    // The version file, read with the project's tools: never through a link or a junction of the application.
+    const version = projectVersion(ctx.project.root, ctx.config);
     const { syncPath } = await import("../engine/sync/reference.mjs");
     const phase =
       name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
@@ -263,7 +264,7 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   const { reference } = readSyncReference(root, config);
   // Only the pages still written are waited for: one removed since its marking is no longer behind.
   const written = () => new Set(writtenPages({ root, config, toc: safeToc(root, config) }).map((p) => p.id));
-  if (reference && versionBehind(reference, readProjectVersion(root, config.version), written()))
+  if (reference && versionBehind(reference, projectVersion(root, config), written()))
     return { step: "sync", folder: root, root, config };
   // Languages (ARCHITECTURE.md §6.12): a translation behind or missing, shown as "translate status".
   if (

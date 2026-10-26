@@ -1,15 +1,17 @@
 // The documented version of a project (`config.version`): read from a file with a pattern, or the fallback.
-import fs from "node:fs";
-import path from "node:path";
 
-/** Documented version: version.file + version.pattern (first group), otherwise version.fallback. */
-export function readProjectVersion(root, { file, pattern, fallback }) {
-  if (file) {
-    const f = path.resolve(root, file);
-    if (fs.existsSync(f)) {
-      const m = new RegExp(pattern).exec(fs.readFileSync(f, "utf8"));
-      if (m && m[1]) return m[1];
-    }
+/**
+ * Documented version: version.file + version.pattern (first group), otherwise version.fallback. The file is read with
+ * `tools`, the project's (projectVersion of engine/core/project-tools.mjs, the one caller): one in the application
+ * (`../app/package.json`) only where it is reached through its folders, never a link or a junction (SECURITY.md) —
+ * behind one, the fallback.
+ * @param {{ file?: string|null, pattern?: string, fallback?: string }} version
+ * @param {{ exists: (p: string) => boolean, read: (p: string) => string }} tools   relative to the project
+ */
+export function readProjectVersion({ file, pattern, fallback }, tools) {
+  if (file && tools.exists(file)) {
+    const m = new RegExp(pattern).exec(tools.read(file));
+    if (m && m[1]) return m[1];
   }
   return fallback;
 }

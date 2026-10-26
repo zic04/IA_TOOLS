@@ -5,12 +5,16 @@
 // The hooks folder comes from git itself (`git rev-parse --git-path hooks`: core.hooksPath and worktrees are
 // honoured), but the repository's configuration chooses it: one outside the repository and its common git folder,
 // links followed, is refused (SECURITY.md), as is a hook that is a link out of them or a hard link. A hook that
-// already exists is kept: the kit only adds, or removes, its own block between markers.
+// already exists is kept: the kit only adds, or removes, its own block between markers. Inside the repository, the
+// folder and each hook are reached through folders only, never a link or a junction (assertWritable, the rule of
+// every write of the kit into the application).
 import fs from "node:fs";
 import path from "node:path";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { BRAND } from "../../engine/brand.mjs";
 import { isWithin } from "../../engine/util/safe-git.mjs";
+import { pathJudge } from "../../engine/core/confine.mjs";
+import { assertWritable } from "../../engine/core/project-tools.mjs";
 import { shownPath } from "../common.mjs";
 import { WORK_DIR } from "../registry.mjs";
 
@@ -92,6 +96,13 @@ function hooksFolder(ctx, top) {
   };
   if (!safe(hooksDir) || HOOKS.some((hook) => !safe(path.join(hooksDir, hook))))
     throw new KitError(EXIT.ENVIRONMENT, "hooks.unsafeFolder", { folder: hooksDir, repo: top });
+  // Inside them, the one rule of a write into the application (assertWritable): never through a link or a junction,
+  // even one that stays inside, nor onto a link — the folder and each hook reached through folders only.
+  const judge = pathJudge();
+  const rule = { within: true, judge };
+  assertWritable([top, common], hooksDir, { ...rule, folder: true, shown: shownPath(hooksDir) });
+  for (const hook of HOOKS)
+    assertWritable([top, common], path.join(hooksDir, hook), { ...rule, shown: shownPath(path.join(hooksDir, hook)) });
   return hooksDir;
 }
 

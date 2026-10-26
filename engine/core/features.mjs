@@ -20,17 +20,21 @@ const cache = new Map();
 let schema = null;
 
 /**
- * The features of a project, by id, or none with the problem that prevents reading them.
- * @param {string} root   the documentation project
- * @param {string} [name] the features file, relative to it (featuresFileOf)
+ * The features of a project, by id, or none with the problem that prevents reading them. Read with the tools of the
+ * project (projectTools, engine/check/coverage.mjs), as the `features` coverage adapter reads it: a features file in
+ * the application (`file: "../app/features.json"`) is there, and read, only where it is reached through its folders,
+ * never a link or a junction (SECURITY.md); one behind such a link gives no feature.
+ * @param {{ exists: (p: string) => boolean, read: (p: string) => string, resolve: (p: string) => string }} tools
+ * @param {string} [name] the features file, relative to the documentation project (featuresFileOf)
  * @returns {{ features: Map<string, { id: string, title?: string, routes?: string[], api?: string[], keys?: string[],
  *   sources?: string[], behaviours?: string[] }>, problem: { key: string, vars: object } | null }}
  */
-export function readFeatures(root, name = FEATURES_FILE) {
-  const file = path.join(root, name);
+export function readFeatures(tools, name = FEATURES_FILE) {
+  if (!tools.exists(name)) return { features: new Map(), problem: null };
+  const file = tools.resolve(name);
   let stamp;
   try {
-    const stat = fs.statSync(file);
+    const stat = fs.statSync(file); // reached without a link: the tools said so
     stamp = `${stat.mtimeMs}:${stat.size}`;
   } catch {
     return { features: new Map(), problem: null };
@@ -39,7 +43,7 @@ export function readFeatures(root, name = FEATURES_FILE) {
   if (cached && cached.stamp === stamp) return cached.value;
   let value;
   try {
-    const list = JSON.parse(fs.readFileSync(file, "utf8"));
+    const list = JSON.parse(tools.read(name));
     schema ??= JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "schemas", "features.schema.json"), "utf8"));
     const { errors } = validate(list, schema);
     value = errors.length

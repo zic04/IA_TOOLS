@@ -14,6 +14,67 @@ entries between a project's `kit` range and the installed version.
   blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
   left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
   within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
+- **A broken link under a root that does not resolve is no longer judged outside by mistake** (`fileInside`,
+  engine/core/confine.mjs, SECURITY.md): on Windows, realpath fails on `\\?\C:\` and on `\\?\UNC\host` while it
+  resolves `\\?\C:\Users` and `\\?\UNC\host\share`, so a broken link written `\\?\C:\srv\app\gone` could be judged
+  "outside" at some depths and not at others (`l/x.txt` inside, `l/d0/d1/x.txt` outside). The bisection now asks a
+  root apart, last, when nothing below it resolves, and a link's target `\\?\UNC\host\share\x` is read as
+  `\\host\share\x`: the answers are the walk's at every depth. The wrong answer was on the safe side: a false
+  "outside", a file inside taken for one outside, never the reverse.
+
+### Changed
+
+- **The rules of the confinement written where `sync` is described**: ARCHITECTURE.md §6.10 and the pitfalls of
+  `sync` (`docs/{en,fr}/content/publish/sync.md`) name the rules of a broken link (the `..` after a name, 32 links at
+  most), the 32,767-character cap (a proof padded with `./` past it is `sync.proofUnresolved`; a path that climbs out
+  is outside whatever its length), the globs that never walk through a link, and the worst case on a
+  case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs): a false "outside", never a file read outside.
+
+### Security
+
+- **A message file behind a junction of the application is never read** (`sync.labels`, the `messages` of an
+  `i18n-registry` adapter, engine/sync/labels.mjs): with `messages/` a junction to a folder outside the application,
+  `sync` read the JSON there (the marking, the report, the `i18n-registry` adapter) and `context` gave its values to
+  an agent; a value a page cites was recorded in `sync.json`. The tools of the coverage adapters, `sync` and `context`
+  (`projectTools`, engine/core/project-tools.mjs) now reach a path in the application through its folders only, never a
+  link or a junction, and never take a link for a file (`linkFree`, engine/core/confine.mjs): a glob never lists a
+  file behind one, a file named whole behind one is not there, never read. A path is in the application when it is
+  written under `app.dir` in any case, or goes through a folder whose real path is the application's (a short name,
+  `/private/var`, a link to it: `entryInto`). A routes folder that is a junction is not found by its adapter
+  (`notFound`), its files' names never listed, where they were listed and named as outside dependencies. The tools
+  keep one judge for their run (`pathJudge`): a run of folders without a link is judged by one real path (its real
+  path is its path as written, found by bisection), no path is asked of the system twice, and a file the tools' own
+  walk listed is not judged again — the same answers as judging each folder (a property test against it on 1,600
+  random file systems, growth tests): `check coverage` on a chain of folders 800 deep takes 1.3 s (1.7 s on 0.4.2,
+  without the rule), where judging each path folder by folder, each `lstat` given the whole path, took 32 s.
+- **The features file and the version file behind a junction of the application are never read**, by any command
+  (`readFeatures`, engine/core/features.mjs; `projectVersion`, engine/core/project-tools.mjs): with the `file` of the
+  `features` adapter, or `version.file`, behind a junction to a folder outside, `sync --mark`, the report and
+  `context` read them as written — the feature's routes and sources became its sheet's dependencies, the version was
+  recorded in `sync.json` and given to an agent —, and `build`, `audit`, `capture`, `check`, `changes`, `doctor` and
+  `export` read the version file so (`build` put it into the site). They are now read with the project's tools
+  (`projectTools`), as the `features` adapter reads its file: not there, no feature, the version's fallback; one
+  reader of the version for every command and the CLI's own reads (its usage record, its guided menu). A `file`
+  written as an absolute path is resolved, as the adapter resolves it, no longer joined to the project's root.
+- **The kit never writes into the application through a link or a junction** (`assertWritable`,
+  engine/core/project-tools.mjs): `inventory --features --write` wrote the features file as written, so through a
+  junction of the application it wrote a folder outside (`--force` rewrote a file there). Every write of the kit into
+  the application now follows the rule of its tools: the file and each folder on its way reached through folders,
+  none of them nor the file a link or a junction — even one that stays inside —, nor a file with other names (a hard
+  link); otherwise `write.throughLink` (en, fr), exit code 2, before anything is written. `hooks install`, which
+  already refused a hooks folder or a hook leading out of the repository (links followed), refuses one reached
+  through a link inside it too. The tools move to engine/core/project-tools.mjs, which check, capture, sync and build
+  all use (RULES.md M14).
+- **A `sources` glob no longer lists a folder outside the application through a junction** (`globFiles`,
+  engine/sync/dependencies.mjs): `linked/**/*.ts`, `linked` a junction or a link to a folder outside, had the walk
+  list that folder's names (none of its files kept, none read). The fixed part of a glob is now entered as the walk
+  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction — one
+  inside the application is not followed either, as `**` never followed one.
+- **The path a proof or a dependency names is joined in one pass** (`fileInside`): `path.resolve` was quadratic on a
+  long name then `b/../` repeated under the 32,767-character cap (30 to 70 ms a call for 32,000 characters); the path
+  is now built in the pass that judges climbing out, the same path, character for character (a property test against
+  `path.resolve` on 12,000 paths under both systems' rules, a growth test), its names counted, never kept, past the
+  cap.
 
 ## [0.4.2] - 2026-10-25
 

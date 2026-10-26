@@ -136,6 +136,49 @@ describe("doctor", () => {
     }
   });
 
+  // SECURITY.md: the version file is read with the project's tools, as every command reads it (projectVersion).
+  test("a version file behind a junction of the application: not there, never read; in a folder of it, read", async (t) => {
+    const dir = project({ ...base, version: { ...base.version, file: "app/meta/version.txt" }, app: { dir: "app" } });
+    const meta = path.join(dir, "app", "meta");
+    const outside = path.join(dir, "outside", "meta");
+    try {
+      fs.mkdirSync(meta, { recursive: true });
+      fs.writeFileSync(path.join(meta, "version.txt"), "9.9.9\n");
+      assert.match(
+        (await cli(["doctor", "--project", dir])).out,
+        /^✔ documented version 9\.9\.9 \(read in app\/meta\/version\.txt\)$/m,
+      );
+      fs.mkdirSync(path.dirname(outside), { recursive: true });
+      fs.renameSync(meta, outside);
+      fs.symlinkSync(outside, meta, process.platform === "win32" ? "junction" : "dir");
+      const realOutside = fs.realpathSync.native(outside);
+      const original = fs.readFileSync;
+      const reads = [];
+      t.mock.method(fs, "readFileSync", function (p, ...rest) {
+        try {
+          const real = typeof p === "string" ? fs.realpathSync.native(p) : null;
+          if (real && real.startsWith(realOutside + path.sep)) reads.push(real);
+        } catch {
+          // missing: nothing read there
+        }
+        return original.call(this, p, ...rest);
+      });
+      const r = await cli(["doctor", "--project", dir]);
+      t.mock.restoreAll();
+      assert.match(r.out, /^⚠ version file not found: app\/meta\/version\.txt \(the site shows 0\.0\.0\)/m);
+      assert.ok(!r.out.includes("9.9.9"), "nothing of it shown");
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+    } finally {
+      if (fs.lstatSync(meta, { throwIfNoEntry: false })?.isSymbolicLink())
+        try {
+          fs.unlinkSync(meta);
+        } catch {
+          fs.rmdirSync(meta);
+        }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("a version 0.0.0 or 1.0.0 contradicted by version.txt, VERSION or CHANGELOG.md → ⚠ “version never incremented?”", async () => {
     const dir = project({ ...base, version: { file: "app/package.json" }, app: { dir: "app" } });
     try {

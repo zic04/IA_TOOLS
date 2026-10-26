@@ -7,7 +7,7 @@
 //   all       every check (default); coverage is skipped when no adapter is configured
 import path from "node:path";
 import { build } from "../../engine/build/build.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { checkTables } from "../../engine/check/tables.mjs";
 import { checkImages } from "../../engine/check/images.mjs";
 import { checkSecrets, trackedByGit } from "../../engine/check/secrets.mjs";
@@ -106,7 +106,7 @@ async function checkImagesCommand(ctx, threshold) {
     if (!ctx.json) ctx.printProblems({ errors: r.errors });
     return { ok: false, errors: r.errors, warnings: [] };
   }
-  const version = readProjectVersion(project.root, config.version);
+  const version = projectVersion(project.root, config);
   const res = checkImages({ root: project.root, config, html: r.html, warnings: r.warnings, version, threshold });
   if (!ctx.json) {
     printFindings(ctx, res.warnings, "⚠");

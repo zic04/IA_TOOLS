@@ -10,8 +10,8 @@
 // "feature" whose own routes or api overlap the candidate's: the simplest reading of "the sheet that already
 // cites it", since a candidate otherwise carries no page to point to).
 import fs from "node:fs";
-import path from "node:path";
 import { runCoverage } from "../../engine/check/coverage.mjs";
+import { assertProjectWritable, projectTools } from "../../engine/core/project-tools.mjs";
 import { KitError, EXIT } from "../../engine/project/errors.mjs";
 import { reasonText } from "./check.mjs";
 import { featuresFileOf } from "../../engine/core/features.mjs";
@@ -129,16 +129,19 @@ async function runFeatures({ ctx, values }) {
   if (!config.coverage.length) throw new KitError(EXIT.USAGE, "check.coverage.none");
   const res = await runCoverage({ root: project.root, config });
   const name = featuresFileOf(config);
-  const file = path.resolve(project.root, name);
-  const existing = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : [];
+  // Read and written by the rule of the application's tools (SECURITY.md): behind a link or a junction of it, the
+  // file is not there, and nothing is written there.
+  const tools = projectTools(project.root, config);
+  const existing = tools.exists(name) ? tools.json(name) : [];
   const candidates = candidateFeatures(res.adapters, existing, {
     items: factsItems(project.root, config.paths.facts, "behaviours"),
     api: factsItems(project.root, config.paths.facts, "api"),
   });
 
   if (values.write) {
-    if (fs.existsSync(file) && !values.force)
+    if (tools.exists(name) && !values.force)
       throw new KitError(EXIT.CHECK, "inventory.features.written", { file: name });
+    assertProjectWritable(project.root, config, name);
     const result = values.force
       ? mergeFeatures(existing, candidates)
       : candidates.map(({ id, name, routes, api, keys, behaviours }) => ({
@@ -149,7 +152,7 @@ async function runFeatures({ ctx, values }) {
           ...(keys.length ? { keys } : {}),
           ...(behaviours?.length ? { behaviours } : {}),
         }));
-    fs.writeFileSync(file, JSON.stringify(result, null, 2) + "\n");
+    fs.writeFileSync(tools.resolve(name), JSON.stringify(result, null, 2) + "\n");
     if (ctx.json) ctx.print(JSON.stringify({ file: name, n: result.length }, null, 2));
     else ctx.print(ctx.t("cli.inventory.features.wrote", { file: name, n: result.length }));
     return EXIT.OK;

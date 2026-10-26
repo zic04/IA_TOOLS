@@ -1,12 +1,13 @@
 // Adapters (ARCHITECTURE.md §5) on small fixtures: coverage (next-app-router, react-router, i18n-registry, glob),
 // loading and option validation (built-in, local, unknown, malformed), authentication adapters on fake pages.
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { loadAdapter, LOGIN_PATTERN } from "../../engine/core/adapter-loader.mjs";
 import { isSignInUrl } from "../../engine/capture/session.mjs";
-import { adapterTools, routeMatches, isCovered, normalize } from "../../engine/check/coverage.mjs";
+import { routeMatches, isCovered, normalize } from "../../engine/check/coverage.mjs";
+import { adapterTools } from "../../engine/core/project-tools.mjs";
 import { globRegex } from "../../engine/core/glob.mjs";
 import { routeOf } from "../../adapters/coverage/next-app-router.mjs";
 import { render } from "../../adapters/coverage/glob.mjs";
@@ -70,6 +71,104 @@ async function inventory(spec) {
   const { adapter, options } = await loadAdapter("coverage", spec, docs(), "coverage[0]");
   return adapter.inventory({ root: docs(), options, tools: adapterTools(docs()) });
 }
+
+// SECURITY.md: the tools of the adapters, given the application's folder, reach a path in it through its folders
+// only, never a link or a junction (linkFree, engine/core/confine.mjs); a path elsewhere is taken as written.
+describe("adapterTools with the application's folder: never through a link of it", () => {
+  test("walk, glob, exists, read and json: through a junction, nothing; through folders, the same calls find it", () => {
+    const dir = tempDir("doc-kit-tools-links-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    // A junction out of the application, one that stays in it, and one beside it to the application itself (the
+    // configuration's: a path through it is in the application all the same).
+    const links = [path.join(app, "out"), path.join(app, "src", "in"), path.join(dir, "alias")];
+    try {
+      fs.mkdirSync(path.join(app, "src", "lib"), { recursive: true });
+      fs.mkdirSync(path.join(outside, "deep"), { recursive: true });
+      fs.mkdirSync(path.join(dir, "docs"));
+      fs.writeFileSync(path.join(outside, "en.json"), '{"a":"outside"}');
+      fs.writeFileSync(path.join(outside, "deep", "x.ts"), "outside");
+      fs.writeFileSync(path.join(app, "src", "lib", "en.json"), '{"a":"inside"}');
+      fs.writeFileSync(path.join(dir, "beside.json"), '{"a":"beside"}');
+      const type = process.platform === "win32" ? "junction" : "dir";
+      fs.symlinkSync(outside, links[0], type); // out of the application
+      fs.symlinkSync(path.join(app, "src", "lib"), links[1], type); // one that stays in: not followed either
+      fs.symlinkSync(app, links[2], type);
+      const docsDir = path.join(dir, "docs");
+      const tools = adapterTools(docsDir, { appDir: app });
+      const behind = ["../app/out", "../app/out/en.json", "../app/out/deep/x.ts", "../app/src/in/en.json"];
+      // The application written another way: in another case, through the link beside it to it.
+      behind.push("../APP/out/en.json", "../alias/out/en.json", "../alias/out");
+      for (const p of behind) {
+        assert.equal(tools.exists(p), false, p);
+        assert.throws(() => tools.read(p), { code: "ENOENT" }, p);
+      }
+      assert.deepEqual(tools.walk("../app/out"), []);
+      assert.deepEqual(tools.glob("**/*.json", "../app/out"), []);
+      assert.deepEqual(tools.glob("*.json", "../alias/out"), []);
+      assert.deepEqual(tools.walk("../app/src/in"), []);
+      assert.deepEqual(tools.walk("../app"), ["src/lib/en.json"], "a walk never goes into a link either");
+      // The minimal pairs: the same calls through the application's folders, and beside it, as written.
+      assert.equal(tools.exists("../app/src/lib/en.json"), true);
+      assert.deepEqual(tools.json("../app/src/lib/en.json"), { a: "inside" });
+      assert.deepEqual(tools.json("../alias/src/lib/en.json"), { a: "inside" });
+      assert.deepEqual(tools.glob("*.json", "../app/src/lib"), ["en.json"]);
+      assert.deepEqual(tools.json("../beside.json"), { a: "beside" });
+      // Without the application's folder (an adapter's own test), as before: as written.
+      assert.deepEqual(adapterTools(docsDir).json("../app/out/en.json"), { a: "outside" });
+    } finally {
+      for (const link of links)
+        try {
+          fs.unlinkSync(link);
+        } catch {
+          fs.rmdirSync(link);
+        }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // A coverage adapter (fastapi, next-app-router) walks its folder, then reads each file the walk listed: the walk
+  // went into folders only, so a file it listed is reached by the rule already — judged again, each one asked every
+  // folder above it (seconds for a chain of folders 400 deep). The growth is measured in confine-growth.test.mjs.
+  test("a walk, then the read of each file it listed: judged where the walk starts, never again for its files", () => {
+    const dir = tempDir("doc-kit-tools-deep-");
+    const app = path.join(dir, "app");
+    const depth = 40;
+    const TEXT = "x = 1";
+    try {
+      let at = path.join(app, "backend");
+      fs.mkdirSync(at, { recursive: true });
+      for (let i = 0; i < depth; i++) {
+        at = path.join(at, "d");
+        fs.mkdirSync(at);
+        fs.writeFileSync(path.join(at, "data.py"), TEXT);
+      }
+      fs.mkdirSync(path.join(dir, "docs"));
+      const lstat = mock.method(fs, "lstatSync");
+      const real = mock.method(fs.realpathSync, "native");
+      const asked = () => lstat.mock.callCount() + real.mock.callCount();
+      try {
+        const tools = adapterTools(path.join(dir, "docs"), { appDir: app });
+        assert.equal(tools.exists("../app/backend"), true);
+        const files = tools.walk("../app/backend");
+        assert.equal(files.length, depth);
+        const atStart = asked();
+        assert.ok(atStart <= 6, `${atStart} calls to judge the folder walked`);
+        for (const f of files) assert.equal(tools.read(`../app/backend/${f}`), TEXT, f);
+        assert.ok(files.every((f) => tools.exists(`../app/backend/${f}`)));
+        assert.equal(asked(), atStart, "a file the walk listed is not judged again");
+        // The minimal pair: a file the walk did not list is judged, in a few calls whatever its depth.
+        assert.equal(adapterTools(path.join(dir, "docs"), { appDir: app }).read(`../app/backend/${files[0]}`), TEXT);
+        assert.ok(asked() - atStart <= 4, `${asked() - atStart} calls for one file ${depth} folders deep`);
+      } finally {
+        lstat.mock.restore();
+        real.mock.restore();
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("coverage adapters", () => {
   test("next-app-router: groups and slots ignored, interceptions and private folders skipped, params kept", async () => {

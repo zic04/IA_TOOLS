@@ -9,12 +9,20 @@ import { readFeatures, featuresFileOf } from "../core/features.mjs";
 import { kindsOfHints } from "../core/behaviours.mjs";
 import { SECRET_FILE } from "../check/secrets.mjs";
 import { realInside, realPathOf } from "../core/confine.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { resolveImports } from "../facts/imports.mjs";
 
-/** The entry of the features file (features.json) of a page that is a feature sheet (its `feature` field), or null. */
-export function featureOf(root, config, entry) {
+/**
+ * The entry of the features file (features.json) of a page that is a feature sheet (its `feature` field), or null.
+ * The file is read with the project's tools (readFeatures): never through a link or a junction of the application.
+ * @param {string} root
+ * @param {any} config
+ * @param {any} entry
+ * @param {ReturnType<typeof projectTools>} [tools]
+ */
+export function featureOf(root, config, entry, tools = projectTools(root, config)) {
   if (!entry?.feature) return null;
-  return readFeatures(root, featuresFileOf(config)).features.get(entry.feature) ?? null;
+  return readFeatures(tools, featuresFileOf(config)).features.get(entry.feature) ?? null;
 }
 
 /**

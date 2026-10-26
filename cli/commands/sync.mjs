@@ -16,11 +16,12 @@ import { estimateUpdate } from "../../engine/sync/estimate.mjs";
 import { labelReader } from "../../engine/sync/labels.mjs";
 import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
-import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
+import { runCoverage } from "../../engine/check/coverage.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { readToc } from "../../engine/audit/audit.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { WORK_DIR } from "../registry.mjs";
 import { numbers } from "../../engine/build/format.mjs";
 
@@ -80,7 +81,7 @@ export async function run({ ctx, values, positionals = [] }) {
   const toc = safeToc(root, config);
   const inventory = await runCoverage({ root, config });
   const plans = await loadProjectPlans(root, config);
-  const version = readProjectVersion(root, config.version);
+  const version = projectVersion(root, config);
   const commit = ctx.commit(appDir);
   const date = values.date || new Date().toISOString().slice(0, 10);
   // The labels a page cites, and the rewrites of --apply --labels, read in the page as the kit's renderer renders it
@@ -292,7 +293,7 @@ async function loadContextBuilder() {
 async function buildEstimate({ root, config, toc, report, inventory, plans }) {
   const templates = loadPageTemplates();
   const contextMod = await loadContextBuilder();
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const contexts = [];
   for (const r of report.review) {

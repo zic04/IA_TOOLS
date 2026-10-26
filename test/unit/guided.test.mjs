@@ -26,7 +26,66 @@ const withSession = (dir) => {
   fs.writeFileSync(path.join(dir, ".doc-kit", "session.json"), '{"cookies":[],"origins":[]}');
 };
 
+/**
+ * A copy of the demo whose version file lies in its application (`../demo-app/meta/version.txt`, 9.9.9): in a folder
+ * of it, or behind a junction of it to a folder outside. `reads()`: the files read outside since (a readFileSync spy).
+ */
+function versionInApp(t, behind) {
+  const base = tempDir("doc-kit-guided-version-");
+  const dir = demoCopy(path.join(base, "demo-docs"));
+  const meta = path.join(base, "demo-app", "meta");
+  const outside = path.join(base, "outside");
+  const configFile = path.join(dir, "doc.config.mjs");
+  const text = fs.readFileSync(configFile, "utf8");
+  fs.writeFileSync(configFile, text.replace('file: "version.txt"', 'file: "../demo-app/meta/version.txt"'));
+  const folder = behind ? path.join(outside, "meta") : meta;
+  fs.mkdirSync(folder, { recursive: true });
+  fs.mkdirSync(path.dirname(meta), { recursive: true });
+  fs.writeFileSync(path.join(folder, "version.txt"), "9.9.9\n");
+  if (behind) fs.symlinkSync(folder, meta, "junction");
+  const realOutside = behind ? fs.realpathSync.native(outside) : null;
+  const original = fs.readFileSync;
+  const read = [];
+  t.mock.method(fs, "readFileSync", function (p, ...rest) {
+    try {
+      const real = realOutside && typeof p === "string" ? fs.realpathSync.native(p) : null;
+      if (real && real.startsWith(realOutside + path.sep)) read.push(real);
+    } catch {
+      // missing: nothing read there
+    }
+    return original.call(this, p, ...rest);
+  });
+  return {
+    dir,
+    reads: () => read,
+    remove: () => {
+      if (behind)
+        try {
+          fs.unlinkSync(meta);
+        } catch {
+          fs.rmdirSync(meta);
+        }
+      fs.rmSync(base, { recursive: true, force: true });
+    },
+  };
+}
+
 describe("situation", () => {
+  // SECURITY.md: the documented version the menu compares with sync.json is read with the project's tools.
+  for (const behind of [false, true])
+    test(`a version file ${behind ? "behind a junction of the application: never read, the fallback compared" : "in a folder of the application: read (the minimal pair)"}`, async (t) => {
+      const v = versionInApp(t, behind);
+      try {
+        withSession(v.dir);
+        const reference = { generator: "doc-kit 0.1.0", app: { commit: null, version: "9.9.9", date: "2026-10-01" } };
+        fs.writeFileSync(path.join(v.dir, "sync.json"), JSON.stringify({ ...reference, pages: {} }));
+        const { step } = await detectSituation({ project: v.dir, env: {} });
+        assert.equal(step, behind ? "sync" : "menu", behind ? "0.0.0 (the fallback) ≠ 9.9.9" : "9.9.9 = 9.9.9");
+        assert.deepEqual(v.reads(), [], "nothing outside the application is read");
+      } finally {
+        v.remove();
+      }
+    });
   test("no project → init; dependencies missing → install; unusable configuration → doctor", async () => {
     const empty = tempDir();
     const dir = demoCopy();

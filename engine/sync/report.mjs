@@ -10,7 +10,8 @@ import { labelFiles, readFlatLabels } from "./labels.mjs";
 import { pageCommit, isEdited as editedSince } from "./reference.mjs";
 import { generatorTag } from "../brand.mjs";
 import { staleFacts } from "../facts/freshness.mjs";
-import { adapterTools, normalize, isCovered } from "../check/coverage.mjs";
+import { normalize, isCovered } from "../check/coverage.mjs";
+import { projectTools } from "../core/project-tools.mjs";
 import { translatableFiles, translationState, readSources } from "../core/translations.mjs";
 
 /**
@@ -158,16 +159,17 @@ function allLabelValues(reference) {
  * a recorded value that changed (or whose key disappeared), where it does not hold the new value. A message file that
  * cannot be read (not valid JSON) is set aside, `unreadable`: nothing is known of its labels then. Every file followed
  * now (labelFiles) is read too, not only the recorded ones: one that could not be read when the documentation was
- * marked has nothing recorded, and would never be said otherwise.
+ * marked has nothing recorded, and would never be said otherwise. One a link or a junction of the application leads
+ * to is never read: its keys are gone (readFlatLabels).
  * @param {import("./labels.mjs").LabelReader} labels */
 function labelChanges(root, config, reference, written, labels) {
   const out = [];
   const unreadable = [];
   const recorded = reference?.labels || {};
-  for (const file of [...new Set([...Object.keys(recorded), ...labelFiles(root, config)])].sort()) {
+  const tools = projectTools(root, config);
+  for (const file of [...new Set([...Object.keys(recorded), ...labelFiles(root, config, tools)])].sort()) {
     const entries = recorded[file] || {};
-    // resolve, not join: same reason as allFlatLabels (engine/sync/reference.mjs) — file may be absolute.
-    const flatNow = readFlatLabels(path.resolve(root, file));
+    const flatNow = readFlatLabels(tools, file);
     if (!flatNow) {
       unreadable.push(file);
       continue;
@@ -287,7 +289,7 @@ export async function compareWithReference({
   const written = writtenPages({ root, config, toc });
   const writtenIds = new Set(written.map((p) => p.id));
   const byId = new Map(written.map((p) => [p.id, p]));
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const gitAvailable = !!git && git.available();
 
   const proofsMoved = [];

@@ -6,14 +6,15 @@
 // exit code 2.
 import fs from "node:fs";
 import path from "node:path";
-import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
+import { runCoverage } from "../../engine/check/coverage.mjs";
+import { projectTools } from "../../engine/core/project-tools.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { pageDependencies, findPageEntry } from "../../engine/sync/dependencies.mjs";
-import { labelFiles, flattenMessages } from "../../engine/sync/labels.mjs";
+import { labelFiles, readFlatLabels } from "../../engine/sync/labels.mjs";
 import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
-import { readProjectVersion } from "../../engine/project/version.mjs";
+import { projectVersion } from "../../engine/core/project-tools.mjs";
 import { loadPageTemplates, contextBudgetOf } from "../../engine/core/page-templates.mjs";
 import { readFeatures, featuresFileOf } from "../../engine/core/features.mjs";
 import { featureOf } from "../../engine/sync/feature-files.mjs";
@@ -52,16 +53,14 @@ function readGlossary(root, config) {
   }
 }
 
-/** { [projRelFile]: flattened messages } of every message file sync.labels follows (ARCHITECTURE.md §6.10). */
+/**
+ * { [projRelFile]: flattened messages } of every message file sync.labels follows (ARCHITECTURE.md §6.10): {} for
+ * one that cannot be read, or that a link or a junction of the application leads to (never read: readFlatLabels).
+ */
 function readLabels(root, config) {
+  const tools = projectTools(root, config);
   const out = {};
-  for (const file of labelFiles(root, config)) {
-    try {
-      out[file] = flattenMessages(JSON.parse(fs.readFileSync(path.join(root, file), "utf8")));
-    } catch {
-      out[file] = {};
-    }
-  }
+  for (const file of labelFiles(root, config, tools)) out[file] = readFlatLabels(tools, file) ?? {};
   return out;
 }
 
@@ -92,9 +91,10 @@ async function readPlans(root, config) {
   }
 }
 
-/** The kinds of behaviour cards (§6.8a), the features file told once when it cannot be read. */
-function behaviourKinds(ctx, root, config) {
-  const { problem } = readFeatures(root, featuresFileOf(config));
+/** The kinds of behaviour cards (§6.8a), the features file (read with the project's tools) told once when it cannot
+ * be read. */
+function behaviourKinds(ctx, root, config, tools) {
+  const { problem } = readFeatures(tools, featuresFileOf(config));
   if (problem && !ctx.json) ctx.print(`⚠ ${ctx.t(`cli.${problem.key}`, problem.vars)}`);
   return projectBehaviours(root, config).registry;
 }
@@ -147,15 +147,15 @@ export async function run({ ctx, values, positionals }) {
     readGlossary(root, config),
     readSyncReference(root, config),
   ]);
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const labels = /** @type {Record<string, Record<string, string>>} */ (readLabels(root, config));
   const facts = /** @type {Record<string, any[]>} */ (readFacts(root, config));
   const templates = loadPageTemplates();
 
   const product = config.product?.name ?? null;
-  const version = readProjectVersion(root, config.version);
+  const version = projectVersion(root, config);
 
-  const registry = behaviourKinds(ctx, root, config);
+  const registry = behaviourKinds(ctx, root, config, tools);
 
   const dir = path.join(root, ".doc-kit", "context");
   fs.mkdirSync(dir, { recursive: true });
@@ -189,7 +189,7 @@ export async function run({ ctx, values, positionals }) {
       budget: budgetOf(budget, templates, findPageEntry(toc, pageId)),
       product,
       version,
-      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId)) },
+      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId), tools) },
       t: ctx.t,
     });
     const file = contextFileName(pageId);

@@ -186,6 +186,54 @@ describe("engine/stats/usage.mjs", () => {
 });
 
 describe("recording by the CLI", () => {
+  // SECURITY.md: the version a record is named after is read with the project's tools: a version file behind a
+  // junction of the application is not there (the fallback), never read. The minimal pair: in a folder of it, read.
+  for (const behind of [false, true])
+    test(`with usage/, a version file ${behind ? "behind a junction of the application: never read, the record named after the fallback" : "in a folder of the application: the record named after it"}`, async (t) => {
+      const base = tempDir("doc-kit-usage-version-");
+      const dir = demoCopy(path.join(base, "demo-docs"));
+      const meta = path.join(base, "demo-app", "meta");
+      const outside = path.join(base, "outside");
+      try {
+        fs.mkdirSync(path.join(dir, "usage"));
+        const configFile = path.join(dir, "doc.config.mjs");
+        const text = fs.readFileSync(configFile, "utf8");
+        fs.writeFileSync(configFile, text.replace('file: "version.txt"', 'file: "../demo-app/meta/version.txt"'));
+        const folder = behind ? path.join(outside, "meta") : meta;
+        fs.mkdirSync(folder, { recursive: true });
+        fs.mkdirSync(path.dirname(meta), { recursive: true });
+        fs.writeFileSync(path.join(folder, "version.txt"), "9.9.9\n");
+        if (behind) fs.symlinkSync(folder, meta, "junction");
+        const realOutside = fs.realpathSync.native(path.dirname(folder));
+        const original = fs.readFileSync;
+        const reads = [];
+        t.mock.method(fs, "readFileSync", function (p, ...rest) {
+          try {
+            const real = typeof p === "string" ? fs.realpathSync.native(p) : null;
+            if (real && real.startsWith(realOutside + path.sep)) reads.push(path.basename(real));
+          } catch {
+            // missing: nothing read there
+          }
+          return original.call(this, p, ...rest);
+        });
+        // context reads the version with the same tools (`check` and `build` still read it as written).
+        const r = await cli(["context", "use/orders", "--project", dir]);
+        t.mock.restoreAll();
+        assert.equal(r.code, 0, r.out + r.err);
+        assert.deepEqual(fs.readdirSync(path.join(dir, "usage")), [behind ? "0.0.0.jsonl" : "9.9.9.jsonl"]);
+        if (behind) assert.deepEqual(reads, [], "nothing outside the application is read");
+        else assert.ok(reads.length > 0 && reads.every((name) => name === "version.txt"), "read in it");
+      } finally {
+        if (behind)
+          try {
+            fs.unlinkSync(meta);
+          } catch {
+            fs.rmdirSync(meta);
+          }
+        fs.rmSync(base, { recursive: true, force: true });
+      }
+    });
+
   test("a project without usage/: nothing written; `stats` says how to turn it on", async () => {
     const dir = demoCopy();
     try {

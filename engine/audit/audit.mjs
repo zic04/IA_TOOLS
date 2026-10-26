@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { build } from "../build/build.mjs";
-import { readProjectVersion } from "../project/version.mjs";
+import { projectVersion } from "../core/project-tools.mjs";
 import {
   loadPageTemplates,
   analysePage,
@@ -87,7 +87,7 @@ export async function runAudit({ project, config, measure = {}, now = new Date()
   const { content } = config.paths;
   const built = build({ project, config, options: {} });
   const tocInfo = readToc(root, content);
-  const version = readProjectVersion(root, config.version);
+  const version = projectVersion(root, config);
   const base = {
     generator: generatorTag(),
     date: now.toISOString(),
