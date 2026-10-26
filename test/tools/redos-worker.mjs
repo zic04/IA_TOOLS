@@ -994,10 +994,16 @@ export const CHECKS = [
     "html references",
     (s) => REFERENCE_OPENINGS.reduce((n, p) => n + decodeHtml(p + s).length + decodeHtml(p + s, true).length, 0),
   ],
-  // Many comments, each closed one way or the other: the next closing of each kind is searched once.
+  // Many comments, each closed one way or the other: the next closing of each kind is searched once. A comment after
+  // every 4 characters of the input, the whole input kept: one after each character made a text 11 times as long,
+  // read twice for each of the 4,344 inputs, the heaviest check by far (24 s on a busy machine, against 60 s for a
+  // hang); test/unit/scanners-growth.test.mjs measures the comments after each character.
   [
     "sync shownText comments",
-    (s) => shownText(s.split("").join("<!-- --!>")).text.length + shownText(s.split("").join("<!-- -->")).text.length,
+    (s) => {
+      const parts = Array.from({ length: Math.ceil(s.length / 4) }, (_, i) => s.slice(4 * i, 4 * i + 4));
+      return shownText(parts.join("<!-- --!>")).text.length + shownText(parts.join("<!-- -->")).text.length;
+    },
   ],
   // The badges and claims of the kit's renderer, tried as Marked tries them: at each "[" of a text, after each kind
   // of opening (a badge, a claim, a code of keys).
