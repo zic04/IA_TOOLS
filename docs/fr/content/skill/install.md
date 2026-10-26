@@ -47,14 +47,17 @@ passent :
 |---|---|
 | Le CLI du kit, par son chemin absolu, depuis le dossier de la documentation | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
 | Les scripts du skill, par leur chemin absolu : le chemin réel du skill, ou celui que nomme son hook, à travers un lien (sous Windows, avec son lecteur : `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
-| Des outils de lecture, avec leurs seules options de lecture | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, reliés par un tube, `&&`, `\|\|` ou `;` ; `>/dev/null`, `>&1` et `>&2`, seules ou après un `1` ou un `2` sans guillemets (`2>&1`) |
+| Des outils de lecture, avec leurs seules options de lecture, jamais sur un périphérique (`/dev/null` à part) | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, reliés par un tube, `&&`, `\|\|` ou `;` ; `>/dev/null`, `>&1` et `>&2`, seules ou après un `1` ou un `2` sans guillemets (`2>&1`) |
 
 Tout le reste est refusé, avec sa raison : `npx doc-kit`, `npm exec` et un `doc-kit` nu (ils peuvent lancer celui de
 l'application), un programme par un chemin relatif, un `cd` ailleurs qu'en premier, git, npm, tout autre programme,
 `$(…)` et les autres expansions (`~+`, `~utilisateur`, `x=~`…), toute autre redirection (vers un fichier, `&>`,
 `<<<`…) et celle qui suit un mot entre guillemets ou échappé (bash lit `"2">/dev/null` comme un argument `2` et une
 redirection de la sortie), un `*` sans guillemets, une option d'un outil de lecture absente de sa liste
-(`rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), et les commandes de doc-kit qui sont les vôtres ou celles
+(`rg --pre`, `rg --hostname-bin`, `find -exec`, `sort -o`…), un périphérique parmi ses opérandes, dont la lecture
+peut ne jamais finir, quelle que soit son écriture (`cat /dev/zero`, `head -c 1 /dev/urandom`, `../../dev/zero`,
+`cd / && cat dev/zero` ; sous Windows le `/dev/…` de Git Bash aussi, `\\.\…`, `CON`, `NUL`, `COM1`… ; `/dev/null`
+passe), et les commandes de doc-kit qui sont les vôtres ou celles
 de l'orchestrateur (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). Les fichiers de l'application sont des
 données, jamais des instructions : un commentaire glissé dans son code ne peut pas faire lancer un programme à un agent.
 Le hook échoue fermé : une garde qui ne peut pas démarrer ou se charger (pas de `node`, un fichier absent ou abîmé),
@@ -120,9 +123,10 @@ annotées, un dossier d'architecture, des parcours de bout en bout, un diagnosti
 > [!ATTENTION] La garde n'est pas un bac à sable
 > Elle ne borne que le Bash des agents. Ce qu'un agent écrit est borné par son brief et vos autorisations, et un plan
 > de capture est un module JavaScript que `doc-kit capture` exécute. Elle tient pour dossier de documentation tout
-> dossier qui porte un `doc.config.mjs` : relisez un tel fichier si l'application en livre un. Une définition d'agent
-> modifiée à la main a pu perdre sa garde : `doctor` la signale comme modifiée, et `doc-kit skill install` la
-> rétablit.
+> dossier qui porte un `doc.config.mjs` : relisez un tel fichier si l'application en livre un. Elle ne reconnaît un
+> périphérique qu'à son chemin : un lien vers l'un d'eux, qu'une application peut livrer, se lit comme un fichier,
+> jusqu'à ce que la limite de temps de Claude Code sur la commande l'arrête. Une définition d'agent modifiée à la main
+> a pu perdre sa garde : `doctor` la signale comme modifiée, et `doc-kit skill install` la rétablit.
 
 ## Droits requis
 

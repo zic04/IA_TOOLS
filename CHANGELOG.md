@@ -6,6 +6,37 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The agents' guard is compared with bash, not sh** (`test/unit/bash-guard.test.mjs`, SECURITY.md): Claude Code
+  runs the agents' commands with bash, and `sh` is bash in POSIX mode (or dash), which keeps the `~` of `x=~`. The
+  test of the guard's words against a real shell's runs the first `bash` on the `PATH`, and on Windows Git Bash's
+  (beside `git`, as Claude Code finds it; never a `bash.exe` of Windows' own folders, which starts WSL), reading no
+  start-up file and never in POSIX mode; it says so (`t.diagnostic`) and compares nothing where there is no bash. Its
+  forms now hold `x=~`, `x=~/a`, `x=a:~` and `PATH=a:~/b`, which bash expands and the guard refuses, `a:~`, which bash
+  keeps and the guard refuses all the same (it never decides what looks like an assignment), and their quoted forms.
+  The `sh` the other tests of that group run is looked up by each of them: one missing made the group throw, and none
+  of its tests ran.
+
+### Security
+
+- **The agents' guard refuses a device as a read-only tool's operand** (SECURITY.md): `cat /dev/zero`, `tail
+  /dev/zero`, `grep x /dev/zero` and `head -c 1 /dev/urandom` went through, and reading a device never ends, as `tail
+  -f` does not. Every word of a read-only tool from its first operand on (find's start paths among them; a value
+  given to an option before it, `grep -e /dev/zero app`, is none) is refused, with its reason (`device`, in English
+  and French, saying to give a pattern after `-e`), when it names a path under `/dev/` other than `/dev/null`: by any
+  spelling (`//dev/zero`, `/dev/./zero`, `/usr/../dev/zero`; `/DEV/zero`, which macOS's volume reads as `/dev` by
+  default), climbing to it (`../../dev/zero`, which reaches it from any folder deep enough), or read from the folder a
+  first `cd` moved to (`cd / && cat dev/zero`) as well as from the one the line started in; that `cd` takes a folder,
+  never an option (`cd -` goes to `$OLDPWD`, `cd --` home: refused). On Windows also Git Bash's own `/dev`
+  (`/dev/clipboard`), a backslash for a slash, the device namespace (`\\.\`, `\\?\`, `\??\`, with either slash, a
+  `cd` into it too) and the reserved names as a path's last part (`CON`, `NUL`, `nul.txt`, `C:/x/aux.md`, `COM1:`,
+  `CONIN$`), which a Windows program (rg) opens as the device. The words are read in one pass, never through
+  `path.posix.normalize` (its time grows as the square of a long `../../…`), and the ReDoS harness measures it;
+  `checkOptions` (`scripts/bash-options.mjs`) returns the words it read as operands. A link to a device, a named pipe,
+  a file of `/proc` or `/sys` and Git Bash's own folder named by its Windows path still pass: the guard reads no file
+  (SECURITY.md, its limits).
+
 ## [0.4.2] - 2026-10-25
 
 ### Added

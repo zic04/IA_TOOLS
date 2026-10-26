@@ -1,6 +1,6 @@
 // The read-only tools the agents' Bash guard lets through (bash-decision.mjs), and the options each may take: an
-// allowlist, read word by word as getopt reads it — no shell, no eval, no regular expression, no file read. It
-// imports nothing.
+// allowlist, read word by word as getopt reads it — no shell, no eval, no regular expression, no file read — and the
+// words each takes as its operands. It imports nothing.
 
 /** Why the guard refuses a command: a message key of the skill's `guard` section (i18n/<lang>.json), its variables. */
 export class Refusal extends Error {
@@ -224,7 +224,10 @@ function optionTakes(name, tool, a) {
  * option may come after an operand, and after `--` every word is an operand (not for find, whose expression goes on);
  * as a getopt that stops at the first operand reads them (GNU's under POSIXLY_CORRECT), every word from the first
  * operand on is one: the operands are counted so, never fewer than GNU's reading counts (`uniq a -c` writes to `-c`).
+ * Returns those words, every one from the first operand on (find's start paths among them): what the tool may read
+ * as a file, by either reading (bash-decision.mjs refuses a device among them).
  * @param {string} name  @param {ReturnType<typeof toolOptions>} tool  @param {string[]} args
+ * @returns {string[]}
  */
 export function checkOptions(name, tool, args) {
   let first = -1; // the first operand
@@ -246,6 +249,7 @@ export function checkOptions(name, tool, args) {
     if (value.startsWith("-")) throw new Refusal("optionValue", { name, option: a, value });
     if (takes === NEXT_NUMBER && !isNumber(value)) throw new Refusal("number", { name, option: a, value });
   }
-  const operands = first < 0 ? 0 : args.length - first;
-  if (operands > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
+  const operands = first < 0 ? [] : args.slice(first);
+  if (operands.length > tool.operands) throw new Refusal("operands", { name, max: String(tool.operands) });
+  return operands;
 }

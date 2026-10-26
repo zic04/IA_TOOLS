@@ -218,6 +218,7 @@
     "optionValue": "{name} {option} est suivi de {value}, qui commence par - : un tel mot est lu comme une option, quoi qu'il suive (accolez une valeur à son option : -e-x, --regexp=-x)",
     "number": "{name} {option} prend ici un nombre, précédé d'un + ou d'un - au plus : {value} n'en est pas un",
     "operands": "{name} prend ici {max} nom de fichier au plus : il écrirait dans le suivant",
+    "device": "{name} {path} nomme un périphérique, ou un chemin qui peut en être un (sous /dev/ sauf /dev/null, quelle que soit son écriture, ou en y remontant par .. ; sous Windows, \\\\.\\…, CON, NUL, COM1…) : la lecture d'un périphérique peut ne jamais finir — nommez un fichier (par son chemin absolu s'il est dans un dossier nommé dev), et donnez un motif après -e",
     "cd": "cd vient en premier, prend un seul dossier, et est suivi de && : cd <dossier> && …",
     "npx": "npx et npm exec lancent le premier doc-kit qu'ils trouvent dans un node_modules/.bin jusqu'à la racine — celui de l'application compris — ou en installent un depuis le registre : lancez le kit par son chemin, {cli} <commande> …",
     "kitCli": "un doc-kit trouvé sur le PATH peut être un autre que le kit, celui de l'application compris : lancez le kit par son chemin, {cli} <commande> …",

@@ -10,7 +10,8 @@
 //     skill's real one, or the one its hook was started from, through a link (skillFolders);
 //   - on Windows, a program's path has its drive, `C:/…`: Git Bash converts its own `/c/…` (and `~`) only sometimes;
 //     two paths are one file when they differ by the case of ASCII letters only (absolutePath);
-//   - read-only tools (READ_ONLY, bash-options.mjs), each with the options of its allowlist only;
+//   - read-only tools (READ_ONLY, bash-options.mjs), each with the options of its allowlist only, never a device
+//     among its operands (/dev/null aside: reading /dev/zero or a terminal never ends, checkDevice);
 //   - `cd <folder> &&` first, before them (the folder the kit reads its doc.config.mjs from); `|`, `&&`, `||` and `;`
 //     between them; `>/dev/null`, `>&1` and `>&2`, alone or after a `1` or a `2` written against them, unquoted.
 // What runs never depends on the folder the command runs in: a program is named by its absolute path, never a
@@ -249,6 +250,96 @@ function absolutePath(p, windows) {
   return asciiLower(path.win32.resolve(s).split("\\").join("/"));
 }
 
+/** Windows' reserved device names: to a Windows program (rg), the last part of a path that is one, whatever its case,
+ * its extension, its drive or its folder (`CON`, `nul.txt`, `C:/x/aux.md`, `COM1:`), is the device, never a file (Git
+ * Bash's own tools open a file of that name). */
+const RESERVED = new Set([
+  "con",
+  "prn",
+  "aux",
+  "nul",
+  "conin$",
+  "conout$",
+  "clock$",
+  ...[..."0123456789\u00b9\u00b2\u00b3"].flatMap((d) => [`com${d}`, `lpt${d}`]),
+]);
+
+/**
+ * A path as its words give it, no file read: whether it is absolute, how many `..` it starts with, and its other parts
+ * (`.` and empty parts gone, an inner `..` resolved, as path.posix.normalize reads it; past the root, `..` stays
+ * there). One pass: path.posix.normalize takes a time that grows as the square of a long `../../…`. A backslash counts
+ * as a slash, as Git Bash and Windows read it (on POSIX that refuses a stranger name, at most).
+ * @param {string} p
+ * @returns {{ absolute: boolean, up: number, parts: string[] }}
+ */
+function reading(p) {
+  const s = p.split("\\").join("/");
+  const absolute = s.startsWith("/");
+  /** @type {string[]} */
+  const parts = [];
+  let up = 0;
+  for (const part of s.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part !== "..") parts.push(part);
+    else if (parts.length) parts.pop();
+    else if (!absolute) up++;
+  }
+  return { absolute, up, parts };
+}
+
+/**
+ * Whether the path `r` reads is under /dev/ and not /dev/null, from the root or after a climb (`..`) that may reach it
+ * from any folder deep enough: read from the folder `from` reads, when a first cd moved there (null: from the folder
+ * the line started in). `dev` in any ASCII case: macOS's volume, by default, reads /DEV as /dev, its devices beyond.
+ * The parts are never copied: each operand costs its own length.
+ * @param {ReturnType<typeof reading>} r  @param {ReturnType<typeof reading>|null} from
+ */
+function underDev(r, from) {
+  const base = from === null || r.absolute ? { absolute: true, up: 0, parts: [] } : from;
+  // The parts of `base` the operand's `..` leave, then the operand's own.
+  const keep = Math.max(0, base.parts.length - r.up);
+  const part = (/** @type {number} */ i) => (i < keep ? base.parts[i] : r.parts[i - keep]);
+  const rooted =
+    from === null || r.absolute ? r.absolute || r.up > 0 : base.absolute || base.up > 0 || r.up > base.parts.length;
+  const length = keep + r.parts.length;
+  return rooted && asciiLower(part(0) ?? "") === "dev" && length >= 2 && !(length === 2 && part(1) === "null");
+}
+
+/** On Windows, a word in its device namespace (`\\.\`, `\\?\`, `\??\`, with either slash). @param {string} word */
+const namespace = (word) => {
+  const s = word.split("\\").join("/");
+  return s.startsWith("//.") || s.startsWith("//?") || s.startsWith("/??/");
+};
+
+/** On Windows, a word whose last part is a reserved device name (RESERVED). @param {string} word */
+function reservedName(word) {
+  const s = word.split("\\").join("/");
+  let last = s.slice(s.lastIndexOf("/") + 1);
+  if (isLetter(last[0] ?? "") && last[1] === ":") last = last.slice(2); // a drive, `C:NUL`
+  let end = 0;
+  while (end < last.length && last[end] !== "." && last[end] !== ":") end++; // an extension, a stream
+  while (end > 0 && last[end - 1] === " ") end--; // trailing spaces
+  return RESERVED.has(asciiLower(last.slice(0, end)));
+}
+
+/**
+ * A read-only tool's operand is never a device, /dev/null aside: reading /dev/zero, /dev/urandom or a terminal never
+ * ends, as `tail -f` does not. Under /dev/ by any spelling (`//dev/zero`, `/dev/./zero`, `/usr/../dev/zero`), or
+ * climbing to it (`../../dev/zero`: past the root `..` stays there, so it reaches /dev from any folder), read from the
+ * folder the line started in and from the one a first cd moved to (`cd / && cat dev/zero`; a cd that fails, then `||`,
+ * runs the next command where the line started). On Windows, Git Bash's /dev as well, the device namespace and the
+ * reserved names (`CON`, `NUL`, `COM1`…). The guard reads no file: a link to a device is another path (SECURITY.md).
+ * @param {string} name  @param {string} operand  @param {{ windows: boolean, folder: ReturnType<typeof reading>|null }} opts
+ */
+function checkDevice(name, operand, { windows, folder }) {
+  const r = reading(operand);
+  const device =
+    underDev(r, null) ||
+    (folder !== null && underDev(r, folder)) ||
+    (windows && (namespace(operand) || reservedName(operand)));
+  if (device) throw new Refusal("device", { name, path: operand });
+}
+
 /** The kit's command line: the command first, never one of DOC_KIT_REFUSED, never `--plans`; `--help`/`--version`
  * alone are fine. */
 function checkDocKit(args) {
@@ -284,11 +375,15 @@ const NPM_EXEC = new Set(["exec", "x"]);
 function checkSegment({ argv, op }, index, opts) {
   const [name, ...args] = argv;
   if (name === "cd") {
-    if (index !== 0 || args.length !== 1 || op !== "&&") throw new Refusal("cd");
+    // A folder, never an option: `cd -` goes to $OLDPWD and `cd --` home, where the guard cannot read the next paths.
+    if (index !== 0 || args.length !== 1 || op !== "&&" || args[0].startsWith("-")) throw new Refusal("cd");
+    // Windows' device namespace is no folder to read files from (`\\.\PhysicalDrive0` is a disk).
+    if (opts.windows && namespace(args[0])) throw new Refusal("device", { name, path: args[0] });
   } else if (RUNNERS.has(name) || (name === "npm" && NPM_EXEC.has(args[0]))) throw new Refusal("npx");
   else if (name === "doc-kit") throw new Refusal("kitCli");
   else if (name === "node") checkNode(args, opts);
-  else if (Object.hasOwn(READ_ONLY, name)) checkOptions(name, READ_ONLY[name], args);
+  else if (Object.hasOwn(READ_ONLY, name))
+    for (const operand of checkOptions(name, READ_ONLY[name], args)) checkDevice(name, operand, opts);
   else throw new Refusal("command", { name });
 }
 
@@ -304,7 +399,11 @@ export function bashDecision(command, opts) {
   const o = { kitDir: "", home: "", windows: false, ...opts };
   try {
     // On Windows, `~` stays as it is: Git Bash makes it `/c/…`, which it may pass to node unconverted (absolutePath).
-    splitCommand(command, o.windows ? "" : o.home).forEach((segment, index) => checkSegment(segment, index, o));
+    const segments = splitCommand(command, o.windows ? "" : o.home);
+    // The folder a first `cd` moves to, where the commands after it read their relative paths (checkDevice).
+    const [name, to] = segments[0].argv;
+    const folder = name === "cd" && typeof to === "string" ? reading(to) : null;
+    segments.forEach((segment, index) => checkSegment(segment, index, { ...o, folder }));
     return { allow: true };
   } catch (e) {
     if (e instanceof Refusal) return { allow: false, key: e.key, vars: e.vars };
