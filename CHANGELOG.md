@@ -38,9 +38,12 @@ entries between a project's `kit` range and the installed version.
     process removes that. None of the 11 is in the ReDoS harness or reads text in memory. `npm test` passed in all
     10 rounds both ways (a timing file ran again twice before, once after), taking the same time: 732 s and 735 s
     on average.
-  - Canaries on the real clock (`test/unit/harness-growth.test.mjs`): readers that scan, split, or copy and keep the
-    text so far at each line fail; linear readers that allocate much (a string grown by `+=`, an object a
-    character, `split` then `join`) pass. `test/unit/redos-growth.test.mjs` checks, on a played clock, that every run
+  - Canaries on the real clock (`test/unit/harness-growth.test.mjs`): readers that scan, split, or copy the text so
+    far at each line (the last copies kept) fail; linear readers that allocate much (a string grown by `+=`, an
+    object a character, `split` then `join`) pass. Each canary's live heap stays linear in its text (64 MB and 100
+    bytes a character at most): one that kept every copy reached 1.8 GB on macOS, where a fast machine measures it
+    at 256 times. assertLinear removes each input once the measure is past it, and linearAt holds two outputs only.
+    `test/unit/redos-growth.test.mjs` checks, on a played clock, that every run
     goes through the clean run and that a busy spell over seven runs, or a stall over thirty, is not taken for
     growth.
   - The ReDoS check `sync shownText comments` puts a comment after every 4 characters of its input instead of after

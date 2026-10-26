@@ -136,8 +136,9 @@ export function growthOf(fn, times, { shapes, inputs, size, build, time, clean =
  * Asserts a reader of whole files stays linear on a crafted shape (RULES.md S5): built at `size`, then 4 and 16 times
  * larger — larger still while a step is too short to be trusted —, the best of several runs each, each in a clean heap
  * (growthOf, cleanRun). `build(n)` returns the input of about n units (a folder written for it, say), `run(input)`
- * reads it, `cleanup(input)` removes what build wrote. Fails, naming the shape, on a trusted step more than
- * GROWTH_RATIO times slower for 4 times.
+ * reads it, `cleanup(input)` removes what build wrote — as soon as the measure is past it: an input is measured with
+ * the next size only, so that the inputs of every size are never held at once. Fails, naming the shape, on a trusted
+ * step more than GROWTH_RATIO times slower for 4 times.
  * @param {string} label
  * @param {{ build: (n: number) => string, run: (input: string) => unknown, size: number,
  *   cleanup?: (input: string) => void, clock?: () => number, clean?: (measure: () => number) => number }} p
@@ -146,10 +147,14 @@ export function assertLinear(
   label,
   { build, run, size, cleanup = () => {}, clock = () => performance.now(), clean = cleanRun },
 ) {
-  const made = [];
+  /** The inputs built and not yet removed, with their size. */
+  let made = [];
   const make = (n) => {
+    // The measure of n compares it with n / 4 only: what is smaller is removed now, and no longer held.
+    for (const [m, input] of made) if (m < n / 4) cleanup(input);
+    made = made.filter(([m]) => m >= n / 4);
     const input = build(n);
-    made.push(input);
+    made.push([n, input]);
     return input;
   };
   const time = (fn, input) => {
@@ -175,7 +180,7 @@ export function assertLinear(
       );
     return steps;
   } finally {
-    for (const input of made) cleanup(input);
+    for (const [, input] of made) cleanup(input);
   }
 }
 
@@ -192,7 +197,10 @@ export function assertLinear(
  *   at 16 times `size`, where the shapes of the tests are meant to be checked
  */
 export function linearAt(label, { size, make, read, remove = () => {}, clock, clean }) {
-  const reads = new Map();
+  // What the reader read at 16 times `size` and at the largest size so far: no other size's output is held.
+  /** @type {O | undefined} */
+  let at16;
+  let last = { n: 0, found: /** @type {O | undefined} */ (undefined) };
   const made = new Map(); // assertLinear wants a string per input: its key here
   assertLinear(label, {
     size,
@@ -203,10 +211,17 @@ export function linearAt(label, { size, make, read, remove = () => {}, clock, cl
       made.set(key, { n, input: make(n) });
       return key;
     },
-    run: (key) => void reads.set(made.get(key).n, read(made.get(key).input)),
-    cleanup: (key) => remove(made.get(key).input),
+    run: (key) => {
+      const { n, input } = made.get(key);
+      const found = read(input);
+      if (n === 16 * size) at16 = found;
+      if (n >= last.n) last = { n, found };
+    },
+    cleanup: (key) => {
+      remove(made.get(key).input);
+      made.delete(key);
+    },
   });
-  const largest = Math.max(...reads.keys());
-  if (largest < 16 * size) throw new Error(`${label}: measured up to ${largest}, 16 times ${size} at least`);
-  return { n: largest, found: /** @type {O} */ (reads.get(largest)), at16: /** @type {O} */ (reads.get(16 * size)) };
+  if (last.n < 16 * size) throw new Error(`${label}: measured up to ${last.n}, 16 times ${size} at least`);
+  return { n: last.n, found: /** @type {O} */ (last.found), at16: /** @type {O} */ (at16) };
 }
