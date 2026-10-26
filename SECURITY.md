@@ -534,17 +534,27 @@ as untrusted input:
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent. A glob never walks into a link or a junction, nor through one before its first `*` (`linked/**`): the names
   of a folder outside are never listed;
-- the coverage adapters, `sync` and `context` reach a path in the application through its folders only, never a
-  link or a junction, and never take a link for a file (`projectTools`, `linkFree`): a walk or a glob from a folder
-  behind a junction lists nothing, a file behind one is not there and is never read. So a message file of
-  `sync.labels` (or the `messages` of an `i18n-registry` adapter) behind a junction of the application to a folder
-  outside is neither listed, read, compared nor recorded in `sync.json`, nor given to an agent by `context`; a routes
-  folder that is such a junction is not found (`notFound`), its files' names never listed. A link that stays inside
-  the application is not followed either. A path is in the application when it is written under `app.dir`, in any
-  case, or goes through a folder whose real path is the application's (a short name such as `APPLIC~1`,
-  `/private/var` for `/var`, a link to the application). A limit: a link of your own configuration's, outside the
-  application, to one of its folders below its root (`docs/m` → `../app/messages`) is not recognised, and a path
-  through it is taken as written — do not point the configuration into the application through such a link;
+- the tools the coverage adapters, `sync` and `context` are given (`projectTools`) reach a path in the application
+  through its folders only, never a link or a junction, and never take a link for a file (`linkFree`): a walk or a
+  glob from a folder behind a junction lists nothing, a file behind one is not there and is never read. So a message
+  file of `sync.labels` (or the `messages` of an `i18n-registry` adapter) behind a junction of the application to a
+  folder outside is neither listed, read, compared nor recorded in `sync.json`, nor given to an agent by `context`; a
+  routes folder that is such a junction is not found (`notFound`), its files' names never listed; the features file
+  (the `file` of the `features` adapter) and the version file (`version.file`), which `sync` and `context` read
+  with these tools too, are not there: no feature, the version's fallback. A link that stays inside the application
+  is not followed by these tools either — the files a page depends on (its `sources`, its proofs, its dependency
+  files, below) are judged where they really are, links followed, and read only inside the application. A path is
+  in the application when it is written under `app.dir`, in any case, or goes through a folder whose real path is
+  the application's (a short name such as `APPLIC~1`, `/private/var` for `/var`, a link to the application). A
+  deep path is judged in a few calls (a run of folders without a link is one whose real path is its path as
+  written), and a file the tools' own walk listed is not judged again: a folder thousands deep costs no more than its
+  walk. Limits: a link of your own configuration's, outside the application, to one of its folders below its root
+  (`docs/m` → `../app/messages`) is not recognised, and a path through it is taken as written — do not point the
+  configuration into the application through such a link; the other commands (`build`, `audit`, `capture`, `check`,
+  `changes`, `export`) read the version file as written, and `inventory --features` reads and writes the features
+  file as written — keep both out of a link of the application; nor is the application written as a share or a mapped
+  drive on Windows (`\\localhost\C$\app` for `C:\app`, or the reverse), which `realpathSync.native` does not map
+  back to its drive's path: write `app.dir` and the configuration's paths into the application the same way;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
   (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
@@ -586,8 +596,9 @@ as untrusted input:
   with no target to follow), so a hard link in the application to a file outside it is read as a file of the
   application — git never checks one out, but a folder copied or unpacked as it is may hold one. And a path is
   checked, then read: a file or a folder of the application swapped for a link in between, by a process that
-  changes the application while the kit reads it, is not seen. Read an application received as an archive from a
-  fresh clone, and let nothing change it while the kit runs;
+  changes the application while the kit reads it, is not seen — the tools of the adapters, `sync` and `context`
+  keep what they learnt of each folder for their run, so "in between" spans it. Read an application received as an
+  archive from a fresh clone, and let nothing change it while the kit runs;
 - an OpenAPI document of the application is read for 20,000 parameters and properties at most, a `$ref` of more than
   512 characters or 16 keys is not followed and each is resolved once, and the line of each route is found by a
   cursor that only moves forward: a document built to cost (thousands of parameters to one long `$ref`, routes

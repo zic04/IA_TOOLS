@@ -14,6 +14,13 @@ entries between a project's `kit` range and the installed version.
   blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
   left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
   within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
+- **A broken link under a root that does not resolve is no longer judged outside by mistake** (`fileInside`,
+  engine/core/confine.mjs, SECURITY.md): on Windows, realpath fails on `\\?\C:\` and on `\\?\UNC\host` while it
+  resolves `\\?\C:\Users` and `\\?\UNC\host\share`, so a broken link written `\\?\C:\srv\app\gone` could be judged
+  "outside" at some depths and not at others (`l/x.txt` inside, `l/d0/d1/x.txt` outside). The bisection now asks a
+  root apart, last, when nothing below it resolves, and a link's target `\\?\UNC\host\share\x` is read as
+  `\\host\share\x`: the answers are the walk's at every depth. The wrong answer was on the safe side: a false
+  "outside", a file inside taken for one outside, never the reverse.
 
 ### Changed
 
@@ -34,21 +41,27 @@ entries between a project's `kit` range and the installed version.
   file behind one, a file named whole behind one is not there, never read. A path is in the application when it is
   written under `app.dir` in any case, or goes through a folder whose real path is the application's (a short name,
   `/private/var`, a link to it: `entryInto`). A routes folder that is a junction is not found by its adapter
-  (`notFound`), its files' names never listed, where they were listed and named as outside dependencies.
-
-- **A broken link under a root that does not resolve is no longer judged outside by mistake** (`fileInside`,
-  engine/core/confine.mjs, SECURITY.md): on Windows, realpath fails on `\\?\C:\` and on `\\?\UNC\host` while it
-  resolves `\\?\C:\Users` and `\\?\UNC\host\share`, so a broken link written `\\?\C:\srv\app\gone` could be judged
-  "outside" at some depths and not at others (`l/x.txt` inside, `l/d0/d1/x.txt` outside). The bisection now asks a
-  root apart, last, when nothing below it resolves, and a link's target `\\?\UNC\host\share\x` is read as
-  `\\host\share\x`: the answers are the walk's at every depth. The wrong answer was on the safe side (a file inside
-  taken for one outside, never the reverse).
+  (`notFound`), its files' names never listed, where they were listed and named as outside dependencies. The tools
+  keep one judge for their run (`pathJudge`): a run of folders without a link is judged by one real path (its real
+  path is its path as written, found by bisection), no path is asked of the system twice, and a file the tools' own
+  walk listed is not judged again — the same answers as judging each folder (a property test against it on 1,600
+  random file systems, growth tests): `check coverage` on a chain of folders 800 deep takes 1.3 s (1.7 s on 0.4.2,
+  without the rule), where judging each path folder by folder, each `lstat` given the whole path, took 32 s.
+- **The features file and the version file behind a junction of the application are never read** by `sync` and
+  `context` (`readFeatures`, engine/core/features.mjs; `readProjectVersion`, engine/project/version.mjs): with the
+  `file` of the `features` adapter, or `version.file`, behind a junction to a folder outside, `sync --mark`, the
+  report and `context` read them as written — the feature's routes and sources became its sheet's dependencies, the
+  version was recorded in `sync.json` and given to an agent. They are now read with the project's tools
+  (`projectTools`), as the `features` adapter reads its file: not there, no feature, the version's fallback; so is
+  the version the CLI reads for its usage record and its guided menu. A `file` written as an absolute path is
+  resolved, as the adapter resolves it, no longer joined to the project's root. Not yet the other commands: `build`,
+  `audit`, `capture`, `check`, `changes` and `export` read the version file as written, and `inventory --features`
+  the features file (a limit written in SECURITY.md).
 - **A `sources` glob no longer lists a folder outside the application through a junction** (`globFiles`,
   engine/sync/dependencies.mjs): `linked/**/*.ts`, `linked` a junction or a link to a folder outside, had the walk
   list that folder's names (none of its files kept, none read). The fixed part of a glob is now entered as the walk
-  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction (the
-  tools of the application, under Security) — one inside the application is not followed either, as `**` never
-  followed one.
+  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction — one
+  inside the application is not followed either, as `**` never followed one.
 - **The path a proof or a dependency names is joined in one pass** (`fileInside`): `path.resolve` was quadratic on a
   long name then `b/../` repeated under the 32,767-character cap (30 to 70 ms a call for 32,000 characters); the path
   is now built in the pass that judges climbing out, the same path, character for character (a property test against

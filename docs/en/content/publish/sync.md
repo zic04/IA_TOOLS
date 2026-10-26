@@ -191,11 +191,14 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > one before its first `*` (`linked/**`): it lists nothing there. So with message files: one of `sync.labels`, or the
 > `messages` of an `i18n-registry` adapter, behind a link or a junction of the application is never read — a glob
 > does not list it, a file named whole is not there (its keys gone): its labels are neither compared nor recorded. A
-> routes folder that is a junction is not found by its coverage adapter. A configuration that points into the
-> application through a link of its own, to a folder below the application's root, is not recognised as doing so:
-> point it at `app.dir` itself. For a proof or a dependency, on a case-insensitive Linux mount (ext4 with casefold,
-> WSL's DrvFs), a file of the application written in another case may be judged outside: the worst case is a false
-> "outside", never a file read outside.
+> routes folder that is a junction is not found by its coverage adapter. The features file and the version file
+> (`version.file`) behind one are not there either: no feature, the version's fallback. A configuration that points
+> into the application through a link of its own, to a folder below the application's root, is not recognised as
+> doing so: point it at `app.dir` itself. On Windows, write `app.dir` and the configuration's paths into the
+> application the same way: a share or a mapped drive (`\\localhost\C$\app`) for a drive's path (`C:\app`), or the
+> reverse, is not recognised as the application. For a proof or a dependency, on a case-insensitive Linux mount
+> (ext4 with casefold, WSL's DrvFs), a file of the application written in another case may be judged outside: the
+> worst case is a false "outside", never a file read outside.
 
 ## Further reading
 

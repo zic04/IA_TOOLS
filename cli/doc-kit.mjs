@@ -176,8 +176,16 @@ async function recordUsage(ctx, name) {
   try {
     const dir = usageFolder(ctx.project.root, ctx.env);
     if (!dir) return;
-    const version = readProjectVersion(ctx.project.root, ctx.config.version);
-    const { syncPath } = await import("../engine/sync/reference.mjs");
+    // The version file, read with the project's tools: never through a link or a junction of the application.
+    const [{ syncPath }, { projectTools }] = await Promise.all([
+      import("../engine/sync/reference.mjs"),
+      import("../engine/check/coverage.mjs"),
+    ]);
+    const version = readProjectVersion(
+      ctx.project.root,
+      ctx.config.version,
+      projectTools(ctx.project.root, ctx.config),
+    );
     const phase =
       name === "translate" ? "translate" : fs.existsSync(syncPath(ctx.project.root, ctx.config)) ? "update" : "create";
     // The command's own span last in time, first in the file: easier to read.
@@ -255,15 +263,20 @@ export async function detectSituation({ project, cwd = process.cwd(), env = proc
   // What the documentation must follow since the last check (ARCHITECTURE.md §6.10): no git here, only the
   // documented version against the ones sync.json saw (the last marking's, and each page's).
   // Imported here, not with the CLI: the start-up of every command does without them.
-  const [{ readSyncReference, versionBehind }, { writtenPages }, { languageCounts }] = await Promise.all([
-    import("../engine/sync/reference.mjs"),
-    import("../engine/sync/dependencies.mjs"),
-    import("../engine/build/languages.mjs"),
-  ]);
+  const [{ readSyncReference, versionBehind }, { writtenPages }, { languageCounts }, { projectTools }] =
+    await Promise.all([
+      import("../engine/sync/reference.mjs"),
+      import("../engine/sync/dependencies.mjs"),
+      import("../engine/build/languages.mjs"),
+      import("../engine/check/coverage.mjs"),
+    ]);
   const { reference } = readSyncReference(root, config);
   // Only the pages still written are waited for: one removed since its marking is no longer behind.
   const written = () => new Set(writtenPages({ root, config, toc: safeToc(root, config) }).map((p) => p.id));
-  if (reference && versionBehind(reference, readProjectVersion(root, config.version), written()))
+  if (
+    reference &&
+    versionBehind(reference, readProjectVersion(root, config.version, projectTools(root, config)), written())
+  )
     return { step: "sync", folder: root, root, config };
   // Languages (ARCHITECTURE.md §6.12): a translation behind or missing, shown as "translate status".
   if (

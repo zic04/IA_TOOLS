@@ -193,7 +193,7 @@ const isLayout = (f) => /(^|\/)layout\.(tsx|ts|jsx|js)$/.test(f);
  * @param {object} p.toc
  * @param {string} p.pageId
  * @param {object} p.inventory        result of runCoverage({ root, config })
- * @param {object} p.tools            adapterTools(root)
+ * @param {object} p.tools            projectTools(root, config): the features file read with them too
  * @param {string} p.factsDir         projRel folder of the facts files (config.paths.facts)
  * @param {object[]} [p.plans]        loaded capture plan entries (engine/capture/plans.mjs, loadPlans().captures)
  * @param {string[]} [p.declared]     "file[:from[-to]]" recorded by --mark --sources (sync.json pages[id].declared)
@@ -221,7 +221,7 @@ export async function pageDependencies({
   const coverageAdapters = await loadCoverageAdapters(root, config);
 
   // A feature sheet: the routes of its feature (features.json) with its own.
-  const feature = featureOf(root, config, entry);
+  const feature = featureOf(root, config, entry, tools);
   const routes = [...new Set([...(entry.routes || []), ...(feature?.routes || [])])];
   const proofs = extractProofs(markdown, appDir ? { appDir } : {});
   const captures = captureIds(markdown);

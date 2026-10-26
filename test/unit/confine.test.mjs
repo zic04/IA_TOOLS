@@ -11,7 +11,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fileInside } from "../../engine/core/confine.mjs";
+import { fileInside, pathJudge } from "../../engine/core/confine.mjs";
 import { tempDir } from "../tools/helpers.mjs";
 import { caseSeed, hex, rng } from "../tools/fuzz/prng.mjs";
 
@@ -127,7 +127,7 @@ function modelFs(P, { fold = false, rootless = false } = {}) {
     lstatSync: (p) => {
       asked("lstat", p);
       const { node } = walk(p, false);
-      return { isSymbolicLink: () => node.kind === "link" };
+      return { isSymbolicLink: () => node.kind === "link", isDirectory: () => node.kind === "dir" };
     },
     readlinkSync: (p) => {
       asked("readlink", p);
@@ -305,7 +305,7 @@ function randomCase(seed, rules) {
     if (r.chance(0.1)) list.unshift("..", r.pick(["app", "APP", "out"]));
     return list.join(sep());
   });
-  return { io, app, rels, fold, rootless };
+  return { io, app, rels, fold, rootless, nodes, links };
 }
 
 describe("fileInside: the bisection gives the answers of the walk it replaced", () => {
@@ -816,6 +816,165 @@ describe("fileInside on real links", () => {
       unlink(j);
       unlink(alias);
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * linkFree and entryInto as they were before a judge kept what it learnt (pathJudge), kept here as the reference:
+ * every part of the path lstat'ed in turn from `top`; every ancestor of the path asked in turn from its root.
+ */
+const before = {
+  linkFree(top, names, folder, io) {
+    const parts = names.filter((x) => x && x !== ".");
+    let at = top;
+    for (let i = 0; i < parts.length; i++) {
+      at = io.path.join(at, parts[i]);
+      let st;
+      try {
+        st = io.lstatSync(at);
+      } catch {
+        return false;
+      }
+      if (st.isSymbolicLink() || ((folder || i < parts.length - 1) && !st.isDirectory())) return false;
+    }
+    return true;
+  },
+  entryInto(dir, abs, io) {
+    const P = io.path;
+    const realPathOf = (p) => {
+      try {
+        return io.realpathSync.native(P.resolve(p));
+      } catch {
+        return null;
+      }
+    };
+    const at = (end) => ({ top: abs.slice(0, end), names: abs.slice(end).split(P.sep).filter(Boolean) });
+    const n = dir.length;
+    const sameStart = abs.slice(0, n).toLowerCase() === dir.toLowerCase();
+    if (sameStart && (abs.length === n || abs[n] === P.sep || dir.endsWith(P.sep))) return at(n);
+    const real = realPathOf(dir);
+    if (!real) return null;
+    const root = P.parse(abs).root.length;
+    const ends = [root];
+    for (let i = root; i < abs.length; i++) if (abs[i] === P.sep) ends.push(i);
+    if (abs.length > root) ends.push(abs.length);
+    for (const end of ends) if (realPathOf(abs.slice(0, end)) === real) return at(end);
+    return null;
+  },
+};
+
+// The judge of the tools of the adapters, sync and context (pathJudge): a run of plain folders is judged by one real
+// path, an ancestor that is not there ends the search, and what it asked is kept for its life — the answers of the
+// part-by-part walk all the same, on random file systems, its memory shared by every path asked of one tree (as the
+// tools share it for a run).
+describe("pathJudge: the answers of linkFree and entryInto as they were, in a few calls, each path asked once", () => {
+  const RUN = 0x7a11f4ee;
+  const TREES = 800;
+  for (const rules of ["posix", "win32"])
+    test(`on ${TREES} random file systems under ${rules} rules`, (t) => {
+      const seen = { inside: 0, aliased: 0, outside: 0, linkFree: 0, refused: 0, folded: 0, deep: 0 };
+      if (rules === "win32") seen.device = 0;
+      for (let i = 0; i < TREES; i++) {
+        const seed = caseSeed(RUN, i);
+        const { io, app, rels, fold, nodes, links } = randomCase(seed, rules);
+        const r = rng(seed ^ 0x5eed);
+        const P = io.path;
+        const srv = P.dirname(app);
+        // The folder written as it is, in another case, through a link (to it or not), as a device path of Windows.
+        const dirs = [app, app.toUpperCase(), ...links.slice(0, 3)];
+        if (rules === "win32") dirs.push(asDevice(app, r));
+        const paths = rels.flatMap((rel) => [P.resolve(app, rel), P.resolve(srv, rel)]);
+        paths.push(...nodes.slice(0, 4), ...links.map((l) => P.join(l, "x.txt")));
+        if (rules === "win32") paths.push(...paths.slice(0, 3).map((p) => P.resolve(asDevice(p, r))));
+        const judge = pathJudge(io);
+        for (const dir of dirs)
+          for (const abs of paths) {
+            const where = `seed ${hex(seed)}, ${rules}${fold ? " folded" : ""}, ${dir} ← ${abs.slice(0, 120)}`;
+            io.calls.length = 0;
+            const expected = before.entryInto(dir, abs, io);
+            const got = judge.entryInto(dir, abs);
+            assert.deepEqual(got, expected, where);
+            if (!expected) {
+              seen.outside++;
+              continue;
+            }
+            seen[expected.top.length === dir.length ? "inside" : "aliased"]++;
+            for (const folder of [false, true]) {
+              const free = before.linkFree(expected.top, expected.names, folder, io);
+              assert.equal(
+                judge.linkFree(expected.top, expected.names, { folder }),
+                free,
+                `${where}, folder ${folder}`,
+              );
+              seen[free ? "linkFree" : "refused"]++;
+            }
+            if (fold && abs !== abs.toLowerCase()) seen.folded++;
+            if (expected.names.length > 10) seen.deep++;
+            if (rules === "win32" && (abs.startsWith("\\\\?\\") || abs.startsWith("\\\\.\\"))) seen.device++;
+          }
+        // linkFree on names that are not all names of the tree: missing ones, `..`, links in the middle.
+        for (const rel of rels) {
+          const names = rel.split(/[\\/]/);
+          for (const folder of [false, true])
+            assert.equal(
+              judge.linkFree(app, names, { folder }),
+              before.linkFree(app, names, folder, io),
+              `seed ${hex(seed)}, ${rules}, ${app} + ${rel}`,
+            );
+        }
+      }
+      t.diagnostic(JSON.stringify(seen));
+      for (const [kind, count] of Object.entries(seen)) assert.ok(count > 40, `${kind}: ${count}`);
+    });
+
+  test("a path is asked of the system once a judge, and a plain deep one in two real paths, never a part each", () => {
+    for (const P of Object.values(RULES)) {
+      const io = modelFs(P);
+      const app = io.add(P.join(P.sep === "\\" ? "C:\\" : "/", "srv", "app"));
+      const names = Array.from({ length: 300 }, (_, i) => `d${i}`);
+      io.file(P.join(app, ...names, "x.txt"));
+      const judge = pathJudge(io);
+      assert.equal(judge.linkFree(app, [...names, "x.txt"]), true);
+      assert.deepEqual(
+        io.calls.map(([what]) => what),
+        ["realpath", "realpath"],
+        "the folder, then the path: plain",
+      );
+      io.calls.length = 0;
+      // Every folder of the chain, then every file again: what the walk and the reads of the tools ask.
+      for (let k = 0; k <= names.length; k++) judge.linkFree(app, names.slice(0, k), { folder: true });
+      judge.linkFree(app, [...names, "x.txt"]);
+      const asked = io.calls.map(([what, p]) => `${what} ${p}`);
+      assert.deepEqual(asked.length, new Set(asked).size, "no path asked twice");
+      // A junction at the bottom of the chain: found in O(log depth) real paths, then one lstat.
+      const out = io.add(P.join(P.dirname(app), "out"));
+      io.link(P.join(app, ...names, "j"), out);
+      io.calls.length = 0;
+      assert.equal(pathJudge(io).linkFree(app, [...names, "j", "x.txt"]), false);
+      const calls = io.calls.map(([what]) => what);
+      assert.ok(
+        calls.filter((w) => w === "realpath").length <= 2 * Math.ceil(Math.log2(names.length)) + 3,
+        calls.join(),
+      );
+      assert.deepEqual(
+        calls.filter((w) => w === "lstat"),
+        ["lstat"],
+        "only the junction is lstat'ed",
+      );
+      // Its first folder written in another case (a folder that reads names in any case): that one part lstat'ed, the
+      // rest judged from its real path again — never each part.
+      const folded = modelFs(P, { fold: true });
+      folded.file(P.join(app, ...names, "x.txt"));
+      folded.calls.length = 0;
+      assert.equal(pathJudge(folded).linkFree(app, ["D0", ...names.slice(1), "x.txt"]), true);
+      const foldedCalls = folded.calls.map(([what]) => what);
+      assert.deepEqual(
+        foldedCalls.filter((w) => w === "lstat"),
+        ["lstat"],
+        "only the part in another case",
+      );
+      assert.ok(foldedCalls.length <= 2 * Math.ceil(Math.log2(names.length)) + 4, foldedCalls.join());
     }
   });
 });

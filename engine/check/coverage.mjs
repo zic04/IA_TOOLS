@@ -13,9 +13,16 @@ import { countGuidance } from "../core/page-templates.mjs";
 import { globRegex } from "../core/glob.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";
 import { wholeIndexes } from "../core/text.mjs";
-import { entryInto, linkFree } from "../core/confine.mjs";
+import { pathJudge } from "../core/confine.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
+
+/**
+ * @typedef {import("../core/confine.mjs").JudgeIo & { existsSync: (p: string) => boolean,
+ *   readFileSync: (p: string, encoding: "utf8") => string,
+ *   readdirSync: (p: string, o: { withFileTypes: true }) => Array<{ name: string, isDirectory(): boolean,
+ *   isFile(): boolean }> }} ToolsIo   what the tools ask of the file system
+ */
 
 /** Normalised text: non-breaking spaces and runs of white space → one space, lower case. */
 export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/g, " ").toLowerCase();
@@ -30,32 +37,44 @@ export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/
  * (linkFree), checked before anything is asked of it: a walk starts there, a file is read or said to exist only so
  * — a junction in the application to a folder outside lists nothing, reads nothing, does not exist. Elsewhere (the
  * documentation project when it is not in the application, a folder the configuration names beside it), a path is
- * taken as written.
+ * taken as written. The tools keep one judge for their life (pathJudge): no path of the application is asked of the
+ * system twice, and a file or a folder their own walk listed (it went into folders only) is never judged again — an
+ * adapter walks its folder then reads each file the walk listed. `io` is the file system (a test gives its own).
  * @param {string} root
- * @param {{ appDir?: string|null }} [o]
+ * @param {{ appDir?: string|null, io?: ToolsIo }} [o]
  */
-export function adapterTools(root, { appDir = null } = {}) {
-  const resolve = (p) => path.resolve(root, p);
+export function adapterTools(root, { appDir = null, io = fs } = {}) {
+  const P = io.path ?? path;
+  const resolve = (p) => P.resolve(root, p);
+  const judge = pathJudge(io);
+  /** What a walk entered or listed, by absolute path: reached by the rule already, never judged again. */
+  const walked = new Map();
   /** Whether `abs` is reached as the rule above says (`folder`: as a folder). */
   const reached = (abs, folder) => {
-    const entry = appDir ? entryInto(appDir, abs) : null;
-    return !entry || linkFree(entry.top, entry.names, { folder });
+    const seen = walked.get(abs);
+    if (seen === "dir" || (seen === "file" && !folder)) return true;
+    const entry = appDir ? judge.entryInto(appDir, abs) : null;
+    return !entry || judge.linkFree(entry.top, entry.names, { folder });
   };
   const read = (p) => {
     if (!reached(resolve(p), false))
       throw Object.assign(new Error(`ENOENT: ${p} is reached through a link in the application`), { code: "ENOENT" });
-    return fs.readFileSync(resolve(p), "utf8");
+    return io.readFileSync(resolve(p), "utf8");
   };
   const walk = (dir) => {
     const base = resolve(dir);
-    if (!reached(base, true) || !fs.existsSync(base)) return [];
+    if (!reached(base, true) || !io.existsSync(base)) return [];
     const out = [];
     const visit = (d, rel) => {
-      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      walked.set(d, "dir");
+      for (const e of io.readdirSync(d, { withFileTypes: true })) {
         if (SKIP.has(e.name)) continue;
         const r = rel ? `${rel}/${e.name}` : e.name;
-        if (e.isDirectory()) visit(path.join(d, e.name), r);
-        else if (e.isFile()) out.push(r);
+        if (e.isDirectory()) visit(P.join(d, e.name), r);
+        else if (e.isFile()) {
+          out.push(r);
+          walked.set(P.join(d, e.name), "file");
+        }
       }
     };
     visit(base, "");
@@ -63,7 +82,7 @@ export function adapterTools(root, { appDir = null } = {}) {
   };
   return {
     resolve,
-    exists: (p) => reached(resolve(p), false) && fs.existsSync(resolve(p)),
+    exists: (p) => reached(resolve(p), false) && io.existsSync(resolve(p)),
     read,
     json: (p) => JSON.parse(read(p)),
     walk,

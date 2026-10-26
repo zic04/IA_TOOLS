@@ -3796,3 +3796,75 @@ describe("engine/sync/html-text.mjs (the rendered page, read as a browser reads 
       assert.ok(!text(hidden).includes("Approve"), hidden);
   });
 });
+
+// SECURITY.md, confinement: the features file (the `file` of the `features` coverage adapter) and the version file
+// (`version.file`) are read with the project's tools (projectTools), as the adapters read: in the application, only
+// where they are reached through its folders. Behind a junction of the application to a folder outside, neither is
+// read by `sync --mark`, the report nor `context`: the feature is unknown (its code no dependency of its sheet), the
+// version the fallback. The minimal pair: the same files in a folder of the application are read, and count.
+describe("CLI: the features and version files outside the application are never read", () => {
+  for (const behind of [false, true])
+    test(
+      behind
+        ? "behind a junction of the application: never read by sync --mark, the report nor context"
+        : "in a folder of the application: read by sync --mark, the report and context (the minimal pair)",
+      async () => {
+        const fx = syncFixtureCopy();
+        const outside = path.join(path.dirname(fx.appDir), "outside");
+        const feat = path.join(fx.appDir, "feat");
+        try {
+          const configFile = path.join(fx.root, "doc.config.mjs");
+          const text = fs.readFileSync(configFile, "utf8");
+          const changed = text
+            .replace(
+              '  app: { dir: "../sync-app" },',
+              '  app: { dir: "../sync-app" },\n  version: { file: "../sync-app/feat/package.json" },',
+            )
+            .replace(
+              "  ],\n  sync:",
+              '    { adapter: "features", file: "../sync-app/feat/features.json" },\n  ],\n  sync:',
+            );
+          assert.equal(changed.split("feat/").length, 3, "the features and version files configured");
+          fs.writeFileSync(configFile, changed);
+          // use/orders/detail is the sheet of F-01, whose code is backend/api/deps.py.
+          const tocFile = path.join(fx.root, "content", "toc.json");
+          const toc = JSON.parse(fs.readFileSync(tocFile, "utf8"));
+          toc.sections[0].groups[0].pages[1].feature = "F-01";
+          fs.writeFileSync(tocFile, JSON.stringify(toc, null, 2));
+          const folder = behind ? path.join(outside, "feat") : feat;
+          fs.mkdirSync(folder, { recursive: true });
+          const features = [{ id: "F-01", title: "The title of F-01", sources: ["backend/api/deps.py"] }];
+          fs.writeFileSync(path.join(folder, "features.json"), JSON.stringify(features));
+          fs.writeFileSync(path.join(folder, "package.json"), JSON.stringify({ version: "9.9.9" }));
+          if (behind) fs.symlinkSync(folder, feat, "junction");
+          const io = { commit: () => "c0ffee" };
+          const { result, reads } = await readsIn(folder, async () => ({
+            mark: await cli(["sync", "--mark", "--all", "--date", "2026-10-02", "--project", fx.root], io),
+            report: await cli(["sync", "--json", "--project", fx.root], io),
+            context: await cli(["context", "use/orders/detail", "--project", fx.root], io),
+          }));
+          assert.equal(result.mark.code, 0, result.mark.out + result.mark.err);
+          assert.equal(result.context.code, 0, result.context.out + result.context.err);
+          const report = JSON.parse(result.report.out);
+          const reference = JSON.parse(fs.readFileSync(path.join(fx.root, "sync.json"), "utf8"));
+          const files = Object.keys(reference.pages["use/orders/detail"].files);
+          const context = fs.readFileSync(path.join(fx.root, ".doc-kit", "context", "use__orders__detail.md"), "utf8");
+          if (behind) {
+            assert.deepEqual(reads, [], "nothing outside the application is read");
+            assert.ok(!files.includes("backend/api/deps.py"), "the feature is unknown: its code is no dependency");
+            assert.equal(reference.app.version, "0.0.0", "the version is the fallback");
+            assert.ok(!context.includes("backend/api/deps.py") && !context.includes("9.9.9"), "nothing of it given");
+            assert.ok(!JSON.stringify(report).includes("The title of F-01") && !context.includes("The title of F-01"));
+          } else {
+            assert.deepEqual([...new Set(reads)].sort(), ["features.json", "package.json"], "both read");
+            assert.ok(files.includes("backend/api/deps.py"), "the feature's code is a dependency of its sheet");
+            assert.equal(reference.app.version, "9.9.9");
+            assert.ok(context.includes("backend/api/deps.py") && context.includes("9.9.9"), "given to the agent");
+          }
+        } finally {
+          if (behind) unlinkJunction(feat);
+          fx.release();
+        }
+      },
+    );
+});

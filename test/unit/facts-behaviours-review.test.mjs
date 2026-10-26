@@ -18,6 +18,7 @@ import { behaviourRegistry } from "../../engine/core/behaviours.mjs";
 import { safeSources } from "../../engine/sync/feature-files.mjs";
 import { DIRECT_VIAS } from "../../engine/sync/report.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
+import { projectTools } from "../../engine/check/coverage.mjs";
 import { behaviourParts } from "../../engine/context/behaviours-section.mjs";
 import { createI18n } from "../../engine/i18n.mjs";
 import { loadProject } from "../../engine/project/load.mjs";
@@ -422,7 +423,7 @@ describe("the code of a feature sheet", () => {
         toc,
         pageId: "features/track-orders",
         inventory: { adapters: [] },
-        tools: {},
+        tools: projectTools(docs, config),
         factsDir: config.paths.facts,
       });
       const by = Object.fromEntries(deps.files.map((f) => [f.path, f]));

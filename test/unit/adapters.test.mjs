@@ -1,6 +1,6 @@
 // Adapters (ARCHITECTURE.md §5) on small fixtures: coverage (next-app-router, react-router, i18n-registry, glob),
 // loading and option validation (built-in, local, unknown, malformed), authentication adapters on fake pages.
-import { test, describe, before, after } from "node:test";
+import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -122,6 +122,48 @@ describe("adapterTools with the application's folder: never through a link of it
         } catch {
           fs.rmdirSync(link);
         }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // A coverage adapter (fastapi, next-app-router) walks its folder, then reads each file the walk listed: the walk
+  // went into folders only, so a file it listed is reached by the rule already — judged again, each one asked every
+  // folder above it (seconds for a chain of folders 400 deep). The growth is measured in confine-growth.test.mjs.
+  test("a walk, then the read of each file it listed: judged where the walk starts, never again for its files", () => {
+    const dir = tempDir("doc-kit-tools-deep-");
+    const app = path.join(dir, "app");
+    const depth = 40;
+    const TEXT = "x = 1";
+    try {
+      let at = path.join(app, "backend");
+      fs.mkdirSync(at, { recursive: true });
+      for (let i = 0; i < depth; i++) {
+        at = path.join(at, "d");
+        fs.mkdirSync(at);
+        fs.writeFileSync(path.join(at, "data.py"), TEXT);
+      }
+      fs.mkdirSync(path.join(dir, "docs"));
+      const lstat = mock.method(fs, "lstatSync");
+      const real = mock.method(fs.realpathSync, "native");
+      const asked = () => lstat.mock.callCount() + real.mock.callCount();
+      try {
+        const tools = adapterTools(path.join(dir, "docs"), { appDir: app });
+        assert.equal(tools.exists("../app/backend"), true);
+        const files = tools.walk("../app/backend");
+        assert.equal(files.length, depth);
+        const atStart = asked();
+        assert.ok(atStart <= 6, `${atStart} calls to judge the folder walked`);
+        for (const f of files) assert.equal(tools.read(`../app/backend/${f}`), TEXT, f);
+        assert.ok(files.every((f) => tools.exists(`../app/backend/${f}`)));
+        assert.equal(asked(), atStart, "a file the walk listed is not judged again");
+        // The minimal pair: a file the walk did not list is judged, in a few calls whatever its depth.
+        assert.equal(adapterTools(path.join(dir, "docs"), { appDir: app }).read(`../app/backend/${files[0]}`), TEXT);
+        assert.ok(asked() - atStart <= 4, `${asked() - atStart} calls for one file ${depth} folders deep`);
+      } finally {
+        lstat.mock.restore();
+        real.mock.restore();
+      }
+    } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });

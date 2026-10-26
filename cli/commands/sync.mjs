@@ -80,7 +80,7 @@ export async function run({ ctx, values, positionals = [] }) {
   const toc = safeToc(root, config);
   const inventory = await runCoverage({ root, config });
   const plans = await loadProjectPlans(root, config);
-  const version = readProjectVersion(root, config.version);
+  const version = readProjectVersion(root, config.version, projectTools(root, config));
   const commit = ctx.commit(appDir);
   const date = values.date || new Date().toISOString().slice(0, 10);
   // The labels a page cites, and the rewrites of --apply --labels, read in the page as the kit's renderer renders it

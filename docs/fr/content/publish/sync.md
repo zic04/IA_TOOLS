@@ -204,11 +204,15 @@ construction.
 > messages : celui de `sync.labels`, ou les `messages` d'un adaptateur `i18n-registry`, derrière un lien ou une
 > jonction de l'application n'est jamais lu — un glob ne le liste pas, un fichier nommé en entier n'y est pas (ses
 > clés disparues) : ses libellés ne sont ni comparés ni enregistrés. Un dossier de routes qui est une jonction n'est
-> pas trouvé par son adaptateur de couverture. Une configuration qui pointe dans l'application par un lien à elle,
-> vers un dossier sous la racine de l'application, n'est pas reconnue comme telle : faites-la pointer vers `app.dir`
-> lui-même. Pour une preuve ou une dépendance, sur un montage Linux insensible à la casse (ext4 avec casefold, DrvFs
-> de WSL), un fichier de l'application écrit dans une autre casse peut être jugé hors de l'application : le pire cas
-> est un faux « hors de l'application », jamais un fichier lu hors de l'application.
+> pas trouvé par son adaptateur de couverture. Le fichier des fonctionnalités et le fichier de version
+> (`version.file`) derrière l'un d'eux n'y sont pas non plus : aucune fonctionnalité, la version de repli. Une
+> configuration qui pointe dans l'application par un lien à elle, vers un dossier sous la racine de l'application,
+> n'est pas reconnue comme telle : faites-la pointer vers `app.dir` lui-même. Sous Windows, écrivez `app.dir` et les
+> chemins de la configuration vers l'application de la même façon : un partage ou un lecteur réseau
+> (`\\localhost\C$\app`) à la place du chemin d'un lecteur (`C:\app`), ou l'inverse, n'est pas reconnu comme
+> l'application. Pour une preuve ou une dépendance, sur un montage Linux insensible à la casse (ext4 avec casefold,
+> DrvFs de WSL), un fichier de l'application écrit dans une autre casse peut être jugé hors de l'application : le
+> pire cas est un faux « hors de l'application », jamais un fichier lu hors de l'application.
 
 ## Pour aller plus loin
 

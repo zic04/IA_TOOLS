@@ -90,9 +90,10 @@ async function readPlans(root, config) {
   }
 }
 
-/** The kinds of behaviour cards (§6.8a), the features file told once when it cannot be read. */
-function behaviourKinds(ctx, root, config) {
-  const { problem } = readFeatures(root, featuresFileOf(config));
+/** The kinds of behaviour cards (§6.8a), the features file (read with the project's tools) told once when it cannot
+ * be read. */
+function behaviourKinds(ctx, root, config, tools) {
+  const { problem } = readFeatures(tools, featuresFileOf(config));
   if (problem && !ctx.json) ctx.print(`⚠ ${ctx.t(`cli.${problem.key}`, problem.vars)}`);
   return projectBehaviours(root, config).registry;
 }
@@ -151,9 +152,9 @@ export async function run({ ctx, values, positionals }) {
   const templates = loadPageTemplates();
 
   const product = config.product?.name ?? null;
-  const version = readProjectVersion(root, config.version);
+  const version = readProjectVersion(root, config.version, tools);
 
-  const registry = behaviourKinds(ctx, root, config);
+  const registry = behaviourKinds(ctx, root, config, tools);
 
   const dir = path.join(root, ".doc-kit", "context");
   fs.mkdirSync(dir, { recursive: true });
@@ -187,7 +188,7 @@ export async function run({ ctx, values, positionals }) {
       budget: budgetOf(budget, templates, findPageEntry(toc, pageId)),
       product,
       version,
-      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId)) },
+      behaviours: { registry, feature: featureOf(root, config, findPageEntry(toc, pageId), tools) },
       t: ctx.t,
     });
     const file = contextFileName(pageId);
