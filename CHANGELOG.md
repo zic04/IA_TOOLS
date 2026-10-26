@@ -15,6 +15,43 @@ entries between a project's `kit` range and the installed version.
   left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
   within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
 
+### Changed
+
+- **The kit's test suite** (for its developers; RULES.md S5, M17):
+  - The growth measure times each run in a clean heap (`cleanRun`, `test/tools/growth.mjs`), the ReDoS harness's
+    growth check included: the young generation is collected before the run, outside its time, by Node's own
+    collector, found without a command-line flag (Node 20, 22 and 24), and the collector's pauses inside the run
+    (`v8.GCProfiler`) are taken out of its time. Linear readers failed now and then on loaded runners, at one step
+    and each time another one (×8 to ×18, at 1 to 130 ms): a scavenge or a pass over the old generation fell in one
+    size's runs and not in the size below's, and a reader that keeps an object a character fills the young
+    generation at 16 times its size and not at 4 (×8 to ×11 with the pauses, ×4 without). A whole collection before
+    each run was tried and left out: 80 ms on a heap of 200 MB, the sweeping it leaves made the next run 30 % slower,
+    and on a busy machine the growth files failed four times as often.
+  - A step that looks quadratic is measured again with a run of each size in turn, so that a busy spell slows both,
+    and one that would fail gets 10 more runs of each, and more until 2 s of runs have passed, before it does: a file
+    read held back for half a second is over by then. One that still fails ends its measure (the canary and the
+    mutants stay cheap). `GROWTH_RATIO` (8), `MEASURABLE_MS` (20 ms) and what counts as quadratic are unchanged.
+    Under load (10 rounds on Windows, `npm test` beside `node --test` on the 11 timing files, the code before and
+    after side by side), the timing runs failed 36 tests before and 11 after. All 11 are readers timed with the read
+    of a file just written to a temporary folder. There the read alone of a 200 KB file took 50 to 440 ms at every
+    open, against 1.5 ms for another file of the same size: the machine scans its files, and no measure inside the
+    process removes that. None of the 11 is in the ReDoS harness or reads text in memory. `npm test` passed in all
+    10 rounds both ways (a timing file ran again twice before, once after), taking the same time: 732 s and 735 s
+    on average.
+  - Canaries on the real clock (`test/unit/harness-growth.test.mjs`): readers that scan, split, or copy the text so
+    far at each line (the last copies kept) fail; linear readers that allocate much (a string grown by `+=`, an
+    object a character, `split` then `join`) pass. Each canary's live heap stays linear in its text (64 MB and 100
+    bytes a character at most): one that kept every copy reached 1.8 GB on macOS, where a fast machine measures it
+    at 256 times. assertLinear removes each input once the measure is past it, and linearAt holds two outputs only.
+    `test/unit/redos-growth.test.mjs` checks, on a played clock, that every run
+    goes through the clean run and that a busy spell over seven runs, or a stall over thirty, is not taken for
+    growth.
+  - The ReDoS check `sync shownText comments` puts a comment after every 4 characters of its input instead of after
+    each: it read 11 times its 4,344 inputs, twice, and was the heaviest check by far (24 s on a busy machine, the
+    harness's hang detector at 60 s). Measured side by side on a busy machine: 21 s → 8 s on Node 24, 23 s → 8 s
+    on Node 20; a closing searched again at each comment is still seen (×18). `test/unit/scanners-growth.test.mjs`
+    still measures a comment after each character.
+
 ## [0.4.2] - 2026-10-25
 
 ### Added
