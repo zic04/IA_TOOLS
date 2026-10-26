@@ -923,9 +923,9 @@ export const CHECKS = [
       [s, `ls ${s} '${s}' "${s}" && cat ${s}`].filter((c) => bashDecision(c, { skillDir: "/s", kitDir: "/k" }).allow)
         .length,
   ],
-  // Its devices among a read-only tool's operands (checkDevice): a first cd's deep folder and many operands that climb
-  // out of it, each operand read once (the folder's parts never copied), and one long climb (path.posix.normalize
-  // grows as its square), on both machines' readings.
+  // Its devices and network paths among a read-only tool's operands (checkPath): a first cd's deep folder and many
+  // operands that climb out of it, each operand read once (the folder's parts never copied), and one long climb
+  // (path.posix.normalize grows as its square), on both machines' readings.
   [
     "bash guard devices",
     (s) => {
@@ -934,6 +934,8 @@ export const CHECKS = [
         `cd '${s}' && cat '${s}' ../${s}`,
         `cd /${"a/".repeat(n)} && cat${" ../../b".repeat(n)} ${"../".repeat(n + 1)}dev/x`,
         `cat ${"../".repeat(s.length)}dev/x`,
+        // A network path (on Windows) after a pattern, and the words that may give one.
+        `grep '${s}' -c ${s} '//${s}'`,
       ];
       return [false, true].reduce(
         (k, windows) =>

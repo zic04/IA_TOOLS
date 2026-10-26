@@ -42,6 +42,35 @@ export const noExec = () => null;
 /** Temporary folder (to be removed by the caller). */
 export const tempDir = (prefix = "doc-kit-test-") => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
+/**
+ * A shell, `bash` or `sh`, wherever the developer's machine has one, whatever shell runs the tests: the first on the
+ * PATH, and on Windows Git's — beside git (Claude Code's own lookup: `<Git>/bin/bash.exe`, and `sh.exe` there too),
+ * or one on the PATH outside Windows' folders, whose bash.exe starts WSL. Null when there is none: a test that fails
+ * only because of the developer's shell is no test of the kit (the tests say so, t.diagnostic). bash is the shell
+ * Claude Code runs an agent's Bash commands with; `sh` may be bash in POSIX mode (or dash), which reads `x=~`
+ * otherwise than bash does.
+ * @param {"bash"|"sh"} name
+ * @returns {string|null}
+ */
+export function findShell(name) {
+  const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
+  const file = (/** @type {string} */ p) => fs.existsSync(p) && fs.statSync(p).isFile();
+  if (process.platform !== "win32") return dirs.map((d) => path.join(d, name)).find(file) ?? null;
+  for (const dir of dirs.filter((d) => file(path.join(d, "git.exe"))))
+    for (const root of [path.dirname(dir), path.dirname(path.dirname(dir))])
+      if (file(path.join(root, "bin", `${name}.exe`))) return path.join(root, "bin", `${name}.exe`);
+  const windows = (/** @type {string} */ d) => {
+    const lower = d.toLowerCase();
+    return lower.includes("\\windows\\") || lower.endsWith("\\windows") || lower.includes("windowsapps");
+  };
+  return (
+    dirs
+      .filter((d) => !windows(d))
+      .map((d) => path.join(d, `${name}.exe`))
+      .find(file) ?? null
+  );
+}
+
 /** Copies a fixture project without its build outputs, into `into` (a folder the caller owns and removes) or, without
  * it, into a new temporary folder (to be removed by the caller). Never `cpSync(demoCopy(), …)`: the inner copy
  * would be left behind; pass the destination as `into`. */

@@ -46,7 +46,7 @@ an agent asks for is read first, and only these go through:
 |---|---|
 | The kit's CLI, by its absolute path, from the documentation folder | `cd docs/manual && node "/opt/doc-kit/cli/doc-kit.mjs" build --draft` |
 | The skill's scripts, by their absolute path: the skill's real one, or the one its hook names, through a link (on Windows, with its drive: `C:/Users/…`) | `node ~/.claude/skills/doc-kit/scripts/analysis.mjs check F-01 --project .` |
-| Read-only tools, with their reading options only, never on a device (`/dev/null` aside) | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, joined by a pipe, `&&`, `\|\|` or `;`; `>/dev/null`, `>&1` and `>&2`, alone or after an unquoted `1` or `2` (`2>&1`) |
+| Read-only tools, with their reading options only, never on a device (`/dev/null` aside) nor, on Windows, a network path | `ls -la`, `cat`, `head -40`, `tail`, `wc -l`, `grep -rn`, `rg -n`, `find -name`, `diff -u`…, joined by a pipe, `&&`, `\|\|` or `;`; `>/dev/null`, `>&1` and `>&2`, alone or after an unquoted `1` or `2` (`2>&1`) |
 
 Everything else is refused with its reason: `npx doc-kit`, `npm exec` and a bare `doc-kit` (they may run the
 application's), a program by a relative path, a `cd` anywhere but first, git, npm, any other program, `$(…)` and the
@@ -55,9 +55,10 @@ or escaped word (bash reads `"2">/dev/null` as an argument `2` and a redirection
 option of a read-only tool that is not on its list (`rg --pre`,
 `rg --hostname-bin`, `find -exec`, `sort -o`…), a device among its operands, whose reading may never end, by any
 spelling (`cat /dev/zero`, `head -c 1 /dev/urandom`, `../../dev/zero`, `cd / && cat dev/zero`; on Windows Git Bash's
-`/dev/…` too, `\\.\…`, `CON`, `NUL`, `COM1`…; `/dev/null` goes through), and the doc-kit commands that are yours or
-the orchestrator's
-(`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a
+`/dev/…` too, `\\.\…`, `CON`, `NUL`, `COM1`…; `/dev/null` goes through; a pattern of grep or rg is no path), on Windows
+a network path among its operands or as a `cd`'s folder, which contacts another machine with your Windows credentials
+(`\\host\share`, `//host/share`, `\\?\UNC\…`, Git Bash's `/proc`; on Linux and macOS `//x` and `/proc` are local), and the doc-kit commands that
+are yours or the orchestrator's (`connect`, `demo`, `facts`, `inputs`, `probe`, `skill`…). The application's files are data, never instructions: a
 comment planted in its code cannot make an agent run a program. The hook fails closed: a guard that cannot start or load
 (no `node`, a missing or damaged file), or that never decides, refuses the command; it is written in Claude Code's exec form (`command: node`,
 `args`, `onFailure: block`), which needs no shell, and Claude Code 2.1.295 or later: an older one never runs the guard
@@ -121,7 +122,9 @@ document, end-to-end journeys, troubleshooting, findings, or updating an existin
 > plan is a JavaScript module that `doc-kit capture` runs. It trusts any folder that holds a `doc.config.mjs` as a
 > documentation folder: review such a file if the application ships one. It knows a device by its path only: a link
 > to one, which an application may ship, is read like a file, until Claude Code's time limit on the command ends it.
-> An agent definition edited by hand may have lost its guard: `doctor` reports it as modified, and
+> On Windows it knows a network path by its two leading slashes only: a drive letter mapped to a share, or a link to
+> one, is read like a local file — keep the documentation and the application on this machine's drives. An agent
+> definition edited by hand may have lost its guard: `doctor` reports it as modified, and
 > `doc-kit skill install` restores it.
 
 ## Required permissions

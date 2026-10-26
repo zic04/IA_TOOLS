@@ -32,7 +32,7 @@ import {
 } from "../../skill/doc-kit/scripts/common.mjs";
 import { baseVariables, scriptsDirFor } from "../../skill/doc-kit/scripts/placeholders.mjs";
 import { bashDecision } from "../../skill/doc-kit/scripts/bash-decision.mjs";
-import { KIT_ROOT, tempDir } from "../tools/helpers.mjs";
+import { KIT_ROOT, findShell, tempDir } from "../tools/helpers.mjs";
 
 async function cli(args, env = {}) {
   let out = "";
@@ -231,7 +231,7 @@ describe("skill install", () => {
     }
   });
 
-  test("a skill folder with a quote, a $ and a backquote: the analysis brief's check command passes the guard and names the skill's script", async () => {
+  test("a skill folder with a quote, a $ and a backquote: the analysis brief's check command passes the guard and names the skill's script", async (t) => {
     const root = tempDir("doc-kit-skill-quoted-");
     try {
       // On POSIX, no backslash: node loads no module from under such a folder (the guard's own test).
@@ -254,17 +254,15 @@ describe("skill install", () => {
       const real = fs.realpathSync(dir);
       const opts = { skillDir: real, kitDir: "", windows: process.platform === "win32" };
       assert.deepEqual(decision.bashDecision(command, opts), { allow: true }, command);
-      // As bash reads it (the sh of the PATH, as the guard's tests run it), the command's script is the installed
-      // skill's analysis.mjs.
-      const names = process.platform === "win32" ? ["sh.exe", "sh"] : ["sh"];
-      const SH = (process.env.PATH ?? "")
-        .split(path.delimiter)
-        .filter(Boolean)
-        .flatMap((d) => names.map((n) => path.join(d, n)))
-        .find((f) => fs.existsSync(f));
-      assert.ok(SH, "sh is on the PATH");
-      const sh = spawnSync(SH, ["-c", `printf '%s\\n' ${command.slice("node ".length)}`], { encoding: "utf8" });
-      const script = sh.stdout.split("\n")[0];
+      // As bash reads it (found as the guard's tests find it: the PATH's, or Git's beside git on Windows, whatever shell
+      // runs the tests), the command's script is the installed skill's analysis.mjs.
+      const BASH = findShell("bash");
+      if (BASH === null) {
+        t.diagnostic("no bash on this machine (nor Git's on Windows): the command is decided, not read by bash");
+        return;
+      }
+      const bash = spawnSync(BASH, ["-c", `printf '%s\\n' ${command.slice("node ".length)}`], { encoding: "utf8" });
+      const script = bash.stdout.split("\n")[0];
       const expected = path.join(real, "scripts", "analysis.mjs");
       assert.equal(script, process.platform === "win32" ? expected.split(path.sep).join("/") : expected);
       assert.ok(fs.existsSync(script), script);
