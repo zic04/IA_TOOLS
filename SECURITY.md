@@ -114,11 +114,11 @@ or `capture.forbidden`), a script the kit runs in every page before any other st
 added or the HTML set, on the window or on the document), whatever the page redefines: the script keeps the
 browser's own `stopImmediatePropagation`, `visibilityState` getter and `Reflect.apply` before the page's scripts run,
 and calls only those when an event fires, so a page that redefines them (on a prototype, on the document, or their
-`call`) changes nothing. It also removes `fetchLater`, and the browser is launched without it
-(`--disable-blink-features=FetchLaterAPI`: a second `--disable-features` would replace the list Playwright passes
-there). A page's handlers for being left therefore never run during a capture: what they would send is neither sent
-nor counted. The events a page dispatches itself still reach its handlers, and what a page sends while it is open (a
-beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other request.
+`call`) changes nothing. It also removes `fetchLater`, and the browser is launched without it (`FetchLaterAPI` in the
+one flag `--disable-blink-features=FetchLaterAPI,SharedWorker`: a second `--disable-features` would replace the list
+Playwright passes there). A page's handlers for being left therefore never run during a capture: what they would send
+is neither sent nor counted. The events a page dispatches itself still reach its handlers, and what a page sends while
+it is open (a beacon, a keepalive `fetch` included) goes through the guard, blocked and counted as any other request.
 
 **Shared workers.** Playwright routes the requests of pages, frames and dedicated workers (a `Worker`, and one it
 starts), never those of a `SharedWorker`: they reached the server whatever their method or their route, neither
@@ -238,8 +238,8 @@ for a mere mention:
   written as a word, then a value of 6 characters or more up to a blank, a quote or a `;` (`password=postgres`,
   `--password=Summer2024Winter`, `password=$ecretPa55w0rd`). What they find is reported whatever the exceptions
   below say, with only these, each decided on the whole value, never on a part of it, and, but for `change-me` and
-  `replace-me`, which may end in a number (`replace-me-with-a-real-key-2024`), never for a value holding a number of
-  two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
+  `replace-me`, which may end in a number after words (`replace-me-with-a-real-key-2024`), never for a value holding
+  a number of two digits or more, checked first (`password=$ECRET2024`, `Password = configuration["DbPassword2024"];`
   and `password=PROD_DB_PASS_2024,` are reported):
   - a shell's or Windows' variable: a sigil and a name in capitals whose words are joined by `_`, or that names a
     secret (`PASSWORD=$DB_PASSWORD`, `password=%DB_PASSWORD%`, `$PGPASSWORD`; `$PRODPASS` is a password);
@@ -315,8 +315,10 @@ Limits: the detectors are patterns and a measure, not a proof.
   `Password = Root.Secret;`, `password = my.secret`, `Password = Get.Token(x);`,
   `connect(password=Hello["x"], user=USER)`. A line cannot tell such a password from a reference of the same
   shape, and the detectors do not know whether a file is code or configuration (`scanText` reads a text, never its
-  file's name): left out, as in code, where a reference is far more common than a password written so. 0.4.1
-  reported them.
+  file's name), so a properties, INI or YAML line written with a blank and a value in lower case first reads as code
+  (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`; without the blank,
+  `spring.datasource.password=s3cr3t.pass` and `password:adm1n.secret.pass` are reported): left out, as in code,
+  where a reference is far more common than a password written so. 0.4.1 reported them.
 - A secret's word glued to a name in lower case (`pgpassword=`, `dbpassword:`) is not a secret's name, nor is a name
   of more than 128 characters (only the floor reads one, by its last word), nor a setting written without `=` or `:`
   (Redis' `requirepass Orders2024Prod`).

@@ -6,6 +6,15 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Fixed
+
+- **SECURITY.md and the checks page of the docs say exactly what the secret detectors and the capture guard do.**
+  `change-me` and `replace-me` may end in a number after words only (`replace-me-with-a-real-key-2024`;
+  `password=change-me-2024` is reported). The floor's limit names its properties, INI and YAML lines written with a
+  blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
+  left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
+  within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
+
 ### Changed
 
 - **The kit's test suite** (for its developers; RULES.md S5, M17):

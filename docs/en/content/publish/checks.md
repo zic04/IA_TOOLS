@@ -115,7 +115,7 @@ the built site** (pages, section introductions, home page, glossary) for:
   as `?list=` or `?fbclid=`): "random-looking value (high entropy)".
 
 What version 0.4.1 found is still found, but a reference in code and a placeholder, each as the whole value. A
-reference never holds a number of two digits or more; `change-me` and `replace-me` may end in one
+reference never holds a number of two digits or more; `change-me` and `replace-me` may end in a number after words
 (`replace-me-with-a-real-key-2024`). Left out are a shell's or Windows' variable in capitals (`PASSWORD=$DB_PASSWORD`),
 a member, a call or an index in a line written as code (`Password = model.Password;`, `Password = GetPassword();`,
 `password = request.form.password`; not after a `password=` without a blank, as a properties file writes it),

@@ -6,6 +6,11 @@
 // equivalent: a name after digits, dots or dashes (`?-list=`) has neither a `=` at `m.index + name.length` (inside
 // the name) nor a `?`, `&`, `#` or `&amp;` before the name (a digit, a dot or a dash): both read "not a harmless
 // parameter".
+//
+// Not a mutant either: the old `ARGUMENT`, whose members started with any letter (`[A-Za-z_$]`) where they now start
+// with a capital. It matches the same strings: members in lower case are already its first form's. Only its time
+// differs, a call never closed taking 2^k tries for k such arguments, which the ReDoS harness catches
+// (test/tools/redos-worker.mjs, `password = a.b(c` then `, d.e`), not the tests above.
 const mutant = (name, find, replace) => ({ name, find, replace });
 
 export default {

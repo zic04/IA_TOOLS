@@ -121,13 +121,13 @@ et dans le **texte du site construit** (pages, introductions des sections, page 
 
 Ce que la version 0.4.1 trouvait est toujours trouvé, sauf une référence dans du code et un texte de remplacement,
 chacun comme valeur entière. Une référence ne contient jamais un nombre de deux chiffres ou plus ; `change-me` et
-`replace-me` peuvent finir par un nombre (`replace-me-with-a-real-key-2024`). Sont laissés de côté une variable du shell
-ou de Windows en capitales (`PASSWORD=$DB_PASSWORD`), un membre, un appel ou un index dans une ligne écrite comme du
-code (`Password = model.Password;`, `Password = GetPassword();`, `password = request.form.password` ; pas après un
-`password=` sans espace, comme l'écrit un fichier de propriétés), `change-me` et `replace-me`, et un masque avant la `,`
-du code (`password=********,`). Un mot de passe écrit exactement comme une telle référence dans une ligne de code
-(`Password = Root.Secret;`) est aussi laissé de côté, la ligne ne pouvant le distinguer d'une référence de même forme ;
-de même pour celui écrit avec un espace et en minuscule en tête dans un fichier de propriétés, INI ou YAML
+`replace-me` peuvent finir par un nombre après des mots (`replace-me-with-a-real-key-2024`). Sont laissés de côté une
+variable du shell ou de Windows en capitales (`PASSWORD=$DB_PASSWORD`), un membre, un appel ou un index dans une ligne
+écrite comme du code (`Password = model.Password;`, `Password = GetPassword();`, `password = request.form.password` ;
+pas après un `password=` sans espace, comme l'écrit un fichier de propriétés), `change-me` et `replace-me`, et un masque
+avant la `,` du code (`password=********,`). Un mot de passe écrit exactement comme une telle référence dans une ligne
+de code (`Password = Root.Secret;`) est aussi laissé de côté, la ligne ne pouvant le distinguer d'une référence de même
+forme ; de même pour celui écrit avec un espace et en minuscule en tête dans un fichier de propriétés, INI ou YAML
 (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`), qui se lit comme du code : SECURITY.md en
 donne les limites.
 
