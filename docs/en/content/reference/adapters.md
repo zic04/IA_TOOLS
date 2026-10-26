@@ -166,7 +166,7 @@ export default {
 | `options` | Each option is a small schema: `type`, `default`, `enum`, `pattern`, `minLength`, `items`… and `required: true` |
 | `inventory()` | Receives `root` (the documentation project), the validated `options` and `tools`; returns `{ available: true, families }` or `{ available: false, reason, vars }` |
 | An item | `{ id, label?, match: [texts], whole? }`: covered when one of its texts appears in the documentation, ignoring case and spaces; with `whole: true` (an id), only whole — no letter or digit right before or after it |
-| `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey`; every path is relative to the documentation project |
+| `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey`; every path is relative to the documentation project. A walk never goes into a link or a junction, and a path in the application (`app.dir`) is reached through its folders only: behind a link or a junction of it, it does not exist and is never read |
 | `reason` | `notFound`, `blockNotFound` and `error` are translated; any other text is shown as it is |
 
 This site uses one: `docs/shared/kit-reference.mjs` in the kit's repository lists every key of the configuration

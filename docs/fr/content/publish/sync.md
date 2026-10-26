@@ -200,9 +200,15 @@ construction.
 > joint, est absent, sauf s'il sort de l'application tel qu'il est écrit (`../`) : il est alors hors de
 > l'application, quelle que soit sa longueur. Une preuve allongée de `./` au-delà de cette longueur ne nomme donc
 > aucun fichier, et le dit par `sync.proofUnresolved`. Un glob de `sources` n'entre jamais dans un lien ou une
-> jonction, ni par l'un d'eux avant son premier `*` (`linked/**`) : il n'y liste rien. Sur un montage Linux insensible à la casse (ext4 avec casefold,
-> DrvFs de WSL), un fichier de l'application écrit dans une autre casse peut être jugé hors de l'application : le
-> pire cas est un faux « hors de l'application », jamais un fichier lu hors de l'application.
+> jonction, ni par l'un d'eux avant son premier `*` (`linked/**`) : il n'y liste rien. De même pour les fichiers de
+> messages : celui de `sync.labels`, ou les `messages` d'un adaptateur `i18n-registry`, derrière un lien ou une
+> jonction de l'application n'est jamais lu — un glob ne le liste pas, un fichier nommé en entier n'y est pas (ses
+> clés disparues) : ses libellés ne sont ni comparés ni enregistrés. Un dossier de routes qui est une jonction n'est
+> pas trouvé par son adaptateur de couverture. Une configuration qui pointe dans l'application par un lien à elle,
+> vers un dossier sous la racine de l'application, n'est pas reconnue comme telle : faites-la pointer vers `app.dir`
+> lui-même. Pour une preuve ou une dépendance, sur un montage Linux insensible à la casse (ext4 avec casefold, DrvFs
+> de WSL), un fichier de l'application écrit dans une autre casse peut être jugé hors de l'application : le pire cas
+> est un faux « hors de l'application », jamais un fichier lu hors de l'application.
 
 ## Pour aller plus loin
 

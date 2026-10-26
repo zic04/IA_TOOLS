@@ -175,7 +175,7 @@ export default {
 | `options` | Chaque option est un petit schéma : `type`, `default`, `enum`, `pattern`, `minLength`, `items`… et `required: true` |
 | `inventory()` | Reçoit `root` (le projet de documentation), les `options` validées et `tools` ; renvoie `{ available: true, families }` ou `{ available: false, reason, vars }` |
 | Un élément | `{ id, label?, match: [textes], whole? }` : couvert quand l'un de ses textes apparaît dans la documentation, sans tenir compte de la casse ni des espaces ; avec `whole: true` (un id), seulement en entier — sans lettre ni chiffre juste avant ou juste après |
-| `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey` ; chaque chemin est relatif au projet de documentation |
+| `tools` | `resolve`, `exists`, `read`, `json`, `walk`, `glob`, `i18nKey` ; chaque chemin est relatif au projet de documentation. Un parcours n'entre jamais dans un lien ou une jonction, et un chemin dans l'application (`app.dir`) n'est atteint que par ses dossiers : derrière un lien ou une jonction de celle-ci, il n'existe pas et n'est jamais lu |
 | `reason` | `notFound`, `blockNotFound` et `error` sont traduits ; tout autre texte est affiché tel quel |
 
 Ce site en utilise un : `docs/shared/kit-reference.mjs`, dans le dépôt du kit, liste chaque clé du schéma de

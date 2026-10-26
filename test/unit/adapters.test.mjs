@@ -71,6 +71,62 @@ async function inventory(spec) {
   return adapter.inventory({ root: docs(), options, tools: adapterTools(docs()) });
 }
 
+// SECURITY.md: the tools of the adapters, given the application's folder, reach a path in it through its folders
+// only, never a link or a junction (linkFree, engine/core/confine.mjs); a path elsewhere is taken as written.
+describe("adapterTools with the application's folder: never through a link of it", () => {
+  test("walk, glob, exists, read and json: through a junction, nothing; through folders, the same calls find it", () => {
+    const dir = tempDir("doc-kit-tools-links-");
+    const app = path.join(dir, "app");
+    const outside = path.join(dir, "outside");
+    // A junction out of the application, one that stays in it, and one beside it to the application itself (the
+    // configuration's: a path through it is in the application all the same).
+    const links = [path.join(app, "out"), path.join(app, "src", "in"), path.join(dir, "alias")];
+    try {
+      fs.mkdirSync(path.join(app, "src", "lib"), { recursive: true });
+      fs.mkdirSync(path.join(outside, "deep"), { recursive: true });
+      fs.mkdirSync(path.join(dir, "docs"));
+      fs.writeFileSync(path.join(outside, "en.json"), '{"a":"outside"}');
+      fs.writeFileSync(path.join(outside, "deep", "x.ts"), "outside");
+      fs.writeFileSync(path.join(app, "src", "lib", "en.json"), '{"a":"inside"}');
+      fs.writeFileSync(path.join(dir, "beside.json"), '{"a":"beside"}');
+      const type = process.platform === "win32" ? "junction" : "dir";
+      fs.symlinkSync(outside, links[0], type); // out of the application
+      fs.symlinkSync(path.join(app, "src", "lib"), links[1], type); // one that stays in: not followed either
+      fs.symlinkSync(app, links[2], type);
+      const docsDir = path.join(dir, "docs");
+      const tools = adapterTools(docsDir, { appDir: app });
+      const behind = ["../app/out", "../app/out/en.json", "../app/out/deep/x.ts", "../app/src/in/en.json"];
+      // The application written another way: in another case, through the link beside it to it.
+      behind.push("../APP/out/en.json", "../alias/out/en.json", "../alias/out");
+      for (const p of behind) {
+        assert.equal(tools.exists(p), false, p);
+        assert.throws(() => tools.read(p), { code: "ENOENT" }, p);
+      }
+      assert.deepEqual(tools.walk("../app/out"), []);
+      assert.deepEqual(tools.glob("**/*.json", "../app/out"), []);
+      assert.deepEqual(tools.glob("*.json", "../alias/out"), []);
+      assert.deepEqual(tools.walk("../app/src/in"), []);
+      assert.deepEqual(tools.walk("../app"), ["src/lib/en.json"], "a walk never goes into a link either");
+      // The minimal pairs: the same calls through the application's folders, and beside it, as written.
+      assert.equal(tools.exists("../app/src/lib/en.json"), true);
+      assert.deepEqual(tools.json("../app/src/lib/en.json"), { a: "inside" });
+      assert.deepEqual(tools.json("../alias/src/lib/en.json"), { a: "inside" });
+      assert.deepEqual(tools.glob("*.json", "../app/src/lib"), ["en.json"]);
+      assert.deepEqual(tools.json("../beside.json"), { a: "beside" });
+      // Without the application's folder (an adapter's own test), as before: as written.
+      assert.deepEqual(adapterTools(docsDir).json("../app/out/en.json"), { a: "outside" });
+    } finally {
+      for (const link of links)
+        try {
+          fs.unlinkSync(link);
+        } catch {
+          fs.rmdirSync(link);
+        }
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("coverage adapters", () => {
   test("next-app-router: groups and slots ignored, interceptions and private folders skipped, params kept", async () => {
     assert.equal(routeOf("(shop)/orders/[id]/page.tsx"), "/orders/[id]");

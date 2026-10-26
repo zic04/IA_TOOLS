@@ -6,10 +6,10 @@
 // exit code 2.
 import fs from "node:fs";
 import path from "node:path";
-import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
+import { runCoverage, projectTools } from "../../engine/check/coverage.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { pageDependencies, findPageEntry } from "../../engine/sync/dependencies.mjs";
-import { labelFiles, flattenMessages } from "../../engine/sync/labels.mjs";
+import { labelFiles, readFlatLabels } from "../../engine/sync/labels.mjs";
 import { readSyncReference } from "../../engine/sync/reference.mjs";
 import { buildContext, contextFileName } from "../../engine/context/context.mjs";
 import { buildTranslateContext, translateContextFileName, findSourceCommit } from "../../engine/context/translate.mjs";
@@ -52,16 +52,14 @@ function readGlossary(root, config) {
   }
 }
 
-/** { [projRelFile]: flattened messages } of every message file sync.labels follows (ARCHITECTURE.md §6.10). */
+/**
+ * { [projRelFile]: flattened messages } of every message file sync.labels follows (ARCHITECTURE.md §6.10): {} for
+ * one that cannot be read, or that a link or a junction of the application leads to (never read: readFlatLabels).
+ */
 function readLabels(root, config) {
+  const tools = projectTools(root, config);
   const out = {};
-  for (const file of labelFiles(root, config)) {
-    try {
-      out[file] = flattenMessages(JSON.parse(fs.readFileSync(path.join(root, file), "utf8")));
-    } catch {
-      out[file] = {};
-    }
-  }
+  for (const file of labelFiles(root, config, tools)) out[file] = readFlatLabels(tools, file) ?? {};
   return out;
 }
 
@@ -147,7 +145,7 @@ export async function run({ ctx, values, positionals }) {
     readGlossary(root, config),
     readSyncReference(root, config),
   ]);
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const labels = /** @type {Record<string, Record<string, string>>} */ (readLabels(root, config));
   const facts = /** @type {Record<string, any[]>} */ (readFacts(root, config));
   const templates = loadPageTemplates();

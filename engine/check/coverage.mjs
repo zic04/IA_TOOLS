@@ -13,6 +13,7 @@ import { countGuidance } from "../core/page-templates.mjs";
 import { globRegex } from "../core/glob.mjs";
 import { TOC_FILE, stripBom } from "../project/toc.mjs";
 import { wholeIndexes } from "../core/text.mjs";
+import { entryInto, linkFree } from "../core/confine.mjs";
 
 const SKIP = new Set(["node_modules", ".git"]);
 
@@ -23,12 +24,31 @@ export const normalize = (s) => String(s).replace(/[  ]/g, " ").replace(/\s+/
  * Tools given to the adapters; every path is relative to the project root (the documentation folder).
  *   resolve(p) · exists(p) · read(p) · json(p) · walk(dir) → relative file paths (forward slashes) ·
  *   glob(pattern, base = ".") → files of `base` matching the pattern · i18nKey(object, "a.b.c") → value
+ * A walk never goes into a link or a junction. With `appDir` (the application's folder, absolute: untrusted,
+ * SECURITY.md), a path that lies in it (entryInto: as written in any case, or through a folder whose real path is
+ * the application's) is reached through its folders only, never a link or a junction, and is no link itself
+ * (linkFree), checked before anything is asked of it: a walk starts there, a file is read or said to exist only so
+ * — a junction in the application to a folder outside lists nothing, reads nothing, does not exist. Elsewhere (the
+ * documentation project when it is not in the application, a folder the configuration names beside it), a path is
+ * taken as written.
+ * @param {string} root
+ * @param {{ appDir?: string|null }} [o]
  */
-export function adapterTools(root) {
+export function adapterTools(root, { appDir = null } = {}) {
   const resolve = (p) => path.resolve(root, p);
+  /** Whether `abs` is reached as the rule above says (`folder`: as a folder). */
+  const reached = (abs, folder) => {
+    const entry = appDir ? entryInto(appDir, abs) : null;
+    return !entry || linkFree(entry.top, entry.names, { folder });
+  };
+  const read = (p) => {
+    if (!reached(resolve(p), false))
+      throw Object.assign(new Error(`ENOENT: ${p} is reached through a link in the application`), { code: "ENOENT" });
+    return fs.readFileSync(resolve(p), "utf8");
+  };
   const walk = (dir) => {
     const base = resolve(dir);
-    if (!fs.existsSync(base)) return [];
+    if (!reached(base, true) || !fs.existsSync(base)) return [];
     const out = [];
     const visit = (d, rel) => {
       for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -43,9 +63,9 @@ export function adapterTools(root) {
   };
   return {
     resolve,
-    exists: (p) => fs.existsSync(resolve(p)),
-    read: (p) => fs.readFileSync(resolve(p), "utf8"),
-    json: (p) => JSON.parse(fs.readFileSync(resolve(p), "utf8")),
+    exists: (p) => reached(resolve(p), false) && fs.existsSync(resolve(p)),
+    read,
+    json: (p) => JSON.parse(read(p)),
     walk,
     glob: (pattern, base = ".") => {
       const re = globRegex(pattern.replace(/^\.\//, ""));
@@ -59,6 +79,15 @@ export function adapterTools(root) {
     },
   };
 }
+
+/**
+ * The tools of the coverage adapters and of sync for a documentation project: adapterTools of its root, every path
+ * in its application (`app.dir`) reached without a link.
+ * @param {string} root
+ * @param {{ app?: { dir?: string|null } }} config
+ */
+export const projectTools = (root, config) =>
+  adapterTools(root, { appDir: config.app?.dir ? path.resolve(root, config.app.dir) : null });
 
 /**
  * The forms under which a route may be cited: as is, with :param, {param} or [param], and the static prefix
@@ -170,7 +199,7 @@ export function excludeItems(items, exclude = []) {
  */
 export async function runCoverage({ root, config }) {
   const { text, planned } = documentationTexts(root, config.paths.content);
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const adapters = [];
   for (const [i, spec] of config.coverage.entries()) {
     const { name, adapter, options } = await loadAdapter("coverage", spec, root, `coverage[${i}]`);

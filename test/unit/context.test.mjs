@@ -766,6 +766,57 @@ describe("CLI: context <page…> [--budget] [--update]", () => {
     }
   });
 
+  // SECURITY.md: the labels a context gives an agent come only from message files reached without a link.
+  test("a message file behind a junction of the application: its values never read, never given to the agent", async (t) => {
+    const { base, docs, app } = syncFixtureCopy();
+    const outside = path.join(base, "outside");
+    const junction = path.join(app, "messages");
+    const contextFile = path.join(docs, ".doc-kit", "context", "use__orders.md");
+    try {
+      // The screen's own file cites a key; the message files are the default ones, the i18n-registry adapter's
+      // `messages` named whole (no sync.labels): only their reading keeps a junction out. The minimal pair first: the
+      // messages in the application give the key's label.
+      fs.appendFileSync(path.join(app, "app", "orders", "page.tsx"), 'const label = "orders.approve";\n');
+      const configFile = path.join(docs, "doc.config.mjs");
+      const configText = fs.readFileSync(configFile, "utf8");
+      fs.writeFileSync(configFile, configText.replace(/^\s*sync: \{ labels: \[[^\]]*\] \},\n/m, ""));
+      assert.notEqual(fs.readFileSync(configFile, "utf8"), configText, "sync.labels taken out");
+      const plain = await cli(["context", "use/orders", "--project", docs]);
+      assert.equal(plain.code, 0, plain.out + plain.err);
+      assert.match(fs.readFileSync(contextFile, "utf8"), /`orders\.approve`: Approve/);
+      fs.mkdirSync(outside);
+      fs.renameSync(junction, path.join(outside, "messages"));
+      const messages = { orders: { approve: "Covert Approve", new: "Covert New" } };
+      fs.writeFileSync(path.join(outside, "messages", "en.json"), JSON.stringify(messages));
+      fs.symlinkSync(path.join(outside, "messages"), junction, "junction");
+      const realOutside = fs.realpathSync.native(outside);
+      const original = fs.readFileSync;
+      const reads = [];
+      t.mock.method(fs, "readFileSync", function (p, ...rest) {
+        try {
+          const real = typeof p === "string" ? fs.realpathSync.native(p) : null;
+          if (real && real.startsWith(realOutside + path.sep)) reads.push(real);
+        } catch {
+          // missing: nothing read there
+        }
+        return original.call(this, p, ...rest);
+      });
+      const r = await cli(["context", "use/orders", "--project", docs]);
+      assert.equal(r.code, 0, r.out + r.err);
+      assert.deepEqual(reads, [], "nothing outside the application is read");
+      assert.doesNotMatch(original(contextFile, "utf8"), /Covert/, "no value from outside");
+    } finally {
+      // The junction first, on its own: removing the folder must never walk into what it points to.
+      if (fs.lstatSync(junction, { throwIfNoEntry: false })?.isSymbolicLink())
+        try {
+          fs.unlinkSync(junction);
+        } catch {
+          fs.rmdirSync(junction);
+        }
+      fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   test("--update without a sync report → context.noSyncReport, exit code 2", async () => {
     const { base, docs } = syncFixtureCopy();
     try {

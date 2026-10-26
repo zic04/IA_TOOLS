@@ -532,6 +532,17 @@ as untrusted input:
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
   agent. A glob never walks into a link or a junction, nor through one before its first `*` (`linked/**`): the names
   of a folder outside are never listed;
+- the coverage adapters, `sync` and `context` reach a path in the application through its folders only, never a
+  link or a junction, and never take a link for a file (`projectTools`, `linkFree`): a walk or a glob from a folder
+  behind a junction lists nothing, a file behind one is not there and is never read. So a message file of
+  `sync.labels` (or the `messages` of an `i18n-registry` adapter) behind a junction of the application to a folder
+  outside is neither listed, read, compared nor recorded in `sync.json`, nor given to an agent by `context`; a routes
+  folder that is such a junction is not found (`notFound`), its files' names never listed. A link that stays inside
+  the application is not followed either. A path is in the application when it is written under `app.dir`, in any
+  case, or goes through a folder whose real path is the application's (a short name such as `APPLIC~1`,
+  `/private/var` for `/var`, a link to the application). A limit: a link of your own configuration's, outside the
+  application, to one of its folders below its root (`docs/m` → `../app/messages`) is not recognised, and a path
+  through it is taken as written — do not point the configuration into the application through such a link;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
   (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
@@ -539,15 +550,15 @@ as untrusted input:
 - the imports of a page's code (the closure of `sync` and of the context of a page, two levels for a feature sheet)
   and of the `modules` source are resolved, and their files and `tsconfig.json` read, only where they really are in
   the application, links and junctions followed: an import through a junction to a folder outside is not resolved,
-  and a dependency of a page outside the application (a route's file reached through a link) is named in its
-  context, never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
+  and a dependency of a page outside the application (a declared source through a link) is named in its context,
+  never excerpted. The file of a proof (`file:line`) is confined the same way, when `sync` records it and
   when its report compares it: one through `../` or a link out of the application is never read, its first line
   never written in `sync.json` (`sync.proofOutside` says why, for one an older `sync.json` recorded too). So is
   every dependency file of a page, by one helper (`dependencyFile`) for the marking, the report, `--since` and the
   page's files read for the API paths they call: a declared source (`--sources ../shared/money.ts`, a `declared`
-  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
-  the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
-  so. A proof or a dependency through a link out of the application is outside whether its file exists there or
+  entry of `sync.json`), the `file` of a `facts/api.json` item or a route file an older `sync.json` hashed, through a
+  junction that lies outside the application, is never read, hashed nor shown by git, never counted deleted, and
+  `sync.dependencyOutside` says so. A proof or a dependency through a link out of the application is outside whether its file exists there or
   not (judged by where its nearest existing folder really is, found by bisection, a root asked apart — Windows'
   realpath fails on `\\?\C:\` and resolves `\\?\C:\Users` —: a path of thousands of missing parts costs a few calls,
   and one longer than 32,767 characters, Windows' limit, is missing without any), and a link that leads nowhere is

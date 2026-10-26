@@ -6,7 +6,7 @@ import path from "node:path";
 import { validate } from "../project/validate.mjs";
 import { readSchema } from "../project/load.mjs";
 import { KitError, EXIT } from "../project/errors.mjs";
-import { adapterTools, normalize } from "../check/coverage.mjs";
+import { projectTools, normalize } from "../check/coverage.mjs";
 import { wholeIndexes } from "../core/text.mjs";
 import { hashText, hashPlanEntry } from "../core/hash.mjs";
 import { pageDependencies, writtenPages, pageCiteText, dependencyFile } from "./dependencies.mjs";
@@ -72,17 +72,17 @@ const declaredFile = (s) => /^(.+?)(?::\d+(?:-\d+)?)?$/.exec(s)[1];
 
 /**
  * Every message file followed now (`labelFiles`) or recorded before, flattened: `{}` for one that no longer exists
- * (its keys are gone), null for one that cannot be read; `followed`: still one of `labelFiles`.
+ * (its keys are gone) or that a link or a junction of the application leads to (never read: readFlatLabels), null
+ * for one that cannot be read; `followed`: still one of `labelFiles`. A file may be declared as an absolute path
+ * (sync.labels): the tools resolve it, never join it to the root.
  * @returns {Array<{ file: string, flat: object|null, followed: boolean }>}
  */
 function allFlatLabels(root, config, recorded) {
-  const followed = new Set(labelFiles(root, config));
-  return [...new Set([...followed, ...Object.keys(recorded || {})])].sort().map((file) => {
-    // resolve, not join: a label file may be declared as an absolute path (sync.labels), which join would
-    // concatenate onto root instead of using as is.
-    const abs = path.resolve(root, file);
-    return { file, flat: readFlatLabels(abs), followed: followed.has(file) };
-  });
+  const tools = projectTools(root, config);
+  const followed = new Set(labelFiles(root, config, tools));
+  return [...new Set([...followed, ...Object.keys(recorded || {})])]
+    .sort()
+    .map((file) => ({ file, flat: readFlatLabels(tools, file), followed: followed.has(file) }));
 }
 
 /**
@@ -333,7 +333,7 @@ export async function markPages({
 
   const warnings = [];
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   // A page of an older sync.json was checked at app.commit: kept as its own before app is rewritten. A page no longer
   // written is dropped.
   const newPages = Object.fromEntries(

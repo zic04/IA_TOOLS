@@ -16,7 +16,7 @@ import { estimateUpdate } from "../../engine/sync/estimate.mjs";
 import { labelReader } from "../../engine/sync/labels.mjs";
 import { createSyncRenderer } from "../../engine/build/sync-renderer.mjs";
 import { pageDependencies } from "../../engine/sync/dependencies.mjs";
-import { runCoverage, adapterTools } from "../../engine/check/coverage.mjs";
+import { runCoverage, projectTools } from "../../engine/check/coverage.mjs";
 import { readToc } from "../../engine/audit/audit.mjs";
 import { loadPlans } from "../../engine/capture/plans.mjs";
 import { loadPageTemplates } from "../../engine/core/page-templates.mjs";
@@ -292,7 +292,7 @@ async function loadContextBuilder() {
 async function buildEstimate({ root, config, toc, report, inventory, plans }) {
   const templates = loadPageTemplates();
   const contextMod = await loadContextBuilder();
-  const tools = adapterTools(root);
+  const tools = projectTools(root, config);
   const appDir = config.app.dir ? path.resolve(root, config.app.dir) : null;
   const contexts = [];
   for (const r of report.review) {

@@ -6,7 +6,18 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
-### Fixed
+### Security
+
+- **A message file behind a junction of the application is never read** (`sync.labels`, the `messages` of an
+  `i18n-registry` adapter, engine/sync/labels.mjs): with `messages/` a junction to a folder outside the application,
+  `sync` read the JSON there (the marking, the report, the `i18n-registry` adapter) and `context` gave its values to
+  an agent; a value a page cites was recorded in `sync.json`. The tools of the coverage adapters, `sync` and `context`
+  (`projectTools`, engine/check/coverage.mjs) now reach a path in the application through its folders only, never a
+  link or a junction, and never take a link for a file (`linkFree`, engine/core/confine.mjs): a glob never lists a
+  file behind one, a file named whole behind one is not there, never read. A path is in the application when it is
+  written under `app.dir` in any case, or goes through a folder whose real path is the application's (a short name,
+  `/private/var`, a link to it: `entryInto`). A routes folder that is a junction is not found by its adapter
+  (`notFound`), its files' names never listed, where they were listed and named as outside dependencies.
 
 - **A broken link under a root that does not resolve is no longer judged outside by mistake** (`fileInside`,
   engine/core/confine.mjs, SECURITY.md): on Windows, realpath fails on `\\?\C:\` and on `\\?\UNC\host` while it
@@ -18,8 +29,8 @@ entries between a project's `kit` range and the installed version.
 - **A `sources` glob no longer lists a folder outside the application through a junction** (`globFiles`,
   engine/sync/dependencies.mjs): `linked/**/*.ts`, `linked` a junction or a link to a folder outside, had the walk
   list that folder's names (none of its files kept, none read). The fixed part of a glob is now entered as the walk
-  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction
-  (`plainFolders`, engine/core/confine.mjs) — one inside the application is not followed either, as `**` never
+  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction (the
+  tools of the application, under Security) — one inside the application is not followed either, as `**` never
   followed one.
 - **The path a proof or a dependency names is joined in one pass** (`fileInside`): `path.resolve` was quadratic on a
   long name then `b/../` repeated under the 32,767-character cap (30 to 70 ms a call for 32,000 characters); the path

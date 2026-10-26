@@ -15,7 +15,7 @@ import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
 import { isPlainName } from "../core/text.mjs";
-import { fileInside, plainFolders, within } from "../core/confine.mjs";
+import { fileInside, within } from "../core/confine.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -128,9 +128,8 @@ export function writtenPages({ root, config, toc }) {
 
 /**
  * Files of a glob relative to `base` (literal path kept as is when it has no "*" and exists). The walk starts at the
- * glob's fixed part (before its first "*"), entered as the walk enters a folder (adapterTools.walk): one part at a
- * time, each a folder, never a link or a junction (plainFolders) — a junction there to a folder outside the
- * application would have its names listed.
+ * glob's fixed part (before its first "*"): `tools` of the application (adapterTools with its appDir) reach it
+ * through folders only, never a link or a junction — a junction there to a folder outside lists nothing.
  */
 function globFiles(tools, base, pattern) {
   if (!pattern.includes("*")) return tools.exists(pattern) ? [pattern] : [];
@@ -138,7 +137,6 @@ function globFiles(tools, base, pattern) {
   const i = parts.findIndex((p) => p.includes("*"));
   const dir = i < 0 ? base : [base, ...parts.slice(0, i)].filter((x) => x && x !== ".").join("/") || ".";
   const sub = i < 0 ? parts.at(-1) : parts.slice(i).join("/");
-  if (!plainFolders(tools.resolve(base), parts.slice(0, Math.max(i, 0)))) return [];
   return tools.glob(sub, dir).map((f) => (dir === "." ? f : `${dir}/${f}`));
 }
 
@@ -323,7 +321,7 @@ export async function pageDependencies({
   }
 
   // ─── Declared page sources (toc field `sources`: globs relative to app.dir), confined to it ─────────────────────
-  const appTools = appDir ? adapterTools(appDir) : null;
+  const appTools = appDir ? adapterTools(appDir, { appDir }) : null;
   const appGlob = (pattern) => globFiles(appTools, ".", pattern);
   if (appDir && entry.sources?.length)
     for (const f of safeSources(appDir, entry.sources, appGlob)) add(f, { via: "sources", direct: true });

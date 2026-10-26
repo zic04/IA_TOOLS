@@ -3,8 +3,8 @@
 // folder read. The one helper of the readers that a link could lead out of their folder: the `sources` of a page or a
 // feature (engine/sync/feature-files.mjs), the files a proof cites and the dependency files of a page (fileInside:
 // engine/sync), the files the `secrets` and `security` facts scan (engine/facts/common.mjs: `git ls-files` lists a
-// committed link as a file), the converted documents of the sources, the project's adapters; and the folder a glob of
-// `sources` starts its walk from (plainFolders).
+// committed link as a file), the converted documents of the sources, the project's adapters; and every path in the
+// application the tools of the coverage adapters and of sync are given (linkFree): a walk, a glob, a file read.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -66,25 +66,54 @@ export function realInside(realBase, target, io = fs) {
 }
 
 /**
- * Whether each of the folders `names` (`.` and empty ones are nothing), from `top` down, is a folder, not a link or a
- * junction (lstat: never followed): the rule of the walks of the application (adapterTools.walk, listFiles), which go
- * only into an entry that is a folder, as a link to one is not. For a walk that starts below `top` at a path untrusted
- * text names (the fixed part of a `sources` glob, engine/sync/dependencies.mjs): a junction there to a folder outside
- * would have its names listed.
+ * Whether the path whose parts are `names` (`.` and empty ones are nothing), below the folder `top`, is reached
+ * through folders only — each a folder, never a link or a junction (lstat: never followed) — and is no link itself, a
+ * folder too with `folder`: the rule of the walks of the application (adapterTools.walk, listFiles), which go only
+ * into an entry that is a folder, as a link to one is not. adapterTools judges by it each path it is given in the
+ * application (where a walk starts, a file read, whether one exists): a junction there to a folder outside would
+ * have its names listed and its files read.
  * @param {string} top
  * @param {string[]} names
+ * @param {{ folder?: boolean }} [o]
  */
-export function plainFolders(top, names) {
+export function linkFree(top, names, { folder = false } = {}) {
+  const parts = names.filter((x) => x && x !== ".");
   let at = top;
-  for (const part of names.filter((x) => x && x !== ".")) {
-    at = path.join(at, part);
+  for (let i = 0; i < parts.length; i++) {
+    at = path.join(at, parts[i]);
+    let st;
     try {
-      if (!fs.lstatSync(at).isDirectory()) return false;
+      st = fs.lstatSync(at);
     } catch {
       return false;
     }
+    if (st.isSymbolicLink() || ((folder || i < parts.length - 1) && !st.isDirectory())) return false;
   }
   return true;
+}
+
+/**
+ * Where the path `abs` enters the folder `dir` (both resolved): `top`, the part of `abs` that is `dir`, as `abs`
+ * writes it, and `names`, its parts below ([] for the folder itself); null when `abs` does not lie in it. In it as
+ * written, in any case (macOS' and Windows' folders read a name in any case; on a case-sensitive one, a sibling
+ * `APP` of `app` is only judged more strictly), or through an ancestor whose real path is `dir`'s — a short name
+ * (`APPLIC~1`), `/private/var` for `/var`, a link to the folder —, the first from the root. Not seen: a link of the
+ * configuration's own to a folder below `dir` (its real path is that folder's, not `dir`'s).
+ * @param {string} dir
+ * @param {string} abs
+ * @param {RealPathIo} [io]
+ * @returns {{ top: string, names: string[] }|null}
+ */
+export function entryInto(dir, abs, io = fs) {
+  const P = io.path ?? path;
+  const at = (end) => ({ top: abs.slice(0, end), names: abs.slice(end).split(P.sep).filter(Boolean) });
+  const n = dir.length;
+  const sameStart = abs.slice(0, n).toLowerCase() === dir.toLowerCase();
+  if (sameStart && (abs.length === n || abs[n] === P.sep || dir.endsWith(P.sep))) return at(n);
+  const real = realPathOf(dir, io);
+  if (!real) return null;
+  for (const end of ancestorEnds(abs, P)) if (realPathOf(abs.slice(0, end), io) === real) return at(end);
+  return null;
 }
 
 /**
