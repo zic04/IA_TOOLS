@@ -302,6 +302,21 @@ describe("parity with 0.4.1: what it reported is still reported", () => {
     }
   });
 
+  test("known limits (SECURITY.md): a properties, INI or YAML line with a blank and lower case first reads as code", () => {
+    // [reported, left out]: the same password, without and with the blank before it. The detectors read a text, never
+    // its file's name: with the blank and a value in lower case first, the line is written as code, and members that
+    // name a secret's field are a reference there. 0.4.1 reported the lines with the blank too.
+    for (const [secret, limit] of [
+      ["spring.datasource.password=s3cr3t.pass", "spring.datasource.password = s3cr3t.pass"],
+      ["password:adm1n.secret.pass", "password: adm1n.secret.pass"],
+    ]) {
+      assert.ok(kinds(secret).length > 0, secret);
+      assert.ok(looksSecret(secret), `looksSecret: ${secret}`);
+      assert.deepEqual(kinds(limit), [], limit);
+      assert.equal(looksSecret(limit), false, `looksSecret: ${limit}`);
+    }
+  });
+
   test("a URL's password and 0.4.1's ?sig= are read as 0.4.1 read them: its placeholders only, a mask too", () => {
     // 0.4.1's placeholders (`changeme`, `your`, `example`…) never held `change-me`: its floor reads it in a URL.
     assert.deepEqual(kinds("postgres://app:change-me@db.example.org/orders"), ["credentialsUrl"]);

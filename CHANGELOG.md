@@ -6,6 +6,23 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Fixed
+
+- **SECURITY.md and the checks page of the docs say exactly what the secret detectors and the capture guard do.**
+  `change-me` and `replace-me` may end in a number after words only (`replace-me-with-a-real-key-2024`;
+  `password=change-me-2024` is reported). The floor's limit names its properties, INI and YAML lines written with a
+  blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
+  left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
+  within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
+
+### Changed
+
+- **The rules of the confinement written where `sync` is described**: ARCHITECTURE.md §6.10 and the pitfalls of
+  `sync` (`docs/{en,fr}/content/publish/sync.md`) name the rules of a broken link (the `..` after a name, 32 links at
+  most), the 32,767-character cap (a proof padded with `./` past it is `sync.proofUnresolved`; a path that climbs out
+  is outside whatever its length), the globs that never walk through a link, and the worst case on a
+  case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs): a false "outside", never a file read outside.
+
 ### Security
 
 - **A message file behind a junction of the application is never read** (`sync.labels`, the `messages` of an
@@ -38,13 +55,6 @@ entries between a project's `kit` range and the installed version.
   `path.resolve` on 12,000 paths under both systems' rules, a growth test), its names counted, never kept, past the
   cap.
 
-### Changed
-
-- **The rules of the confinement written where `sync` is described**: ARCHITECTURE.md §6.10 and the pitfalls of
-  `sync` (`docs/{en,fr}/content/publish/sync.md`) name the rules of a broken link (the `..` after a name, 32 links at
-  most), the 32,767-character cap (a proof padded with `./` past it is `sync.proofUnresolved`; a path that climbs out
-  is outside whatever its length), the globs that never walk through a link, and the worst case on a
-  case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs): a false "outside", never a file read outside.
 
 ## [0.4.2] - 2026-10-25
 
