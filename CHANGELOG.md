@@ -21,6 +21,12 @@ entries between a project's `kit` range and the installed version.
   the rest of the test runs: a test that fails only because of the developer's shell is no test of the kit. The
   lookup is one helper, `findShell` (`test/tools/helpers.mjs`), which `test/unit/skill.test.mjs` uses too: its bash
   reading of the analysis brief's check command asserted an `sh` on the `PATH`, and failed from PowerShell.
+- **SECURITY.md and the checks page of the docs say exactly what the secret detectors and the capture guard do.**
+  `change-me` and `replace-me` may end in a number after words only (`replace-me-with-a-real-key-2024`;
+  `password=change-me-2024` is reported). The floor's limit names its properties, INI and YAML lines written with a
+  blank and a value in lower case first (`spring.datasource.password = s3cr3t.pass`, `password: adm1n.secret.pass`,
+  left out; reported without the blank), now pinned by `test/unit/secret-recall.test.mjs`. `FetchLaterAPI` is named
+  within the one launch flag, `--disable-blink-features=FetchLaterAPI,SharedWorker`.
 
 ### Security
 
