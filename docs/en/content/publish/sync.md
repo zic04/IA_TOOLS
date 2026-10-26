@@ -182,6 +182,16 @@ Once a page is marked, the site shows, next to the screenshot dates, "Checked ag
 > file outside is read as a file of the application; and a path is checked, then read, so a file or a folder
 > replaced by a link in between, by a process that changes the application while `sync` runs, is not seen.
 
+> [!NOTE] Links, long paths and globs
+> A broken link is judged by its target as written, 32 links at most: past them (a loop), it is outside. A target
+> with a `..` after a name (`j/../x`) is outside too: the system takes that `..` from wherever `j` leads, which the
+> text cannot tell. A path longer than 32,767 characters, as written or once joined, is missing, unless it climbs out
+> as written (`../`): then it is outside, whatever its length. A proof padded with `./` past that length names no
+> file, and says so with `sync.proofUnresolved`. A `sources` glob never walks into a link or a junction, nor through one before its
+> first `*` (`linked/**`): it lists nothing there. On a case-insensitive Linux mount (ext4 with casefold, WSL's
+> DrvFs), a file of the application written in another case may be judged outside: the worst case is a false
+> "outside", never a file read outside.
+
 ## Further reading
 
 - [Commands: write and check](#/reference/cli/write-check~doc-kit-sync): every option, in full.

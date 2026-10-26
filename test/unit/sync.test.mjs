@@ -2843,6 +2843,38 @@ describe("engine/sync: a proof outside the application is never read", () => {
     }
   });
 
+  test("markPages: a proof padded with ./ past 32,767 characters names no file (sync.proofUnresolved); at the cap, recorded", async () => {
+    const fx = syncFixtureCopy();
+    try {
+      const config = await syncConfig(fx.root);
+      const page = path.join(fx.root, config.paths.content, "take-over", "orders-api.md");
+      // The path fileInside is given is the proof's file without its first `./`: 32,767 characters, then 32,769.
+      const atCap = "./".repeat(16378) + "lib/orders.ts:1";
+      const over = "./".repeat(16379) + "lib/orders.ts:1";
+      assert.equal(atCap.length - "./".length - ":1".length, 32767);
+      fs.appendFileSync(page, `\nSee \`${atCap}\` and \`${over}\`.\n`);
+      const { reference, warnings } = await markPages({
+        labels,
+        root: fx.root,
+        config,
+        toc: readToc(fx.root, config),
+        pages: ["take-over/orders-api"],
+        date: "2026-10-02",
+        commit: "c0ffee",
+        version: "1.0.0",
+        inventory: await runCoverage({ root: fx.root, config }),
+        plans: [],
+      });
+      const said = (ref) => warnings.filter((w) => w.vars.ref === ref).map((w) => w.key);
+      assert.deepEqual(reference.proofs[atCap]?.text, "export const threshold = 10000;", "at the cap: recorded");
+      assert.deepEqual(said(atCap), []);
+      assert.equal(reference.proofs[over], undefined, "past it: not recorded");
+      assert.deepEqual(said(over), ["sync.proofUnresolved"], "missing, never outside");
+    } finally {
+      fx.release();
+    }
+  });
+
   // An older sync.json (0.4.1) recorded such a proof, and hashed its file as a dependency of the page: the report
   // reads neither again. The outside line moves after marking: read, it would come back as a moved proof.
   test("sync and --check: a proof an older sync.json recorded through a junction or ../ is never read; the proof beside is", async () => {

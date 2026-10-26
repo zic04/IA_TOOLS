@@ -1,10 +1,11 @@
 // fileInside (engine/core/confine.mjs, SECURITY.md): the file a proof cites or a page depends on, judged where it
 // really is. A missing path is judged by its nearest existing ancestor, found by bisection; these tests prove it gives
 // the answers of the walk it replaced (every ancestor asked in turn, kept here as the reference) on random file systems
-// under both systems' path rules, in O(log depth) calls; climbing out as written, judged in one pass, gives the answers
-// of path.resolve (kept here as the reference) on random paths; a path longer than MAX_PATH, resolved or as written, is
-// missing without a call; a broken link whose target has a `..` after a name is outside; real links and junctions, and
-// the folder given through one.
+// under both systems' path rules — roots that resolve or not, device paths of Windows, drives and shares that are not
+// there —, in O(log depth) calls; 32 broken links followed at most; the path joined as written, in one pass, is the one
+// path.resolve gives (kept here as the reference) on random paths, and climbing out gets its answers; a path longer
+// than MAX_PATH, resolved or as written, is missing without a call; a broken link whose target has a `..` after a name
+// is outside; real links and junctions, and the folder given through one.
 // The growth of its time is measured in confine-growth.test.mjs.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
@@ -17,18 +18,25 @@ import { caseSeed, hex, rng } from "../tools/fuzz/prng.mjs";
 const RULES = { posix: path.posix, win32: path.win32 };
 const MAX_PATH = 32767;
 const ERRORS = Object.fromEntries(
-  ["ENOENT", "ENOTDIR", "ELOOP", "EINVAL"].map((code) => [code, Object.assign(new Error(code), { code })]),
+  ["ENOENT", "ENOTDIR", "ELOOP", "EINVAL", "EISDIR"].map((code) => [code, Object.assign(new Error(code), { code })]),
 );
+
+/** Windows' device paths that name a drive or a share: `\\?\C:\x`, `\\.\C:\x`, `\\?\UNC\host\share\x`. */
+const DEVICE = /^[\\/]{2}[?.][\\/](?:([a-z]:)|unc[\\/]([^\\/]+)[\\/]([^\\/]+))(?=[\\/]|$)/i;
 
 /**
  * A file system resolved as a system resolves it, under the path rules P: folders, files and links (their target as
  * written), a path read one part at a time from its root, a link followed where it is met, a `..` going up from where
  * the path really is (POSIX's "physical" resolution), 40 links at most. `fold`: names compared regardless of case
- * (Windows', macOS'), the case on disk given back. Every path asked is logged in `calls`, with what was asked.
+ * (Windows', macOS'), the case on disk given back. `rootless`: a root does not resolve, asked as itself, while what is
+ * below it does. Under Windows' rules, a device path is read as the drive or the share it names, its real path given
+ * without its prefix, as realpathSync.native gives it (`\\?\C:\x` is `C:\x`), while its own root, or a folder above
+ * it (`\\?\C:\`, `\\?\UNC\host`), does not resolve (EISDIR, ENOENT), as on Windows. Every path asked is logged in
+ * `calls`, with what was asked.
  * @param {path.PlatformPath} P
- * @param {{ fold?: boolean }} [options]
+ * @param {{ fold?: boolean, rootless?: boolean }} [options]
  */
-function modelFs(P, { fold = false } = {}) {
+function modelFs(P, { fold = false, rootless = false } = {}) {
   const windows = P.sep === "\\";
   const key = (name) => (fold ? name.toLowerCase() : name);
   const rootKey = (root) => (windows ? root.replaceAll("/", "\\").toLowerCase() : root);
@@ -38,6 +46,15 @@ function modelFs(P, { fold = false } = {}) {
   const roots = new Map();
   /** @type {Array<[string, string]>} */
   const calls = [];
+  /** A device path as the path it names (`\\?\C:\x` → `C:\x`); its own root, or above it, is no path. */
+  const device = (p) => {
+    if (!windows || !/^[\\/]{2}[?.][\\/]/.test(p)) return p;
+    const m = DEVICE.exec(p);
+    if (!m) throw ERRORS.ENOENT; // `\\?\UNC\host`, `\\?\` alone: above a drive or a share
+    const rest = parts(p.slice(m[0].length));
+    if (!rest.length && m[1]) throw ERRORS.EISDIR; // `\\?\C:\` (Windows' realpath fails there; `\\?\UNC\h\s` does not)
+    return (m[1] ? m[1] + "\\" : `\\\\${m[2]}\\${m[3]}\\`) + rest.join("\\");
+  };
   const rootOf = (p) => {
     const found = roots.get(rootKey(P.parse(p).root));
     if (!found) throw ERRORS.ENOENT;
@@ -57,7 +74,8 @@ function modelFs(P, { fold = false } = {}) {
     });
     return p;
   }
-  function walk(p, followLast) {
+  function walk(asked, followLast) {
+    const p = device(asked);
     let { name: rootName, node } = rootOf(p);
     let stack = [node];
     let names = [];
@@ -79,7 +97,7 @@ function modelFs(P, { fold = false } = {}) {
       if (!entry) throw ERRORS.ENOENT;
       if (entry.node.kind === "link" && (todo.length || followLast)) {
         if (++hops > 40) throw ERRORS.ELOOP;
-        const target = entry.node.target;
+        const target = P.isAbsolute(entry.node.target) ? device(entry.node.target) : entry.node.target;
         if (P.isAbsolute(target)) {
           ({ name: rootName, node } = rootOf(target));
           [stack, names] = [[node], []];
@@ -102,6 +120,7 @@ function modelFs(P, { fold = false } = {}) {
     realpathSync: {
       native: (p) => {
         asked("realpath", p);
+        if (rootless && P.parse(p).root === p) throw ERRORS.EISDIR;
         return walk(p, true).real;
       },
     },
@@ -198,10 +217,23 @@ function withAncestors(paths, P) {
 
 const NAMES = ["a", "b", "lib", "x.txt", "y.txt"];
 
+/** A device path as the path of the drive or the share it names (`\\?\C:\x` → `C:\x`), any other path as it is. */
+const named = (p) => {
+  const m = DEVICE.exec(p);
+  return m ? path.win32.resolve((m[1] ? m[1] + "\\" : `\\\\${m[2]}\\${m[3]}\\`) + p.slice(m[0].length)) : p;
+};
+
+/** A path of a drive or a share written as Windows' device path: `\\?\C:\x`, `\\.\C:\x`, `\\?\UNC\host\share\x`. */
+const asDevice = (p, r) => {
+  const prefix = r.pick(["\\\\?\\", "\\\\.\\", "//?/"]);
+  return p.startsWith("\\\\") ? prefix + r.pick(["UNC", "unc"]) + p.slice(1) : prefix + p;
+};
+
 /**
- * One random case: a file system under the rules `rules` (case folded or not), with folders, files, links that lead
- * somewhere and links that lead nowhere, a sibling `APP` beside `app`; and the relative paths asked of it, made of
- * its names in either case, missing names, `.` and `..`, links, sometimes a long missing tail.
+ * One random case: a file system under the rules `rules` (case folded or not, its roots resolving or not), with
+ * folders, files, links that lead somewhere and links that lead nowhere — a drive or a share that is not there, a
+ * device path under Windows' rules among them —, a sibling `APP` beside `app`; and the relative paths asked of it,
+ * made of its names in either case, missing names, `.` and `..`, links, sometimes a long missing tail.
  * @param {number} seed
  * @param {"posix"|"win32"} rules
  */
@@ -209,8 +241,10 @@ function randomCase(seed, rules) {
   const r = rng(seed);
   const P = RULES[rules];
   const fold = r.chance(0.5);
-  const io = modelFs(P, { fold });
+  const rootless = r.chance(0.3);
+  const io = modelFs(P, { fold, rootless });
   const roots = rules === "win32" ? ["C:\\", "\\\\host\\share\\"] : ["/"];
+  const absent = rules === "win32" ? ["Z:\\", "\\\\gone\\share\\"] : [];
   for (const root of roots) io.add(root + "srv");
   const srv = r.pick(roots) + "srv";
   const app = io.add(P.join(srv, "app"));
@@ -225,12 +259,13 @@ function randomCase(seed, rules) {
   const sep = () => (rules === "win32" && r.chance(0.5) ? "\\" : "/");
   const target = () => {
     const from = r.int(7);
-    if (from === 0) return r.pick(nodes) + (r.chance(0.5) ? P.sep + "missing.txt" : "");
+    const written = (p) => (rules === "win32" && r.chance(0.5) ? asDevice(p, r) : p);
+    if (from === 0) return written(r.pick(nodes) + (r.chance(0.5) ? P.sep + "missing.txt" : ""));
     if (from === 1)
       return "../".repeat(r.int(3)).replaceAll("/", sep()) + name() + (r.chance(0.3) ? sep() + name() : "");
     if (from === 2) return [name(), "..", name()].join(sep()); // a `..` after a name
     if (from === 3) return r.pick([".", "..", "./" + name()]);
-    if (from === 4) return P.join(r.pick(roots), "nowhere", "missing.txt");
+    if (from === 4) return written(P.join(r.pick([...roots, ...absent]), "nowhere", "missing.txt"));
     if (from === 5 && links.length) return r.chance(0.5) ? r.pick(links) : P.basename(r.pick(links));
     return name() + (r.chance(0.5) ? sep() + "missing.txt" : "");
   };
@@ -270,7 +305,7 @@ function randomCase(seed, rules) {
     if (r.chance(0.1)) list.unshift("..", r.pick(["app", "APP", "out"]));
     return list.join(sep());
   });
-  return { io, app, rels, fold };
+  return { io, app, rels, fold, rootless };
 }
 
 describe("fileInside: the bisection gives the answers of the walk it replaced", () => {
@@ -278,21 +313,23 @@ describe("fileInside: the bisection gives the answers of the walk it replaced", 
   const TREES = 800;
   for (const rules of ["posix", "win32"])
     test(`on ${TREES} random file systems under ${rules} rules (${TREES * 3} paths), never asking elsewhere`, (t) => {
-      const seen = { outside: 0, missing: 0, file: 0, linkFollowed: 0, unplaced: 0, deep: 0, folded: 0 };
+      const seen = { outside: 0, missing: 0, file: 0, linkFollowed: 0, unplaced: 0, deep: 0, folded: 0, rootless: 0 };
+      if (rules === "win32") seen.device = 0;
       for (let i = 0; i < TREES; i++) {
         const seed = caseSeed(RUN, i);
-        const { io, app, rels, fold } = randomCase(seed, rules);
+        const { io, app, rels, fold, rootless } = randomCase(seed, rules);
         for (const rel of rels) {
           io.calls.length = 0;
           const expected = reference(app, rel, io);
           const before = io.calls.splice(0);
           const got = fileInside(app, rel, io);
           const asked = io.calls.splice(0);
-          const where = `seed ${hex(seed)}, ${rules}${fold ? " folded" : ""}, ${JSON.stringify(rel)}`;
+          const where = `seed ${hex(seed)}, ${rules}${fold ? " folded" : ""}${rootless ? " rootless" : ""}, ${JSON.stringify(rel)}`;
           assert.equal(got, expected, where);
-          // Never a path the walk did not have on its way: each one asked is the walk's, or a folder above one.
+          // Never a path the walk did not have on its way: each one asked is the walk's, or a folder above one — a
+          // device path the walk asked counting as the path it names, as fileInside asks it (`\\?\C:\x`, `C:\x`).
           const known = withAncestors(
-            before.map(([, p]) => p),
+            before.flatMap(([, p]) => [p, named(p)]),
             io.path,
           );
           for (const [what, p] of asked) assert.ok(known.has(p), `${where}: ${what} ${p}`);
@@ -300,8 +337,10 @@ describe("fileInside: the bisection gives the answers of the walk it replaced", 
           const read = before.filter(([what]) => what === "readlink").map(([, p]) => p);
           if (read.length) seen.linkFollowed++;
           if (read.some((p) => afterName(io.readlinkSync(p), io.path))) seen.unplaced++;
+          if (rules === "win32" && read.some((p) => DEVICE.test(io.readlinkSync(p)))) seen.device++;
           if (rel.split(/[\\/]/).length > 10) seen.deep++;
           if (fold) seen.folded++;
+          if (rootless && read.length) seen.rootless++;
         }
       }
       // The cases are worth their number: every kind of answer, links read, deep paths and both kinds of names.
@@ -358,6 +397,128 @@ describe("fileInside: the bisection gives the answers of the walk it replaced", 
         assert.equal(fileInside(root, rel, io), expected, `${root} ${rel}`);
     }
   });
+
+  /** `l/d0/…/x.txt`, `depth` folders between the link and the file. */
+  const under = (link, depth) => `${link}/${Array.from({ length: depth }, (_, i) => `d${i}/`).join("")}x.txt`;
+
+  test("32 broken links followed at most: a chain of 32 is judged where it ends; one more, or a loop, is outside", () => {
+    for (const P of Object.values(RULES)) {
+      const io = modelFs(P);
+      const app = io.add(P.join(P.sep === "\\" ? "C:\\" : "/", "srv", "app"));
+      io.add(P.join(app, "lib"));
+      const chain = (name, count) => {
+        for (let i = 0; i < count; i++)
+          io.link(P.join(app, `${name}${i}`), i < count - 1 ? `${name}${i + 1}` : "lib/gone");
+        return `${name}0`;
+      };
+      assert.equal(fileInside(app, under(chain("a", 32), 2), io), null, "32 links, then a folder inside");
+      assert.equal(fileInside(app, under(chain("b", 33), 2), io), "outside", "33 links");
+      io.link(P.join(app, "c0"), "c1");
+      io.link(P.join(app, "c1"), "c0");
+      assert.equal(fileInside(app, under("c0", 2), io), "outside", "a loop");
+      for (const rel of [under("a0", 2), under("b0", 2), under("c0", 2)])
+        assert.equal(fileInside(app, rel, io), reference(app, rel, io), `the walk: ${rel}`);
+    }
+  });
+
+  test("a root that does not resolve while what is below it does: never taken for nothing there, at any depth", () => {
+    // Windows' realpath fails on `\\?\C:\` and resolves `\\?\C:\Users`: a folder resolves only if its parent does, but
+    // for a root. A broken link leads under such a root here; the bisection must give the walk's answer at every depth.
+    for (const [P, root] of [
+      [path.posix, "/"],
+      [path.win32, "C:\\"],
+      [path.win32, "\\\\host\\share\\"],
+    ]) {
+      const io = modelFs(P, { rootless: true });
+      const app = io.add(P.join(root, "srv", "app"));
+      io.add(P.join(root, "srv", "out"));
+      io.link(P.join(app, "l"), P.join(app, "gone")); // a broken link that stays inside
+      io.link(P.join(app, "o"), P.join(root, "srv", "out", "gone")); // one that leads out
+      for (let depth = 0; depth <= 12; depth++)
+        for (const [link, expected] of [
+          ["l", null],
+          ["o", "outside"],
+        ]) {
+          const rel = under(link, depth);
+          assert.equal(reference(app, rel, io), expected, `the walk: ${root} ${rel}`);
+          assert.equal(fileInside(app, rel, io), expected, `${root} ${rel}`);
+        }
+    }
+  });
+
+  test("a broken link written as a device path (\\\\?\\C:\\…, \\\\?\\UNC\\host\\share\\…): judged where it leads", () => {
+    // Windows reads `\\?\C:\srv\app\gone` as `C:\srv\app\gone`, but its realpath fails on `\\?\C:\` and on
+    // `\\?\UNC\host`, above a folder that resolves (`\\?\UNC\host\share` does): a link's target is judged as the path
+    // it names, the same answer at every depth.
+    const P = path.win32;
+    for (const root of ["C:\\", "\\\\host\\share\\"]) {
+      const io = modelFs(P);
+      const app = io.add(P.join(root, "srv", "app"));
+      io.add(P.join(root, "srv", "out"));
+      const forms = root.startsWith("\\\\")
+        ? (p) => ["\\\\?\\UNC" + p.slice(1), "\\\\.\\unc" + p.slice(1), "//?/UNC/" + p.slice(2).replaceAll("\\", "/")]
+        : (p) => ["\\\\?\\" + p, "\\\\.\\" + p, "//?/" + p.replaceAll("\\", "/")];
+      const links = [];
+      forms(P.join(app, "gone")).forEach((target, i) => links.push([io.link(P.join(app, `l${i}`), target), null]));
+      forms(P.join(root, "srv", "out", "gone")).forEach((target, i) =>
+        links.push([io.link(P.join(app, `o${i}`), target), "outside"]),
+      );
+      for (let depth = 0; depth <= 12; depth++)
+        for (const [link, expected] of links) {
+          const rel = under(P.basename(link), depth);
+          assert.equal(reference(app, rel, io), expected, `the walk: ${root} ${rel}`);
+          assert.equal(fileInside(app, rel, io), expected, `${root} ${rel}`);
+        }
+    }
+    // The prefix of a share without its server or its share names none that resolves: outside, never read as a folder
+    // of the link's own drive (`\\srv` is `C:\srv` to path.win32, the application here).
+    const io = modelFs(P);
+    const app = io.add("C:\\srv");
+    for (const target of ["\\\\?\\UNC\\srv", "\\\\?\\UNC\\srv\\", "\\\\?\\UNC\\", "\\\\?\\UNC\\\\srv\\app"]) {
+      io.link(P.join(app, "u"), target);
+      for (const rel of [under("u", 0), under("u", 3)]) {
+        assert.equal(reference(app, rel, io), "outside", `the walk: ${target}, ${rel}`);
+        assert.equal(fileInside(app, rel, io), "outside", `${target}, ${rel}`);
+      }
+    }
+    // Under POSIX' rules the same text is a path like any other, under `/?`: outside, never a name of the link's folder.
+    const posix = modelFs(path.posix);
+    posix.add("/srv/app");
+    posix.link("/srv/app/u", "//?/UNC/srv/app/gone");
+    for (const rel of [under("u", 0), under("u", 3)]) {
+      assert.equal(reference("/srv/app", rel, posix), "outside", `the walk: posix, ${rel}`);
+      assert.equal(fileInside("/srv/app", rel, posix), "outside", `posix, ${rel}`);
+    }
+  });
+
+  test("nothing there, not even the root (a drive or a share that is not there): outside; there, the same answer", () => {
+    // The one answer the walk gives when no ancestor resolves. The same link once its drive or its share is there,
+    // then its file too: outside still — whether a file outside exists is never told.
+    const P = path.win32;
+    for (const [target, root] of [
+      ["Z:\\srv\\x.txt", "Z:\\"],
+      ["\\\\gone\\share\\srv\\x.txt", "\\\\gone\\share\\"],
+    ]) {
+      const io = modelFs(P);
+      const app = io.add("C:\\srv\\app");
+      io.link(P.join(app, "l"), target);
+      for (const state of ["absent", "there", "its file there"]) {
+        if (state === "there") io.add(root + "srv");
+        if (state === "its file there") io.file(target);
+        for (const rel of ["l", under("l", 0), under("l", 5)]) {
+          assert.equal(reference(app, rel, io), "outside", `the walk: ${target} ${state}, ${rel}`);
+          assert.equal(fileInside(app, rel, io), "outside", `${target} ${state}, ${rel}`);
+        }
+      }
+    }
+    // Under POSIX' rules, a root that does not resolve: the same.
+    const io = modelFs(path.posix, { rootless: true });
+    const app = io.add("/srv/app");
+    io.link("/srv/app/l", "/nowhere/x.txt");
+    for (const rel of ["l", under("l", 0), under("l", 5)]) assert.equal(fileInside(app, rel, io), "outside", rel);
+    io.add("/nowhere");
+    for (const rel of ["l", under("l", 0), under("l", 5)]) assert.equal(fileInside(app, rel, io), "outside", rel);
+  });
 });
 
 describe("fileInside: climbing out as written, in one pass, is what path.resolve answers", () => {
@@ -413,10 +574,21 @@ describe("fileInside: climbing out as written, in one pass, is what path.resolve
     if (r.chance(0.25)) rel += r.pick(["/", "\\", "//"]);
     return rel;
   };
-  /** A file system where every path is there as written, its calls counted: climbing out is answered before any. */
+  /**
+   * A file system where every path is there as written, its calls counted: climbing out is answered before any. Its
+   * path rules are P's, each path resolved alone kept in `resolved`, as fileInside gives it (realPathOf).
+   */
   const mirror = (P) => {
     const io = {
-      path: P,
+      path: {
+        ...P,
+        resolve: (/** @type {string[]} */ ...parts) => {
+          if (parts.length === 1) io.resolved.push(parts[0]);
+          return P.resolve(...parts);
+        },
+      },
+      /** @type {string[]} */
+      resolved: [],
       calls: 0,
       realpathSync: { native: (p) => (io.calls++, p) },
       statSync: () => (io.calls++, { isFile: () => true }),
@@ -431,7 +603,7 @@ describe("fileInside: climbing out as written, in one pass, is what path.resolve
   const RUN = 0x0c11b0a7;
   const CASES = 6000;
   for (const [rules, dirs] of Object.entries(DIRS))
-    test(`under ${rules} rules: ${CASES} random paths, outside without a call exactly where path.resolve says so`, (t) => {
+    test(`under ${rules} rules: ${CASES} random paths, outside without a call exactly where path.resolve says so, and the path joined is path.resolve's`, (t) => {
       const P = RULES[rules];
       const seen = { outside: 0, inside: 0, cameBack: 0, atRoot: 0, started: 0 };
       for (let i = 0; i < CASES; i++) {
@@ -444,6 +616,8 @@ describe("fileInside: climbing out as written, in one pass, is what path.resolve
         const got = fileInside(dir, rel, io);
         const where = `seed ${hex(seed)}, ${rules}, ${JSON.stringify(dir)}, ${JSON.stringify(rel)}`;
         assert.equal(io.calls === 0 ? got : "asked", inside ? "asked" : "outside", where);
+        // Inside, the path asked last is the one path.resolve joins, character for character, as fileInside built it.
+        if (inside) assert.equal(io.resolved.at(-1), P.resolve(P.join(dir, rel)), where);
         // What the cases hold: each `..` part, the path before it out of the folder, or at its root already.
         seen[inside ? "inside" : "outside"]++;
         const sep = rules === "win32" ? /[\\/]/g : /\//g;

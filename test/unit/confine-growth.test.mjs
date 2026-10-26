@@ -4,7 +4,8 @@
 // Each shape is built at a base size, then 4 and 16 times larger (linearAt, test/tools/growth.mjs), no absolute time;
 // 16 times stays under the length cap (MAX_PATH, 32,767 characters), past which a path is missing without a call —
 // but the shape path.resolve is quadratic on (`a/` then `b/../`), past it at every size: what is measured there is the
-// check of climbing out as written, which comes before the cap.
+// check of climbing out as written, which comes before the cap. A long name then `b/../` (quadratic in path.resolve
+// too) stays under it: what is measured there is the path joined in one pass, never by path.resolve.
 // The file system is a fake (no link privilege needed, no disk). test/tools/run-plan.mjs runs this file alone, after
 // the others. The functional tests of the confinement (the answers, the count of calls) stay in confine.test.mjs.
 import { test } from "node:test";
@@ -99,6 +100,20 @@ test("fileInside: a path that goes down then back up as written, a/ n times then
     read: ({ io, rel }) => fileInside(app, rel, io),
   });
   assert.equal(outside.at16, "outside");
+});
+
+test("fileInside: a long name, then b/../ many times, under the length cap", () => {
+  // path.resolve is quadratic on it too (each `..` copies the long name again: 30 to 70 ms at 16 times on a laptop),
+  // and it stays under MAX_PATH at 16 times (32,006 characters): the path is joined in the pass that judges climbing
+  // out, never by path.resolve.
+  const shape = (n) => "x".repeat(n) + "/" + "b/../".repeat(n / 5) + "z.txt";
+  const { at16 } = linearAt("a long name, then down and up", {
+    size: 1000,
+    make: (n) => ({ io: fakeIo(base), rel: shape(n) }),
+    read: ({ io, rel }) => fileInside(app, rel, io),
+  });
+  assert.equal(at16, null, "missing, inside");
+  assert.ok(path.join(app, shape(16000)).length <= 32767, "under the cap at 16 times");
 });
 
 test("fileInside: a chain of broken links (the longest followed), with a missing tail of many components", () => {

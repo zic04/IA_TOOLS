@@ -530,7 +530,8 @@ as untrusted input:
   `.env::$DATA`) is left out, and so is what is not a file in `app.dir` once links are followed (a symbolic link, a
   junction) or is a secret file (`.env`, a key) under the name the system gives it (`realpathSync.native`: a short
   name such as `ENV~1`, or another case, is the real `.env`) — the context of a page gives its files whole to an
-  agent;
+  agent. A glob never walks into a link or a junction, nor through one before its first `*` (`linked/**`): the names
+  of a folder outside are never listed;
 - the `secrets` and `security` sources read the files `git ls-files` lists, which holds a committed link as a file
   (and a folder of its index may be a junction on disk): a file whose real path, links and junctions followed
   (`realpathSync.native`, the confinement of the `sources` above), is not in the application is never opened, so no
@@ -547,14 +548,17 @@ as untrusted input:
   entry of `sync.json`), the `file` of a `facts/api.json` item or a route file through a junction that lies outside
   the application is never read, hashed nor shown by git, never counted deleted, and `sync.dependencyOutside` says
   so. A proof or a dependency through a link out of the application is outside whether its file exists there or
-  not (judged by where its nearest existing folder really is, found by bisection: a path of thousands of missing
-  parts costs a few calls, and one longer than 32,767 characters, Windows' limit, is missing without any), and a
-  link that leads nowhere is judged by its target as written (32 links at most: a loop is outside too), except a
-  target with a `..` after a name (`j/../x`), which is outside: the system takes that `..` from wherever `j` leads,
-  the text cannot. The cap holds for the path as written too, before `path.resolve` reads it (quadratic on `a/`
-  repeated then `b/../` repeated): climbing out (`../`) is judged first, in one pass, and a path padded past the cap
-  (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor
-  `--since` tells whether a file of the operator exists.
+  not (judged by where its nearest existing folder really is, found by bisection, a root asked apart — Windows'
+  realpath fails on `\\?\C:\` and resolves `\\?\C:\Users` —: a path of thousands of missing parts costs a few calls,
+  and one longer than 32,767 characters, Windows' limit, is missing without any), and a link that leads nowhere is
+  judged by its target as written (a share under the device prefix, `\\?\UNC\host\share\x`, as `\\host\share\x`; 32
+  links at most: a loop is outside too), except a target with a `..` after a name (`j/../x`), which is outside: the
+  system takes that `..` from wherever `j` leads, the text cannot. The cap holds for the path as written too, but
+  climbing out (`../`) is judged first, outside whatever its length: the path is joined in one pass, never by
+  `path.resolve` (quadratic on `a/` repeated then `b/../` repeated, or on a long name then `b/../` repeated), and a
+  path padded past the cap (`./` 20,000 times before `lib/a.txt`) is missing, though it names a file. Neither the marking, the report nor `--since` tells whether a file of the operator exists.
+  A broken link written as another device path of Windows (`\\?\GLOBALROOT\Device\…`) may be judged outside where
+  it leads inside: a false "outside", never a file read outside.
   Every real path of this confinement is compared exactly, case included: in a case-sensitive folder (WSL's, or
   one `fsutil` marks so), a sibling `APP` of `app` is another folder, outside. `realpathSync.native` gives the case
   on disk on Windows and macOS; on a case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs) it keeps the

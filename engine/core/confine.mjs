@@ -3,7 +3,8 @@
 // folder read. The one helper of the readers that a link could lead out of their folder: the `sources` of a page or a
 // feature (engine/sync/feature-files.mjs), the files a proof cites and the dependency files of a page (fileInside:
 // engine/sync), the files the `secrets` and `security` facts scan (engine/facts/common.mjs: `git ls-files` lists a
-// committed link as a file), the converted documents of the sources, the project's adapters.
+// committed link as a file), the converted documents of the sources, the project's adapters; and the folder a glob of
+// `sources` starts its walk from (plainFolders).
 import fs from "node:fs";
 import path from "node:path";
 
@@ -18,7 +19,7 @@ const MAX_LINKS = 32;
 /**
  * The longest path a file system resolves: Windows' (32,767 UTF-16 units, which a string's length counts), past
  * POSIX's (4,096 bytes a call). A longer one is missing for fileInside, answered without the file system; so is a
- * longer `rel` as written, answered without path.resolve too (climbsOut).
+ * longer `rel` as written, whatever it resolves to (joinAsWritten).
  */
 const MAX_PATH = 32767;
 
@@ -65,6 +66,28 @@ export function realInside(realBase, target, io = fs) {
 }
 
 /**
+ * Whether each of the folders `names` (`.` and empty ones are nothing), from `top` down, is a folder, not a link or a
+ * junction (lstat: never followed): the rule of the walks of the application (adapterTools.walk, listFiles), which go
+ * only into an entry that is a folder, as a link to one is not. For a walk that starts below `top` at a path untrusted
+ * text names (the fixed part of a `sources` glob, engine/sync/dependencies.mjs): a junction there to a folder outside
+ * would have its names listed.
+ * @param {string} top
+ * @param {string[]} names
+ */
+export function plainFolders(top, names) {
+  let at = top;
+  for (const part of names.filter((x) => x && x !== ".")) {
+    at = path.join(at, part);
+    try {
+      if (!fs.lstatSync(at).isDirectory()) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * @typedef {RealPathIo & { statSync: (p: string) => { isFile(): boolean },
  *   lstatSync: (p: string) => { isSymbolicLink(): boolean }, readlinkSync: (p: string) => string }} ConfineIo
  */
@@ -72,12 +95,13 @@ export function realInside(realBase, target, io = fs) {
 /**
  * The file `rel` (relative to the folder `dir`) names, for a reader that must stay in that folder — the file a proof
  * cites, a dependency of a page (engine/sync): its real path when it is a file inside `dir`, links and junctions
- * followed; "outside" when it climbs out as written (`../`, climbsOut, whatever its length), or really lies outside,
- * or would were it there (a link or a junction followed, missingOutside): never read, and whether a file outside
- * exists is never told; null when there is no such file in `dir` (missing, a folder, a broken link that stays inside,
- * a path longer than MAX_PATH). The length is checked on `rel` as written before path.resolve is given it (quadratic
- * on some shapes, climbsOut), then on the path resolved: a `rel` padded past MAX_PATH (`./` 20,000 times before
- * `lib/a.txt`) is missing too, though it names a file, which no writer of a proof does.
+ * followed; "outside" when it climbs out as written (`../`, joinAsWritten, whatever its length), or really lies
+ * outside, or would were it there (a link or a junction followed, missingOutside): never read, and whether a file
+ * outside exists is never told; null when there is no such file in `dir` (missing, a folder, a broken link that stays
+ * inside, a path longer than MAX_PATH). The path is joined in one pass, never by path.resolve (quadratic on some
+ * shapes, joinAsWritten); its length is checked on `rel` as written, then on the path joined: a `rel` padded past
+ * MAX_PATH (`./` 20,000 times before `lib/a.txt`) is missing too, though it names a file, which no writer of a proof
+ * does.
  * @param {string} dir
  * @param {string} rel
  * @param {ConfineIo} [io]
@@ -86,9 +110,10 @@ export function realInside(realBase, target, io = fs) {
 export function fileInside(dir, rel, io = fs) {
   const P = io.path ?? path;
   const top = P.resolve(dir);
-  if (climbsOut(top, rel, P)) return "outside";
-  if (rel.length > MAX_PATH) return null;
-  const abs = P.resolve(P.join(top, rel));
+  const written = joinAsWritten(top, rel, P, rel.length <= MAX_PATH);
+  if (!written) return "outside";
+  if (!written.names) return null; // past MAX_PATH as written
+  const abs = written.root + written.names.join(P.sep);
   if (abs.length > MAX_PATH) return null;
   const base = realPathOf(dir, io);
   if (!base) return null;
@@ -103,23 +128,27 @@ export function fileInside(dir, rel, io = fs) {
 }
 
 /**
- * Whether `rel`, joined to the folder `top` (resolved), lies outside it as written: what path.resolve answers
- * (`P.resolve(P.join(top, rel))` neither `top` nor under it), in one pass over the parts of `rel`, where
- * path.resolve is quadratic on `a/`×n then `b/../`×n (each `..` cuts the path built so far, copied whole) and `rel`
- * comes from a page's text. A name goes down, `..` up, never above the root path.resolve gives (`\\?\` for
- * `\\?\C:\app`, a name `C:` under it), `.` and an empty part are nothing; `\` separates too under Windows' rules.
- * Out of `top`, a path may come back by its names (`../app/x` from `app` is inside): `up` counts the folders of
- * `top` it left, `off` the names it went down that are not `top`'s. A drive, a server or `\\?\` in `rel` is a name:
- * join puts `rel` under `top`.
+ * `rel` joined to the folder `top` (resolved) as path.resolve gives it (`P.resolve(P.join(top, rel))` is
+ * `root + names.join(P.sep)`), or null when that lies outside `top` as written (neither `top` nor under it): in one
+ * pass over the parts of `rel`, where path.resolve is quadratic (each `..` cuts the path built so far, copied whole:
+ * `a/`×n then `b/../`×n, a long name then `b/../`×n) and `rel` comes from a page's text. A name goes down, `..` up,
+ * never above the root path.resolve gives (`\\?\` for `\\?\C:\app`, a name `C:` under it), `.` and an empty part are
+ * nothing; `\` separates too under Windows' rules. Out of `top`, a path may come back by its names (`../app/x` from
+ * `app` is inside): `depth` counts the names of the path, `same` how many of the first ones are `top`'s. A drive, a
+ * server or `\\?\` in `rel` is a name: join puts `rel` under `top`. Without `keep` (a `rel` past MAX_PATH, whose path
+ * is not asked), the names are counted, never kept: memory stays constant whatever the length of `rel`.
  * @param {string} top   P.resolve(dir)
  * @param {string} rel
  * @param {import("node:path").PlatformPath} P
+ * @param {boolean} keep   whether to keep the names (`names` null otherwise)
+ * @returns {{ root: string, names: string[]|null }|null}
  */
-function climbsOut(top, rel, P) {
+function joinAsWritten(top, rel, P, keep) {
   const root = P.resolve(top, P.sep);
-  const names = top.length > root.length ? top.slice(root.length).split(P.sep) : [];
-  let up = 0;
-  let off = 0;
+  const own = top.length > root.length ? top.slice(root.length).split(P.sep) : [];
+  const names = keep ? own.slice() : null;
+  let depth = own.length;
+  let same = own.length;
   let start = 0;
   for (let i = 0; i <= rel.length; i++) {
     if (i < rel.length && rel[i] !== "/" && rel[i] !== P.sep) continue;
@@ -127,12 +156,16 @@ function climbsOut(top, rel, P) {
     start = i + 1;
     if (part === "" || part === ".") continue;
     if (part === "..") {
-      if (off > 0) off--;
-      else if (up < names.length) up++;
-    } else if (off === 0 && up > 0 && part === names[names.length - up]) up--;
-    else off++;
+      if (depth > 0) depth--;
+      if (same > depth) same = depth;
+      names?.pop();
+    } else {
+      if (same === depth && same < own.length && part === own[same]) same++;
+      depth++;
+      names?.push(part);
+    }
   }
-  return up > 0;
+  return same < own.length ? null : { root, names };
 }
 
 /**
@@ -185,7 +218,13 @@ function ancestorEnds(abs, P) {
  * the one at `lo` (known to resolve to `real`; -1, none known) and `abs` itself, the last (known not to). From the
  * deep end first, by steps that double — a missing file in a folder that exists, the usual case, costs one call —,
  * then by halves: O(log depth) calls, where asking every ancestor, each call given the whole path, cost depth times
- * length on a deep path that untrusted text names.
+ * length on a deep path that untrusted text names. A folder resolves only if its parent does, but for a root: Windows'
+ * realpath fails on `\\?\C:\` and resolves `\\?\C:\Users`. With none known, the bisection runs below the root, and the
+ * root is asked last, alone, when nothing below it resolves: so "nothing there" is never concluded from the root.
+ * A device path deeper than its root that does not resolve (`\\?\UNC\host` above `\\?\UNC\host\share`) would break
+ * that order too: a link's target is given without that prefix (withoutUncPrefix), and any other form kept
+ * (`\\?\GLOBALROOT\Device\…`) gives at worst a false "outside" — the bisection then finds no folder that resolves —,
+ * never a path judged inside that is not.
  * @param {string} abs
  * @param {number[]} ends   ancestorEnds(abs)
  * @param {number} lo
@@ -194,6 +233,8 @@ function ancestorEnds(abs, P) {
  * @returns {{ at: number, real: string|null }}
  */
 function nearestReal(abs, ends, lo, real, io) {
+  const rootUnknown = lo < 0;
+  if (rootUnknown) lo = 0; // the root, asked apart below
   let hi = ends.length - 1;
   let step = 1;
   let found = false;
@@ -209,12 +250,15 @@ function nearestReal(abs, ends, lo, real, io) {
       step *= 2;
     }
   }
-  return { at: lo, real };
+  if (!rootUnknown || found) return { at: lo, real };
+  const root = hi > 0 ? realPathOf(abs.slice(0, ends[0]), io) : null; // hi 0: `abs` is the root, known not to resolve
+  return root ? { at: 0, real: root } : { at: -1, real: null };
 }
 
 /**
- * The target of `p` when it is a link (one realPathOf cannot follow), resolved from the real folder it is in; UNPLACED
- * when its text cannot place it (climbsAfterName); null when it is not a link, or not there.
+ * The target of `p` when it is a link (one realPathOf cannot follow), resolved from the real folder it is in (a share
+ * under Windows' device prefix as the share it names: withoutUncPrefix); UNPLACED when its text cannot place it
+ * (climbsAfterName); null when it is not a link, or not there.
  * @param {string} p
  * @param {ConfineIo} io
  * @returns {string|null|typeof UNPLACED}
@@ -225,11 +269,31 @@ function brokenLinkTarget(p, io) {
     if (!io.lstatSync(p).isSymbolicLink()) return null;
     const folder = realPathOf(P.dirname(p), io);
     if (!folder) return null;
-    const target = io.readlinkSync(p);
+    const target = withoutUncPrefix(io.readlinkSync(p), P.sep);
     return climbsAfterName(target, P.sep) ? UNPLACED : P.resolve(folder, target);
   } catch {
     return null;
   }
+}
+
+/**
+ * A link's target written as a share under Windows' device prefix, as the share it names — the path
+ * realpathSync.native gives: `\\?\UNC\host\share\x` (or `\\.\`, `UNC` in any case, either separator) is
+ * `\\host\share\x`. Under that prefix, `\\?\UNC\host` does not resolve while `\\?\UNC\host\share` does: a folder
+ * deeper than the root (`\\?\UNC\`) against the order nearestReal counts on. A drive's (`\\?\C:\x`) needs nothing:
+ * only its root (`\\?\C:\`) does not resolve, and nearestReal asks a root apart. Any other target is kept as it is —
+ * one without a server and a share too (`\\?\UNC\host`, which never resolves) —, under POSIX' rules every one.
+ * @param {string} target
+ * @param {string} sep   the separator of the system, `/` also counting
+ */
+function withoutUncPrefix(target, sep) {
+  const isSep = (/** @type {string|undefined} */ c) => c === "/" || c === sep;
+  const device = isSep(target[0]) && isSep(target[1]) && (target[2] === "?" || target[2] === ".") && isSep(target[3]);
+  if (sep !== "\\" || !device || target.slice(4, 7).toUpperCase() !== "UNC" || !isSep(target[7])) return target;
+  const share = target.slice(8);
+  let i = 0;
+  while (i < share.length && !isSep(share[i])) i++; // the server's name
+  return i > 0 && isSep(share[i]) && i + 1 < share.length && !isSep(share[i + 1]) ? "\\\\" + share : target;
 }
 
 /**

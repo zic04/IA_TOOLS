@@ -15,7 +15,7 @@ import { apiRoutesCalledBy } from "./api-links.mjs";
 import { featureOf, featureDependencies, safeSources, behaviourLines } from "./feature-files.mjs";
 import { topicOf } from "../core/counterparts.mjs";
 import { isPlainName } from "../core/text.mjs";
-import { fileInside, within } from "../core/confine.mjs";
+import { fileInside, plainFolders, within } from "../core/confine.mjs";
 
 /** Files read, cached for the lifetime of the process (ARCHITECTURE.md §8, performance). */
 const fileCache = new Map();
@@ -126,13 +126,19 @@ export function writtenPages({ root, config, toc }) {
   return out;
 }
 
-/** Files of a glob relative to `base` (literal path kept as is when it has no "*" and exists). */
+/**
+ * Files of a glob relative to `base` (literal path kept as is when it has no "*" and exists). The walk starts at the
+ * glob's fixed part (before its first "*"), entered as the walk enters a folder (adapterTools.walk): one part at a
+ * time, each a folder, never a link or a junction (plainFolders) — a junction there to a folder outside the
+ * application would have its names listed.
+ */
 function globFiles(tools, base, pattern) {
   if (!pattern.includes("*")) return tools.exists(pattern) ? [pattern] : [];
   const parts = pattern.split("/");
   const i = parts.findIndex((p) => p.includes("*"));
   const dir = i < 0 ? base : [base, ...parts.slice(0, i)].filter((x) => x && x !== ".").join("/") || ".";
   const sub = i < 0 ? parts.at(-1) : parts.slice(i).join("/");
+  if (!plainFolders(tools.resolve(base), parts.slice(0, Math.max(i, 0)))) return [];
   return tools.glob(sub, dir).map((f) => (dir === "." ? f : `${dir}/${f}`));
 }
 

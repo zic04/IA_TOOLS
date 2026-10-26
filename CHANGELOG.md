@@ -6,6 +6,35 @@ entries between a project's `kit` range and the installed version.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A broken link under a root that does not resolve is no longer judged outside by mistake** (`fileInside`,
+  engine/core/confine.mjs, SECURITY.md): on Windows, realpath fails on `\\?\C:\` and on `\\?\UNC\host` while it
+  resolves `\\?\C:\Users` and `\\?\UNC\host\share`, so a broken link written `\\?\C:\srv\app\gone` could be judged
+  "outside" at some depths and not at others (`l/x.txt` inside, `l/d0/d1/x.txt` outside). The bisection now asks a
+  root apart, last, when nothing below it resolves, and a link's target `\\?\UNC\host\share\x` is read as
+  `\\host\share\x`: the answers are the walk's at every depth. The wrong answer was on the safe side (a file inside
+  taken for one outside, never the reverse).
+- **A `sources` glob no longer lists a folder outside the application through a junction** (`globFiles`,
+  engine/sync/dependencies.mjs): `linked/**/*.ts`, `linked` a junction or a link to a folder outside, had the walk
+  list that folder's names (none of its files kept, none read). The fixed part of a glob is now entered as the walk
+  enters a folder (adapterTools.walk, the route readers'), one folder at a time, never a link or a junction
+  (`plainFolders`, engine/core/confine.mjs) — one inside the application is not followed either, as `**` never
+  followed one.
+- **The path a proof or a dependency names is joined in one pass** (`fileInside`): `path.resolve` was quadratic on a
+  long name then `b/../` repeated under the 32,767-character cap (30 to 70 ms a call for 32,000 characters); the path
+  is now built in the pass that judges climbing out, the same path, character for character (a property test against
+  `path.resolve` on 12,000 paths under both systems' rules, a growth test), its names counted, never kept, past the
+  cap.
+
+### Changed
+
+- **The rules of the confinement written where `sync` is described**: ARCHITECTURE.md §6.10 and the pitfalls of
+  `sync` (`docs/{en,fr}/content/publish/sync.md`) name the rules of a broken link (the `..` after a name, 32 links at
+  most), the 32,767-character cap (a proof padded with `./` past it is `sync.proofUnresolved`; a path that climbs out
+  is outside whatever its length), the globs that never walk through a link, and the worst case on a
+  case-insensitive Linux mount (ext4 with casefold, WSL's DrvFs): a false "outside", never a file read outside.
+
 ## [0.4.2] - 2026-10-25
 
 ### Added

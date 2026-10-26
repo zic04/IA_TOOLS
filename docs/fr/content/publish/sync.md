@@ -193,6 +193,17 @@ construction.
 > un chemin est vérifié, puis lu, donc un fichier ou un dossier remplacé par un lien entre les deux, par un processus
 > qui modifie l'application pendant que `sync` s'exécute, n'est pas vu.
 
+> [!NOTE] Liens, chemins longs et globs
+> Un lien cassé est jugé par sa cible telle qu'elle est écrite, 32 liens au plus : au-delà (une boucle), il est hors
+> de l'application. Une cible avec un `..` après un nom (`j/../x`) l'est aussi : le système prend ce `..` là où mène
+> `j`, ce que le texte ne peut pas dire. Un chemin de plus de 32 767 caractères, tel qu'il est écrit ou une fois
+> joint, est absent, sauf s'il sort de l'application tel qu'il est écrit (`../`) : il est alors hors de
+> l'application, quelle que soit sa longueur. Une preuve allongée de `./` au-delà de cette longueur ne nomme donc
+> aucun fichier, et le dit par `sync.proofUnresolved`. Un glob de `sources` n'entre jamais dans un lien ou une
+> jonction, ni par l'un d'eux avant son premier `*` (`linked/**`) : il n'y liste rien. Sur un montage Linux insensible à la casse (ext4 avec casefold,
+> DrvFs de WSL), un fichier de l'application écrit dans une autre casse peut être jugé hors de l'application : le
+> pire cas est un faux « hors de l'application », jamais un fichier lu hors de l'application.
+
 ## Pour aller plus loin
 
 - [Commandes : rédiger et vérifier](#/reference/cli/write-check~doc-kit-sync) : chaque option, en détail.
